@@ -3556,10 +3556,11 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
 }
 
 
-static int create_sub_table(const char *table_name, int flags) {
+static int create_sub_table(const char *table_name, int flags , DBT* row_descriptor) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file = NULL;
+    
     DBUG_PRINT("enter", ("flags: %d", flags));
     
     error = db_create(&file, db_env, 0);
@@ -3570,13 +3571,20 @@ static int create_sub_table(const char *table_name, int flags) {
     }
         
     file->set_flags(file, flags);
+
+    error = file->set_descriptor(file, row_descriptor);
+    if (error) {
+        DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
+        goto exit;
+    }
+    
     error = file->open(file, NULL, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
     } 
 
-    (void) file->close(file, 0);
+    file->close(file, 0);
     error = 0;
 exit:
     if (error) {
@@ -3789,7 +3797,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(name_buff, 0);
+    error = create_sub_table(name_buff, 0, NULL);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
     }
@@ -3807,7 +3815,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             sprintf(part, "key-%s", form->s->key_info[i].name);
             make_name(newname, name, part);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            error = create_sub_table(name_buff, flags);
+            error = create_sub_table(name_buff, flags, NULL);
             if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
                 TOKUDB_TRACE("create:%s:flags=%ld:error=%d\n", newname, form->key_info[i].flags, error);
             }
@@ -4353,7 +4361,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         sprintf(part, "key-%s", key_info[i].name);
         make_name(newname, share->table_name, part);
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-        error = create_sub_table(name_buff, flags);
+        error = create_sub_table(name_buff, flags, NULL);
         if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
             TOKUDB_TRACE("create:%s:flags=%ld:error=%d\n", newname, key_info[i].flags, error);
         }
