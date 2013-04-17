@@ -3242,7 +3242,7 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, WRIT
     flag &= ~lock_flags;
     if (context->is_write_op) lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
     assert(flag==0);
-    context->do_locking = (BOOL)(context->db->i->lt!=NULL && !lock_flags);
+    context->do_locking = (BOOL)(context->db->i->lt!=NULL && !(lock_flags & (DB_PRELOCKED|DB_PRELOCKED_WRITE)));
     context->r_user_callback = 0;
 }
 
