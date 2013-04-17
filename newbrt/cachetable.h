@@ -15,8 +15,6 @@
 extern int STRADDLE_HACK_INSIDE_CALLBACK;
 #endif
 
-
-
 // Maintain a cache mapping from cachekeys to values (void*)
 // Some of the keys can be pinned.  Don't pin too many or for too long.
 // If the cachetable is too full, it will call the flush_callback() function with the key, the value, and the otherargs
@@ -31,6 +29,8 @@ extern int STRADDLE_HACK_INSIDE_CALLBACK;
 // size limit is the upper bound of the sum of size of the entries in the cache table (total number of bytes)
 
 typedef BLOCKNUM CACHEKEY;
+
+// cachetable operations
 
 int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_lsn, TOKULOGGER);
 // Create a new cachetable.
@@ -49,10 +49,6 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*testcallback_f)(void*),  void * testextra);
 
-// Does an fsync of a cachefile.
-// Handles the case where cf points to /dev/null
-int toku_cachefile_fsync(CACHEFILE cf);
-
 // Shuts down checkpoint thread
 // Requires no locks be held that are taken by the checkpoint function
 void toku_cachetable_minicron_shutdown(CACHETABLE ct);
@@ -67,12 +63,19 @@ int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, const 
 
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env /*(used for logging)*/);
+int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env, BOOL with_filenum, FILENUM filenum);
 
 // Get access to the asynchronous work queue
 // Returns: a pointer to the work queue
 WORKQUEUE toku_cachetable_get_workqueue (CACHETABLE);
 
+// cachefile operations
+
 void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threads);
+
+// Does an fsync of a cachefile.
+// Handles the case where cf points to /dev/null
+int toku_cachefile_fsync(CACHEFILE cf);
 
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.

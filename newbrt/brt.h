@@ -45,6 +45,8 @@ int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 int toku_brt_set_bt_compare(BRT, brt_compare_func);
 int toku_brt_set_dup_compare(BRT, brt_compare_func);
 
+int toku_brt_set_filenum(BRT brt, FILENUM filenum);
+
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
 
@@ -54,28 +56,28 @@ int toku_brt_broadcast_commit_all (BRT brt);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 
 // Effect: Insert a key and data pair into a brt
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
 
 // Effect: Delete a key from a brt
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_delete (BRT brt, DBT *k, TOKUTXN txn);
 
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, LSN oplsn);
 
 // Effect: Delete a pair only if both k and v are equal according to the comparison function.
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn); 
 
 // Effect: Delete a pair only if both k and v are equal according to the comparison function and the
 // oplsn is newer than the brt lsn.  This function is called by recovery.
-// Returns 0 if successfull
+// Returns 0 if successful
 int toku_brt_maybe_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
 
 int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags);

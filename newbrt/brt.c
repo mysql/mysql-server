@@ -2943,7 +2943,6 @@ brtheader_note_brt_open(BRT live) {
 }
 
 int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
-
     int r;
     BOOL txn_created = FALSE;
 
@@ -2965,7 +2964,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         BOOL did_create = FALSE;
         r = brt_open_file(t, fname, is_create, &fd, &did_create);
         if (r != 0) goto died00;
-        r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname_in_env);
+        r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, fname_in_env, t->did_set_filenum, t->filenum);
         if (r != 0) goto died00;
         if (did_create) {
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
@@ -3095,6 +3094,12 @@ int toku_brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const D
 
 int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
     brt->dup_compare = dup_compare;
+    return 0;
+}
+
+int toku_brt_set_filenum(BRT brt, FILENUM filenum) {
+    brt->did_set_filenum = TRUE;
+    brt->filenum = filenum;
     return 0;
 }
 
@@ -3302,8 +3307,9 @@ int toku_brt_create(BRT *brt_ptr) {
     list_init(&brt->zombie_brt_link);
     list_init(&brt->cursors);
     brt->flags = 0;
-    brt->did_set_flags = 0;
-    brt->did_set_descriptor = 0;
+    brt->did_set_flags = FALSE;
+    brt->did_set_descriptor = FALSE;
+    brt->did_set_filenum = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_default_compare_fun;
     brt->dup_compare = toku_default_compare_fun;
