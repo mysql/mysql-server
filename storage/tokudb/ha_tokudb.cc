@@ -4099,6 +4099,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     cursor_flags = get_cursor_isolation_flags(lock.type, thd);
     if ((error = share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, cursor_flags))) {
         if (error == TOKUDB_MVCC_DICTIONARY_TOO_NEW) {
+            error = HA_ERR_TABLE_DEF_CHANGED;
             my_error(ER_TABLE_DEF_CHANGED, MYF(0));
         }
         table->status = STATUS_NOT_FOUND;
