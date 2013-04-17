@@ -120,7 +120,6 @@ static void print_defines (void) {
     dodefine(DB_INIT_LOCK);
     dodefine(DB_INIT_LOG);
     dodefine(DB_INIT_MPOOL);
-    printf("#define DB_CLOSE_DONT_TRIM_LOG 1048576\n"); // tokudb
     dodefine(DB_INIT_TXN);
 
     //dodefine(DB_KEYEMPTY);      /// KEYEMPTY is no longer used.  We just use DB_NOTFOUND
