@@ -23,6 +23,7 @@ int test_main (int argc, char * const argv[]) {
   // cannot fit in the cachetable, but big enough such that 
   // we don't have cachet pressure
   r = env->set_cachesize(env, 0, 4*cachesize, 1); CKERR(r);
+  r = env->set_lg_bsize(env, 4096);                                                   CKERR(r);
   r = env->set_default_bt_compare(env, int64_dbt_cmp); CKERR(r);
   r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
