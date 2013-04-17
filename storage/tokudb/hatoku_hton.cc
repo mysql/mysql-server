@@ -120,6 +120,13 @@ extern "C" {
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
     int r;
+#if defined(_WIN64)
+        r = toku_ydb_init();
+        if (r) {
+            printf("got error %d\n", r);
+            goto error;
+        }
+#endif
     db_env = NULL;
     metadata_db = NULL;
 
@@ -334,6 +341,9 @@ static int tokudb_done_func(void *p) {
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
     pthread_mutex_destroy(&tokudb_meta_mutex);
+#if defined(_WIN64)
+        toku_ydb_destroy();
+#endif
     TOKUDB_DBUG_RETURN(0);
 }
 
