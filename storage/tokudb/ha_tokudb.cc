@@ -2408,8 +2408,11 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     nr = share->last_auto_increment + increment;
     share->last_auto_increment = nr + nb_desired_values - 1;
     pthread_mutex_unlock(&share->mutex);
+    if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT)
+        printf("%d:%s:%d:get_auto_increment(%lld,%lld,%lld):got:%lld:%lld\n",
+               my_tid(), __FILE__, __LINE__, offset, increment, nb_desired_values, nr, nb_desired_values);
     *first_value = nr;
-    *nb_reserved_values = ULONGLONG_MAX;
+    *nb_reserved_values = nb_desired_values;
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
