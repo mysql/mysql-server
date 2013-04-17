@@ -88,8 +88,9 @@ dir_create(void) {
         CKERR(r);
 }
 
+// pass in zeroes for default cachesize
 static void  UU()
-env_startup(void) {
+env_startup(int32_t gbytes, int32_t bytes) {
     int r;
     r = db_env_create(&env, 0);
         CKERR(r);
@@ -97,6 +98,10 @@ env_startup(void) {
         CKERR(r);
     r = env->set_default_dup_compare(env, int64_dbt_cmp);
         CKERR(r);
+    if (gbytes | bytes) {
+	r = env->set_cachesize(env, gbytes, bytes, 1);
+        CKERR(r);
+    }
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
     env->set_errfile(env, stderr);
@@ -262,8 +267,8 @@ generate_val(int64_t key) {
 }
 
 
-static void UU()
-insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
+static void
+insert_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, int offset) {
     int64_t k;
     int64_t v;
     int r;
@@ -280,7 +285,7 @@ insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
 
     for (i = 0; i<n; i++) {
 	k = firstkey + i;
-	v = generate_val(k);
+	v = generate_val(k) + offset;
 	dbt_init(&key, &k, sizeof(k));
 	dbt_init(&val, &v, sizeof(v));
 	if (db1) {
@@ -293,6 +298,20 @@ insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
 	}
     }
 }
+
+
+static void UU()
+insert_n_broken(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
+    insert_n(db1, db2, txn, firstkey, n, 2718);
+}
+
+
+static void UU()
+insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
+    insert_n(db1, db2, txn, firstkey, n, 0);
+}
+
+
 
 
 static void UU()
