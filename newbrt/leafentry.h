@@ -123,7 +123,6 @@ int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human
 int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
 uint32_t le_num_xids(LEAFENTRY le); //Return how many xids exist (0 does not count)
 int le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
-void*     le_latest_key (LEAFENTRY le); // Return the latest key (return NULL for provisional deletes)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
 u_int32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
@@ -151,7 +150,6 @@ void le_clean_xids(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *new_l
 //        le_outermost_uncommitted_xid will return 0 after this.
 //        Changes results of following pointer functions, but memcmp of old/new answers would say they're the same.
 //          Note: You would have to memdup the old answers before calling le_full_promotion, if you want to run the comparison
-//           le_latest_key()
 //           le_latest_val()
 //           le_key()
 //        le_outermost_uncommitted_xid will return 0 after this
