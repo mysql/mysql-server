@@ -1018,7 +1018,7 @@ int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
 }
 
 int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
-    int row_desc_offset = *(u_int32_t *)file->descriptor.size;
+    int row_desc_offset = *(u_int32_t *)file->descriptor.data;
     int cmp = tokudb_compare_two_keys(
         keya->data, 
         keya->size, 
