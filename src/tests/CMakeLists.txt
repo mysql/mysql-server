@@ -231,8 +231,6 @@ if(BUILD_TESTING)
       test_db_descriptor
       test_db_descriptor_named_db
       test_db_txn_locks_read_uncommitted
-      test_dupsort_get_both_range_reverse
-      test_dupsort_set_range_reverse
       test_get_max_row_size
       test_large_update_broadcast_small_cachetable
       test_locktree_close

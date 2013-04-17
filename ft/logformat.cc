@@ -58,7 +58,7 @@ const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"FILENUM", "filenum", 0},
                         {"BYTESTRING", "iname", 0},
                         NULLFIELD}, LOG_BEGIN_ACTION_NA},
-    // cmdinsert is used to insert a key-value pair into a NODUP DB.  For rollback we don't need the data.
+    // cmdinsert is used to insert a key-value pair into a DB.  For rollback we don't need the data.
     {"cmdinsert", 'i', FA{
                           {"FILENUM", "filenum", 0},
                           {"BYTESTRING", "key", 0},
