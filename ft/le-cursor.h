@@ -7,6 +7,8 @@
 #ifndef LE_CURSOR_H
 #define LE_CURSOR_H
 
+#include "ft-ops.h"
+
 // A leaf entry cursor (LE_CURSOR) is a special type of FT_CURSOR that visits all of the leaf entries in a tree
 // and returns the leaf entry to the caller.  It maintains a copy of the key that it was last positioned over to
 // speed up key comparisions with a given key.  For example, the hot indexing could use the _key_right_of_cursor
@@ -27,10 +29,10 @@ int toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN tx
 // Failure: returns a non-zero error number
 int toku_le_cursor_close(LE_CURSOR le_cursor);
 
-// Retrieve the next leaf entry under the LE_CURSOR
-// Success: returns zero, stores the leaf entry key into the key dbt, and the leaf entry into the val dbt
+// Move to the next leaf entry under the LE_CURSOR
+// Success: returns zero, calls the getf callback with the getf_v parameter
 // Failure: returns a non-zero error number
-int toku_le_cursor_next(LE_CURSOR le_cursor, DBT *le);
+int toku_le_cursor_next(LE_CURSOR le_cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 
 // Return TRUE if the key is to the right of the LE_CURSOR position. that is, current cursor key < given key
 // Otherwise returns FALSE when the key is at or to the left of the LE_CURSOR position. that is, current cursor key >= given key

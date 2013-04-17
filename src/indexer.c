@@ -67,10 +67,6 @@ toku_indexer_get_status(INDEXER_STATUS statp) {
 
 #define STATUS_VALUE(x) indexer_status.status[x].value.num
 
-
-
-
-
 #include "indexer-internal.h"
 
 static int build_index(DB_INDEXER *indexer);
@@ -148,6 +144,9 @@ toku_indexer_unlock(DB_INDEXER* indexer) {
     toku_mutex_unlock(&indexer->i->indexer_lock);
 }
 
+// forward declare the test-only wrapper function for undo-do
+static int test_indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
+
 int 
 toku_indexer_create_indexer(DB_ENV *env,
                             DB_TXN *txn,
@@ -176,7 +175,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->i->indexer_flags      = indexer_flags;
     indexer->i->loop_mod           = 1000; // call poll_func every 1000 rows
     indexer->i->estimated_rows     = 0; 
-    indexer->i->undo_do            = indexer_undo_do; // TEST export the undo do function
+    indexer->i->undo_do            = test_indexer_undo_do; // TEST export the undo do function
     
     XCALLOC_N(N, indexer->i->fnums);
     if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
@@ -280,48 +279,175 @@ toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key) {
     return toku_le_cursor_is_key_greater(indexer->i->lec, key);
 }
 
+// initialize provisional info by allocating enough space to
+// hold provisional ids, states, and txns for each of the
+// provisional entries in the ule. the ule remains owned by
+// the caller, not the prov info.
+static void 
+ule_prov_info_init(struct ule_prov_info *prov_info, ULEHANDLE ule) {
+    prov_info->ule = ule;
+    prov_info->num_provisional = ule_get_num_provisional(ule);
+    prov_info->num_committed = ule_get_num_committed(ule);
+    uint32_t n = prov_info->num_provisional;
+    if (n > 0) {
+        prov_info->prov_ids = toku_malloc(n * sizeof(prov_info->prov_ids));
+        prov_info->prov_states = toku_malloc(n * sizeof(prov_info->prov_states));
+        prov_info->prov_txns = toku_malloc(n * sizeof(prov_info->prov_txns));
+    }
+}
+
+// clean up anything possibly created by ule_prov_info_init()
+static void
+ule_prov_info_destroy(struct ule_prov_info *prov_info) {
+    if (prov_info->num_provisional > 0) {
+        toku_free(prov_info->prov_ids);
+        toku_free(prov_info->prov_states);
+        toku_free(prov_info->prov_txns);
+    } else {
+        // nothing to free if there was nothing provisional
+        invariant(prov_info->prov_ids == NULL);
+        invariant(prov_info->prov_states == NULL);
+        invariant(prov_info->prov_txns == NULL);
+    }
+}
+
+static void
+indexer_fill_prov_info(DB_INDEXER *indexer, struct ule_prov_info *prov_info) {
+    ULEHANDLE ule = prov_info->ule;
+    uint32_t num_provisional = prov_info->num_provisional;
+    uint32_t num_committed = prov_info->num_committed;
+    TXNID *prov_ids = prov_info->prov_ids;
+    TOKUTXN_STATE *prov_states = prov_info->prov_states;
+    TOKUTXN *prov_txns = prov_info->prov_txns;
+
+    // hold the txn manager lock while we inspect txn state
+    // and pin some live txns
+    DB_ENV *env = indexer->i->env;
+    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
+    toku_txn_manager_suspend(txn_manager); 
+    for (uint32_t i = 0; i < num_provisional; i++) {
+        UXRHANDLE uxr = ule_get_uxr(ule, num_committed + i);
+        prov_ids[i] = uxr_get_txnid(uxr);
+        if (indexer->i->test_xid_state) {
+            prov_states[i] = indexer->i->test_xid_state(indexer, prov_ids[i]);
+            prov_txns[i] = NULL;
+        }
+        else {
+            TOKUTXN txn = NULL;
+            toku_txn_manager_id2txn_unlocked(
+                txn_manager, 
+                prov_ids[i], 
+                &txn
+                );
+            prov_txns[i] = txn;
+            if (txn) {
+                prov_states[i] = toku_txn_get_state(txn);
+                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
+                    // pin this live txn so it can't commit or abort until we're done with it
+                    toku_txn_manager_pin_live_txn_unlocked(txn_manager, txn);
+                }
+            }
+            else {
+                prov_states[i] = TOKUTXN_RETIRED;
+            }
+        }
+    }
+    toku_txn_manager_resume(txn_manager);
+}
+    
+struct le_cursor_extra {
+    DB_INDEXER *indexer;
+    struct ule_prov_info *prov_info;
+};
+
+// cursor callback, so its synchronized with other db operations using 
+// cachetable pair locks. because no txn can commit on this db, read
+// the provisional info for the newly read ule.
+static int
+le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
+    if (lock_only || val == NULL) {
+        ; // do nothing if only locking or val==NULL, meaning there are no more elements
+    } else {
+        struct le_cursor_extra *cursor_extra = extra;
+        struct ule_prov_info *prov_info = cursor_extra->prov_info;
+        // TODO(John): Do we need to actually copy this ule and save it after
+        // copying all of the provisional info? or is the info all we need?
+        void *le_buf = toku_xmemdup(val, vallen);
+        ULEHANDLE ule = toku_ule_create(le_buf);
+        invariant(ule);
+        ule_prov_info_init(prov_info, ule);
+        indexer_fill_prov_info(cursor_extra->indexer, prov_info);
+    }
+    return 0;
+}
+
+// get the next ule and fill out its provisional info in the
+// prov_info struct provided. caller is responsible for cleaning
+// up the ule info after it's done.
+static int
+get_next_ule_with_prov_info(DB_INDEXER *indexer, struct ule_prov_info *prov_info) {
+    struct le_cursor_extra extra = {
+        .indexer = indexer,
+        .prov_info = prov_info,
+    };
+    int r = toku_le_cursor_next(indexer->i->lec, le_cursor_callback, &extra);
+    return r; 
+}
+
 static int 
 build_index(DB_INDEXER *indexer) {
     int result = 0;
-
-    DBT key; toku_init_dbt_flags(&key, DB_DBT_REALLOC);
-    DBT le; toku_init_dbt_flags(&le, DB_DBT_REALLOC);
 
     bool done = false;
     for (uint64_t loop_count = 0; !done; loop_count++) {
 
         toku_indexer_lock(indexer);
 
-        result = toku_le_cursor_next(indexer->i->lec, &le);
+        // grab the next leaf entry and get its provisional info. we'll
+        // need the provisional info for the undo-do algorithm, and we get
+        // it here so it can be read atomically with respect to txn commit
+        // and abort.
+        //
+        // this allocates space for the prov info, so we have to destroy it
+        // when we're done.
+        struct ule_prov_info prov_info;
+        memset(&prov_info, 0, sizeof(prov_info));
+        result = get_next_ule_with_prov_info(indexer, &prov_info);
+
         if (result != 0) {
+            invariant(prov_info.ule == NULL);
             done = true;
-            if (result == DB_NOTFOUND)
+            if (result == DB_NOTFOUND) {
                 result = 0;  // all done, normal way to exit loop successfully
+            }
         }
         else {
-            // this code may be faster ule malloc/free is not done every time
-            ULEHANDLE ule = toku_ule_create(le.data);
+            invariant(prov_info.ule);
+            ULEHANDLE ule = prov_info.ule;
             for (int which_db = 0; (which_db < indexer->i->N) && (result == 0); which_db++) {
                 DB *db = indexer->i->dest_dbs[which_db];
-                result = indexer_undo_do(indexer, db, ule);
-                if ( (result != 0) && (indexer->i->error_callback != NULL)) {
+                result = indexer_undo_do(indexer, db, ule, &prov_info);
+                if ((result != 0) && (indexer->i->error_callback != NULL)) {
+                    // grab the key and call the error callback
+                    DBT key; toku_init_dbt_flags(&key, DB_DBT_REALLOC);
                     toku_dbt_set(ule_get_keylen(ule), ule_get_key(ule), &key, NULL);
                     indexer->i->error_callback(db, which_db, result, &key, NULL, indexer->i->error_extra);
+                    toku_destroy_dbt(&key);
                 }
+                toku_ule_free(prov_info.ule);
             }
-            toku_ule_free(ule);
         }
 
         toku_indexer_unlock(indexer);
+        ule_prov_info_destroy(&prov_info);
         
-        if (result == 0) 
+        if (result == 0) {
             result = maybe_call_poll_func(indexer, loop_count);
-        if (result != 0)
+        }
+        if (result != 0) {
             done = true;
+        }
     }
-
-    toku_destroy_dbt(&key);
-    toku_destroy_dbt(&le);
 
     // post index creation cleanup
     //  - optimize?
@@ -333,7 +459,6 @@ build_index(DB_INDEXER *indexer) {
     } else {
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
     }
-
 
     return result;
 }
@@ -349,11 +474,7 @@ close_indexer(DB_INDEXER *indexer) {
     //   to create them are not in the recovery log.)
     DB_TXN     *txn = indexer->i->txn;
     TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
-    //BRT brt;  // caused a warning with -Wunused-but-set-variable
-    //DB *db;
     for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
-        //db = indexer->i->dest_dbs[which_db];
-        //brt = db_struct_i(db)->ft_handle;
         toku_txn_require_checkpoint_on_commit(tokutxn);
     }
 
@@ -447,6 +568,19 @@ void
 toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) {
     invariant(indexer != NULL);
     indexer->i->test_only_flags = flags;
+}
+
+// this allows us to call the undo do function in tests using
+// a convenience wrapper that gets and destroys the ule's prov info
+static int
+test_indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
+    struct ule_prov_info prov_info;
+    memset(&prov_info, 0, sizeof(prov_info));
+    ule_prov_info_init(&prov_info, ule);
+    indexer_fill_prov_info(indexer, &prov_info);
+    int r = indexer_undo_do(indexer, hotdb, ule, &prov_info);
+    ule_prov_info_destroy(&prov_info);
+    return r;
 }
 
 DB *

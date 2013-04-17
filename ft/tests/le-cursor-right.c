@@ -16,6 +16,21 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
+static int
+get_next_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
+    DBT *val_dbt = extra;
+    if (!lock_only) {
+        toku_dbt_set(vallen, val, val_dbt, NULL);
+    }
+    return 0;
+}
+
+static int
+le_cursor_get_next(LE_CURSOR cursor, DBT *val) {
+    int r = toku_le_cursor_next(cursor, get_next_callback, val);
+    return r;
+}
+
 static int 
 test_keycompare(DB* UU(desc), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
@@ -148,7 +163,7 @@ test_pos_infinity(const char *fname, int n) {
 
     int i;
     for (i = 0; ; i++) {
-        error = toku_le_cursor_next(cursor, &val);
+        error = le_cursor_get_next(cursor, &val);
         if (error != 0) 
             break;
         
@@ -210,7 +225,7 @@ test_between(const char *fname, int n) {
     int i;
     for (i = 0; ; i++) {
         // move the LE_CURSOR forward
-        error = toku_le_cursor_next(cursor, &val);
+        error = le_cursor_get_next(cursor, &val);
         if (error != 0) 
             break;
         
