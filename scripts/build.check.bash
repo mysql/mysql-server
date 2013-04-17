@@ -173,6 +173,7 @@ function build() {
     if [ -f /proc/version ] ; then
 	cat /proc/version >>$tracefile
     fi
+    env >>$tracefile 2>&1
 
     # checkout the source dir
     productbuilddir=$svnbase/$productname
@@ -188,7 +189,7 @@ function build() {
     # portability
     runcmd 0 $productbuilddir/$oschoice make -k -j$makejobs >>$tracefile 2>&1
     runcmd 0 $productbuilddir/$oschoice/tests make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/$oschoice/tests make -k -j$makejobs check >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/$oschoice/tests make -k -j$makejobs check -s SUMMARIZE=1 >>$tracefile 2>&1
 
     # newbrt
     runcmd 0 $productbuilddir/newbrt make -k -j$makejobs checko2 >>$tracefile 2>&1
@@ -257,7 +258,7 @@ function build() {
     if [ $dowindows -eq 0 ] ; then
         # cilk debug build
 	runcmd 0 $productbuilddir make -s clean >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/newbrt/tests make -s DEBUG=1 BRTLOADER=cilk >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/newbrt make -s DEBUG=1 BRTLOADER=cilk >>$tracefile 2>&1
 
         # run the loader tests with cilkscreen
 	runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader DEBUG=1 BRTLOADER=cilk -s SUMMARIZE=1 >>$tracefile 2>&1
