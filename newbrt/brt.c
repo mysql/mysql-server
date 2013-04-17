@@ -2665,7 +2665,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     t->h->block_translation_size_on_disk = 0;
     t->h->block_translation_address_on_disk = 0;
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
-    create_block_allocator(&t->h->block_allocator, t->nodesize, BLOCK_ALLOCATOR_ALIGNMENT);
+    create_block_allocator(&t->h->block_allocator, BLOCK_ALLOCATOR_HEADER_RESERVE, BLOCK_ALLOCATOR_ALIGNMENT);
     toku_fifo_create(&t->h->fifo);
     t->h->root_put_counter = global_root_put_counter++; 
     if (dbname) {

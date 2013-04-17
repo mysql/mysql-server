@@ -284,4 +284,9 @@ int toku_brtheader_close (CACHEFILE cachefile, void *header_v);
 
 #define BLOCK_ALLOCATOR_ALIGNMENT 4096
 
+// How much must be reserved at the beginning for the block? 
+//  The actual header is 8+4+4+8+8_4+8+ the length of the db names + 1 pointer for each root. 
+//  So 4096 should be enough. 
+#define BLOCK_ALLOCATOR_HEADER_RESERVE 4096 
+
 #endif
