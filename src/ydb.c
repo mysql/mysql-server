@@ -1940,6 +1940,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->txn_commit  = txnstat.commit;
 	    engstat->txn_abort   = txnstat.abort;
 	    engstat->txn_close   = txnstat.close;
+	    engstat->txn_num_open = txnstat.num_open;
+	    engstat->txn_max_open = txnstat.max_open;
 	    {
 		uint64_t oldest_xid = 0;
                 time_t   oldest_starttime = 0;
@@ -2005,6 +2007,11 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->range_write_locks               = ltmstat.write_lock;
 	    engstat->range_write_locks_fail          = ltmstat.write_lock_fail;
 	    engstat->range_out_of_write_locks        = ltmstat.out_of_write_locks;
+	    engstat->range_lt_create                 = ltmstat.lt_create;
+	    engstat->range_lt_create_fail            = ltmstat.lt_create_fail;
+	    engstat->range_lt_destroy                = ltmstat.lt_destroy;
+	    engstat->range_lt_num                    = ltmstat.lt_num;
+	    engstat->range_lt_num_max                = ltmstat.lt_num_max;
 	}
 	{
      	    engstat->inserts            = num_inserts;
@@ -2023,6 +2030,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->multi_updates_fail = num_multi_updates_fail;
 	    engstat->point_queries      = num_point_queries;
 	    engstat->sequential_queries = num_sequential_queries;
+	    engstat->num_db_open        = num_db_open;
+	    engstat->num_db_close       = num_db_close;
+	    engstat->num_open_dbs       = num_open_dbs;
+	    engstat->max_open_dbs       = max_open_dbs;
             engstat->directory_read_locks = directory_read_locks;
             engstat->directory_read_locks_fail = directory_read_locks_fail;
             engstat->directory_write_locks = directory_write_locks;
@@ -2237,6 +2248,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
 	n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
 	n += snprintf(buff + n, bufsiz - n, "txn_close                        %"PRIu64"\n", engstat.txn_close);
+	n += snprintf(buff + n, bufsiz - n, "txn_num_open                     %"PRIu64"\n", engstat.txn_num_open);
+	n += snprintf(buff + n, bufsiz - n, "txn_max_open                     %"PRIu64"\n", engstat.txn_max_open);
 	n += snprintf(buff + n, bufsiz - n, "txn_oldest_live                  %"PRIu64"\n", engstat.txn_oldest_live);
 	n += snprintf(buff + n, bufsiz - n, "next_lsn                         %"PRIu64"\n", engstat.next_lsn);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
@@ -2277,6 +2290,11 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "range_write_locks                %"PRIu64"\n", engstat.range_write_locks);
 	n += snprintf(buff + n, bufsiz - n, "range_write_locks_fail           %"PRIu64"\n", engstat.range_write_locks_fail);
 	n += snprintf(buff + n, bufsiz - n, "range_out_of_write_locks         %"PRIu64"\n", engstat.range_out_of_write_locks);
+	n += snprintf(buff + n, bufsiz - n, "range_lt_create                  %"PRIu64"\n", engstat.range_lt_create);
+	n += snprintf(buff + n, bufsiz - n, "range_lt_create_fail             %"PRIu64"\n", engstat.range_lt_create_fail);
+	n += snprintf(buff + n, bufsiz - n, "range_lt_destroy                 %"PRIu64"\n", engstat.range_lt_destroy);
+	n += snprintf(buff + n, bufsiz - n, "range_lt_num                     %"PRIu64"\n", engstat.range_lt_num);
+	n += snprintf(buff + n, bufsiz - n, "range_lt_num_max                 %"PRIu64"\n", engstat.range_lt_num_max);
 	n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
 	n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
@@ -2315,6 +2333,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
         n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
+        n += snprintf(buff + n, bufsiz - n, "flush_in_memory                  %"PRIu64"\n", engstat.flush_in_memory);
         n += snprintf(buff + n, bufsiz - n, "flush_needed_io                  %"PRIu64"\n", engstat.flush_needed_io);
         n += snprintf(buff + n, bufsiz - n, "flush_cascades                   %"PRIu64"\n", engstat.flush_cascades);
         n += snprintf(buff + n, bufsiz - n, "flush_cascades_1                 %"PRIu64"\n", engstat.flush_cascades_1);
@@ -2345,6 +2364,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "multi_updates_fail               %"PRIu64"\n", engstat.multi_updates_fail);
 	n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
 	n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
+	n += snprintf(buff + n, bufsiz - n, "num_db_open                      %"PRIu64"\n", engstat.num_db_open);
+	n += snprintf(buff + n, bufsiz - n, "num_db_close                     %"PRIu64"\n", engstat.num_db_close);
+	n += snprintf(buff + n, bufsiz - n, "num_open_dbs                     %"PRIu64"\n", engstat.num_open_dbs);
+	n += snprintf(buff + n, bufsiz - n, "max_open_dbs                     %"PRIu64"\n", engstat.max_open_dbs);
 	n += snprintf(buff + n, bufsiz - n, "directory_read_locks             %"PRIu64"\n", engstat.directory_read_locks);
 	n += snprintf(buff + n, bufsiz - n, "directory_read_locks_fail        %"PRIu64"\n", engstat.directory_read_locks_fail);
 	n += snprintf(buff + n, bufsiz - n, "directory_write_locks            %"PRIu64"\n", engstat.directory_write_locks);
