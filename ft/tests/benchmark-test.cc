@@ -9,7 +9,7 @@
 #include "includes.h"
 #include <toku_time.h>
 
-static const char *fname ="sinsert.ft_handle";
+static const char *fname ="sinsert.ft";
 
 enum { SERIAL_SPACING = 1<<6 };
 int64_t ITEMS_TO_INSERT_PER_ITERATION = 1<<20;
