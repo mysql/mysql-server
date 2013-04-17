@@ -27,7 +27,9 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
+#ifndef TOKU_WINDOWS
 #include "dlmalloc.h"
+#endif
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -3667,7 +3669,9 @@ int db_env_set_func_free (void (*f)(void*)) {
 }
 // Got to call dlmalloc, or else it won't get included.
 void setup_dlmalloc (void) {
+#ifndef TOKU_WINDOWS
     db_env_set_func_malloc(dlmalloc);
     db_env_set_func_realloc(dlrealloc);
     db_env_set_func_free(dlfree);
+#endif
 }

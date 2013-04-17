@@ -17,7 +17,7 @@ CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 YDB=ydb.$(AEXT)
 YDB_BUNDLE=ydb.bundle
 TYDB=tydb.$(AEXT)
-TYDB=tydb.bundle
+TYDB_BUNDLE=tydb.bundle
 
 LIBNAME=libtokudb
 TLIBNAME=libtokudbtrace
@@ -30,10 +30,17 @@ OBJS_RAW = \
 	ydb_lib \
 	ydb \
 	errors \
-	dlmalloc \
 	elocks \
+#	dlmalloc \ DLMALLOC not for windows yet.  Add it for linux (below)
 #\end
 #OBJS automatically defined.
+
+#dlmalloc not for windows (yet)
+ifeq ($(CYGWIN),)
+    OBJS_RAW += dlmalloc
+else ifneq ($(CC),icc)
+    OBJS_RAW += dlmalloc
+endif
 
 LIBRARIES= \
 	$(LIBRARY) \
