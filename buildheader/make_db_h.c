@@ -419,7 +419,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
     {
 	printf("struct txn_stat {\n  u_int64_t rolltmp_raw_count;\n};\n");
-	const char *extra[] = {"int (*txn_stat)(DB_TXN *, struct txn_stat **)"};
+	const char *extra[] = {
+            "int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
+            "struct { void *next, *prev; } open_txns",
+            NULL,
+        };
 	print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
     }
 

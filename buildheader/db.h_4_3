@@ -294,7 +294,8 @@ struct __toku_db_txn {
   struct __toku_db_txn_internal *i;
 #define db_txn_struct_i(x) ((x)->i)
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
-  void* __toku_dummy0[12];
+  struct { void *next, *prev; } open_txns;
+  void* __toku_dummy0[11];
   char __toku_dummy1[24];
   void *api_internal; /* 32-bit offset=88 size=4, 64=bit offset=152 size=8 */
   void* __toku_dummy2[2];

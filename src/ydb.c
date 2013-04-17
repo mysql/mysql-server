@@ -98,20 +98,36 @@ static int toku_env_set_data_dir(DB_ENV * env, const char *dir);
 static int toku_env_set_lg_dir(DB_ENV * env, const char *dir);
 static int toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir);
 
-static inline void env_add_ref(DB_ENV *env) {
-    ++env->i->ref_count;
-}
-
-static inline void env_unref(DB_ENV *env) {
-    assert(env->i->ref_count > 0);
-    if (--env->i->ref_count == 0)
-        toku_env_close(env, 0);
-}
-
 static inline int env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
 
+static void env_init_open_txn(DB_ENV *env) {
+    list_init(&env->i->open_txns);
+}
+
+// add a txn to the list of open txn's
+static void env_add_open_txn(DB_ENV *env, DB_TXN *txn) {
+    list_push(&env->i->open_txns, (struct list *) (void *) &txn->open_txns);
+}
+
+// remove a txn from the list of open txn's
+static void env_remove_open_txn(DB_ENV *UU(env), DB_TXN *txn) {
+    list_remove((struct list *) (void *) &txn->open_txns);
+}
+
+static int toku_txn_abort(DB_TXN * txn);
+
+// abort all of the open txn's
+static int env_abort_all_open_txns(DB_ENV *env) {
+    int r = list_empty(&env->i->open_txns) ? 0 : EINVAL;
+    while (!list_empty(&env->i->open_txns)) {
+        struct list *list = list_head(&env->i->open_txns);
+        DB_TXN *txn = list_struct(list, DB_TXN, open_txns);
+        toku_txn_abort(txn);
+    }
+    return r;
+}
 
 /* db methods */
 static inline int db_opened(DB *db) {
@@ -463,6 +479,8 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     char *panic_string = env->i->panic_string;
     env->i->panic_string = 0;
 
+    int open_txns_on_close = env_abort_all_open_txns(env);
+
     // Even if the env is panicked, try to close as much as we can.
     int r0=0,r1=0;
     if (env->i->cachetable) {
@@ -517,9 +535,10 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     toku_free(env->i);
     toku_free(env);
     ydb_unref();
-    if ( (flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG) ) return EINVAL;
     if (r0) return r0;
     if (r1) return r1;
+    if ((flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG)) return EINVAL;
+    if (open_txns_on_close) return EINVAL;
     return is_panicked;
 }
 
@@ -1010,10 +1029,10 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->i->dup_compare = toku_default_compare_fun;
     result->i->is_panicked=0;
     result->i->panic_string = 0;
-    result->i->ref_count = 1;
     result->i->errcall = 0;
     result->i->errpfx = 0;
     result->i->errfile = 0;
+    env_init_open_txn(result);
 
     r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
                          toku_db_lt_panic, 
@@ -1101,6 +1120,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
         assert(db_txn_struct_i(txn->parent)->child == txn);
         db_txn_struct_i(txn->parent)->child=NULL;
     }
+    env_remove_open_txn(txn->mgrp, txn);
     //toku_ydb_notef("flags=%d\n", flags);
     int nosync = (flags & DB_TXN_NOSYNC)!=0 || (db_txn_struct_i(txn)->flags&DB_TXN_NOSYNC);
     flags &= ~DB_TXN_NOSYNC;
@@ -1156,6 +1176,7 @@ static int toku_txn_abort(DB_TXN * txn) {
         assert(db_txn_struct_i(txn->parent)->child == txn);
         db_txn_struct_i(txn->parent)->child=NULL;
     }
+    env_remove_open_txn(txn->mgrp, txn);
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r2 = toku_txn_release_locks(txn);
@@ -1266,6 +1287,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         assert(!db_txn_struct_i(result->parent)->child);
         db_txn_struct_i(result->parent)->child = result;
     }
+    env_add_open_txn(env, result);
     *txn = result;
     return 0;
 }
@@ -1312,7 +1334,6 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     // Even if panicked, let's close as much as we can.
     int is_panicked = toku_env_is_panicked(db->dbenv); 
-    env_unref(db->dbenv);
     toku_free(db->i->fname);
     toku_free(db->i->full_fname);
     toku_sdbt_cleanup(&db->i->skey);
@@ -3910,11 +3931,9 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 
     if (!env_opened(env))
         return EINVAL;
-    env_add_ref(env);
     
     DB *MALLOC(result);
     if (result == 0) {
-        env_unref(env);
         return ENOMEM;
     }
     memset(result, 0, sizeof *result);
@@ -3953,7 +3972,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);
-        env_unref(env);
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
@@ -3967,7 +3985,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     if (r != 0) {
         toku_free(result->i);
         toku_free(result);
-        env_unref(env);
         return r;
     }
     r = toku_brt_set_bt_compare(result->i->brt, env->i->bt_compare);

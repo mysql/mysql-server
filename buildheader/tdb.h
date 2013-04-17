@@ -250,6 +250,7 @@ struct __toku_db_txn {
   struct __toku_db_txn_internal ii;
 #define db_txn_struct_i(x) (&(x)->ii)
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
+  struct { void *next, *prev; } open_txns;
   void *api_internal;
   int (*abort) (DB_TXN *);
   int (*commit) (DB_TXN*, u_int32_t);
