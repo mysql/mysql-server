@@ -29,7 +29,7 @@ $(notdir $(TLIBTDB)): $(TLIBTDB)
 	cp $< $@
 
 SRCS = $(sort $(wildcard *.c))
-
+RECOVERY_SRCS = $(wildcard recover-*.c)
 
 #Tests that are irrelevant in windows.
 WINDOWS_DONTRUN_TESTS = \
@@ -57,7 +57,7 @@ WINDOWS_BDB_DONTRUN_TESTS += \
 ifeq ($(OS_CHOICE),windows)
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
 else
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(RECOVERY_SRCS),$(SRCS)))
 endif
 
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
@@ -190,7 +190,10 @@ EXTRA_TDB_TESTS = \
 #	test_db_assoc3.tdbrun_wasbad \# Obsolete right now.
 #\ ends prev line
 
-RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS)
+RECOVER_TDBS = $(patsubst %.c,%.tdb$(BINSUF),$(RECOVERY_SRCS))
+RECOVERY_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVERY_SRCS))
+
+RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVERY_TESTS)
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
 
@@ -212,6 +215,10 @@ tests.bdb: $(BDB_TESTS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_TESTS) ;
 check.tdb: $(notdir $(LIBTDB)) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
+
+tests.abortrecover: $(RECOVERY_TDBS) ;
+
+check.abortrecover: $(RECOVERY_TESTS) ;
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
@@ -294,6 +301,31 @@ endif
 %.recoverwc: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
+%.abortrecover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
+ifeq ($(VGRIND),)
+	./$< --test >$<.check.output 2>&1; \
+        if [ $$? -ne 134 ] ; then \
+		test 0 = 1; \
+        else \
+		./$< --recover >>$<.check.output 2>&1; \
+	fi \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+else
+	./$< --test >$<.check.output 2>&1; \
+        if [ $$? -ne 134 ] ; then \
+		test 0 = 1; \
+        else \
+		valgrind --quiet --error-exitcode=1 --leak-check=full --log-file=$<.check.valgrind ./$< --recover >>$<.check.output 2>&1; \
+		if [ $$? -ne 0 ] ; then \
+		    	test 0 = 1; \
+	        else \
+			lines=`cat $<.check.valgrind | wc -l`; \
+			if [ $$lines -ne 0 ] ; then test 0 = 1; fi; \
+	        fi \
+	fi \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+endif
+
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
 
@@ -330,7 +362,7 @@ endif
 
 clean:
 	rm -f $(ALL_TESTS)
-	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
+	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover *.tdb$(BINSUF) *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 
 ifeq ($(VGRIND),)

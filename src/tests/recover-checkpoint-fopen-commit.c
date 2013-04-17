@@ -1,36 +1,27 @@
-/* Transaction consistency:  
- *  fork a process:
- *   Open two tables, T1 and T2
- *   begin transaction
- *   store A in T1
- *   checkpoint
- *   store B in T2
- *   commit (or abort)
- *   signal to end the process abruptly
- *  wait for the process to finish
- *   open the environment doing recovery
- *   check to see if both A and B are present (or absent)
- */
+// this test verifies that db creation after a checkpoint works for nodup and dupsort dictionaries
+
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include "test.h"
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
 char *namea="a.db";
 char *nameb="b.db";
 
-
-static void
-do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
+static void run_test (BOOL do_commit, BOOL do_abort) {
     int r;
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+
     DB_ENV *env;
     DB *dba, *dbb;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+
+    r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
+
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
@@ -38,9 +29,8 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     {
 	DBT a={.data="a", .size=2};
 	DBT b={.data="b", .size=2};
-	r = dba->put(dba, txn, &a, &b, 0);                                              CKERR(r);
-	r = env->txn_checkpoint(env, 0, 0, 0);                                          CKERR(r);
-	r = dbb->put(dbb, txn, &b, &a, 0);                                              CKERR(r);
+	r = dba->put(dba, txn, &a, &b, DB_YESOVERWRITE);                                CKERR(r);
+	r = dbb->put(dbb, txn, &b, &a, DB_YESOVERWRITE);                                CKERR(r);
     }
     //printf("opened\n");
     if (do_commit) {
@@ -56,8 +46,7 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     abort();
 }
 
-static void
-do_x1_recover (BOOL did_commit) {
+static void run_recover (BOOL did_commit) {
     DB_ENV *env;
     DB *dba, *dbb;
     int r;
@@ -65,8 +54,19 @@ do_x1_recover (BOOL did_commit) {
     r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+
+    u_int32_t dbflags;
+    dbflags = 0;
+    r = dba->get_flags(dba, &dbflags);                                                        CKERR(r);
+    assert(dbflags == 0);
+
     r = db_create(&dbb, env, 0);                                                            CKERR(r);
-    r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+
+    dbflags = 0;
+    r = dbb->get_flags(dbb, &dbflags);                                                        CKERR(r);
+    assert(dbflags == 0);
+
     DBT aa={.size=0}, ab={.size=0};
     DBT ba={.size=0}, bb={.size=0};
     DB_TXN *txn;
@@ -106,22 +106,18 @@ do_x1_recover (BOOL did_commit) {
     r = dba->close(dba, 0);                                                                 CKERR(r);
     r = dbb->close(dbb, 0);                                                                 CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
-    exit(0);
 }
 
-static void
-do_x1_recover_only (void) {
+static void run_recover_only (void) {
     DB_ENV *env;
     int r;
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
-    exit(0);
 }
 
-static void
-do_x1_no_recover (void) {
+static void run_no_recover (void) {
     DB_ENV *env;
     int r;
 
@@ -129,55 +125,14 @@ do_x1_no_recover (void) {
     r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
     r = env->close(env, 0);                                                                 CKERR(r);
-    exit(0);
 }
 
 const char *cmd;
 
-static void
-do_test_internal (BOOL commit)
-{
-    pid_t pid;
-    if (0 == (pid=fork())) {
-	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--commit" : "--abort", NULL);
-	assert(r==-1);
-	printf("execl failed: %d (%s)\n", errno, strerror(errno));
-	assert(0);
-    }
-    {
-	int r;
-	int status;
-	r = waitpid(pid, &status, 0);
-	//printf("signaled=%d sig=%d\n", WIFSIGNALED(status), WTERMSIG(status));
-	assert(WIFSIGNALED(status) && WTERMSIG(status)==SIGABRT);
-    }
-    // Now find out what happend
-    
-    if (0 == (pid = fork())) {
-	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--recover-committed" : "--recover-aborted", NULL);
-	assert(r==-1);
-	printf("execl failed: %d (%s)\n", errno, strerror(errno));
-	assert(0);
-    }
-    {
-	int r;
-	int status;
-	r = waitpid(pid, &status, 0);
-	//printf("recovery exited=%d\n", WIFEXITED(status));
-	assert(WIFEXITED(status) && WEXITSTATUS(status)==0);
-    }
-}
-
-static void
-do_test (void) {
-    do_test_internal(TRUE);
-    do_test_internal(FALSE);
-}
 
 BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE, do_no_recover = FALSE;
 
-static void
-x1_parse_args (int argc, char *argv[]) {
+static void test_parse_args (int argc, char *argv[]) {
     int resultcode;
     cmd = argv[0];
     argc--; argv++;
@@ -187,13 +142,13 @@ x1_parse_args (int argc, char *argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-	} else if (strcmp(argv[0], "--commit")==0) {
+	} else if (strcmp(argv[0], "--commit")==0 || strcmp(argv[0], "--test") == 0) {
 	    do_commit=TRUE;
 	} else if (strcmp(argv[0], "--abort")==0) {
 	    do_abort=TRUE;
 	} else if (strcmp(argv[0], "--explicit-abort")==0) {
 	    do_explicit_abort=TRUE;
-	} else if (strcmp(argv[0], "--recover-committed")==0) {
+	} else if (strcmp(argv[0], "--recover-committed")==0 || strcmp(argv[0], "--recover") == 0) {
 	    do_recover_committed=TRUE;
 	} else if (strcmp(argv[0], "--recover-aborted")==0) {
 	    do_recover_aborted=TRUE;
@@ -231,26 +186,20 @@ x1_parse_args (int argc, char *argv[]) {
     }
 }
 
-int
-test_main (int argc, char *argv[])
-{
-    x1_parse_args(argc, argv);
+int test_main (int argc, char *argv[]) {
+    test_parse_args(argc, argv);
     if (do_commit) {
-	do_x1_shutdown (TRUE, FALSE);
+	run_test(TRUE, FALSE);
     } else if (do_abort) {
-	do_x1_shutdown (FALSE, FALSE);
-    } else if (do_explicit_abort) {
-        do_x1_shutdown(FALSE, TRUE);
+        run_test(FALSE, TRUE);
     } else if (do_recover_committed) {
-	do_x1_recover(TRUE);
+        run_recover(TRUE);
     } else if (do_recover_aborted) {
-	do_x1_recover(FALSE);
+        run_recover(FALSE);
     } else if (do_recover_only) {
-        do_x1_recover_only();
+        run_recover_only();
     } else if (do_no_recover) {
-        do_x1_no_recover();
-    } else {
-	do_test();
+        run_no_recover();
     }
     return 0;
 }

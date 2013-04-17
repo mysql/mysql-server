@@ -33,10 +33,8 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
-    DB_TXN *txn0;
-    r = env->txn_begin(env, NULL, &txn0, 0);                                            CKERR(r);
     DB_TXN *txn;
-    r = env->txn_begin(env, txn0, &txn, 0);                                             CKERR(r);
+    r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
 	DBT a={.data="a", .size=2};
 	DBT b={.data="b", .size=2};
@@ -45,11 +43,10 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
 	r = dbb->put(dbb, txn, &b, &a, 0);                                              CKERR(r);
     }
     //printf("opened\n");
-    r = txn->commit(txn, 0);                                                            CKERR(r);
     if (do_commit) {
-        r = txn->commit(txn0, 0);                                                       CKERR(r);
+	r = txn->commit(txn, 0);                                                        CKERR(r);
     } else if (do_abort) {
-        r = txn->abort(txn0);                                                           CKERR(r);
+        r = txn->abort(txn);                                                            CKERR(r);
         
         // force an fsync of the log
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
@@ -123,10 +120,23 @@ do_x1_recover_only (void) {
     exit(0);
 }
 
+static void
+do_x1_no_recover (void) {
+    DB_ENV *env;
+    int r;
+
+    r = db_env_create(&env, 0);                                                             CKERR(r);
+    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
+    assert(r == DB_RUNRECOVERY);
+    r = env->close(env, 0);                                                                 CKERR(r);
+    exit(0);
+}
+
 const char *cmd;
 
 static void
-do_test_internal (BOOL commit) {
+do_test_internal (BOOL commit)
+{
     pid_t pid;
     if (0 == (pid=fork())) {
 	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--commit" : "--abort", NULL);
@@ -164,7 +174,7 @@ do_test (void) {
     do_test_internal(FALSE);
 }
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE;
+BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE, do_no_recover = FALSE;
 
 static void
 x1_parse_args (int argc, char *argv[]) {
@@ -177,18 +187,20 @@ x1_parse_args (int argc, char *argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-	} else if (strcmp(argv[0], "--commit")==0) {
-	    do_commit=1;
+	} else if (strcmp(argv[0], "--commit")==0 || strcmp(argv[0], "--test") == 0) {
+	    do_commit=TRUE;
 	} else if (strcmp(argv[0], "--abort")==0) {
-	    do_abort=1;
+	    do_abort=TRUE;
 	} else if (strcmp(argv[0], "--explicit-abort")==0) {
-	    do_explicit_abort=1;
-	} else if (strcmp(argv[0], "--recover-committed")==0) {
-	    do_recover_committed=1;
+	    do_explicit_abort=TRUE;
+	} else if (strcmp(argv[0], "--recover-committed")==0 || strcmp(argv[0], "--recover") == 0) {
+	    do_recover_committed=TRUE;
 	} else if (strcmp(argv[0], "--recover-aborted")==0) {
-	    do_recover_aborted=1;
+	    do_recover_aborted=TRUE;
         } else if (strcmp(argv[0], "--recover-only") == 0) {
-            do_recover_only=1;
+            do_recover_only=TRUE;
+        } else if (strcmp(argv[0], "--no-recover") == 0) {
+            do_no_recover=TRUE;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
@@ -210,6 +222,7 @@ x1_parse_args (int argc, char *argv[]) {
 	if (do_recover_committed) n_specified++;
 	if (do_recover_aborted)   n_specified++;
 	if (do_recover_only)      n_specified++;
+	if (do_no_recover)        n_specified++;
 	if (n_specified>1) {
 	    printf("Specify only one of --commit or --abort or --recover-committed or --recover-aborted\n");
 	    resultcode=1;
@@ -219,7 +232,8 @@ x1_parse_args (int argc, char *argv[]) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char *argv[])
+{
     x1_parse_args(argc, argv);
     if (do_commit) {
 	do_x1_shutdown (TRUE, FALSE);
@@ -233,6 +247,8 @@ test_main (int argc, char *argv[]) {
 	do_x1_recover(FALSE);
     } else if (do_recover_only) {
         do_x1_recover_only();
+    } else if (do_no_recover) {
+        do_x1_no_recover();
     } else {
 	do_test();
     }

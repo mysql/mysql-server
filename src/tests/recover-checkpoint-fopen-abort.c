@@ -18,13 +18,11 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
-    // r = dba->set_flags(dba, DB_DUPSORT);                                                CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
 
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->set_flags(dbb, DB_DUPSORT);                                                CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
@@ -63,11 +61,11 @@ static void run_recover (BOOL did_commit) {
     assert(dbflags == 0);
 
     r = db_create(&dbb, env, 0);                                                            CKERR(r);
-    r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
 
     dbflags = 0;
     r = dbb->get_flags(dbb, &dbflags);                                                        CKERR(r);
-    assert(dbflags == DB_DUPSORT);
+    assert(dbflags == 0);
 
     DBT aa={.size=0}, ab={.size=0};
     DBT ba={.size=0}, bb={.size=0};
@@ -146,13 +144,13 @@ static void test_parse_args (int argc, char *argv[]) {
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--commit")==0) {
 	    do_commit=TRUE;
-	} else if (strcmp(argv[0], "--abort")==0) {
+	} else if (strcmp(argv[0], "--abort")==0 || strcmp(argv[0], "--test") == 0) {
 	    do_abort=TRUE;
 	} else if (strcmp(argv[0], "--explicit-abort")==0) {
 	    do_explicit_abort=TRUE;
 	} else if (strcmp(argv[0], "--recover-committed")==0) {
 	    do_recover_committed=TRUE;
-	} else if (strcmp(argv[0], "--recover-aborted")==0) {
+	} else if (strcmp(argv[0], "--recover-aborted")==0 || strcmp(argv[0], "--recover") == 0) {
 	    do_recover_aborted=TRUE;
         } else if (strcmp(argv[0], "--recover-only") == 0) {
             do_recover_only=TRUE;
