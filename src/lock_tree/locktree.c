@@ -1483,10 +1483,6 @@ static int lt_try_acquire_range_read_lock(toku_lock_tree* tree,
                 add 'K' to selfread('txn') and selfwrite('txn').
                 This requires merging.. see below.
     */
-    if (tree->table_is_locked) {
-        r = (txn==tree->table_lock_owner) ? 0 : DB_LOCK_NOTGRANTED;
-        goto cleanup;
-    }
 
     /* if 'K' is dominated by selfwrite('txn') then return success. */
     r = lt_rt_dominates(tree, &query, 
@@ -1546,49 +1542,6 @@ cleanup:
     return r;
 }
 
-static int lt_global_lock(toku_lock_tree* tree, TXNID txn) {
-    int r;
-
-    assert(!tree->table_is_locked);
-    //Create the self write table if it does not exist.
-    //This saves the fact that txn is still locked.
-    toku_range_tree* selfwrite;
-    if ((r = lt_selfwrite(tree, txn, &selfwrite))) 
-        return r;
-
-    //Clear out the borderwrite, selfwrite, selfread, and mainread tables.
-    //The selfread and selfwrite tables also need to free memory.
-    toku_rt_clear(tree->borderwrite);
-    //Errors at this point on are panics.
-
-    uint32_t ranges;
-    r = toku_rt_get_size(selfwrite, &ranges);
-    if ((r = lt_free_contents(tree, selfwrite, FALSE))) {
-        r = lt_panic(tree, r);
-        goto cleanup;
-    }
-
-    toku_range_tree* selfread = toku_lt_ifexist_selfread(tree, txn);
-    if (selfread) {
-        uint32_t size;
-        r = toku_rt_get_size(selfread, &size);
-        assert_zero(r);
-        ranges += size;
-
-        if ((r = lt_free_contents(tree, selfread, FALSE))) {
-            r = lt_panic(tree, r);
-            goto cleanup;
-        }
-    }
-
-    ltm_lock_decr(tree->mgr, ranges);
-    tree->table_lock_owner = txn;
-    tree->table_is_locked  = TRUE;
-    r = 0;
-cleanup:
-    return r;
-}
-
 /*  */
 static inline int escalate_writes_from_border_range(toku_lock_tree* tree, 
                                                     toku_range* border_range) {
@@ -1616,38 +1569,30 @@ static inline int escalate_writes_from_border_range(toku_lock_tree* tree,
     /*
      * Insert border_range into self_write table
      */
-    if (border_range->ends.left->key_payload==toku_lt_neg_infinity &&
-        border_range->ends.right->key_payload==toku_lt_infinity) {
-        //Lock Entire Table
-        if ((r = lt_global_lock(tree, txn))) 
-            goto cleanup;
-    }
-    else {
-        uint32_t i;
-        for (i = 0; i < numfound; i++) {
-            r = toku_rt_delete(self_write, &tree->buf[i]);
-            if (r != 0) { 
-                r = lt_panic(tree, r); goto cleanup; 
-            }
-            /*
-             * Clean up memory that is not referenced by border_range.
-             */
-            if (tree->buf[i].ends.left != tree->buf[i].ends.right &&
-                lt_p_independent(tree->buf[i].ends.left, &border_range->ends)) {
-                /* Do not double free if left and right are same point. */
-                p_free(tree, tree->buf[i].ends.left);
-            }
-            if (lt_p_independent(tree->buf[i].ends.right, &border_range->ends)) {
-                p_free(tree, tree->buf[i].ends.right);
-            }
-        }
-        //Insert escalated range.
-        r = toku_rt_insert(self_write, border_range);
+    for (uint32_t i = 0; i < numfound; i++) {
+        r = toku_rt_delete(self_write, &tree->buf[i]);
         if (r != 0) { 
             r = lt_panic(tree, r); goto cleanup; 
         }
-        ltm_lock_incr(tree->mgr, numfound);
+        /*
+         * Clean up memory that is not referenced by border_range.
+         */
+        if (tree->buf[i].ends.left != tree->buf[i].ends.right &&
+            lt_p_independent(tree->buf[i].ends.left, &border_range->ends)) {
+            /* Do not double free if left and right are same point. */
+            p_free(tree, tree->buf[i].ends.left);
+        }
+        if (lt_p_independent(tree->buf[i].ends.right, &border_range->ends)) {
+            p_free(tree, tree->buf[i].ends.right);
+        }
     }
+    
+    //Insert escalated range.
+    r = toku_rt_insert(self_write, border_range);
+    if (r != 0) { 
+        r = lt_panic(tree, r); goto cleanup; 
+    }
+    ltm_lock_incr(tree->mgr, numfound);
 
     r = 0;
 cleanup:
@@ -1862,45 +1807,25 @@ static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
     if (r != 0)
         goto cleanup;
 
-    if (tree->table_is_locked) {
-        r = (txn==tree->table_lock_owner) ? 0 : DB_LOCK_NOTGRANTED;
+    // if query is dominated by selfwrite('txn') then return success
+    BOOL dominated;
+    r = lt_rt_dominates(tree, &query, toku_lt_ifexist_selfwrite(tree, txn), &dominated);
+    if (r || dominated)
         goto cleanup;
-    }
-
-    if (key_left == toku_lt_neg_infinity && key_right == toku_lt_infinity) {
-        // If there are any other writes, we fail.
-        r = lt_check_borderwrite_conflict(tree, txn, &query);
-        if (r != 0)
-            goto cleanup;
-        // If there are any other reads, we fail.
-        r = lt_write_range_conflicts_reads(tree, txn, &query);
-        if (r != 0) 
-            goto cleanup;
-        r = lt_global_lock(tree, txn);
-        if (r != 0)
-            goto cleanup;
-    } else {
-        // if query is dominated by selfwrite('txn') then return success
-        BOOL dominated;
-        r = lt_rt_dominates(tree, &query, toku_lt_ifexist_selfwrite(tree, txn), &dominated);
-        if (r || dominated)
-            goto cleanup;
-        // if query meets any other read set then fail
-        r = lt_write_range_conflicts_reads(tree, txn, &query);
-        if (r != 0)
-            goto cleanup;
-        // query meets any other write set then fail
-        r = lt_check_borderwrite_conflict(tree, txn, &query);
-        if (r != 0)
-            goto cleanup;
-        // insert and consolidate into the local write set
-        toku_range to_insert;
-        init_insert(&to_insert, &left, &right, txn);
-        r = consolidate_writes(tree, &to_insert, txn);
-        if (r != 0)
-            goto cleanup;
-    }
-
+    // if query meets any other read set then fail
+    r = lt_write_range_conflicts_reads(tree, txn, &query);
+    if (r != 0)
+        goto cleanup;
+    // query meets any other write set then fail
+    r = lt_check_borderwrite_conflict(tree, txn, &query);
+    if (r != 0)
+        goto cleanup;
+    // insert and consolidate into the local write set
+    toku_range to_insert;
+    init_insert(&to_insert, &left, &right, txn);
+    r = consolidate_writes(tree, &to_insert, txn);
+    if (r != 0)
+        goto cleanup;
 cleanup:
     if (tree)
         lt_postprocess(tree);
@@ -2097,8 +2022,6 @@ static inline int lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
         if (r != 0) 
             return lt_panic(tree, r);
     }
-    if (tree->table_lock_owner == txn) 
-        tree->table_is_locked = FALSE;
 
     if (selfread || selfwrite) 
         toku_rth_delete(tree->rth, txn);
@@ -2154,7 +2077,6 @@ static inline void lt_clear(toku_lock_tree* tree) {
     toku_rth_clear(tree->txns_to_unlock);
     /* tree->txns_still_locked is already empty, so we do not clear it. */
     ltm_lock_decr(tree->mgr, ranges);
-    tree->table_is_locked = FALSE;
 }
 
 int toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {

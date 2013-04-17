@@ -116,8 +116,6 @@ struct __toku_lock_tree {
     uint32_t          ref_count;
     /** DICTIONARY_ID associated with the lock tree */
     DICTIONARY_ID      dict_id;
-    TXNID              table_lock_owner;
-    BOOL               table_is_locked;
     OMT                dbs; //The extant dbs using this lock tree.
 };
 
