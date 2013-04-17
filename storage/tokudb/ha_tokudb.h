@@ -669,6 +669,18 @@ private:
 #if TOKU_INCLUDE_WRITE_FRM_DATA
     int write_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
+#if TOKU_INCLUDE_UPSERT
+public:
+    bool fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds, int *error_ret);
+private:
+    bool check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds);
+    int send_update_message(List<Item> &fields, List<Item> &values, Item *conds, DB_TXN *txn);
+public:
+    bool upsert(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values, int *error_ret);
+private:
+    bool check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
+    int send_upsert_message(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
+#endif
 };
 
 #if MYSQL_VERSION_ID >= 50506

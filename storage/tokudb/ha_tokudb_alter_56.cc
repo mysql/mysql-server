@@ -49,8 +49,7 @@ public:
 };
 
 // Debug function to print out an alter table operation
-void 
-ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+void ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     printf("***are keys of two tables same? %d\n", tables_have_same_keys(table, altered_table, false, false));
     if (ha_alter_info->handler_flags) {
         printf("***alter flags set ***\n");
@@ -103,8 +102,7 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
 // Given two tables with equal number of fields, find all of the fields with different types
 // and return the indexes of the different fields in the changed_fields array. This function ignores field
 // name differences.
-static int
-find_changed_fields(TABLE *table_a, TABLE *table_b, Dynamic_array<uint> &changed_fields) {
+static int find_changed_fields(TABLE *table_a, TABLE *table_b, Dynamic_array<uint> &changed_fields) {
     for (uint i = 0; i < table_a->s->fields; i++) {
         Field *field_a = table_a->field[i];
         Field *field_b = table_b->field[i];
@@ -119,8 +117,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
 static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
 // The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus handler flags to something we like.
-static ulong 
-fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+static ulong fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     ulong handler_flags = ha_alter_info->handler_flags;
 
     // workaround for fill_alter_inplace_info bug (#5193)
@@ -151,8 +148,7 @@ fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alt
 }
 
 // Require that there is no intersection of add and drop names.
-static bool 
-is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
+static bool is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
     for (uint d = 0; d < ha_alter_info->index_drop_count; d++) {
         KEY *drop_key = ha_alter_info->index_drop_buffer[d];
         for (uint a = 0; a < ha_alter_info->index_add_count; a++) {
@@ -180,8 +176,7 @@ static bool only_flags(ulong bits, ulong mask) {
 //                           must set WRITE_ALLOW_WRITE lock type in the external lock method to avoid deadlocks
 //                           with the MDL lock and the table lock
 // HA_ALTER_INPLACE_EXCLUSIVE_LOCK: the alter operation requires an exclusive MDL no concurrent reads, no writes
-enum_alter_inplace_result
-ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("check_if_supported_alter");
 
     if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
@@ -334,8 +329,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
 }
 
 // Prepare for the alter operations
-bool 
-ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+bool ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(transaction); // transaction must exist after table is locked
@@ -345,8 +339,7 @@ ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info 
 }
 
 // Execute the alter operations.
-bool 
-ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("inplace_alter_table");
 
     int error = 0;
@@ -398,8 +391,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
     DBUG_RETURN(result);
 }
 
-int
-ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
 
     // sort keys in add index order
     KEY *key_info = (KEY*) my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
@@ -446,8 +438,7 @@ static bool find_index_of_key(const char *key_name, KEY *key_info, uint key_coun
     return false;
 }
 
-int
-ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+int ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     KEY *key_info = table->key_info;
     // translate key names to indexes into the key_info array
     uint index_drop_offsets[ha_alter_info->index_drop_count];
@@ -471,8 +462,7 @@ ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_a
     return error;
 }
 
-int
-ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     int error;
     uchar *column_extra = NULL;
@@ -555,8 +545,7 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
 // Commit or abort the alter operations.
 // If commit then write the new frm data to the status using the alter transaction.
 // If abort then abort the alter transaction and try to rollback the non-transactional changes.
-bool 
-ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
+bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
     TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
     
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
@@ -615,8 +604,7 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
 }
 
 // Setup the altered table's key and col info.
-int
-ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info) {
+int ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info) {
     int error = allocate_key_and_col_info(altered_table->s, altered_kc_info);
     if (error == 0)
         error = initialize_key_and_col_info(altered_table->s, altered_table, altered_kc_info, hidden_primary_key, primary_key);
@@ -624,8 +612,7 @@ ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info
 }
 
 // Expand the variable length fields offsets from 1 to 2 bytes.
-int
-ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
@@ -677,8 +664,7 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
 }
 
 // Return true if a field is part of a key
-static bool
-field_in_key(KEY *key, Field *field) {
+static bool field_in_key(KEY *key, Field *field) {
     for (uint i = 0; i < key->key_parts; i++) {
         KEY_PART_INFO *key_part = &key->key_part[i];
         if (strcmp(key_part->field->field_name, field->field_name) == 0)
@@ -688,8 +674,7 @@ field_in_key(KEY *key, Field *field) {
 }
 
 // Return true if a field is part of any key
-static bool
-field_in_key_of_table(TABLE *table, Field *field) {
+static bool field_in_key_of_table(TABLE *table, Field *field) {
     for (uint i = 0; i < table->s->keys; i++) {
         if (field_in_key(&table->key_info[i], field))
             return true;
@@ -698,8 +683,7 @@ field_in_key_of_table(TABLE *table, Field *field) {
 }
 
 // Return true if all changed varchar/varbinary field lengths can be changed inplace, otherwise return false
-static bool 
-change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+static bool change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (old_field->real_type() != MYSQL_TYPE_VARCHAR || 
         new_field->real_type() != MYSQL_TYPE_VARCHAR || 
         old_field->binary() != new_field->binary() || 
@@ -714,8 +698,7 @@ change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *ta
 }
 
 // Return true if all changed field lengths can be changed inplace, otherwise return false
-static bool 
-change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (table->s->fields != altered_table->s->fields)
         return false;
     if (table->s->null_bytes != altered_table->s->null_bytes)
@@ -740,8 +723,7 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
 }
 
 // Debug function that ensures that the array is sorted
-static bool
-is_sorted(Dynamic_array<uint> &a) {
+static bool is_sorted(Dynamic_array<uint> &a) {
     bool r = true;
     if (a.elements() > 0) {
         uint lastelement = a.at(0);
@@ -752,8 +734,7 @@ is_sorted(Dynamic_array<uint> &a) {
     return r;
 }
 
-int
-ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+int ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(is_sorted(ctx->changed_fields)); // since we build the changed_fields array in field order, it must be sorted
@@ -765,9 +746,15 @@ ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *
     return error;
 }
 
+// Return true if the field is an unsigned int
+static bool is_unsigned(Field *f) {
+    return (f->flags & UNSIGNED_FLAG) != 0;
+}
+
 // Return the starting offset in the value for a particular index (selected by idx) of a
 // particular field (selected by expand_field_num)
-static uint32_t field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
+// TODO: replace this?
+static uint32_t alter_table_field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
     uint32_t offset = null_bytes;
     for (int i = 0; i < expand_field_num; i++) {
         if (bitmap_is_set(&kc_info->key_filters[idx], i)) // skip key fields
@@ -777,14 +764,8 @@ static uint32_t field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int
     return offset;
 }
 
-// Return true of the field is an unsigned int
-static bool is_unsigned(Field *f) {
-    return (f->flags & UNSIGNED_FLAG) != 0;
-}
-
 // Send an expand message into all clustered indexes including the primary
-int
-ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num) {
+int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
@@ -830,8 +811,8 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
 
         // for all trees that have values, make an expand update message and broadcast it into the tree
         if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
-            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
-            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
+            uint32_t old_offset = alter_table_field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
+            uint32_t new_offset = alter_table_field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
             assert(old_offset <= new_offset);
 
             uint32_t old_length = ctx->table_kc_info->field_lengths[expand_field_num];
@@ -882,9 +863,20 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
     return error;
 }
 
+// Return true if two fixed length fields can be changed inplace
+static bool change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
+    // no change in size is supported
+    if (old_field->pack_length() == new_field->pack_length())
+        return true;
+    // shrink is not supported
+    if (old_field->pack_length() > new_field->pack_length())
+        return false;
+    ctx->expand_fixed_update_needed = true;
+    return true;
+}
+
 // Return true if the MySQL type is an int or unsigned int type
-static bool
-is_int_type(enum_field_types t) {
+static bool is_int_type(enum_field_types t) {
     switch (t) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
@@ -897,22 +889,8 @@ is_int_type(enum_field_types t) {
     }
 }
 
-// Return true if two fixed length fields can be changed inplace
-static bool
-change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
-    // no change in size is supported
-    if (old_field->pack_length() == new_field->pack_length())
-        return true;
-    // shrink is not supported
-    if (old_field->pack_length() > new_field->pack_length())
-        return false;
-    ctx->expand_fixed_update_needed = true;
-    return true;
-}
-
 // Return true if two field types can be changed inplace
-static bool
-change_field_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+static bool change_field_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     enum_field_types old_type = old_field->real_type();
     enum_field_types new_type = new_field->real_type();
     if (is_int_type(old_type)) {
@@ -951,8 +929,7 @@ change_field_type_is_supported(Field *old_field, Field *new_field, TABLE *table,
 }
 
 // Return true if all changed field types can be changed inplace
-static bool 
-change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (table->s->null_bytes != altered_table->s->null_bytes)
         return false;
     if (table->s->fields != altered_table->s->fields)
@@ -974,8 +951,7 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
 // Allocate and initialize a new descriptor for a dictionary in the altered table identified with idx.
 // Return the new descriptor in the row_descriptor DBT.
 // Return non-zero on error.
-int
-ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor) {
+int ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     row_descriptor->size = get_max_desc_size(ctx->altered_table_kc_info, altered_table);
@@ -1005,6 +981,5 @@ ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_
     }
     return error;
 }
-
 
 #endif
