@@ -353,6 +353,7 @@ static void scanscan_range (void) {
             goto makekey;
         }
 
+#ifdef TOKUDB
         // do the range scan
 	long rowcounter = 0;
 	struct extra_count e = {0,0};
@@ -362,6 +363,7 @@ static void scanscan_range (void) {
                 break;
 	    rowcounter++;
 	}
+#endif
 
         r = dbc->c_close(dbc);                                      
         assert(r==0);
