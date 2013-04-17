@@ -88,11 +88,19 @@ exit:
 inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
+        memcpy(to_tokudb, from_mysql, 1);
+        break;
     case (2):
+        memcpy(to_tokudb, from_mysql, 2);
+        break;
     case (3):
+        memcpy(to_tokudb, from_mysql, 3);
+        break;
     case (4):
+        memcpy(to_tokudb, from_mysql, 4);
+        break;
     case (8):
-        memcpy(to_tokudb, from_mysql, num_bytes);
+        memcpy(to_tokudb, from_mysql, 8);
         break;
     default:
         assert(false);
@@ -106,11 +114,19 @@ inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_
 inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
+        memcpy(to_mysql, from_tokudb, 1);
+        break;
     case (2):
+        memcpy(to_mysql, from_tokudb, 2);
+        break;
     case (3):
+        memcpy(to_mysql, from_tokudb, 3);
+        break;
     case (4):
+        memcpy(to_mysql, from_tokudb, 4);
+        break;
     case (8):
-        memcpy(to_mysql, from_tokudb, num_bytes);
+        memcpy(to_mysql, from_tokudb, 8);
         break;
     default:
         assert(false);
@@ -335,7 +351,22 @@ inline int cmp_toku_string(
 {
     int ret_val = 0;
     CHARSET_INFO* charset = NULL;
-    charset = get_charset(charset_number, MYF(MY_WME));
+
+    //
+    // due to MySQL bug 42649
+    //
+    switch (charset_number) {
+    case(default_charset_info->number):
+        charset = default_charset_info;
+        break;
+    case(charset_number == my_charset_latin1.number):
+        charset = &my_charset_latin1;
+        break;
+    default:
+        charset = get_charset(charset_number, MYF(MY_WME));
+        break;
+    }
+
     ret_val = charset->coll->strnncollsp(
         charset,
         a_buf, 
