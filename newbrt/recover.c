@@ -348,6 +348,16 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, struct backwa
     abort();
 }
 
+static int toku_recover_timestamp (LSN UU(lsn), u_int64_t UU(timestamp), BYTESTRING comment) {
+    toku_free_BYTESTRING(comment);
+    return 0;
+}
+
+static int toku_recover_backward_timestamp (struct logtype_timestamp *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->comment);
+    return 0;
+}
+
 static int toku_delete_rolltmp_files (const char *log_dir) {
     struct dirent *de;
     DIR *d = opendir(log_dir);

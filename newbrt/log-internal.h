@@ -117,6 +117,10 @@ static inline int toku_logsizeof_u_int32_t (u_int32_t v __attribute__((__unused_
     return 4;
 }
 
+static inline int toku_logsizeof_u_int64_t (u_int32_t v __attribute__((__unused__))) {
+    return 8;
+}
+
 static inline int toku_logsizeof_FILENUM (FILENUM v __attribute__((__unused__))) {
     return 4;
 }

@@ -95,6 +95,10 @@ static void wbuf_ulonglong (struct wbuf *w, u_int64_t ull) {
     wbuf_uint(w, (u_int32_t)(ull&0xFFFFFFFF));
 }
 
+static inline void wbuf_u_int64_t(struct wbuf *w, u_int64_t ull) {
+    wbuf_ulonglong(w, ull);
+}
+
 static inline void wbuf_BYTESTRING (struct wbuf *w, BYTESTRING v) {
     wbuf_bytes(w, v.data, v.len);
 }
