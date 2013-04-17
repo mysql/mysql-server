@@ -87,7 +87,7 @@ test_serialize_leaf_with_large_pivots(void) {
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -210,7 +210,7 @@ test_serialize_leaf_with_many_rows(void) {
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -327,7 +327,7 @@ test_serialize_leaf_with_large_rows(void) {
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -450,7 +450,7 @@ test_serialize_leaf_with_empty_basement_nodes(void) {
 
     int r;
 
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -578,7 +578,7 @@ test_serialize_leaf(void) {
 
     int r;
 
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -705,7 +705,7 @@ test_serialize_nonleaf(void) {
     int r;
 
     //    source_brt.fd=fd;
-    memset(&sn, 0, sizeof sn);
+    sn.max_msn_applied_to_node.msn = 0;
     char *hello_string;
     sn.max_msn_applied_to_node = (MSN) {TESTMSNVAL};
     sn.nodesize = nodesize;
