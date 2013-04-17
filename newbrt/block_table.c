@@ -785,14 +785,20 @@ static void
 blocktable_note_translation (BLOCK_ALLOCATOR allocator, struct translation *t) {
     //This is where the space for them will be reserved (in addition to normal blocks).
     //See RESERVED_BLOCKNUMS
-    int64_t i;
-    for (i=0; i<t->smallest_never_used_blocknum.b; i++) {
+
+    // Previously this added blocks one at a time.  Now we make an array and pass it in so it can be sorted and merged.  See #3218.
+    struct block_allocator_blockpair *MALLOC_N(t->smallest_never_used_blocknum.b, pairs);
+    u_int64_t n_pairs = 0;
+    for (int64_t i=0; i<t->smallest_never_used_blocknum.b; i++) {
         struct block_translation_pair pair = t->block_translation[i];
-        if (pair.size > 0) {
+	if (pair.size > 0) {
             assert(pair.u.diskoff != diskoff_unused);
-            block_allocator_alloc_block_at(allocator, pair.size, pair.u.diskoff);
-        }
+	    pairs[n_pairs++] = (struct block_allocator_blockpair){.size   = pair.size,
+								  .offset = pair.u.diskoff};
+	}
     }
+    block_allocator_alloc_blocks_at(allocator, n_pairs, pairs);
+    toku_free(pairs);
 }
 
 
