@@ -107,41 +107,16 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     TOKULOGGER logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
     BOOL do_fsync;
-    //
-    // quickie fix for 5.2.0, need to extract these variables so that
-    // we can do the fsync after the close of txn. We need to do it
-    // after the close because if we do it before, there are race
-    // conditions exposed by test_stress1.c (#4145, #4153)    // release locks after completing the txn
-    //
-    // TODO: (Zardosht) refine this comment
-    //
-    // Here is what was going on. In Maxwell (5.1.X), we used to 
-    // call toku_txn_maybe_fsync_log in between toku_txn_release_locks
-    // and toku_txn_close_txn. As a result, the ydb lock was released
-    // and retaken in between these two calls. This was wrong, as the 
-    // two commands need to be atomic. The problem was that 
-    // when the ydb lock was released, the locks that this txn took
-    // were released, but the txn was not removed from the list of 
-    // live transactions. This allowed the following sequence of events: 
-    //  - another txn B comes and writes to some key this transaction wrote to
-    //  - txn B successfully commits
-    //  - read txn C comes along, sees this transaction in its live list,
-    //     but NOT txn B, which came after this transaction.
-    //     This is incorrect. When txn C comes across a leafentry that has been
-    //     modified by both this transaction and B, it'll read B's value, even
-    //     though it cannot read this transaction's value, which comes below
-    //     B's value on the leafentry's stack. This behavior is incorrect.
-    //  This causes a failure in the test_stress tests.
-    //
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
+    // remove the txn from the list of live transactions, and then
+    // release the lock tree locks. MVCC requires that toku_txn_complete_txn
+    // get called first, otherwise we have bugs, such as #4145 and #4153
     toku_txn_complete_txn(ttxn);
+    r = toku_txn_release_locks(txn);
     // this lock must be released after toku_txn_complete_txn because
     // this lock must be held until the references to the open FTs is released
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
-
-    // Close the logger after releasing the locks
-    r = toku_txn_release_locks(txn);
     if (release_multi_operation_client_lock) {
         toku_multi_operation_client_unlock();
     }
@@ -278,8 +253,6 @@ locked_txn_id(DB_TXN *txn) {
 static int 
 toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
-    // TODO: (Zardosht) make sure thread safety of this is resolved
-    // with some tokutxn lock that Leif is working on
     return toku_logger_txn_rollback_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rollback_raw_count);
 }
 

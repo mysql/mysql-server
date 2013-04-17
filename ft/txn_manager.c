@@ -321,10 +321,10 @@ int toku_txn_manager_start_txn(
     bool for_recovery)
 {
     int r;
-    // we take the txn_manager_lock before writing to the log
-    // we may be able to move this lock acquisition
-    // down to just before inserting into logger->live_txns
-    // if we know the caller has the multi operation lock
+    // we take the txn_manager_lock before writing to the log,
+    // because the act of getting a transaction ID and adding the
+    // txn to the proper OMTs must be atomic. MVCC depends
+    // on this.
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
