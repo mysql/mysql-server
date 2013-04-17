@@ -30,17 +30,10 @@ OBJS_RAW = \
 	ydb_lib \
 	ydb \
 	errors \
+	dlmalloc \
 	elocks \
-#	dlmalloc \ DLMALLOC not for windows yet.  Add it for linux (below)
 #\end
 #OBJS automatically defined.
-
-#dlmalloc not for windows (yet)
-ifeq ($(CYGWIN),)
-    OBJS_RAW += dlmalloc
-else ifneq ($(CC),icc)
-    OBJS_RAW += dlmalloc
-endif
 
 LIBRARIES= \
 	$(LIBRARY) \
@@ -74,6 +67,11 @@ install: libs install_libs ;
 
 .PHONY: local libs buildlocktrees
 libs: $(LIBRARIES) ;
+$(LIBRARIES): export.def
+export.def: export.map
+	echo "EXPORTS" > $@
+	cat export.map |sed -n "s/\([a-zA-Z_0-9][a-zA-Z_0-9]*\);/\t\1 @/g;/@/ P" |sed -n 'P;=' | sed '{;N;s/\n//;}' >> $@
+	echo "" >> $@
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 

@@ -107,8 +107,11 @@ static void scanscan_shutdown (void) {
 
 #if 0 && defined TOKUDB
     {
-	extern unsigned long toku_get_maxrss(void);
-	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);
+	extern int toku_os_get_max_rss(int64_t*);
+        int64_t mrss;
+        int r = toku_os_get_max_rss(&mrss);
+        assert(r==0);
+	printf("maxrss=%.2fMB\n", mrss/256.0);
     }
 #endif
 }

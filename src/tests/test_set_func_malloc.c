@@ -6,7 +6,9 @@
 
 #define DONT_DEPRECATE_MALLOC
 
+#if !defined(TOKU_WINDOWS) || !TOKU_WINDOWS
 #include <valgrind/memcheck.h>
+#endif
 
 #include <toku_portability.h>
 #include <memory.h>
