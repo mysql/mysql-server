@@ -415,7 +415,7 @@ toku_verify_ftnode (FT_HANDLE brt,
         result = toku_verify_ftnode_internal(
                 brt, rootmsn, parentmsn, node, height, lesser_pivot, greatereq_pivot,
                 verbose, keep_going_on_failure, false);
-        if (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR) goto done;
+        if (result != 0 && (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR)) goto done;
     }
     if (node->height > 0) {
         toku_move_ftnode_messages_to_stale(brt->ft, node);
@@ -425,7 +425,7 @@ toku_verify_ftnode (FT_HANDLE brt,
             verbose, keep_going_on_failure, true);
     if (result == 0) {
         result = result2;
-        if (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR) goto done;
+        if (result != 0 && (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR)) goto done;
     }
     
     // Verify that the subtrees have the right properties.
