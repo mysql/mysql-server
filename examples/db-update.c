@@ -248,11 +248,9 @@ int main(int argc, char *argv[]) {
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 #if defined(TOKUDB)
     if (checkpoint_period) {
-        r = db_env->checkpointing_set_period(db_env, checkpoint_period);
-        assert(r == 0);
+        r = db_env->checkpointing_set_period(db_env, checkpoint_period); assert(r == 0);
         u_int32_t period;
-        r = db_env->checkpointing_get_period(db_env, &period);
-        assert(r == 0 && period == checkpoint_period);
+        r = db_env->checkpointing_get_period(db_env, &period); assert(r == 0 && period == checkpoint_period);
     }
 #endif
 
