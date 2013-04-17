@@ -95,7 +95,6 @@ static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
-static uint tokudb_cache_memory_percent = 50;
 static char *tokudb_home;
 // static char *tokudb_tmpdir;
 static char *tokudb_log_dir;
@@ -207,14 +206,16 @@ static int tokudb_init_func(void *p) {
         db_env->set_lg_dir(db_env, tokudb_log_dir);
     }
 
-    // config the cache table
+    // config the cache table size to min(1/2 of physical memory, 1/8 of the process address space)
     if (tokudb_cache_size == 0) {
-        unsigned long long physmem = (unsigned long)toku_os_get_phys_memory_size();
-#if defined(_WIN32)
-        tokudb_cache_size = 256000000;
-#else
-        tokudb_cache_size = (ulonglong) (physmem * (tokudb_cache_memory_percent / 100.0));
-#endif
+        uint64_t physmem, maxdata;
+        physmem = toku_os_get_phys_memory_size();
+        tokudb_cache_size = physmem / 2;
+        r = toku_os_get_max_process_data_size(&maxdata);
+        if (r == 0) {
+            if (tokudb_cache_size > maxdata / 8)
+                tokudb_cache_size = maxdata / 8;
+        }
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
@@ -529,8 +530,6 @@ static uint tokudb_alter_table_flags(uint flags)
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0, 0, ~0LL, 0);
 
-static MYSQL_SYSVAR_UINT(cache_memory_percent, tokudb_cache_memory_percent, PLUGIN_VAR_READONLY, "Default percent of physical memory in the TokuDB cache table", NULL, NULL, tokudb_cache_memory_percent, 0, 100, 0);
-
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, PLUGIN_VAR_READONLY, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
@@ -574,7 +573,6 @@ static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp 
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
-    MYSQL_SYSVAR(cache_memory_percent),
     MYSQL_SYSVAR(max_lock),
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(log_dir),
