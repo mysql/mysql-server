@@ -1404,7 +1404,6 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->enospc_threads_blocked = enospc_threads_blocked;
 	    engstat->enospc_total = enospc_total;
 	}
-
     }
     return r;
 }
@@ -5375,6 +5374,14 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     }
 
     return rval;
+}
+
+int
+locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N]) {
+    toku_ydb_lock();
+    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env);
+    toku_ydb_unlock();
+    return r;
 }
 
 // TODO 2216:  Patch out this (dangerous) function when loader is working and 

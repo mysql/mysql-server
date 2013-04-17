@@ -128,6 +128,7 @@ BDB_DONTRUN_TESTS = \
 	recover-delboth-after-checkpoint \
 	loader-reference-test \
 	loader-stress-test \
+	loader-dup-test \
 	recover-lsn-filter-multiple \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \

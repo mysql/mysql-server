@@ -54,7 +54,7 @@ static void test_loader(DB **dbs)
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
     CKERR(r);
-    r = loader->set_error_callback(loader, NULL);
+    r = loader->set_error_callback(loader, NULL, NULL);
     CKERR(r);
     r = loader->set_poll_function(loader, NULL);
     CKERR(r);
@@ -108,7 +108,8 @@ static void run_test(void)
     r = env->set_default_dup_compare(env, int64_dbt_cmp);                                                     CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
+//    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
+    int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing

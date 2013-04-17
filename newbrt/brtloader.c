@@ -16,9 +16,119 @@
 #include "brtloader-internal.h"
 #include "brt-internal.h"
 
-int brtloader_open_temp_file (BRTLOADER bl, FILE **filep, char **fnamep)
+static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
+void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
+    os_fwrite_fun=fwrite_fun;
+}
+static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (os_fwrite_fun) {
+	return os_fwrite_fun(ptr, size, nmemb, stream);
+    } else {
+	return fwrite(ptr, size, nmemb, stream);
+    }
+}
+
+
+int brtloader_init_file_infos (struct file_infos *fi) {
+    fi->n_files = 0;
+    fi->n_files_limit = 1;
+    fi->n_files_open = 0;
+    fi->n_files_extant = 0;
+    MALLOC_N(fi->n_files_limit, fi->file_infos);
+    if (fi->n_files_limit) return 0;
+    else return errno;
+}
+
+void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
+// Effect: Free the resources in the fi.
+// If is_error then we close and unlink all the temp files.
+// If !is_error then requires that all the temp files have been closed and destroyed
+// No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
+{
+    if (!is_error) {
+	assert(fi->n_files_open==0);
+	assert(fi->n_files_extant==0);
+    }
+    for (int i=0; i<fi->n_files; i++) {
+	if (fi->file_infos[i].is_open) {
+	    assert(is_error);
+	    fclose(fi->file_infos[i].file); // don't check for errors, since we are in an error case.
+	}
+	if (fi->file_infos[i].is_extant) {
+	    assert(is_error);
+	    unlink(fi->file_infos[i].fname);
+	    toku_free(fi->file_infos[i].fname);
+	}
+    }
+    toku_free(fi->file_infos);
+    fi->n_files=0;
+    fi->n_files_limit=0;
+    fi->file_infos = NULL;
+}
+
+static void open_file_add (struct file_infos *fi,
+			   FILE *file,
+			   char *fname,
+			   /* out */ FIDX *idx)
+{
+    if (fi->n_files >= fi->n_files_limit) {
+	fi->n_files_limit *=2;
+	XREALLOC_N(fi->n_files_limit, fi->file_infos);
+    }
+    assert(fi->n_files < fi->n_files_limit);
+    fi->file_infos[fi->n_files].is_open   = TRUE;
+    fi->file_infos[fi->n_files].is_extant = TRUE;
+    fi->file_infos[fi->n_files].fname     = fname;
+    fi->file_infos[fi->n_files].file      = file;
+    idx->idx = fi->n_files;
+    fi->n_files++;
+    fi->n_files_extant++;
+    fi->n_files_open++;
+}
+
+int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
+    int i = idx.idx;
+    assert(i>=0 && i<fi->n_files);
+    assert(!fi->file_infos[i].is_open);
+    assert(fi->file_infos[i].is_extant);
+    fi->file_infos[i].file = fopen(fi->file_infos[i].fname, mode);
+    if (fi->file_infos[i].file==NULL) return errno;
+    fi->file_infos[i].is_open = TRUE;
+    fi->n_files_open++;
+    return 0;
+}
+
+int brtloader_fi_close (struct file_infos *fi, FIDX idx)
+{
+    assert(fi->n_files_open>0);
+    fi->n_files_open--;
+    assert(idx.idx >=0 && idx.idx < fi->n_files);
+    assert(fi->file_infos[idx.idx].is_open);
+    fi->file_infos[idx.idx].is_open = FALSE;
+    int r = fclose(fi->file_infos[idx.idx].file);
+    if (r!=0) return errno;
+    else return 0;
+}
+
+int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
+    assert(fi->n_files_extant>0);
+    fi->n_files_extant--;
+    int id = idx.idx;
+    assert(id >=0 && id < fi->n_files);
+    assert(!fi->file_infos[id].is_open); // must be closed before we unlink
+    assert(fi->file_infos[id].is_extant); // must still exist
+    fi->file_infos[id].is_extant = FALSE;
+    int r = unlink(fi->file_infos[id].fname);  if (r!=0) r=errno;
+    toku_free(fi->file_infos[id].fname);
+    fi->file_infos[id].fname = NULL;
+    return r;
+}
+
+int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 /* Effect: Open a temporary file in read-write mode.  Save enough information to close and delete the file later.
  * Return value: 0 on success, an error number otherwise.
+ *  On error, *file_idx and *fnamep will be unmodified.
+ *  The open file will be saved in bl->file_infos so that even if errors happen we can free them all.
  */
 {
     char *fname = toku_strdup(bl->temp_file_template);
@@ -26,9 +136,25 @@ int brtloader_open_temp_file (BRTLOADER bl, FILE **filep, char **fnamep)
     if (fd<0) { int r = errno; toku_free(fname); return r; }
     FILE *f = fdopen(fd, "r+");
     if (f==NULL) { int r = errno; toku_free(fname); close(fd); return r; }
-    *filep = f;
-    *fnamep = fname;
+    open_file_add(&bl->file_infos, f, fname, file_idx);
+
+    static int counter=0;
+    //fprintf(stderr, "%s:%d %d: %s\n", __FILE__, __LINE__, counter, fname);
+    counter++;
     return 0;
+}
+
+static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
+    // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
+    toku_free(bl->dbs);
+    toku_free(bl->descriptors);
+    for (int i=0; i<bl->N; i++) {
+	if (bl->new_fnames_in_env) toku_free((char*)bl->new_fnames_in_env[i]);
+    }
+    toku_free(bl->new_fnames_in_env);
+    toku_free(bl->bt_compare_funs);
+    toku_free((char*)bl->temp_file_template);
+    brtloader_fi_destroy(&bl->file_infos, is_error);
 }
 
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
@@ -52,7 +178,9 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
  * Return value: 0 on success, an error number otherwise.
  */
 {
-    BRTLOADER XCALLOC(bl);
+    BRTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
+    if (!bl) return errno;
+
     bl->panic = 0;
     bl->panic_errno = 0;
 
@@ -61,26 +189,38 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->src_db = src_db;
     bl->N = N;
-    MALLOC_N(N, bl->dbs);
+
+#define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; }
+#define MY_STRDUP(s) ({ char *v = toku_strdup(s); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; } v; })
+
+    MY_CALLOC_N(N, bl->dbs);
     for (int i=0; i<N; i++) bl->dbs[i]=dbs[i];
-    MALLOC_N(N, bl->descriptors);
+    MY_CALLOC_N(N, bl->descriptors);
     for (int i=0; i<N; i++) bl->descriptors[i]=descriptors[i];
-    MALLOC_N(N, bl->new_fnames_in_env);
-    for (int i=0; i<N; i++) bl->new_fnames_in_env[i] = toku_strdup(new_fnames_in_env[i]);
-    MALLOC_N(N, bl->bt_compare_funs);
+    MY_CALLOC_N(N, bl->new_fnames_in_env);
+    for (int i=0; i<N; i++) bl->new_fnames_in_env[i] = MY_STRDUP(new_fnames_in_env[i]);
+    MY_CALLOC_N(N, bl->bt_compare_funs);
     for (int i=0; i<N; i++) bl->bt_compare_funs[i] = bt_compare_functions[i];
 
-    bl->temp_file_template = toku_strdup(temp_file_template);
-    bl->fprimary_rows = bl->fprimary_idx = NULL;
-    { int r = brtloader_open_temp_file(bl, &bl->fprimary_rows, &bl->fprimary_rows_name); if (r!=0) return r; }
-    { int r = brtloader_open_temp_file(bl, &bl->fprimary_idx,  &bl->fprimary_idx_name);  if (r!=0) return r; }
+    brtloader_init_file_infos(&bl->file_infos);
+
+    bl->temp_file_template = MY_STRDUP(temp_file_template);
+    bl->fprimary_rows = bl->fprimary_idx = FIDX_NULL;
+    { int r = brtloader_open_temp_file(bl, &bl->fprimary_rows); if (r!=0) return r; }
+    { int r = brtloader_open_temp_file(bl, &bl->fprimary_idx);  if (r!=0) return r; }
     bl->fprimary_offset = 0;
     *blp = bl;
     return 0;
+
 }
 
+static FILE *bl_fidx2file (BRTLOADER bl, FIDX i) {
+    assert(i.idx >=0 && i.idx < bl->file_infos.n_files);
+    assert(bl->file_infos.file_infos[i.idx].is_open);
+    return bl->file_infos.file_infos[i.idx].file;
+}
 
-static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOADER bl)
+static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOADER bl)
 /* Effect: this is a wrapper for fwrite that returns 0 on success, otherwise returns an error number.
  * Arguments:
  *   ptr    the data to be writen.
@@ -91,7 +231,8 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOAD
  * Return value: 0 on success, an error number otherwise.
  */
 {
-    size_t r = fwrite(ptr, size, nmemb, stream);
+    FILE *stream = bl_fidx2file(bl, streami);
+    size_t r = do_fwrite(ptr, size, nmemb, stream);
     if (r!=nmemb) {
 	int e = ferror(stream);
 	assert(e!=0);
@@ -102,7 +243,7 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOAD
     return 0;
 }
 
-static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOADER bl)
+static int bl_fread (void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOADER bl)
 /* Effect: this is a wrapper for fread that returns 0 on success, otherwise returns an error number.
  * Arguments:
  *  ptr      read data into here.
@@ -113,6 +254,7 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOAD
  * Return value: 0 on success, an error number otherwise.
  */
 {
+    FILE *stream = bl_fidx2file(bl, streami);
     size_t r = fread(ptr, size, nmemb, stream);
     if (r==0) {
 	if (feof(stream)) return EOF;
@@ -130,7 +272,7 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOAD
     }
 }
 
-static int bl_write_dbt (DBT *dbt, FILE *datafile, uint64_t *dataoff, BRTLOADER bl)
+static int bl_write_dbt (DBT *dbt, FIDX datafile, uint64_t *dataoff, BRTLOADER bl)
 {
     int r;
     int dlen = dbt->size;
@@ -141,7 +283,7 @@ static int bl_write_dbt (DBT *dbt, FILE *datafile, uint64_t *dataoff, BRTLOADER 
     return 0;
 }
 
-static int bl_read_dbt (/*in*/DBT *dbt, FILE *datafile, BRTLOADER bl)
+static int bl_read_dbt (/*in*/DBT *dbt, FIDX datafile, BRTLOADER bl)
 {
     int len;
     {
@@ -158,7 +300,7 @@ static int bl_read_dbt (/*in*/DBT *dbt, FILE *datafile, BRTLOADER bl)
     return 0;
 }
 
-int loader_write_row(DBT *key, DBT *val, FILE *data, FILE *idx, u_int64_t *dataoff, BRTLOADER bl)
+int loader_write_row(DBT *key, DBT *val, FIDX data, FIDX idx, u_int64_t *dataoff, BRTLOADER bl)
 /* Effect: Given a key and a val (both DBTs), write them to a file.  Increment *dataoff so that it's up to date.
  * Arguments:
  *   key, val   write these.
@@ -189,7 +331,7 @@ int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val)
     return loader_write_row(key, val, bl->fprimary_rows, bl->fprimary_idx, &bl->fprimary_offset, bl);
 }
 
-int loader_read_row (FILE *f, DBT *key, DBT *val, BRTLOADER bl)
+int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl)
 /* Effect: Read a key value pair from a file.  The DBTs must have DB_DBT_REALLOC set.
  * Arguments:
  *    f         where to read it from.
@@ -211,21 +353,41 @@ int loader_read_row (FILE *f, DBT *key, DBT *val, BRTLOADER bl)
 }
 
 
-void init_rowset (struct rowset *rows)
+// 1024 is the right number for production.
+//#define SIZE_FACTOR 1
+#define SIZE_FACTOR 1024
+
+
+int init_rowset (struct rowset *rows)
 /* Effect: Initialize a collection of rows to be empty. */
 {
+    rows->rows = NULL;
+    rows->data = NULL;
+
     rows->n_rows = 0;
     rows->n_rows_limit = 100;
     MALLOC_N(rows->n_rows_limit, rows->rows);
     rows->n_bytes = 0;
-    rows->n_bytes_limit = 1024*1024*16;
+    rows->n_bytes_limit = 1024*SIZE_FACTOR*16;
     rows->data = toku_malloc(rows->n_bytes_limit);
+
+    if (rows->rows==NULL || rows->data==NULL) {
+	int r = errno;
+	toku_free(rows->rows);
+	toku_free(rows->data);
+	rows->rows = NULL;
+	rows->data = NULL;
+	return r;
+    } else {
+	return 0;
+    }
 }
+
 void destroy_rowset (struct rowset *rows) {
     toku_free(rows->data);
     toku_free(rows->rows);
 }
-const size_t data_buffer_limit = 1024*1024*16;
+const size_t data_buffer_limit = 1024*SIZE_FACTOR*64;
 static int row_wont_fit (struct rowset *rows, size_t size)
 /* Effect: Return nonzero if adding a row of size SIZE would be too big (bigger than the buffer limit) */ 
 {
@@ -246,7 +408,7 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
     }
     size_t off      = rows->n_bytes;
     size_t next_off = off + key->size + val->size;
-    struct row newrow = {.data = rows->data+off,
+    struct row newrow = {.off  = off,
 			 .klen = key->size,
 			 .vlen = val->size};
     rows->rows[rows->n_rows++] = newrow;
@@ -254,6 +416,7 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
 	while (next_off > rows->n_bytes_limit) {
 	    rows->n_bytes_limit = rows->n_bytes_limit*2; 
 	}
+	assert(next_off <= rows->n_bytes_limit);
 	REALLOC_N(rows->n_bytes_limit, rows->data);
     }
     memcpy(rows->data+off,           key->data, key->size);
@@ -261,8 +424,10 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
     rows->n_bytes = next_off;
 }
 
-void merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
-	    DB *dest_db, brt_compare_func compare)
+int merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
+	   DB *dest_db, brt_compare_func compare,
+	   struct error_callback_s *error_callback,
+	   struct rowset *rowset)
 /* Effect: Given two arrays of rows, a and b, merge them using the comparison function, and writ them into dest.
  *   This function is suitable for use in a mergesort.
  * Arguments:
@@ -274,9 +439,20 @@ void merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row
  */
 {
     while (an>0 && bn>0) {
-	DBT akey = {.data=a->data, .size=a->klen};
-	DBT bkey = {.data=b->data, .size=b->klen};
-	if (compare(dest_db, &akey, &bkey)<0) {
+	DBT akey = {.data=rowset->data+a->off, .size=a->klen};
+	DBT bkey = {.data=rowset->data+b->off, .size=b->klen};
+	int compare_result = compare(dest_db, &akey, &bkey);
+	if (compare_result==0) {
+	    if (error_callback->error_callback) {
+		DBT aval = {.data=rowset->data + a->off + a->klen, .size = a->vlen};
+		error_callback->error_callback(error_callback->db, error_callback->which_db,
+					       DB_KEYEXIST,
+					       &akey, &aval,
+					       error_callback->extra
+					       );
+		return DB_KEYEXIST;
+	    }
+	} else if (compare_result<0) {
 	    // a is smaller
 	    *dest = *a;
 	    dest++; a++; an--;
@@ -293,9 +469,10 @@ void merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row
 	*dest = *b;
 	dest++; b++; bn--;
     }
+    return 0;
 }
 
-void mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare_func compare)
+int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback, struct rowset *rowset)
 /* Sort an array of rows (using mergesort).
  * Arguments:
  *   rows   sort this array of rows.
@@ -304,37 +481,65 @@ void mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compar
  *   compare  the compare function
  */
 {
-    if (n<=1) return; // base case is sorted
+    if (n<=1) return 0; // base case is sorted
     int mid = n/2;
-    mergesort_row_array (rows,     mid,   dest_db, compare);
-    mergesort_row_array (rows+mid, n-mid, dest_db, compare);
+    {
+	int r = mergesort_row_array (rows,     mid,   dest_db, compare, error_callback, rowset);
+	if (r!=0) return r;
+    }
+    {
+	int r = mergesort_row_array (rows+mid, n-mid, dest_db, compare, error_callback, rowset);
+	if (r!=0) return r;
+    }
     struct row *MALLOC_N(n, tmp);
-    merge(tmp, rows, mid, rows+mid, n-mid, dest_db, compare);
+    {
+	int r = merge(tmp, rows, mid, rows+mid, n-mid, dest_db, compare, error_callback, rowset);
+	if (r!=0) {
+	    toku_free(tmp);
+	    return r;
+	}
+    }
     memcpy(rows, tmp, sizeof(*tmp)*n);
     toku_free(tmp);
+    return 0;
 }
 
-static void sort_rows (struct rowset *rows, DB *dest_db, brt_compare_func compare)
+static int sort_rows (struct rowset *rows, DB *dest_db, brt_compare_func compare,
+		      struct error_callback_s *error_callback)
 /* Effect: Sort a collection of rows.
+ * If any duplicates are found, then call the error_callback function and return non zero.
+ * Otherwise return 0.
  * Arguments:
  *   rowset    the */
 {
-    mergesort_row_array(rows->rows, rows->n_rows, dest_db, compare);
+    return mergesort_row_array(rows->rows, rows->n_rows, dest_db, compare, error_callback, rows);
 }
 
 /* filesets Maintain a collection of files.  Typically these files are each individually sorted, and we will merge them.
  * These files have two parts, one is for the data rows, and the other is a collection of offsets so we an more easily parallelize the manipulation (e.g., by allowing us to find the offset of the ith row quickly). */
 
-void init_fileset (struct fileset *fs)
+void init_merge_fileset (struct merge_fileset *fs)
 /* Effect: Initialize a fileset */ 
 {
     fs->n_temp_files = 0;
     fs->n_temp_files_limit = 0;
-    fs->temp_data_names = NULL;
-    fs->temp_idx_names = NULL;
+    fs->data_fidxs = NULL;
+    fs->idx_fidxs  = NULL;
 }
 
-static int extend_fileset (BRTLOADER bl, struct fileset *fs, FILE **ffile, FILE **fidx)
+void destroy_merge_fileset (struct merge_fileset *fs)
+/* Effect: Destroy a fileset. */
+{
+    fs->n_temp_files = 0;
+    fs->n_temp_files_limit = 0;
+    toku_free(fs->data_fidxs);
+    toku_free(fs->idx_fidxs);
+    fs->data_fidxs = NULL;
+    fs->idx_fidxs  = NULL;
+}
+
+
+static int extend_fileset (BRTLOADER bl, struct merge_fileset *fs, FIDX*ffile, FIDX*fidx)
 /* Effect: Add two files (one for data and one for idx) to the fileset.
  * Arguments:
  *   bl   the brtloader (needed to panic if anything goes wrong, and also to get the temp_file_template.
@@ -343,19 +548,18 @@ static int extend_fileset (BRTLOADER bl, struct fileset *fs, FILE **ffile, FILE 
  *   fidx   the index file (which will be open)
  */
 {
-    char *sfilename, *sidxname;
-    FILE *sfile, *sidx;
+    FIDX sfile, sidx;
     int r;
-    r = brtloader_open_temp_file(bl, &sfile, &sfilename); if (r!=0) return r;
-    r = brtloader_open_temp_file(bl, &sidx,  &sidxname);  if (r!=0) return r;
+    r = brtloader_open_temp_file(bl, &sfile); if (r!=0) return r;
+    r = brtloader_open_temp_file(bl, &sidx);  if (r!=0) return r;
 
     if (fs->n_temp_files+1 > fs->n_temp_files_limit) {
 	fs->n_temp_files_limit = (fs->n_temp_files+1)*2;
-	REALLOC_N(fs->n_temp_files_limit, fs->temp_data_names);
-	REALLOC_N(fs->n_temp_files_limit, fs->temp_idx_names);
+	REALLOC_N(fs->n_temp_files_limit, fs->data_fidxs);
+	REALLOC_N(fs->n_temp_files_limit, fs->idx_fidxs);
     }
-    fs->temp_data_names[fs->n_temp_files] = sfilename;
-    fs->temp_idx_names [fs->n_temp_files] = sidxname;
+    fs->data_fidxs[fs->n_temp_files] = sfile;
+    fs->idx_fidxs [fs->n_temp_files] = sidx;
     fs->n_temp_files++;
 
     *ffile = sfile;
@@ -363,7 +567,8 @@ static int extend_fileset (BRTLOADER bl, struct fileset *fs, FILE **ffile, FILE 
     return 0;
 }
 
-int sort_and_write_rows (struct rowset *rows, struct fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare)
+int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare,
+			 struct error_callback_s *error_callback)
 /* Effect: Given a rowset, sort it and write it to a temporary file.
  * Arguments:
  *   rows    the rowset
@@ -374,26 +579,28 @@ int sort_and_write_rows (struct rowset *rows, struct fileset *fs, BRTLOADER bl, 
  * Returns 0 on success, otherwise an error number.
  */
 {
-    FILE *sfile, *sidx;
+    FIDX sfile, sidx;
     u_int64_t soffset=0;
     // TODO: erase the files, and deal with all the cleanup on error paths
-    int r;
-    sort_rows(rows, dest_db, compare);
+    int r = sort_rows(rows, dest_db, compare, error_callback);
+    if (r!=0) {
+	return r;
+    }
     r = extend_fileset(bl, fs, &sfile, &sidx);
     if (r!=0) return r;
     for (size_t i=0; i<rows->n_rows; i++) {
-	DBT skey = {.data = rows->rows[i].data,                      .size=rows->rows[i].klen};
-	DBT sval = {.data = rows->rows[i].data + rows->rows[i].klen, .size=rows->rows[i].vlen};
+	DBT skey = {.data = rows->data + rows->rows[i].off,                      .size=rows->rows[i].klen};
+	DBT sval = {.data = rows->data + rows->rows[i].off + rows->rows[i].klen, .size=rows->rows[i].vlen};
 	r = loader_write_row(&skey, &sval, sfile, sidx, &soffset, bl);
 	if (r!=0) return r;
     }
-    r = fclose(sfile);  if (r!=0) return errno;
-    r = fclose(sidx);   if (r!=0) return errno;
+    r = brtloader_fi_close(&bl->file_infos, sfile);  if (r!=0) return r;
+    r = brtloader_fi_close(&bl->file_infos, sidx);   if (r!=0) return r;
     
     return 0;
 }
 
-static int merge_some_files (FILE *dest_data, FILE *dest_idx, int n_sources, FILE *srcs_data[/*n_sources*/], FILE *srcs_idx[/*n_sources*/], BRTLOADER bl, DB *dest_db, brt_compare_func compare)
+static int merge_some_files (FIDX dest_data, FIDX dest_idx, int n_sources, FIDX srcs_data[/*n_sources*/], FIDX srcs_idx[/*n_sources*/], BRTLOADER bl, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback)
 /* Effect: Given an array of FILE*'s each containing sorted, merge the data and write it to dest.  All the files remain open after the merge.
  *   This merge is performed in one pass, so don't pass too many files in.  If you need a tree of merges do it elsewhere.
  * Modifies:  May modify the arrays of files (but if modified, it must be a permutation so the caller can use that array to close everything.)
@@ -411,17 +618,19 @@ static int merge_some_files (FILE *dest_data, FILE *dest_idx, int n_sources, FIL
  */
 {
     // We'll use a really stupid heap:  O(n) time per pop instead of O(log n), because we need to get this working soon. ???
-    FILE *datas[n_sources];
-    FILE *idxs [n_sources];
+    FIDX datas[n_sources];
+    FIDX idxs [n_sources];
     DBT keys[n_sources];
     DBT vals[n_sources];
     u_int64_t dataoff[n_sources];
     DBT zero = {.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
     for (int i=0; i<n_sources; i++) {
+	keys[i] = vals[i] = zero; // fill these all in with zero so we can delete stuff more reliably.
+	datas[i] = idxs[i] = FIDX_NULL;
+    }
+    for (int i=0; i<n_sources; i++) {
 	datas[i] = srcs_data[i];
 	idxs [i] = srcs_idx[i];
-	keys[i] = zero;
-	vals[i] = zero;
 	int r = loader_read_row(datas[i], &keys[i], &vals[i], bl);
 	if (r!=0) return r;
 	dataoff[i] = 0;
@@ -429,7 +638,22 @@ static int merge_some_files (FILE *dest_data, FILE *dest_idx, int n_sources, FIL
     while (n_sources>0) {
 	int mini=0;
 	for (int j=1; j<n_sources; j++) {
-	    if (compare(dest_db, &keys[mini], &keys[j])>0) {
+	    int compare_result = compare(dest_db, &keys[mini], &keys[j]);
+	    if (compare_result==0) {
+		if (error_callback->error_callback) {
+		    error_callback->error_callback(error_callback->db, error_callback->which_db,
+						   DB_KEYEXIST,
+						   &keys[mini], &vals[mini],
+						   error_callback->extra
+						   );
+		    for (int i=0; i<n_sources; i++) {
+			toku_free(keys[i].data);
+			toku_free(vals[i].data);
+		    }
+		    return DB_KEYEXIST;
+		}
+	    }
+	    if (compare_result>0) {
 		mini=j;
 	    }
 	}
@@ -440,7 +664,7 @@ static int merge_some_files (FILE *dest_data, FILE *dest_idx, int n_sources, FIL
 	{
 	    int r = loader_read_row(datas[mini], &keys[mini], &vals[mini], bl);
 	    if (r!=0) {
-		if (feof(datas[mini])) {
+		if (feof(bl_fidx2file(bl, datas[mini]))) {
 		    toku_free(keys[mini].data);
 		    toku_free(vals[mini].data);
 		    datas[mini] = datas[n_sources-1];
@@ -449,7 +673,7 @@ static int merge_some_files (FILE *dest_data, FILE *dest_idx, int n_sources, FIL
 		    vals[mini] = vals[n_sources-1];
 		    n_sources--;
 		} else {
-		    r = ferror(datas[mini]);
+		    r = ferror(bl_fidx2file(bl, datas[mini]));
 		    assert(r!=0);
 		    return r;
 		}
@@ -465,49 +689,59 @@ static int int_min (int a, int b)
     else return b;
 }
 
-int merge_files (struct fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare)
+int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback)
 /* Effect:  Given a fileset, merge all the files into one file.  At the end the fileset will have one file in it.
  *   All the other files will be closed and unlinked.
  * Return value: 0 on success, otherwise an error number.
+ *   On error *fs will contain no open files.  All the files (including any temporary files) will be closed and unlinked.
+ *    (however the fs will still need to be deallocated.)
  */
 {
+    int r = 0;
     while (fs->n_temp_files!=1) {
 	assert(fs->n_temp_files>0);
-	struct fileset next_file_set;
-	init_fileset(&next_file_set);
+	struct merge_fileset next_file_set;
+	init_merge_fileset(&next_file_set);
 	while (fs->n_temp_files>0) {
 	    // grab some files and merge them.
 	    const int mergelimit = 256;
 	    int n_to_merge = int_min(mergelimit, fs->n_temp_files);
-	    FILE **MALLOC_N(n_to_merge, datafiles);
-	    FILE **MALLOC_N(n_to_merge, idxfiles);
+	    FIDX *MALLOC_N(n_to_merge, datafiles);
+	    FIDX *MALLOC_N(n_to_merge, idxfiles);
+	    for (int i=0; i<n_to_merge; i++) datafiles[i] = idxfiles[i] = FIDX_NULL;
 	    for (int i=0; i<n_to_merge; i++) {
 		int idx = fs->n_temp_files -1 -i;
-		datafiles[i] = fopen(fs->temp_data_names[idx], "r");    if (datafiles[i]==NULL) return errno;
-		idxfiles[i] = fopen(fs->temp_idx_names  [idx], "r");    if (idxfiles[i]==NULL) return errno;
+		datafiles[i] = fs->data_fidxs[idx];
+		idxfiles [i] = fs->idx_fidxs[idx];
+		r = brtloader_fi_reopen(&bl->file_infos, datafiles[i], "r");      if (r) goto error;
+		r = brtloader_fi_reopen(&bl->file_infos, idxfiles[i],  "r");      if (r) goto error;
 	    }
-	    FILE *merged_data, *merged_idx;
-	    int r;
-	    r = extend_fileset(bl, &next_file_set,  &merged_data, &merged_idx);                                    if (r!=0) return r;
-	    r = merge_some_files(merged_data, merged_idx, n_to_merge, datafiles, idxfiles, bl, dest_db, compare);  if (r!=0) return r;
+	    FIDX merged_data, merged_idx;
+	    r = extend_fileset(bl, &next_file_set,  &merged_data, &merged_idx);                                                    if (r!=0) goto error;
+	    r = merge_some_files(merged_data, merged_idx, n_to_merge, datafiles, idxfiles, bl, dest_db, compare, error_callback);  if (r!=0) goto error;
 	    for (int i=0; i<n_to_merge; i++) {
-		int idx = fs->n_temp_files -1 -i;
-		r = fclose(datafiles[i]);              if (r!=0) return errno;
-		r = fclose(idxfiles[i]);               if (r!=0) return errno;
-		r = unlink(fs->temp_data_names[idx]);  if (r!=0) return errno;
-		r = unlink(fs->temp_idx_names [idx]);  if (r!=0) return errno;
-		toku_free(fs->temp_data_names[idx]);
-		toku_free(fs->temp_idx_names[idx]);
+		r = brtloader_fi_close(&bl->file_infos, datafiles[i]);            if (r!=0) goto error;
+		r = brtloader_fi_close(&bl->file_infos, idxfiles[i]);             if (r!=0) goto error;
+		r = brtloader_fi_unlink(&bl->file_infos, datafiles[i]);           if (r!=0) goto error;
+		r = brtloader_fi_unlink(&bl->file_infos, idxfiles[i]);            if (r!=0) goto error;
 	    }
 	    fs->n_temp_files -= n_to_merge;
-	    r = fclose(merged_data); assert(r==0);
-	    r = fclose(merged_idx);  assert(r==0);
+	    r = brtloader_fi_close(&bl->file_infos, merged_data); assert(r==0);
+	    r = brtloader_fi_close(&bl->file_infos, merged_idx);  assert(r==0);
 	    toku_free(datafiles);
 	    toku_free(idxfiles);
+	    if (0) {
+	    error:
+		toku_free(fs->data_fidxs);
+		toku_free(fs->idx_fidxs);
+		toku_free(datafiles);
+		toku_free(idxfiles);
+		return r;
+	    }
 	}
 	assert(fs->n_temp_files==0);
-	toku_free(fs->temp_data_names);
-	toku_free(fs->temp_idx_names);
+	toku_free(fs->data_fidxs);
+	toku_free(fs->idx_fidxs);
 	*fs = next_file_set;
     }
     return 0;
@@ -517,26 +751,35 @@ static int loader_do_i (BRTLOADER bl,
 			DB *dest_db,
 			brt_compare_func compare,
 			const struct descriptor *descriptor,
-			const char *new_fname)
+			const char *new_fname,
+			int which_db,
+			void (*error_callback)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra),
+			void *error_callback_extra
+			)
 /* Effect: Handle the file creating for one particular DB in the bulk loader. */
 {
-    int r = fseek(bl->fprimary_rows, 0, SEEK_SET);
-    assert(r==0);
+    int r = fseek(bl_fidx2file(bl, bl->fprimary_rows), 0, SEEK_SET);
+    if (r!=0) return errno;
     DBT pkey={.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
     DBT pval=pkey;
     DBT skey=pkey;
     DBT sval=pkey;
+    struct merge_fileset fs;
+    init_merge_fileset(&fs);
     struct rowset rows;
-    init_rowset(&rows);
-    struct fileset fs;
-    init_fileset(&fs);
+    r = init_rowset(&rows);
+    if (r!=0) return r;
+    struct error_callback_s ec = {.error_callback = error_callback,
+				  .db             = dest_db,
+				  .which_db       = which_db,
+				  .extra          = error_callback_extra};
     while (0==(r=loader_read_row(bl->fprimary_rows, &pkey, &pval, bl))) {
 	r = bl->generate_row_for_put(dest_db, bl->src_db, &skey, &sval, &pkey, &pval, NULL);
 	assert(r==0);
 
 	if (row_wont_fit(&rows, skey.size + sval.size)) {
-	    r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare);
-	    if (r!=0) return r;
+	    r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare, &ec);
+	    if (r!=0) goto error;
 	    reset_rows(&rows);
 	}
 	add_row(&rows, &skey, &sval);
@@ -554,64 +797,84 @@ static int loader_do_i (BRTLOADER bl,
             sval.flags = DB_DBT_REALLOC;
         }
     }
-    toku_free (pkey.data);
-    toku_free (pval.data);
-    //Clean up memory in skey, sval
-    if (skey.data) toku_free(skey.data);
-    if (sval.data) toku_free(sval.data);
-    if (rows.n_rows > 0) {
-	r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare);
-	if (r!=0) return r;
+    { // clean up this stuff early, to save memory
+	toku_free(skey.data);
+	toku_free(sval.data);
+	toku_free (pkey.data);
+	toku_free (pval.data);
+	skey.data = sval.data = pkey.data = pval.data = NULL; // set to NULL so that the final cleanup won't free them again.
     }
-    toku_free(rows.data);
-    toku_free(rows.rows);
-    r = merge_files(&fs, bl, dest_db, compare);
-    if (r!=0) return r;
+    
+    if (rows.n_rows > 0) {
+	r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare, &ec);
+	if (r!=0) goto error;
+    }
+    {
+	// clean up this stuff early, to save memory
+	toku_free(rows.data);
+	toku_free(rows.rows);
+	rows.data = NULL; //set to NULL so the final cleanup won't free them again.
+	rows.rows = NULL; 
+    }
+    r = merge_files(&fs, bl, dest_db, compare, &ec);
+    if (r!=0) goto error;
 
     // Now it's down to one file.  Need to write the data out.  The file is in fs.
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
     assert(fd>=0);
     assert(fs.n_temp_files==1);
-    FILE *inf = fopen(fs.temp_data_names[0], "r");
-    r = write_file_to_dbfile(fd, inf, bl, descriptor);
-    assert(r==0);
+    r = brtloader_fi_reopen(&bl->file_infos, fs.data_fidxs[0], "r");
+    if (r) goto error;
+    r = write_file_to_dbfile(fd, fs.data_fidxs[0], bl, descriptor);
+    if (r) goto error;
+    r = fsync(fd);
+    if (r) { r=errno; goto error; }
     r = close(fd);
-    assert(r==0);
-    r = fclose(inf);
-    assert(r==0);
+    if (r) { r=errno; goto error; }
+    r = brtloader_fi_close(&bl->file_infos, fs.data_fidxs[0]);
+    if (r) goto error;
+    r = brtloader_fi_unlink(&bl->file_infos, fs.data_fidxs[0]);
+    if (r) goto error;
+    r = brtloader_fi_unlink(&bl->file_infos, fs.idx_fidxs[0]);
 
-    toku_free(fs.temp_data_names[0]);
-    toku_free(fs.temp_idx_names[0]);
-    toku_free(fs.temp_data_names);
-    toku_free(fs.temp_idx_names);
-
-    return 0;
+ error: // this is the cleanup code.  Even if r==0 (no error) we fall through to here.
+    // if we get here we need to free up the merge_fileset and the rowset, as well as the keys
+    toku_free(rows.data);
+    toku_free(rows.rows);
+    toku_free(fs.data_fidxs);
+    toku_free(fs.idx_fidxs);
+    toku_free(skey.data);
+    toku_free(sval.data);
+    toku_free (pkey.data);
+    toku_free (pval.data);
+    return r;
 }
 
-int toku_brt_loader_close (BRTLOADER bl)
+int toku_brt_loader_close (BRTLOADER bl,
+			   void (*error_callback)(DB *, int i, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra
+			   )
 /* Effect: Close the bulk loader.
  * Return all the file descriptors in the array fds. */
 {
+    int result = 0;
     for (int i=0; i<bl->N; i++) {
         char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
-
-	int r = loader_do_i(bl, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd);
+	result = loader_do_i(bl, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd, i, error_callback, error_callback_extra);
         toku_free(fname_in_cwd);
-	if (r!=0) return r;
+	if (result!=0) goto error;
         toku_free((void*)bl->new_fnames_in_env[i]);
 	bl->new_fnames_in_env[i] = NULL;
     }
-    toku_free(bl->dbs);
-    toku_free(bl->descriptors);
-    toku_free(bl->new_fnames_in_env);
-    toku_free(bl->bt_compare_funs);
-    toku_free((void*)bl->temp_file_template);
-    { int r = fclose(bl->fprimary_rows); assert (r==0); }
-    toku_free(bl->fprimary_rows_name);
-    { int r = fclose(bl->fprimary_idx); assert (r==0); }    
-    toku_free(bl->fprimary_idx_name);
-    return 0;
+    result = brtloader_fi_close (&bl->file_infos, bl->fprimary_rows); if (result) goto error;
+    result = brtloader_fi_unlink(&bl->file_infos, bl->fprimary_rows); if (result) goto error;
+    result = brtloader_fi_close (&bl->file_infos, bl->fprimary_idx);  if (result) goto error;
+    result = brtloader_fi_unlink(&bl->file_infos, bl->fprimary_idx);  if (result) goto error;
+    assert(bl->file_infos.n_files_open   == 0);
+    assert(bl->file_infos.n_files_extant == 0);
+ error:
+    brtloader_destroy(bl, result!=0);
+    return result;
 }
 
 struct dbuf {
@@ -672,7 +935,7 @@ struct leaf_buf {
     int nkeys_p, ndata_p, dsize_p, n_in_buf_p;
 };
 
-const int nodesize = 1<<22;
+const int nodesize = 1<<15;
 
 struct translation {
     int64_t off, size;
@@ -721,7 +984,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
     dbuf_init(&lbuf->dbuf);
     int height=0;
     int flags=0;
-    int layout_version=11;
+    int layout_version=BRT_LAYOUT_VERSION;
     putbuf_bytes(&lbuf->dbuf, "tokuleaf", 8);
     putbuf_int32(&lbuf->dbuf, layout_version);
     putbuf_int32(&lbuf->dbuf, layout_version); // layout_version original
@@ -895,7 +1158,7 @@ static void write_header (struct dbout *out, long long translation_location_on_d
 			   .nodesize         = nodesize,
 			   .root             = root_blocknum_on_disk,
 			   .flags            = 0,
-			   .layout_version_original = 11
+			   .layout_version_original = BRT_LAYOUT_VERSION
     };
     unsigned int size = toku_serialize_brt_header_size (&h);
     struct wbuf wbuf;
@@ -932,7 +1195,7 @@ static void allocate_node (struct subtrees_info *sts, int64_t b, const struct su
     sts->n_subtrees++;
 }
 
-static int read_some_pivots (FILE *pivots_file, int n_to_read, BRTLOADER bl,
+static int read_some_pivots (FIDX pivots_file, int n_to_read, BRTLOADER bl,
 		      /*out*/ DBT pivots[/*n_to_read*/])
 // pivots is an array to be filled in.  The pivots array is uninitialized.
 {
@@ -945,8 +1208,8 @@ static int read_some_pivots (FILE *pivots_file, int n_to_read, BRTLOADER bl,
 }
 
 static int setup_nonleaf_block (int n_children,
-				struct subtrees_info *subtrees,         FILE *pivots_file,        int64_t first_child_offset_in_subtrees,
-				struct subtrees_info *next_subtrees,    FILE *next_pivots_file,
+				struct subtrees_info *subtrees,         FIDX pivots_file,        int64_t first_child_offset_in_subtrees,
+				struct subtrees_info *next_subtrees,    FIDX next_pivots_file,
 				struct dbout *out, BRTLOADER bl,
 				/*out*/int64_t *blocknum,
 				/*out*/struct subtree_info **subtrees_info_p,
@@ -1068,7 +1331,7 @@ int write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_c
 }
 
 static
-int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
+int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
 
     int height=1;
     // Watch out for the case where we saved the last pivot but didn't write any more nodes out.
@@ -1083,13 +1346,12 @@ int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct
 	//  2) We put the 15 pivots and 16 blocks into an non-leaf node.
 	//  3) We put the 16th pivot into the next pivots file.
 	{
-	    int r = fseek(pivots_file, 0, SEEK_SET);
+	    int r = fseek(bl_fidx2file(bl, pivots_fidx), 0, SEEK_SET);
 	    if (r!=0) { assert(errno!=0); return errno; }
 	}
 
-	FILE *next_pivots_file;
-	char *next_pivots_name;
-	brtloader_open_temp_file (bl, &next_pivots_file, &next_pivots_name);
+	FIDX next_pivots_file;
+	brtloader_open_temp_file (bl, &next_pivots_file);
 
 	struct subtrees_info next_sts = {.n_subtrees = 0,
 					 .n_subtrees_limit = 1};
@@ -1103,7 +1365,7 @@ int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct
 	    int64_t blocknum_of_new_node;
 	    struct subtree_info *subtree_info;
 	    int r = setup_nonleaf_block (n_per_block,
-					 sts, pivots_file, n_subtrees_used,
+					 sts, pivots_fidx, n_subtrees_used,
 					 &next_sts, next_pivots_file,
 					 out, bl,
 					 &blocknum_of_new_node, &subtree_info, &pivots);
@@ -1122,7 +1384,7 @@ int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct
 	    int64_t blocknum_of_new_node;
 	    struct subtree_info *subtree_info;
 	    int r = setup_nonleaf_block(n_first,
-					sts, pivots_file, n_subtrees_used,
+					sts, pivots_fidx, n_subtrees_used,
 					&next_sts, next_pivots_file,
 					out, bl,
 					&blocknum_of_new_node, &subtree_info, &pivots);
@@ -1138,7 +1400,7 @@ int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct
 	    int64_t blocknum_of_new_node;
 	    struct subtree_info *subtree_info;
 	    int r = setup_nonleaf_block(n_blocks_left,
-					sts, pivots_file, n_subtrees_used,
+					sts, pivots_fidx, n_subtrees_used,
 					&next_sts, next_pivots_file,
 					out, bl,
 					&blocknum_of_new_node, &subtree_info, &pivots);
@@ -1149,28 +1411,25 @@ int write_nonleaves (BRTLOADER bl, FILE *pivots_file, char *pivots_fname, struct
 	}
 	assert(n_subtrees_used == sts->n_subtrees);
 	// Now set things up for the next iteration.
-	int r = fclose(pivots_file); assert(r==0);
-	pivots_file = next_pivots_file;
-	r = unlink(pivots_fname);    assert(r==0);
-	toku_free(pivots_fname);
-	pivots_fname = next_pivots_name;
+	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); assert(r==0);
+	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    assert(r==0);
+	pivots_fidx = next_pivots_file;
 	toku_free(sts->subtrees);
 	*sts = next_sts;
 	height++;
     }
-    { int r = fclose(pivots_file); assert(r==0); }
-    toku_free(pivots_fname);
+    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); assert(r==0); }
+    { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); assert(r==0); }
     return 0;
 }
 
-int write_file_to_dbfile (int outfile, FILE *infile, BRTLOADER bl, const struct descriptor *descriptor) {
+int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor) {
     // The pivots file will contain all the pivot strings (in the form <size(32bits)> <data>)
     // The pivots_fname is the name of the pivots file.
     // Note that the pivots file will have one extra pivot in it (the last key in the dictionary) which will not appear in the tree.
     int64_t n_pivots=0; // number of pivots in pivots_file
-    FILE *pivots_file;  // the file
-    char *pivots_fname; // the filename
-    brtloader_open_temp_file (bl, &pivots_file, &pivots_fname);
+    FIDX pivots_file;  // the file
+    brtloader_open_temp_file (bl, &pivots_file);
 
     // The blocks_array will contain all the block numbers that correspond to the pivots.  Generally there should be one more block than pivot.
     struct subtrees_info sts = {.next_free_block = 3,
@@ -1227,7 +1486,7 @@ int write_file_to_dbfile (int outfile, FILE *infile, BRTLOADER bl, const struct 
     finish_leafnode(&out, lbuf);
 
     {
-	int r = write_nonleaves(bl, pivots_file, pivots_fname, &out, &sts, descriptor);
+	int r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor);
 	assert(r==0);
     }
 

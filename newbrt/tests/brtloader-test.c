@@ -22,41 +22,72 @@ static int compare_ints (DB *dest_db, const DBT *akey, const DBT *bkey) {
     return qsort_compare_ints(akey->data, bkey->data);
 }
 
-static void test_merge_internal (int a[], int na, int b[], int nb) {
+static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
+    fprintf(stderr, "error in test");
+    abort();
+}
+BOOL founddup;
+static void expect_dups_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
+    founddup=TRUE;
+}
+
+static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
+    int *MALLOC_N(na+nb, ab); // the combined array a and b
+    for (int i=0; i<na; i++) {
+	ab[i]=a[i];
+    }
+    for (int i=0; i<nb; i++) {
+	ab[na+i] = b[i];
+    }
     struct row *MALLOC_N(na, ar);
     struct row *MALLOC_N(nb, br);
     for (int i=0; i<na; i++) {
-	ar[i].data = (void*)&a[i];
+	ar[i].off = i*sizeof(a[0]);
 	ar[i].klen = sizeof(a[i]);
 	ar[i].vlen = 0;
     }
     for (int i=0; i<nb; i++) {
-	br[i].data = (void*)&b[i];
+	br[i].off  = (na+i)*sizeof(b[0]);
 	br[i].klen = sizeof(b[i]);
 	br[i].vlen = 0;
     }
     struct row *MALLOC_N(na+nb, cr);
     DB *dest_db = NULL;
-    merge(cr, ar, na, br, nb, dest_db, compare_ints);
-    int i=0;
-    int j=0;
-    for (int k=0; k<na+nb; k++) {
-	int vc = *(int*)cr[k].data;
-	if (i<na && j<nb) {
-	    if (vc==a[i]) {
-		assert(a[i]<=b[j]);
-		i++;
-	    } else if (vc==b[j]) {
-		assert(a[i]>b[j]);
-		j++;
-	    } else {
-		assert(0);
+    struct error_callback_s cb;
+    if (dups) {
+	cb.error_callback = expect_dups_cb;
+	founddup=FALSE;
+    } else {
+	cb.error_callback = err_cb;
+    }
+    struct rowset rs = {.data=(char*)ab};
+    merge(cr, ar, na, br, nb, dest_db, compare_ints, &cb, &rs);
+    if (dups) {
+	assert(founddup);
+    } else {
+	// verify the merge
+	int i=0;
+	int j=0;
+	for (int k=0; k<na+nb; k++) {
+	    int voff = cr[k].off;
+	    int vc   = *(int*)(((char*)ab)+voff);
+	    if (i<na && j<nb) {
+		if (vc==a[i]) {
+		    assert(a[i]<=b[j]);
+		    i++;
+		} else if (vc==b[j]) {
+		    assert(a[i]>b[j]);
+		    j++;
+		} else {
+		    assert(0);
+		}
 	    }
 	}
     }
     toku_free(cr);
     toku_free(ar);
     toku_free(br);
+    toku_free(ab);
 }
 
 /* Test the basic merger. */
@@ -64,38 +95,41 @@ static void test_merge (void) {
     {
 	int avals[]={1,2,3,4,5};
 	int *bvals = NULL; //icc won't let us use a zero-sized array explicitly or by [] = {} construction.
-	test_merge_internal(avals, 5, bvals, 0);
-	test_merge_internal(bvals, 0, avals, 5);
+	test_merge_internal(avals, 5, bvals, 0, FALSE);
+	test_merge_internal(bvals, 0, avals, 5, FALSE);
     }
     {
 	int avals[]={1,3,5,7};
 	int bvals[]={2,4};
-	test_merge_internal(avals, 4, bvals, 2);
-	test_merge_internal(bvals, 2, avals, 4);
+	test_merge_internal(avals, 4, bvals, 2, FALSE);
+	test_merge_internal(bvals, 2, avals, 4, FALSE);
     }
     {
 	int avals[]={1,2,3,5,6,7};
 	int bvals[]={2,4,5,6,8};
-	test_merge_internal(avals, 6, bvals, 5);
-	test_merge_internal(bvals, 5, avals, 6);
+	test_merge_internal(avals, 6, bvals, 5, TRUE);
+	test_merge_internal(bvals, 5, avals, 6, TRUE);
     }
 }
 
 static void test_internal_mergesort_row_array (int a[], int n) {
     struct row *MALLOC_N(n, ar);
     for (int i=0; i<n; i++) {
-	ar[i].data = (void*)&a[i];
+	ar[i].off  = i*sizeof(a[0]);
 	ar[i].klen = sizeof(a[i]);
 	ar[i].vlen = 0;
     }
-    mergesort_row_array (ar, n, NULL, compare_ints);
+    struct rowset rs = {.data=(char*)a};
+    mergesort_row_array (ar, n, NULL, compare_ints, NULL, &rs);
     int *MALLOC_N(n, tmp);
     for (int i=0; i<n; i++) {
 	tmp[i]=a[i];
     }
     qsort(tmp, n, sizeof(a[0]), qsort_compare_ints);
     for (int i=0; i<n; i++) {
-	assert(tmp[i]==*(int*)ar[i].data);
+	int voff = ar[i].off;
+	int v    = *(int*)(((char*)a)+voff);
+	assert(tmp[i]==v);
     }
     toku_free(ar);
     toku_free(tmp);
@@ -107,11 +141,20 @@ static void test_mergesort_row_array (void) {
 	for (int i=0; i<=4; i++)
 	    test_internal_mergesort_row_array(avals, i);
     }
-    for (int i=0; i<100; i++) {
-	int len=1+random()%100;
+    const int MAX_LEN = 100;
+    enum { MAX_VAL = 1000 };
+    for (int i=0; i<MAX_LEN; i++) {
+	BOOL used[MAX_VAL];
+	for (int j=0; j<MAX_VAL; j++) used[j]=FALSE; 
+	int len=1+random()%MAX_LEN;
 	int avals[len];
 	for (int j=0; j<len; j++) {
-	    avals[j] = random()%len;
+	    int v;
+	    do {
+		v = random()%MAX_VAL;
+	    } while (used[v]); 
+	    avals[j] = v;
+	    used[v] = TRUE;
 	}
 	test_internal_mergesort_row_array(avals, len);
     }
@@ -120,15 +163,14 @@ static void test_mergesort_row_array (void) {
 static void test_read_write_rows (char *template) {
     struct brtloader_s bl = {.panic              = 0,
 			     .temp_file_template = template};
-    int r;
-    FILE *file;
-    char *fname;
-    r = brtloader_open_temp_file(&bl, &file, &fname);
+    int r = brtloader_init_file_infos(&bl.file_infos);
+    CKERR(r);
+    FIDX file;
+    r = brtloader_open_temp_file(&bl, &file);
     CKERR(r);
 
-    FILE *idx;
-    char *idxname;
-    r = brtloader_open_temp_file(&bl, &idx, &idxname);
+    FIDX idx;
+    r = brtloader_open_temp_file(&bl, &idx);
     CKERR(r);
 
     size_t dataoff=0;
@@ -146,11 +188,11 @@ static void test_read_write_rows (char *template) {
     if (actual_size != dataoff) fprintf(stderr, "actual_size=%"PRIu64", dataoff=%"PRIu64"\n", actual_size, dataoff);
     assert(actual_size == dataoff);
 
-    r = fclose(file);
+    r = brtloader_fi_close(&bl.file_infos, file);
     CKERR(r);
 
-    file = fopen(fname, "r");
-    assert(file);
+    r = brtloader_fi_reopen(&bl.file_infos, file, "r");
+    CKERR(r);
 
     {
 	int n_read=0;
@@ -168,18 +210,20 @@ static void test_read_write_rows (char *template) {
 	toku_free(key.data);
 	toku_free(val.data);
     }
-    r = fclose(file);
+    r = brtloader_fi_close(&bl.file_infos, file);
     CKERR(r);
-    r = fclose(idx);
-    CKERR(r);
-
-    r = unlink(fname);
-    CKERR(r);
-    r = unlink(idxname);
+    r = brtloader_fi_close(&bl.file_infos, idx);
     CKERR(r);
 
-    toku_free(fname);
-    toku_free(idxname);
+    r = brtloader_fi_unlink(&bl.file_infos, file);
+    CKERR(r);
+    r = brtloader_fi_unlink(&bl.file_infos, idx);
+    CKERR(r);
+
+    assert(bl.file_infos.n_files_open==0);
+    assert(bl.file_infos.n_files_extant==0);
+
+    brtloader_fi_destroy(&bl.file_infos, FALSE);
 }
 
 static void fill_rowset (struct rowset *rows,
@@ -200,9 +244,10 @@ static void test_merge_files (char *template) {
     DB *dest_db = NULL;
     struct brtloader_s bl = {.panic              = 0,
 			     .temp_file_template = template};
-    int r;
-    struct fileset fs;
-    init_fileset(&fs);
+    int r = brtloader_init_file_infos(&bl.file_infos);
+    CKERR(r);
+    struct merge_fileset fs;
+    init_merge_fileset(&fs);
 
     int a_keys[] = {   1,    3,    5,    7, 8, 9};
     int b_keys[] = {      2,    4,    6         };
@@ -212,18 +257,22 @@ static void test_merge_files (char *template) {
     fill_rowset(&aset, a_keys, a_vals, 6);
     fill_rowset(&bset, b_keys, b_vals, 3);
 
-    r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints);  CKERR(r);
-    r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints);  CKERR(r);
+    struct error_callback_s cb;
+    cb.error_callback = err_cb;
+    r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints, &cb);  CKERR(r);
+    r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints, &cb);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     destroy_rowset(&aset);
     destroy_rowset(&bset);
-    for (int i=0; i<2; i++) assert(fs.temp_data_names[i] != NULL && fs.temp_idx_names[i] != NULL);
+    for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1 && fs.idx_fidxs[i].idx != -1);
 
-    r = merge_files(&fs, &bl, dest_db, compare_ints); CKERR(r);
+    r = merge_files(&fs, &bl, dest_db, compare_ints, &cb); CKERR(r);
 
     assert(fs.n_temp_files==1);
 
-    FILE *inf = fopen(fs.temp_data_names[0], "r");
+    FIDX inf = fs.data_fidxs[0];
+    r = brtloader_fi_reopen(&bl.file_infos, inf, "r");
+    CKERR(r);
     char *name = toku_strdup(template);
     int   fd  = mkstemp(name);
     fprintf(stderr, "Final data in %s\n", name);
@@ -231,18 +280,15 @@ static void test_merge_files (char *template) {
     struct descriptor desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
     r = write_file_to_dbfile(fd, inf, &bl, &desc);
     CKERR(r);
-    r = fclose(inf);
+    r = brtloader_fi_close(&bl.file_infos, inf);
     CKERR(r);
-    r = unlink(fs.temp_data_names[0]);
+    r = brtloader_fi_unlink(&bl.file_infos, fs.data_fidxs[0]);
     CKERR(r);
-    r = unlink(fs.temp_idx_names[0]);
+    r = brtloader_fi_unlink(&bl.file_infos, fs.idx_fidxs[0]);
     CKERR(r);
     
-
-    toku_free(fs.temp_data_names[0]);
-    toku_free(fs.temp_idx_names[0]);
-    toku_free(fs.temp_data_names);
-    toku_free(fs.temp_idx_names);
+    destroy_merge_fileset(&fs);
+    brtloader_fi_destroy(&bl.file_infos, FALSE);
     toku_free(name);
 }
 

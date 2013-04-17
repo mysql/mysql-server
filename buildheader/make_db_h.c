@@ -404,7 +404,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("struct __toku_loader_internal;\n");
     printf("struct __toku_loader {\n");
     printf("  struct __toku_loader_internal *i;\n");
-    printf("  int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra)); /* set the error callback */\n");
+    printf("  int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra), void *error_extra); /* set the error callback */\n");
     printf("  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
     printf("  int (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
     printf("  int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
