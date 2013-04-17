@@ -47,4 +47,6 @@ void toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_cal
 void toku_checkpoint_destroy(void);
 
 // Take a checkpoint of all currently open dictionaries
-int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string);
+// Callback is called during checkpoint procedure while checkpoint_safe lock is still held.
+// Callback is primarily intended for use in testing.
+int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*callback_f)(void*), void * extra);
