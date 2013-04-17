@@ -43,7 +43,9 @@ int
 main(int argc, const char *argv[]) {
     int ri = toku_portability_init();
     assert(ri==0);
+    partitioned_counters_init();
     int r = test_main(argc, argv);
+    partitioned_counters_destroy();
     toku_portability_destroy();
     return r;
 }
