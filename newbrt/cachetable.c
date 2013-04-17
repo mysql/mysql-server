@@ -1358,8 +1358,10 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         p->remove_me = FALSE;
         cachetable_write_pair(ct, p);    // releases the write lock on the pair
     }
-    else if (p->cq)
+    else if (p->cq) {
+        workitem_init(&p->asyncwork, NULL, p);
         workqueue_enq(p->cq, &p->asyncwork, 1);
+    }
     else
 	rwlock_write_unlock(&p->rwlock); // didn't call cachetable_write_pair so we have to unlock it ourselves.
     write_for_checkpoint_pair = NULL;
