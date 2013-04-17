@@ -71,6 +71,22 @@ else
 	$(SUMMARIZE_CMD)
 endif
 
+# check to see if that logic makes an error when there is a leak.
+try-leak.tdbrun: try-leak
+ifeq ($(VGRIND),)
+	./$< $(SUMMARIZE_CMD)
+else
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	if [ $$? = 0 ] ; then \
+		lines=`cat $<.check.valgrind | wc -l`; \
+		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
+	else \
+	        test 0 = 1; \
+	fi \
+	$(INVERTER) \
+	$(SUMMARIZE_CMD)
+endif
+
 try-assert0.tdbrun: try-assert0
 	./$< 2> /dev/null $(INVERTER) $(SUMMARIZE_CMD)
 
