@@ -235,6 +235,10 @@ nonleaf_node_is_gorged (BRTNODE node) {
 	    (!buffers_are_empty));
 }
 
+static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
+    (*val) += data;
+}
+
 static void brtnode_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
@@ -285,7 +289,6 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const bounds,
 		      struct brtnode_fetch_extra *bfe,
-                      BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
 		      BRTNODE *node_p) {
     void *node_v;
     int r = toku_cachetable_get_and_pin_nonblocking(
@@ -306,7 +309,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
-	if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
+	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
 	*node_p = node;
 	// printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
     } else {
@@ -491,7 +494,7 @@ long
 toku_bnc_memory_size(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
-            toku_fifo_memory_size_in_use(bnc->buffer) +
+            toku_fifo_memory_size(bnc->buffer) +
             toku_omt_memory_size(bnc->fresh_message_tree) +
             toku_omt_memory_size(bnc->stale_message_tree) +
             toku_omt_memory_size(bnc->broadcast_list));
@@ -671,7 +674,6 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
     assert(brtnode->thisnodename.b==nodename.b);
-    int height = brtnode->height;
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
 	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
@@ -689,18 +691,6 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 		    h->panic_string = toku_strdup(s);
 		}
 	    }
-	}
-	if (height == 0) {  // statistics incremented only when disk I/O is done, so worth the threadsafe count
-	    if (for_checkpoint)
-		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf_for_checkpoint);
-	    else
-		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf);
-	}
-	else {
-	    if (for_checkpoint)
-		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf_for_checkpoint);
-	    else
-		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf);
 	}
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
@@ -870,7 +860,7 @@ exit:
 }
 
 
-static void flush_some_child(struct brt_header* h, BRTNODE node);
+static void flush_some_child(struct brt_header* h, BRTNODE node, int *n_dirtied, int cascades);
 static void bring_node_fully_into_memory(BRTNODE node, struct brt_header *h);
 
 // TODO 3988 Leif set cleaner_nodes_dirtied
@@ -879,31 +869,31 @@ update_cleaner_status(BRTNODE node, int childnum)
 {
     brt_status.cleaner_total_nodes++;
     if (node->height == 1) {
-	brt_status.cleaner_h1_nodes++;
+        brt_status.cleaner_h1_nodes++;
     } else {
-	brt_status.cleaner_hgt1_nodes++;
+        brt_status.cleaner_hgt1_nodes++;
     }
-    
+
     unsigned int nbytesinbuf = toku_bnc_nbytesinbuf(BNC(node, childnum));
     if (nbytesinbuf == 0) {
-	brt_status.cleaner_empty_nodes++;
+        brt_status.cleaner_empty_nodes++;
     } else {
-	if (nbytesinbuf > brt_status.cleaner_max_buffer_size) {
-	    brt_status.cleaner_max_buffer_size = nbytesinbuf;
-	}
-	if (nbytesinbuf < brt_status.cleaner_min_buffer_size) {
-	    brt_status.cleaner_min_buffer_size = nbytesinbuf;
-	}
-	brt_status.cleaner_total_buffer_size += nbytesinbuf;
+        if (nbytesinbuf > brt_status.cleaner_max_buffer_size) {
+            brt_status.cleaner_max_buffer_size = nbytesinbuf;
+        }
+        if (nbytesinbuf < brt_status.cleaner_min_buffer_size) {
+            brt_status.cleaner_min_buffer_size = nbytesinbuf;
+        }
+        brt_status.cleaner_total_buffer_size += nbytesinbuf;
 
-	uint64_t workdone = BP_WORKDONE(node, childnum);
-	if (workdone > brt_status.cleaner_max_buffer_workdone) {
-	    brt_status.cleaner_max_buffer_workdone = workdone;
-	}
-	if (workdone < brt_status.cleaner_min_buffer_workdone) {
-	    brt_status.cleaner_min_buffer_workdone = workdone;
-	}
-	brt_status.cleaner_total_buffer_workdone += workdone;
+        uint64_t workdone = BP_WORKDONE(node, childnum);
+        if (workdone > brt_status.cleaner_max_buffer_workdone) {
+            brt_status.cleaner_max_buffer_workdone = workdone;
+        }
+        if (workdone < brt_status.cleaner_min_buffer_workdone) {
+            brt_status.cleaner_min_buffer_workdone = workdone;
+        }
+        brt_status.cleaner_total_buffer_workdone += workdone;
     }
 }
 
@@ -924,7 +914,9 @@ toku_brtnode_cleaner_callback(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t ful
 
     // Either flush_some_child will unlock the node, or we do it here.
     if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
-        flush_some_child(h, node);
+        int n_dirtied = 0;
+        flush_some_child(h, node, &n_dirtied, 0);
+        brt_status.cleaner_nodes_dirtied += n_dirtied;
     } else {
         toku_unpin_brtnode_off_client_thread(h, node);
     }
@@ -1168,10 +1160,7 @@ void toku_brtnode_free (BRTNODE *nodep) {
 		toku_mempool_destroy(mp);
             }
 	}
-        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_leaf);
     }
-    else
-        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_nonleaf);
     toku_destroy_brtnode_internals(node);
     toku_free(node);
     *nodep=0;
@@ -2006,11 +1995,11 @@ brt_split_child (struct brt_header* h, BRTNODE node, int childnum, BRTNODE child
     toku_unpin_brtnode_off_client_thread(h, node);
     if (nodea->height > 0 && nonleaf_node_is_gorged(nodea)) {
         toku_unpin_brtnode_off_client_thread(h, nodeb);
-        flush_some_child(h, nodea);
+        flush_some_child(h, nodea, NULL, 0);
     }
     else if (nodeb->height > 0 && nonleaf_node_is_gorged(nodeb)) {
         toku_unpin_brtnode_off_client_thread(h, nodea);
-        flush_some_child(h, nodeb);
+        flush_some_child(h, nodeb, NULL, 0);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, nodea);
@@ -2188,7 +2177,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        toku_sync_fetch_and_increment_uint64(&brt_status.updates);
+        add_to_brt_status(&brt_status.updates,1);
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -2197,7 +2186,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        toku_sync_fetch_and_increment_uint64(&brt_status.updates_broadcast);
+        add_to_brt_status(&brt_status.updates_broadcast,1);
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -3013,7 +3002,7 @@ brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL
         toku_unpin_brtnode_off_client_thread(h, childb);
     }
     if (childa->height > 0 && nonleaf_node_is_gorged(childa)) {
-        flush_some_child(h, childa);
+        flush_some_child(h, childa, NULL, 0);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, childa);
@@ -3174,7 +3163,41 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
 }
 
 static void
-flush_some_child (struct brt_header* h, BRTNODE parent)
+update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades)
+{
+    __sync_fetch_and_add(&brt_status.flush_total, 1);
+    if (cascades > 0) {
+        __sync_fetch_and_add(&brt_status.flush_cascades, 1);
+        switch (cascades) {
+        case 1:
+            __sync_fetch_and_add(&brt_status.flush_cascades_1, 1); break;
+        case 2:
+            __sync_fetch_and_add(&brt_status.flush_cascades_2, 1); break;
+        case 3:
+            __sync_fetch_and_add(&brt_status.flush_cascades_3, 1); break;
+        case 4:
+            __sync_fetch_and_add(&brt_status.flush_cascades_4, 1); break;
+        case 5:
+            __sync_fetch_and_add(&brt_status.flush_cascades_5, 1); break;
+        default:
+            __sync_fetch_and_add(&brt_status.flush_cascades_gt_5, 1); break;
+        }
+    }
+    bool flush_needs_io = false;
+    for (int i = 0; !flush_needs_io && i < child->n_children; ++i) {
+        if (BP_STATE(child, i) == PT_ON_DISK) {
+            flush_needs_io = true;
+        }
+    }
+    if (flush_needs_io) {
+        __sync_fetch_and_add(&brt_status.flush_needed_io, 1);
+    } else {
+        __sync_fetch_and_add(&brt_status.flush_in_memory, 1);
+    }
+}
+
+static void
+flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int cascades)
 // Effect: This function does the following:
 //   - Pick a child of parent (the heaviest child), 
 //   - flush from parent to child, 
@@ -3187,6 +3210,9 @@ flush_some_child (struct brt_header* h, BRTNODE parent)
     bool parent_unpinned = false;
     assert(parent->height>0);
     toku_assert_entire_node_in_memory(parent);
+    if (n_dirtied && !parent->dirty) {
+        (*n_dirtied)++;
+    }
 
     // pick the child we want to flush to
     int childnum;
@@ -3207,6 +3233,11 @@ flush_some_child (struct brt_header* h, BRTNODE parent)
     // The idea is let's try to do the minimum work before releasing the parent lock
     fill_bfe_for_min_read(&bfe, h);
     toku_pin_brtnode_off_client_thread(h, targetchild, childfullhash, &bfe, 1, &parent, &child);
+
+    if (n_dirtied && !child->dirty) {
+        (*n_dirtied)++;
+    }
+    update_flush_status(parent, child, cascades);
 
     // for test
     call_flusher_thread_callback(ft_flush_after_child_pin);
@@ -3287,7 +3318,7 @@ flush_some_child (struct brt_header* h, BRTNODE parent)
         // it is the responsibility of flush_some_child to unpin parent
         //
         if (child->height > 0 && nonleaf_node_is_gorged(child)) {
-            flush_some_child(h, child);
+            flush_some_child(h, child, n_dirtied, cascades+1);
         }
         else {
             toku_unpin_brtnode_off_client_thread(h, child);
@@ -3324,6 +3355,7 @@ static void
 flush_this_child (struct brt_header* h, BRTNODE node, BRTNODE child, int childnum)
 // Effect: Push everything in the CHILDNUMth buffer of node down into the child.
 {
+    update_flush_status(node, child, 0);
     int r;
     toku_assert_entire_node_in_memory(node);
     maybe_destroy_child_blbs(node, child);
@@ -3426,7 +3458,7 @@ void toku_apply_cmd_to_leaf(
                                  snapshot_txnids,
                                  live_list_reverse);
             } else {
-                toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+                add_to_brt_status(&brt_status.msn_discards,1);
             }
         }
     }
@@ -3449,7 +3481,7 @@ void toku_apply_cmd_to_leaf(
                                      live_list_reverse);
                     if (bn_made_change) *made_change = 1;
                 } else {
-                    toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+                    add_to_brt_status(&brt_status.msn_discards,1);
                 }
             }
         }
@@ -3597,7 +3629,7 @@ static void flush_node_fun(void *fe_v)
         // of flush_some_child to unlock the node
         // otherwise, we unlock the node here.
         if (fe->node->height > 0 && nonleaf_node_is_gorged(fe->node)) {
-            flush_some_child(fe->h, fe->node);
+            flush_some_child(fe->h, fe->node, NULL, 0);
         }
         else {
             toku_unpin_brtnode_off_client_thread(fe->h,fe->node);
@@ -3608,7 +3640,7 @@ static void flush_node_fun(void *fe_v)
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
         // It is the responsibility of flush_some_child to unlock the node
-        flush_some_child(fe->h, fe->node);
+        flush_some_child(fe->h, fe->node, NULL, 0);
     }
     remove_background_job(fe->h->cf, false);
     toku_free(fe);
@@ -5740,7 +5772,7 @@ do_brt_leaf_put_cmd(BRT t, BASEMENTNODE bn, BRTNODE ancestor, int childnum, OMT 
         }
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
-        toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+        add_to_brt_status(&brt_status.msn_discards,1);
     }
 }
 
@@ -6258,7 +6290,6 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
                                   unlockers,
                                   &next_ancestors, bounds,
                                   &bfe,
-                                  TRUE,
                                   &childnode);
         if (rr==TOKUDB_TRY_AGAIN) return rr;
         assert(rr==0);
@@ -6499,7 +6530,7 @@ try_again:
         brtcursor->left_is_neg_infty,
         brtcursor->right_is_pos_infty
         );
-    r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
+    r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
     assert(r==0 || r== TOKUDB_TRY_AGAIN);
     if (r == TOKUDB_TRY_AGAIN) {
 	root_tries++;
@@ -7053,7 +7084,7 @@ static int toku_brt_keyrange_internal (BRT brt, BRTNODE node,
 	BLOCKNUM childblocknum = BP_BLOCKNUM(node, child_number);
 	u_int32_t fullhash = compute_child_fullhash(brt->cf, node, child_number);
 	BRTNODE childnode;
-	r = toku_pin_brtnode(brt, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, FALSE, &childnode);
+	r = toku_pin_brtnode(brt, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, &childnode);
 	if (r!=TOKUDB_TRY_AGAIN) {
 	    assert(r==0);
 	    struct unlock_brtnode_extra unlock_extra   = {brt,childnode};
@@ -7101,7 +7132,7 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p,
 
 	BRTNODE node;
 	{
-	    int r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
+	    int r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
 	    assert(r==0 || r== TOKUDB_TRY_AGAIN);
 	    if (r == TOKUDB_TRY_AGAIN) {
 		goto try_again;

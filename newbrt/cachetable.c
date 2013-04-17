@@ -54,6 +54,7 @@ static u_int64_t local_checkpoint;        // number of times a local checkpoint 
 static u_int64_t local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
 static u_int64_t local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
 static u_int64_t cachetable_evictions;
+static u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
 
 
 enum ctpair_state {
@@ -3589,6 +3590,7 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->local_checkpoint_files = local_checkpoint_files;
     s->local_checkpoint_during_checkpoint = local_checkpoint_during_checkpoint;
     s->evictions = cachetable_evictions;
+    s->cleaner_executions = cleaner_executions;
     s->size_nonleaf = ct->size_nonleaf;
     s->size_leaf = ct->size_leaf;
     s->size_rollback = ct->size_rollback;
@@ -3657,6 +3659,7 @@ cleaner_thread (void *cachetable_v)
     assert(ct);
     u_int32_t num_iterations = toku_get_cleaner_iterations(ct);
     for (u_int32_t i = 0; i < num_iterations; ++i) {
+        cleaner_executions++;
         cachetable_lock(ct);
         PAIR best_pair = NULL;
         int n_seen = 0;

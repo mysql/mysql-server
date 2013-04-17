@@ -79,10 +79,6 @@ static u_int64_t num_multi_updates;
 static u_int64_t num_multi_updates_fail;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
-static u_int64_t num_db_open;
-static u_int64_t num_db_close;
-static u_int64_t max_db_open;               
-static u_int64_t num_open_dbs;
 
 static u_int64_t directory_read_locks;        /* total directory read locks taken */ 
 static u_int64_t directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
@@ -1979,6 +1975,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->local_checkpoint_files   = ctstat.local_checkpoint_files;
 	    engstat->local_checkpoint_during_checkpoint = ctstat.local_checkpoint_during_checkpoint;
             engstat->cachetable_evictions     = ctstat.evictions;
+            engstat->cleaner_executions       = ctstat.cleaner_executions;
             engstat->cachetable_size_leaf     = ctstat.size_leaf;
             engstat->cachetable_size_nonleaf  = ctstat.size_nonleaf;
             engstat->cachetable_size_rollback = ctstat.size_rollback;
@@ -2059,6 +2056,16 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->cleaner_max_buffer_workdone = brt_stat.cleaner_max_buffer_workdone;
 	    engstat->cleaner_min_buffer_workdone = brt_stat.cleaner_min_buffer_workdone;
 	    engstat->cleaner_total_buffer_workdone = brt_stat.cleaner_total_buffer_workdone;
+            engstat->flush_total = brt_stat.flush_total;
+            engstat->flush_in_memory = brt_stat.flush_in_memory;
+            engstat->flush_needed_io = brt_stat.flush_needed_io;
+            engstat->flush_cascades = brt_stat.flush_cascades;
+            engstat->flush_cascades_1 = brt_stat.flush_cascades_1;
+            engstat->flush_cascades_2 = brt_stat.flush_cascades_2;
+            engstat->flush_cascades_3 = brt_stat.flush_cascades_3;
+            engstat->flush_cascades_4 = brt_stat.flush_cascades_4;
+            engstat->flush_cascades_5 = brt_stat.flush_cascades_5;
+            engstat->flush_cascades_gt_5 = brt_stat.flush_cascades_gt_5;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2225,6 +2232,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_evictions             %"PRIu64"\n", engstat.cachetable_evictions);
+        n += snprintf(buff + n, bufsiz - n, "cleaner_executions               %"PRIu64"\n", engstat.cleaner_executions);
 	n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
 	n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
 	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
@@ -2290,6 +2298,15 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_workdone      %"PRIu64"\n", engstat.cleaner_max_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
+        n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
+        n += snprintf(buff + n, bufsiz - n, "flush_needed_io                  %"PRIu64"\n", engstat.flush_needed_io);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades                   %"PRIu64"\n", engstat.flush_cascades);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_1                 %"PRIu64"\n", engstat.flush_cascades_1);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_2                 %"PRIu64"\n", engstat.flush_cascades_2);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_3                 %"PRIu64"\n", engstat.flush_cascades_3);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_4                 %"PRIu64"\n", engstat.flush_cascades_4);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_5                 %"PRIu64"\n", engstat.flush_cascades_5);
+        n += snprintf(buff + n, bufsiz - n, "flush_cascades_gt_5              %"PRIu64"\n", engstat.flush_cascades_gt_5);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu32"\n", engstat.cleaner_period);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu32"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
@@ -2999,10 +3016,6 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs++;
-    num_open_dbs = env->i->num_open_dbs;
-    num_db_open++;
-    if (num_open_dbs > max_db_open)
-	max_db_open = num_open_dbs;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -3018,8 +3031,6 @@ env_note_db_closed(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs--;
-    num_open_dbs = env->i->num_open_dbs;
-    num_db_close++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);

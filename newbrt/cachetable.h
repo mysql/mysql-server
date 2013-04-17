@@ -513,6 +513,7 @@ typedef struct cachetable_status {
     uint64_t  local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
     uint64_t  local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
     u_int64_t evictions;
+    u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
     int64_t size_nonleaf; // number of bytes in cachetable belonging to nonleaf nodes
     int64_t size_leaf; // number of bytes in cachetable belonging to leaf nodes
     int64_t size_rollback; // number of bytes in cachetable belonging to rollback nodes
