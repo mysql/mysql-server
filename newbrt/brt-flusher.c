@@ -291,6 +291,20 @@ ctm_update_status(
 }
 
 static void
+ctm_maybe_merge_child(struct flusher_advice *fa,
+                      struct brt_header *h,
+                      BRTNODE parent,
+                      int childnum,
+                      BRTNODE child,
+                      void *extra)
+{
+    default_merge_child(fa, h, parent, childnum, child, extra);
+    if (child->height == 0) {
+        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_completed, 1);
+    }
+}
+
+static void
 ct_maybe_merge_child(struct flusher_advice *fa,
                      struct brt_header *h,
                      BRTNODE parent,
@@ -333,7 +347,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             ctm_pick_child,
             dont_destroy_basement_nodes,
             always_recursively_flush,
-            default_merge_child,
+            ctm_maybe_merge_child,
             ctm_update_status,
             default_pick_child_after_split,
             &ctme);
@@ -355,6 +369,8 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         // release ydb lock, if it exists, if we are running a brt
         // layer test, there may be no ydb lock and that is ok
         toku_cachetable_call_ydb_unlock(h->cf);
+
+        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_started, 1);
 
         flush_some_child(h, root_node, &new_fa);
 
