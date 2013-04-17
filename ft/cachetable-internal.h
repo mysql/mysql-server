@@ -9,6 +9,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "background_job_manager.h"
+#include <portability/toku_random.h>
 #include <util/frwlock.h>
 #include <util/kibbutz.h>
 #include <util/nb_mutex.h>
@@ -419,6 +420,10 @@ private:
     int64_t m_low_size_hysteresis; // if cachetable grows to this size, client threads wake up eviction thread upon adding data
     int64_t m_high_size_watermark; // if cachetable grows to this size, client threads sleep upon adding data
     int64_t m_high_size_hysteresis; // if > cachetable size, then sleeping client threads may wake up
+
+    // used to calculate random numbers
+    struct random_data m_random_data;
+    char m_random_statebuf[64];
 
     // mutex that protects fields listed immedietly below
     toku_mutex_t m_ev_thread_lock;

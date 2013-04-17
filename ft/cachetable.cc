@@ -3484,10 +3484,14 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
     m_ev_thread_is_running = false;
     m_period_in_seconds = eviction_period;
 
+    unsigned int seed = (unsigned int) time(NULL);
+    int r = myinitstate_r(seed, m_random_statebuf, sizeof m_random_statebuf, &m_random_data);
+    assert_zero(r);
+
     // start the background thread    
     m_run_thread = true;
     m_num_eviction_thread_runs = 0;
-    int r = toku_pthread_create(&m_ev_thread, NULL, eviction_thread, this); 
+    r = toku_pthread_create(&m_ev_thread, NULL, eviction_thread, this); 
     assert_zero(r);
 }
 
@@ -3727,6 +3731,7 @@ exit:
 // on exit, the same conditions must apply
 //
 bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
+    double avg_pair_size;
     bool ret_val = false;
     // function meant to be called on PAIR that is not being accessed right now
     CACHEFILE cf = curr_in_clock->cachefile;
@@ -3742,16 +3747,25 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         bjm_remove_background_job(cf->bjm);
         goto exit;
     }
-    
+
+    avg_pair_size = m_size_current / m_pl->m_n_in_table;
     // now that we have the pair mutex we care about, we can
     // release the read list lock and reacquire it at the end of the function
     m_pl->read_list_unlock();
     ret_val = true;
     if (curr_in_clock->count > 0) {
-        curr_in_clock->count--;
+        if (curr_in_clock->attr.size >= avg_pair_size) {
+            curr_in_clock->count--;
+        } else {
+            int32_t rnd = myrandom_r(&m_random_data);
+            double prob = curr_in_clock->attr.size / avg_pair_size;
+            if ((prob * 10000) < (rnd % 10000)) {
+                curr_in_clock->count--;
+            }
+        }
         // call the partial eviction callback
         curr_in_clock->value_rwlock.write_lock(true);
-    
+
         void *value = curr_in_clock->value_data;
         void* disk_data = curr_in_clock->disk_data;
         void *write_extraargs = curr_in_clock->write_extraargs;
