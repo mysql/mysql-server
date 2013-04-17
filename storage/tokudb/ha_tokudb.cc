@@ -7761,6 +7761,7 @@ int ha_tokudb::tokudb_add_index(
         bf_info.direction = 1;
         bf_info.thd = ha_thd();
         bf_info.need_val = true;
+        bf_info.key_to_compare = NULL;
 
         error = db_env->create_loader(
             db_env, 
