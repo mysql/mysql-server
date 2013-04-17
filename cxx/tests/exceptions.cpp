@@ -13,7 +13,7 @@
 
 int verbose = 0;
 
-#define TC(expr, expect) ({        \
+#define TC(expr, expect)           \
   if (verbose) printf("%s expect %d\n", #expr, expect); \
   try {                            \
     expr;                          \
@@ -21,10 +21,9 @@ int verbose = 0;
   } catch (DbException e) {        \
     if (e.get_errno()!=expect) fprintf(stderr, "err=%d %s\n", e.get_errno(), db_strerror(e.get_errno())); \
     assert(e.get_errno()==expect); \
-  }                                \
-})
+  }
 
-#define TCRET(expr, expect) ({        \
+#define TCRET(expr, expect)        \
   if (verbose) printf("%s expect %d\n", #expr, expect); \
   try {                            \
     int r = expr;                  \
@@ -32,10 +31,9 @@ int verbose = 0;
   } catch (DbException e) {        \
     if (e.get_errno()!=expect) fprintf(stderr, "err=%d %s\n", e.get_errno(), db_strerror(e.get_errno())); \
     assert(e.get_errno()==expect); \
-  }                                \
-})
+  }
 
-void test_env_exceptions (void) {
+static void test_env_exceptions (void) {
     {
 	DbEnv env(0);
 	TC(env.open("no.such.dir", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),        ENOENT);
@@ -83,7 +81,7 @@ void test_env_exceptions (void) {
 }
 
 
-void test_db_exceptions (void) {
+static void test_db_exceptions (void) {
     DbEnv env(0);
     TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     TC( ({ Db db(&env, -1); assert(0); }),   EINVAL); // Create with flags=-1 should do an EINVAL
@@ -148,7 +146,7 @@ void test_db_exceptions (void) {
 }
 	
 
-void test_dbc_exceptions () {
+static void test_dbc_exceptions () {
     DbEnv env(0);
     TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     Db db(&env, 0);

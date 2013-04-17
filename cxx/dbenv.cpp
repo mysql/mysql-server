@@ -106,7 +106,7 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
                               BOOL include_stderrstring, 
                               BOOL use_stderr_if_nothing_else, 
                               const char *fmt, va_list ap);
-};
+}
 
 void DbEnv::err(int error, const char *fmt, ...) {
     va_list ap;

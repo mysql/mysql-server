@@ -7,7 +7,7 @@
 
 char *data_dir;
 
-int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
+static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     int r;
     DbEnv *env = new DbEnv(DB_CXX_NO_EXCEPTIONS);
     if (data_dir) {
@@ -43,7 +43,7 @@ int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     return 0;
 }
 
-int usage() {
+static int usage() {
     printf("db_create [-s DBNAME] [-D] [-S] DBFILE [KEY VAL]*\n");
     printf("[--set_data_dir DIRNAME]\n");
     return 1;
