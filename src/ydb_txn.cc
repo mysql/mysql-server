@@ -10,7 +10,7 @@
 #include <ft/log_header.h>
 #include "ydb_txn.h"
 #include <lock_tree/lth.h>
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "ft/txn_manager.h"
 
 static int 
@@ -225,7 +225,7 @@ exit:
 static int
 toku_txn_prepare (DB_TXN *txn, uint8_t gid[DB_GID_SIZE]) {
     TOKU_XA_XID xid;
-    HELGRIND_ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
+    TOKU_ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
     xid.formatID=0x756b6f54; // "Toku"
     xid.gtrid_length=DB_GID_SIZE/2;  // The maximum allowed gtrid length is 64.  See the XA spec in source:/import/opengroup.org/C193.pdf page 20.
     xid.bqual_length=DB_GID_SIZE/2; // The maximum allowed bqual length is 64.

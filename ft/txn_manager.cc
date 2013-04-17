@@ -9,7 +9,7 @@
 #include "txn.h"
 #include "checkpoint.h"
 #include "ule.h"
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "txn_manager.h"
 #include "omt-tmpl.h"
 #include "rollback.h"
@@ -614,7 +614,7 @@ void toku_txn_manager_add_prepared_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 }
 
 static void invalidate_xa_xid (TOKU_XA_XID *xid) {
-    HELGRIND_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
+    TOKU_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 

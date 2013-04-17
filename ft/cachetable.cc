@@ -9,7 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "memory.h"
 #include "cachetable.h"
 #include "rwlock.h"
@@ -3021,7 +3021,7 @@ ENSURE_POD(cleaner);
 void cleaner::init(uint32_t _cleaner_iterations, pair_list* _pl, CACHETABLE _ct) {
     // default is no cleaner, for now
     toku_minicron_setup(&m_cleaner_cron, 0, toku_cleaner_thread, this); 
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_cleaner_iterations, sizeof m_cleaner_iterations);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_cleaner_iterations, sizeof m_cleaner_iterations);
     m_cleaner_iterations = _cleaner_iterations;
     m_pl = _pl;
     m_ct = _ct;
@@ -3529,9 +3529,9 @@ static void *eviction_thread(void *evictor_v) {
 // and initializes all counters and condition variables.
 //
 void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_current, sizeof m_size_current);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_current, sizeof m_size_current);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
 
     m_low_size_watermark = _size_limit;
     // these values are selected kind of arbitrarily right now as 
@@ -4473,13 +4473,13 @@ void cachefile_list::write_unlock() {
 void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void
 toku_cachetable_helgrind_ignore(void) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct_status, sizeof ct_status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&ct_status, sizeof ct_status);
 }
 
 #undef STATUS_VALUE

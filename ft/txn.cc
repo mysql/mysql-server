@@ -9,7 +9,7 @@
 #include "txn.h"
 #include "checkpoint.h"
 #include "ule.h"
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "rollback-apply.h"
 #include "txn_manager.h"
 
@@ -107,7 +107,7 @@ void toku_txn_set_container_db_txn (TOKUTXN tokutxn, DB_TXN*container) {
 }
 
 static void invalidate_xa_xid (TOKU_XA_XID *xid) {
-    HELGRIND_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
+    TOKU_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 
@@ -323,7 +323,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
 }
 
 static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
-    HELGRIND_ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
+    TOKU_ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
     dest->formatID     = source->formatID;
     dest->gtrid_length = source->gtrid_length;
     dest->bqual_length = source->bqual_length;
@@ -501,11 +501,11 @@ toku_txn_is_read_only(TOKUTXN txn) {
     return false;
 }
 
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);
 void
 toku_txn_status_helgrind_ignore(void) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&txn_status, sizeof txn_status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&txn_status, sizeof txn_status);
 }
 
 #undef STATUS_VALUE

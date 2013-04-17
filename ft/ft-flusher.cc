@@ -1869,11 +1869,11 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     }
 }
 
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_ft_flusher_helgrind_ignore(void);
 void
 toku_ft_flusher_helgrind_ignore(void) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ft_flusher_status, sizeof ft_flusher_status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&ft_flusher_status, sizeof ft_flusher_status);
 }
 
 #undef STATUS_VALUE

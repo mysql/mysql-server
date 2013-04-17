@@ -26,7 +26,7 @@
 #elif defined(HAVE_SYS_MALLOC_H)
 # include <sys/malloc.h>
 #endif
-#include <valgrind/drd.h>
+#include <toku_race_tools.h>
 #include <math.h>
 
 #include "toku_random.h"
@@ -1397,7 +1397,7 @@ static int run_workers(
         worker_extra[i].operation_lock = &rwlock;
         worker_extra[i].operation_lock_mutex = &mutex;
         XCALLOC_N((int) NUM_OPERATION_TYPES, worker_extra[i].counters);
-        DRD_IGNORE_VAR(worker_extra[i].counters);
+        TOKU_DRD_IGNORE_VAR(worker_extra[i].counters);
         { int chk_r = toku_pthread_create(&tids[i], NULL, worker, &worker_extra[i]); CKERR(chk_r); }
         if (verbose) 
             printf("%lu created\n", (unsigned long) tids[i]);

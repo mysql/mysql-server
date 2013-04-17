@@ -42,7 +42,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "toku_assert.h"
 #include "partitioned_counter.h"
 #include "memory.h"
@@ -97,7 +97,7 @@ static void destroy_counter (void *counterp)
 	counter.next->prev = counter.prev;
     }
     finished_counter += counter.counter;
-    HELGRIND_VALGRIND_HG_ENABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // stop ignoring races
+    TOKU_VALGRIND_HG_ENABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // stop ignoring races
     //printf("finished counter now %d\n", finished_counter);
     pc_unlock();
 }
@@ -121,7 +121,7 @@ static inline void increment (void) {
 	cp->counter = 0;
 	cp->inited = true;
 	cp->myid = idcounter++;
-	HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // the counter increment is kind of racy.
+	TOKU_VALGRIND_HG_DISABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // the counter increment is kind of racy.
         pc_unlock();
     }
     counter.counter++;
@@ -360,7 +360,7 @@ static void do_testit2 (void)
 //   A thread increments the counter, then lets us know through a spin wait, then waits until we destroy the counter.
 {
     pthread_t t;
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&spinwait, sizeof(spinwait)); // this is a racy volatile variable.
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&spinwait, sizeof(spinwait)); // this is a racy volatile variable.
     {
         PARTITIONED_COUNTER mypc = create_partitioned_counter();
         increment_partitioned_counter(mypc, 1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.

@@ -125,7 +125,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "sort-tmpl.h"
 #include <ft-cachetable-wrappers.h>
 #include <ft-flusher.h>
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "txn_manager.h"
 #include "partitioned_counter.h"
 
@@ -5617,11 +5617,11 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen)
     }
 }
 
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_ft_helgrind_ignore(void);
 void
 toku_ft_helgrind_ignore(void) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ft_status, sizeof ft_status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&ft_status, sizeof ft_status);
 }
 
 #undef STATUS_INC

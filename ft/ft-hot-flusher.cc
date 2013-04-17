@@ -361,12 +361,12 @@ toku_ft_hot_optimize(FT_HANDLE brt,
     return r;
 }
 
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_hot_helgrind_ignore(void);
 void
 toku_hot_helgrind_ignore(void) {
     // incremented only while lock is held, but read by engine status asynchronously.
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&hot_status, sizeof hot_status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&hot_status, sizeof hot_status);
 }
 
 
