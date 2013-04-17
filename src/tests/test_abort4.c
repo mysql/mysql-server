@@ -55,6 +55,7 @@ static void
 abort_txn(void) {
     find_num = 0;
     int r = txn->abort(txn); CKERR(r);
+    txn = NULL;
 }
 
 #ifndef DB_YESOVERWRITE
@@ -93,11 +94,16 @@ test_insert_and_abort_and_insert(u_int32_t num_to_insert) {
     find_num = num_to_insert / 2;
     u_int32_t k, v;
     u_int32_t i;
+    int r;
+    r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
+    r=db->pre_acquire_table_lock(db, txn); CKERR(r);
     for (i=0; i < find_num; i++) {
         k = htonl(i);
         v = htonl(i+5);
         put(k, v);
     }
+    txn->commit(txn, 0);
+    txn = NULL;
 }
 
 #define bit0 (1<<0)
@@ -144,6 +150,11 @@ runtests(u_int32_t dup_flags) {
         verify_and_tear_down(close_first);
         u_int32_t n;
         for (n = 1; n < 1<<20; n*=2) {
+            if (verbose) {
+                printf("\t%s:%d-%s() dup=%05x close_first=%d n=%06x\n",
+                       __FILE__, __LINE__, __FUNCTION__, dup_flags, close_first, n);
+                fflush(stdout);
+            }
             init(dup_flags);
             test_insert_and_abort(n);
             verify_and_tear_down(close_first);
@@ -156,7 +167,9 @@ runtests(u_int32_t dup_flags) {
 }
 
 int
-test_main (int UU(argc), char UU(*argv[])) {
+test_main(int argc, char *argv[]) {
+    parse_args(argc, argv);
+
     runtests(0);
     runtests(DB_DUPSORT|DB_DUP);
     return 0;

@@ -109,7 +109,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_truncate_txn_abort \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
-	test_abort4 \
 #\ ends prev line
 ifneq ($(OS_CHOICE),windows)
     TDB_TESTS_THAT_SHOULD_FAIL+= \
