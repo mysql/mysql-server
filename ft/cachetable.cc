@@ -2310,7 +2310,10 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     PAIR *list = NULL;
     XMALLOC_N(list_size, list);
 
-    ct->list.read_list_lock();
+    // because we use a linked list head we don't own,
+    // (the checkpoint thread owns m_checkpoint_head)
+    // we grab the write list lock here.
+    ct->list.write_list_lock();
     PAIR p;
     //Make a list of pairs that belong to this cachefile.
     for (i = 0, p = ct->list.m_checkpoint_head; 
@@ -2325,7 +2328,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
             list[num_pairs++] = p;
         }
      }
-    ct->list.read_list_unlock();
+    ct->list.write_list_unlock();
     
     // first write out dirty PAIRs
     BACKGROUND_JOB_MANAGER bjm = NULL;
