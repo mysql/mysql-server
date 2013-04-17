@@ -884,8 +884,8 @@ cleanup:
 static int rename_table_in_metadata(const char *from, const char *to) {
     int error = 0;
     DBT from_key;
-	DBT to_key;
-	DBT val;
+    DBT to_key;
+    DBT val;
     DB_TXN* txn = NULL;
     pthread_mutex_lock(&tokudb_meta_mutex);
     error = db_env->txn_begin(db_env, 0, &txn, 0);
@@ -911,7 +911,7 @@ static int rename_table_in_metadata(const char *from, const char *to) {
         );
 
     if (error) {
-		goto cleanup;
+        goto cleanup;
     }
 
     error = metadata_db->put(
@@ -921,19 +921,19 @@ static int rename_table_in_metadata(const char *from, const char *to) {
         &val,
         DB_YESOVERWRITE
         );
-	if (error) {
-		goto cleanup;
-	}
+    if (error) {
+        goto cleanup;
+    }
 
-	error = metadata_db->del(
+    error = metadata_db->del(
         metadata_db, 
         txn, 
         &from_key, 
         DB_DELETE_ANY
         );
-	if (error) {
-		goto cleanup;
-	}
+    if (error) {
+        goto cleanup;
+    }
 
     error = 0;
 
@@ -4965,9 +4965,10 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     error = rename(newfrom, newto);
     if (error != 0) {
         error = my_errno = errno;
+        goto cleanup;
     }
 
-    rename_table_in_metadata(from, to);
+    error = rename_table_in_metadata(from, to);
 
 cleanup:
     {
