@@ -2230,8 +2230,8 @@ UU() stress_uint64_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
     assert(a->size >= sizeof(uint64_t));
     assert(b->size >= sizeof(uint64_t));
 
-    int x = *(uint64_t *) a->data;
-    int y = *(uint64_t *) b->data;
+    uint64_t x = *(uint64_t *) a->data;
+    uint64_t y = *(uint64_t *) b->data;
 
     if (x < y) {
         return -1;
