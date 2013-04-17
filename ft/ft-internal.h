@@ -283,54 +283,60 @@ struct ftnode {
 
 // internal node macros
 static inline void set_BNULL(FTNODE node, int i) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     node->bp[i].ptr.tag = BCT_NULL;
 }
 static inline bool is_BNULL (FTNODE node, int i) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     return node->bp[i].ptr.tag == BCT_NULL;
 }
 static inline NONLEAF_CHILDINFO BNC(FTNODE node, int i) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER p = node->bp[i].ptr;
     paranoid_invariant(p.tag==BCT_NONLEAF);
     return p.u.nonleaf;
 }
 static inline void set_BNC(FTNODE node, int i, NONLEAF_CHILDINFO nl) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
     p->tag = BCT_NONLEAF;
     p->u.nonleaf = nl;
 }
+
 static inline BASEMENTNODE BLB(FTNODE node, int i) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    // The optimizer really doesn't like it when we compare
+    // i to n_children as signed integers. So we assert that
+    // n_children is in fact positive before doing a comparison
+    // on the values forcibly cast to unsigned ints.
+    paranoid_invariant(node->n_children > 0);
+    paranoid_invariant((unsigned) i < (unsigned) node->n_children);
     FTNODE_CHILD_POINTER p = node->bp[i].ptr;
     paranoid_invariant(p.tag==BCT_LEAF);
     return p.u.leaf;
 }
 static inline void set_BLB(FTNODE node, int i, BASEMENTNODE bn) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
     p->tag = BCT_LEAF;
     p->u.leaf = bn;
 }
 
 static inline SUB_BLOCK BSB(FTNODE node, int i) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER p = node->bp[i].ptr;
     paranoid_invariant(p.tag==BCT_SUBBLOCK);
     return p.u.subblock;
 }
 static inline void set_BSB(FTNODE node, int i, SUB_BLOCK sb) {
-    paranoid_invariant(0<=i);
-    paranoid_invariant(i<node->n_children);
+    paranoid_invariant(i >= 0);
+    paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
     p->tag = BCT_SUBBLOCK;
     p->u.subblock = sb;
