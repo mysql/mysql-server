@@ -3249,9 +3249,11 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
     assert(list_empty(&h->live_brts));
     assert(list_empty(&h->zombie_brts));
     toku_brtheader_unlock(h);
-    LSN lsn = ZERO_LSN;
     int r = 0;
-    if (h->fname) { //Otherwise header has never fully been created.
+    if (h->panic) {
+        r = h->panic;
+    } else if (h->fname) { //Otherwise header has never fully been created.
+        LSN lsn = ZERO_LSN;
         //Get LSN
         if (oplsn_valid) {
             //Use recovery-specified lsn
@@ -3285,8 +3287,8 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
         }
     }
     if (malloced_error_string) *malloced_error_string = h->panic_string;
-    if (r==0) {
-	r=h->panic;
+    if (r == 0) {
+	r = h->panic;
     }
     toku_brtheader_free(h);
     return r;
@@ -4989,6 +4991,20 @@ toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
 
 LSN toku_brt_checkpoint_lsn(BRT brt) {
     return brt->h->checkpoint_lsn;
+}
+
+static int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) {
+    if (h->panic == 0) {
+        h->panic = panic;
+        if (h->panic_string) 
+            toku_free(h->panic_string);
+        h->panic_string = toku_strdup(panic_string);
+    }
+    return 0;
+}
+
+int toku_brt_set_panic(BRT brt, int panic, char *panic_string) {
+    return toku_brt_header_set_panic(brt->h, panic, panic_string);
 }
 
 //Wrapper functions for upgrading from version 10.

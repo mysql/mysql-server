@@ -76,10 +76,21 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         assert(r == 0);
         struct file_map_tuple *tuple = v;
 	assert(tuple->brt);
-        assert(recovery_succeeded);
+        if (!recovery_succeeded) {
+            // don't update the brt on close
+            toku_brt_set_panic(tuple->brt, DB_RUNRECOVERY, "recovery failed");
+        }
         //Logging is already back on.  No need to pass LSN into close.
-        r = toku_close_brt(tuple->brt, 0, 0);
-        assert(r == 0);
+        char *error_string = NULL;
+        r = toku_close_brt(tuple->brt, NULL, &error_string);
+        if (!recovery_succeeded) {
+            printf("%s:%d %d %s\n", __FUNCTION__, __LINE__, r, error_string);
+            assert(r != 0);
+        } else
+            assert(r == 0);
+        if (error_string)
+            toku_free(error_string);
+
         file_map_tuple_destroy(tuple);
         toku_free(tuple);
     }

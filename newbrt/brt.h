@@ -84,6 +84,8 @@ int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), 
 int toku_close_brt (BRT, TOKULOGGER, char **error_string);
 int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn);
 
+int toku_brt_set_panic(BRT brt, int panic, char *panic_string);
+
 int toku_dump_brt (FILE *,BRT brt);
 
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
