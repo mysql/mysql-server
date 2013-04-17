@@ -223,6 +223,30 @@ dump_fragmentation(int f, struct brt_header *h) {
 }
 
 static void
+hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
+    u_int64_t i;
+    for (i=0; i<size; i++) {
+        if ((i % 32) == 0)
+            printf("%"PRIu64": ", offset+i);
+        printf("%2.2X", vp[i]);
+        if (((i+1) % 4) == 0)
+            printf(" ");
+        if (((i+1) % 32) == 0)
+            printf("\n");
+    }
+    printf("\n");
+}
+
+static void
+dump_file(int f, u_int64_t offset, u_int64_t size) {
+    unsigned char *vp = toku_malloc(size);
+    u_int64_t r = pread(f, vp, size, offset);
+    if (r == size) 
+        hex_dump(vp, offset, size);
+    toku_free(vp);
+}
+
+static void
 readline (char *line, int maxline) {
     int i = 0;
     int c;
@@ -278,7 +302,7 @@ main (int argc, const char *argv[]) {
             readline(line, maxline);
             if (strcmp(line, "") == 0) 
                 break;
-            enum { maxfields = 2 };
+            const int maxfields = 4;
             char *fields[maxfields];
             int nfields = split_fields(line, fields, maxfields);
             if (nfields == 0) 
@@ -298,6 +322,17 @@ main (int argc, const char *argv[]) {
 	        dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
 	        dump_fragmentation(f, h);
+            } else if (strcmp(fields[0], "file") == 0 && nfields == 3) {
+                u_int64_t offset, size;
+                if (strncmp(fields[1], "0x", 2) == 0)
+                    offset = strtoll(fields[1], NULL, 16);
+                else
+                    offset = strtoll(fields[1], NULL, 10);
+                if (strncmp(fields[2], "0x", 2) == 0)
+                    size = strtoll(fields[2], NULL, 16);
+                else
+                    size = strtoll(fields[2], NULL, 10);
+                dump_file(f, offset, size);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }

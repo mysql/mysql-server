@@ -54,6 +54,7 @@ int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = DB_YESOVERWRITE;
 double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
+int do_append = 0;
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -80,15 +81,16 @@ DB_TXN *tid=0;
 static void benchmark_setup (void) {
     int r;
    
-    {
+    if (!do_append) {
 	char unlink_cmd[strlen(dbdir) + strlen("rm -rf ") + 1];
 	snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
 	//printf("unlink_cmd=%s\n", unlink_cmd);
 	system(unlink_cmd);
-    }
-    if (strcmp(dbdir, ".") != 0) {
-        r = toku_os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-        assert(r == 0);
+
+        if (strcmp(dbdir, ".") != 0) {
+            r = toku_os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+            assert(r == 0);
+        }
     }
 
     r = db_env_create(&dbenv, 0);
@@ -323,6 +325,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --env DIR\n");
+    fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -439,6 +442,11 @@ int main (int argc, const char *argv[]) {
         } else if (strcmp(arg, "--prelockflag") == 0) {
             prelock=1;
             prelockflag=1;
+        } else if (strcmp(arg, "--srandom") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            srandom(atoi(argv[++i]));
+        } else if (strcmp(arg, "--append") == 0) {
+            do_append = 1;
         } else {
 	    return print_usage(argv[0]);
 	}

@@ -36,6 +36,7 @@ REGRESSION_TESTS_RAW = \
 	block_allocator_test \
 	bread-test \
 	brt-serialize-test \
+	brt-serialize-sub-block-test \
 	brt-test \
 	brt-test-cursor \
 	brt-test-cursor-2 \
