@@ -7611,10 +7611,11 @@ int ha_tokudb::tokudb_add_index(
     //
     // We have an accurate row count, might as well update share->rows
     //
-    pthread_mutex_lock(&share->mutex);
-    share->rows = num_processed;
-    pthread_mutex_unlock(&share->mutex);
-
+    if(!creating_hot_index) {
+        pthread_mutex_lock(&share->mutex);
+        share->rows = num_processed;
+        pthread_mutex_unlock(&share->mutex);
+    }
     //
     // now write stuff to status.tokudb
     //
