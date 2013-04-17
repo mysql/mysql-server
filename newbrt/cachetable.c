@@ -17,7 +17,7 @@
 #include "cachetable.h"
 #include "rwlock.h"
 #include "nonblocking_mutex.h"
-#include "log_header.h"
+#include <newbrt/log_header.h>
 #include "checkpoint.h"
 #include "minicron.h"
 #include "log-internal.h"

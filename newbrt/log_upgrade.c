@@ -4,7 +4,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
-#include "log_header.h"
+#include <newbrt/log_header.h>
 #include "checkpoint.h"
 
 static uint64_t footprint = 0;  // for debug and accountability

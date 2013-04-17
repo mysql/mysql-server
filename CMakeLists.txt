@@ -85,6 +85,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/toku_include
   ${CMAKE_CURRENT_SOURCE_DIR}/portability
   ${CMAKE_CURRENT_SOURCE_DIR}  ## so you can include <newbrt/brt.h> from inside src/
+  ${CMAKE_CURRENT_BINARY_DIR}  ## for logging code
   )
 ## include where config.h will be generated
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/toku_include)
@@ -108,30 +109,6 @@ add_subdirectory(examples)
 install(
   FILES README
   DESTINATION .
-  )
-
-## set up lists of sources and headers for tags
-file(GLOB_RECURSE all_srcs
-  include/*.c
-  toku_include/*.c
-  buildheader/*.c
-  portability/*.c
-  newbrt/*.c
-  src/*.c
-  utils/*.c
-  db-benchmark-test/*.c
-  )
-file(GLOB_RECURSE all_hdrs
-  include/*.h
-  toku_include/*.h
-  buildheader/*.h
-  portability/*.h
-  newbrt/*.h
-  src/*.h
-  utils/*.h
-  db-benchmark-test/*.h
-  ${CMAKE_CURRENT_BINARY_DIR}/toku_include/*.h
-  ${CMAKE_CURRENT_BINARY_DIR}/buildheader/*.h
   )
 
 ## build tags
