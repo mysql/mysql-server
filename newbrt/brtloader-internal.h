@@ -27,11 +27,11 @@ struct file_info {
     void *buffer;
 };
 struct file_infos {
-    toku_pthread_mutex_t lock; // must protect this data structure because current activity performs a REALLOC(fi->file_infos).
     int n_files;
     int n_files_limit;
     struct file_info *file_infos;
     int n_files_open, n_files_extant;
+    toku_pthread_mutex_t lock; // must protect this data structure because current activity performs a REALLOC(fi->file_infos).
 };
 typedef struct fidx { int idx; } FIDX;
 static const FIDX FIDX_NULL __attribute__((__unused__)) = {-1};
@@ -154,7 +154,7 @@ struct brtloader_s {
     toku_pthread_t *fractal_threads;
     BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
 
-    pthread_mutex_t mutex;
+    toku_pthread_mutex_t mutex;
 };
 
 // Set the number of rows in the loader.  Used for test.
