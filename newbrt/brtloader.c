@@ -2025,11 +2025,10 @@ struct dbuf {
 };
 
 struct leaf_buf {
-    int64_t blocknum;
-    struct dbuf dbuf;
-    int nkeys, ndata, dsize, n_in_buf;
-    int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
+    BLOCKNUM blocknum;
     TXNID xid;
+    int nkeys, ndata, dsize;
+    BRTNODE node;
 };
 
 
@@ -2160,61 +2159,22 @@ static void putbuf_int64 (struct dbuf *dbuf, unsigned long long v) {
     putbuf_int32(dbuf, v&0xFFFFFFFF);
 }
 
-static void putbuf_int32_at(struct dbuf *dbuf, int off, int v) {
-    const int nbytes = 4;
-    if (off+nbytes > dbuf->buflen) {
-        unsigned char *oldbuf = dbuf->buf;
-        int oldbuflen = dbuf->buflen;
-	dbuf->buflen += dbuf->off + nbytes;
-	dbuf->buflen *= 2;
-	REALLOC_N(dbuf->buflen, dbuf->buf);
-        if (dbuf->buf == NULL) {
-            dbuf->error = errno;
-            dbuf->buf = oldbuf;
-            dbuf->buflen = oldbuflen;
-        }
-    }
-    if (!dbuf->error)
-        memcpy(dbuf->buf + off, &v, 4);
-}
-
-static void putbuf_int64_at(struct dbuf *dbuf, int off, unsigned long long v) {
-    unsigned int a = v>>32;
-    unsigned int b = v&0xFFFFFFFF;
-    putbuf_int32_at(dbuf, off,   a);
-    putbuf_int32_at(dbuf, off+4, b);
-}
-
 static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum, TXNID xid, uint32_t target_nodesize) {
     invariant(lblocknum < out->n_translations_limit);
+
     struct leaf_buf *XMALLOC(lbuf);
-    lbuf->blocknum = lblocknum;
-    dbuf_init(&lbuf->dbuf);
-    int height=0;
-    int flags=0;
-    int layout_version=BRT_LAYOUT_VERSION;
-    putbuf_bytes(&lbuf->dbuf, "tokuleaf", 8);
-    putbuf_int32(&lbuf->dbuf, layout_version);
-    putbuf_int32(&lbuf->dbuf, layout_version); // layout_version original
-    putbuf_int32(&lbuf->dbuf, BUILD_ID);       // build_id (svn rev number) of software that wrote this node to disk
-
-    putbuf_int32(&lbuf->dbuf, target_nodesize);
-    putbuf_int32(&lbuf->dbuf, flags);
-    putbuf_int32(&lbuf->dbuf, height);
-    lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
-    lbuf->n_in_buf = 0;
-    
-    // leave these uninitialized for now.
-    lbuf->nkeys_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
-    lbuf->ndata_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
-    lbuf->dsize_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
-
-    putbuf_int32(&lbuf->dbuf, 0);  // optimized_for_upgrade
-
-    lbuf->partitions_p        = lbuf->dbuf.off;    lbuf->dbuf.off+=4; lbuf->dbuf.off += stored_sub_block_map_size; // RFP partition map
-    lbuf->n_in_buf_p          = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
-
+    lbuf->blocknum.b = lblocknum;
     lbuf->xid = xid;
+    lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
+
+    BRTNODE XMALLOC(node);
+    lbuf->node = node;
+
+    int height = 0;
+    int n_bn = 1;
+    toku_initialize_empty_brtnode(node, lbuf->blocknum, height, n_bn, BRT_LAYOUT_VERSION, target_nodesize, 0);
+    BP_STATE(node, 0) = PT_AVAIL;
+
     return lbuf;
 }
 
@@ -2361,7 +2321,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
 
 	    used_estimate += key.size + val.size + disksize_row_overhead;
-
+#if 0
 	    // Spawn off a node if
             //   a) there is at least one row in it, and
 	    //   b) this item would make the nodesize too big, or
@@ -2372,7 +2332,19 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
 	    if (lbuf->n_in_buf > 0 && 
                 ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && lbuf->dbuf.off > remaining_amount))) {
-
+#else
+	    // Spawn off a node if
+            //   a) there is at least one row in it, and
+	    //   b) this item would make the nodesize too big, or
+	    //   c) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
+	    int remaining_amount = total_disksize_estimate - used_estimate;
+            int off = lbuf->dsize + lbuf->nkeys * disksize_row_overhead;
+	    int used_here = off + 1000; // leave 1000 for various overheads.
+	    int target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
+	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
+	    if (lbuf->nkeys > 0 && 
+                ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && off > remaining_amount))) {
+#endif
 		//if (used_here_with_next_key < target_size) {
 		//    printf("%s:%d Runt avoidance: used_here=%d, remaining_amount=%d target_size=%d dbuf.off=%d\n", __FILE__, __LINE__, used_here, remaining_amount, target_size, lbuf->dbuf.off);  
 		//}
@@ -2775,28 +2747,19 @@ int toku_brt_loader_get_error(BRTLOADER bl, int *error) {
 }
 
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen) {
-    lbuf->n_in_buf++;
     lbuf->nkeys++; // assume NODUP
     lbuf->ndata++;
-    lbuf->dsize+= keylen + vallen;
-    
-    int le_off = lbuf->dbuf.off;
-    int le_len;
-    if (lbuf->xid == TXNID_NONE) {
-        le_clean(key, keylen, val, vallen, putbuf_bytes, &lbuf->dbuf);
-        le_len = LE_CLEAN_MEMSIZE(keylen, vallen);
-    }
-    else {
-        le_committed_mvcc(key, keylen, val, vallen, lbuf->xid, putbuf_bytes, &lbuf->dbuf);
-        le_len = LE_MVCC_COMMITTED_MEMSIZE(keylen, vallen);
-    }
-    if (!lbuf->dbuf.error) {
-        invariant(le_off + le_len == lbuf->dbuf.off);
-        u_int32_t this_x = x1764_memory(lbuf->dbuf.buf + le_off, le_len);
-        if (0) {
-            printf("%s:%d x1764(buf+%d, %d)=%8x\n", __FILE__, __LINE__, le_off, le_len, this_x);
-        }
-    }
+    lbuf->dsize += keylen + vallen;    
+
+    // append this key val pair to the leafnode 
+    // #3588 TODO just make a clean ule and append it to the omt
+    // #3588 TODO can do the rebalancing here and avoid a lot of work later
+    BRTNODE leafnode = lbuf->node;
+    uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
+    DBT thekey = { .data = key, .size = keylen }; 
+    DBT theval = { .data = val, .size = vallen };
+    BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    brt_leaf_apply_cmd_once((BASEMENTNODE)leafnode->bp[0].ptr, &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -2811,114 +2774,33 @@ CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl) {
     int result = 0;
 
-    //printf("  finishing leaf node progress=%d fin at %d\n", bl->progress, bl->progress+progress_allocation);
-    putbuf_int64_at(&lbuf->dbuf, lbuf->nkeys_p,             lbuf->nkeys);
-    putbuf_int64_at(&lbuf->dbuf, lbuf->ndata_p,             lbuf->ndata);
-    putbuf_int64_at(&lbuf->dbuf, lbuf->dsize_p,             lbuf->dsize);
+    // serialize leaf to buffer
+    size_t serialized_leaf_size = 0;
+    char *serialized_leaf = NULL;
+    result = toku_serialize_brtnode_to_memory(lbuf->node, &serialized_leaf_size, &serialized_leaf);
 
-    // RFP abstract this
-    const int32_t n_partitions = 1;
-    struct sub_block_map partition_map;
-    sub_block_map_init(&partition_map, 0, 0, 0);
-    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p,        n_partitions);
-    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+4,      partition_map.idx);
-    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+8,      partition_map.offset);
-    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+12,     partition_map.size);
-
-    putbuf_int32_at(&lbuf->dbuf, lbuf->n_in_buf_p,          lbuf->n_in_buf);
-    u_int32_t xsum = x1764_memory(lbuf->dbuf.buf, lbuf->dbuf.off);
-    putbuf_int32(&lbuf->dbuf, xsum);
-
-    result = lbuf->dbuf.error;
+    // write it out
     if (result == 0) {
-
-        //print_bytestring(lbuf->dbuf.buf, lbuf->dbuf.off, 200);
-
-        int n_uncompressed_bytes_at_beginning = (8 // tokuleaf
-                                                 +4 // layout version
-                                                 +4 // layout version original
-                                                 +4 // build_id
-                                                 );
-        int uncompressed_len = lbuf->dbuf.off - n_uncompressed_bytes_at_beginning;
-
-        // choose sub block size and number
-        int sub_block_size, n_sub_blocks;
-        choose_sub_block_size(uncompressed_len, max_sub_blocks, &sub_block_size, &n_sub_blocks);
-        
-        int header_len = n_uncompressed_bytes_at_beginning + sub_block_header_size(n_sub_blocks) + sizeof (uint32_t);
-
-        // initialize the sub blocks
-        // struct sub_block sub_block[n_sub_blocks]; RFP cilk++ dynamic array bug, use malloc instead
-        struct sub_block *XMALLOC_N(n_sub_blocks, sub_block);
-        for (int i = 0; i < n_sub_blocks; i++) 
-            sub_block_init(&sub_block[i]);
-        set_all_sub_block_sizes(uncompressed_len, sub_block_size, n_sub_blocks, sub_block);
-
-        // allocate space for the compressed bufer
-        int bound = get_sum_compressed_size_bound(n_sub_blocks, sub_block);
-        unsigned char *MALLOC_N(header_len + bound, compressed_buf);
-        if (compressed_buf == NULL) {
-            result = errno;
-        } else {
-
-            // compress and checksum the sub blocks
-            int compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, 
-                                                         (char *) (lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning),
-                                                         (char *) (compressed_buf + header_len), 1, NULL);
-
-            // cppy the uncompressed header to the compressed buffer
-            memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);
-            
-	    int uncompressed_header_size = n_uncompressed_bytes_at_beginning + sizeof(n_sub_blocks);
-	    
-            // serialize the sub block header
-            memcpy(compressed_buf+n_uncompressed_bytes_at_beginning, &n_sub_blocks, 4);
-            for (int i = 0; i < n_sub_blocks; i++) {
-                memcpy(compressed_buf+uncompressed_header_size+12*i+0, &sub_block[i].compressed_size, 4);
-                memcpy(compressed_buf+uncompressed_header_size+12*i+4, &sub_block[i].uncompressed_size, 4);
-                memcpy(compressed_buf+uncompressed_header_size+12*i+8, &sub_block[i].xsum, 4);
-            }
-            
-            // compute the header checksum and serialize it
-            u_int32_t header_xsum = x1764_memory(compressed_buf, header_len - sizeof (u_int32_t));
-            memcpy(compressed_buf + header_len - sizeof (u_int32_t), &header_xsum, 4);
-            
-            dbout_lock(out);
-            long long off_of_leaf = out->current_off;
-            int size = header_len + compressed_len;
-            if (0) {
-                fprintf(stderr, "uncompressed buf size=%d (amount of data compressed)\n", uncompressed_len);
-                fprintf(stderr, "compressed buf size=%d, off=%lld\n", compressed_len, off_of_leaf);
-                fprintf(stderr, "compressed bytes are:");
-                //for (int i=0; i<compressed_len; i++) {
-                //    unsigned char c = compressed_buf[28+i];
-                //    if (isprint(c)) fprintf(stderr, "%c", c);
-                //    else fprintf(stderr, "\\%03o", compressed_buf[28+i]);
-                //}
-                fprintf(stderr, "\ntotal bytes written = %d, last byte is \\%o\n", size, compressed_buf[size-1]);
-            }
-    
-            result = write_literal(out, compressed_buf, size); 
-            if (result == 0) {
-                //printf("translation[%lld].off = %lld\n", lbuf->blocknum, off_of_leaf);
-                out->translation[lbuf->blocknum].off  = off_of_leaf;
-                out->translation[lbuf->blocknum].size = size;
-                seek_align_locked(out);
-            }
-            dbout_unlock(out);
+        dbout_lock(out);
+        long long off_of_leaf = out->current_off;
+        result = write_literal(out, serialized_leaf, serialized_leaf_size);
+        if (result == 0) {
+            out->translation[lbuf->blocknum.b].off  = off_of_leaf;
+            out->translation[lbuf->blocknum.b].size = serialized_leaf_size;
+            seek_align_locked(out);
         }
-
-        toku_free(sub_block); // RFP cilk++ bug
-        toku_free(compressed_buf);
+        dbout_unlock(out);
     }
 
-    dbuf_destroy(&lbuf->dbuf);
+    // free the node
+    if (serialized_leaf)
+        toku_free(serialized_leaf);
+    toku_brtnode_free(&lbuf->node);
     toku_free(lbuf);
 
     //printf("Nodewrite %d (%.1f%%):", progress_allocation, 100.0*progress_allocation/PROGRESS_MAX);
-    if (result == 0) {
+    if (result == 0)
         result = update_progress(progress_allocation, bl, "wrote node");
-    }
 
     if (result)
         brt_loader_set_panic(bl, result, TRUE);
@@ -3094,25 +2976,13 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
                                 struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize)
 {
     //Nodes do not currently touch descriptors
-    invariant(height>0);
+    invariant(height > 0);
 
     int result = 0;
 
     BRTNODE XMALLOC(node);
-    node->nodesize = target_nodesize;
-    node->thisnodename = make_blocknum(blocknum_of_new_node);
-    node->layout_version = BRT_LAYOUT_VERSION;
-    node->layout_version_original = BRT_LAYOUT_VERSION;
-    node->build_id = BUILD_ID;
-    node->max_msn_applied_to_node_on_disk = MIN_MSN;
-    node->max_msn_applied_to_node_in_memory = MIN_MSN;
-    node->height=height;
-    node->n_children = n_children;
-    node->flags = 0;
-
-    XMALLOC_N(n_children-1, node->childkeys);
-    for (int i=0; i<n_children-1; i++) 
-        node->childkeys[i] = NULL;
+    toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children, 
+                                 BRT_LAYOUT_VERSION, target_nodesize, 0);
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
 	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);
@@ -3124,18 +2994,11 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
     node->totalchildkeylens = totalchildkeylens;
-    XMALLOC_N(n_children, node->bp);
-    for (int i=0; i<n_children; i++) {
-        node->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_nonleaf_childinfo));
-	BP_BLOCKNUM(node,i)= make_blocknum(subtree_info[i].block);
-        BP_SUBTREE_EST(node,i) = subtree_info[i].subtree_estimates;
-	BP_HAVE_FULLHASH(node,i) = FALSE;
-	BP_FULLHASH(node,i) = 0;
-        BP_STATE(node,i) = PT_AVAIL;
-	int r = toku_fifo_create(&BNC_BUFFER(node,i));
-	if (r != 0)
-            result = r;
-	BNC_NBYTESINBUF(node,i)= 0;
+
+    for (int i = 0; i < n_children; i++) {
+        BP_SUBTREE_EST(node, i) = subtree_info[i].subtree_estimates;
+        BP_BLOCKNUM(node, i) = make_blocknum(subtree_info[i].block);
+        BP_STATE(node, i) = PT_AVAIL;
     }
 
     if (result == 0) {

@@ -246,7 +246,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error);
 
-enum { disksize_row_overhead = 9 }; // how much overhead for a row in the fractal tree
+enum { disksize_row_overhead = 9 }; // how much overhead for a row in the fractal tree (#3588, 9 = cmd + keylen + vallen?)
 
 // For test purposes only.  (In production, the rowset size is determined by negotation with the cachetable for some memory.  See #2613.)
 uint64_t toku_brtloader_get_rowset_budget_for_testing (void);

@@ -20,8 +20,8 @@ static void
 append_leaf(BRTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen) {
     assert(leafnode->height == 0);
 
-    DBT thekey; toku_fill_dbt(&thekey, key, keylen);
-    DBT theval; toku_fill_dbt(&theval, val, vallen);
+    DBT thekey = { .data = key, .size = keylen }; 
+    DBT theval = { .data = val, .size = vallen };
 
     // get an index that we can use to create a new leaf entry
     uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
