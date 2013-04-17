@@ -83,6 +83,7 @@ REGRESSION_TESTS_RAW = \
 	log-test5 \
 	log-test6 \
 	log-test7 \
+	log-test-timestamp \
 	memtest \
 	minicron-test \
 	omt-cursor-test \
