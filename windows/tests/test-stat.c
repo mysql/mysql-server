@@ -15,7 +15,7 @@ void test_stat(char *dirname, int result, int ex_errno) {
     if (r!=0) assert(errno == ex_errno);
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int r;
 
     test_stat(".", 0, 0);

@@ -1,3 +1,4 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <toku_assert.h>
@@ -5,7 +6,7 @@
 #include <windows.h>
 #include <winsock.h>
 
-int usleep(SOCKET s, unsigned int useconds) {
+int usleep_socket(SOCKET s, unsigned int useconds) {
     fd_set dummy;
     struct timeval tv;
     FD_ZERO(&dummy);
@@ -15,10 +16,9 @@ int usleep(SOCKET s, unsigned int useconds) {
     return select(0, 0, 0, &dummy, &tv);
 }
 
-#include <test.h>
 int verbose;
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     int n = 1;
     WSADATA wsadata;
@@ -39,7 +39,7 @@ int test_main(int argc, char *argv[]) {
         if (verbose) {
             printf("usleep %d\n", i); fflush(stdout);
         }
-        usleep(s, n);
+        usleep_socket(s, n);
     }
 
     return 0;

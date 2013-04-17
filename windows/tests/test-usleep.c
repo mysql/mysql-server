@@ -7,7 +7,7 @@
 
 int verbose;
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     int n = 1;
 

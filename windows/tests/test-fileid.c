@@ -1,16 +1,18 @@
-
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <toku_assert.h>
 #include <fcntl.h>
-#include <test.h>
 #include "toku_os.h"
 
 int verbose=0;
+enum {NUM_IDS=4};
+struct fileid old_ids[NUM_IDS];
+BOOL valid[NUM_IDS];
 
 //TODO: Test that different files are different,
 //      other stuff
-static void test_handles(const char *fname) {
+static void test_handles(const char *fname, unsigned which) {
     unlink(fname);
     int fd = open(fname,  O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd!=-1);
@@ -18,17 +20,34 @@ static void test_handles(const char *fname) {
     struct fileid id_base;
     struct fileid id;
     int r = toku_os_get_unique_file_id(fd, &id_base);
-    assert(r==0);
+    CKERR(r);
+    assert(which < NUM_IDS);
+    for (i = 0; i < NUM_IDS; i++) {
+        if (valid[i]) {
+            if (which==i) {
+                //Assert same
+                assert(memcmp(&id_base, &old_ids[i], sizeof(id_base))==0);
+            }
+            else {
+                //Assert different
+                assert(memcmp(&id_base, &old_ids[i], sizeof(id_base))!=0);
+            }
+        }
+    }
+    memcpy(&old_ids[which], &id_base, sizeof(id_base));
+    valid[which] = TRUE;
+
+    if (verbose) printf("[%s] : r=[%d] errno=[%d] id=[0x%"PRIx32"/0x%"PRIx64"]\n", fname, r, errno, id_base.st_dev, id_base.st_ino);
     for (i=0; i < 1<<16; i++) {
         r = toku_os_get_unique_file_id(fd, &id);
-        assert(r==0);
+        CKERR(r);
         assert(memcmp(&id, &id_base, sizeof(id))==0);
     }
     r = close(fd);
-    assert(r==0);
+    CKERR(r);
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
 
     for (i=1; i<argc; i++) {
@@ -37,7 +56,13 @@ int test_main(int argc, char *argv[]) {
             verbose++;
     }
 
-    test_handles("junk");
+    test_handles("junk1", 0);
+    test_handles("junk2", 1);
+    test_handles("junk3", 2);
+    test_handles("NUL", 3);
+    test_handles(".\\NUL", 3);
+    test_handles("\\NUL", 3);
+    test_handles("C:\\NUL", 3);
 
     return 0;
 }

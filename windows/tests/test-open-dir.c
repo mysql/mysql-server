@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     for (i=1; i<argc; i++) {
         int fd = open(argv[i], O_RDONLY);

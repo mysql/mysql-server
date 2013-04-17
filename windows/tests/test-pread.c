@@ -1,8 +1,8 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <toku_assert.h>
 #include <fcntl.h>
-#include <test.h>
 #include "toku_os.h"
 
 int verbose;
@@ -24,7 +24,7 @@ static void test_pread_empty(const char *fname) {
         printf("close %s %"PRIu64"\n", fname, r);
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
 
     for (i=1; i<argc; i++) {

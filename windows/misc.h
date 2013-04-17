@@ -15,6 +15,8 @@ extern "C" {
 int fsync(int fildes);
 int toku_fsync_init(void);
 int toku_fsync_destroy(void);
+int toku_mkstemp_init(void);
+int toku_mkstemp_destroy(void);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
@@ -75,6 +77,8 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 int snprintf(char *str, size_t size, const char *format, ...);
 
 int usleep(unsigned int useconds);
+
+int mkstemp(char * ttemplate);
 
 #if defined(__cplusplus)
 };

@@ -12,7 +12,7 @@ static void *mythreadfunc(void *arg) {
     return arg;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
 #define N 1000000
 
     int i;

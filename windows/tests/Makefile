@@ -21,12 +21,14 @@ all: $(BINS)
 .PHONY: check
 check: $(BINS) $(RUNTARGETS);
 
+test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=.
+test-pwrite4g.tdbrun: VERBVERBOSE=
 %.tdbrun: %$(BINSUF) $(PTHREAD_LOCAL)
 	mkdir -p dir.$*
 ifeq ($(VGRIND),)
-	cd dir.$* && ../$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	cd dir.$* && ../$< $(TEST_EXTRA_ARGS) $(VERBVERBOSE) $(SUMMARIZE_CMD)
 else
-	cd dir.$* && .$(VGRIND) --log-file=$<.valgrind ../$< $(VERBVERBOSE); \
+	cd dir.$* && .$(VGRIND) --log-file=$<.valgrind ../$< $(TEST_EXTRA_ARGS) $(VERBVERBOSE); \
 	if [ $$? = 0 ] ; then \
 		grep "LEAK SUMMARY" dir.$*/$<.valgrind >/dev/null 2>&1; \
 		if [ $$? = 0 ] ; then cat dir.$*/$<.valgrind; test 0 = 1; fi \

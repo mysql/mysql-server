@@ -18,7 +18,7 @@
 
 const char TESTFILE[] = "test-open-unlink-file";
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int r;
     int fd;
 

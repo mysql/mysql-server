@@ -3,7 +3,7 @@
 #include <toku_assert.h>
 #include <toku_time.h>
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int r;
     struct timeval tv;
     struct timezone tz;
