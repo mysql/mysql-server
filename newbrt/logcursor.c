@@ -169,6 +169,8 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     return failresult;
 }
 
+static int lc_scan_from_beginning_of_file_to_find_last(TOKULOGCURSOR lc);
+
 int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     TOKULOGCURSOR cursor;
     int r = lc_create(&cursor, log_dir);
@@ -394,12 +396,22 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     }
     while (1) {
         // seek to end
-        r = fseek(lc->cur_fp, 0, SEEK_END);
-        assert(0==r);
+        r = fseek(lc->cur_fp, 0, SEEK_END);    assert(r==0);
         // read backward
         r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
-        if (r==0) 
+        if (r==0) // got a good entry
             break;
+        if (r>0) { 
+            // got an error, 
+            // probably a corrupted last log entry due to a crash
+            // try scanning forward from the beginning to find the last good entry
+            r = lc_scan_from_beginning_of_file_to_find_last(lc);
+            assert(r==0);
+            // try reading again
+            r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
+            if (r==0) // got a good entry
+                break;
+        }
         // move to previous file
         r = lc_close_cur_logfile(lc);
         if (r!=0) 
@@ -432,3 +444,29 @@ toku_logcursor_log_exists(const TOKULOGCURSOR lc) {
 
     return r;
 }
+
+// return a logcursor with the cur_fp pointing to the end of the last good entry
+static int lc_scan_from_beginning_of_file_to_find_last(TOKULOGCURSOR lc) {
+    struct log_entry le;
+    unsigned int version=0;
+    int r = 0;
+
+    r = fseek(lc->cur_fp, 0, SEEK_SET);                assert(r==0);
+    r = toku_read_logmagic(lc->cur_fp, &version);      assert(r==0);
+    
+    fpos_t last_good_pos;
+    r = fgetpos(lc->cur_fp, &last_good_pos);           assert(r==0);
+    while (1) {
+        if ( lc->entry_valid ) {
+            toku_log_free_log_entry_resources(&le);
+            lc->entry_valid = FALSE;
+        }
+        r = toku_log_fread(lc->cur_fp, &le);
+        if ( r!=0 ) break;
+        r = fgetpos(lc->cur_fp, &last_good_pos);       assert(r==0);
+    }
+    // now have position of last good entry - set cur_fp and return
+    r = fsetpos(lc->cur_fp, &last_good_pos);           assert(r==0);
+    return 0;
+}
+
