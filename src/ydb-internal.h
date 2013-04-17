@@ -105,13 +105,20 @@ int toku_ydb_lock_ctr(void);
         RAISE_COND_EXCEPTION(((txn) && db_txn_struct_i(txn)->child), \
                              toku_ydb_do_error((env),                \
                                                EINVAL,               \
-                                               "%s: Transaction cannot do work when child exists", __FUNCTION__))
+                                               "%s: Transaction cannot do work when child exists\n", __FUNCTION__))
 
 #define HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn) \
         HANDLE_ILLEGAL_WORKING_PARENT_TXN((db)->dbenv, txn)
 
 #define HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c)   \
         HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN((c)->dbp, dbc_struct_i(c)->txn)
+
+#define HANDLE_EXTRA_FLAGS(env, flags_to_function, allowed_flags) \
+    RAISE_COND_EXCEPTION((env) && ((flags_to_function) & ~(allowed_flags)), \
+			 toku_ydb_do_error((env),			\
+					   EINVAL,			\
+					   "Unknown flags (%"PRIu32") in "__FILE__ ":%s(): %d\n", (flags_to_function) & ~(allowed_flags), __FUNCTION__, __LINE__))
+
 
 /* */
 void toku_ydb_error_all_cases(const DB_ENV * env, 
