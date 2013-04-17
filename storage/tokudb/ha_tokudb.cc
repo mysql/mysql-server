@@ -3618,6 +3618,12 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+
+int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
+    return(index_read(buf, key, key_len, HA_READ_PREFIX_LAST));    
+}
+
+
 //
 // Reads the previous row from the active index (cursor) into buf, and advances cursor
 // Parameters:
