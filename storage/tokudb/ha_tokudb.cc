@@ -3886,36 +3886,19 @@ cleanup:
 }
 
 
-int ha_tokudb::read_range_first(
-    const key_range *start_key,
-    const key_range *end_key,
-    bool eq_range, 
-    bool sorted) 
-{
+int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_range_first");
     int error;
     DBT start_dbt_key;
     const DBT* start_dbt_data = NULL;
     DBT end_dbt_key;
     const DBT* end_dbt_data = NULL;
-    uchar* start_key_buff  = NULL;
-    uchar* end_key_buff = NULL;
-    start_key_buff = (uchar *)my_malloc(table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar), MYF(MY_WME));
-    if (start_key_buff == NULL) {
-        error = ENOMEM;
-        goto cleanup;
-    }
-    end_key_buff = (uchar *)my_malloc(table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar), MYF(MY_WME));
-    if (end_key_buff == NULL) {
-        error = ENOMEM;
-        goto cleanup;
-    }
-
+    uchar* start_key_buff  = key_buff2;
+    uchar* end_key_buff = key_buff3;
 
     bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
     bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
     range_lock_grabbed = false;
-
 
     if (start_key) {
         switch (start_key->flag) {
@@ -3971,13 +3954,30 @@ int ha_tokudb::read_range_first(
         }
         goto cleanup; 
     }
-    range_lock_grabbed = true;
-    error = handler::read_range_first(start_key, end_key, eq_range, sorted);
 
 cleanup:
-    my_free(start_key_buff, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(end_key_buff, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
+}
+
+
+int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
+    return prelock_range(start_key, end_key);
+}
+
+int ha_tokudb::read_range_first(
+    const key_range *start_key,
+    const key_range *end_key,
+    bool eq_range, 
+    bool sorted) 
+{
+    int error;
+    error = prelock_range(start_key, end_key);
+    if (error) { goto cleanup; }
+    range_lock_grabbed = true;
+    
+    error = handler::read_range_first(start_key, end_key, eq_range, sorted);
+cleanup:
+    return error;
 }
 int ha_tokudb::read_range_next()
 {
