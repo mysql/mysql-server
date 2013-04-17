@@ -242,7 +242,7 @@ toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum,
     
     struct brt_cmd cmd;
     DBT keydbt, valdbt;
-    cmd.type=typ;
+    cmd.type=(enum brt_cmd_type) typ;
     cmd.xid =xid;
     cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
     cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);

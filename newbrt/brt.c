@@ -2704,6 +2704,9 @@ static int brt_init_header(BRT t) {
         } else {
             lh.u.one.root = t->h->roots[0];
         }
+#ifdef __ICL
+        lh = lh; //Satisfy icl (variable set but unused)
+#endif
         //if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
     }
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
