@@ -2156,7 +2156,7 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 
         return COMPATIBLE_DATA_NO;
     }
-    if (table_changes < IS_EQUAL_YES)
+    if (table_changes != IS_EQUAL_YES)
         return COMPATIBLE_DATA_NO;
     return COMPATIBLE_DATA_YES;
 }
