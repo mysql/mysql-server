@@ -161,11 +161,11 @@ static int ft_loader_close_and_redirect(DB_LOADER *loader) {
                               loader->i->poll_func,      loader->i->poll_extra);
     if ( r==0 ) {
         for (int i=0; i<loader->i->N; i++) {
-            toku_ydb_lock(); //Must hold ydb lock for dictionary_redirect.
+            toku_multi_operation_client_lock(); //Must hold MO lock for dictionary_redirect.
             r = toku_dictionary_redirect(loader->i->inames_in_env[i],
                                          loader->i->dbs[i]->i->ft_handle,
                                          db_txn_struct_i(loader->i->txn)->tokutxn);
-            toku_ydb_unlock();
+            toku_multi_operation_client_unlock();
             if ( r!=0 ) break;
         }
     }
