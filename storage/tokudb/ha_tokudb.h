@@ -49,7 +49,6 @@ typedef struct st_tokudb_share {
     // key is hidden
     //
     DB *key_file[MAX_KEY +1];
-    u_int32_t key_type[MAX_KEY +1];
     uint status, version, capabilities;
     uint ref_length;
     //
@@ -249,8 +248,9 @@ private:
     u_int32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
     void unpack_key(uchar * record, DBT const *key, uint index);
     u_int32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
-    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
+    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, bool pack_pk, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
+    DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
     int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
     int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key);
@@ -260,7 +260,7 @@ private:
     DBT *get_pos(DBT * to, uchar * pos);
  
     int open_main_dictionary(const char* name, int mode, DB_TXN* txn);
-    int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type, DB_TXN* txn);
+    int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, DB_TXN* txn);
     int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows);
@@ -288,6 +288,7 @@ private:
     int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn);
     int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn);
     void trace_create_table_info(const char *name, TABLE * form);
+    int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
 
  
 public:
@@ -427,8 +428,8 @@ public:
     // effect: all dictionaries, including the main and indexes, should be empty
     int discard_or_import_tablespace(my_bool discard);
     int delete_all_rows();
-    void extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key);
-    void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    void extract_hidden_primary_key(uint keynr, DBT const *found_key);
+    void read_key_only(uchar * buf, uint keynr, DBT const *found_key);
     int read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int unpack_blobs(

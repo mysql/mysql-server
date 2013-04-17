@@ -105,7 +105,6 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 int create_toku_key_descriptor(
     uchar* buf, 
     bool is_first_hpk, 
-    bool is_clustering_key, 
     KEY* first_key, 
     bool is_second_hpk, 
     KEY* second_key

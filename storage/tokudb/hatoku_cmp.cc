@@ -854,7 +854,6 @@ int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
 int create_toku_key_descriptor(
     uchar* buf, 
     bool is_first_hpk, 
-    bool is_clustering_key, 
     KEY* first_key, 
     bool is_second_hpk, 
     KEY* second_key
@@ -868,16 +867,6 @@ int create_toku_key_descriptor(
     u_int32_t num_bytes = 0;
     u_int32_t offset = 0;
 
-    //
-    // sanity check:
-    // assert that if the first key is a hpk, then it is not a clustering key
-    //
-    assert(!(is_first_hpk && is_clustering_key));
-    //
-    // sanity check:
-    // assert that if it is a clustering key, then a second key exists
-    //
-    assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
 
     if (is_first_hpk) {
         pos[0] = 0; //say there is NO infinity byte
@@ -896,30 +885,12 @@ int create_toku_key_descriptor(
     }
 
     //
-    // at this point, write the amount of data that has been written for the first 
-    // key, iff it is NOT a clustering key. If it is a clustering key, we will need to write it
-    // after we have written the second key.
-    //
-    if (!is_clustering_key) {
-        offset = pos - buf;
-        buf[0] = (uchar)(offset & 255);
-        buf[1] = (uchar)((offset >> 8) & 255);
-        buf[2] = (uchar)((offset >> 16) & 255);
-        buf[3] = (uchar)((offset >> 24) & 255);
-    }
-
-    //
     // if we do not have a second key, we can jump to exit right now
     // we do not have a second key if it is not a hidden primary key
     // and if second_key is NULL
     //
     if (is_first_hpk || (!is_second_hpk && (second_key == NULL)) ) {
         goto exit;
-    }
-
-    if (!is_clustering_key) {
-        pos[0] = (is_second_hpk) ? 0 : 1; //we place an infinity byte iff it is NOT a clustering key and NOT a hpk
-        pos++;
     }
 
     //
@@ -939,15 +910,14 @@ int create_toku_key_descriptor(
         pos += num_bytes;
     }
     
-    if (is_clustering_key) {
-        offset = pos - buf;
-        buf[0] = (uchar)(offset & 255);
-        buf[1] = (uchar)((offset >> 8) & 255);
-        buf[2] = (uchar)((offset >> 16) & 255);
-        buf[3] = (uchar)((offset >> 24) & 255);
-    }
     
 exit:
+    offset = pos - buf;
+    buf[0] = (uchar)(offset & 255);
+    buf[1] = (uchar)((offset >> 8) & 255);
+    buf[2] = (uchar)((offset >> 16) & 255);
+    buf[3] = (uchar)((offset >> 24) & 255);
+
     return pos - buf;
 }
 

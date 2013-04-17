@@ -305,7 +305,7 @@ static int smart_dbt_ai_callback (DBT const *key, DBT const *row, void *context)
     // the primary key to current_ident, because that is what the function
     // create_dbt_key_from_key uses to create the key in a clustering index
     //
-    info->ha->extract_hidden_primary_key(info->pk_index,row,key);
+    info->ha->extract_hidden_primary_key(info->pk_index,key);
     error = info->ha->unpack_row(info->buf,row,key, info->ha->primary_key);
     return error;
 }
@@ -334,7 +334,7 @@ static int smart_dbt_metacallback (DBT const *key, DBT  const *row, void *contex
 static int
 smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->extract_hidden_primary_key(info->keynr, row, key);
+    info->ha->extract_hidden_primary_key(info->keynr, key);
     return info->ha->read_row_callback(info->buf,info->keynr,row,key);
 }
 
@@ -344,8 +344,8 @@ smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *conte
 static int
 smart_dbt_callback_keyread(DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->extract_hidden_primary_key(info->keynr, row, key);
-    info->ha->read_key_only(info->buf,info->keynr,row,key);
+    info->ha->extract_hidden_primary_key(info->keynr, key);
+    info->ha->read_key_only(info->buf,info->keynr,key);
     return 0;
 }
 
@@ -356,7 +356,7 @@ static int
 smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *context) {
     int error = 0;
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->extract_hidden_primary_key(info->keynr, row, key);
+    info->ha->extract_hidden_primary_key(info->keynr, key);
     error = info->ha->read_primary_key(info->buf,info->keynr,row,key);
     return error;
 }
@@ -373,6 +373,14 @@ smart_dbt_callback_ir_keyread(DBT const *key, DBT  const *row, void *context) {
     }
     return smart_dbt_callback_keyread(key, row, &ir_info->smart_dbt_info);
 }
+
+static int
+smart_dbt_callback_lookup(DBT const *key, DBT  const *row, void *context) {
+    INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
+    ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
+    return 0;
+}
+
 
 //
 // Smart DBT callback function in case where we do NOT have a covering index
@@ -1078,7 +1086,6 @@ int ha_tokudb::open_main_dictionary(const char* name, int mode, DB_TXN* txn) {
         goto exit;
     }
     share->key_file[primary_key] = share->file;
-    share->key_type[primary_key] = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
 
     //
     // set comparison function for main.tokudb
@@ -1111,7 +1118,7 @@ exit:
 //
 // Open a secondary table, the key will be a secondary index, the data will be a primary key
 //
-int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type, DB_TXN* txn) {
+int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, DB_TXN* txn) {
     int error = ENOSYS;
     char dict_name[MAX_DICT_NAME_LEN];
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
@@ -1134,20 +1141,9 @@ int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* na
         my_errno = error;
         goto cleanup;
     }
-    //
-    // TODO: make sure that with clustering keys, DB_YESOVERWRITE IS ALWAYS SET
-    //
-    *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
+
     (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);
 
-    DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %s\n", key_info->name));
-    //
-    // clustering keys are not DB_DUP, because their keys are unique (they have the PK embedded)
-    //
-    if (!(key_info->flags & HA_CLUSTERING)) {
-        (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
-        (*ptr)->set_dup_compare(*ptr, tokudb_cmp_dbt_data);
-    }
 
     if ((error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0))) {
         my_errno = error;
@@ -1350,7 +1346,6 @@ int ha_tokudb::initialize_share(
                 &table_share->key_info[i],
                 name,
                 mode,
-                &share->key_type[i],
                 NULL
                 );
             if (error) {
@@ -2153,7 +2148,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
         record, 
         pos
         );
-    if((table->key_info[index].flags & HA_CLUSTERING) && !hidden_primary_key) {
+    if( (index != primary_key) && !hidden_primary_key) {
         //
         // also unpack primary key
         //
@@ -2230,11 +2225,12 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(
 //
 
 DBT* ha_tokudb::create_dbt_key_from_key(
-    DBT * key, 
+    DBT * key,
     KEY* key_info, 
-    uchar * buff, 
+    uchar * buff,
     const uchar * record, 
-    bool* has_null, 
+    bool* has_null,
+    bool dont_pack_pk,
     int key_length
     ) 
 {
@@ -2259,7 +2255,7 @@ DBT* ha_tokudb::create_dbt_key_from_key(
         has_null, 
         key_length
         );
-    if (key_info->flags & HA_CLUSTERING) {
+    if (!dont_pack_pk) {
         tmp_buff = buff + size;
         if (hidden_primary_key) {
             memcpy_fixed(tmp_buff, current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
@@ -2315,9 +2311,21 @@ DBT *ha_tokudb::create_dbt_key_from_table(
         *has_null = false;
         DBUG_RETURN(key);
     }
-    DBUG_RETURN(create_dbt_key_from_key(key, &table->key_info[keynr],buff,record, has_null, key_length));
+    DBUG_RETURN(create_dbt_key_from_key(key, &table->key_info[keynr],buff,record, has_null, (keynr == primary_key), key_length));
 }
 
+DBT* ha_tokudb::create_dbt_key_for_lookup(
+    DBT * key, 
+    KEY* key_info, 
+    uchar * buff, 
+    const uchar * record, 
+    bool* has_null, 
+    int key_length
+    )
+{
+    TOKUDB_DBUG_ENTER("ha_tokudb::create_dbt_key_from_lookup");
+    DBUG_RETURN(create_dbt_key_from_key(key, key_info, buff, record, has_null, true, key_length));    
+}
 
 //
 // Create a packed key from from a MySQL unpacked key (like the one that is
@@ -2670,6 +2678,68 @@ int ha_tokudb::end_bulk_insert() {
     return error;
 }
 
+
+int ha_tokudb::is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn) {
+    DBT key;
+    int error = 0;
+    bool has_null;
+    DBC* tmp_cursor = NULL;
+    struct index_read_info ir_info;
+    struct smart_dbt_info info;
+    bzero((void *)&key, sizeof(key));
+    info.ha = this;
+    info.buf = NULL;
+    info.keynr = dict_index;
+
+    ir_info.smart_dbt_info = info;
+    
+    create_dbt_key_for_lookup(
+        &key,
+        key_info,
+        key_buff3,
+        record,
+        &has_null
+        );
+    ir_info.orig_key = &key;
+        
+    error = share->key_file[dict_index]->cursor(
+        share->key_file[dict_index], 
+        txn, 
+        &tmp_cursor, 
+        0
+        );
+    if (error) { goto cleanup; }
+
+    error = tmp_cursor->c_getf_set_range(
+        tmp_cursor, 
+        0, 
+        &key, 
+        smart_dbt_callback_lookup, 
+        &ir_info
+        );
+    if (error == DB_NOTFOUND) {
+        *is_unique = true;
+        error = 0;
+        goto cleanup;
+    }
+    else if (error) {
+        goto cleanup;
+    }
+    if (ir_info.cmp) {
+        *is_unique = true;
+    }
+    else {
+        *is_unique = false;
+    }
+    error = 0;
+
+cleanup:
+    if (tmp_cursor) {
+        tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
+    }
+    return error;
+}
   
 //
 // Stores a row in the table, called when handling an INSERT query
@@ -2751,7 +2821,7 @@ int ha_tokudb::write_row(uchar * record) {
     //
     // first the primary key (because it must be unique, has highest chance of failure)
     //
-    put_flags = share->key_type[primary_key];
+    put_flags = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
     if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace_into) {
         put_flags = DB_YESOVERWRITE;
     }
@@ -2791,41 +2861,48 @@ int ha_tokudb::write_row(uchar * record) {
     // now insertion for rest of indexes
     //
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
+        bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
         if (keynr == primary_key) {
             continue;
         }
-        put_flags = share->key_type[keynr];
+
         create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null); 
 
-        if (put_flags == DB_NOOVERWRITE && (has_null || thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))) {
-            put_flags = DB_YESOVERWRITE;
+        //
+        // if unique key, check uniqueness constraint
+        // but, we do not need to check it if the key has a null
+        // and we do not need to check it if unique_checks is off
+        //
+        if (is_unique_key && !has_null && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+            bool is_unique = false;
+            error = is_val_unique(&is_unique, record, &table->key_info[keynr], keynr, txn);
+            if (error) { goto cleanup; }
+            if (!is_unique) {
+                error = DB_KEYEXIST;
+                last_dup_key = keynr;
+                goto cleanup;
+            }
         }
+
+        put_flags = DB_YESOVERWRITE;
+
         if (table->key_info[keynr].flags & HA_CLUSTERING) {
-            if ((error = pack_row(&row, (const uchar *) record, keynr))){
-               goto cleanup;
-            }
-            lockretry {
-                error = share->key_file[keynr]->put(
-                                                    share->key_file[keynr], 
-                                                    txn,
-                                                    &key,
-                                                    &row, 
-                                                    put_flags
-                                                    );
-                lockretry_wait;
-            }
+            error = pack_row(&row, (const uchar *) record, keynr);
+            if (error) { goto cleanup; }
         }
         else {
-            lockretry {
-                error = share->key_file[keynr]->put(
-                                                    share->key_file[keynr], 
-                                                    txn,
-                                                    &key,
-                                                    &prim_key, 
-                                                    put_flags
-                                                    );
-                lockretry_wait;
-            }
+            bzero((void *) &row, sizeof(row));
+        }
+
+        lockretry {
+            error = share->key_file[keynr]->put(
+                                                share->key_file[keynr], 
+                                                txn,
+                                                &key,
+                                                &row,
+                                                put_flags
+                                                );
+            lockretry_wait;
         }
         //
         // We break if we hit an error, unless it is a dup key error
@@ -2893,6 +2970,7 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
     int error;
 
     if (primary_key_changed) {
+        u_int32_t put_flags = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
         // Primary key changed or we are updating a key that can have duplicates.
         // Delete the old row and add a new one
         error = remove_key(trans, primary_key, old_row, old_key);
@@ -2901,7 +2979,7 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
         error = pack_row(&row, new_row, primary_key);
         if (error) { goto cleanup; }
 
-        error = share->file->put(share->file, trans, new_key, &row, share->key_type[primary_key]);
+        error = share->file->put(share->file, trans, new_key, &row, put_flags);
         if (error) { 
             last_dup_key = primary_key;
             goto cleanup; 
@@ -3015,6 +3093,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
             ) 
         {
             u_int32_t put_flags;
+            bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
             //
             // only remove the old value if the key has changed 
             // if the key has not changed (in case of clustering keys, 
@@ -3026,37 +3105,45 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                     goto cleanup;
                 }
             }
-            create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null), 
-            put_flags = share->key_type[keynr];
-            if (put_flags == DB_NOOVERWRITE && (has_null || thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))) {
-                put_flags = DB_YESOVERWRITE;
-            }
-            if (table->key_info[keynr].flags & HA_CLUSTERING) {
-                if ((error = pack_row(&row, (const uchar *) new_row, keynr))){
-                   goto cleanup;
+            create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null);
+
+            //
+            // if unique key, check uniqueness constraint
+            // but, we do not need to check it if the key has a null
+            // and we do not need to check it if unique_checks is off
+            //
+            if (is_unique_key && !has_null && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+                bool is_unique = false;
+                error = is_val_unique(&is_unique, new_row, &table->key_info[keynr], keynr, txn);
+                if (error) { goto cleanup; }
+                if (!is_unique) {
+                    error = DB_KEYEXIST;
+                    last_dup_key = keynr;
+                    goto cleanup;
                 }
-                //
-                // make sure that for clustering keys, we are using DB_YESOVERWRITE,
-                // therefore making this put an overwrite if the key has not changed
-                //
-                assert(put_flags & DB_YESOVERWRITE);
-                error = share->key_file[keynr]->put(
-                    share->key_file[keynr], 
-                    txn,
-                    &key,
-                    &row, 
-                    put_flags
-                    );
+            }
+            
+            put_flags = DB_YESOVERWRITE;
+
+            if (table->key_info[keynr].flags & HA_CLUSTERING) {
+                error = pack_row(&row, (const uchar *) new_row, keynr);
+                if (error){ goto cleanup; }
             }
             else {
-                error = share->key_file[keynr]->put(
-                    share->key_file[keynr], 
-                    txn, 
-                    &key,
-                    &prim_key, 
-                    put_flags
-                    );
+                bzero((void *) &row, sizeof(row));
             }
+            //
+            // make sure that for clustering keys, we are using DB_YESOVERWRITE,
+            // therefore making this put an overwrite if the key has not changed
+            //
+            error = share->key_file[keynr]->put(
+                share->key_file[keynr], 
+                txn,
+                &key,
+                &row, 
+                put_flags
+                );
+
             //
             // We break if we hit an error, unless it is a dup key error
             // and MySQL told us to ignore duplicate key errors
@@ -3119,23 +3206,13 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
         error = cursor->c_del(cursor, 0);
     }
     else if (keynr == primary_key) {  // Unique key
-        DBUG_PRINT("Unique key", ("index: %d", keynr));
+        DBUG_PRINT("Primary key", ("index: %d", keynr));
         error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , DB_DELETE_ANY);
     }
-    else if (table->key_info[keynr].flags & HA_CLUSTERING) {
-        DBUG_PRINT("clustering key", ("index: %d", keynr));
+    else {
+        DBUG_PRINT("Secondary key", ("index: %d", keynr));
         create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
         error = share->key_file[keynr]->del(share->key_file[keynr], trans, &key , DB_DELETE_ANY);
-    }
-    else {
-        create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
-        error = share->key_file[keynr]->delboth(
-            share->key_file[keynr],
-            trans,
-            &key,
-            prim_key,
-            DB_DELETE_ANY
-            );
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -3438,7 +3515,7 @@ int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
 // we set the current_ident field to whatever the primary key we retrieved
 // was
 //
-void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key) {
+void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *found_key) {
     //
     // extract hidden primary key to current_ident
     //
@@ -3447,17 +3524,14 @@ void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *row, DBT const
             memcpy_fixed(current_ident, (char *) found_key->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         }
         //
-        // if clustering key, hidden primary key is at end of found_key
+        // if secondary key, hidden primary key is at end of found_key
         //
-        else if (table->key_info[keynr].flags & HA_CLUSTERING) {
+        else {
             memcpy_fixed(
                 current_ident, 
                 (char *) found_key->data + found_key->size - TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
                 TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
                 );
-        }
-        else {
-            memcpy_fixed(current_ident, (char *) row->data, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
         }
     }
 }
@@ -3478,14 +3552,15 @@ int ha_tokudb::read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT c
 //      [in]    row - the row that has been read from the preceding DB call
 //      [in]    found_key - key used to retrieve the row
 //
-void ha_tokudb::read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
+void ha_tokudb::read_key_only(uchar * buf, uint keynr, DBT const *found_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_key_only");
     table->status = 0;
+    //
+    // only case when we do not unpack the key is if we are dealing with the main dictionary
+    // of a table with a hidden primary key
+    //
     if (!(hidden_primary_key && keynr == primary_key)) {
         unpack_key(buf, found_key, keynr);
-    }
-    if (!hidden_primary_key && (keynr != primary_key) && !(table->key_info[keynr].flags & HA_CLUSTERING)) {
-        unpack_key(buf, row, primary_key);
     }
     DBUG_VOID_RETURN;
 }
@@ -3508,13 +3583,22 @@ int ha_tokudb::read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT con
     // case where we read from secondary table that is not clustered
     //
     if (keynr != primary_key && !(table->key_info[keynr].flags & HA_CLUSTERING)) {
+        bool has_null;
         //
-        // create a DBT that has the same data as row,
+        // create a DBT that has the same data as row, this is inefficient
+        // extract_hidden_primary_key MUST have been called before this
         //
         bzero((void *) &last_key, sizeof(last_key));
-        last_key.data = key_buff;
-        last_key.size = row->size;
-        memcpy(key_buff, row->data, row->size);
+        if (!hidden_primary_key) {
+            unpack_key(buf, found_key, keynr);
+        }
+        create_dbt_key_from_table(
+            &last_key, 
+            primary_key,
+            key_buff,
+            buf,
+            &has_null
+            );
     }
     //
     // else read from clustered/primary key
@@ -4793,7 +4877,7 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
     char dict_name[MAX_DICT_NAME_LEN];
 
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
-    int flags = (key_info->flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
+    int flags = 0;
 
     bzero(&row_descriptor, sizeof(row_descriptor));
     row_desc_buff = (uchar *)my_malloc(2*(form->s->fields * 6)+10 ,MYF(MY_WME));
@@ -4814,7 +4898,6 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
     row_descriptor.size = create_toku_key_descriptor(
         row_desc_buff,
         false,
-        key_info->flags & HA_CLUSTERING,
         key_info,
         hpk,
         prim_key
@@ -4857,7 +4940,6 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     row_descriptor.size = create_toku_key_descriptor(
         row_desc_buff, 
         hpk,
-        false,
         prim_key,
         false,
         NULL
@@ -5595,7 +5677,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             &key_info[i],
             share->table_name,
             2, // TODO: This is a hack. Need to learn what should really be here. Need to ask Yoni
-            &share->key_type[curr_index],
             txn
             );
         if (error) { goto cleanup; }
@@ -5658,12 +5739,27 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
 
         for (uint i = 0; i < num_of_keys; i++) {
             DBT secondary_key, row;
+            bool is_unique_key = key_info[i].flags & HA_NOSAME;
+            u_int32_t put_flags = DB_YESOVERWRITE;
             bool has_null = false;
-            create_dbt_key_from_key(&secondary_key,&key_info[i], tmp_key_buff, tmp_record, &has_null);
+            create_dbt_key_from_key(&secondary_key,&key_info[i], tmp_key_buff, tmp_record, &has_null, false);
             uint curr_index = i + curr_num_DBs;
-            u_int32_t put_flags = share->key_type[curr_index];
-            if (put_flags == DB_NOOVERWRITE && (has_null || thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))) { 
-                put_flags = DB_YESOVERWRITE;
+
+            //
+            // if unique key, check uniqueness constraint
+            // but, we do not need to check it if the key has a null
+            // and we do not need to check it if unique_checks is off
+            //
+            if (is_unique_key && !has_null && !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+                bool is_unique = false;
+                error = is_val_unique(&is_unique, tmp_record, &key_info[i], curr_index, txn);
+                if (error) { goto cleanup; }
+                if (!is_unique) {
+                    error = HA_ERR_FOUND_DUPP_KEY;
+                    last_dup_key = i;
+                    memcpy(table_arg->record[0], tmp_record, table_arg->s->rec_buff_length);
+                    goto cleanup;
+                }
             }
 
             if (key_info[i].flags & HA_CLUSTERING) {
@@ -5673,19 +5769,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
                 error = share->key_file[curr_index]->put(share->key_file[curr_index], txn, &secondary_key, &row, put_flags);
             }
             else {
-                error = share->key_file[curr_index]->put(share->key_file[curr_index], txn, &secondary_key, &current_primary_key, put_flags);
+                bzero((void *)&row, sizeof(row));
+                error = share->key_file[curr_index]->put(share->key_file[curr_index], txn, &secondary_key, &row, put_flags);
             }
-            if (error) {
-                //
-                // found a duplicate in a no_dup DB
-                //
-                if ( (error == DB_KEYEXIST) && (key_info[i].flags & HA_NOSAME)) {
-                    error = HA_ERR_FOUND_DUPP_KEY;
-                    last_dup_key = i;
-                    memcpy(table_arg->record[0], tmp_record, table_arg->s->rec_buff_length);
-                }
-                goto cleanup;
-            }
+            if (error) { goto cleanup; }
+
         }
         num_processed++; 
 
@@ -6090,7 +6178,6 @@ To truncate the table, make sure no transactions touch the table.", share->table
                     &table_share->key_info[i],
                     share->table_name,
                     2, // TODO: This is a hack. Need to learn what should really be here. Need to ask Yoni
-                    &share->key_type[i],
                     NULL
                     );
                 assert(!r);
