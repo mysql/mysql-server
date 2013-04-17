@@ -95,10 +95,10 @@ run_test (void) {
     }
 
     toku_cachetable_get_status(ct, &ct_stat);
-    assert(ct_stat.size_nonleaf == expect.nonleaf_size);
-    assert(ct_stat.size_leaf == expect.leaf_size);
-    assert(ct_stat.size_rollback == expect.rollback_size);
-    assert(ct_stat.size_cachepressure == expect.cache_pressure_size);
+    assert(ct_stat.size_nonleaf       == (uint64_t) expect.nonleaf_size);
+    assert(ct_stat.size_leaf          == (uint64_t) expect.leaf_size);
+    assert(ct_stat.size_rollback      == (uint64_t) expect.rollback_size);
+    assert(ct_stat.size_cachepressure == (uint64_t) expect.cache_pressure_size);
 
     void *big_v;
     long big_s;
@@ -117,10 +117,10 @@ run_test (void) {
     usleep(2*1024*1024);
 
     toku_cachetable_get_status(ct, &ct_stat);
-    assert(ct_stat.size_nonleaf == expect.nonleaf_size);
-    assert(ct_stat.size_leaf == expect.leaf_size);
-    assert(ct_stat.size_rollback == expect.rollback_size);
-    assert(ct_stat.size_cachepressure == expect.cache_pressure_size);
+    assert(ct_stat.size_nonleaf       == (uint64_t) expect.nonleaf_size);
+    assert(ct_stat.size_leaf          == (uint64_t) expect.leaf_size);
+    assert(ct_stat.size_rollback      == (uint64_t) expect.rollback_size);
+    assert(ct_stat.size_cachepressure == (uint64_t) expect.cache_pressure_size);
 
     toku_cachetable_verify(ct);
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
