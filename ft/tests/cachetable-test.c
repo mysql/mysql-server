@@ -109,7 +109,7 @@ static void flush (CACHEFILE f,
     if (verbose) printf("Flushing %" PRId64 " (it=>key=%" PRId64 ")\n", key.b, it->key.b);
 
     test_mutex_lock();
-    assert(expect_f==f);
+    if (write_me) assert(expect_f==f);
     assert(strcmp(it->something,"something")==0);
     assert(it->key.b==key.b);
 
