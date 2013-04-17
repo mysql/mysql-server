@@ -30,10 +30,13 @@ BINS_RAW= \
 
 BINS_O = $(patsubst %,%.$(OEXT),$(BINS_RAW))
 
-.PHONY: build default bins libs
+.PHONY: build default bins libs local
 
-build default: bins libs $(TEST_NEWBRT)
+build default: local
 	cd tests;$(MAKE) build
+
+local: bins libs $(TEST_NEWBRT);
+
 
 BRT_SOURCES = \
   block_allocator \
