@@ -19,7 +19,7 @@ SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test
 include $(TOKUROOT)toku_include/Makefile.include
 
-BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
+BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -D_GNU_SOURCE -I$(BDBDIR)/include -I../include
@@ -45,7 +45,7 @@ build: $(TARGETS)
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-xfast check-x check-no-rolltmp
+check: check-default check-xfast check-x check-no-rolltmp check-scanrace
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
@@ -53,6 +53,10 @@ check-default: $(TARGET_TDB)
 check-x: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 
+# Warning, this cannot actually run in parallel with the other tests since it uses the same env
+check-scanrace: $(SCANRACE_TDB) $(TARGET_TDB)
+	./$(TARGET_TDB) --env scanrace.tokudb 1
+	$(VGRIND) ./$(SCANRACE_TDB) --env scanrace.tokudb $(SUMMARIZE_CMD)
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
