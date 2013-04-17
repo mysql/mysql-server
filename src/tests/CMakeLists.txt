@@ -640,6 +640,7 @@ if(BUILD_TESTING)
     ydb/test_archive1.tdb
     ydb/test_logmax.tdb
     ydb/test_query.tdb
+    ydb/test_rand_insert_mult_db.tdb
     ydb/test_txn_abort5.tdb
     ydb/test_txn_abort5a.tdb
     ydb/test_txn_abort6.tdb
