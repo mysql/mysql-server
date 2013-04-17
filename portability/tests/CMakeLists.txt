@@ -26,7 +26,7 @@ if(BUILD_TESTING)
 
   foreach(test ${tests})
     add_executable(${test} ${test})
-    target_link_libraries(${test} ${LIBTOKUPORTABILITY} util)
+    target_link_libraries(${test} ${LIBTOKUPORTABILITY})
     set_target_properties(${test} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     if(HAVE_CLOCK_REALTIME)
       target_link_libraries(${test} rt)

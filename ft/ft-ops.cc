@@ -5436,6 +5436,7 @@ int toku_ft_layer_init(void) {
     r = toku_portability_init();
     if (r) { goto exit; }
 
+    partitioned_counters_init();
     status_init();
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
@@ -5449,6 +5450,7 @@ void toku_ft_layer_destroy(void) {
     toku_ft_serialize_layer_destroy();
     toku_checkpoint_destroy();
     status_destroy();
+    partitioned_counters_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();
 }

@@ -7,7 +7,7 @@ if(BUILD_TESTING)
 
   foreach(test ${tests})
     add_executable(${test} ${test})
-    target_link_libraries(${test} ${LIBTOKUPORTABILITY} util)
+    target_link_libraries(${test} util ${LIBTOKUPORTABILITY})
   endforeach(test)
 
   add_helgrind_test(util/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
