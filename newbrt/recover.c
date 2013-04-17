@@ -442,7 +442,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
             LSN thislsn = toku_log_entry_get_lsn(&le);
             if (lastlsn.lsn != 0) {
                 if (thislsn.lsn != lastlsn.lsn - 1)
-                    printf("bw lastlsn=%"PRId64" lsn=%"PRId64"\n", lastlsn.lsn, thislsn.lsn);
+                    printf("bw lastlsn=%"PRIu64" lsn=%"PRIu64"\n", lastlsn.lsn, thislsn.lsn);
                 //assert(thislsn.lsn == lastlsn.lsn - 1);
             }
             lastlsn = thislsn;
@@ -475,7 +475,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	    //printf("doing %c\n", le.cmd);
             LSN thislsn = toku_log_entry_get_lsn(&le);
             if (lastlsn.lsn != thislsn.lsn) {
-                printf("fw expectlsn=%"PRId64" lsn=%"PRId64"\n", lastlsn.lsn, thislsn.lsn);
+                printf("fw expectlsn=%"PRIu64" lsn=%"PRIu64"\n", lastlsn.lsn, thislsn.lsn);
             }
             // assert(lastlsn.lsn == thislsn.lsn);
             lastlsn.lsn += 1;
