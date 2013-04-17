@@ -183,9 +183,6 @@ static void check_results(DB **dbs)
 static void *expect_poll_void = &expect_poll_void;
 static uint64_t poll_count=0;
 static uint64_t bomb_after_poll_count=UINT64_MAX;
-#if TOKU_WINDOWS
-#define ECANCELED (-1)
-#endif
 static int poll_function (void *extra, float progress) {
     if (0) {
 	static int did_one=0;
@@ -202,7 +199,7 @@ static int poll_function (void *extra, float progress) {
     assert(0.0<=progress && progress<=1.0);
     poll_count++; // Calls to poll_function() are protected by a lock, so we don't have to do this atomically.
     if (poll_count>bomb_after_poll_count)
-	return ECANCELED;
+	return TOKUDB_CANCELED;
     else
 	return 0;
 }
@@ -263,7 +260,7 @@ static void test_loader(DB **dbs)
     printf("%9.6fs closing", elapsed_time()); fflush(stdout);
     r = loader->close(loader);
     printf(" done\n");
-    CKERR2s(r,0,ECANCELED);
+    CKERR2s(r,0,TOKUDB_CANCELED);
 
     if (r==0) {
 

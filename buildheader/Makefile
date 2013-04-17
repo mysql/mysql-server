@@ -17,6 +17,8 @@ MYSQL_H = -I$(BDBDIR)/db-4.1.25/build_unix/
 OPTFLAGS = -O2
 ifeq ($(GCCVERSION),4.4.2)
  GCC_VERSION_SPECIFIC_WARNINGS = -Wno-strict-aliasing -Wno-deprecated 
+else ifeq ($(GCCVERSION),4.4.1)
+ GCC_VERSION_SPECIFIC_WARNINGS = -Wno-strict-aliasing -Wno-deprecated 
 endif
 CFLAGS = $(GCC_VERSION_SPECIFIC_WARNINGS) -Wall -W -Werror -g $(OPTFLAGS)
 CPPFLAGS = -I. -I../toku_include

@@ -66,7 +66,8 @@ enum {
         TOKUDB_USER_CALLBACK_ERROR  = -100003,
         TOKUDB_DICTIONARY_TOO_OLD   = -100004,
         TOKUDB_DICTIONARY_TOO_NEW   = -100005,
-        TOKUDB_DICTIONARY_NO_HEADER = -100006
+        TOKUDB_DICTIONARY_NO_HEADER = -100006,
+        TOKUDB_CANCELED             = -100007,
 };
 
 static void print_defines (void) {
@@ -190,11 +191,12 @@ static void print_defines (void) {
     printf("/* TOKUDB specific error codes */\n");
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
+    dodefine(TOKUDB_FOUND_BUT_REJECTED);
+    dodefine(TOKUDB_USER_CALLBACK_ERROR);
     dodefine(TOKUDB_DICTIONARY_TOO_OLD);
     dodefine(TOKUDB_DICTIONARY_TOO_NEW);
     dodefine(TOKUDB_DICTIONARY_NO_HEADER);
-    dodefine(TOKUDB_FOUND_BUT_REJECTED);
-    dodefine(TOKUDB_USER_CALLBACK_ERROR);
+    dodefine(TOKUDB_CANCELED);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
