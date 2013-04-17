@@ -192,13 +192,12 @@ static void cachefile_init_filenum(CACHEFILE newcf, int fd, const char *fname, s
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fname) {
     int r;
     CACHEFILE extant;
-    struct stat statbuf;
     struct fileid fileid;
-    memset(&fileid, 0, sizeof(fileid));
-    r=fstat(fd, &statbuf);
-    if (r != 0) { r=errno; close(fd); }
-    fileid.st_dev = statbuf.st_dev;
-    fileid.st_ino = statbuf.st_ino;
+    r = os_get_unique_file_id(fd, &fileid);
+    if (r != 0) { 
+        r=errno; close(fd); 
+        return r;
+    }
     for (extant = t->cachefiles; extant; extant=extant->next) {
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
 	    r = close(fd);
