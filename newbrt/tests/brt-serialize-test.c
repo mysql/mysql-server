@@ -116,7 +116,6 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
                 }
                 else {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
-		    assert(is_BNULL(*dn, i));
                 }
             }
         }
