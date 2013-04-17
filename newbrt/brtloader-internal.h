@@ -126,6 +126,7 @@ struct brtloader_s {
 
     QUEUE primary_rowset_queue; // main thread enqueues rowsets in this queue (in maybe 64MB chunks).  The extractor thread removes them, sorts them, adn writes to file.
     toku_pthread_t     extractor_thread;     // the thread that takes primary rowset and does extraction and the first level sort and write to file.
+    BOOL extractor_live;
     
     struct rowset *rows; // secondary rows that have been put, but haven't been sorted and written to a file.
     u_int64_t n_rows; // how many rows have been put?

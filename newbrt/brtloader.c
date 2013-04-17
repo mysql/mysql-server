@@ -333,6 +333,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     { int r = queue_create(&bl->primary_rowset_queue, 1); if (r!=0) return r; }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
     { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
+    bl->extractor_live = TRUE;
 
     *blp = bl;
     BL_TRACE("open");
@@ -674,6 +675,7 @@ static int finish_extractor (BRTLOADER bl) {
 	void *toku_pthread_retval;
 	int r = toku_pthread_join(bl->extractor_thread, &toku_pthread_retval);
 	assert(r==0 && toku_pthread_retval==NULL);
+        bl->extractor_live = FALSE;
 	BL_TRACE("join_on_extractor");
     }
     {
@@ -1977,6 +1979,15 @@ int toku_brt_loader_close (BRTLOADER bl,
 int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
 /* Effect : Abort the bulk loader, free brtloader resources */
 {
+    // cleanup the extractor thread
+    if (bl->extractor_live) {
+        int r = finish_extractor(bl);
+        assert(r == 0);
+    }
+    assert(!bl->extractor_live);
+    for (int i = 0; i < bl->N; i++)
+	assert(!bl->fractal_threads_live[i]);
+
     int result = 0;
     brtloader_destroy(bl, is_error);
     return result;
