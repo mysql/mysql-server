@@ -369,7 +369,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
 //    }
     if (0) {
-	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%" PRId64 " keep_me=%u height=%d", __FILE__, __LINE__, brtnode, brtnode->thisnodename.b, keep_me, brtnode->height);
+	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%" PRId64 " keep_me=%u height=%d", __FILE__, __LINE__, brtnode, brtnode->thisnodename.b, (unsigned)keep_me, brtnode->height);
 	if (brtnode->height==0) printf(" buf=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
 	printf("\n");
     }
@@ -4136,7 +4136,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  {
 				      data=data; datalen=datalen; keylen=keylen;
-				      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
+				      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, (unsigned)ntohl(*(int*)key), type);
 				      //assert(strlen((char*)key)+1==keylen);
 				      //assert(strlen((char*)data)+1==datalen);
 				  });
@@ -4144,7 +4144,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 	    for (i=0; i<node->u.n.n_children; i++) {
 		fprintf(file, "%*schild %d\n", depth, "", i);
 		if (i>0) {
-		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
+		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, (unsigned)ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
 		}
 		toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
 				  (i==0) ? lorange : node->u.n.childkeys[i-1]->key,
