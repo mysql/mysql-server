@@ -960,8 +960,8 @@ test3039.tdbrun: test3039.tdb
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # re-enable loader-stress-test3 when upgrade is complete
-#loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
-loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
+#loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3 4)
+loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 4)
 	true 
 loader-stress-test0.tdbrun: loader-stress-test.tdb$(BINSUF)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -c -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
@@ -971,6 +971,9 @@ loader-stress-test2.tdbrun: loader-stress-test.tdb$(BINSUF)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -r 5000 -s -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
 loader-stress-test3.tdbrun: loader-stress-test.tdb$(BINSUF)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -u -c -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+# run without valgrind
+loader-stress-test4.tdbrun: loader-stress-test.tdb$(BINSUF)
+	./$< -r 10000000 -c -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
