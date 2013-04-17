@@ -104,6 +104,7 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" checkpoint_lsn=%" PRId64 "\n", h->checkpoint_lsn.lsn);
     printf(" nodesize=%u\n", h->nodesize);
     printf(" basementnodesize=%u\n", h->basementnodesize);
+    printf(" compression_method=%u\n", (unsigned) h->compression_method);
     printf(" unnamed_root=%" PRId64 "\n", h->root_blocknum.b);
     printf(" flags=%u\n", h->flags);
     dump_descriptor(&h->descriptor);

@@ -575,26 +575,14 @@ toku_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
 static int 
 toku_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
     HANDLE_PANICKED_DB(db);
-    int r;
-    // compression method is tracked in the brt header, so it must be open
-    if (!db_opened(db)) {
-        r = EINVAL;
-    } else {
-        r = toku_brt_set_compression_method(db->i->brt, compression_method);
-    }
+    int r = toku_brt_set_compression_method(db->i->brt, compression_method);
     return r;
 }
 
 static int 
 toku_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r;
-    // compression method is tracked in the brt header, so it must be open
-    if (!db_opened(db)) {
-        r = EINVAL;
-    } else {
-        r = toku_brt_get_compression_method(db->i->brt, compression_method_ptr);
-    }
+    int r = toku_brt_get_compression_method(db->i->brt, compression_method_ptr);
     return r;
 }
 

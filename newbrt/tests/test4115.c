@@ -32,7 +32,7 @@ static void open_brt_and_ct (bool unlink_old) {
     int r;
     if (unlink_old) unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
-    r = toku_open_brt(fname, 1, &t, 1<<12, 1<<9, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
     r = toku_brt_set_bt_compare(t, dont_allow_prefix);
 }
 

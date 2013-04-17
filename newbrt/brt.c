@@ -3053,8 +3053,11 @@ mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_f
 /* ******************** open,close and create  ********************** */
 
 // Test only function (not used in running system). This one has no env
-int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, int basementnodesize, CACHETABLE cachetable, TOKUTXN txn,
-		   int (*compare_fun)(DB *, const DBT*,const DBT*)) {
+int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize,
+                   int basementnodesize,
+                   enum toku_compression_method compression_method,
+                   CACHETABLE cachetable, TOKUTXN txn,
+                   int (*compare_fun)(DB *, const DBT*,const DBT*)) {
     BRT brt;
     int r;
     const int only_create = 0;
@@ -3064,6 +3067,7 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, 
 	return r;
     r = toku_brt_set_nodesize(brt, nodesize); assert_zero(r);
     r = toku_brt_set_basementnodesize(brt, basementnodesize); assert_zero(r);
+    r = toku_brt_set_compression_method(brt, compression_method); assert_zero(r);
     r = toku_brt_set_bt_compare(brt, compare_fun); assert_zero(r);
 
     r = toku_brt_open(brt, fname, is_create, only_create, cachetable, txn);
@@ -3118,14 +3122,14 @@ static int brt_open_file(const char *fname, int *fdp) {
 int
 toku_brt_set_compression_method(BRT t, enum toku_compression_method method)
 {
-    t->h->compression_method = method;
+    t->compression_method = method;
     return 0;
 }
 
 int
 toku_brt_get_compression_method(BRT t, enum toku_compression_method *methodp)
 {
-    *methodp = t->h->compression_method;
+    *methodp = t->compression_method;
     return 0;
 }
 
@@ -3272,7 +3276,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
                 assert_zero(r);
             }
             txn_created = (BOOL)(txn!=NULL);
-            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize, t->basementnodesize);
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize, t->basementnodesize, t->compression_method);
             assert_zero(r); // only possible failure is panic, which we check above
             r = brt_create_file(t, fname_in_cwd, &fd);
             assert_zero(r);
@@ -3309,6 +3313,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     }
     t->nodesize = t->h->nodesize;                      /* inherit the pagesize from the file */
     t->basementnodesize = t->h->basementnodesize;
+    t->compression_method = t->h->compression_method;
     if (!t->did_set_flags) {
         r = verify_builtin_comparisons_consistent(t, t->flags);
         if (r) { goto exit; }
@@ -3566,6 +3571,7 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->did_set_flags = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->basementnodesize = BRT_DEFAULT_BASEMENT_NODE_SIZE;
+    brt->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     brt->compare_fun = toku_builtin_compare_fun;
     brt->update_fun = NULL;
     *brt_ptr = brt;

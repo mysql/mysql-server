@@ -366,6 +366,7 @@ brt_init_header_partial (BRT t, CACHEFILE cf, TOKUTXN txn) {
     t->h->cf = cf;
     t->h->nodesize = t->nodesize;
     t->h->basementnodesize = t->basementnodesize;
+    t->h->compression_method = t->compression_method;
     t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
     t->h->compare_fun = t->compare_fun;
     t->h->update_fun = t->update_fun;
@@ -404,7 +405,6 @@ brt_init_header (BRT t, CACHEFILE cf, TOKUTXN txn) {
     //Assign blocknum for root block, also dirty the header
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
     t->h->root_blocknum = root;
-    t->h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 
     toku_list_init(&t->h->live_brts);
     int r = toku_omt_create(&t->h->txns);
@@ -638,6 +638,8 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, stru
     r = toku_brt_set_nodesize(t, old_h->nodesize);
     assert_zero(r);
     r = toku_brt_set_basementnodesize(t, old_h->basementnodesize);
+    assert_zero(r);
+    r = toku_brt_set_compression_method(t, old_h->compression_method);
     assert_zero(r);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     r = toku_brt_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);

@@ -2502,52 +2502,53 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 
     switch(version) {
+    case BRT_LAYOUT_VERSION_20:
     case BRT_LAYOUT_VERSION_19:
         size += 1; // compression method
-	    size += sizeof(uint64_t);  // highest_unused_msn_for_upgrade
-        case BRT_LAYOUT_VERSION_18:
-	    size += sizeof(uint64_t);  // time_of_last_optimize_begin
-	    size += sizeof(uint64_t);  // time_of_last_optimize_end
-	    size += sizeof(uint32_t);  // count_of_optimize_in_progress
-	    size += sizeof(MSN);       // msn_at_start_of_last_completed_optimize
-            size -= 8;                 // removed num_blocks_to_upgrade_14
-            size -= 8;                 // removed num_blocks_to_upgrade_13
-        case BRT_LAYOUT_VERSION_17:
-	    size += 16;
-	    invariant(sizeof(STAT64INFO_S) == 16);
-        case BRT_LAYOUT_VERSION_16:
-        case BRT_LAYOUT_VERSION_15:
-            size += 4;  // basement node size
-            size += 8;  // num_blocks_to_upgrade_14 (previously num_blocks_to_upgrade, now one int each for upgrade from 13, 14
-            size += 8;  // time of last verification
-        case BRT_LAYOUT_VERSION_14:
-            size += 8;  //TXNID that created
-        case BRT_LAYOUT_VERSION_13:
-            size += ( 4 // build_id
-                     +4 // build_id_original
-                     +8 // time_of_creation
-                     +8 // time_of_last_modification
-                    );
-            // fall through
-        case BRT_LAYOUT_VERSION_12:
-	    size += (+8 // "tokudata"
-		     +4 // version
-		     +4 // original_version
-		     +4 // size
-		     +8 // byte order verification
-		     +8 // checkpoint_count
-		     +8 // checkpoint_lsn
-		     +4 // tree's nodesize
-		     +8 // translation_size_on_disk
-		     +8 // translation_address_on_disk
-		     +4 // checksum
-                     +8 // Number of blocks in old version.
-	             +8 // diskoff
-		     +4 // flags
-		   );
-	    break;
-        default:
-            lazy_assert(FALSE);
+        size += sizeof(uint64_t);  // highest_unused_msn_for_upgrade
+    case BRT_LAYOUT_VERSION_18:
+        size += sizeof(uint64_t);  // time_of_last_optimize_begin
+        size += sizeof(uint64_t);  // time_of_last_optimize_end
+        size += sizeof(uint32_t);  // count_of_optimize_in_progress
+        size += sizeof(MSN);       // msn_at_start_of_last_completed_optimize
+        size -= 8;                 // removed num_blocks_to_upgrade_14
+        size -= 8;                 // removed num_blocks_to_upgrade_13
+    case BRT_LAYOUT_VERSION_17:
+        size += 16;
+        invariant(sizeof(STAT64INFO_S) == 16);
+    case BRT_LAYOUT_VERSION_16:
+    case BRT_LAYOUT_VERSION_15:
+        size += 4;  // basement node size
+        size += 8;  // num_blocks_to_upgrade_14 (previously num_blocks_to_upgrade, now one int each for upgrade from 13, 14
+        size += 8;  // time of last verification
+    case BRT_LAYOUT_VERSION_14:
+        size += 8;  //TXNID that created
+    case BRT_LAYOUT_VERSION_13:
+        size += ( 4 // build_id
+                  +4 // build_id_original
+                  +8 // time_of_creation
+                  +8 // time_of_last_modification
+            );
+        // fall through
+    case BRT_LAYOUT_VERSION_12:
+        size += (+8 // "tokudata"
+                 +4 // version
+                 +4 // original_version
+                 +4 // size
+                 +8 // byte order verification
+                 +8 // checkpoint_count
+                 +8 // checkpoint_lsn
+                 +4 // tree's nodesize
+                 +8 // translation_size_on_disk
+                 +8 // translation_address_on_disk
+                 +4 // checksum
+                 +8 // Number of blocks in old version.
+                 +8 // diskoff
+                 +4 // flags
+            );
+        break;
+    default:
+        lazy_assert(FALSE);
     }
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;

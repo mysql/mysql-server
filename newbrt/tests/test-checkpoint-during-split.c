@@ -100,7 +100,7 @@ doit (BOOL after_split) {
     // note the basement node size is 5 times the node size
     // this is done to avoid rebalancing when writing a leaf
     // node to disk
-    r = toku_open_brt("foo4.brt", 1, &t, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt("foo4.brt", 1, &t, NODESIZE, 5*NODESIZE, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
@@ -204,7 +204,7 @@ doit (BOOL after_split) {
     // note the basement node size is 5 times the node size
     // this is done to avoid rebalancing when writing a leaf
     // node to disk
-    r = toku_open_brt("bar4.brt", 0, &c_brt, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt("bar4.brt", 0, &c_brt, NODESIZE, 5*NODESIZE, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     //

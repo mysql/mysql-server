@@ -165,7 +165,7 @@ test_split_on_boundary(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -238,7 +238,7 @@ test_split_with_everything_on_the_left(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -313,7 +313,7 @@ test_split_on_boundary_of_last_node(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -381,7 +381,7 @@ test_split_at_begin(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -445,7 +445,7 @@ test_split_at_end(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -499,7 +499,7 @@ test_split_odd_nodes(void)
     CACHETABLE ct;
     BRT brt;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
