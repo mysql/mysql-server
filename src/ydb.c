@@ -5003,6 +5003,14 @@ void db_env_set_checkpoint_callback2 (void (*callback_f)(void*), void* extra) {
     //printf("set callback2 = %p, extra2 = %p\n", callback2_f, extra2);
 }
 
+void db_env_set_recover_callback (void (*callback_f)(void*), void* extra) {
+    toku_recover_set_callback(callback_f, extra);
+}
+
+void db_env_set_recover_callback2 (void (*callback_f)(void*), void* extra) {
+    toku_recover_set_callback2(callback_f, extra);
+}
+
 // HACK: To ensure toku_pthread_yield gets included in the .so
 // non-static would require a prototype in a header
 // static (since unused) would give a warning

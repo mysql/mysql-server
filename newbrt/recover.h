@@ -31,6 +31,9 @@ int tokudb_recover_delete_rolltmp_files(const char *datadir, const char *logdir)
 // Return 0 if recovery log exists, ENOENT if log is missing
 int tokudb_recover_log_exists(const char * log_dir);
 
+// For test only - set callbacks for recovery testing
+void toku_recover_set_callback (void (*)(void*), void*);
+void toku_recover_set_callback2 (void (*)(void*), void*);
 
 extern int tokudb_recovery_trace;
 

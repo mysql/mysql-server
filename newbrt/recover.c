@@ -874,6 +874,13 @@ static void recover_trace_le(const char *f, int l, int r, struct log_entry *le) 
         fprintf(stderr, "%s:%d r=%d cmd=?\n", f, l, r);
 }
 
+// For test purposes only.
+static void (*recover_callback_fx)(void*)  = NULL;
+static void * recover_callback_args        = NULL;
+static void (*recover_callback2_fx)(void*) = NULL;
+static void * recover_callback2_args       = NULL;
+
+
 static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_dir) {
     int r;
     int rr = 0;
@@ -965,6 +972,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         }
     }
 
+    // run first callback
+    if (recover_callback_fx) 
+        recover_callback_fx(recover_callback_args);
+
     // scan forwards
     if (le)
         thislsn = toku_log_entry_get_lsn(le);
@@ -1004,6 +1015,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     r = toku_logcursor_destroy(&logcursor);
     assert(r == 0);
    
+    // run second callback
+    if (recover_callback2_fx) 
+        recover_callback2_fx(recover_callback2_args);
+
     // restart logging
     toku_logger_restart(renv->logger, lastlsn);
 
@@ -1150,4 +1165,14 @@ tokudb_recover_log_exists(const char * log_dir) {
 	r = ENOENT;
     
     return r;
+}
+
+void toku_recover_set_callback (void (*callback_fx)(void*), void* callback_args) {
+    recover_callback_fx   = callback_fx;
+    recover_callback_args = callback_args;
+}
+
+void toku_recover_set_callback2 (void (*callback_fx)(void*), void* callback_args) {
+    recover_callback2_fx   = callback_fx;
+    recover_callback2_args = callback_args;
 }
