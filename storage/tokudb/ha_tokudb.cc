@@ -291,7 +291,11 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 ulonglong ha_tokudb::table_flags() const {
     return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
+#if defined(HA_GENERNAL_ONLINE)
         int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_ONLINE_ALTER);
+#else
+        int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
+#endif
 }
 
 //
@@ -7148,9 +7152,11 @@ void ha_tokudb::print_error(int error, myf errflag) {
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
+#if defined(HA_ALTER_ERROR)
     if (error == HA_ALTER_ERROR) {
         error = HA_ERR_UNSUPPORTED;
-    }    
+    }
+#endif
     handler::print_error(error, errflag);
 }
 
@@ -7681,6 +7687,8 @@ bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error)
 cleanup:
     return retval;
 }
+
+#if defined(HA_GENERAL_ONLINE)
 
 void ha_tokudb::print_alter_info(
     TABLE *altered_table,
@@ -9106,6 +9114,8 @@ cleanup:
     my_free(new_val_data, MYF(MY_ALLOW_ZERO_PTR));
     return error;    
 }
+
+#endif
 
 struct check_context {
     THD *thd;

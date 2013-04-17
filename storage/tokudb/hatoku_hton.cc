@@ -167,7 +167,9 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
+#if defined(HA_GENERAL_ONLINE)
 static uint tokudb_alter_table_flags(uint flags);
+#endif
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
@@ -262,7 +264,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
+#if defined(HA_GENERAL_ONLINE)
     tokudb_hton->alter_table_flags = tokudb_alter_table_flags;
+#endif
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
@@ -1393,6 +1397,7 @@ void tokudb_cleanup_log_files(void) {
     DBUG_VOID_RETURN;
 }
 
+#if defined(HA_GENERAL_ONLINE)
 //
 // *******NOTE*****
 // If the flags HA_ONLINE_DROP_INDEX and HA_ONLINE_DROP_UNIQUE_INDEX
@@ -1405,7 +1410,7 @@ static uint tokudb_alter_table_flags(uint flags)
             HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES|HA_GENERAL_ONLINE);
 
 }
-
+#endif
 
 
 // options flags
