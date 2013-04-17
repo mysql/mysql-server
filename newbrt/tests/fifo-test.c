@@ -80,9 +80,6 @@ test_fifo_enq (int n) {
     if (thekey) toku_free(thekey);
     if (theval) toku_free(theval);
 
-    while (toku_fifo_deq(f) == 0)
-        ;
-
     toku_fifo_free(&f);
     assert(f == 0);
 }

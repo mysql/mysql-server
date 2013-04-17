@@ -54,10 +54,6 @@ int toku_fifo_create(FIFO *);
 
 void toku_fifo_free(FIFO *);
 
-// Use the size hint to size the storage for the fifo entries in anticipation of putting a bunch of them
-// into the fifo.
-void toku_fifo_size_hint(FIFO, size_t size_hint);
-
 void toku_fifo_size_is_stabilized(FIFO);
 // Effect: Tell the FIFO that we may have just inserted or removed a bunch of stuff, and now may be a good time to resize memory.
 
@@ -67,13 +63,8 @@ int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *
 
 int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest);
 
-int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, MSN *msn, XIDS *xids, bool *is_fresh);
-
 // int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
-int toku_fifo_deq(FIFO);  // we cannot deq items anymore, since their offsets are indexed.
                           // THIS ONLY REMAINS FOR TESTING, DO NOT USE IT IN CODE
-int toku_fifo_empty(FIFO);  // don't deallocate the memory for the fifo
-
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
 
 unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
@@ -111,6 +102,8 @@ DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
 const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
 
 void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
+
+BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

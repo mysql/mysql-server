@@ -10,7 +10,6 @@ struct fifo {
     int n_items_in_fifo;
     char *memory;       // An array of bytes into which fifo_entries are embedded.
     int   memory_size;  // How big is fifo_memory
-    int   memory_start; // Where is the first used byte?
     int   memory_used;  // How many bytes are in use?
 };
 
@@ -19,7 +18,6 @@ static void fifo_init(struct fifo *fifo) {
     fifo->n_items_in_fifo = 0;
     fifo->memory       = 0;
     fifo->memory_size  = 0;
-    fifo->memory_start = 0;
     fifo->memory_used  = 0;
 }
 
@@ -27,11 +25,6 @@ static int fifo_entry_size(struct fifo_entry *entry) {
     return sizeof (struct fifo_entry) + entry->keylen + entry->vallen
                   + xids_get_size(&entry->xids_s)
                   - sizeof(XIDS_S); //Prevent double counting from fifo_entry+xids_get_size
-}
-
-static struct fifo_entry *fifo_peek(struct fifo *fifo) {
-    if (fifo->n_items_in_fifo == 0) return NULL;
-    else return (struct fifo_entry *)(fifo->memory+fifo->memory_start);
 }
 
 int toku_fifo_create(FIFO *ptr) {
@@ -63,13 +56,6 @@ static int next_power_of_two (int n) {
     return r;
 }
 
-void toku_fifo_size_hint(FIFO fifo, size_t size) {
-    if (fifo->memory == NULL) {
-        fifo->memory_size = next_power_of_two(size);
-        fifo->memory = toku_xmalloc(fifo->memory_size);
-    }
-}
-
 int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest) {
     int need_space_here = sizeof(struct fifo_entry)
                           + keylen + datalen
@@ -80,7 +66,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         fifo->memory_size = next_power_of_two(need_space_total);
         fifo->memory = toku_xmalloc(fifo->memory_size);
     }
-    if (fifo->memory_start+need_space_total > fifo->memory_size) {
+    if (need_space_total > fifo->memory_size) {
         // Out of memory at the end.
         int next_2 = next_power_of_two(need_space_total);
         if ((2*next_2 > fifo->memory_size)
@@ -89,20 +75,13 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
             char *newmem = toku_xmalloc(next_2);
             char *oldmem = fifo->memory;
             if (newmem==0) return ENOMEM;
-            memcpy(newmem, oldmem+fifo->memory_start, fifo->memory_used);
+            memcpy(newmem, oldmem, fifo->memory_used);
             fifo->memory_size = next_2;
-            assert(fifo->memory_start == 0);
-            fifo->memory_start = 0;
             fifo->memory = newmem;
             toku_free(oldmem);
-        } else {
-            // slide things over
-            memmove(fifo->memory, fifo->memory+fifo->memory_start, fifo->memory_used);
-            assert(fifo->memory_start == 0);
-            fifo->memory_start = 0;
         }
     }
-    struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
+    struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_used);
     fifo_entry_set_msg_type(entry, type);
     entry->msn = msn;
     xids_cpy(&entry->xids_s, xids);
@@ -113,7 +92,6 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     entry->vallen = datalen;
     memcpy(e_key + keylen, data, datalen);
     if (dest) {
-        assert(fifo->memory_start == 0);
         *dest = fifo->memory_used;
     }
     fifo->n_items_in_fifo++;
@@ -123,22 +101,6 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
 
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *dest) {
     return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->msn, cmd->xids, is_fresh, dest);
-}
-
-/* peek at the head (the oldest entry) of the fifo */
-int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, enum brt_msg_type *type, MSN *msn, XIDS *xids, bool *is_fresh) {
-    struct fifo_entry *entry = fifo_peek(fifo);
-    if (entry == 0) return -1;
-    unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
-    *key = e_key;
-    *keylen = entry->keylen;
-    *data = e_key + entry->keylen;
-    *datalen = entry->vallen;
-    *type = fifo_entry_get_msg_type(entry);
-    *msn  = entry->msn;
-    *xids  = &entry->xids_s;
-    *is_fresh = entry->is_fresh;
-    return 0;
 }
 
 #if 0
@@ -158,26 +120,8 @@ int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_MSG cmd, DBT*key, DBT*data) {
 }
 #endif
 
-int toku_fifo_deq(FIFO fifo) {
-    if (fifo->n_items_in_fifo==0) return -1;
-    struct fifo_entry * e = fifo_peek(fifo);
-    assert(e);
-    int used_here = fifo_entry_size(e);
-    fifo->n_items_in_fifo--;
-    fifo->memory_start+=used_here;
-    fifo->memory_used -=used_here;
-    return 0;
-}
-
-int toku_fifo_empty(FIFO fifo) {
-    assert(fifo->memory_start == 0);
-    fifo->memory_used = 0;
-    fifo->n_items_in_fifo = 0;
-    return 0;
-}
-
-int toku_fifo_iterate_internal_start(FIFO fifo) { return fifo->memory_start; }
-int toku_fifo_iterate_internal_has_more(FIFO fifo, int off) { return off < fifo->memory_start + fifo->memory_used; }
+int toku_fifo_iterate_internal_start(FIFO UU(fifo)) { return 0; }
+int toku_fifo_iterate_internal_has_more(FIFO fifo, int off) { return off < fifo->memory_used; }
 int toku_fifo_iterate_internal_next(FIFO fifo, int off) {
     struct fifo_entry *e = (struct fifo_entry *)(fifo->memory + off);
     return off + fifo_entry_size(e);
@@ -194,23 +138,22 @@ void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec d
 
 void toku_fifo_size_is_stabilized(FIFO fifo) {
     if (fifo->memory_used < fifo->memory_size/2) {
-	char *old_memory = fifo->memory;
-	int new_memory_size = fifo->memory_used*2;
-	char *new_memory = toku_xmalloc(new_memory_size);
-	memcpy(new_memory, old_memory+fifo->memory_start, fifo->memory_used);
-	fifo->memory       = new_memory;
-	fifo->memory_start = 0;
-	fifo->memory_size  = new_memory_size;
-	toku_free(old_memory);
+        char *old_memory = fifo->memory;
+        int new_memory_size = fifo->memory_used*2;
+        char *new_memory = toku_xmalloc(new_memory_size);
+        memcpy(new_memory, old_memory, fifo->memory_used);
+        fifo->memory       = new_memory;
+        fifo->memory_size  = new_memory_size;
+        toku_free(old_memory);
     }
 }
 
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo) {
-    return sizeof(*fifo)+fifo->memory_start+fifo->memory_used;
+    return sizeof(*fifo)+fifo->memory_used;
 }
 
 unsigned long toku_fifo_memory_footprint(FIFO fifo) {
-    size_t size_used = toku_memory_footprint(fifo->memory, fifo->memory_start+fifo->memory_used);
+    size_t size_used = toku_memory_footprint(fifo->memory, fifo->memory_used);
     long rval = sizeof(*fifo) + size_used; 
     return rval;
 }
@@ -231,14 +174,21 @@ void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo) {
     struct fifo *XMALLOC(new_fifo);
     assert(new_fifo);
     new_fifo->n_items_in_fifo = orig_fifo->n_items_in_fifo;
-    new_fifo->memory_start = 0;
-    new_fifo->memory_used = orig_fifo->memory_used - orig_fifo->memory_start;
+    new_fifo->memory_used = orig_fifo->memory_used;
     new_fifo->memory_size = new_fifo->memory_used;
     new_fifo->memory = toku_xmalloc(new_fifo->memory_size);
     memcpy(
         new_fifo->memory, 
-        orig_fifo->memory + orig_fifo->memory_start, 
+        orig_fifo->memory, 
         new_fifo->memory_size
         );
     *cloned_fifo = new_fifo;
 }
+
+BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2) {
+    return (
+        fifo1->memory_used == fifo2->memory_used &&
+        memcmp(fifo1->memory, fifo2->memory, fifo1->memory_used) == 0
+        );
+}
+
