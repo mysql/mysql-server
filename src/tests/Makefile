@@ -237,6 +237,7 @@ BDB_DONTRUN_TESTS = \
 	recover-test-logsuppress-put \
 	recover-test_stress1 \
 	recover-test_stress2 \
+	recover-test_stress3 \
 	recover-upgrade-db-descriptor-multihandle \
 	recover-upgrade-db-descriptor \
 	recover-update-multiple \
