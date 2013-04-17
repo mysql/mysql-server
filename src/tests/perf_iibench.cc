@@ -37,7 +37,7 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
     // The first index is unique with serial autoincrement keys.
     // The rest are have keys generated with this thread's random data.
     for (int i = 0; i < num_dbs; i++) {
-        mult_put_flags[i] = i == 0 ? DB_NOOVERWRITE : 0;
+        mult_put_flags[i] = get_put_flags(arg->cli) | (i == 0 ? DB_NOOVERWRITE : 0);
         dbs[i]->app_private = i == 0 ? nullptr : arg->random_data;
     }
 
