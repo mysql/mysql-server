@@ -1362,7 +1362,7 @@ int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
             keya->size : keyb->size;
         cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
         if (cmp == 0 && (keya->size != keyb->size)) {
-            cmp = keya->size < keyb->size ? 1 : -1;
+            cmp = keya->size < keyb->size ? -1 : 1;
         }
     }
     else {
