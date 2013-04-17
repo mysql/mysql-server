@@ -2567,11 +2567,6 @@ static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MS
     }
 }
 
-CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *roothash) {
-    *roothash = toku_cachetable_hash(h->cf, h->root_blocknum);
-    return &h->root_blocknum;
-}
-
 int 
 toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
 // Effect:
@@ -3184,7 +3179,7 @@ int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd)
 {
     int r = 0;
     DISKOFF offset;
-    //4 for checksum
+    // 4 for checksum
     toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
     r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
     if (r) {

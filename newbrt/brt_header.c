@@ -873,3 +873,9 @@ toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn) {
     }
 }
 
+CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *roothash) {
+    *roothash = toku_cachetable_hash(h->cf, h->root_blocknum);
+    return &h->root_blocknum;
+}
+
+
