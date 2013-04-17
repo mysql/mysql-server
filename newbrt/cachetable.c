@@ -428,7 +428,7 @@ toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL 
                 goto exit;
             }
         }
-        if (is_filenum_reserved(ct, next_filenum_to_use)) {
+        if (is_filenum_reserved(ct, filenum)) {
             r = EEXIST;
             goto exit;
         }

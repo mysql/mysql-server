@@ -69,6 +69,7 @@ REGRESSION_TESTS_RAW = \
 	cachetable-prefetch-getandpin-test \
 	cachetable-prefetch-getandpin-fail-test \
 	cachetable-prefetch-checkpoint-test \
+	cachetable-reserve-filenum \
 	fifo-test \
 	list-test \
 	keyrange \
