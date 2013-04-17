@@ -19,6 +19,22 @@ unsigned int my_tid() {
     return syscall(__NR_gettid);
 }
 
+static inline void *thd_data_get(THD *thd, int slot) {
+#if MYSQL_VERSION_ID <= 50123
+    return thd->ha_data[slot];
+#else
+    return thd->ha_data[slot].ha_ptr;
+#endif
+}
+
+static inline void thd_data_set(THD *thd, int slot, void *data) {
+#if MYSQL_VERSION_ID <= 50123
+    thd->ha_data[slot] = data;
+#else
+    thd->ha_data[slot].ha_ptr = data;
+#endif
+}
+
 #undef PACKAGE
 #undef VERSION
 #undef HAVE_DTRACE
@@ -444,7 +460,7 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
 }
 
 static int tokudb_close_connection(handlerton * hton, THD * thd) {
-    my_free((void *) thd->ha_data[hton->slot], MYF(0));
+    my_free(thd_data_get(thd, hton->slot), MYF(0));
     return 0;
 }
 
@@ -469,7 +485,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_commit");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     u_int32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = 0;
     if (*txn) {
@@ -488,7 +504,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_rollback");
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = 0;
     if (*txn) {
@@ -2550,12 +2566,13 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     if ((tokudb_init_flags & DB_INIT_TXN) == 0) 
         TOKUDB_DBUG_RETURN(0);
     int error = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
-        thd->ha_data[tokudb_hton->slot] = trx = (tokudb_trx_data *)
+        trx = (tokudb_trx_data *)
             my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
         if (!trx)
             TOKUDB_DBUG_RETURN(1);
+        thd_data_set(thd, tokudb_hton->slot, trx);
     }
     if (trx->all == 0)
         trx->sp_level = 0;
@@ -2626,7 +2643,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     if (!(tokudb_init_flags & DB_INIT_TXN)) 
         TOKUDB_DBUG_RETURN(0);
     int error = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     DBUG_ASSERT(trx);
     /*
        note that trx->stmt may have been already initialized as start_stmt()
