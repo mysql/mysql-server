@@ -82,10 +82,10 @@ static void verify_pair (bytevec key, unsigned int keylen,
     DBT k1,k2;
     if (thislorange) assert(brt->compare_fun(brt->db,
                                              toku_fill_dbt(&k1,thislorange,thislolen),
-                                             toku_fill_dbt(&k2,key,keylen)) < 0);
+                                             toku_fill_dbt(&k2,key,keylen)) <= 0);
     if (thishirange && (brt->compare_fun(brt->db,
                                          toku_fill_dbt(&k1,key,keylen),
-                                         toku_fill_dbt(&k2,thishirange,thishilen)) > 0)) {
+                                         toku_fill_dbt(&k2,thishirange,thishilen)) >= 0)) {
         printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
         *vparg->resultp = 1;
     }
@@ -140,7 +140,10 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 		thishilen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]);
 	    }
             struct verify_pair_arg vparg = { brt, i, thislorange, thislolen, thishirange, thishilen, &result };
-            toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, &vparg);
+	    if (!(brt->flags & TOKU_DB_DUP)) {
+		// verify_pair doesn't work for dupsort
+		toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, &vparg);
+	    }
 	}
 	//if (lorange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)lorange);
 	//if (hirange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)hirange);
