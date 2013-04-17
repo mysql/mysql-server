@@ -808,8 +808,7 @@ brtleaf_split(
                 num_children_in_b,
                 h->layout_version,
                 h->nodesize,
-                h->flags,
-                h);
+                h->flags);
             assert(B->nodesize > 0);
             B->fullhash = fullhash;
         }

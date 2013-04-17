@@ -2134,15 +2134,15 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     }
 
     BRTNODE XMALLOC(node);
-    toku_initialize_empty_brtnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
+    toku_initialize_empty_brtnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, BRT_LAYOUT_VERSION, target_nodesize, 0);
     BP_STATE(node, 0) = PT_AVAIL;
     lbuf->node = node;
 
     return lbuf;
 }
 
-static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize);
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize);
+static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method);
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method);
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size, STAT64INFO stats_to_update);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk);
@@ -2316,7 +2316,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		    break;
 		}
 
-		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl, target_basementnodesize);
+		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl, target_basementnodesize, target_compression_method);
                 lbuf = NULL;
 
 		r = allocate_block(&out, &lblock);
@@ -2354,7 +2354,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         allocate_node(&sts, lblock);
         {
             int p = progress_allocation/2;
-            finish_leafnode(&out, lbuf, p, bl, target_basementnodesize);
+            finish_leafnode(&out, lbuf, p, bl, target_basementnodesize, target_compression_method);
             progress_allocation -= p;
         }
     }
@@ -2380,7 +2380,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         }
     }
 
-    r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor, target_nodesize, target_basementnodesize);
+    r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor, target_nodesize, target_basementnodesize, target_compression_method);
     if (r) {
         result = r; goto error;
     }
@@ -2710,14 +2710,14 @@ static int write_literal(struct dbout *out, void*data,  size_t len) {
     return result;
 }
 
-static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize) {
+static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method) {
     int result = 0;
 
     // serialize leaf to buffer
     size_t serialized_leaf_size = 0;
     char *serialized_leaf = NULL;
     BRTNODE_DISK_DATA ndd = NULL;
-    result = toku_serialize_brtnode_to_memory(lbuf->node, &ndd, target_basementnodesize, TRUE, TRUE, &serialized_leaf_size, &serialized_leaf);
+    result = toku_serialize_brtnode_to_memory(lbuf->node, &ndd, target_basementnodesize, target_compression_method, TRUE, TRUE, &serialized_leaf_size, &serialized_leaf);
 
     // write it out
     if (result == 0) {
@@ -2895,7 +2895,7 @@ static int setup_nonleaf_block (int n_children,
 
 static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknum_of_new_node, int n_children,
                                 DBT *pivots, /* must free this array, as well as the things it points t */
-                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize, uint32_t target_basementnodesize)
+                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method)
 {
     //Nodes do not currently touch descriptors
     invariant(height > 0);
@@ -2904,7 +2904,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 
     BRTNODE XMALLOC(node);
     toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children,
-                                  BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
+                                  BRT_LAYOUT_VERSION, target_nodesize, 0);
     node->totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
         toku_clone_dbt(&node->childkeys[i], pivots[i]);
@@ -2921,7 +2921,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         size_t n_bytes;
         char *bytes;
         int r;
-        r = toku_serialize_brtnode_to_memory(node, &ndd, target_basementnodesize, TRUE, TRUE, &n_bytes, &bytes);
+        r = toku_serialize_brtnode_to_memory(node, &ndd, target_basementnodesize, target_compression_method, TRUE, TRUE, &n_bytes, &bytes);
         if (r) {
             result = r;
         } else {
@@ -2958,7 +2958,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         brt_loader_set_panic(bl, result, TRUE);
 }
 
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize) {
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method) {
     int result = 0;
     int height = 1;
 
@@ -3006,7 +3006,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
                 result = r;
                 break;
             } else {
-                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize); // frees all the data structures that go into making the node.
+                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize, target_compression_method); // frees all the data structures that go into making the node.
                 n_subtrees_used += n_per_block;
             }
 	}
@@ -3029,7 +3029,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
                 if (r) {
                     result = r;
                 } else {
-                    cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize);
+                    cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize, target_compression_method);
                     n_blocks_left -= n_first;
                     n_subtrees_used += n_first;
                 }
@@ -3048,7 +3048,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
             if (r) {
                 result = r;
             } else {
-                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize);
+                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize, target_compression_method);
                 n_subtrees_used += n_blocks_left;
             }
 	}

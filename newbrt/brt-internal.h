@@ -226,7 +226,6 @@ struct   __attribute__((__packed__)) brtnode_partition {
 
 struct brtnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
-    struct brt_header *h;    // in-memory only
     unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
@@ -434,14 +433,16 @@ PAIR_ATTR make_invalid_pair_attr(void);
 /* serialization code */
 void
 toku_create_compressed_partition_from_available(
-    BRTNODE node, 
-    int childnum, 
+    BRTNODE node,
+    int childnum,
+    enum toku_compression_method compression_method,
     SUB_BLOCK sb
     );
 void rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize);
 int toku_serialize_brtnode_to_memory (BRTNODE node,
                                       BRTNODE_DISK_DATA* ndd,
                                       unsigned int basementnodesize,
+                                      enum toku_compression_method compression_method,
                                       BOOL do_rebalancing,
                                       BOOL in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
@@ -721,7 +722,7 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children
 
 // Effect: Fill in N as an empty brtnode.
 void toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, 
-                                    int layout_version, unsigned int nodesize, unsigned int flags, struct brt_header *h);
+                                    int layout_version, unsigned int nodesize, unsigned int flags);
 
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp)

@@ -341,7 +341,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 
 static int setup_initial_brtheader_root_node (struct brt_header* h, BLOCKNUM blocknum) {
     BRTNODE XMALLOC(node);
-    toku_initialize_empty_brtnode(node, blocknum, 0, 1, h->layout_version, h->nodesize, h->flags, h);
+    toku_initialize_empty_brtnode(node, blocknum, 0, 1, h->layout_version, h->nodesize, h->flags);
     BP_STATE(node,0) = PT_AVAIL;
 
     u_int32_t fullhash = toku_cachetable_hash(h->cf, blocknum);

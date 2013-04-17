@@ -273,7 +273,7 @@ flush_to_internal(BRT t) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0);
     destroy_nonleaf_childinfo(BNC(child, 0));
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
@@ -403,7 +403,7 @@ flush_to_internal_multiple(BRT t) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 128*1024, 0);
     for (i = 0; i < 8; ++i) {
         destroy_nonleaf_childinfo(BNC(child, i));
         set_BNC(child, i, child_bncs[i]);
@@ -534,7 +534,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -610,7 +610,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     } else {
         BRTNODE XMALLOC(parentnode);
         BLOCKNUM parentblocknum = { 17 };
-        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0);
         destroy_nonleaf_childinfo(BNC(parentnode, 0));
         set_BNC(parentnode, 0, parent_bnc);
         BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -761,7 +761,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -832,7 +832,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -944,8 +944,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child1), XMALLOC(child2);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
-    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0);
+    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child1, i));
         set_BLB(child1, i, child1_blbs[i]);
@@ -1020,7 +1020,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
