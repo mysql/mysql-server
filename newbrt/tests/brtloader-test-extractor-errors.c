@@ -76,20 +76,24 @@ static void reset_my_malloc_counts(void) {
 
 static void *my_malloc(size_t n) {
     void *caller = __builtin_return_address(0);
-    if ((void*)toku_malloc <= caller && caller <= (void*)toku_xcalloc) {
-        my_malloc_count++;
-        if (n >= 64*1024) {
-            my_big_malloc_count++;
-            if (my_malloc_event) {
-                event_count++;
-                if (event_count == event_count_trigger) {
-                    event_hit();
-                    errno = ENOMEM;
-                    return NULL;
-                }
+    if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
+        goto skip;
+    my_malloc_count++;
+    if (n >= 64*1024) {
+        my_big_malloc_count++;
+        if (my_malloc_event) {
+            caller = __builtin_return_address(1);
+            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
+                goto skip;
+            event_count++;
+            if (event_count == event_count_trigger) {
+                event_hit();
+                errno = ENOMEM;
+                return NULL;
             }
         }
     }
+ skip:
     return malloc(n);
 }
 
@@ -208,6 +212,7 @@ static int usage(const char *progname) {
 
 int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
+    int max_error_limit = -1;
     argc--; argv++;
     while (argc>0) {
         if (strcmp(argv[0],"-h")==0) {
@@ -226,6 +231,9 @@ int test_main (int argc, const char *argv[]) {
             toku_brtloader_set_size_factor(1);
         } else if (strcmp(argv[0],"-m") == 0) {
             my_malloc_event = 1;
+        } else if (strcmp(argv[0],"--max_error_limit") == 0 && argc >= 1) {
+            argc--; argv++;
+            max_error_limit = atoi(argv[0]);
 	} else if (argc!=1) {
             return usage(progname);
 	    exit(1);
@@ -240,10 +248,12 @@ int test_main (int argc, const char *argv[]) {
     test_extractor(nrows, nrowsets, FALSE);
 
     // run tests
-    int write_error_limit = event_count;
-    if (verbose) printf("write_error_limit=%d\n", write_error_limit);
+    int error_limit = event_count;
+    if (verbose) printf("error_limit=%d\n", error_limit);
 
-    for (int i = 1; i <= write_error_limit; i++) {
+    if (max_error_limit != -1 && error_limit > max_error_limit)
+        error_limit = max_error_limit;
+    for (int i = 1; i <= error_limit; i++) {
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;
