@@ -1239,24 +1239,6 @@ cleanup:
     return error;
 }
 
-static void
-format_time(u_int64_t time64, char *buf) {
-    time_t timer = (time_t) time64;
-    ctime_r(&timer, buf);
-    size_t len = strlen(buf);
-    assert(len < 26);
-    char end;
-
-    assert(len>=1);
-    end = buf[len-1];
-    while (end == '\n' || end == '\r') {
-        buf[len-1] = '\0';
-        len--;
-        assert(len>=1);
-        end = buf[len-1];
-    }
-}
-
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
                                           strlen(tokudb_hton_name), \
@@ -1329,9 +1311,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                 break;
             case UNIXTIME:
                 {
+                    time_t t = mystat[row].value.num;
                     char tbuf[26];
-                    format_time(mystat[row].value.num, tbuf);
-                    snprintf(buf, bufsiz, "%s\n", tbuf);
+                    snprintf(buf, bufsiz, "%.24s\n", ctime_r(&t, tbuf));
                 }
                 break;
             case TOKUTIME:

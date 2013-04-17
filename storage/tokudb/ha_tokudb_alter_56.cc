@@ -1292,6 +1292,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         print_alter_info(altered_table, ha_alter_info);
     }
 
+    THD *thd = ha_thd();
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
 
     // column rename
@@ -1320,9 +1321,8 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         ha_alter_info->handler_flags == Alter_inplace_info::ADD_UNIQUE_INDEX) { // && tables_have_same_keys TODO??? 
         assert(ha_alter_info->index_drop_count == 0);
         result = HA_ALTER_INPLACE_SHARED_LOCK;
-        THD *thd = ha_thd();
         // TODO allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.x
-        if (get_create_index_online(ha_thd()) && ha_alter_info->index_add_count == 1 && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) 
+        if (get_create_index_online(thd) && ha_alter_info->index_add_count == 1 && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) 
             result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE;
     } else
     // drop index
@@ -1363,6 +1363,11 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     }       
+
+    if (result == HA_ALTER_INPLACE_NOT_SUPPORTED && get_disable_slow_alter(thd)) {
+        print_error(HA_ERR_UNSUPPORTED, MYF(0));
+        result = HA_ALTER_ERROR;
+    }
     
     DBUG_RETURN(result);
 }
