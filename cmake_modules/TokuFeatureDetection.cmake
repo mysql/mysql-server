@@ -7,6 +7,8 @@ if(USE_BDB)
   find_package(BDB REQUIRED)
 endif()
 
+find_package(VALGRIND REQUIRED)
+
 include(CheckIncludeFiles)
 
 ## check for some include files
