@@ -412,9 +412,8 @@ db_use_builtin_val_cmp(DB *db) {
 }
 
 
-static const char * currkey = "current_version";
-static const char * origkey = "original_version";
-static const uint64_t environment_version = (uint64_t) BRT_LAYOUT_VERSION;
+static const char * curr_env_ver_key = "current_version";
+static const char * orig_env_ver_key = "original_version";
 
 
 // requires: persistent environment dictionary is already open
@@ -424,12 +423,12 @@ upgrade_env(DB_ENV * env, DB_TXN * txn) {
     uint64_t stored_env_version;
     DBT key, val;
 
-    toku_fill_dbt(&key, currkey, strlen(currkey));
+    toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
     toku_init_dbt(&val);
     r = toku_db_get(env->i->persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
-    stored_env_version = *(uint64_t*)val.data;
-    if (stored_env_version != environment_version)
+    stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    if (stored_env_version != BRT_LAYOUT_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_NEW;
     return r;
 }
@@ -450,7 +449,8 @@ ydb_recover_log_exists(DB_ENV *env) {
 
 
 // Validate that all required files are present, no side effects.
-// Return 0 if all is well, ENOENT if some files are present but at least one is missing.
+// Return 0 if all is well, ENOENT if some files are present but at least one is missing, 
+// other non-zero value if some other error occurs.
 // Set *valid_newenv if creating a new environment (all files missing).
 // (Note, if special dictionaries exist, then they were created transactionally and log should exist.)
 static int 
@@ -460,32 +460,46 @@ validate_env(DB_ENV * env, BOOL * valid_newenv) {
     toku_struct_stat buf;
     char* path = NULL;
 
-    // use stat to detect required dictionaries
-
+    // Test for persistent environment
     path = construct_full_name(2, env->i->dir, environmentdictionary);
     assert(path);
     r = toku_stat(path, &buf);
-    if (r) {
-	expect_newenv = TRUE;
-    }
-    else
-	expect_newenv = FALSE;
     toku_free(path);
-    path = construct_full_name(2, env->i->dir, fileopsdirectory);
-    assert(path);
-    r = toku_stat(path, &buf);
-    if (r) {
-	if (!expect_newenv)
-	    r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
-	else 
-	    r = 0;
+    if (r == 0) {
+	expect_newenv = FALSE;  // persistent info exists
+    }
+    else if (errno == ENOENT) {
+	expect_newenv = TRUE;
+	r = 0;
     }
     else {
-	if (expect_newenv)
-	    r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+	r = toku_ydb_do_error(env, errno, "Unable to access persistent environment\n");
+	assert(r);
     }
-    toku_free(path);
-    
+
+    // Test for fileops directory
+    if (r == 0) {
+	path = construct_full_name(2, env->i->dir, fileopsdirectory);
+	assert(path);
+	r = toku_stat(path, &buf);
+	toku_free(path);
+	if (r == 0) {  
+	    if (expect_newenv)  // fileops directory exists, but persistent env is missing
+		r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+	}
+	else if (errno == ENOENT) {
+	    if (!expect_newenv)  // fileops directory is missing but persistent env exists
+		r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
+	    else 
+		r = 0;           // both fileops directory and persistent env are missing
+	}
+	else {
+	    r = toku_ydb_do_error(env, errno, "Unable to access fileops directory\n");
+	    assert(r);
+	}
+    }
+
+    // Test for recovery log
     if ((r == 0) && (env->i->open_flags & DB_INIT_LOG)) {
 	// if using transactions, test for existence of log
 	r = ydb_recover_log_exists(env);  // return 0 or ENOENT
@@ -665,12 +679,13 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
+	    const uint32_t environment_version = toku_htod32(BRT_LAYOUT_VERSION);
 	    assert(r==0);
-	    toku_fill_dbt(&key, origkey, strlen(origkey));
+	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
 	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
 	    assert(r==0);
-	    toku_fill_dbt(&key, currkey, strlen(currkey));
+	    toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
 	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
 	    assert(r==0);
