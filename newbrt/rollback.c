@@ -47,18 +47,27 @@ txn_has_spilled_rollback_logs(TOKUTXN txn) {
     return txn->spilled_rollback_tail.b != ROLLBACK_NONE.b;
 }
 
+static void rollback_unpin_remove_callback(CACHEKEY* cachekey, BOOL for_checkpoint, void* extra) {
+    struct brt_header* h = extra;
+    toku_free_blocknum(
+        h->blocktable, 
+        cachekey,
+        h,
+        for_checkpoint
+        );
+}
+
+
 int
 toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
     struct brt_header *h = toku_cachefile_get_userdata(cf);
-    BLOCKNUM to_free = log->thislogname;
     if (txn->pinned_inprogress_rollback_log == log) {
         txn->pinned_inprogress_rollback_log = NULL;
     }
-    r = toku_cachetable_unpin_and_remove (cf, log->thislogname, NULL, NULL);
+    r = toku_cachetable_unpin_and_remove (cf, log->thislogname, rollback_unpin_remove_callback, h);
     assert(r==0);
-    toku_free_blocknum(h->blocktable, &to_free, h, FALSE);
     return r;
 }
 

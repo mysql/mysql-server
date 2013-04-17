@@ -3180,17 +3180,12 @@ int toku_cachetable_unpin_and_remove (
                     // that may have been blocked (as argued above),
                     // it is safe to simply remove the PAIR from the 
                     // cachetable. We don't need to write anything out.
-                    if (nb_mutex_blocked_writers(&p->nb_mutex) == 0) {
-                        cachetable_free_pair(ct, p);
-                        break;
-                    }
                 }
+                p->cq = NULL;
                 workqueue_destroy(&cq);
             }
-            else {
-                //Remove pair.
-                cachetable_free_pair(ct, p);
-            }
+            //Remove pair.
+            cachetable_free_pair(ct, p);
             r = 0;
             goto done;
         }
