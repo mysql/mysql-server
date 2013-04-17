@@ -144,10 +144,12 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     toku_malloc_cleanup();
     return 0;
     //Skip remaining tests.
+#if 0
     for (i=1; i<NODESIZE/2; i++) {
 	printf("extrasize=%d\n", i);
 	doit(i);
     }
     toku_malloc_cleanup();
     return 0;
+#endif
 }
