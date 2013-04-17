@@ -2095,7 +2095,9 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, TOKUL
 static int
 brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivity re, BOOL *did_io, TOKULOGGER logger, BOOL *did_react) {
     switch (re) {
-    case RE_STABLE: return 0;
+    case RE_STABLE:
+	*did_react = FALSE;
+	return 0;
     case RE_FISSIBLE:
 	return brt_split_child(t, node, childnum, logger, did_react);
     case RE_FUSIBLE:
@@ -3298,7 +3300,7 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
 	    if (search->compare(search, 
 				toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
 				brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
-		BOOL did_change_shape;
+		BOOL did_change_shape = FALSE;
 		verify_local_fingerprint_nonleaf(node);
 		int r = brt_search_child(brt, node, child[c], search, newkey, newval, re, logger, omtcursor, &did_change_shape);
 		assert(r != EAGAIN);
