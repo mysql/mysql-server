@@ -3655,7 +3655,8 @@ cleaner_thread (void *cachetable_v)
 {
     CACHETABLE ct = cachetable_v;
     assert(ct);
-    for (u_int32_t i = 0; i < ct->cleaner_iterations; ++i) {
+    u_int32_t num_iterations = toku_get_cleaner_iterations(ct);
+    for (u_int32_t i = 0; i < num_iterations; ++i) {
         cachetable_lock(ct);
         PAIR best_pair = NULL;
         int n_seen = 0;
