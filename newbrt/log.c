@@ -1171,13 +1171,13 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     assert((void*)txnv_again==txnv);
     r = toku_omt_delete_at(brt->txns, index);
     assert(r==0);
+    if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
+        brt->h->txnid_that_created_or_locked_when_empty = 0;
+    }
     if (toku_omt_size(brt->txns)==0 && brt->was_closed) {
         //Close immediately.
         assert(brt->close_db);
         r = brt->close_db(brt->db, brt->close_flags);
-    }
-    if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
-        brt->h->txnid_that_created_or_locked_when_empty = 0;
     }
     return r;
 }
