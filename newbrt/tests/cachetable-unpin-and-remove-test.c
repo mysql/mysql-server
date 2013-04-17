@@ -14,6 +14,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
        ) {
     *dirtyp = 0;
+    *sizep = make_pair_attr(0);
     return 0;
 }
 
