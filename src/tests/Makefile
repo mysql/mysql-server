@@ -89,6 +89,7 @@ BDB_DONTRUN_TESTS = \
 	cursor-isolation \
 	del-simple \
 	del-multiple \
+	del-multiple-huge-primary-row \
         diskfull \
         env-put-multiple \
         env_startup \

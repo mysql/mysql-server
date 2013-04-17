@@ -1544,7 +1544,8 @@ static int env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                                const DBT *old_src_key, const DBT *old_src_data,
                                const DBT *new_src_key, const DBT *new_src_data,
                                uint32_t num_dbs, DB **db_array, 
-                               uint32_t num_dbts, DBT *keys, DBT *vals,
+                               uint32_t num_keys, DBT *keys, 
+                               uint32_t num_vals, DBT *vals,
                                void *extra);
 
 static int
@@ -1571,10 +1572,11 @@ locked_env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                            const DBT *old_src_key, const DBT *old_src_data,
                            const DBT *new_src_key, const DBT *new_src_data,
                            uint32_t num_dbs, DB **db_array, 
-                           uint32_t num_dbts, DBT *keys, DBT *vals,
+                           uint32_t num_keys, DBT *keys, 
+                           uint32_t num_vals, DBT *vals,
                            void *extra) {
     toku_ydb_lock();
-    int r = env_update_multiple(env, src_db, txn, old_src_key, old_src_data, new_src_key, new_src_data, num_dbs, db_array, num_dbts, keys, vals, extra);
+    int r = env_update_multiple(env, src_db, txn, old_src_key, old_src_data, new_src_key, new_src_data, num_dbs, db_array, num_keys, keys, num_vals, vals, extra);
     toku_ydb_unlock();
     return r;
 }
@@ -3644,13 +3646,29 @@ log_del_single(DB_TXN *txn, BRT brt, const DBT *key) {
     return r;
 }
 
+static uint32_t
+sum_size(uint32_t num_keys, DBT keys[], uint32_t overhead) {
+    uint32_t sum = 0;
+    for (uint32_t i = 0; i < num_keys; i++) 
+        sum += keys[i].size + overhead;
+    return sum;
+}
+
 static int
-log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32_t num_dbs, BRT brts[]) {
+log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32_t num_dbs, BRT brts[], DBT keys[]) {
     int r = 0;
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         BRT src_brt  = src_db ? src_db->i->brt : NULL;
-        r = toku_brt_log_del_multiple(ttxn, src_brt, brts, num_dbs, key, val);
+        const uint32_t log_entry_overhead = 24; // rough approximation of the log entry overhead for deletes
+        uint32_t del_multiple_size = key->size + val->size + log_entry_overhead;
+        uint32_t del_single_sizes = sum_size(num_dbs, keys, log_entry_overhead);
+        if (del_single_sizes < del_multiple_size) {
+            for (uint32_t i = 0; r == 0 && i < num_dbs; i++)
+                r = log_del_single(txn, brts[i], &keys[i]);
+        } else {
+            r = toku_brt_log_del_multiple(ttxn, src_brt, brts, num_dbs, key, val);
+        }
     }
     return r;
 }
@@ -3731,7 +3749,7 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
     if (num_dbs == 1)
         r = log_del_single(txn, brts[0], &keys[0]);
     else
-        r = log_del_multiple(txn, src_db, key, val, num_dbs, brts);
+        r = log_del_multiple(txn, src_db, key, val, num_dbs, brts, keys);
 
     if (r == 0) 
         r = do_del_multiple(txn, num_dbs, db_array, keys);
@@ -4444,7 +4462,8 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                     const DBT *old_src_key, const DBT *old_src_data,
                     const DBT *new_src_key, const DBT *new_src_data,
                     uint32_t num_dbs, DB **db_array, 
-                    uint32_t num_dbts, DBT keys[], DBT vals[],
+                    uint32_t num_keys, DBT keys[], 
+                    uint32_t num_vals, DBT vals[],
                     void *extra) {
     int r = 0;
 
@@ -4468,7 +4487,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
 
     {
-        // RFP malloc this stuff?
         uint32_t n_del_dbs = 0;
         DB *del_dbs[num_dbs];
         BRT del_brts[num_dbs];
@@ -4480,40 +4498,52 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
         DBT put_keys[num_dbs];
         DBT put_vals[num_dbs];
 
+        int (*cmpfun)(DB *db, const DBT *a, const DBT *b) = toku_builtin_compare_fun;
+        if (env->i->bt_compare)
+            cmpfun = env->i->bt_compare;
+
         for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
             DB *db = db_array[which_db];
 
-            // Generate the old key and val
-            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], old_src_key, old_src_data, extra);
-            if (r != 0) goto cleanup;
+            // keys[0..num_dbs-1] are the new keys
+            // keys[num_dbs..2*num_dbs-1] are the old keys
+            // vals[0..num_dbs-1] are the new vals
 
-            if (which_db + num_dbs >= num_dbts) {
+            // Generate the old key and val
+            if (which_db + num_dbs >= num_keys) {
                 r = ENOMEM; goto cleanup;
             }
+            r = env->i->generate_row_for_put(db, src_db, &keys[which_db + num_dbs], NULL, old_src_key, old_src_data, extra);
+            if (r != 0) goto cleanup;
 
             // Generate the new key and val
-            r = env->i->generate_row_for_put(db, src_db, &keys[which_db + num_dbs], &vals[which_db + num_dbs], new_src_key, new_src_data, extra);
+            if (which_db >= num_keys || which_db >= num_vals) {
+                r = ENOMEM; goto cleanup;
+            }
+            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], new_src_key, new_src_data, extra);
             if (r != 0) goto cleanup;
             
-            // RFP can i just memcmp the keys?
-            BOOL key_eq = dbt_cmp(&keys[which_db], &keys[which_db + num_dbs]) == 0;
+            BOOL key_eq = cmpfun(db, &keys[which_db + num_dbs], &keys[which_db]) == 0;
             if (!key_eq) {
                 r = toku_grab_read_lock_on_directory(db, txn);
                 if (r != 0) goto cleanup;
 
                 // lock old key
                 if (db->i->lt) {
-                    r = get_point_lock(db, txn, &keys[which_db]);
+                    r = get_point_lock(db, txn, &keys[which_db + num_dbs]);
                     if (r != 0) goto cleanup;
                 }
                 del_dbs[n_del_dbs] = db;
                 del_brts[n_del_dbs] = db->i->brt;
-                del_keys[n_del_dbs] = keys[which_db];
+                del_keys[n_del_dbs] = keys[which_db + num_dbs];
                 n_del_dbs++;
             }
 
-            if (!key_eq || !(dbt_cmp(&vals[which_db], &vals[which_db + num_dbs]) == 0)) {
-                r = db_put_check_size_constraints(db, &keys[which_db + num_dbs], &vals[which_db + num_dbs]);
+            // we take a shortcut and avoid generating the old val
+            // we assume that any new vals with size > 0 are different than the old val
+            // if (!key_eq || !(dbt_cmp(&vals[which_db], &vals[which_db + num_dbs]) == 0)) {
+            if (!key_eq || vals[which_db].size > 0) {
+                r = db_put_check_size_constraints(db, &keys[which_db], &vals[which_db]);
                 if (r != 0) goto cleanup;
 
                 r = toku_grab_read_lock_on_directory(db, txn);
@@ -4521,13 +4551,13 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
                 // lock new key
                 if (db->i->lt) {
-                    r = get_point_lock(db, txn, &keys[which_db + num_dbs]);
+                    r = get_point_lock(db, txn, &keys[which_db]);
                     if (r != 0) goto cleanup;
                 }
                 put_dbs[n_put_dbs] = db;
                 put_brts[n_put_dbs] = db->i->brt;
-                put_keys[n_put_dbs] = keys[which_db + num_dbs];
-                put_vals[n_put_dbs] = vals[which_db + num_dbs];
+                put_keys[n_put_dbs] = keys[which_db];
+                put_vals[n_put_dbs] = vals[which_db];
                 n_put_dbs++;
             }
         }
@@ -4536,7 +4566,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             if (n_del_dbs == 1)
                 r = log_del_single(txn, del_brts[0], &del_keys[0]);
             else
-                r = log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_brts);
+                r = log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_brts, del_keys);
             if (r == 0) 
                 r = do_del_multiple(txn, n_del_dbs, del_dbs, del_keys);
         }
