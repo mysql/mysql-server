@@ -776,6 +776,77 @@ runtests_create_choice (enum create_type create_choice) {
     test_find(        create_choice, CLOSE_WHEN_DONE);
 }
 
+static void
+test_clone(u_int32_t nelts)
+// Test that each clone operation gives the right data back.  If nelts is
+// zero, also tests that you still get a valid OMT back and that the way
+// to deallocate it still works.
+{
+    OMT src = NULL, dest = NULL;
+    int r;
+
+    r = toku_omt_create(&src);
+    assert_zero(r);
+    for (long i = 0; i < nelts; ++i) {
+        r = toku_omt_insert_at(src, (OMTVALUE) i, i);
+        assert_zero(r);
+    }
+
+    r = toku_omt_clone_noptr(&dest, src);
+    assert_zero(r);
+    assert(dest != NULL);
+    assert(toku_omt_size(dest) == nelts);
+    for (long i = 0; i < nelts; ++i) {
+        OMTVALUE v;
+        long l;
+        r = toku_omt_fetch(dest, i, &v);
+        assert_zero(r);
+        l = (long) v;
+        assert(l == i);
+    }
+    toku_omt_destroy(&dest);
+    toku_omt_destroy(&src);
+
+    r = toku_omt_create(&src);
+    assert_zero(r);
+    long array[nelts];
+    for (long i = 0; i < nelts; ++i) {
+        array[i] = i;
+        r = toku_omt_insert_at(src, &array[i], i);
+        assert_zero(r);
+    }
+
+    r = toku_omt_clone_pool(&dest, src, (sizeof array[0]));
+    assert_zero(r);
+    assert(dest != NULL);
+    assert(toku_omt_size(dest) == nelts);
+    for (long i = 0; i < nelts; ++i) {
+        OMTVALUE v;
+        long *l;
+        r = toku_omt_fetch(dest, i, &v);
+        assert_zero(r);
+        l = v;
+        assert(*l == i);
+    }
+    toku_omt_free_items_pool(dest);
+    toku_omt_destroy(&dest);
+    r = toku_omt_clone(&dest, src, (sizeof array[0]));
+    assert_zero(r);
+    assert(dest != NULL);
+    assert(toku_omt_size(dest) == nelts);
+    for (long i = 0; i < nelts; ++i) {
+        OMTVALUE v;
+        long *l;
+        r = toku_omt_fetch(dest, i, &v);
+        assert_zero(r);
+        l = v;
+        assert(*l == i);
+    }
+    toku_omt_free_items(dest);
+    toku_omt_destroy(&dest);
+    toku_omt_destroy(&src);
+}
+
 int
 test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
@@ -786,6 +857,10 @@ test_main(int argc, const char *argv[]) {
     runtests_create_choice(STEAL_ARRAY);
     runtests_create_choice(INSERT_AT);
     runtests_create_choice(INSERT_AT_ALMOST_RANDOM);
+    test_clone(0);
+    test_clone(1);
+    test_clone(1000);
+    test_clone(10000);
     cleanup_globals();
     return 0;
 }

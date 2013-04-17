@@ -799,7 +799,7 @@ static int omt_copy_data(OMTVALUE *a, OMT omt, u_int32_t eltsize) {
 int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize) {
     u_int32_t size = omt_size(src);
     if (size == 0) {
-        *dest = NULL;
+        toku_omt_create(dest);
         return 0;
     }
     OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
@@ -819,7 +819,7 @@ err:
 int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize) {
     u_int32_t size = omt_size(src);
     if (size == 0) {
-        *dest = NULL;
+        toku_omt_create(dest);
         return 0;
     }
     OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
@@ -838,10 +838,21 @@ err:
     return r;
 }
 
+void toku_omt_free_items_pool(OMT omt) {
+    if (toku_omt_size(omt) == 0) {
+        return;
+    }
+    OMTVALUE v;
+    int r = toku_omt_fetch(omt, 0, &v);
+    lazy_assert_zero(r);
+    invariant(v != NULL);
+    toku_free(v);
+}
+
 int toku_omt_clone_noptr(OMT *dest, OMT src) {
     u_int32_t size = omt_size(src);
     if (size == 0) {
-        *dest = NULL;
+        toku_omt_create(dest);
         return 0;
     }
     OMTVALUE *a = toku_xmalloc((sizeof *a) * size);

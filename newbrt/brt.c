@@ -2032,11 +2032,7 @@ toku_bnc_flush_to_child(
         toku_omt_destroy(&snapshot_txnids);
     }
     if (live_list_reverse) {
-        OMTVALUE v;
-        int r = toku_omt_fetch(live_list_reverse, 0, &v);
-        if (r == 0) {
-            toku_free(v);
-        }
+        toku_omt_free_items_pool(live_list_reverse);
         toku_omt_destroy(&live_list_reverse);
     }
     return 0;
