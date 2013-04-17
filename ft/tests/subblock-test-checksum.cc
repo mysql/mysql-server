@@ -12,6 +12,7 @@
 
 #include "compress.h"
 #include "sub_block.h"
+#include "threadpool.h"
 
 static uint8_t
 get_uint8_at_offset(void *vp, size_t offset) {

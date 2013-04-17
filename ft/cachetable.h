@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include "fttypes.h"
 #include "minicron.h"
-#include "workqueue.h"
 
 
 // Maintain a cache mapping from cachekeys to values (void*)
