@@ -24,17 +24,32 @@ else()
   list(APPEND xz_configure_opts --enable-debug)
 endif()
 
-ExternalProject_Add(build_lzma
-  PREFIX xz
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
-  CONFIGURE_COMMAND
-      ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure ${xz_configure_opts}
-      "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
-  BUILD_COMMAND
-      $(MAKE) -C src/liblzma
-  INSTALL_COMMAND
-      $(MAKE) -C src/liblzma install
-  )
+if (CMAKE_GENERATOR STREQUAL "Ninja")
+  ExternalProject_Add(ep_lzma
+    PREFIX xz
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
+    CONFIGURE_COMMAND
+        ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure ${xz_configure_opts}
+        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
+    BUILD_COMMAND
+        make -C src/liblzma
+    INSTALL_COMMAND
+        make -C src/liblzma install
+    )
+else ()
+  ExternalProject_Add(ep_lzma
+    PREFIX xz
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
+    CONFIGURE_COMMAND
+        ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure ${xz_configure_opts}
+        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
+    BUILD_COMMAND
+        $(MAKE) -C src/liblzma
+    INSTALL_COMMAND
+        $(MAKE) -C src/liblzma install
+    )
+endif ()
+add_custom_target(build_lzma DEPENDS ep_lzma)
 
 add_library(lzma STATIC IMPORTED)
 set_target_properties(lzma PROPERTIES IMPORTED_LOCATION
