@@ -8,6 +8,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "frwlock.h"
 #include "nonblocking_mutex.h"
 #include "kibbutz.h"
 #include "background_job_manager.h"
@@ -32,20 +33,20 @@
 //  - pair_list->pending_lock_cheap
 //  - cachefile_list->lock
 //  - PAIR->mutex
-//  - PAIR->value_nb_mutex
+//  - PAIR->value_rwlock
 //  - PAIR->disk_nb_mutex
 //
 // Here are rules for how the locks interact:
 //  - To grab any of the pair_list's locks, or the cachefile_list's lock,
 //      the cachetable must be in existence
 //  - To grab the PAIR mutex, we must know the PAIR will not dissappear:
-//   - the PAIR must be pinned (value_nb_mutex or disk_nb_mutex is held)
+//   - the PAIR must be pinned (value_rwlock or disk_nb_mutex is held)
 //   - OR, the pair_list's list lock is held
 //  - As a result, to get rid of a PAIR from the pair_list, we must hold
 //     both the pair_list's list_lock and the PAIR's mutex
-//  - To grab PAIR->value_nb_mutex, we must hold the PAIR's mutex
+//  - To grab PAIR->value_rwlock, we must hold the PAIR's mutex
 //  - To grab PAIR->disk_nb_mutex, we must hold the PAIR's mutex
-//      and hold PAIR->value_nb_mutex
+//      and hold PAIR->value_rwlock
 //
 // Now let's talk about ordering. Here is an order from outer to inner (top locks must be grabbed first)
 //  - pair_list->pending_lock_expensive
@@ -55,7 +56,7 @@
 //  - pair_list->pending_lock_cheap <-- after grabbing this lock, 
 //                                      NO other locks 
 //                                      should be grabbed.
-//  - when grabbing PAIR->value_nb_mutex or PAIR->disk_nb_mutex,
+//  - when grabbing PAIR->value_rwlock or PAIR->disk_nb_mutex,
 //     if the acquisition will not block, then it does not matter if any other locks held,
 //     BUT if the acquisition will block, then NO other locks may be held besides
 //     PAIR->mutex.
@@ -139,7 +140,7 @@ struct ctpair {
     long cloned_value_size; // size of cloned_value_data, used for accounting of size_current
     void* disk_data; // data used to fetch/flush value_data to and from disk.
 
-    // access to these fields are protected by value_nb_mutex
+    // access to these fields are protected by value_rwlock
     void* value_data; // data used by client threads, FTNODEs and ROLLBACK_LOG_NODEs
     PAIR_ATTR attr;
     enum cachetable_dirty dirty;
@@ -148,22 +149,22 @@ struct ctpair {
     uint32_t count;        // clock count
 
     // locks
-    struct nb_mutex value_nb_mutex; // single writer, protects value_data
+    toku::frwlock value_rwlock;
     struct nb_mutex disk_nb_mutex; // single writer, protects disk_data, is used for writing cloned nodes for checkpoint
     toku_mutex_t mutex;
 
     // Access to checkpoint_pending is protected by two mechanisms,
-    // the value_nb_mutex and the pair_list's pending locks (expensive and cheap).
+    // the value_rwlock and the pair_list's pending locks (expensive and cheap).
     // checkpoint_pending may be true of false. 
     // Here are the rules for reading/modifying this bit.
     //  - To transition this field from false to true during begin_checkpoint,
     //   we must be holding both of the pair_list's pending locks.
     //  - To transition this field from true to false during end_checkpoint,
-    //   we must be holding the value_nb_mutex.
+    //   we must be holding the value_rwlock.
     //  - For a non-checkpoint thread to read the value, we must hold both the
-    //   value_nb_mutex and one of the pair_list's pending locks
+    //   value_rwlock and one of the pair_list's pending locks
     //  - For the checkpoint thread to read the value, we must 
-    //   hold the value_nb_mutex
+    //   hold the value_rwlock
     //
     bool checkpoint_pending; // If this is on, then we have got to resolve checkpointing modifying it.
 

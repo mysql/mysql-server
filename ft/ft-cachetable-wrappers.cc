@@ -61,7 +61,6 @@ cachetable_put_empty_node_with_dep_nodes(
         fullhash,
         toku_node_save_ct_pair);
     assert_zero(r);
-
     *result = new_node;
 }
 
@@ -129,7 +128,7 @@ toku_pin_ftnode(
     ANCESTORS ancestors,
     const PIVOT_BOUNDS bounds,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
     bool* msgs_applied)
@@ -143,7 +142,7 @@ toku_pin_ftnode(
         ancestors,
         bounds,
         bfe,
-        may_modify_node,
+        lock_type,
         apply_ancestor_messages,
         false,
         node_p,
@@ -162,7 +161,7 @@ toku_pin_ftnode_batched(
     ANCESTORS ancestors,
     const PIVOT_BOUNDS bounds,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     bool end_batch_on_success,
     FTNODE *node_p,
@@ -180,7 +179,7 @@ toku_pin_ftnode_batched(
             toku_ftnode_fetch_callback,
             toku_ftnode_pf_req_callback,
             toku_ftnode_pf_callback,
-            may_modify_node,
+            lock_type,
             bfe, //read_extraargs
             unlockers);
     if (r==0) {
@@ -191,7 +190,7 @@ toku_pin_ftnode_batched(
         if (apply_ancestor_messages && node->height == 0) {
             toku_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
         }
-        if (may_modify_node && node->height > 0) {
+        if ((lock_type != PL_READ) && node->height > 0) {
             toku_move_ftnode_messages_to_stale(brt->ft, node);
         }
         *node_p = node;
@@ -209,7 +208,7 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p,
@@ -221,7 +220,7 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
         blocknum,
         fullhash,
         bfe,
-        may_modify_node,
+        lock_type,
         num_dependent_nodes,
         dependent_nodes,
         node_p,
@@ -236,13 +235,13 @@ toku_pin_ftnode_off_client_thread(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p)
 {
     toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-            h, blocknum, fullhash, bfe, may_modify_node, num_dependent_nodes, dependent_nodes, node_p, true);
+            h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
 }
 
 void
@@ -251,7 +250,7 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p,
@@ -279,7 +278,7 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
-        may_modify_node,
+        lock_type,
         bfe,
         num_dependent_nodes,
         dependent_cf,
@@ -289,7 +288,7 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         );
     assert(r==0);
     FTNODE node = (FTNODE) node_v;
-    if (may_modify_node && node->height > 0 && move_messages) {
+    if ((lock_type != PL_READ) && node->height > 0 && move_messages) {
         toku_move_ftnode_messages_to_stale(h, node);
     }
     *node_p = node;
@@ -301,23 +300,23 @@ toku_pin_ftnode_off_client_thread_batched(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p)
 {
     toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
-            h, blocknum, fullhash, bfe, may_modify_node, num_dependent_nodes, dependent_nodes, node_p, true);
+            h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
 }
 
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep, bool may_modify_node) {
+int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep) {
     void *node_v;
     int r = toku_cachetable_maybe_get_and_pin_clean(ft->cf, blocknum, fullhash, &node_v);
     if (r != 0) {
         goto cleanup;
     }
     CAST_FROM_VOIDP(*nodep, node_v);
-    if (may_modify_node && (*nodep)->height > 0) {
+    if ((*nodep)->height > 0) {
         toku_move_ftnode_messages_to_stale(ft, *nodep);
     }
 cleanup:

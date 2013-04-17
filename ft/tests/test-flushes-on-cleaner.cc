@@ -172,7 +172,7 @@ doit (bool keep_other_bn_in_memory) {
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -220,7 +220,7 @@ doit (bool keep_other_bn_in_memory) {
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -245,7 +245,7 @@ doit (bool keep_other_bn_in_memory) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -269,7 +269,7 @@ doit (bool keep_other_bn_in_memory) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node

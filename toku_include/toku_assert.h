@@ -54,6 +54,7 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #else
 #define assert(expr)      ((expr)      ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #define assert_zero(expr) ((expr) == 0 ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
+#define assert_null(expr) ((expr) == nullptr ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #endif
 
 #ifdef GCOV
@@ -67,7 +68,7 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define lazy_assert(a)          assert(a)      // indicates code is incomplete 
 #define lazy_assert_zero(a)     assert_zero(a) // indicates code is incomplete 
 #define invariant(a)            assert(a)      // indicates a code invariant that must be true
-#define invariant_null(a)       assert_zero(a) // indicates a code invariant that must be true
+#define invariant_null(a)       assert_null(a) // indicates a code invariant that must be true
 #define invariant_notnull(a)    assert(a)      // indicates a code invariant that must be true
 #define invariant_zero(a)       assert_zero(a) // indicates a code invariant that must be true
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable

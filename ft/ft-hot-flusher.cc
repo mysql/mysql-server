@@ -277,7 +277,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
                                                (BLOCKNUM) root_key,
                                                fullhash,
                                                &bfe,
-                                               true, 
+                                               PL_WRITE_EXPENSIVE, 
                                                0,
                                                NULL,
                                                &root);

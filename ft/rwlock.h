@@ -152,6 +152,14 @@ static inline int rwlock_writers(RWLOCK rwlock) {
     return rwlock->writer;
 }
 
+static inline bool rwlock_write_will_block(RWLOCK rwlock) {
+    return (rwlock->writer > 0 || rwlock->reader > 0);
+}
+
+static inline int rwlock_read_will_block(RWLOCK rwlock) {
+    return (rwlock->writer > 0 || rwlock->want_write > 0);
+}
+
 static inline void rwlock_wait_for_users(
     RWLOCK rwlock, 
     toku_mutex_t *mutex

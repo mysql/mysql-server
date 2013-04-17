@@ -209,6 +209,12 @@ CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 // Effect: Get the cachetable.
 
 
+typedef enum {
+    PL_READ = 0,
+    PL_WRITE_CHEAP,
+    PL_WRITE_EXPENSIVE
+} pair_lock_type;
+
 // put something into the cachetable and checkpoint dependent pairs
 // if the checkpointing is necessary
 int toku_cachetable_put_with_dep_pairs(
@@ -265,7 +271,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs_batched (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -286,7 +292,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -355,7 +361,7 @@ int toku_cachetable_get_and_pin_nonblocking_batched (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     UNLOCKERS unlockers
     );
@@ -372,7 +378,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     UNLOCKERS unlockers
     );

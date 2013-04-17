@@ -169,7 +169,7 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
         b,
         toku_cachetable_hash(t->ft->cf, b),
         &bfe,
-        true,
+        PL_WRITE_EXPENSIVE,
         0,
         NULL,
         node

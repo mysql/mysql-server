@@ -106,8 +106,12 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
 void toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    r = toku_cachetable_unpin(cf, log->ct_pair,
-                              (enum cachetable_dirty)log->dirty, rollback_memory_size(log));
+    r = toku_cachetable_unpin(
+        cf, 
+        log->ct_pair,
+        (enum cachetable_dirty)log->dirty, 
+        rollback_memory_size(log)
+        );
     assert(r == 0);
 }
 
@@ -202,14 +206,15 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
     void * value;
     CACHEFILE cf = txn->logger->rollback_cachefile;
     FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
-    int r = toku_cachetable_get_and_pin(cf, blocknum, hash,
+    int r = toku_cachetable_get_and_pin_with_dep_pairs(cf, blocknum, hash,
                                         &value, NULL,
                                         get_write_callbacks_for_rollback_log(h),
                                         toku_rollback_fetch_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
-                                        true, // may_modify_value
-                                        h
+                                        PL_WRITE_EXPENSIVE, // lock_type
+                                        h,
+                                        0, NULL, NULL, NULL, NULL
                                         );
     assert(r == 0);
     ROLLBACK_LOG_NODE CAST_FROM_VOIDP(pinned_log, value);

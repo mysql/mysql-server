@@ -143,7 +143,7 @@ static void move_number_to_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        true,
+        PL_WRITE_EXPENSIVE,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -190,7 +190,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            true,
+            PL_WRITE_EXPENSIVE,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -256,7 +256,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        true,
+        PL_WRITE_EXPENSIVE,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -290,7 +290,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        true,
+        PL_WRITE_EXPENSIVE,
         NULL,
         2, //num_dependent_pairs
         cfs,
@@ -368,7 +368,7 @@ static void *merge_and_split(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            true,
+            PL_WRITE_EXPENSIVE,
             NULL,
             0, //num_dependent_pairs
             NULL,

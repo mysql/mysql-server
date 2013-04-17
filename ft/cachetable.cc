@@ -87,7 +87,7 @@ static PAIR_ATTR const zero_attr = {
 
 static inline void ctpair_destroy(PAIR p) {
     toku_mutex_destroy(&p->mutex);
-    nb_mutex_destroy(&p->value_nb_mutex);
+    p->value_rwlock.deinit();
     nb_mutex_destroy(&p->disk_nb_mutex);
     toku_free(p);
 }
@@ -585,7 +585,7 @@ static void cachetable_maybe_remove_and_free_pair (
     ) 
 {
     // this ensures that a clone running in the background first completes
-    if (nb_mutex_users(&p->value_nb_mutex) == 0) {
+    if (p->value_rwlock.users() == 0) {
         // assumption is that if we are about to remove the pair
         // that no one has grabbed the disk_nb_mutex,
         // and that there is no cloned_value_data, because
@@ -601,7 +601,7 @@ static void cachetable_maybe_remove_and_free_pair (
     }
 }
 
-// assumes value_nb_mutex and disk_nb_mutex held on entry
+// assumes value_rwlock and disk_nb_mutex held on entry
 // responsibility of this function is to only write a locked PAIR to disk
 // and NOTHING else. We do not manipulate the state of the PAIR
 // of the cachetable here (with the exception of ct->size_current for clones)
@@ -767,7 +767,7 @@ void pair_init(PAIR p,
     p->checkpoint_pending = false;
 
     toku_mutex_init(&p->mutex, NULL);
-    nb_mutex_init(&p->value_nb_mutex);
+    p->value_rwlock.init(&p->mutex);
     nb_mutex_init(&p->disk_nb_mutex);
 
     p->size_evicting_estimate = 0; // <CER> Is zero the correct init value?
@@ -860,7 +860,7 @@ static int cachetable_put_internal(
         );
     invariant_notnull(p);
     pair_lock(p);
-    nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+    p->value_rwlock.write_lock(true);
     pair_unlock(p);
     //note_hash_count(count);
     invariant_notnull(put_callback);
@@ -892,7 +892,7 @@ clone_pair(evictor* ev, PAIR p) {
     // now we need to do the same actions we would do
     // if the PAIR had been written to disk
     //
-    // because we hold the value_nb_mutex,
+    // because we hold the value_rwlock,
     // it doesn't matter whether we clear 
     // the pending bit before the clone
     // or after the clone
@@ -932,7 +932,7 @@ checkpoint_cloned_pair_on_writer_thread(CACHETABLE ct, PAIR p) {
 
 
 //
-// Given a PAIR p with the value_nb_mutex altready held, do the following:
+// Given a PAIR p with the value_rwlock altready held, do the following:
 //  - If the PAIR needs to be written out to disk for checkpoint:
 //   - If the PAIR is cloneable, clone the PAIR and place the work
 //      of writing the PAIR on a background thread.
@@ -959,7 +959,7 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p, bool checkpoint_pending)
         }
         else {
             // The pair is not cloneable, just write the pair to disk
-            // we already have p->value_nb_mutex and we just do the write in our own thread.            
+            // we already have p->value_rwlock and we just do the write in our own thread.            
             cachetable_write_locked_pair(&ct->ev, p, true); // keeps the PAIR's write lock
         }
     }
@@ -973,7 +973,7 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p, bool checkpoint_pending)
 static void
 write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
 {
-    nb_mutex_lock(&p->value_nb_mutex, &p->mutex); // grab an exclusive lock on the pair    
+    p->value_rwlock.write_lock(true); // grab an exclusive lock on the pair
     if (p->dirty && p->checkpoint_pending) {
         if (p->clone_callback) {
             nb_mutex_lock(&p->disk_nb_mutex, &p->mutex);
@@ -983,7 +983,7 @@ write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
         }
         else {
             // The pair is not cloneable, just write the pair to disk            
-            // we already have p->value_nb_mutex and we just do the write in our own thread.
+            // we already have p->value_rwlock and we just do the write in our own thread.
             // this will grab and release disk_nb_mutex
             pair_unlock(p);
             cachetable_write_locked_pair(ev, p, true); // keeps the PAIR's write lock
@@ -991,9 +991,9 @@ write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
         }
         p->checkpoint_pending = false;
         
-        // now release value_nb_mutex, before we write the PAIR out
+        // now release value_rwlock, before we write the PAIR out
         // so that the PAIR is available to client threads
-        nb_mutex_unlock(&p->value_nb_mutex); // didn't call cachetable_evict_pair so we have to unlock it ourselves.
+        p->value_rwlock.write_unlock(); // didn't call cachetable_evict_pair so we have to unlock it ourselves.
         if (p->clone_callback) {
             // note that pending lock is not needed here because
             // we KNOW we are in the middle of a checkpoint
@@ -1020,7 +1020,7 @@ write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
         // and the pending lock
         //
         p->checkpoint_pending = false;
-        nb_mutex_unlock(&p->value_nb_mutex);
+        p->value_rwlock.write_unlock();
     }
 }
 
@@ -1072,7 +1072,7 @@ static void get_pairs(
         assert(out_pairs[i] != NULL);
         // pair had better be locked, as we are assuming
         // to own the write lock
-        assert(nb_mutex_writers(&out_pairs[i]->value_nb_mutex));
+        assert(out_pairs[i]->value_rwlock.writers());
     }
 }
 
@@ -1186,7 +1186,7 @@ static uint64_t get_tnow(void) {
 // On exit, cachetable lock is still held, but PAIR lock
 // is either released.
 //
-// No locks are held on entry (besides the nb_mutex of the PAIR)
+// No locks are held on entry (besides the rwlock write lock  of the PAIR)
 //
 static void
 do_partial_fetch(
@@ -1214,7 +1214,7 @@ do_partial_fetch(
     pair_lock(p);
     nb_mutex_unlock(&p->disk_nb_mutex);
     if (!keep_pair_locked) {
-        nb_mutex_unlock(&p->value_nb_mutex);
+        p->value_rwlock.write_unlock();
     }
     pair_unlock(p);
 }
@@ -1235,7 +1235,7 @@ void toku_cachetable_pf_pinned_pair(
     p = ct->list.find_pair(cf, key, fullhash);
     assert(p != NULL);
     assert(p->value_data == value);
-    assert(nb_mutex_writers(&p->value_nb_mutex));
+    assert(p->value_rwlock.writers());
     ct->list.read_list_unlock();
     
     pair_lock(p);
@@ -1251,6 +1251,7 @@ void toku_cachetable_pf_pinned_pair(
 }
 
 
+// NOW A TEST ONLY FUNCTION!!!
 int toku_cachetable_get_and_pin (
     CACHEFILE cachefile, 
     CACHEKEY key, 
@@ -1265,6 +1266,7 @@ int toku_cachetable_get_and_pin (
     void* read_extraargs // parameter for fetch_callback, pf_req_callback, and pf_callback
     ) 
 {
+    pair_lock_type lock_type = may_modify_value ? PL_WRITE_EXPENSIVE : PL_READ;
     // We have separate parameters of read_extraargs and write_extraargs because
     // the lifetime of the two parameters are different. write_extraargs may be used
     // long after this function call (e.g. after a flush to disk), whereas read_extraargs
@@ -1281,7 +1283,7 @@ int toku_cachetable_get_and_pin (
         fetch_callback, 
         pf_req_callback,
         pf_callback,
-        may_modify_value,
+        lock_type,
         read_extraargs,
         0, // number of dependent pairs that we may need to checkpoint
         NULL, // array of cachefiles of dependent pairs
@@ -1331,7 +1333,7 @@ static void cachetable_fetch_pair(
     pair_lock(p);
     nb_mutex_unlock(&p->disk_nb_mutex);
     if (!keep_pair_locked) {
-        nb_mutex_unlock(&p->value_nb_mutex);
+        p->value_rwlock.write_unlock();
     }
     pair_unlock(p);
 }
@@ -1392,6 +1394,15 @@ static void checkpoint_pair_and_dependent_pairs(
         );
 }
 
+static void unpin_pair(PAIR p, bool read_lock_grabbed) {
+    if (read_lock_grabbed) {
+        p->value_rwlock.read_unlock();
+    }
+    else {
+        p->value_rwlock.write_unlock();
+    }
+}
+
 
 // on input, the pair's mutex is held,
 // on output, the pair's mutex is not held.
@@ -1404,7 +1415,7 @@ static bool try_pin_pair(
     CACHETABLE ct,
     CACHEFILE cachefile,
     bool have_read_list_lock,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     uint32_t num_dependent_pairs,
     PAIR* dependent_pairs,
     enum cachetable_dirty* dependent_dirty,
@@ -1416,16 +1427,26 @@ static bool try_pin_pair(
 {
     bool dep_checkpoint_pending[num_dependent_pairs];
     bool try_again = true;
-
-    // we need to exit with the read_list_lock, if we don't already have
-    // it we definitely need to reacquire it
     bool reacquire_lock = !have_read_list_lock;
-    if (have_read_list_lock && nb_mutex_writers(&p->value_nb_mutex)) {
-        // drop the read_list_lock before doing an expensive lock
-        reacquire_lock = true;
-        ct->list.read_list_unlock();
+    bool expensive = (lock_type == PL_WRITE_EXPENSIVE);
+    if (lock_type != PL_READ) {
+        if (!p->value_rwlock.try_write_lock(expensive)) {
+            reacquire_lock = true;
+            if (have_read_list_lock) {
+                ct->list.read_list_unlock();
+            }
+            p->value_rwlock.write_lock(expensive);
+        }
     }
-    nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+    else {
+        if (!p->value_rwlock.try_read_lock()) {
+            reacquire_lock = true;
+            if (have_read_list_lock) {
+                ct->list.read_list_unlock();
+            }
+            p->value_rwlock.read_lock();
+        }
+    }
     pair_touch(p);
     pair_unlock(p);
     // reacquire the read list lock here, we hold it for the rest of the function.
@@ -1433,7 +1454,7 @@ static bool try_pin_pair(
         ct->list.read_list_lock();
     }
 
-    if (may_modify_value) {
+    if (lock_type != PL_READ) {
         ct->list.read_pending_cheap_lock();
         bool p_checkpoint_pending = p->checkpoint_pending;
         p->checkpoint_pending = false;
@@ -1460,9 +1481,11 @@ static bool try_pin_pair(
         try_again = false;
         goto exit;
     }
+    
+    // at this point, a partial fetch is required    
     if (ct->ev.should_client_thread_sleep() && !already_slept) {
         pair_lock(p);
-        nb_mutex_unlock(&p->value_nb_mutex);
+        unpin_pair(p, (lock_type == PL_READ));
         pair_unlock(p);
         try_again = true;
         goto exit;
@@ -1476,17 +1499,48 @@ static bool try_pin_pair(
     // if the variable is true, a partial fetch is required so we must grab the PAIR's write lock
     // and then call a callback to retrieve what we need
     //
-    if (partial_fetch_required) {
-        // As of Dr. No, only clean PAIRs may have pieces missing,
-        // so we do a sanity check here.
-        assert(!p->dirty);
+    assert(partial_fetch_required);
+    // As of Dr. No, only clean PAIRs may have pieces missing,
+    // so we do a sanity check here.
+    assert(!p->dirty);
 
-        // This may be slow, better release and re-grab the
-        // read list lock.
-        ct->list.read_list_unlock();
-        do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, true);
-        ct->list.read_list_lock();
+    // This may be slow, better release and re-grab the
+    // read list lock.
+    ct->list.read_list_unlock();
+    if (lock_type == PL_READ) {
+        pair_lock(p);
+        p->value_rwlock.read_unlock();
+        p->value_rwlock.write_lock(true);
+        pair_unlock(p);
     }
+    else if (lock_type == PL_WRITE_CHEAP) {
+        pair_lock(p);
+        p->value_rwlock.write_unlock();
+        p->value_rwlock.write_lock(true);
+        pair_unlock(p);
+    }
+    
+    partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+    if (partial_fetch_required) {
+        do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, true);
+    }
+    if (lock_type == PL_READ) {
+        //
+        // TODO: Zardosht, somehow ensure that a partial eviction cannot happen
+        // between these two calls
+        //
+        pair_lock(p);
+        p->value_rwlock.write_unlock();
+        p->value_rwlock.read_lock();
+        pair_unlock(p);
+    }
+    else if (lock_type == PL_WRITE_CHEAP) {
+        pair_lock(p);
+        p->value_rwlock.write_unlock();
+        p->value_rwlock.write_lock(false);
+        pair_unlock(p);
+    }
+    ct->list.read_list_lock();
 
     try_again = false;
 exit:
@@ -1503,7 +1557,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs_batched (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -1554,7 +1608,7 @@ beginning:
             ct,
             cachefile,
             true,
-            may_modify_value,
+            lock_type,
             num_dependent_pairs,
             dependent_pairs,
             dependent_dirty,
@@ -1601,7 +1655,7 @@ beginning:
                 ct,
                 cachefile,
                 false,
-                may_modify_value,
+                lock_type,
                 num_dependent_pairs,
                 dependent_pairs,
                 dependent_dirty,
@@ -1636,10 +1690,10 @@ beginning:
 
         // Pin the pair.
         pair_lock(p);
-        nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        p->value_rwlock.write_lock(true);
         pair_unlock(p);
 
-        if (may_modify_value) {
+        if (lock_type != PL_READ) {
             ct->list.read_pending_cheap_lock();
             assert(!p->checkpoint_pending);
             for (uint32_t i = 0; i < num_dependent_pairs; i++) {
@@ -1651,10 +1705,9 @@ beginning:
 
         // We should release the lock before we perform
         // these expensive operations.
-        // TODO: <CER> Determine if we can move this above the may_modify_value block, but after the pin.
         ct->list.write_list_unlock();
 
-        if (may_modify_value) {
+        if (lock_type != PL_READ) {
             checkpoint_dependent_pairs(
                 ct,
                 num_dependent_pairs,
@@ -1671,6 +1724,22 @@ beginning:
         cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, true);
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
+
+        if (lock_type == PL_READ) {
+            pair_lock(p);
+            p->value_rwlock.write_unlock();
+            p->value_rwlock.read_lock();
+            pair_unlock(p);
+        }
+        // because we grabbed an expensive lock for the fetch,
+        // we ought to downgrade it back to cheap if we have to
+        // once we are done with the fetch
+        else if (lock_type == PL_WRITE_CHEAP) {
+            pair_lock(p);
+            p->value_rwlock.write_unlock();
+            p->value_rwlock.write_lock(false);
+            pair_unlock(p);
+        }
 
         // We need to be holding the read list lock when we exit.
         // We grab it here because we released it earlier to 
@@ -1695,7 +1764,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -1716,7 +1785,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         fetch_callback,
         pf_req_callback,
         pf_callback,
-        may_modify_value,
+        lock_type,
         read_extraargs,
         num_dependent_pairs,
         dependent_cfs,
@@ -1746,12 +1815,8 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, uint32
     if (p) {
         pair_lock(p);
         ct->list.read_list_unlock();
-        if (p->dirty &&
-            nb_mutex_users(&p->value_nb_mutex) == 0
-            ) 
-        {
-            // because nb_mutex_users is 0, this is fast
-            nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        if (p->value_rwlock.try_write_lock(true)) {
+            // we got the write lock fast, so continue
             ct->list.read_pending_cheap_lock();
             //
             // if pending a checkpoint, then we don't want to return
@@ -1759,8 +1824,8 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, uint32
             // handling the checkpointing, which we do not want to do,
             // because it is expensive
             //
-            if (p->checkpoint_pending) {
-                nb_mutex_unlock(&p->value_nb_mutex);
+            if (!p->dirty || p->checkpoint_pending) {
+                p->value_rwlock.write_unlock();
                 r = -1;
             }
             else {
@@ -1788,9 +1853,8 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
     if (p) {
         pair_lock(p);
         ct->list.read_list_unlock();
-        if (nb_mutex_users(&p->value_nb_mutex) == 0) {
-            // because nb_mutex_users is 0, this is fast
-            nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        if (p->value_rwlock.try_write_lock(true)) {
+            // got the write lock fast, so continue
             ct->list.read_pending_cheap_lock();
             //
             // if pending a checkpoint, then we don't want to return
@@ -1799,7 +1863,7 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
             // because it is expensive
             //
             if (p->checkpoint_pending) {
-                nb_mutex_unlock(&p->value_nb_mutex);
+                p->value_rwlock.write_unlock();
                 r = -1;
             }
             else {
@@ -1819,20 +1883,19 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
 //
 // internal function to unpin a PAIR.
 // As of Clayface, this is may be called in two ways:
-//  - with have_ct_lock true and flush false
-//  - with have_ct_lock false and flush true
+//  - with flush false
+//  - with flush true
 // The first is for when this is run during run_unlockers in 
 // toku_cachetable_get_and_pin_nonblocking, the second is during
 // normal operations. Only during normal operations do we want to possibly
-// induce evictions.
+// induce evictions or sleep.
 //
 static int
 cachetable_unpin_internal(
     CACHEFILE cachefile, 
     PAIR p,
     enum cachetable_dirty dirty, 
-    PAIR_ATTR attr, 
-    bool have_ct_lock, 
+    PAIR_ATTR attr,
     bool flush
     )
 {
@@ -1844,14 +1907,14 @@ cachetable_unpin_internal(
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = attr;
     pair_lock(p);
-    assert(nb_mutex_writers(&p->value_nb_mutex)>0);
     if (dirty) {
         p->dirty = CACHETABLE_DIRTY;
     }
     if (attr.is_valid) {
         p->attr = attr;
     }
-    nb_mutex_unlock(&p->value_nb_mutex);
+    bool read_lock_grabbed = p->value_rwlock.readers();
+    unpin_pair(p, read_lock_grabbed);
     pair_unlock(p);
     
     if (attr.is_valid) {
@@ -1862,7 +1925,7 @@ cachetable_unpin_internal(
     }
 
     // see comments above this function to understand this code
-    if (flush && added_data_to_cachetable && !have_ct_lock) {
+    if (flush && added_data_to_cachetable) {
         if (ct->ev.should_client_thread_sleep()) {
             ct->ev.wait_for_cache_pressure_to_subside();
         }
@@ -1874,12 +1937,10 @@ cachetable_unpin_internal(
 }
 
 int toku_cachetable_unpin(CACHEFILE cachefile, PAIR p, enum cachetable_dirty dirty, PAIR_ATTR attr) {
-    // By default we don't have the lock
-    return cachetable_unpin_internal(cachefile, p, dirty, attr, false, true);
+    return cachetable_unpin_internal(cachefile, p, dirty, attr, true);
 }
 int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, PAIR p, enum cachetable_dirty dirty, PAIR_ATTR attr) {
-    // We hold the cachetable mutex.
-    return cachetable_unpin_internal(cachefile, p, dirty, attr, true, false);
+    return cachetable_unpin_internal(cachefile, p, dirty, attr, false);
 }
 
 static void
@@ -1892,37 +1953,82 @@ run_unlockers (UNLOCKERS unlockers) {
     }
 }
 
-// on entry, pair mutex is held
-// on exit, is not held
+//
+// This function tries to pin the pair without running the unlockers.
+// If it can pin the pair cheaply, it does so, and returns 0. 
+// If the pin will be expensive, it runs unlockers, 
+// pins the pair, then releases the pin,
+// and then returns TOKUDB_TRY_AGAIN
+//
+// on entry and exit, pair mutex is NOT held
 // on entry and exit, the list read lock is held
-static void
-pin_and_release_pair(
+static int
+maybe_pin_pair(
     PAIR p, 
     CACHETABLE ct, 
-    bool may_modify_value,
+    pair_lock_type lock_type,
     UNLOCKERS unlockers
     )
 {
-    run_unlockers(unlockers); // The contract says the unlockers are run with the read or write list lock being held.
-
+    int retval = 0;
+    bool expensive = (lock_type == PL_WRITE_EXPENSIVE);
+    pair_lock(p);
+    //
+    // first try to acquire the necessary locks without releasing the read_list_lock
+    //
+    if (lock_type == PL_READ && p->value_rwlock.try_read_lock()) {
+        pair_unlock(p);
+        goto exit;
+    }
+    else if (p->value_rwlock.try_write_lock(expensive)){
+        pair_unlock(p);
+        goto exit;
+    }
+    
     ct->list.read_list_unlock();
-
-    // Now wait for the I/O to occur.
-    nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
-    if (may_modify_value) {
+    // now that we have released the read_list_lock,
+    // we can pin the PAIR. In each case, we check to see
+    // if acquiring the pin is expensive. If so, we run the unlockers, set the
+    // retval to TOKUDB_TRY_AGAIN, pin AND release the PAIR.
+    // If not, then we pin the PAIR, keep retval at 0, and do not
+    // run the unlockers, as we intend to return the value to the user
+    if (lock_type == PL_READ) {
+        if (p->value_rwlock.read_lock_is_expensive()) {
+            run_unlockers(unlockers);
+            retval = TOKUDB_TRY_AGAIN;
+        }
+        p->value_rwlock.read_lock();
+    }
+    else if (lock_type == PL_WRITE_EXPENSIVE || lock_type == PL_WRITE_CHEAP){
+        if (p->value_rwlock.write_lock_is_expensive()) {
+            run_unlockers(unlockers);
+            retval = TOKUDB_TRY_AGAIN;
+        }
+        p->value_rwlock.write_lock(expensive);
+    }
+    else {
+        assert(false);
+    }
+    // If we are going to be returning TOKUDB_TRY_AGAIN, we might
+    // as well resolve the checkpointing given the chance. This step is
+    // not necessary for correctness, it is just an opportunistic optimization.
+    if (lock_type != PL_READ && retval == TOKUDB_TRY_AGAIN) {
         bool checkpoint_pending = get_checkpoint_pending(p, &ct->list);
         pair_unlock(p);
-
-        // We hold the read list lock throughout this call.
-        // This is O.K. because in production, this function
-        // should always put the write on a background thread.
         write_locked_pair_for_checkpoint(ct, p, checkpoint_pending);
         pair_lock(p);
     }
-    nb_mutex_unlock(&p->value_nb_mutex);
+    if (retval == TOKUDB_TRY_AGAIN) {
+        unpin_pair(p, (lock_type == PL_READ));
+    }
+    else {
+        // just a sanity check
+        assert(retval == 0);
+    }
     pair_unlock(p);
-
     ct->list.read_list_lock();
+exit:
+    return retval;
 }
 
 void toku_cachetable_begin_batched_pin(CACHEFILE cf)
@@ -1947,14 +2053,17 @@ int toku_cachetable_get_and_pin_nonblocking_batched(
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void *read_extraargs,
     UNLOCKERS unlockers
     )
 // See cachetable.h.
 {
     CACHETABLE ct = cf->cachetable;
-
+    assert(lock_type == PL_READ ||
+        lock_type == PL_WRITE_CHEAP ||
+        lock_type == PL_WRITE_EXPENSIVE
+        );
 try_again:
 
     PAIR p = ct->list.find_pair(cf, key, fullhash);
@@ -1987,13 +2096,16 @@ try_again:
             );
         assert(p);
         pair_lock(p);
-        nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        // grab expensive write lock, because we are about to do a fetch
+        // off disk
+        p->value_rwlock.write_lock(true);
         pair_unlock(p);
         run_unlockers(unlockers); // we hold the write list_lock.
         ct->list.write_list_unlock();
 
         // at this point, only the pair is pinned,
-        // and no pair mutex held
+        // and no pair mutex held, and 
+        // no list lock is held
         uint64_t t0 = get_tnow();
         cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, false);
         cachetable_miss++;
@@ -2013,27 +2125,13 @@ try_again:
         return TOKUDB_TRY_AGAIN;
     }
     else {
-        //
-        // In Doofenshmirtz, we keep the root to leaf path pinned
-        // as we perform a query on a dictionary at any given time.
-        // This implies that only ONE query client can ever be
-        // in get_and_pin_nonblocking for this dictionary. 
-        // So, if there is a write lock grabbed
-        // on the PAIR that we want to lock, then some expensive operation 
-        // MUST be happening (read from disk, write to disk, flush, etc...), 
-        // and we should run the unlockers.
-        // Otherwise, if there is no write lock grabbed, we know there will 
-        // be no stall, so we grab the lock and return to the user
-        //
-        pair_lock(p);
-        if (nb_mutex_writers(&p->value_nb_mutex)) {
-            // The pair's mutex is released in this function call:
-            pin_and_release_pair(p, ct, may_modify_value, unlockers);
+        int r = maybe_pin_pair(p, ct, lock_type, unlockers);
+        if (r == TOKUDB_TRY_AGAIN) {
             return TOKUDB_TRY_AGAIN;
         }
-        nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
-        pair_unlock(p);
-        if (may_modify_value) {
+        assert_zero(r);
+
+        if (lock_type != PL_READ) {
             bool checkpoint_pending = get_checkpoint_pending(p, &ct->list);
             bool is_checkpointing_fast = resolve_checkpointing_fast(
                 p,
@@ -2050,7 +2148,7 @@ try_again:
             write_locked_pair_for_checkpoint(ct, p, checkpoint_pending);
             if (!is_checkpointing_fast) {
                 pair_lock(p);
-                nb_mutex_unlock(&p->value_nb_mutex);
+                p->value_rwlock.write_unlock();
                 pair_unlock(p);
 
                 return TOKUDB_TRY_AGAIN;
@@ -2058,22 +2156,46 @@ try_again:
         }
 
         // At this point, we have pinned the PAIR
-        // and resolved its checkpointing. The list lock is not held
-        // and the pair's mutex is not held. Before
+        // and resolved its checkpointing. The pair's
+        // mutex is not held. The read list lock IS held. Before
         // returning the PAIR to the user, we must
         // still check for partial fetch
         bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
         if (partial_fetch_required) {
-            // TODO(leif): the following comment is probably wrong now
-            // that we can unpin without the read list lock.
-            run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
-
             // Since we have to do disk I/O we should temporarily
             // release the read list lock.
             ct->list.read_list_unlock();
 
+            // we can unpin without the read list lock
+            run_unlockers(unlockers);
+
+            // we are now getting an expensive write lock, because we
+            // are doing a partial fetch. So, if we previously have 
+            // either a read lock or a cheap write lock, we need to 
+            // release and reacquire the correct lock type
+            if (lock_type == PL_READ) {
+                pair_lock(p);
+                p->value_rwlock.read_unlock();
+                p->value_rwlock.write_lock(true);
+                pair_unlock(p);
+            }
+            else if (lock_type == PL_WRITE_CHEAP) {
+                pair_lock(p);
+                p->value_rwlock.write_unlock();
+                p->value_rwlock.write_lock(true);
+                pair_unlock(p);
+            }
+
             // Now wait for the I/O to occur.
-            do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, false);
+            partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+            if (partial_fetch_required) {
+                do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, false);
+            }
+            else {
+                pair_lock(p);
+                p->value_rwlock.write_unlock();
+                pair_unlock(p);
+            }
 
             if (ct->ev.should_client_thread_sleep()) {
                 ct->ev.wait_for_cache_pressure_to_subside();
@@ -2090,7 +2212,7 @@ try_again:
         }
         else {
             *value = p->value_data;
-            return 0;
+            return 0;    
         }
     }
     // We should not get here. Above code should hit a return in all cases.
@@ -2107,7 +2229,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    bool may_modify_value,
+    pair_lock_type lock_type,
     void *read_extraargs,
     UNLOCKERS unlockers
     )
@@ -2125,7 +2247,7 @@ int toku_cachetable_get_and_pin_nonblocking (
         fetch_callback,
         pf_req_callback,
         pf_callback,
-        may_modify_value,
+        lock_type,
         read_extraargs,
         unlockers
     );
@@ -2219,7 +2341,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
             );
         assert(p);
         pair_lock(p);
-        nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        p->value_rwlock.write_lock(true);
         pair_unlock(p);
         ct->list.write_list_unlock();
         
@@ -2239,10 +2361,11 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
 found_pair:
     // at this point, p is found, pair's mutex is grabbed, and
     // no list lock is held
-    if (nb_mutex_users(&p->value_nb_mutex)==0) {
-        pair_touch(p);
+    // TODO(leif): should this also just go ahead and wait if all there
+    // are to wait for are readers?
+    if (p->value_rwlock.try_write_lock(true)) {
         // nobody else is using the node, so we should go ahead and prefetch
-        nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+        pair_touch(p);
         pair_unlock(p);
         bool partial_fetch_required = pf_req_callback(p->value_data, read_extraargs);
 
@@ -2260,11 +2383,12 @@ found_pair:
         }
         else {
             pair_lock(p);
-            nb_mutex_unlock(&p->value_nb_mutex);
+            p->value_rwlock.write_unlock();
             pair_unlock(p);
         }
     }
     else {
+        // Couldn't get the write lock cheaply
         pair_unlock(p);
     }
 exit:
@@ -2354,7 +2478,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     for (i=0; i < num_pairs; i++) {
         PAIR p = list[i];
         pair_lock(p);
-        assert(nb_mutex_users(&p->value_nb_mutex) == 0);
+        assert(p->value_rwlock.users() == 0);
         assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
         assert(!p->cloned_value_data);
         if (p->dirty == CACHETABLE_DIRTY) {
@@ -2375,7 +2499,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     for (i=0; i < num_pairs; i++) {
         PAIR p = list[i];
         pair_lock(p);
-        assert(nb_mutex_users(&p->value_nb_mutex) == 0);
+        assert(p->value_rwlock.users() == 0);
         assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
         assert(!p->cloned_value_data);
         assert(p->dirty == CACHETABLE_CLEAN);
@@ -2454,7 +2578,7 @@ static PAIR test_get_pair(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, 
 int toku_test_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
     // By default we don't have the lock
     PAIR p = test_get_pair(cachefile, key, fullhash, false);
-    return toku_cachetable_unpin(cachefile, p, dirty, attr);
+    return toku_cachetable_unpin(cachefile, p, dirty, attr); // assume read lock is not grabbed, and that it is a write lock
 }
 
 //test-only wrapper
@@ -2489,7 +2613,7 @@ int toku_cachetable_unpin_and_remove (
     CACHETABLE ct = cachefile->cachetable;
 
     p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
-    assert(nb_mutex_writers(&p->value_nb_mutex));
+    assert(p->value_rwlock.writers());
     // grab disk_nb_mutex to ensure any background thread writing
     // out a cloned value completes
     pair_lock(p);
@@ -2541,7 +2665,7 @@ int toku_cachetable_unpin_and_remove (
     ct->list.read_pending_cheap_unlock();
 
     pair_lock(p);
-    nb_mutex_unlock(&p->value_nb_mutex);
+    p->value_rwlock.write_unlock();
     nb_mutex_unlock(&p->disk_nb_mutex);
     //
     // As of Dr. Noga, only these threads may be
@@ -2588,13 +2712,13 @@ int toku_cachetable_unpin_and_remove (
     // 
     cachetable_remove_pair(&ct->list, &ct->ev, p);
     ct->list.write_list_unlock();
-    if (nb_mutex_blocked_writers(&p->value_nb_mutex)>0) {
-        nb_mutex_wait_for_users(
-            &p->value_nb_mutex,
-            &p->mutex
-            );
+    if (p->value_rwlock.users() > 0) {
+        // Need to wait for everyone else to leave
+        p->value_rwlock.write_lock(true);
+        assert(p->value_rwlock.users() == 1);  // us
         assert(!p->checkpoint_pending);
         assert(p->attr.cache_pressure_size == 0);
+        p->value_rwlock.write_unlock();
     }
     // just a sanity check
     assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
@@ -2726,8 +2850,7 @@ int toku_cachetable_assert_all_unpinned (CACHETABLE ct) {
         PAIR p;
         for (p=ct->list.m_table[i]; p; p=p->hash_chain) {
             pair_lock(p);
-            assert(nb_mutex_writers(&p->value_nb_mutex)>=0);
-            if (nb_mutex_writers(&p->value_nb_mutex)) {
+            if (p->value_rwlock.users()) {
                 //printf("%s:%d pinned: %" PRId64 " (%p)\n", __FILE__, __LINE__, p->key.b, p->value_data);
                 some_pinned=1;
             }
@@ -2750,8 +2873,7 @@ int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
         for (PAIR p = ct->list.m_table[i]; p; p = p->hash_chain) {
             if (p->cachefile == cf) {
                 pair_lock(p);
-                assert(nb_mutex_writers(&p->value_nb_mutex) >= 0);
-                if (nb_mutex_writers(&p->value_nb_mutex)) {
+                if (p->value_rwlock.users()) {
                     if (print_them) {
                         printf("%s:%d pinned: %" PRId64 " (%p)\n", 
                                 __FILE__,
@@ -2779,7 +2901,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
             pair_lock(p);
             printf("t[%u]=", i);
             for (p=ct->list.m_table[i]; p; p=p->hash_chain) {
-                printf(" {%" PRId64 ", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, (int) p->dirty, nb_mutex_writers(&p->value_nb_mutex), p->attr.size);
+                printf(" {%" PRId64 ", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, (int) p->dirty, p->value_rwlock.users(), p->attr.size);
             }
             printf("\n");
             pair_unlock(p);
@@ -2806,7 +2928,7 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
         if (dirty_ptr)
             *dirty_ptr = p->dirty;
         if (pin_ptr)
-            *pin_ptr = nb_mutex_writers(&p->value_nb_mutex);
+            *pin_ptr = p->value_rwlock.users();
         if (size_ptr)
             *size_ptr = p->attr.size;
         r = 0;
@@ -3007,7 +3129,7 @@ int cleaner::run_cleaner(void) {
         //     the cleaner thread from picking its PAIR (see comments in that function)
         do {
             pair_lock(m_pl->m_cleaner_head);
-            if (nb_mutex_users(&m_pl->m_cleaner_head->value_nb_mutex) > 0) {
+            if (m_pl->m_cleaner_head->value_rwlock.users() > 0) {
                 pair_unlock(m_pl->m_cleaner_head);
             }
             else {
@@ -3050,7 +3172,7 @@ int cleaner::run_cleaner(void) {
                 pair_unlock(best_pair);
                 continue;
             }
-            nb_mutex_lock(&best_pair->value_nb_mutex, &best_pair->mutex);
+            best_pair->value_rwlock.write_lock(true);
             pair_unlock(best_pair);
             // verify a key assumption.
             assert(cleaner_thread_rate_pair(best_pair) > 0);
@@ -3082,7 +3204,7 @@ int cleaner::run_cleaner(void) {
             // don't need to unlock it if the cleaner callback is called.
             if (!cleaner_callback_called) {
                 pair_lock(best_pair);
-                nb_mutex_unlock(&best_pair->value_nb_mutex);
+                best_pair->value_rwlock.write_unlock();
                 pair_unlock(best_pair);
             }
             // We need to make sure the cachefile sticks around so a close
@@ -3729,7 +3851,7 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         goto exit;
     }
     pair_lock(curr_in_clock);
-    if (nb_mutex_users(&curr_in_clock->value_nb_mutex) || 
+    if (curr_in_clock->value_rwlock.users() || 
         nb_mutex_users(&curr_in_clock->disk_nb_mutex)) 
     {
         pair_unlock(curr_in_clock);
@@ -3744,7 +3866,7 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
     if (curr_in_clock->count > 0) {
         curr_in_clock->count--;
         // call the partial eviction callback
-        nb_mutex_lock(&curr_in_clock->value_nb_mutex, &curr_in_clock->mutex);
+        curr_in_clock->value_rwlock.write_lock(true);
         pair_unlock(curr_in_clock);
     
         void *value = curr_in_clock->value_data;
@@ -3780,7 +3902,7 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             }
             else {
                 pair_lock(curr_in_clock);
-                nb_mutex_unlock(&curr_in_clock->value_nb_mutex);
+                curr_in_clock->value_rwlock.write_unlock();
                 pair_unlock(curr_in_clock);
                 bjm_remove_background_job(cf->bjm);
             }
@@ -3815,7 +3937,7 @@ void evictor::do_partial_eviction(PAIR p) {
     p->attr = new_attr;
     this->decrease_size_evicting(p->size_evicting_estimate);
     pair_lock(p);
-    nb_mutex_unlock(&p->value_nb_mutex);
+    p->value_rwlock.write_unlock();
     pair_unlock(p);
 }
 
@@ -3833,8 +3955,8 @@ void evictor::try_evict_pair(PAIR p) {
 
     // the only caller, run_eviction_on_pair, should call this function
     // only if no one else is trying to use it
-    assert(!nb_mutex_users(&p->value_nb_mutex));
-    nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
+    assert(!p->value_rwlock.users());
+    p->value_rwlock.write_lock(true);
     // if the PAIR is dirty, the running eviction requires writing the 
     // PAIR out. if the disk_nb_mutex is grabbed, then running 
     // eviction requires waiting for the disk_nb_mutex to become available,
@@ -3887,7 +4009,7 @@ void evictor::evict_pair(PAIR p, bool for_checkpoint) {
     pair_unlock(p);
     m_pl->write_list_lock();
     pair_lock(p);
-    nb_mutex_unlock(&p->value_nb_mutex);
+    p->value_rwlock.write_unlock();
     nb_mutex_unlock(&p->disk_nb_mutex);
     // at this point, we have the pair list's write list lock
     // and we have the pair's mutex (p->mutex) held

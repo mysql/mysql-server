@@ -164,7 +164,7 @@ doit (bool after_split) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -182,7 +182,7 @@ doit (bool after_split) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -221,7 +221,7 @@ doit (bool after_split) {
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -249,7 +249,7 @@ doit (bool after_split) {
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
-            true, 
+            PL_WRITE_EXPENSIVE, 
             0,
             NULL,
             &node
@@ -265,7 +265,7 @@ doit (bool after_split) {
             right_child,
             toku_cachetable_hash(c_ft->ft->cf, right_child),
             &bfe,
-            true, 
+            PL_WRITE_EXPENSIVE, 
             0,
             NULL,
             &node
@@ -282,7 +282,7 @@ doit (bool after_split) {
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
-            true, 
+            PL_WRITE_EXPENSIVE, 
             0,
             NULL,
             &node

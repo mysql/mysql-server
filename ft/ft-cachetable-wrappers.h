@@ -69,7 +69,7 @@ toku_pin_ftnode(
     ANCESTORS ancestors,
     const PIVOT_BOUNDS pbounds,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
     bool* msgs_applied
@@ -88,7 +88,7 @@ toku_pin_ftnode_batched(
     ANCESTORS ancestors,
     const PIVOT_BOUNDS pbounds,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     bool end_batch_on_success,
     FTNODE *node_p,
@@ -108,7 +108,7 @@ toku_pin_ftnode_off_client_thread(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p
@@ -120,7 +120,7 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p,
@@ -131,7 +131,7 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
  * This function may return a pinned ftnode to the caller, if pinning is cheap.
  * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
  */
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep, bool may_modify_node);
+int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep);
 
 /**
  * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
@@ -143,7 +143,7 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p,
@@ -160,7 +160,7 @@ toku_pin_ftnode_off_client_thread_batched(
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    bool may_modify_node,
+    pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p
