@@ -398,7 +398,8 @@ void toku_txn_close_txn(TOKUTXN txn) {
     toku_txn_destroy_txn(txn);
 }
 
-static int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn)
+int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn);
+int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn)
 // Effect:  This function is called on every open FT that a transaction used.
 //  This function removes the transaction from that FT.
 {

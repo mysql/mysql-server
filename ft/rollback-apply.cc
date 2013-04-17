@@ -40,7 +40,9 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     return r;
 }
 
-static int
+int
+note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child);
+int
 note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child) {
     TOKUTXN parent = child->parent;
     toku_txn_maybe_note_ft(parent, ft);

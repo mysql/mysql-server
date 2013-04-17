@@ -2720,14 +2720,14 @@ int toku_cachetable_unpin_and_remove (
     return r;
 }
 
-static int
-set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const array) {
+int set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const array);
+int set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const array) {
     array[index] = toku_cachefile_filenum(ft->cf);
     return 0;
 }
 
-static int
-log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp) {
+int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp);
+int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp) {
     int r;
     CACHETABLE ct = *ctp;
     TOKULOGGER logger = txn->logger;
@@ -3041,7 +3041,7 @@ int toku_cleaner_thread (void *cleaner_v) {
 //
 // cleaner methods
 //
-static_assert(std::is_pod<cleaner>::value, "cleaner isn't POD");
+ENSURE_POD(cleaner);
 
 void cleaner::init(uint32_t _cleaner_iterations, pair_list* _pl, CACHETABLE _ct) {
     // default is no cleaner, for now
@@ -3542,7 +3542,7 @@ void pair_list::write_pending_cheap_unlock() {
 }
 
 
-static_assert(std::is_pod<evictor>::value, "evictor isn't POD");
+ENSURE_POD(evictor);
 
 //
 // This is the function that runs eviction on its own thread.
@@ -4142,7 +4142,7 @@ void evictor::fill_engine_status() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static_assert(std::is_pod<checkpointer>::value, "checkpointer isn't POD");
+ENSURE_POD(checkpointer);
 
 //
 // Sets the cachetable reference in this checkpointer class, this is temporary.
