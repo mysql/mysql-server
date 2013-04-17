@@ -128,9 +128,11 @@ toku_pin_brtnode(
     const PIVOT_BOUNDS bounds,
     BRTNODE_FETCH_EXTRA bfe,
     BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    BRTNODE *node_p)
+    BRTNODE *node_p,
+    BOOL* msgs_applied)
 {
     void *node_v;
+    *msgs_applied = FALSE;
     int r = toku_cachetable_get_and_pin_nonblocking(
             brt->cf,
             blocknum,
@@ -146,7 +148,7 @@ toku_pin_brtnode(
     if (r==0) {
         BRTNODE node = node_v;
         if (apply_ancestor_messages) {
-            maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
+            maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
         }
         *node_p = node;
         // printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
@@ -183,7 +185,8 @@ toku_pin_brtnode_holding_lock(
         );
     assert(r==0);
     BRTNODE node = node_v;
-    if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
+    BOOL msgs_applied;
+    if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, &msgs_applied);
     *node_p = node;
 }
 
