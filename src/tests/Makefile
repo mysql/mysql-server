@@ -253,6 +253,7 @@ BDB_DONTRUN_TESTS = \
         test938c \
         test_3645 \
         test_3755 \
+	test_4015 \
         test_abort1 \
         test_abort4 \
         test_abort5 \
@@ -267,7 +268,7 @@ BDB_DONTRUN_TESTS = \
         test_dupsort_set_range_reverse \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
-		test_query \
+	test_query \
 	test_redirect_func \
 	test_stress1 \
 	test_stress2 \
@@ -433,6 +434,7 @@ EXTRA_TDB_TESTS = \
 	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
 	test_groupcommit_count_hgrind.tdbrun \
 	test_groupcommit_count_vgrind.tdbrun \
+	test_4015.drdrun \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
@@ -994,6 +996,9 @@ large_%.drdrun: %.tdb
 	./$< --only_create --envdir dir.$@ && \
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+test_4015.drdrun: test_4015.tdb
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< --envdir dir.tdb.$@
 
 # upgrade tests
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
