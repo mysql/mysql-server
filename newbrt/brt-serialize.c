@@ -1630,6 +1630,7 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
+    BP_INIT_TOUCHED_CLOCK(node,childnum);
     toku_free(curr_sb.uncompressed_ptr);
     toku_free(raw_block);
 }
@@ -1657,6 +1658,7 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
+    BP_INIT_TOUCHED_CLOCK(node,childnum);
     toku_free(curr_sb->uncompressed_ptr);
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);
