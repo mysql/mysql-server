@@ -23,13 +23,13 @@ CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 LDFLAGS += -lpthread
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -lpthread -Wl,-rpath,$(BDBDIR)/lib
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb -Wl,-rpath,$(BDBDIR)/lib -lpthread
 else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb
 endif
 TDB_CPPFLAGS = -I../include
-TDB_LDFLAGS = -L../lib -ltokudb -lz -Wl,-rpath,$(PWD)/../lib
+TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath,$(PWD)/../lib -lpthread -lz
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb

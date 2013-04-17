@@ -3256,18 +3256,6 @@ static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     return r;
 }
 
-static inline int brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
-                                              BRT pdb, DBT* dat, DBT* dat_source) {
-    int r = 0;
-    void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
-    void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
-    void** dat_staticp = &pdb->sval;
-    r = toku_dbt_set_three_values(key, (bytevec*)&cursor->key.data, cursor->key.size, key_staticp, FALSE,
-                                  val, (bytevec*)&cursor->val.data, cursor->val.size, val_staticp, FALSE,
-                                  dat, (bytevec*)&dat_source->data, dat_source->size, dat_staticp, FALSE);
-    return r;
-}
-
 int toku_brt_dbt_set(DBT* key, DBT* key_source) {
     int r = toku_dbt_set_value(key, (bytevec*)&key_source->data, key_source->size, NULL, FALSE);
     return r;

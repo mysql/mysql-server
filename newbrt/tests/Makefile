@@ -61,6 +61,9 @@ REGRESSION_TESTS = \
 	brt-test3 \
 	brt-test4 \
 	brt-test5 \
+	cachetable-rwlock-test \
+	cachetable-writequeue-test \
+	threadpool-test \
 	cachetable-test \
 	cachetable-test2 \
 	cachetable-put-test \
@@ -69,6 +72,7 @@ REGRESSION_TESTS = \
 	cachetable-fd-test \
 	cachetable-flush-test \
 	cachetable-count-pinned-test \
+	cachetable-debug-test \
 	fifo-test \
 	list-test \
 	keyrange \

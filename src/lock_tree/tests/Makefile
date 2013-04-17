@@ -21,8 +21,7 @@ CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
 CPPFLAGS += -L../ -L../../range_tree 
 CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include
-LDFLAGS += -lz
-
+LDFLAGS = -lpthread -lz
 
 SRCS = $(wildcard *.c)
 

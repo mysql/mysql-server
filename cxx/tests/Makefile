@@ -18,7 +18,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
-LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz
+LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz -lpthread
 
 ifneq ($(OSX),)
  VGRIND=

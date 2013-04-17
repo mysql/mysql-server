@@ -2593,20 +2593,27 @@ static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, 
 
     u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
-    u_int32_t suppress_missing = flags&DB_DELETE_ANY;
+    u_int32_t delete_any = flags&DB_DELETE_ANY;
     flags &= ~DB_DELETE_ANY;
     if (flags!=0) return EINVAL;
     //DB_DELETE_ANY supresses the DB_NOTFOUND return value indicating that the key was not found prior to the delete
 
-    //TODO: Speed up the DB_DELETE_ANY version by implementing it at the BRT layer.
+    if (delete_any) {
+        if (db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE)) {
+            DB_TXN* txn_anc = toku_txn_ancestor(txn);
+            if ((r = toku_txn_add_lt(txn_anc, db->i->lt))) goto any_cleanup;
+            TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc, key, val);
+            if (r!=0) goto any_cleanup;
+        }
+        r = toku_brt_delete_both(db->i->brt, key, val, txn ? txn->i->tokutxn : NULL);
+any_cleanup:
+        return r;
+    }
 
     DBC *dbc;
     if ((r = toku_db_cursor(db, txn, &dbc, 0, 0))) goto cursor_cleanup;
-    r = toku_c_get_noassociate(dbc, key, val, DB_GET_BOTH);
-    if (r!=0) {
-        if (suppress_missing && r==DB_NOTFOUND) r = 0;
-        goto cursor_cleanup;
-    }
+    if ((r = toku_c_get_noassociate(dbc, key, val, DB_GET_BOTH))) goto cursor_cleanup;
     r = toku_c_del_noassociate(dbc, lock_flags);
 cursor_cleanup:;
     int r2 = toku_c_close(dbc);
