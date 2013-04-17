@@ -13,19 +13,24 @@ void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t sta
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
 int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
 void toku_rollback_txn_close (TOKUTXN txn);
+int toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE *result);
+int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLOCKNUM name, uint32_t hash, ROLLBACK_LOG_NODE *result);
+int toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log);
+int toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log);
+
+typedef int(*apply_rollback_item)(TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
 
 int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
 int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
 
-void *toku_malloc_in_rollback(TOKUTXN txn, size_t size);
-void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len);
-char *toku_strdup_in_rollback(TOKUTXN txn, const char *s);
-int toku_maybe_spill_rollbacks (TOKUTXN txn);
+void *toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size);
+void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len);
+int toku_maybe_spill_rollbacks (TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
 int toku_txn_note_brt (TOKUTXN txn, BRT brt);
 int toku_txn_note_swap_brt (BRT live, BRT zombie);
 int toku_txn_note_close_brt (BRT brt);
-int toku_logger_txn_rolltmp_raw_count(TOKUTXN txn, u_int64_t *raw_count);
+int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count);
 
 int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
 
@@ -36,4 +41,23 @@ int toku_commit_fileentries (int fd, TOKUTXN txn, YIELDF yield,void *yieldv, LSN
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
 int find_xid (OMTVALUE v, void *txnv);
 
+struct rollback_log_node {
+    enum typ_tag       tag;
+    int                layout_version;
+    int                layout_version_original;
+    int                layout_version_read_from_disk;
+    int                dirty;
+    TXNID              txnid;         // Which transaction made this?
+    uint64_t           sequence;      // Which rollback log in the sequence is this?
+    BLOCKNUM           thislogname;   // Which block number is this chunk of the log?
+    uint32_t           thishash;
+    BLOCKNUM           older;         // Which block number is the next oldest chunk of the log?
+    uint32_t           older_hash;
+    struct roll_entry *oldest_logentry;
+    struct roll_entry *newest_logentry;
+    MEMARENA           rollentry_arena;
+    size_t             rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
+};
+
 #endif
+

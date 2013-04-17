@@ -484,13 +484,6 @@ env_setup_real_log_dir(DB_ENV *env) {
     }
 }
 
-static int delete_rolltmp_files(DB_ENV *env) {
-    assert(env->i->real_data_dir);
-    assert(env->i->real_log_dir);
-    int r = tokudb_recover_delete_rolltmp_files(env->i->real_data_dir, env->i->real_log_dir);
-    return r;
-}
-    
 static int 
 ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
@@ -600,9 +593,9 @@ ydb_recover_log_exists(DB_ENV *env) {
 // Set *valid_newenv if creating a new environment (all files missing).
 // (Note, if special dictionaries exist, then they were created transactionally and log should exist.)
 static int 
-validate_env(DB_ENV * env, BOOL * valid_newenv) {
+validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     int r;
-    BOOL expect_newenv;        // set true if we expect to create a new env
+    BOOL expect_newenv = FALSE;        // set true if we expect to create a new env
     toku_struct_stat buf;
     char* path = NULL;
 
@@ -610,11 +603,12 @@ validate_env(DB_ENV * env, BOOL * valid_newenv) {
     path = toku_construct_full_name(2, env->i->dir, environmentdictionary);
     assert(path);
     r = toku_stat(path, &buf);
+    int stat_errno = errno;
     toku_free(path);
     if (r == 0) {
 	expect_newenv = FALSE;  // persistent info exists
     }
-    else if (errno == ENOENT) {
+    else if (stat_errno == ENOENT) {
 	expect_newenv = TRUE;
 	r = 0;
     }
@@ -623,17 +617,41 @@ validate_env(DB_ENV * env, BOOL * valid_newenv) {
 	assert(r);
     }
 
+    // Test for rollback cachefile
+    if (r == 0 && need_rollback_cachefile) {
+	path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+	assert(path);
+	r = toku_stat(path, &buf);
+	stat_errno = errno;
+	toku_free(path);
+	if (r == 0) {  
+	    if (expect_newenv)  // rollback cachefile exists, but persistent env is missing
+		r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+	}
+	else if (stat_errno == ENOENT) {
+	    if (!expect_newenv)  // rollback cachefile is missing but persistent env exists
+		r = toku_ydb_do_error(env, ENOENT, "rollback cachefile directory is missing\n");
+	    else 
+		r = 0;           // both rollback cachefile and persistent env are missing
+	}
+	else {
+	    r = toku_ydb_do_error(env, errno, "Unable to access rollback cachefile\n");
+	    assert(r);
+	}
+    }
+
     // Test for fileops directory
     if (r == 0) {
 	path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
 	assert(path);
 	r = toku_stat(path, &buf);
+	stat_errno = errno;
 	toku_free(path);
 	if (r == 0) {  
 	    if (expect_newenv)  // fileops directory exists, but persistent env is missing
 		r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
 	}
-	else if (errno == ENOENT) {
+	else if (stat_errno == ENOENT) {
 	    if (!expect_newenv)  // fileops directory is missing but persistent env exists
 		r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
 	    else 
@@ -739,16 +757,16 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     env_setup_real_data_dir(env);
     env_setup_real_log_dir(env);
 
-    r = validate_env(env, &newenv);  // make sure that environment is either new or complete
+    BOOL need_rollback_cachefile = FALSE;
+    if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
+        need_rollback_cachefile = TRUE;
+    }
+
+    r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
     if (r != 0) return r;
 
     unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG;
 
-    if (flags & DB_INIT_TXN) {
-        r = delete_rolltmp_files(env);
-        if (r != 0) return r;
-    }
- 
     // do recovery only if there exists a log and recovery is requested
     // otherwise, a log is created when the logger is opened later
     if (!newenv) {
@@ -805,6 +823,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	assert (using_txns);
 	toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
 	toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
+        r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, newenv);
+        assert(r==0);
     }
 
     DB_TXN *txn=NULL;
@@ -894,7 +914,6 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
             }
         }
     }
-
     if (env->i->cachetable) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
@@ -902,6 +921,17 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
             if ( flags && DB_CLOSE_DONT_TRIM_LOG ) {
                 toku_logger_trim_log_files(env->i->logger, FALSE);
             }
+            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
+                goto panic_and_quit_early;
+            }
+            r = toku_logger_close_rollback(env->i->logger, FALSE);
+            if (r) {
+                toku_ydb_do_error(env, r, "Cannot close environment (error during closing rollback cachefile)\n");
+                goto panic_and_quit_early;
+            }
+            //Do a second checkpoint now that the rollback cachefile is closed.
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
             if (r) {
                 toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
@@ -1954,7 +1984,7 @@ static u_int32_t locked_txn_id(DB_TXN *txn) {
 
 static int toku_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
-    return toku_logger_txn_rolltmp_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rolltmp_raw_count);
+    return toku_logger_txn_rollback_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rollback_raw_count);
 }
 
 static int locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
@@ -5018,7 +5048,7 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
                                          toku_lt_neg_infinity, toku_lt_neg_infinity,
                                          toku_lt_infinity,     toku_lt_infinity);
     if (r==0) {
-	r = toku_brt_note_table_lock(db->i->brt, db_txn_struct_i(txn)->tokutxn); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback (rolltmp) data.
+	r = toku_brt_note_table_lock(db->i->brt, db_txn_struct_i(txn)->tokutxn, FALSE); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback data.
     }
 
     return r;

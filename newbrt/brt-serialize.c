@@ -168,7 +168,7 @@ toku_full_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offse
 // Overhead calculated in same order fields are written to wbuf
 enum {
 
-    node_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
+    node_header_overhead = (8+   // magic "tokunode" or "tokuleaf" or "tokuroll"
                             4+   // layout_version
                             4),  // layout_version_original
 
@@ -430,48 +430,27 @@ serialize_node(BRTNODE node, char *buf, size_t calculated_size, int n_sub_blocks
     assert(calculated_size==wb.ndone);
 }
 
-int
-toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_threads), /*out*/ size_t *n_bytes_to_write, /*out*/ char  **bytes_to_write) {
 
-    // get the size of the serialized node
-    unsigned int calculated_size = toku_serialize_brtnode_size(node); 
-
-    // choose sub block parameters
-    int n_sub_blocks = 0, sub_block_size = 0;
-    size_t data_size = calculated_size - node_header_overhead;
-    choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &n_sub_blocks);
-    assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
-    assert(sub_block_size > 0);
-
-    // set the initial sub block size for all of the sub blocks
-    struct sub_block sub_block[n_sub_blocks];
-    for (int i = 0; i < n_sub_blocks; i++) 
-        sub_block_init(&sub_block[i]);
-    set_all_sub_block_sizes(data_size, sub_block_size, n_sub_blocks, sub_block);
-
-    // alloocate space for the serialized node
-    char *MALLOC_N(calculated_size, buf);
-    //toku_verify_counts(node);
-    //assert(size>0);
-    //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
-
-    // serialize the node into buf
-    serialize_node(node, buf, calculated_size, n_sub_blocks, sub_block);
-
-    // allocate space for the compressed buf
+static void
+serialize_uncompressed_block_to_memory(char * uncompressed_buf,
+                                       int n_sub_blocks,
+                                       struct sub_block sub_block[n_sub_blocks],
+                               /*out*/ size_t *n_bytes_to_write,
+                               /*out*/ char  **bytes_to_write) {
+    // allocate space for the compressed uncompressed_buf
     size_t compressed_len = get_sum_compressed_size_bound(n_sub_blocks, sub_block);
     size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
     size_t header_len = node_header_overhead + sub_block_header_len + sizeof (uint32_t); // node + sub_block + checksum
     char *MALLOC_N(header_len + compressed_len, compressed_buf);
 
     // copy the header
-    memcpy(compressed_buf, buf, node_header_overhead);
+    memcpy(compressed_buf, uncompressed_buf, node_header_overhead);
     if (0) printf("First 4 bytes before compressing data are %02x%02x%02x%02x\n",
-                  buf[node_header_overhead],   buf[node_header_overhead+1],
-                  buf[node_header_overhead+2], buf[node_header_overhead+3]);
+                  uncompressed_buf[node_header_overhead],   uncompressed_buf[node_header_overhead+1],
+                  uncompressed_buf[node_header_overhead+2], uncompressed_buf[node_header_overhead+3]);
 
     // compress all of the sub blocks
-    char *uncompressed_ptr = buf + node_header_overhead;
+    char *uncompressed_ptr = uncompressed_buf + node_header_overhead;
     char *compressed_ptr = compressed_buf + header_len;
     compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr, num_cores);
 
@@ -494,9 +473,40 @@ toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_th
 
     *n_bytes_to_write = header_len + compressed_len;
     *bytes_to_write   = compressed_buf;
+}
 
+int
+toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_threads), /*out*/ size_t *n_bytes_to_write, /*out*/ char  **bytes_to_write) {
+
+    // get the size of the serialized node
+    size_t calculated_size = toku_serialize_brtnode_size(node); 
+
+    // choose sub block parameters
+    int n_sub_blocks = 0, sub_block_size = 0;
+    size_t data_size = calculated_size - node_header_overhead;
+    choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &n_sub_blocks);
+    assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+    assert(sub_block_size > 0);
+
+    // set the initial sub block size for all of the sub blocks
+    struct sub_block sub_block[n_sub_blocks];
+    for (int i = 0; i < n_sub_blocks; i++) 
+        sub_block_init(&sub_block[i]);
+    set_all_sub_block_sizes(data_size, sub_block_size, n_sub_blocks, sub_block);
+
+    // allocate space for the serialized node
+    char *MALLOC_N(calculated_size, buf);
+    //toku_verify_counts(node);
+    //assert(size>0);
+    //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
+
+    // serialize the node into buf
+    serialize_node(node, buf, calculated_size, n_sub_blocks, sub_block);
+
+    //Compress and malloc buffer to write
+    serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+                                           n_bytes_to_write, bytes_to_write);
     toku_free(buf);
-
     return 0;
 }
 
@@ -522,9 +532,8 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
 	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
 	DISKOFF offset;
 
-        //h will be dirtied
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
-                                      h, for_checkpoint);
+                                      h, for_checkpoint); //dirties h
 	lock_for_pwrite();
 	toku_full_pwrite_extend(fd, compressed_buf, n_to_write, offset);
 	unlock_for_pwrite();
@@ -852,7 +861,7 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 }
 
 static int
-decompress_brtnode_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
     toku_trace("decompress");
     int r;
 
@@ -914,14 +923,14 @@ decompress_brtnode_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb
 }
 
 static int
-decompress_brtnode_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
     int r;
     switch (version) {
         case BRT_LAYOUT_VERSION_10:
             r = decompress_brtnode_from_raw_block_into_rbuf_10(raw_block, rb, blocknum);
             break;
         case BRT_LAYOUT_VERSION:
-            r = decompress_brtnode_from_raw_block_into_rbuf(raw_block, rb, blocknum);
+            r = decompress_from_raw_block_into_rbuf(raw_block, rb, blocknum);
             break;
         default:
             assert(FALSE);
@@ -959,19 +968,16 @@ deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u
     return r;
 }
 
-
-// Read brt node from file into struct.  Perform version upgrade if necessary.
-int
-toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
-    toku_trace("deserial start");
-
+static int
+read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
+                                            struct brt_header *h,
+                                            struct rbuf *rb,
+                                  /* out */ int *layout_version_p) {
     int r;
-    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
-
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     if (h->panic) return h->panic;
 
-    toku_trace("deserial start");
+    toku_trace("deserial start nopanic");
 
     // get the file offset and block size for the block
     DISKOFF offset, size;
@@ -986,7 +992,9 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
     int layout_version;
     {
         u_int8_t *magic = raw_block + uncompressed_magic_offset;
-        if (memcmp(magic, "tokuleaf", 8)!=0 && memcmp(magic, "tokunode", 8)!=0) {
+        if (memcmp(magic, "tokuleaf", 8)!=0 &&
+            memcmp(magic, "tokunode", 8)!=0 &&
+            memcmp(magic, "tokuroll", 8)!=0) {
             r = toku_db_badformat();
             goto cleanup;
         }
@@ -1006,8 +1014,40 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
     u_int32_t stored_xsum = toku_dtoh32(*(u_int32_t *)(raw_block + header_length));
     assert(xsum == stored_xsum);
 
-    r = decompress_brtnode_from_raw_block_into_rbuf_versioned(layout_version, raw_block, &rb, blocknum);
+    r = decompress_from_raw_block_into_rbuf_versioned(layout_version, raw_block, rb, blocknum);
     if (r!=0) goto cleanup;
+
+    *layout_version_p = layout_version;
+cleanup:
+    if (r!=0) {
+        if (rb->buf) toku_free(rb->buf);
+        rb->buf = NULL;
+    }
+    if (raw_block) toku_free(raw_block);
+    return r;
+}
+
+// Read brt node from file into struct.  Perform version upgrade if necessary.
+int
+toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash,
+                               BRTNODE *brtnode, struct brt_header *h) {
+    toku_trace("deserial start");
+
+    int r;
+    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
+
+    int layout_version;
+    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, h, &rb, &layout_version);
+    if (r!=0) goto cleanup;
+
+    {
+        u_int8_t *magic = rb.buf + uncompressed_magic_offset;
+        if (memcmp(magic, "tokuleaf", 8)!=0 &&
+            memcmp(magic, "tokunode", 8)!=0) {
+            r = toku_db_badformat();
+            goto cleanup;
+        }
+    }
 
     r = deserialize_brtnode_from_rbuf_versioned(layout_version, blocknum, fullhash, brtnode, h, &rb);
 
@@ -1015,7 +1055,6 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
 
 cleanup:
     if (rb.buf) toku_free(rb.buf);
-    if (raw_block) toku_free(raw_block);
     return r;
 }
 
@@ -1603,5 +1642,245 @@ toku_db_badformat(void) {
     return DB_BADFORMAT;
 }
 
+static size_t
+serialize_rollback_log_size(ROLLBACK_LOG_NODE log) {
+    size_t size = node_header_overhead //8 "tokuroll", 4 version, 4 version_original
+                 +8 //TXNID
+                 +8 //sequence
+                 +8 //thislogname
+                 +8 //older (blocknum)
+                 +8 //resident_bytecount
+                 +8 //memarena_size_needed_to_load
+                 +log->rollentry_resident_bytecount;
+    return size;
+}
+
+static void
+serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calculated_size, int UU(n_sub_blocks), struct sub_block UU(sub_block[])) {
+    struct wbuf wb;
+    wbuf_init(&wb, buf, calculated_size);
+    {   //Serialize rollback log to local wbuf
+        wbuf_nocrc_literal_bytes(&wb, "tokuroll", 8);
+        assert(log->layout_version == BRT_LAYOUT_VERSION);
+        wbuf_nocrc_int(&wb, log->layout_version);
+        wbuf_nocrc_int(&wb, log->layout_version_original);
+        wbuf_nocrc_TXNID(&wb, log->txnid);
+        wbuf_nocrc_ulonglong(&wb, log->sequence);
+        wbuf_nocrc_BLOCKNUM(&wb, log->thislogname);
+        wbuf_nocrc_BLOCKNUM(&wb, log->older);
+        wbuf_nocrc_ulonglong(&wb, log->rollentry_resident_bytecount);
+        //Write down memarena size needed to restore
+        wbuf_nocrc_ulonglong(&wb, memarena_total_size_in_use(log->rollentry_arena));
+
+        {
+            //Store rollback logs
+            struct roll_entry *item;
+            size_t done_before = wb.ndone;
+            for (item = log->newest_logentry; item; item = item->prev) {
+                toku_logger_rollback_wbuf_nocrc_write(&wb, item);
+            }
+            assert(done_before + log->rollentry_resident_bytecount == wb.ndone);
+        }
+    }
+    assert(wb.ndone == wb.size);
+    assert(calculated_size==wb.ndone);
+}
+
+static int
+toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
+                                       int UU(n_workitems), int UU(n_threads),
+                               /*out*/ size_t *n_bytes_to_write,
+                               /*out*/ char  **bytes_to_write) {
+    // get the size of the serialized node
+    size_t calculated_size = serialize_rollback_log_size(log);
+
+    // choose sub block parameters
+    int n_sub_blocks = 0, sub_block_size = 0;
+    size_t data_size = calculated_size - node_header_overhead;
+    choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &n_sub_blocks);
+    assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+    assert(sub_block_size > 0);
+
+    // set the initial sub block size for all of the sub blocks
+    struct sub_block sub_block[n_sub_blocks];
+    for (int i = 0; i < n_sub_blocks; i++) 
+        sub_block_init(&sub_block[i]);
+    set_all_sub_block_sizes(data_size, sub_block_size, n_sub_blocks, sub_block);
+
+    // allocate space for the serialized node
+    char *XMALLOC_N(calculated_size, buf);
+    // serialize the node into buf
+    serialize_rollback_log_node_to_buf(log, buf, calculated_size, n_sub_blocks, sub_block);
+
+    //Compress and malloc buffer to write
+    serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+                                           n_bytes_to_write, bytes_to_write);
+    toku_free(buf);
+    return 0;
+}
+
+int
+toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
+                                struct brt_header *h, int n_workitems, int n_threads,
+                                BOOL for_checkpoint) {
+    size_t n_to_write;
+    char *compressed_buf;
+    {
+        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, &n_to_write, &compressed_buf);
+	if (r!=0) return r;
+    }
+
+    {
+	assert(blocknum.b>=0);
+	DISKOFF offset;
+        toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
+                                      h, for_checkpoint); //dirties h
+	lock_for_pwrite();
+	toku_full_pwrite_extend(fd, compressed_buf, n_to_write, offset);
+	unlock_for_pwrite();
+    }
+    toku_free(compressed_buf);
+    log->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
+    return 0;
+}
+
+static int
+deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *log_p,
+                                    TOKUTXN txn, struct brt_header *h, struct rbuf *rb) {
+    TAGMALLOC(ROLLBACK_LOG_NODE, result);
+    int r;
+    if (result==NULL) {
+	r=errno;
+	if (0) { died0: toku_free(result); }
+	return r;
+    }
+
+    //printf("Deserializing %lld datasize=%d\n", off, datasize);
+    bytevec magic;
+    rbuf_literal_bytes(rb, &magic, 8);
+    assert(!memcmp(magic, "tokuroll", 8));
+
+    result->layout_version    = rbuf_int(rb);
+    assert(result->layout_version == BRT_LAYOUT_VERSION);
+    result->layout_version_original = rbuf_int(rb);
+    result->layout_version_read_from_disk = result->layout_version;
+    result->dirty = FALSE;
+    //TODO: Maybe add descriptor (or just descriptor version) here eventually?
+    //TODO: This is hard.. everything is shared in a single dictionary.
+    rbuf_TXNID(rb, &result->txnid);
+    result->sequence = rbuf_ulonglong(rb);
+    if (result->txnid == txn->txnid64 && result->sequence > txn->num_rollback_nodes) {
+        r = toku_db_badformat();
+        goto died0;
+    }
+    result->thislogname = rbuf_blocknum(rb);
+    if (result->thislogname.b != blocknum.b) {
+        r = toku_db_badformat();
+        goto died0;
+    }
+    result->thishash    = toku_cachetable_hash(h->cf, result->thislogname);
+    if (result->thishash != fullhash) {
+        r = toku_db_badformat();
+        goto died0;
+    }
+    result->older       = rbuf_blocknum(rb);
+    result->older_hash  = toku_cachetable_hash(h->cf, result->older);
+    result->rollentry_resident_bytecount = rbuf_ulonglong(rb);
+
+    size_t arena_initial_size = rbuf_ulonglong(rb);
+    result->rollentry_arena = memarena_create_presized(arena_initial_size);
+    if (0) { died1: memarena_close(&result->rollentry_arena); goto died0; }
+
+    //Load rollback entries
+    assert(rb->size > 4);
+    //Start with empty list
+    result->oldest_logentry = result->newest_logentry = NULL;
+    while (rb->ndone < rb->size) {
+        struct roll_entry *item;
+        uint32_t rollback_fsize = rbuf_int(rb); //Already read 4.  Rest is 4 smaller
+        bytevec item_vec;
+        rbuf_literal_bytes(rb, &item_vec, rollback_fsize-4);
+        unsigned char* item_buf = (unsigned char*)item_vec;
+        r = toku_parse_rollback(item_buf, rollback_fsize-4, &item, result->rollentry_arena);
+        if (r!=0) {
+            r = toku_db_badformat();
+            goto died1;
+        }
+        //Add to head of list
+        if (result->oldest_logentry) {
+            result->oldest_logentry->prev = item;
+            result->oldest_logentry       = item;
+            item->prev = NULL;
+        }
+        else {
+            result->oldest_logentry = result->newest_logentry = item;
+            item->prev = NULL;
+        }
+    }
+
+    toku_free(rb->buf);
+    rb->buf = NULL;
+    *log_p = result;
+    return 0;
+}
+
+static int
+deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash,
+                                              ROLLBACK_LOG_NODE *log,
+                                              TOKUTXN txn, struct brt_header *h, struct rbuf *rb) {
+    int r = 0;
+    ROLLBACK_LOG_NODE rollback_log_node = NULL;
+
+    int upgrade = 0;
+    switch (version) {
+        case BRT_LAYOUT_VERSION:
+            if (!upgrade)
+                r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, txn, h, rb);
+            if (r==0) {
+                assert(rollback_log_node);
+                *log = rollback_log_node;
+            }
+            if (upgrade && r == 0) (*log)->dirty = 1;
+            break;    // this is the only break
+        default:
+            assert(FALSE);
+    }
+    return r;
+}
+
+// Read rollback log node from file into struct.  Perform version upgrade if necessary.
+int
+toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash,
+                                    ROLLBACK_LOG_NODE *logp, TOKUTXN txn, struct brt_header *h) {
+    toku_trace("deserial start");
+
+    int r;
+    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
+
+    int layout_version;
+    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, h, &rb, &layout_version);
+    if (r!=0) goto cleanup;
+
+    {
+        u_int8_t *magic = rb.buf + uncompressed_magic_offset;
+        if (memcmp(magic, "tokuroll", 8)!=0) {
+            r = toku_db_badformat();
+            goto cleanup;
+        }
+    }
+
+    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, fullhash, logp, txn, h, &rb);
+
+    toku_trace("deserial done");
+
+cleanup:
+    if (rb.buf) toku_free(rb.buf);
+    return r;
+}
+
+
+
+
 // NOTE: Backwards compatibility functions are in the included .c file(s):
 #include "backwards_10.c"
+

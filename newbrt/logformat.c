@@ -41,8 +41,6 @@ struct logtype {
 
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
-int logformat_version_number = 0;
-
 const struct logtype rollbacks[] = {
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"u_int8_t",   "file_was_open", 0},
@@ -72,7 +70,12 @@ const struct logtype rollbacks[] = {
 			  {"FILENUM", "filenum", 0},
 			  {"BYTESTRING", "key", 0},
 			  NULLFIELD}},
-    {"rollinclude", 'r', FA{{"BYTESTRING", "fname", 0},
+    {"rollinclude", 'r', FA{{"TXNID",     "xid", 0},
+                            {"u_int64_t", "num_nodes", 0},
+                            {"BLOCKNUM",  "spilled_head", 0},
+                            {"u_int32_t", "spilled_head_hash", 0},
+                            {"BLOCKNUM",  "spilled_tail", 0},
+                            {"u_int32_t", "spilled_tail_hash", 0},
                             NULLFIELD}},
     {"tablelock_on_empty_table", 'L', FA{{"FILENUM", "filenum", 0},
 					 NULLFIELD}},
@@ -82,46 +85,44 @@ const struct logtype rollbacks[] = {
     {"dictionary_redirect", 'R', FA{{"FILENUM", "old_filenum", 0},
                                     {"FILENUM", "new_filenum", 0},
                                     NULLFIELD}},
-//    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
-//		       {"BYTESTRING", "fname", 0},
-//		       NULLFIELD}},
-//    {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
-//			     {"BYTESTRING", "key", 0},
-//			     {"BYTESTRING", "data", 0},
-//			     NULLFIELD}},
-//    {"insertatleaf", 'i', FA{{"FILENUM", "filenum", 0}, // Note an insert for rollback.   The insert takes place in a leaf.
-//			     {"BYTESTRING", "key", 0},
-//			     {"BYTESTRING", "data", 0},
-//			     NULLFIELD}},
-//    {"xactiontouchednonleaf", 'n', FA{{"FILENUM", "filenum", 0},
-//				      {"DISKOFFARRAY", "parents", 0},
-//				      {"DISKOFF", "diskoff", 0},
-//				      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
 const struct logtype logtypes[] = {
     // Records produced by checkpoints
     {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
-    {"end_checkpoint",   'X', FA{{"TXNID", "txnid", 0}, {"u_int64_t", "timestamp", 0}, NULLFIELD}},  // TXNID is LSN of begin_checkpoint
+    {"end_checkpoint",   'X', FA{{"TXNID", "xid", 0},           // xid is LSN of begin_checkpoint
+				 {"u_int64_t", "timestamp", 0},
+				 {"u_int32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
+				 {"u_int32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
+				 NULLFIELD}},  
     //TODO: #2037 Add dname
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
                             {"u_int32_t",  "treeflags", 0},
 			    {"BYTESTRING", "iname", 0},   // pathname of file
 			    NULLFIELD}},
-    {"xstillopen", 's', FA{{"TXNID", "txnid", 0}, 
-                           {"TXNID", "parent", 0}, 
-                           NULLFIELD}}, // only record root transactions
+    //We do not use a TXNINFO struct since recovery log has
+    //FILENUMS and TOKUTXN has BRTs (for open_brts)
+    {"xstillopen", 's', FA{{"TXNID", "xid", 0}, 
+                           {"TXNID", "parentxid", 0}, 
+                           {"u_int64_t", "rollentry_raw_count", 0}, 
+                           {"FILENUMS",  "open_filenums", 0},
+                           {"u_int8_t",  "force_fsync_on_commit", 0}, 
+                           {"u_int64_t", "num_rollback_nodes", 0}, 
+                           {"u_int64_t", "num_rollentries", 0}, 
+                           {"BLOCKNUM",  "spilled_rollback_head", 0}, 
+                           {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
+                           {"BLOCKNUM",  "current_rollback", 0}, 
+                           NULLFIELD}}, // record all transactions
+    {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
+                                  {"TXNID",      "xid", 0},
+                                  NULLFIELD}},
     // Records produced by transactions
-    {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
-    {"xabort", 'q', FA{{"TXNID", "txnid", 0},NULLFIELD}},
-    {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},
+    {"xbegin", 'b', FA{{"TXNID", "parentxid", 0},NULLFIELD}},
+    {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}},
+    {"xabort", 'q', FA{{"TXNID", "xid", 0},NULLFIELD}},
     //TODO: #2037 Add dname
-    {"fdelete", 'U', FA{{"TXNID",      "txnid", 0},
-			{"BYTESTRING", "iname", 0},
-			NULLFIELD}},
-    //TODO: #2037 Add dname
-    {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
+    {"fcreate", 'F', FA{{"TXNID",      "xid", 0},
                         {"FILENUM",    "filenum", 0},
 			{"BYTESTRING", "iname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
@@ -137,21 +138,24 @@ const struct logtype logtypes[] = {
     //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
-                         {"u_int32_t",  "treeflags", 0},
                          NULLFIELD}},
+    //TODO: #2037 Add dname
+    {"fdelete", 'U', FA{{"TXNID",      "xid", 0},
+			{"BYTESTRING", "iname", 0},
+			NULLFIELD}},
     {"tablelock_on_empty_table", 'L', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
+                           NULLFIELD}},
+    {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
+                           {"TXNID",      "xid", 0},
+                           {"BYTESTRING", "key", 0},
+                           {"BYTESTRING", "value", 0},
                            NULLFIELD}},
     {"enq_insert_no_overwrite", 'i', FA{{"FILENUM",    "filenum", 0},
                                         {"TXNID",      "xid", 0},
                                         {"BYTESTRING", "key", 0},
                                         {"BYTESTRING", "value", 0},
                                         NULLFIELD}},
-    {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
-                           {"TXNID",      "xid", 0},
-                           {"BYTESTRING", "key", 0},
-                           {"BYTESTRING", "value", 0},
-                           NULLFIELD}},
     {"enq_delete_both", 'D', FA{{"FILENUM",    "filenum", 0},
                                 {"TXNID",      "xid", 0},
                                 {"BYTESTRING", "key", 0},
@@ -277,11 +281,10 @@ generate_log_struct (void) {
 
     fprintf(hf, "struct roll_entry {\n");
     fprintf(hf, "  enum rt_cmd cmd;\n");
+    fprintf(hf, "  struct roll_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
     fprintf(hf, "  union {\n");
     DO_ROLLBACKS(lt, fprintf(hf,"    struct rolltype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
-    fprintf(hf, "  struct roll_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
-    fprintf(hf, "  struct roll_entry *next; /* Points to a newer logentry.  Needed for flushing to disk, since we want to write the oldest one first. */\n");
     fprintf(hf, "};\n");
 
 }
@@ -532,47 +535,76 @@ static void
 generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
-		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
+		    DO_FIELDS(ft, lt, {
+                        if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
+                            fprintf2(cf, hf, ", BYTESTRING *%s_ptr", ft->name);
+                        }
+                        else {
+                            fprintf2(cf, hf, ", %s %s", ft->type, ft->name);
+                        }
+                    });
+
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
+                    fprintf(cf, "  int r;\n");
+                    fprintf(cf, "  ROLLBACK_LOG_NODE log;\n");
+                    fprintf(cf, "  r = toku_get_and_pin_rollback_log_for_new_entry(txn, &log);\n");
+                    fprintf(cf, "  assert(r==0);\n");
+		    // 'memdup' all BYTESTRINGS here
+		    DO_FIELDS(ft, lt, {
+                        if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
+                        fprintf(cf, "  BYTESTRING %s   = {\n"
+                                    "    .len  = %s_ptr->len,\n"
+                                    "    .data = toku_memdup_in_rollback(log, %s_ptr->data, %s_ptr->len)\n"
+                                    "  };\n",
+                                    ft->name, ft->name, ft->name, ft->name);
+                        }
+                    });
 		    {
 			int count=0;
 			fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
 			DO_FIELDS(ft, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", ft->name));
 			fprintf(cf, ");\n");
 		    }
-		    fprintf(cf, "  struct roll_entry *v = toku_malloc_in_rollback(txn, sizeof(*v));\n");
+		    fprintf(cf, "  struct roll_entry *v;\n");
+		    fprintf(cf, "  size_t mem_needed = sizeof(v->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
+		    fprintf(cf, "  v = toku_malloc_in_rollback(log, mem_needed);\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
 		    fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
-		    fprintf(cf, "  v->prev = txn->newest_logentry;\n");
-		    fprintf(cf, "  v->next = 0;\n");
-		    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry=v;\n");
-		    fprintf(cf, "  else txn->newest_logentry->next = v;\n");
-		    fprintf(cf, "  txn->newest_logentry = v;\n");
-		    fprintf(cf, "  txn->rollentry_resident_bytecount += rollback_fsize;\n");
+		    fprintf(cf, "  v->prev = log->newest_logentry;\n");
+		    fprintf(cf, "  if (log->oldest_logentry==NULL) log->oldest_logentry=v;\n");
+		    fprintf(cf, "  log->newest_logentry = v;\n");
+		    fprintf(cf, "  log->rollentry_resident_bytecount += rollback_fsize;\n");
 		    fprintf(cf, "  txn->rollentry_raw_count          += rollback_fsize;\n");
                     fprintf(cf, "  txn->num_rollentries++;\n");
-		    fprintf(cf, "  return toku_maybe_spill_rollbacks(txn);\n}\n");
+                    fprintf(cf, "  log->dirty = TRUE;\n");
+		    fprintf(cf, "  return toku_maybe_spill_rollbacks(txn, log);\n}\n");
 	    });
 
     DO_ROLLBACKS(lt, {
-		fprintf2(cf, hf, "void toku_logger_rollback_wbufwrite_%s (struct wbuf *wbuf", lt->name);
+		fprintf2(cf, hf, "void toku_logger_rollback_wbuf_nocrc_write_%s (struct wbuf *wbuf", lt->name);
 		DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 		fprintf2(cf, hf, ")");
 		fprintf(hf, ";\n");
 		fprintf(cf, " {\n");
-		fprintf(cf, "  u_int32_t ndone_at_start = wbuf->ndone;\n");
-		fprintf(cf, "  wbuf_char(wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
-		DO_FIELDS(ft, lt, fprintf(cf, "  wbuf_%s(wbuf, %s);\n", ft->type, ft->name));
-		fprintf(cf, "  wbuf_int(wbuf, 4+wbuf->ndone - ndone_at_start);\n");
+
+                {
+                    int count=0;
+                    fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
+                    DO_FIELDS(ft, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", ft->name));
+                    fprintf(cf, ");\n");
+                    fprintf(cf, "  wbuf_nocrc_int(wbuf, rollback_fsize);\n");
+                }
+		fprintf(cf, "  wbuf_nocrc_char(wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
+		DO_FIELDS(ft, lt, fprintf(cf, "  wbuf_nocrc_%s(wbuf, %s);\n", ft->type, ft->name));
 		fprintf(cf, "}\n");
 	    });
-    fprintf2(cf, hf, "void toku_logger_rollback_wbufwrite (struct wbuf *wbuf, struct roll_entry *r)");
+    fprintf2(cf, hf, "void toku_logger_rollback_wbuf_nocrc_write (struct wbuf *wbuf, struct roll_entry *r)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n  switch (r->cmd) {\n");
     DO_ROLLBACKS(lt, {
-		fprintf(cf, "    case RT_%s: toku_logger_rollback_wbufwrite_%s(wbuf", lt->name, lt->name);
+		fprintf(cf, "    case RT_%s: toku_logger_rollback_wbuf_nocrc_write_%s(wbuf", lt->name, lt->name);
 		DO_FIELDS(ft, lt, fprintf(cf, ", r->u.%s.%s", lt->name, ft->name));
 		fprintf(cf, "); return;\n");
 	    });
@@ -604,12 +636,15 @@ generate_rollbacks (void) {
 
     fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
     fprintf(hf, ";\n");
-    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = malloc_in_memarena(ma, sizeof(*item));\n  item->cmd=(enum rt_cmd)(buf[0]);\n");
+    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item;\n  enum rt_cmd cmd = (enum rt_cmd)(buf[0]);\n  size_t mem_needed;\n");
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
-    fprintf(cf, "  switch(item->cmd) {\n");
+    fprintf(cf, "  switch(cmd) {\n");
     DO_ROLLBACKS(lt, {
 		fprintf(cf, "  case RT_%s:\n", lt->name);
-		DO_FIELDS(ft, lt, fprintf(cf, "  rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", ft->type, lt->name, ft->name));
+		fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
+                fprintf(cf, "    item = malloc_in_memarena(ma, mem_needed);\n");
+                fprintf(cf, "    item->cmd = cmd;\n");
+		DO_FIELDS(ft, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", ft->type, lt->name, ft->name));
 		fprintf(cf, "    *itemp = item;\n");
 		fprintf(cf, "    return 0;\n");
 	});

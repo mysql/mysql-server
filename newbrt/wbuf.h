@@ -170,7 +170,6 @@ static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
 static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
     wbuf_ulonglong(w, b.b);
 }
-
 static inline void wbuf_nocrc_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
     wbuf_nocrc_ulonglong(w, b.b);
 }

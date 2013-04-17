@@ -7,6 +7,7 @@
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger);
 int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid);
+int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
 			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,

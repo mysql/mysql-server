@@ -60,13 +60,13 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	}
 
 	r = txn->txn_stat(txn, &s2);                                      CKERR(r);
-	//printf("Raw counts = %" PRId64 ", %" PRId64 "\n", s1->rolltmp_raw_count, s2->rolltmp_raw_count);
+	//printf("Raw counts = %" PRId64 ", %" PRId64 "\n", s1->rollback_raw_count, s2->rollback_raw_count);
 
-	*raw_count = s2->rolltmp_raw_count - s1->rolltmp_raw_count;
+	*raw_count = s2->rollback_raw_count - s1->rollback_raw_count;
 	if (do_table_lock) {
-	    assert(s1->rolltmp_raw_count == s2->rolltmp_raw_count);
+	    assert(s1->rollback_raw_count == s2->rollback_raw_count);
 	} else {
-	    assert(s1->rolltmp_raw_count < s2->rolltmp_raw_count);
+	    assert(s1->rollback_raw_count < s2->rollback_raw_count);
 	}
 	
 	toku_free(s1); toku_free(s2);

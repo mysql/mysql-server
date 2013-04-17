@@ -218,7 +218,6 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     checkpoint_footprint = 40;
     time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
-    LSN oldest_live_lsn = toku_logger_get_oldest_living_lsn(logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
@@ -230,7 +229,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 	r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
     }
     if (r==0 && logger) {
-        LSN trim_lsn = (oldest_live_lsn.lsn < logger->checkpoint_lsn.lsn) ? oldest_live_lsn : logger->checkpoint_lsn;
+        LSN trim_lsn = logger->last_completed_checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, trim_lsn);
     }
 

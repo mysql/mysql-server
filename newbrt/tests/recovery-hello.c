@@ -21,7 +21,7 @@ run_test(void) {
     r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
     LSN beginlsn;
     r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
-    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0, 0, 0); assert(r == 0);
     r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
     BYTESTRING there  = { strlen("there"), "there" };
     r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);

@@ -585,7 +585,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
         printf("} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;\n");
         printf("typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);\n");
 
-	printf("struct txn_stat {\n  u_int64_t rolltmp_raw_count;\n};\n");
+	printf("struct txn_stat {\n  u_int64_t rollback_raw_count;\n};\n");
 	const char *extra[] = {
             "int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
             "struct { void *next, *prev; } open_txns",

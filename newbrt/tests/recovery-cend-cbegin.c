@@ -20,7 +20,7 @@ run_test(void) {
     LSN firstbegin = ZERO_LSN;
     r = toku_log_begin_checkpoint(logger, &firstbegin, TRUE, 0); assert(r == 0);
     assert(firstbegin.lsn != ZERO_LSN.lsn);
-    r = toku_log_end_checkpoint(logger, NULL, FALSE, firstbegin.lsn, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, FALSE, firstbegin.lsn, 0, 0, 0); assert(r == 0);
     r = toku_log_begin_checkpoint(logger, NULL, TRUE, 0); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 

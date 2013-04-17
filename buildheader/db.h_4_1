@@ -379,7 +379,7 @@ typedef struct __toku_txn_progress {
 } *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;
 typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);
 struct txn_stat {
-  u_int64_t rolltmp_raw_count;
+  u_int64_t rollback_raw_count;
 };
 struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */

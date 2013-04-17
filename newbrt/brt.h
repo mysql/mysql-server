@@ -52,7 +52,7 @@ int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
 int toku_brt_open_recovery(BRT, const char *fname_in_env,
-			   int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, int recovery_force_fcreate, FILENUM use_filenum);
+			   int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, FILENUM use_filenum);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
@@ -206,12 +206,14 @@ void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 int maybe_preallocate_in_file (int fd, u_int64_t size);
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
-int toku_brt_note_table_lock (BRT brt, TOKUTXN txn);
+int toku_brt_note_table_lock (BRT brt, TOKUTXN txn, BOOL ignore_not_empty);
 // Effect: Record the fact that the BRT has a table lock (and thus no other txn will modify it until this txn completes.  As a result, we can limit the amount of information in the rollback data structure.
 
 int toku_brt_zombie_needed (BRT brt);
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report);
+int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string);
+BOOL toku_brt_is_empty (BRT brt);
 
 double get_tdiff(void) __attribute__((__visibility__("default")));
 

@@ -12,15 +12,19 @@ struct memarena {
     int n_other_bufs;
 };
 
-MEMARENA memarena_create (void) {
-    MEMARENA MALLOC(result);  assert(result);
-    result->buf_size = 1024;
+MEMARENA memarena_create_presized (size_t initial_size) {
+    MEMARENA XMALLOC(result);
+    result->buf_size = initial_size;
     result->buf_used = 0;
     result->other_bufs = NULL;
     result->size_of_other_bufs = 0;
     result->n_other_bufs = 0;
     result->buf = toku_malloc(result->buf_size);  assert(result->buf);
     return result;
+}
+
+MEMARENA memarena_create (void) {
+    return memarena_create_presized(1024);
 }
 
 void memarena_clear (MEMARENA ma) {

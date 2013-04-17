@@ -85,7 +85,7 @@ struct tokulogger {
     // To access these, you must have the output condition lock.
     LSN written_lsn; // the last lsn written
     LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry  (accessed only while holding the output lock, and updated only when the output lock and output permission are held)
-    LSN checkpoint_lsn;     // What is the LSN of the most recent completed checkpoint.
+    LSN last_completed_checkpoint_lsn;     // What is the LSN of the most recent completed checkpoint.
     long long next_log_file_number;
     struct logbuf outbuf; // data being written to the file
     int  n_in_file; // The amount of data in the current file
@@ -101,6 +101,7 @@ struct tokulogger {
     u_int64_t swap_ctr;                   // how many times have input/output log buffers been swapped
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
+    CACHEFILE rollback_cachefile;
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
@@ -116,25 +117,36 @@ struct tokutxn {
     u_int64_t txnid64; /* this happens to be the first lsn */
     TOKULOGGER logger;
     TOKUTXN    parent;
-    LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
-    LSN        first_lsn; /* The first lsn in the transaction. */
-    struct roll_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
 
-    MEMARENA   rollentry_arena;
-
-    size_t     rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
-    char      *rollentry_filename;
-    int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
-    toku_off_t      rollentry_filesize;   // How many bytes are in the rollentry file (this is the uncompressed bytes.  If the file is compressed it may actually be smaller (or even larger with header information))
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
     XIDS       xids;      //Represents the xid list
     BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
-    BOOL       has_done_work;          //If this transaction has not done work, there is no need to fsync.
     TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
     void *                     progress_poll_fun_extra;
+    uint64_t   num_rollback_nodes;
     uint64_t   num_rollentries;
     uint64_t   num_rollentries_processed;
+    BLOCKNUM   spilled_rollback_head;
+    uint32_t   spilled_rollback_head_hash;
+    BLOCKNUM   spilled_rollback_tail;
+    uint32_t   spilled_rollback_tail_hash;
+    BLOCKNUM   current_rollback;
+    uint32_t   current_rollback_hash;
+    BOOL       recovered_from_checkpoint;
+    ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
+};
+
+struct txninfo {
+    uint64_t   rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
+    uint32_t   num_brts;
+    BRT       *open_brts;
+    BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
+    uint64_t   num_rollback_nodes;
+    uint64_t   num_rollentries;
+    BLOCKNUM   spilled_rollback_head;
+    BLOCKNUM   spilled_rollback_tail;
+    BLOCKNUM   current_rollback;
 };
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
@@ -180,5 +192,4 @@ static inline char *fixup_fname(BYTESTRING *f) {
     return fname;
 }
 
-int toku_read_rollback_backwards(BREAD, struct roll_entry **item, MEMARENA);
 #endif
