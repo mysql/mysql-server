@@ -132,7 +132,7 @@ get_inames(DBT* inames, DB** dbs) {
     for (i = 0; i < NUM_DBS; i++) {
 	DBT dname;
 	char * dname_str = dbs[i]->i->dname;
-	dbt_init(&dname, dname_str, sizeof(dname_str));
+	dbt_init(&dname, dname_str, strlen(dname_str)+1);
 	dbt_init(&(inames[i]), NULL, 0);
 	inames[i].flags |= DB_DBT_MALLOC;
 	int r = env->get_iname(env, &dname, &inames[i]);
