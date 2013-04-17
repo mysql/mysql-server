@@ -223,6 +223,7 @@ clean-local:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt
 	rm -rf *.obj *.pdb *.ilk *.exe
+	rm -rf log_code.c log_header.h logformat
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump

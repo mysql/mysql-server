@@ -20,34 +20,80 @@ else
  endif
 endif
 
-ifneq ($(CYGWIN),)
-FORMAT=-Wno-format
-CYG_ADD_LIBZ=/usr/lib/libz.a
-else
+#CFLAG default options
+WERROR    = -Werror
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn
+FORMAT    = -Wmissing-format-attribute
+VISIBILITY= -fvisibility=hidden
 FPICFLAGS = -fPIC
-# valgrind is not present on cygwin
-VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../valgrind.suppressions
-VISIBILITY=-fvisibility=hidden
- ifneq ($(CC),icc)
-  SHADOW=-Wshadow
-  FORMAT=-Wmissing-format-attribute
- endif
+SHADOW    = -Wshadow
+SYMBOLS   = -g3 -ggdb3
+PORTABILITY=
+SKIP_WARNING=
+COMBINE_C = -combine -c
+LINK_FILES= -lz -lpthread
+C99       = -std=c99
+
+#Tools
+VGRIND    = valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../valgrind.suppressions
+
+ifeq ($(CC),icc)
+    #icc only:
+    OPTFLAGS = -O3 -ip -ipo2
+    COMBINE_C = -ipo-c
+    FORMAT= #No argument for extra format warnings.
+    WALL  = -Wall -Wcheck # '-Wextra' becomes '-Wcheck' in icc
+    SYMBOLS= -g -debug all -inline-debug-info
+    PORTABILITY=-diag-enable port-win
+    ifneq ($(CYGWIN),)
+	#Cygwin
+        ICC_NOWARN=-Qdiag-disable:
+    else
+	#Linux
+        ICC_NOWARN=-diag-disable #Need the space
+    endif
+    SKIP_WARNING += $(ICC_NOWARN)177     # Don't complain about static variables that are not used.
+    #SKIP_WARNING += $(ICC_NOWARN)188     # Don't complain about enumerated type mixed with another type.
+    SKIP_WARNING += $(ICC_NOWARN)589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+    SKIP_WARNING += $(ICC_NOWARN)869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+    SKIP_WARNING += $(ICC_NOWARN)981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+    SKIP_WARNING += $(ICC_NOWARN)1324    # Don't complain about rdtsc clobbering its registers more than once.
 endif
 
-CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-ifneq ($(CC),icc)
- CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
-else
- CFLAGS += -Werror
- CFLAGS += -g 
- CFLAGS += -diag-enable port-win 
- CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
- CFLAGS += -diag-disable 869
- CFLAGS += -diag-disable 981     # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
- CFLAGS += -ip -ipo2
+ifneq ($(CYGWIN),)
+    #Cygwin (Windows) Must override some settings
+    CYG_ADD_LIBZ=/usr/lib/libz.a
+    VGRIND   =#No Valgrind in cygwin
+    FPICFLAGS=#FPIC is default and not allowed as an option.
+    VISIBILITY=#Not supported
+    SHADOW=#Not supported
+    ifeq ($(CC),icc)
+    	#Cygwin icc only
+        C99       = -Qstd=c99
+        OPTFLAGS  = -Ox -Qip -Qipo2
+        COMBINE_C = -Qipo-c
+        WERROR = -WX # Windows icc version of -Werror
+        SYMBOLS= -Zi -debug:all -Qinline-debug-info
+        PORTABILITY=
+        LINK_FILES=#Not supported
+        SKIP_WARNING += $(ICC_NOWARN)1786    # Don't complain about 'read/write/other standards' being deprecated
+    else
+        #Cygwin gcc only
+        FORMAT = -Wno-format
+    endif
 endif
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lpthread -lz
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -D_GNU_SOURCE -I..
+
+CFLAGS = $(WALL) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW)
+CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
+CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99)
+
+LDFLAGS = $(OPTFLAGS) $(SYMBOLS) $(GCOV_FLAGS) $(PROF_FLAGS) $(LINK_FILES)
+# Need XOPEN_SOURCE=600 to get strtoll()
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+
+
+
+CPPFLAGS += -D_GNU_SOURCE -I..
 
 # Add -Wconversion
 
@@ -200,5 +246,6 @@ test-inc-split test-del-inorder: ../brt-test-helpers.o
 clean:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt *.dir *.tdb *.dat *.out
+	rm -rf *.exe *.pdb *.ilk *.obj
 
 foo: ../cachetable.o ../fifo.o ../fingerprint.o ../key.o ../memory.o ../memarena.o ../mempool.o ../omt.o ../toku_assert.o ../ybt.o ../x1764.o ../trace_mem.o ../threadpool.o
