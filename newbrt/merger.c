@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "$Id: brt.c 16740 2009-12-29 23:01:29Z bkuszmaul $"
+#ident "$Id$"
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 
 /* See merger.h for a description of this module. */
