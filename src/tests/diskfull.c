@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define DOERR(r) do { if (r!=0) { did_fail=1; fprintf(stderr, "%s:%d error %d (%s)\n", __FILE__, __LINE__, r, db_strerror(r)); }} while (0)
+#define DOERR(r) do { if (r!=0) { did_fail=1; fprintf(error_file, "%s:%d error %d (%s)\n", __FILE__, __LINE__, r, db_strerror(r)); }} while (0)
 
 static void
 do_db_work(void) {
@@ -16,7 +16,12 @@ do_db_work(void) {
     {
 
 	system("rm -rf " ENVDIR);
-	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                     assert(r==0);
+	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          assert(r==0);
+
+	FILE *error_file = 0;
+	if (verbose==0) {
+	    error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
+	}
 
 	DB_ENV *env;
 	DB_TXN *tid;
@@ -24,7 +29,7 @@ do_db_work(void) {
 	DBT key,data;
 
 	r=db_env_create(&env, 0);                                                  assert(r==0);
-	env->set_errfile(env, stderr);
+	env->set_errfile(env, error_file ? error_file : stderr);
 	// Don't set the lg bsize for the small experiment.
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 	r=db_create(&db, env, 0);                                                  CKERR(r);
@@ -48,11 +53,17 @@ do_db_work(void) {
     shutdown1:
 	r=db->close(db, 0);                                                        DOERR(r);
 	r=env->close(env, 0);                                                      DOERR(r);
+	if (error_file) fclose(error_file);
 	if (did_fail) return;
     }
     {
 	system("rm -rf " ENVDIR);
-	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                     assert(r==0);
+	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          assert(r==0);
+
+	FILE *error_file = 0;
+	if (verbose==0) {
+	    error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
+	}
 
 	DB_ENV *env;
 	DB_TXN *tid;
@@ -61,7 +72,7 @@ do_db_work(void) {
 
 	// Repeat with more put operations 
 	r=db_env_create(&env, 0);                                                  assert(r==0);
-	env->set_errfile(env, stderr);
+	env->set_errfile(env, error_file ? error_file : stderr);
 	r=env->set_lg_bsize(env, 4096);                                            assert(r==0);
 	r=env->set_cachesize(env, 0, 1, 1);                                        assert(r==0);
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
@@ -105,7 +116,7 @@ do_db_work(void) {
 	    }
 	}
     break_out_of_loop:
-	system("ls -l " ENVDIR);
+	//system("ls -l " ENVDIR);
 	if (did_fail) {
 	    r=tid->abort(tid);                                                     CKERR(r);
 	} else {
@@ -114,6 +125,7 @@ do_db_work(void) {
     shutdown2:
 	r=db->close(db, 0);                                                        DOERR(r);
 	r=env->close(env, 0);                                                      DOERR(r);
+	if (error_file) fclose(error_file);
     }
 }
 
@@ -151,14 +163,14 @@ do_writes_that_fail (void) {
     db_env_set_func_write (write_counting_and_failing);
     write_count=0;
     do_db_work();
-    printf("Write_count=%d\n", write_count);
+    if (verbose) fprintf(stderr, "Write_count=%d\n", write_count);
 
     int count = write_count;
     
     // fail_at=83; write_count=0; do_db_work();
 
     for (fail_at = 0; fail_at<count; fail_at++) {
-	printf("About to fail at %d:\n", fail_at);
+	if (verbose) fprintf(stderr, "About to fail at %d:\n", fail_at);
 	write_count=0;
 	do_db_work();
     }
