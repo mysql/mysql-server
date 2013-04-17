@@ -24,6 +24,7 @@ extern "C" {
 #include "hatoku_hton.h"
 #include "hatoku_defines.h"
 #include "ha_tokudb.h"
+#include "hatoku_assert.h"
 
 #undef PACKAGE
 #undef VERSION
@@ -191,6 +192,25 @@ pthread_mutex_t tokudb_meta_mutex;
 static ulonglong tokudb_lock_timeout;
 static ulong tokudb_cleaner_period;
 static ulong tokudb_cleaner_iterations;
+
+#define ASSERT_MSGLEN 1024
+
+void toku_hton_assert_fail(const char* expr_as_string, const char * fun, const char * file, int line, int caller_errno) {
+    char msg[ASSERT_MSGLEN];
+    if (db_env) {
+	snprintf(msg, ASSERT_MSGLEN, "Handlerton: %s ", expr_as_string);
+	db_env->crash(db_env, msg, fun, file, line,caller_errno);
+    }
+    else {
+	snprintf(msg, ASSERT_MSGLEN, "Handlerton assertion failed, no env, %s, %d, %s, %s (errno=%d)\n", file, line, fun, expr_as_string, caller_errno);
+	perror(msg);
+	fflush(stderr);
+    }
+    abort();
+}
+
+
+
 
 //my_bool tokudb_shared_data = FALSE;
 static u_int32_t tokudb_init_flags = 
