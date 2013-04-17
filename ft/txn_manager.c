@@ -532,6 +532,7 @@ referenced_xids_note_snapshot_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(inde
     if (--tuple->references == 0) {
         r = toku_omt_delete_at(referenced_xids, idx);
         lazy_assert_zero(r);
+        toku_free(tuple);
     }
 done:
     return 0;
