@@ -926,9 +926,13 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
         r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open transactions\n");
         goto panic_and_quit_early;
     }
-    if (toku_omt_size(env->i->open_dbs) > 0) {
-        r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open DBs\n");
-        goto panic_and_quit_early;
+    { //Verify open dbs. Zombies are ok at this stage, fully open is not.
+        uint32_t size = toku_omt_size(env->i->open_dbs);
+        assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
+        if (env->i->num_open_dbs > 0) {
+            r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open DBs\n");
+            goto panic_and_quit_early;
+        }
     }
     {
         if (env->i->persistent_environment) {
@@ -957,6 +961,14 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
             if (r) {
                 toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
                 goto panic_and_quit_early;
+            }
+            { //Verify open dbs. Neither Zombies nor fully open are ok at this stage.
+                uint32_t size = toku_omt_size(env->i->open_dbs);
+                assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
+                if (size > 0) {
+                    r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to zombie DBs\n");
+                    goto panic_and_quit_early;
+                }
             }
             r = toku_logger_close_rollback(env->i->logger, FALSE);
             if (r) {
@@ -2326,6 +2338,7 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     int r;
     OMTVALUE dbv;
     uint32_t idx;
+    env->i->num_open_dbs++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -2336,9 +2349,11 @@ static void
 env_note_db_closed(DB_ENV *env, DB *db) {
     assert(db->i->dname);
     assert(!db->i->is_zombie);
+    assert(env->i->num_open_dbs);
     int r;
     OMTVALUE dbv;
     uint32_t idx;
+    env->i->num_open_dbs--;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);
@@ -2354,6 +2369,7 @@ env_note_zombie_db(DB_ENV *env, DB *db) {
     int r;
     OMTVALUE dbv;
     uint32_t idx;
+    env->i->num_zombie_dbs++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -2364,9 +2380,11 @@ static void
 env_note_zombie_db_closed(DB_ENV *env, DB *db) {
     assert(db->i->dname);
     assert(db->i->is_zombie);
+    assert(env->i->num_zombie_dbs);
     int r;
     OMTVALUE dbv;
     uint32_t idx;
+    env->i->num_zombie_dbs--;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);
