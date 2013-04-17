@@ -182,7 +182,7 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
-#if defined(HA_GENERAL_ONLINE)
+#if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
 static uint tokudb_alter_table_flags(uint flags);
 #endif
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
@@ -332,7 +332,7 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
-#if defined(HA_GENERAL_ONLINE)
+#if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
     tokudb_hton->alter_table_flags = tokudb_alter_table_flags;
 #endif
     if (!tokudb_home)
@@ -1349,6 +1349,15 @@ static uint tokudb_alter_table_flags(uint flags)
             HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES|HA_GENERAL_ONLINE);
 
 }
+#elif defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+static uint tokudb_alter_table_flags(uint flags) {
+    return HA_INPLACE_ADD_INDEX_NO_READ_WRITE
+        |  HA_INPLACE_ADD_INDEX_NO_WRITE
+	|  HA_INPLACE_DROP_INDEX_NO_READ_WRITE
+        |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
+        |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
+        |  HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
+}
 #endif
 
 
@@ -1585,7 +1594,10 @@ mysql_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     tokudb_system_variables,   /* system variables */
-    NULL                       /* config options */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -1599,7 +1611,10 @@ mysql_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    NULL                       /* config options */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
 },
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
@@ -1613,7 +1628,10 @@ mysql_declare_plugin(tokudb)
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-    NULL                       /* config options */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
 }
 mysql_declare_plugin_end;
 

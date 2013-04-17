@@ -363,11 +363,17 @@ private:
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
+
     int write_frm_data(DB* db, DB_TXN* txn, const char* frm_name);
     int verify_frm_data(const char* frm_name, DB_TXN* trans);
-    int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn );
-    int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn );
+    int remove_frm_data(DB *db, DB_TXN *txn);
+
+    int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn);
+    int remove_from_status(DB* db, HA_METADATA_KEY curr_key_data, DB_TXN* txn);
+
+    int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn);
     int remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* transaction);
+
     int update_max_auto_inc(DB* db, ulonglong val);
     int remove_key_name_from_status(DB* status_block, char* key_name, DB_TXN* txn);
     int write_key_name_to_status(DB* status_block, char* key_name, DB_TXN* txn);
@@ -544,7 +550,13 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
+#if MYSQL_VERSION_ID >= 50521
+    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add);
+    int final_add_index(handler_add_index *add, bool commit);
+#else
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+#endif
+
     int tokudb_add_index(
         TABLE *table_arg, 
         KEY *key_info, 
@@ -558,6 +570,12 @@ public:
     int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
     void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
     int final_drop_index(TABLE *table_arg);
+
+#if MYSQL_VERSION_ID >= 50521
+    bool is_alter_table_hot();
+#endif
+
+    void prepare_for_alter();
 
 #if defined(HA_GENERAL_ONLINE)
     void print_alter_info(
@@ -637,7 +655,7 @@ public:
         int direction,
         THD* thd
         );
-   
+
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);

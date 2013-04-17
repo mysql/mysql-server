@@ -1961,9 +1961,12 @@ cleanup:
 
 
 int ha_tokudb::write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn ){
-    return write_metadata(db, &curr_key_data, sizeof(curr_key_data), data, size, txn);
+    return write_metadata(db, &curr_key_data, sizeof curr_key_data, data, size, txn);
 }
 
+int ha_tokudb::remove_from_status(DB *db, HA_METADATA_KEY curr_key_data, DB_TXN *txn) {
+    return remove_metadata(db, &curr_key_data, sizeof curr_key_data, txn);
+}
 
 int ha_tokudb::remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* transaction){
     int error;
@@ -2053,10 +2056,11 @@ cleanup:
 }
 
 int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::write_frm_data, %s", frm_name);
+
     uchar* frm_data = NULL;
     size_t frm_len = 0;
     int error = 0;
-    TOKUDB_DBUG_ENTER("ha_tokudb::write_frm_data, %s", frm_name);
 
     error = readfrm(frm_name,&frm_data,&frm_len);
     if (error) { goto cleanup; }
@@ -2070,6 +2074,10 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+int ha_tokudb::remove_frm_data(DB *db, DB_TXN *txn) {
+    return remove_from_status(db, hatoku_frm_data, txn);
+}
+
 static int
 smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
@@ -2081,12 +2089,12 @@ smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
 }
 
 int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::verify_frm_data %s", frm_name);
     uchar* mysql_frm_data = NULL;
     size_t mysql_frm_len = 0;
     DBT key, stored_frm;
     int error = 0;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
-    TOKUDB_DBUG_ENTER("ha_tokudb::verify_frm_data %s", frm_name);
 
     bzero(&key, sizeof(key));
     bzero(&stored_frm, sizeof(&stored_frm));
@@ -3182,7 +3190,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
         }
     exit_try_table_lock:
         pthread_mutex_lock(&share->mutex);
-        share->try_table_lock = false; // RFP what good is the mutex?
+        share->try_table_lock = false;
         pthread_mutex_unlock(&share->mutex);
     }
     DBUG_VOID_RETURN;
@@ -3789,7 +3797,6 @@ volatile int ha_tokudb_write_row_wait = 0; // debug
 //
 int ha_tokudb::write_row(uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::write_row");
-
     while (ha_tokudb_write_row_wait) sleep(1); // debug
 
     DBT row, prim_key;
@@ -4357,7 +4364,6 @@ volatile int ha_tokudb_index_init_wait = 0; // debug
 //
 int ha_tokudb::index_init(uint keynr, bool sorted) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_init %p %d", this, keynr);
-
     while (ha_tokudb_index_init_wait) sleep(1); // debug
 
     int error;
@@ -6102,13 +6108,17 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
             lock.type = lock_type;
             rw_unlock(&share->num_DBs_lock);
         } 
-        // force alter table to lock out other readers
+#if MYSQL_VERSION_ID >= 50521
+        // 5.5 supports reads concurrent with alter table.  just use the default lock type.
+#else
         else if (thd_sql_command(thd)== SQLCOM_CREATE_INDEX || 
                  thd_sql_command(thd)== SQLCOM_ALTER_TABLE ||
                  thd_sql_command(thd)== SQLCOM_DROP_INDEX) {
+            // force alter table to lock out other readers
             lock_type = TL_WRITE;
             lock.type = lock_type;
         }
+#endif
         else {
             // If we are not doing a LOCK TABLE, then allow multiple writers
             if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
@@ -7207,7 +7217,6 @@ int ha_tokudb::tokudb_add_index(
     ) 
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::tokudb_add_index");
-    
     while (ha_tokudb_tokudb_add_index_wait) sleep(1); // debug
 
     int error;
@@ -7578,6 +7587,85 @@ void ha_tokudb::restore_add_index(TABLE* table_arg, uint num_of_keys, bool incre
     }
 }
 
+#if MYSQL_VERSION_ID >= 50521
+
+class ha_tokudb_add_index : public handler_add_index
+{
+public:
+    DB_TXN *txn;
+    bool incremented_numDBs;
+    bool modified_DBs;
+	ha_tokudb_add_index(TABLE* table, KEY* key_info, uint num_of_keys, DB_TXN *txn, bool incremented_numDBs, bool modified_DBs) :
+		handler_add_index(table, key_info, num_of_keys), txn(txn), incremented_numDBs(incremented_numDBs), modified_DBs(modified_DBs) {
+    }
+	~ha_tokudb_add_index() {
+    }
+};
+
+volatile int ha_tokudb_add_index_wait = 0;
+
+int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
+    while (ha_tokudb_add_index_wait) sleep(1); // debug
+
+    DB_TXN* txn = NULL;
+    int error;
+    bool incremented_numDBs = false;
+    bool modified_DBs = false;
+    
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
+
+    error = tokudb_add_index(
+        table_arg,
+        key_info,
+        num_of_keys,
+        txn,
+        &incremented_numDBs,
+        &modified_DBs
+        );
+    if (error) { goto cleanup; }
+    
+cleanup:
+    if (error) {
+        if (txn) {
+            restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
+            abort_txn(txn);
+        }
+    } else {
+        *add = new ha_tokudb_add_index(table_arg, key_info, num_of_keys, txn, incremented_numDBs, modified_DBs);
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+volatile int ha_tokudb_final_add_index_wait = 0;
+
+int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::final_add_index");
+    while (ha_tokudb_final_add_index_wait) sleep(1); // debug
+
+    // extract the saved state variables
+	ha_tokudb_add_index *add = static_cast<class ha_tokudb_add_index*>(add_arg);
+    DB_TXN *txn = add->txn;
+    bool incremented_numDBs = add->incremented_numDBs;
+    bool modified_DBs = add->modified_DBs;
+    TABLE *table = add->table;
+    uint num_of_keys = add->num_of_keys;
+    delete add;
+
+    int error = 0;
+
+    if (commit) {
+        commit_txn(txn, 0);
+    } else {
+        restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
+        abort_txn(txn);
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+#else
+
 int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
     DB_TXN* txn = NULL;
@@ -7611,6 +7699,8 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+#endif
+
 volatile int ha_tokudb_drop_indexes_wait = 0; // debug
 
 //
@@ -7619,11 +7709,10 @@ volatile int ha_tokudb_drop_indexes_wait = 0; // debug
 //
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
+    while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
 
     // XXX 4530 lock the key file lock for writing.
     share_key_file_wrlock(share);
-
-    while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
 
     int error = 0;
     for (uint i = 0; i < num_of_keys; i++) {
@@ -7707,7 +7796,6 @@ volatile int ha_tokudb_prepare_drop_index_wait = 0; //debug
 //
 int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::prepare_drop_index");
-
     while (ha_tokudb_prepare_drop_index_wait) sleep(1); // debug
 
     int error;
@@ -7744,7 +7832,9 @@ volatile int ha_tokudb_final_drop_index_wait = 0; // debug
 int ha_tokudb::final_drop_index(TABLE *table_arg) {
     TOKUDB_DBUG_ENTER("ha_tokudb::final_drop_index");
     while (ha_tokudb_final_drop_index_wait) sleep(1); // debug
-    TOKUDB_DBUG_RETURN(0);
+
+    int error = 0;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
@@ -7826,12 +7916,9 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 
 volatile int ha_tokudb_optimize_wait = 0; // debug
 
-//
 // flatten all DB's in this table, to do so, just do a full scan on every DB
-//
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
-    
     while (ha_tokudb_optimize_wait) sleep(1); // debug
 
     int error;
@@ -7921,12 +8008,15 @@ cleanup:
     return error;
 }
 
+volatile int ha_tokudb_truncate_wait = 0; // debug
 
-//
 // for 5.5
-//
 int ha_tokudb::truncate() {
-    return delete_all_rows();
+    TOKUDB_DBUG_ENTER("truncate");
+    while (ha_tokudb_truncate_wait) sleep(1); // debug
+
+    int error = delete_all_rows();
+    TOKUDB_DBUG_RETURN(error);
 }
 
 
@@ -9819,7 +9909,6 @@ volatile int ha_tokudb_check_wait = 0; // debug
 int
 ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_DBUG_ENTER("check");
-
     while (ha_tokudb_check_wait) sleep(1); // debug
 
     const char *old_proc_info = thd->proc_info;
@@ -9881,3 +9970,36 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     thd_proc_info(thd, old_proc_info);
     TOKUDB_DBUG_RETURN(result);
 }
+
+#if MYSQL_VERSION_ID >= 50521
+
+bool
+ha_tokudb::is_alter_table_hot() {
+    TOKUDB_DBUG_ENTER("is_alter_table_hot");
+    bool is_hot = false;
+    THD *thd = ha_thd();
+    if (get_create_index_online(thd) && thd_sql_command(thd)== SQLCOM_CREATE_INDEX) {
+        // this code must match the logic in ::store_lock for hot indexing
+        rw_rdlock(&share->num_DBs_lock);
+        if (share->num_DBs == (table->s->keys + test(hidden_primary_key))) {
+            is_hot = true;
+        }
+        rw_unlock(&share->num_DBs_lock);
+    } 
+    TOKUDB_DBUG_RETURN(is_hot);
+}
+
+#endif
+
+void
+ha_tokudb::prepare_for_alter() {
+    TOKUDB_DBUG_ENTER("prepare_for_alter");
+#if MYSQL_VERSION_ID >= 50521
+    // remove the frm data from the status dictionary during alter table.  it will
+    // be created when the table is reopened with the new schema.
+    remove_frm_data(share->status_block, NULL);
+#endif
+    DBUG_VOID_RETURN;
+}
+
+
