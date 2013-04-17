@@ -174,7 +174,7 @@ static bool make_valid_column_names(LEX *lex)
   uint column_no= 1;
   DBUG_ENTER("make_valid_column_names");
 
-  for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= lex->select_lex; sl; sl= sl->next_select())
   {
     for (List_iterator_fast<Item> it(sl->item_list); (item= it++); column_no++)
     {
@@ -287,10 +287,10 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                           enum_view_create_mode mode)
 {
-  LEX *lex= thd->lex;
+  LEX        *const lex= thd->lex;
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
   SELECT_LEX *sl;
   bool res= TRUE;
   DBUG_ENTER("create_view_precheck");
@@ -360,7 +360,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     }
   }
 
-  if (&lex->select_lex != lex->all_selects_list)
+  if (lex->select_lex != lex->all_selects_list)
   {
     /* check tables of subqueries */
     for (tbl= tables; tbl; tbl= tbl->next_global)
@@ -436,11 +436,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   SELECT_LEX *sl;
 #endif
-  SELECT_LEX_UNIT *unit= &lex->unit;
+  SELECT_LEX_UNIT *const unit= lex->unit;
   bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
 
@@ -911,9 +911,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
-    lex->unit.print(&view_query, QT_TO_ARGUMENT_CHARSET); 
-    lex->unit.print(&is_query,
-                    enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
+    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET); 
+    lex->unit->print(&is_query,
+                enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
 
     thd->variables.sql_mode|= sql_mode;
   }
@@ -957,7 +957,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
     /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= lex->select_lex.table_list.first;
+    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
 	 tbl;
 	 tbl= tbl->next_local)
     {
@@ -1084,8 +1084,8 @@ loop_out:
     UNION
   */
   if (view->updatable_view &&
-      !lex->select_lex.master_unit()->is_union() &&
-      !(lex->select_lex.table_list.first)->next_local &&
+      !lex->select_lex->master_unit()->is_union() &&
+      !(lex->select_lex->table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
 				lex->query_tables->db,
 				lex->query_tables->table_name))
@@ -1162,7 +1162,7 @@ static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
 bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
                      bool open_view_no_parse)
 {
-  SELECT_LEX *end, *view_select= NULL;
+  SELECT_LEX *view_select= NULL;
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
@@ -1257,7 +1257,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   // When reading I_S.VIEWS, table->alias may be NULL
   trace_view.add_utf8("database", table->db, table->db_length).
     add_utf8("view", table->alias ? table->alias : table->table_name).
-    add("in_select#", old_lex->select_lex.select_number);
+    add("in_select#", old_lex->select_lex->select_number);
 
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
@@ -1354,10 +1354,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       goto end;
 
     lex_start(thd);
-    view_select= &lex->select_lex;
-    view_select->select_number= ++thd->select_number;
-
-    trace_view.add("select#", view_select->select_number);
+    view_select= lex->select_lex;
 
     sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
@@ -1543,7 +1540,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         This may change in future, for example if we enable merging of
         views with subqueries in select list.
       */
-      view_main_select_tables= lex->select_lex.table_list.first;
+      view_main_select_tables= lex->select_lex->table_list.first;
 
       /*
         Let us set proper lock type for tables of the view's main
@@ -1588,7 +1585,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 				   lex->safe_to_cache_query);
     /* move SQL_CACHE to whole query */
     if (view_select->options & OPTION_TO_QUERY_CACHE)
-      old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+      old_lex->select_lex->options|= OPTION_TO_QUERY_CACHE;
 
     if (table->view_suid)
     {
@@ -1645,7 +1642,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       - VIEW used in subquery or command support MERGE algorithm
     */
     if (view_is_mergeable &&
-        (table->select_lex->master_unit() != &old_lex->unit ||
+        (table->select_lex->master_unit() != old_lex->unit ||
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
@@ -1656,6 +1653,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
+      // This is just for the trace_view below:
+      view_select->select_number= ++lex->select_number;
+      trace_view.add("select#", view_select->select_number);
       trace_view.add("merged", true);
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
@@ -1667,19 +1667,20 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
-      lex->select_lex.context.outer_context= 0;
+      lex->select_lex->
+        context.resolve_in_table_list_only(view_main_select_tables);
+      lex->select_lex->context.outer_context= NULL;
 
       /*
         Correct all name resolution contexts which point to the view's
         select_lex.
       */
-      lex->select_lex.context.select_lex= table->select_lex;
+      lex->select_lex->context.select_lex= table->select_lex;
       repoint_contexts_of_join_nests(view_select->top_join_list,
                                      view_select,
                                      table->select_lex);
 
-      lex->select_lex.select_n_having_items+=
+      lex->select_lex->select_n_having_items+=
         table->select_lex->select_n_having_items;
 
       /*
@@ -1688,7 +1689,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         for this purprose because we don't support MERGE algorithm for views
         with unions).
       */
-      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
+      for (tbl= lex->select_lex->get_table_list(); tbl; tbl= tbl->next_local)
         tbl->select_lex= table->select_lex;
 
       {
@@ -1726,26 +1727,16 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
         NOTE: we do not support UNION here, so we take only one select
       */
-      SELECT_LEX_NODE *end_unit= table->select_lex->slave;
-      SELECT_LEX_UNIT *next_unit;
-      for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
-           unit;
-           unit= next_unit)
-      {
-        if (unit == end_unit)
-          break;
-        SELECT_LEX_NODE *save_slave= unit->slave;
-        next_unit= unit->next_unit();
-        unit->include_down(table->select_lex);
-        unit->slave= save_slave; // fix include_down initialisation
-      }
+      st_select_lex_unit *first_unit= lex->select_lex->first_inner_unit();
+      if (first_unit)
+        first_unit->include_chain(old_lex, table->select_lex);
 
       /* 
         We can safely ignore the VIEW's ORDER BY if we merge into union 
         branch, as order is not important there.
       */
       if (!table->select_lex->master_unit()->is_union())
-        table->select_lex->order_list.push_back(&lex->select_lex.order_list);
+        table->select_lex->order_list.push_back(&lex->select_lex->order_list);
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),
@@ -1757,29 +1748,26 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
-    trace_view.add("materialized", true);
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
     old_lex->subqueries= TRUE;
 
     /* SELECT tree link */
-    lex->unit.include_down(table->select_lex);
-    lex->unit.slave= view_select; // fix include_down initialisation
+    lex->unit->include_down(old_lex, table->select_lex);
 
-    table->derived= &lex->unit;
+    trace_view.add("select#", view_select->select_number);
+    trace_view.add("materialized", true);
+
+    table->derived= lex->unit;
   }
   else
     goto err;
 
 ok:
-  /* global SELECT list linking */
-  end= view_select;	// primary SELECT_LEX is always last
-  end->link_next= old_lex->all_selects_list;
-  old_lex->all_selects_list->link_prev= &end->link_next;
-  old_lex->all_selects_list= lex->all_selects_list;
-  lex->all_selects_list->link_prev=
-    (st_select_lex_node**)&old_lex->all_selects_list;
+  // Link chain of query blocks into global list:
+  lex->all_selects_list->include_chain_in_global(&old_lex->all_selects_list);
+
   table->derived_key_list.empty();
 
 ok2:
@@ -1964,7 +1952,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   */
   if ((!view->view && !view->belong_to_view) ||
       thd->lex->sql_command == SQLCOM_INSERT ||
-      thd->lex->select_lex.select_limit == 0)
+      thd->lex->select_lex->select_limit == 0)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
   view= view->top_table();

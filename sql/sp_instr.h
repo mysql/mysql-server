@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -470,9 +470,9 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_value_item= thd->lex->select_lex.item_list.head();
+    m_value_item= thd->lex->select_lex->item_list.head();
 
     return false;
   }
@@ -604,9 +604,9 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_expr_item= thd->lex->select_lex.item_list.head();
+    m_expr_item= thd->lex->select_lex->item_list.head();
 
     return false;
   }
@@ -839,9 +839,9 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_expr_item= thd->lex->select_lex.item_list.head();
+    m_expr_item= thd->lex->select_lex->item_list.head();
 
     return false;
   }
@@ -916,9 +916,9 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_expr_item= thd->lex->select_lex.item_list.head();
+    m_expr_item= thd->lex->select_lex->item_list.head();
 
     return false;
   }

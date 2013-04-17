@@ -2580,7 +2580,6 @@ public:
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
-  uint       select_number;             //number of select (used for EXPLAIN)
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
@@ -4476,7 +4475,7 @@ public:
   SELECT_LEX_UNIT *sel;
   inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
 		     bool force)
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
       db.str=0;
@@ -4484,7 +4483,7 @@ public:
       db= db_arg;
   }
   inline Table_ident(LEX_STRING table_arg) 
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     db.str=0;
   }
