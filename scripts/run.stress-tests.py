@@ -535,7 +535,7 @@ def send_mail(toaddrs, subject, body):
     s.sendmail(fromaddr, toaddrs, str(m))
     s.quit()
 
-def rebuild(tokudb, builddir, cc, cxx, tests):
+def rebuild(tokudb, builddir, toku_svnroot, cc, cxx, tests):
     info('Updating from svn.')
     devnull = open(os.devnull, 'w')
     call(['svn', 'up'], stdout=devnull, stderr=STDOUT, cwd=tokudb)
@@ -553,6 +553,7 @@ def rebuild(tokudb, builddir, cc, cxx, tests):
               '-DUSE_CTAGS=OFF',
               '-DUSE_ETAGS=OFF',
               '-DUSE_CSCOPE=OFF',
+              '-DTOKU_SVNROOT=%s' % toku_svnroot,
               tokudb],
              env=newenv,
              cwd=builddir)
@@ -577,7 +578,7 @@ def revfor(tokudb):
 def main(opts):
     builddir = os.path.join(opts.tokudb, 'build')
     if opts.build:
-        rebuild(opts.tokudb, builddir, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
+        rebuild(opts.tokudb, builddir, opts.toku_svnroot, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
     rev = revfor(opts.tokudb)
 
     if not os.path.exists(opts.savedir):
@@ -665,7 +666,7 @@ def main(opts):
             if scheduler.error is not None:
                 error('Scheduler reported an error.')
                 raise scheduler.error
-            rebuild(opts.tokudb, builddir, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
+            rebuild(opts.tokudb, builddir, opts.toku_svnroot, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
             rev = revfor(opts.tokudb)
             for runner in runners:
                 runner.rev = rev
@@ -739,6 +740,9 @@ if __name__ == '__main__':
                            help='skip the svn up and build phase before testing [default=False]')
     build_group.add_option('--rebuild_period', type='int', dest='rebuild_period', default=60 * 60 * 24,
                            help='how many seconds between doing an svn up and rebuild, 0 means never rebuild [default=24 hours]')
+    default_toku_svnroot = os.path.relpath(os.path.join(default_toplevel, '../..'))
+    build_group.add_option('--toku_svnroot', type='string', dest='toku_svnroot', default=default_toku_svnroot,
+                           help='passed to cmake as TOKU_SVNROOT [default=%s]' % default_toku_svnroot)
     build_group.add_option('--cc', type='string', dest='cc', default='gcc47',
                            help='which compiler to use [default=gcc47]')
     build_group.add_option('--cxx', type='string', dest='cxx', default='g++47',
@@ -767,7 +771,7 @@ if __name__ == '__main__':
     if len(args) > 0:
         parser.error('Invalid arguments: %r' % args)
 
-    if len(opts.old_versions) > 0:
+    if opts.old_versions is not None and len(opts.old_versions) > 0:
         opts.run_upgrade = True
 
     if opts.run_upgrade:
