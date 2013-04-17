@@ -10,109 +10,24 @@
  *  - rename  (dictionary is renamed only if transaction is committed)
  *  - delete  (dictionary is deleted only if transaction is committed)
  *
+ * The following subtests are here:
  *
- * TODO:  
- *   - verify correct behavior with "subdb" names (e.g. foo/bar)
- *   - Yoni Notes
- *    - Directory based stuff (lock types?)
- *    - Done:
- *     - Create commit
- *      - verify before operation, after operation, and after commit
- *     - Create abort
- *      - verify before operation, after operation, and after abort
- *     - Remove commit
- *      - verify before operation, after operation, and after commit
- *     - Remove abort
- *      - verify before operation, after operation, and after abort
- *     - Rename commit
- *      - verify before operation, after operation, and after commit
- *     - Rename abort
- *      - verify before operation, after operation, and after abort
- *     - Open commit
- *      - verify before operation, after operation, and after commit
- *     - Open abort
- *      - verify before operation, after operation, and after abort
- *    - Maybe have tests for:
- *     - Create EXCL
- *     - Create failed lock
- *      - Due to another txn 'dbremove' but didn't commit yet
- *     - Open failed lock
- *      - Due to other txn 'creating' but didn't yet commit
- *     - Remove (oldname) failed lock
- *      - Some other txn renamed (oldname->newname)
- *     - Rename (oldname->newname) failed lock
- *      - Some other txn renamed (foo->oldname)
- *     - Rename (oldname->newname) failed lock
- *      - Some other txn renamed (newname->foo)
+ *  test_fileops_1:
+ *    Verify that operations appear effective within a transaction,
+ *    but are truly effective only if the transaction is committed.
  *
- *     - Remove fail on open db                          EINVAL
- *     - Rename fail on open (oldname) db                EINVAL
- *     - Rename fail on open (newname) db                EINVAL
+ *  test_fileops_2:
+ *    Verify that attempting to open, remove or rename a dictionary that
+ *    is marked for removal or renaming by another transaction in
+ *    progress results in a DB_LOCK_NOTGRANTED error code.
  *
- *     - Remove fail on non-existant                     ENOENT
- *     - Rename fail on non-existant oldname db          ENOENT
- *
- *     - Rename fail on not open but existant newname db EEXIST
- *
- *     - In one txn:
- *      - Rename a->b
- *      - create a
- *     - In one txn: (Truncate table foo)
- *      - 'x' was in a from prev transaction
- *      - Remove a
- *      - Create a
- *      - insert 'y' into a.
- *      - commit: a has 'y' but not 'x'
- *      - abort: a has 'x' but not 'y'
- *     - In one txn:
- *      - Create a
- *      - remove a
- *      - create a
- *      - remove a...
- *
- *
- * overview:
- *
- * begin txn
- *  create a, b, c
- * commit txn
- *
- * verify_abcd()     // verify a,b,c exist, c2 and x do not exist
- *
- * begin txn
- *  perform_ops()   // delete b, rename c to c2, create x
- *  verify_ac2dx()   // verify a,c2,x exist, b and c do not
- * abort txn
- * verify_abcd()     // verify a,b,c exist, c2 and x do not exist
- * begin_txn
- *  perform_ops()
- * commit
- * verify_ac2dx()    // verify a,c2,x exist, b and c do not
- *
- * 
- * perform_ops() {
- *   delete b
- *   rename c to c2
- *   create x
- * }
- *
- *
- * verify_abcd() {
- *    a,b,c,d exist, x, c2 do not exist
- * }
- *
- *
- * verify_ac2dx() {
- *   a  exists
- *   c2 exists
- *   d  exists
- *   x  exists
- *   b  does not exist
- *   c  does not exist
- * }
+ *  test_fileops_3:
+ *    Verify that the correct error codes are returned when attempting
+ *    miscellaneous operations that should fail.
  *
  *
  * Future work (possible enhancements to this test, if desired):
+ *  - verify correct behavior with "subdb" names (e.g. foo/bar)
  *  - beyond verifying that a dictionary exists, open it and read one entry, verify that the entry is correct
  *    (especially useful for renamed dictionary)
  *  - perform repeatedly in multiple threads
@@ -372,7 +287,7 @@ test_fileops_2(void) {
 	DB * db_c3;
 	DB * db_x2;
 
-	r=env->txn_begin(env, 0, &txn_a, 0); CKERR(r);
+ 	r=env->txn_begin(env, 0, &txn_a, 0); CKERR(r);
 	r=db_create(&db_e, env, 0); CKERR(r);
 	r=db_create(&db_x2, env, 0); CKERR(r);
 	r=db_create(&db_c3, env, 0); CKERR(r);
@@ -435,6 +350,48 @@ test_fileops_2(void) {
 }
 
 
+static void
+test_fileops_3(void) {
+    // verify cannot remove an open db
+
+    int r;
+    DB_TXN * txn_a;
+    DB_TXN * txn_b;
+    DB * db_d;
+
+    r=env->txn_begin(env, 0, &txn_a, 0); CKERR(r);
+    r=db_create(&db_d, env, 0); CKERR(r);
+    r=db_d->open(db_d, txn_a, "d.db", 0, DB_BTREE, 0, S_IRWXU|S_IRWXG|S_IRWXO); CKERR(r);
+
+    // Verify correct error return codes when trying to
+    // remove or rename an open dictionary
+    r=env->txn_begin(env, 0, &txn_b, 0); CKERR(r);
+    r = env->dbremove(env, txn_b, "d.db", NULL, 0);  
+    CKERR2(r, EINVAL);
+    r = env->dbrename(env, txn_b, "d.db", NULL, "z.db", 0);  
+    CKERR2(r, EINVAL);
+    r = env->dbrename(env, txn_b, "a.db", NULL, "d.db", 0);  
+    CKERR2(r, EINVAL);
+    r=db_d->close(db_d, 0); CKERR(r);
+    r=txn_b->abort(txn_b); CKERR(r);
+
+
+    // verify correct error return codes when trying to 
+    // remove or rename a non-existent dictionary
+    r = env->dbremove(env, txn_a, "nonexistent.db", NULL, 0);  
+    CKERR2(r, ENOENT);
+    r = env->dbrename(env, txn_a, "nonexistent.db", NULL, "z.db", 0);  
+    CKERR2(r, ENOENT);
+
+    // verify correct error return code when trying to
+    // rename a dictionary to a name that already exists
+    r = env->dbrename(env, txn_a, "a.db", NULL, "d.db", 0);  
+    CKERR2(r, EEXIST);
+    
+    r=txn_a->abort(txn_a); CKERR(r);
+}
+
+
 int
 test_main (int argc, char *argv[]) {
     parse_args(argc, argv);
@@ -443,6 +400,7 @@ test_main (int argc, char *argv[]) {
     test_fileops_1();
     print_engine_status(env);
     test_fileops_2();
+    test_fileops_3();
     print_engine_status(env);
     test_shutdown();
     return 0;
