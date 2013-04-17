@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <arpa/inet.h>
-
+#include <zlib.h>
 
 static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
 					    4+   // nodesize
@@ -199,14 +199,35 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     }
 #endif
 
-    if (!node->ever_been_written)
-	memset(w.buf+w.ndone, 0, (size_t)(node->nodesize-w.ndone)); // fill with zeros
+    char *MALLOC_N(node->nodesize, compressed_buf);
+    // The first part of the data is uncompressed
+    int first_part = (4+ // toku
+		      4+ // leaf or node
+		      4+ // version
+		      8);// lsn
+    memcpy(compressed_buf, buf, first_part);
+    uLongf compressed_len=node->nodesize-first_part-4;
+    {
+	int r = compress(((Bytef*)compressed_buf)+first_part+4, &compressed_len,
+			 ((Bytef*)buf)+first_part, calculated_size-first_part);
+	assert(r==Z_OK);
+    }
+    toku_free(compressed_buf);
+
+    *((int32_t*)(compressed_buf+first_part)) = htonl(compressed_len);
+    int compressed_n_to_write;
+    if (!node->ever_been_written) {
+	memset(compressed_buf+first_part+4+compressed_len, 0, (size_t)(node->nodesize-first_part-4-compressed_len)); // fill with zeros
+	compressed_n_to_write = node->nodesize;
+    } else {
+	compressed_n_to_write = first_part+4+compressed_len;
+    }
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
 	// If the node has never been written, then write the whole buffer, including the zeros
 	//size_t n_to_write = node->nodesize;
-	ssize_t r=pwrite(fd, w.buf, n_to_write, off);
+	ssize_t r=pwrite(fd, compressed_buf, compressed_n_to_write, off);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert(r==(ssize_t)n_to_write);
     }
