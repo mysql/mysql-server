@@ -3629,6 +3629,13 @@ int toku_brt_get_nodesize(BRT brt, unsigned int *nodesize) {
     return 0;
 }
 
+void toku_brt_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, unsigned int *max_val_len)
+// return the maximum advisable key value lengths.  The brt doesn't enforce these.
+{
+    *max_key_len = 32*1024;
+    *max_val_len = 32*1024*1024;
+}
+
 int toku_brt_set_basementnodesize(BRT brt, unsigned int basementnodesize) {
     brt->basementnodesize = basementnodesize;
     return 0;

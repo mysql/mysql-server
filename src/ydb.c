@@ -4964,17 +4964,13 @@ error_cleanup:
 //Return non zero otherwise.
 static int
 db_put_check_size_constraints(DB *db, const DBT *key, const DBT *val) {
-    int r;
-
-    //Check limits on size of key and val.
-    unsigned int nodesize;
-    r = toku_brt_get_nodesize(db->i->brt, &nodesize); assert(r == 0);
-
-    u_int32_t limit = nodesize / BRT_FANOUT;
-    if (key->size > limit)
-	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest key allowed is %u bytes", limit);
-    else if (val->size > nodesize)
-	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest value allowed is %u bytes", nodesize);
+    unsigned int klimit, vlimit;
+    int r = 0;
+    toku_brt_get_maximum_advised_key_value_lengths(&klimit, &vlimit);
+    if (key->size > klimit)
+	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest key allowed is %u bytes", klimit);
+    else if (val->size > vlimit)
+	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest value allowed is %u bytes", vlimit);
     
     return r;
 }

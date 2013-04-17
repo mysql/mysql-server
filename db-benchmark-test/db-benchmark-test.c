@@ -29,6 +29,8 @@ int which;
 enum { SERIAL_SPACING = 1<<6 };
 enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { DEFAULT_ITEMS_PER_TRANSACTION = 1<<14 };
+#define DEFAULT_N_ITEMS (1LL<<22)
+#define DEFAULT_N_ITERATIONS (DEFAULT_N_ITEMS/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION)
 
 static void insert (long long v);
 #define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0); } while (0)
@@ -73,6 +75,8 @@ static int redzone = 0;
 static int redzone_set = 0;
 static int do_optimize = 0;
 static int unique_checks = 0;
+static long long n_iterations =  DEFAULT_N_ITERATIONS;
+
 
 static int use_random = 0;
 enum { MAX_RANDOM_C = 16000057 }; // prime-numbers.org
@@ -401,8 +405,8 @@ static void trace(const char *UU(s), int UU(n)) {
 
 static void insert (long long v) {
     int r;
-    unsigned char kc[keysize];
-    unsigned char vc[valsize];;
+    unsigned char *kc = toku_malloc(keysize);
+    unsigned char *vc = toku_malloc(valsize);
     DBT  kt, vt;
     fill_array(kc, keysize);
     long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
@@ -451,6 +455,8 @@ static void insert (long long v) {
 	}
 	n_insertions_since_txn_began++;
     }
+    toku_free(kc);
+    toku_free(vc);
 }
 
 static void serial_insert_from (long long from) {
@@ -516,10 +522,6 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
     }
 }
 
-
-
-const long long default_n_items = 1LL<<22;
-
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [--norandom] [ n_iterations ]\n", argv0);
@@ -556,8 +558,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
     fprintf(stderr, "    --redzone N           redzone in percent\n");
     fprintf(stderr, "    --srandom N           srandom(N)\n");
-    fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --engine_status       print engine status at end of test \n");
+    fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", DEFAULT_N_ITERATIONS);
 
     return 1;
 }
@@ -600,7 +602,7 @@ test1514(void) {
 
 static int test_main (int argc, char *const argv[]) {
     struct timeval t1,t2,t3;
-    long long total_n_items = default_n_items;
+    long long total_n_items = DEFAULT_N_ITEMS;
     char *endptr;
     int i;
     for (i=1; i<argc; i++) {
@@ -734,12 +736,12 @@ static int test_main (int argc, char *const argv[]) {
         /* if it looks like a number */
         char *end;
         errno=0;
-        long n_iterations = strtol(argv[i], &end, 10);
+        n_iterations = strtol(argv[i], &end, 10);
         if (errno!=0 || *end!=0 || end==argv[i]) {
             print_usage(argv[0]);
             return 1;
         }
-        total_n_items = items_per_iteration * (long long)n_iterations;
+        total_n_items = items_per_iteration * n_iterations;
 	i++;
     }
     if (i<argc) {

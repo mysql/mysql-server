@@ -44,6 +44,7 @@ int toku_brt_set_flags(BRT, unsigned int flags)  __attribute__ ((warn_unused_res
 int toku_brt_get_flags(BRT, unsigned int *flags)  __attribute__ ((warn_unused_result));
 int toku_brt_set_nodesize(BRT, unsigned int nodesize)  __attribute__ ((warn_unused_result));
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize) __attribute__ ((warn_unused_result));
+void toku_brt_get_maximum_advised_key_value_lengths(unsigned int *klimit, unsigned int *vlimit);
 int toku_brt_set_basementnodesize(BRT, unsigned int basementnodesize)  __attribute__ ((warn_unused_result));
 int toku_brt_get_basementnodesize(BRT, unsigned int *basementnodesize) __attribute__ ((warn_unused_result));
 

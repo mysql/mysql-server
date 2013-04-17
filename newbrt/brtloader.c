@@ -1130,6 +1130,9 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
     #pragma cilk grainsize = 1
 #endif
     cilk_for (int i = 0; i < bl->N; i++) {
+	unsigned int klimit,vlimit; // maximum row sizes.
+	toku_brt_get_maximum_advised_key_value_lengths(&klimit, &vlimit);
+
 	error_codes[i] = 0;
 	struct rowset *rows = &(bl->rows[i]);
 	struct merge_fileset *fs = &(bl->fs[i]);
@@ -1159,6 +1162,18 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
                     inc_error_count();
                     break;
                 }
+		if (skey.size > klimit) {
+		    error_codes[i] = EINVAL;
+		    fprintf(stderr, "Key too big (keysize=%d bytes, limit=%d bytes)\n", skey.size, klimit);
+		    inc_error_count();
+		    break;
+		}
+		if (sval.size > vlimit) {
+		    error_codes[i] = EINVAL;
+		    fprintf(stderr, "Row too big (rowsize=%d bytes, limit=%d bytes)\n", sval.size, vlimit);
+		    inc_error_count();
+		    break;
+		}
 	    }
 
 	    bl->extracted_datasizes[i] += brtloader_leafentry_size(skey.size, sval.size, leafentry_xid(bl, i));
