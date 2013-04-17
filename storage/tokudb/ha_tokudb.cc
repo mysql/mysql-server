@@ -1735,7 +1735,7 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
         row = &current_row;
     }
     unpack_row(buf, row);
-    DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size);
+    if (found_key) { DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size); }
     TOKUDB_DBUG_RETURN(0);
 }
 
