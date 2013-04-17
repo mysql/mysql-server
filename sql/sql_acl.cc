@@ -1435,12 +1435,12 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
     sctx->master_access= acl_user->access;
 
     if (acl_user->user)
-      strmake(sctx->priv_user, user, USERNAME_LENGTH);
+      strmake_buf(sctx->priv_user, user);
     else
       *sctx->priv_user= 0;
 
     if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
+      strmake_buf(sctx->priv_host, acl_user->host.hostname);
     else
       *sctx->priv_host= 0;
   }
@@ -8325,10 +8325,9 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
   mpvio->auth_info.user_name= sctx->user;
   mpvio->auth_info.user_name_length= strlen(sctx->user);
   mpvio->auth_info.auth_string= mpvio->acl_user->auth_string.str;
-  mpvio->auth_info.auth_string_length= 
-    (unsigned long) mpvio->acl_user->auth_string.length;
-  strmake(mpvio->auth_info.authenticated_as, mpvio->acl_user->user ?
-          mpvio->acl_user->user : "", USERNAME_LENGTH);
+  mpvio->auth_info.auth_string_length= (unsigned long) mpvio->acl_user->auth_string.length;
+  strmake_buf(mpvio->auth_info.authenticated_as, mpvio->acl_user->user ?
+              mpvio->acl_user->user : "");
 
   DBUG_PRINT("info", ("exit: user=%s, auth_string=%s, authenticated as=%s"
                       "plugin=%s",
@@ -8412,7 +8411,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 
   /* Clear variables that are allocated */
   thd->user_connect= 0;
-  strmake(sctx->priv_user, sctx->user, USERNAME_LENGTH);
+  strmake_buf(sctx->priv_user, sctx->user);
 
   if (thd->make_lex_string(&mpvio->db, db_buff, db_len, 0) == 0)
     DBUG_RETURN(1); /* The error is set by make_lex_string(). */
@@ -9229,12 +9228,12 @@ bool acl_authenticate(THD *thd, uint connect_errors,
 
     sctx->master_access= acl_user->access;
     if (acl_user->user)
-      strmake(sctx->priv_user, acl_user->user, USERNAME_LENGTH - 1);
+      strmake_buf(sctx->priv_user, acl_user->user);
     else
       *sctx->priv_user= 0;
 
     if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
+      strmake_buf(sctx->priv_host, acl_user->host.hostname);
     else
       *sctx->priv_host= 0;
 

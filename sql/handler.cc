@@ -2097,7 +2097,7 @@ handle_condition(THD *,
 {
   *cond_hdl= NULL;
   /* Grab the error message */
-  strmake(buff, msg, sizeof(buff)-1);
+  strmake_buf(buff, msg);
   return TRUE;
 }
 

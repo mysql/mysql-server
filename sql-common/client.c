@@ -776,7 +776,7 @@ restart:
       len-=2;
       if (protocol_41(mysql) && (char) pos[0] == '#')
       {
-	strmake(net->sqlstate, (char*) pos+1, SQLSTATE_LENGTH);
+	strmake_buf(net->sqlstate, (char*) pos+1);
 	pos+= SQLSTATE_LENGTH+1;
       }
       else
@@ -3120,7 +3120,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
     bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
     UNIXaddr.sun_family= AF_UNIX;
-    strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
+    strmake_buf(UNIXaddr.sun_path, unix_socket);
     if (connect_sync_or_async(mysql, net, sock,
                               (struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr)))
     {

@@ -4413,7 +4413,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   if (db_name && lower_case_table_names)
   {
     /* Convert database to lower case for comparison */
-    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    strmake_buf(name_buff, db_name);
     my_casedn_str(files_charset_info, name_buff);
     db_name= name_buff;
   }

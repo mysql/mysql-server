@@ -2559,7 +2559,7 @@ main(int argc, char **argv)
 
   if (argc == 2)
   {
-    root_name_end= strmake(fullname, argv[1], FN_REFLEN);
+    root_name_end= strmake_buf(fullname, argv[1]);
 
     printf("TRUNCATE TABLE time_zone;\n");
     printf("TRUNCATE TABLE time_zone_name;\n");
@@ -2713,7 +2713,7 @@ main(int argc, char **argv)
          (int)t, (int)t1);
 
   /* Let us load time zone description */
-  str_end= strmake(fullname, TZDIR, FN_REFLEN);
+  str_end= strmake_buf(fullname, TZDIR);
   strmake(str_end, "/MET", FN_REFLEN - (str_end - fullname));
 
   if (tz_load(fullname, &tz_info, &tz_storage))

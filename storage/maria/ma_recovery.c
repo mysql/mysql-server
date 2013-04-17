@@ -3304,7 +3304,7 @@ static LSN parse_checkpoint_record(LSN lsn)
     first_log_write_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     name_len= strlen((char *)ptr) + 1;
-    strmake(name, (char *)ptr, sizeof(name)-1);
+    strmake_buf(name, (char *)ptr);
     ptr+= name_len;
     if (new_table(sid, name, first_log_write_lsn))
       return LSN_ERROR;

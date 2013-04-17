@@ -16,9 +16,9 @@
 /* old plugin api structures, used for backward compatibility */
 
 #define upgrade_var(X) latest->X= X
-#define upgrade_str(X) strmake(latest->X, X, sizeof(X))
+#define upgrade_str(X) strmake_buf(latest->X, X)
 #define downgrade_var(X) X= latest->X
-#define downgrade_str(X) strmake(X, latest->X, sizeof(X)-1)
+#define downgrade_str(X) strmake_buf(X, latest->X)
 
 /**************************************************************/
 /* Authentication API, version 0x0100 *************************/

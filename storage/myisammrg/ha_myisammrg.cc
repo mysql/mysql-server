@@ -1470,7 +1470,7 @@ static void split_file_name(const char *file_name,
   char buff[FN_REFLEN];
 
   db->length= 0;
-  strmake(buff, file_name, sizeof(buff)-1);
+  strmake_buf(buff, file_name);
   dir_length= dirname_length(buff);
   if (dir_length > 1)
   {

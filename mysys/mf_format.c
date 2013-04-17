@@ -46,7 +46,7 @@ char * fn_format(char * to, const char *name, const char *dir,
   else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(dev))
   {
     /* Put 'dir' before the given path */
-    strmake(buff,dev,sizeof(buff)-1);
+    strmake_buf(buff, dev);
     pos=convert_dirname(dev,dir,NullS);
     strmake(pos,buff,sizeof(buff)-1- (int) (pos-dev));
   }

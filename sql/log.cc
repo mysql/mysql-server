@@ -172,7 +172,7 @@ Silence_log_table_errors::handle_condition(THD *,
                                            MYSQL_ERROR ** cond_hdl)
 {
   *cond_hdl= NULL;
-  strmake(m_message, msg, sizeof(m_message)-1);
+  strmake_buf(m_message, msg);
   return TRUE;
 }
 
@@ -3183,8 +3183,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         mysql_file_sync(log_file.file, MYF(MY_WME|MY_SYNC_FILESIZE)))
       goto err;
     mysql_mutex_lock(&LOCK_commit_ordered);
-    strmake(last_commit_pos_file, log_file_name,
-            sizeof(last_commit_pos_file)-1);
+    strmake_buf(last_commit_pos_file, log_file_name);
     last_commit_pos_offset= my_b_tell(&log_file);
     mysql_mutex_unlock(&LOCK_commit_ordered);
 
@@ -3253,7 +3252,7 @@ int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
 
 int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
 {
-  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
+  strmake_buf(linfo->log_file_name, log_file_name);
   linfo->pos = my_b_tell(&log_file);
   return 0;
 }
@@ -3691,8 +3690,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     Reset rli's coordinates to the current log.
   */
   rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
-  strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->event_relay_log_name)-1);
+  strmake_buf(rli->event_relay_log_name,rli->linfo.log_file_name);
 
   /*
     If we removed the rli->group_relay_log_name file,
@@ -3702,8 +3700,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   if (included)
   {
     rli->group_relay_log_pos = BIN_LOG_HEADER_SIZE;
-    strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
-            sizeof(rli->group_relay_log_name)-1);
+    strmake_buf(rli->group_relay_log_name,rli->linfo.log_file_name);
     rli->notify_group_relay_log_name_update();
   }
 
@@ -4213,9 +4210,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
     else
     {
       if (stat_area.st_mtime < purge_time) 
-        strmake(to_log, 
-                log_info.log_file_name, 
-                sizeof(log_info.log_file_name) - 1);
+        strmake_buf(to_log, log_info.log_file_name);
       else
         break;
     }
@@ -4830,8 +4825,7 @@ binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
   binlog_cache_mngr *const cache_mngr= thd->binlog_setup_trx_data();
 
   /* Server layer calls us with LOCK_commit_ordered locked, so this is safe. */
-  strmake(cache_mngr->last_commit_pos_file, mysql_bin_log.last_commit_pos_file,
-          sizeof(cache_mngr->last_commit_pos_file)-1);
+  strmake_buf(cache_mngr->last_commit_pos_file, mysql_bin_log.last_commit_pos_file);
   cache_mngr->last_commit_pos_offset= mysql_bin_log.last_commit_pos_offset;
 
   trans_register_ha(thd, TRUE, hton);
@@ -6023,8 +6017,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
 
       current->error= write_transaction_or_stmt(current);
 
-      strmake(cache_mngr->last_commit_pos_file, log_file_name,
-              sizeof(cache_mngr->last_commit_pos_file)-1);
+      strmake_buf(cache_mngr->last_commit_pos_file, log_file_name);
       commit_offset= my_b_write_tell(&log_file);
       cache_mngr->last_commit_pos_offset= commit_offset;
       if (cache_mngr->using_xa && cache_mngr->xa_xid)
@@ -7402,7 +7395,7 @@ int TC_LOG_BINLOG::open(const char *opt_name)
 
     do
     {
-      strmake(log_name, log_info.log_file_name, sizeof(log_name)-1);
+      strmake_buf(log_name, log_info.log_file_name);
     } while (!(error= find_next_log(&log_info, 1)));
 
     if (error !=  LOG_INFO_EOF)
@@ -7710,7 +7703,7 @@ static void
 set_binlog_snapshot_file(const char *src)
 {
   int dir_len = dirname_length(src);
-  strmake(binlog_snapshot_file, src + dir_len, sizeof(binlog_snapshot_file)-1);
+  strmake_buf(binlog_snapshot_file, src + dir_len);
 }
 
 /*

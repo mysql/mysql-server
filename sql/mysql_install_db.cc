@@ -377,7 +377,7 @@ static int register_service()
 static void clean_directory(const char *dir)
 {
   char dir2[MAX_PATH+2];
-  *(strmake(dir2, dir, MAX_PATH+1)+1)= 0;
+  *(strmake_buf(dir2, dir)+1)= 0;
 
   SHFILEOPSTRUCT fileop;
   fileop.hwnd= NULL;    /* no status display */

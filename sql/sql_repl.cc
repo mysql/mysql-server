@@ -1272,8 +1272,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
              We don't check thd->lex->mi.log_file_name for NULL here
              since it is checked in sql_yacc.yy
           */
-          strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
-                  sizeof(mi->rli.until_log_name)-1);
+          strmake_buf(mi->rli.until_log_name, thd->lex->mi.log_file_name);
         }
         else if (thd->lex->mi.relay_log_pos)
         {
@@ -1281,8 +1280,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
             slave_errno=ER_BAD_SLAVE_UNTIL_COND;
           mi->rli.until_condition= Relay_log_info::UNTIL_RELAY_POS;
           mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
-          strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
-                  sizeof(mi->rli.until_log_name)-1);
+          strmake_buf(mi->rli.until_log_name, thd->lex->mi.relay_log_name);
         }
         else
           mi->rli.clear_until_condition();
@@ -1639,9 +1637,9 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     Before processing the command, save the previous state.
   */
-  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  strmake_buf(saved_host, mi->host);
   saved_port= mi->port;
-  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
+  strmake_buf(saved_log_name, mi->master_log_name);
   saved_log_pos= mi->master_log_pos;
 
   /*
@@ -1656,8 +1654,7 @@ bool change_master(THD* thd, Master_info* mi)
   }
 
   if (lex_mi->log_file_name)
-    strmake(mi->master_log_name, lex_mi->log_file_name,
-	    sizeof(mi->master_log_name)-1);
+    strmake_buf(mi->master_log_name, lex_mi->log_file_name);
   if (lex_mi->pos)
   {
     mi->master_log_pos= lex_mi->pos;
@@ -1721,15 +1718,15 @@ bool change_master(THD* thd, Master_info* mi)
       (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
 
   if (lex_mi->ssl_ca)
-    strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
+    strmake_buf(mi->ssl_ca, lex_mi->ssl_ca);
   if (lex_mi->ssl_capath)
-    strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+    strmake_buf(mi->ssl_capath, lex_mi->ssl_capath);
   if (lex_mi->ssl_cert)
-    strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
+    strmake_buf(mi->ssl_cert, lex_mi->ssl_cert);
   if (lex_mi->ssl_cipher)
-    strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
+    strmake_buf(mi->ssl_cipher, lex_mi->ssl_cipher);
   if (lex_mi->ssl_key)
-    strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+    strmake_buf(mi->ssl_key, lex_mi->ssl_key);
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
@@ -1743,10 +1740,8 @@ bool change_master(THD* thd, Master_info* mi)
     need_relay_log_purge= 0;
     char relay_log_name[FN_REFLEN];
     mi->rli.relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
-    strmake(mi->rli.group_relay_log_name, relay_log_name,
-	    sizeof(mi->rli.group_relay_log_name)-1);
-    strmake(mi->rli.event_relay_log_name, relay_log_name,
-	    sizeof(mi->rli.event_relay_log_name)-1);
+    strmake_buf(mi->rli.group_relay_log_name, relay_log_name);
+    strmake_buf(mi->rli.event_relay_log_name, relay_log_name);
   }
 
   if (lex_mi->relay_log_pos)
@@ -1782,8 +1777,7 @@ bool change_master(THD* thd, Master_info* mi)
       */
      mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
 			      mi->rli.group_master_log_pos);
-     strmake(mi->master_log_name, mi->rli.group_master_log_name,
-             sizeof(mi->master_log_name)-1);
+     strmake_buf(mi->master_log_name, mi->rli.group_master_log_name);
   }
   /*
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
@@ -1836,8 +1830,7 @@ bool change_master(THD* thd, Master_info* mi)
   */
   mi->rli.group_master_log_pos= mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
-  strmake(mi->rli.group_master_log_name,mi->master_log_name,
-	  sizeof(mi->rli.group_master_log_name)-1);
+  strmake_buf(mi->rli.group_master_log_name,mi->master_log_name);
 
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
     mi->rli.group_master_log_pos=0;

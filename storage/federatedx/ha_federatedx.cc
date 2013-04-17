@@ -3439,7 +3439,7 @@ int ha_federatedx::stash_remote_error()
   if (!io)
     DBUG_RETURN(remote_error_number);
   remote_error_number= io->error_code();
-  strmake(remote_error_buf, io->error_str(), sizeof(remote_error_buf)-1);
+  strmake_buf(remote_error_buf, io->error_str());
   if (remote_error_number == ER_DUP_ENTRY ||
       remote_error_number == ER_DUP_KEY)
     DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);

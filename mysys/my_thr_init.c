@@ -446,7 +446,7 @@ const char *my_thread_name(void)
   {
     my_thread_id id= my_thread_dbug_id();
     sprintf(name_buff,"T@%lu", (ulong) id);
-    strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
+    strmake_buf(tmp->name, name_buff);
   }
   return tmp->name;
 }

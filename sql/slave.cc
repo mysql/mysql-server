@@ -359,16 +359,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
   {
     mi->master_log_pos= max(BIN_LOG_HEADER_SIZE,
                              rli->group_master_log_pos);
-    strmake(mi->master_log_name, rli->group_master_log_name,
-            sizeof(mi->master_log_name)-1);
+    strmake_buf(mi->master_log_name, rli->group_master_log_name);
  
     sql_print_warning("Recovery from master pos %ld and file %s.",
                       (ulong) mi->master_log_pos, mi->master_log_name);
  
-    strmake(rli->group_relay_log_name, rli->relay_log.get_log_fname(),
-            sizeof(rli->group_relay_log_name)-1);
-    strmake(rli->event_relay_log_name, rli->relay_log.get_log_fname(),
-            sizeof(mi->rli.event_relay_log_name)-1);
+    strmake_buf(rli->group_relay_log_name, rli->relay_log.get_log_fname());
+    strmake_buf(rli->event_relay_log_name, rli->relay_log.get_log_fname());
  
     rli->group_relay_log_pos= rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
   }
@@ -3588,8 +3585,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   mysql_mutex_lock(&rli->data_lock);
   if (rli->slave_skip_counter)
   {
-    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
-    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
+    strmake_buf(saved_log_name, rli->group_relay_log_name);
+    strmake_buf(saved_master_log_name, rli->group_master_log_name);
     saved_log_pos= rli->group_relay_log_pos;
     saved_master_log_pos= rli->group_master_log_pos;
     saved_skip= rli->slave_skip_counter;
@@ -5223,8 +5220,7 @@ static Log_event* next_event(Relay_log_info* rli)
           goto err;
         }
         rli->event_relay_log_pos = BIN_LOG_HEADER_SIZE;
-        strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
-                sizeof(rli->event_relay_log_name)-1);
+        strmake_buf(rli->event_relay_log_name,rli->linfo.log_file_name);
         flush_relay_log_info(rli);
       }
 

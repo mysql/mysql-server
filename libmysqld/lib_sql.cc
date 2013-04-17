@@ -90,7 +90,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
   net->last_errno= ei->last_errno;
-  strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
+  strmake_buf(net->last_error, ei->info);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
   my_free(data);
@@ -703,8 +703,8 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
   sctx->host_or_ip= sctx->host= (char*) my_localhost;
-  strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
-  strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
+  strmake_buf(sctx->priv_host, (char*) my_localhost);
+  strmake_buf(sctx->priv_user, mysql->user);
   sctx->user= my_strdup(mysql->user, MYF(0));
   sctx->proxy_user[0]= 0;
   sctx->master_access= GLOBAL_ACLS;       // Full rights
@@ -772,7 +772,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   return 0;
 
 err:
-  strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
+  strmake_buf(net->last_error, thd->main_da.message());
   memcpy(net->sqlstate,
          mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
          sizeof(net->sqlstate)-1);
@@ -1119,8 +1119,7 @@ net_send_ok(THD *thd,
   data->embedded_info->affected_rows= affected_rows;
   data->embedded_info->insert_id= id;
   if (message)
-    strmake(data->embedded_info->info, message,
-            sizeof(data->embedded_info->info)-1);
+    strmake_buf(data->embedded_info->info, message);
 
   bool error= write_eof_packet(thd, server_status, statement_warn_count);
   thd->cur_data= 0;
@@ -1171,7 +1170,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                         err, strlen(err),
                         system_charset_info, &error);
   /* Converted error message is always null-terminated. */
-  strmake(ei->info, converted_err, sizeof(ei->info)-1);
+  strmake_buf(ei->info, converted_err);
   strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;

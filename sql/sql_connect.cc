@@ -435,7 +435,7 @@ void init_user_stats(USER_STATS *user_stats,
   memcpy(user_stats->user, user, user_length);
   user_stats->user[user_length]= 0;
   user_stats->user_name_length= user_length;
-  strmake(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user)-1);
+  strmake_buf(user_stats->priv_user, priv_user);
 
   user_stats->total_connections= total_connections;
   user_stats->concurrent_connections= concurrent_connections;

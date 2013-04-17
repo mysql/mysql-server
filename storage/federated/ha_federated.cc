@@ -3243,7 +3243,7 @@ int ha_federated::stash_remote_error()
   if (!mysql)
     DBUG_RETURN(remote_error_number);
   remote_error_number= mysql_errno(mysql);
-  strmake(remote_error_buf, mysql_error(mysql), sizeof(remote_error_buf)-1);
+  strmake_buf(remote_error_buf, mysql_error(mysql));
   if (remote_error_number == ER_DUP_ENTRY ||
       remote_error_number == ER_DUP_KEY)
     DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);

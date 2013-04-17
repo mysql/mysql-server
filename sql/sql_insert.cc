@@ -2011,8 +2011,7 @@ public:
     DBUG_ENTER("Delayed_insert constructor");
     thd.security_ctx->user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
-    strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
-            USERNAME_LENGTH);
+    strmake_buf(thd.security_ctx->priv_user, thd.security_ctx->user);
     thd.current_tablenr=0;
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql

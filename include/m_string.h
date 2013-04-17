@@ -108,6 +108,15 @@ extern  char *strcend(const char *, pchar);
 extern	char *strfill(char * s,size_t len,pchar fill);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
+#if !defined(__GNUC__) || (__GNUC__ < 4)
+#define strmake_buf(D,S)        strmake(D, S, sizeof(D) - 1)
+#else
+#define strmake_buf(D,S) ({                             \
+  compile_time_assert(sizeof(D) != sizeof(char*));      \
+  strmake(D, S, sizeof(D) - 1);                         \
+  })
+#endif
+
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
 #endif
