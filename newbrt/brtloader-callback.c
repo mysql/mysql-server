@@ -70,7 +70,7 @@ int brt_loader_call_error_function(brtloader_error_callback loader_error) {
     int r;
     error_callback_lock(loader_error);
     r = loader_error->error;
-    if (r && !loader_error->did_callback) {
+    if (r && loader_error->error_callback && !loader_error->did_callback) {
         loader_error->did_callback = 1;
         loader_error->error_callback(loader_error->db, 
                                      loader_error->which_db,
