@@ -47,14 +47,15 @@ static void cachetable_reader(WORKITEM);
 
 #define TOKU_DO_WAIT_TIME 0
 
-// these should be in the cachetable object, but we make them global so that gdb can get them easily
+// these should be in the cachetable object, but we make them file-wide so that gdb can get them easily
 static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
 static u_int64_t cachetable_wait_reading;  // how many times does get_and_pin() wait for a node to be read?
 static u_int64_t cachetable_wait_writing;  // how many times does get_and_pin() wait for a node to be written?
-static u_int64_t cachetable_puts;
-static u_int64_t cachetable_prefetches;
-static u_int64_t cachetable_maybe_get_and_pins, cachetable_maybe_get_and_pin_hits;
+static u_int64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
+static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
+static u_int64_t cachetable_maybe_get_and_pins;      // how many times has get_and_pin been called?
+static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin() returned with a node?
 #if TOKU_DO_WAIT_TIME
 static u_int64_t cachetable_miss_time;
 static u_int64_t cachetable_wait_time;
@@ -1952,6 +1953,10 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->miss         = cachetable_miss;
     s->wait_reading = cachetable_wait_reading;
     s->wait_writing = cachetable_wait_writing;
+    s->puts         = cachetable_puts;
+    s->prefetches   = cachetable_prefetches;
+    s->maybe_get_and_pins      = cachetable_maybe_get_and_pins;
+    s->maybe_get_and_pin_hits  = cachetable_maybe_get_and_pin_hits;
     s->size_current = ct->size_current;          
     s->size_limit   = ct->size_limit;            
     s->size_writing = ct->size_writing;          

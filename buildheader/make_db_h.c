@@ -355,10 +355,13 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t        cachetable_miss;         /* how many cache misses */ \n");
     printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
     printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
-    printf("  int64_t          cachetable_size_current; /*  */ \n");
-    printf("  int64_t          cachetable_size_limit;   /*  */ \n");
-    printf("  int64_t          cachetable_size_writing; /*  */ \n");
-
+    printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
+    printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
+    printf("  u_int64_t        maybe_get_and_pins;      /* how many times has get_and_pin been called */ \n");
+    printf("  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin() returned with a node */ \n");
+    printf("  int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ \n");
+    printf("  int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ \n");
+    printf("  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
     printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
     printf("  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ \n");
     printf("  u_int32_t        range_locks_curr;       /* total range locks currently in use */ \n");
