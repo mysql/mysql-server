@@ -56,7 +56,8 @@ static void test_setup_and_recover(TOKULOGGER *loggerp, CACHETABLE *ctp) {
     r = toku_logger_create(&logger);
     CKERR(r);
 
-    r = tokudb_recover((DB_ENV*)&ct,
+    void *ctv = &ct;  // Use intermediate void* to avoid compiler warning.
+    r = tokudb_recover(ctv,
                        NULL_prepared_txn_callback,
                        xid_lsn_keep_cachetable_callback,
                        logger,
