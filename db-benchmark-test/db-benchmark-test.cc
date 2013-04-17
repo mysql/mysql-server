@@ -787,19 +787,5 @@ static int test_main (int argc, char *const argv[]) {
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), 
 	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/toku_tdiff(&t3, &t1));
     }
-#if 0 && defined TOKUDB
-    if (verbose) {
-	extern int toku_os_get_max_rss(int64_t*);
-        int64_t mrss;
-        int r = toku_os_get_max_rss(&mrss);
-        assert(r==0);
-	printf("maxrss=%.2fMB\n", mrss/256.0);
-    }
-    if (0) {
-	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
-	print_hash_histogram();
-    }
-#endif
-
     return 0;
 }
