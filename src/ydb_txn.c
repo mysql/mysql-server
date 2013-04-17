@@ -324,6 +324,19 @@ txn_func_init(DB_TXN *txn) {
     txn->id64 = toku_txn_id64;
 }
 
+
+//
+// Creates a transaction for the user
+// In our system, as far as the user is concerned, the rules are as follows:
+//  - one cannot operate on a transaction if a child exists, with the exception of commit/abort
+//  - one cannot operate on a transaction simultaneously in two separate threads
+//     (the reason for this is that some operations may create a child transaction
+//     as part of the function, such as env->dbremove and env->dbrename, and if
+//     transactions could be operated on simulatenously in different threads, the first
+//     rule above is violated)
+//  - if a parent transaction is committed/aborted, the child transactions are recursively
+//     committed
+//
 int 
 toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
