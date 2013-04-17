@@ -1901,9 +1901,9 @@ cachetable_unpin_internal(
     CACHETABLE ct = cachefile->cachetable;
     bool added_data_to_cachetable = false;
 
+    pair_lock(p);
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = attr;
-    pair_lock(p);
     if (dirty) {
         p->dirty = CACHETABLE_DIRTY;
     }
