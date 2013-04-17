@@ -400,6 +400,7 @@ upgrade_brtheader_10_11(struct brt_header **brth_10, struct brt_header ** brth_1
     *brth_10 = NULL;
     (*brth_11)->layout_version = BRT_LAYOUT_VERSION_11;
     (*brth_11)->layout_version_original = BRT_LAYOUT_VERSION_10;
+    (*brth_11)->checkpoint_lsn = ZERO_LSN; //Can't reuse LSNs
     return 0;
 }
 
