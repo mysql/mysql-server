@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <fcntl.h>
 #include <test.h>
 #include "toku_os.h"

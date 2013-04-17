@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include "toku_os.h"
 
 static void

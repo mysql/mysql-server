@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <unistd.h>
 #include <toku_time.h>
 

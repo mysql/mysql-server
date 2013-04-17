@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <test.h>
 #include <toku_pthread.h>
 #include <toku_os.h>

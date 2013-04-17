@@ -2,12 +2,13 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 #include <stdio.h>
-#include <assert.h>
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
+
 
 #define N_TXNS 4
 
@@ -56,7 +57,7 @@ test_txn_abort (int n, int which_guys_to_abort) {
 			goto didit;
 		    }
 		}
-		abort();
+	        toku_hard_crash_on_purpose();
 	    didit: ;
 	    }
 	}

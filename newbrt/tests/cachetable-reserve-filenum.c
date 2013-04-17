@@ -47,7 +47,7 @@ cachetable_reserve_filenum_test (void) {
     assert(r == ENOENT);
 
     // now exercise filenum reservation
-    FILENUM fn2;
+    FILENUM fn2 = {0};
     r = toku_cachetable_reserve_filenum(ct, &fn, FALSE, fn2);
     CKERR(r);
     toku_cachetable_unreserve_filenum (ct, fn);

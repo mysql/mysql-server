@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>

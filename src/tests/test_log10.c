@@ -8,7 +8,7 @@
 /* This test_log10 inserts to a db, closes, reopens, and inserts more to db.  We want to make sure that the recovery of the buffers works. */
 /* Lots of stuff gets inserted. */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

@@ -6,7 +6,7 @@
 
 #include "omt.h"
 #include "memory.h"
-#include "toku_assert.h"
+
 #include "brttypes.h"
 
 #include <stdlib.h>

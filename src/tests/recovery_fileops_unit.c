@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
+
 static int do_recover;
 static int do_crash;
 static char fileop;
@@ -197,11 +198,9 @@ static void UU() crash_it(void) {
     fprintf(stderr, "HAPPY CRASH\n");
     fflush(stdout);
     fflush(stderr);
-    int zero = 0;
-    int divide_by_zero = 1/zero;
-    printf("force use of %d\n", divide_by_zero);
+    toku_hard_crash_on_purpose();
+    printf("This line should never be printed\n");
     fflush(stdout);
-    fflush(stderr);
 }
 
 static void checkpoint_callback_maybe_crash(void * UU(extra)) {

@@ -1,7 +1,7 @@
 #include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef _WIN32

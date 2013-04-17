@@ -7,10 +7,11 @@
 #include <toku_stdint.h>
 #include <stdio.h>
 #include <db.h>
-#include <assert.h>
 #include <limits.h>
 #include <errno.h>
 #include "toku_htonl.h"
+#include "toku_assert.h"
+#include <signal.h>
 #if defined(USE_TDB)
 #include "ydb.h"
 //TDB uses DB_NOTFOUND for c_del and DB_CURRENT errors.
@@ -62,7 +63,6 @@ parse_args (int argc, char *argv[]) {
 	argc--;
 	argv++;
     }
-    toku_os_initialize_settings(1);
 }
 
 static __attribute__((__unused__)) void 
@@ -169,6 +169,7 @@ main(int argc, char *argv[]) {
     r = db_env_set_func_free(toku_free);      assert(r==0);
     r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
 #endif
+    toku_os_initialize_settings(1);
     r = test_main(argc, argv);
 #if IS_TDB && (defined(_WIN32) || defined(_WIN64))
     toku_ydb_destroy();
@@ -201,4 +202,48 @@ random64(void) {
     return ret;
 }
 
+
+//Simulate as hard a crash as possible.
+//Choices:
+//  raise(SIGABRT)
+//  kill -SIGKILL $pid
+//  divide by 0
+//  null dereference
+//  abort()
+//  assert(FALSE) (from <assert.h>)
+//  assert(FALSE) (from <toku_assert.h>)
+//
+//Linux:
+//  abort() and both assert(FALSE) cause FILE buffers to be flushed and written to disk: Unacceptable
+//Windows:
+//  None of them cause file buffers to be flushed/written to disk, however
+//  abort(), assert(FALSE) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
+//
+//kill -SIGKILL $pid is annoying (and so far untested)
+//
+//raise(SIGABRT) has the downside that perhaps it could be caught?
+//I'm choosing raise(SIGABRT), followed by divide by 0, followed by null dereference, followed by all the others just in case one gets caught.
+static void UU()
+toku_hard_crash_on_purpose(void) {
+#if TOKU_WINDOWS
+    TerminateProcess(GetCurrentProcess(), 137);
+#else
+    raise(SIGKILL); //Does not flush buffers on linux; cannot be caught.
+#endif
+    {
+        int zero = 0;
+        int infinity = 1/zero;
+        fprintf(stderr, "Force use of %d\n", infinity);
+        fflush(stderr); //Make certain the string is calculated.
+    }
+    {
+        void * intothevoid = NULL;
+        (*(int*)intothevoid)++;
+        fprintf(stderr, "Force use of *(%p) = %d\n", intothevoid, *(int*)intothevoid);
+        fflush(stderr);
+    }
+    abort();
+    fprintf(stderr, "This line should never be printed\n");
+    fflush(stderr);
+}
 

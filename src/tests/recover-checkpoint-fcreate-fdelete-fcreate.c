@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
+
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 char *namea="a.db";
@@ -35,7 +36,7 @@ static void run_test (void) {
     r = db->open(db, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
     r = db->close(db, 0);                                                               CKERR(r);
 
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 static void run_recover (void) {

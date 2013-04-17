@@ -33,11 +33,12 @@ static void test_shutdown(void);
 static void
 setup (u_int32_t flags) {
     int r;
-    system("rm -rf " ENVDIR);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    CKERR(r);
     if (env)
         test_shutdown();
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
     r=db_env_create(&env, 0); 
     CKERR(r);
     env->set_errfile(env, stderr);
@@ -69,24 +70,27 @@ reopen_env(u_int32_t flags, int expected_r) {
 static void
 delete_persistent(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s\n", ENVDIR, "/", "tokudb.environment");
-    system(cmd);
+    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "tokudb.environment");
+    int r = system(cmd);
+    CKERR(r);
 }
 
 
 static void
 delete_directory(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s\n", ENVDIR, "/", "tokudb.directory");
-    system(cmd);
+    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "tokudb.directory");
+    int r = system(cmd);
+    CKERR(r);
 }
 
 
 static void
 delete_log(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s\n", ENVDIR, "/", "*.tokulog");
-    system(cmd);
+    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "*.tokulog");
+    int r = system(cmd);
+    CKERR(r);
 }
 
 
@@ -109,7 +113,6 @@ test_env_startup(int logging) {
 	flags = FLAGS_NOLOG;
 
     create_env(flags);
-    reopen_env(flags, 0);              // reopen existing environment
 
     // delete persistent info and try to reopen
     delete_persistent();

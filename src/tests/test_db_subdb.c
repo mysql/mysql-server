@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <assert.h>
+
 #include <unistd.h>
 #include <db.h>
 

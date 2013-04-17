@@ -3,7 +3,7 @@
 
 #define _XOPEN_SOURCE 500
 #include <arpa/inet.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>

@@ -1,5 +1,5 @@
 #include "toku_list.h"
-#include "toku_assert.h"
+
 
 #include "test.h"
 #include <memory.h>

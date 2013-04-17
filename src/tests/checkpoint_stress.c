@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "checkpoint_test.h"
 
+
 /***
 
 
@@ -121,15 +122,7 @@ drop_dead(void) {
     fprintf(stderr, "HAPPY CRASH\n");
     fflush(stdout);
     fflush(stderr);
-    int zero = 0;
-    int infinity = 1/zero;
-    printf("Survived zerodivide!\n");
-    fflush(stdout);
-    printf("Infinity = %d\n", infinity);
-    fflush(stdout);
-    void * intothevoid = NULL;
-    (*(int*)intothevoid)++;
-    printf("intothevoid = %p, infinity = %d\n", intothevoid, infinity);
+    toku_hard_crash_on_purpose();
     printf("This line should never be printed\n");
     fflush(stdout);
 }

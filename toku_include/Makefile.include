@@ -263,7 +263,7 @@ ifneq ($(CYGWIN),)
 	    CRUNTIME=MTd
 	endif
 	endif
-        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
+        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib PowrProf.lib
         LINK=#Empty
         BINOUTPUT=-Fe
         OOUTPUT=-Fo
@@ -279,7 +279,7 @@ ifneq ($(CYGWIN),)
         DBG_OPTFLAGS = -Od
         COMBINE_C = -Qipo-c
 	WERROR = -WX # Windows icc version of -Werror
-	WERROR += -Qdiag-error:167,266,810 # Workarounds for -WX not being complete on windows icc
+	WERROR += -Qdiag-error:167,266,810,592 # Workarounds for -WX not being complete on windows icc
         SYMBOLS= -Zi -debug:all -Qinline-debug-info
         PORTABILITY=
         SKIP_WARNING += $(ICC_NOWARN)1786    # Don't complain about 'read/write/other standards' being deprecated

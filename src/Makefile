@@ -37,22 +37,30 @@ OBJS_RAW = \
 #\end
 #OBJS automatically defined.
 
-LIBRARIES= \
+LIBRARIES=
+
+LIBRARIES+= \
 	$(LIBRARY) \
 	$(LIBRARY_S) \
 #Purposely here for \ at end of prev
-ifeq ($(OS_CHOICE),windows)
-    ifeq ($(DEBUG),0)
-	LIBRARIES += $(IPO_YDB)
-    else
-	LIBRARIES += $(NOIPO_YDB)
-    endif
-endif
 
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
 ifeq ($(OS_CHOICE),windows)
     INSTALL_LIBRARIES += libtokudb.pdb.install
 endif
+
+ifeq ($(OS_CHOICE),windows)
+#Does not support parallel builds for files in src.
+.NOTPARALLEL:;
+    ifeq ($(DEBUG),0)
+    	WINYDB = $(IPO_YDB)
+    else
+    	WINYDB = $(NOIPO_YDB)
+    endif
+    LIBRARIES += $(WINYDB)
+libtokudb.pdb :  $(WINYDB);
+endif
+
 
 
 .PHONY:install_libs install.% build install local build_tests
@@ -68,9 +76,6 @@ build_tests: | local
 install_libs: $(INSTALL_LIBRARIES)
 %.install: %
 	if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
-
-libtokudb.pdb.install: libtokudb.pdb
-	if ! diff $< ../lib/$< > /dev/null 2>&1; then cp $< ../lib/; fi
 
 .PHONY: install
 install: libs install_libs ;

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 
 int main(void) {
     assert(0);

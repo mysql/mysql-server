@@ -71,14 +71,14 @@ SUPPORT_ROWSIZE=$$((80*1024))  	# at least 80KiB
 
 .PHONY: check-rowsize check-rowsize-dup
 check-rowsize: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.key.dir                  --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir               --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+	( $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.key.dir                  --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 && \
+          $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 && \
+          $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir               --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 ) $(SUMMARIZE_CMD)
 
 check-rowsize-dup: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.key.dir    --dupsort --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
-	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.keyval.dir --dupsort --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+	( $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.key.dir    --dupsort --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 && \
+          $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 && \
+          $(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.dup.keyval.dir --dupsort --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 ) $(SUMMARIZE_CMD)
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
@@ -88,8 +88,8 @@ check-x: $(TARGET_TDB)
 
 # check-scanrace: VGRIND=tcheck_cl -w 140 -s 4 -p nothreads,delay=2,stall=900,noverbose
 check-scanrace: $(SCANRACE_TDB) $(TARGET_TDB)
-	./$(TARGET_TDB) --env scanrace.tokudb --periter 10000 --pagesize 4096 1
-	$(VGRIND) ./$(SCANRACE_TDB) --env scanrace.tokudb $(SUMMARIZE_CMD)
+	( ./$(TARGET_TDB) --env scanrace.tokudb --periter 10000 --pagesize 4096 1 && \
+          $(VGRIND) ./$(SCANRACE_TDB) --env scanrace.tokudb ) $(SUMMARIZE_CMD)
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
@@ -101,9 +101,9 @@ check-no-rolltmp: $(TARGET_TDB)
 
 # Check to make sure that if we make a file that's bigger than 4GB that we can read the file back out and get all the rows.
 check-4G: $(TARGET_TDB)  $(SCANSCAN_TDB)
-	./$(TARGET_TDB) $(VERBVERBOSE) --env 4g.dir --norandom --compressibility 1 --valsize 10000 1
-	./$(SCANSCAN_TDB) --env 4g.dir --lwc --prelock --prelockflag --nox > 4g.out
-	fgrep "(1048576 rows)" 4g.out > /dev/null
+	( ./$(TARGET_TDB) $(VERBVERBOSE) --env 4g.dir --norandom --compressibility 1 --valsize 10000 1 && \
+          ./$(SCANSCAN_TDB) --env 4g.dir --lwc --prelock --prelockflag --nox > 4g.out && \
+          fgrep "(1048576 rows)" 4g.out > /dev/null ) $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(TARGETS) 4g.out

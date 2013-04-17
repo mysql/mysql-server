@@ -4,7 +4,7 @@
 
 
 #include <stdio.h>
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

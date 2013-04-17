@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <errno.h>

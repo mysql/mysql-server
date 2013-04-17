@@ -5,7 +5,7 @@
 /* try a reverse compare function to verify that the database always uses the application's
    compare function */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>

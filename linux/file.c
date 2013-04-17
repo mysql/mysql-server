@@ -3,7 +3,7 @@
 #include <toku_atomic.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdio.h>
 
 //Print any necessary errors
@@ -20,7 +20,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
                 char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
                 snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
                 perror(err_msg);
-                fflush(stdout);
+                fflush(stderr);
                 try_again = 1;
                 break;
             }
@@ -28,7 +28,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
                 char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
                 snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
                 perror(err_msg);
-                fflush(stdout);
+                fflush(stderr);
                 int out_of_disk_space = 1;
                 assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
             }

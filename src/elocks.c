@@ -14,14 +14,16 @@
 #include <toku_portability.h>
 #include "ydb-internal.h"
 #include <string.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <toku_pthread.h>
 #include <sys/types.h>
 
 #if defined(__linux__) && __linux__
+//Enabled for linux
 #define YDB_LOCK_MISS_TIME 1
 #else
-#define YDB_LOCK_MISS_TIME 0
+//Enabled for windows
+#define YDB_LOCK_MISS_TIME 1
 #endif
 
 struct ydb_big_lock {
@@ -61,9 +63,9 @@ ydbtime_destr(void *a) {
     struct ydbtime *ydbtime = (struct ydbtime *) a;
     int r;
     // printf("%s %p\n", __FUNCTION__, a);
-    r = pthread_mutex_lock(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_lock(&ydb_big_lock.lock); assert(r == 0);
     toku_list_remove(&ydbtime->all_ydbtimes);
-    r = pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
     toku_free(ydbtime);
 }
 
@@ -123,7 +125,8 @@ toku_ydb_lock_destroy(void) {
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
     while (!toku_list_empty(&ydb_big_lock.all_ydbtimes)) {
         struct toku_list *list = toku_list_pop(&ydb_big_lock.all_ydbtimes);
-        ydbtime_destr(list);
+        struct ydbtime *ydbtime = toku_list_struct(list, struct ydbtime, all_ydbtimes);
+        ydbtime_destr(ydbtime);
     }
 #endif
     r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);

@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
+
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 #define NAMEA "a.db"
@@ -50,7 +51,7 @@ static void run_test (void) {
 
     r = txn->commit(txn, 0);                                                            CKERR(r);
 
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 static void run_recover (void) {

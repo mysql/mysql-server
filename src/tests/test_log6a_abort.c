@@ -5,7 +5,7 @@
 /* Like test_log6 except abort.
  * And abort some stuff, but not others (unlike test_log6_abort which aborts everything) */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <search.h>

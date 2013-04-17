@@ -20,7 +20,7 @@ static void run_test (void) {
     r = db_create(&db, env, 0);                                                         CKERR(r);
 
     r = env->close(env, 0);
-    assert(r == EINVAL);
+    CKERR2(r,EINVAL);
 }
 
 static void run_recover (void) {

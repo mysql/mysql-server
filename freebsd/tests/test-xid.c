@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <sys/thr.h>
 #include "toku_os.h"
 

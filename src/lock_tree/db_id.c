@@ -5,7 +5,7 @@
 
 #include <toku_portability.h>
 #include <errno.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <string.h>
 #include <limits.h>
 #include <memory.h>

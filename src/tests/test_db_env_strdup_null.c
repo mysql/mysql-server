@@ -3,7 +3,7 @@
 #include "test.h"
 
 /* Do I return EINVAL when passing in NULL for something that would otherwise be strdup'd? */
-#include <assert.h>
+
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>

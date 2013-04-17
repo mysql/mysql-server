@@ -3,7 +3,7 @@
 #include "test.h"
 
 /* Does removing subdatabases corrupt the db file/other dbs in that file? (when nothing else open) */
-#include <assert.h>
+
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>

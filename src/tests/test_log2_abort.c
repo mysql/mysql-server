@@ -6,7 +6,7 @@
 /* Like test_log2 except abort. */
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

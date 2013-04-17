@@ -3,7 +3,7 @@
  *   - Obtaining it for the second one?
  *   - The third one? */
 
-#include <assert.h>
+#include <toku_assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/time.h>

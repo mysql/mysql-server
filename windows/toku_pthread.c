@@ -59,6 +59,11 @@ toku_pthread_win32_init(void) {
         LOAD_PTHREAD_FUNC(create);
         LOAD_PTHREAD_FUNC(join);
         LOAD_PTHREAD_FUNC(self);
+
+        LOAD_PTHREAD_FUNC(key_create);
+        LOAD_PTHREAD_FUNC(key_delete);
+        LOAD_PTHREAD_FUNC(getspecific);
+        LOAD_PTHREAD_FUNC(setspecific);
 #undef LOAD_PTHREAD_FUNC
     }
     return r;

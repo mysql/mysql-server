@@ -157,13 +157,20 @@ endif
 check_benchmarktest_256: benchmark-test$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
 
+
 check_test-assertA: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# no arguments, should err
 	$(VGRIND) ./$< > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
+
+ifeq ($(OS_CHOICE),windows)
+    TEST_ASSERT_FAILCODE=134 #Does not use raise(SIGABRT) to fail assert, so will not overwrite 134 with 1.
+else
+    TEST_ASSERT_FAILCODE=1
+endif
 check_test-assertB: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, not "ok" should err
 	@rm -f test-assert.out
-	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = 1 && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
+	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = $(TEST_ASSERT_FAILCODE) && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
 check_test-assertC: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)

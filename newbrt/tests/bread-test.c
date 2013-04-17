@@ -4,7 +4,7 @@
 #include "test.h"
 #include <toku_portability.h>
 
-#include <assert.h>
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

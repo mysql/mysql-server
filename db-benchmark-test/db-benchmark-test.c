@@ -5,7 +5,7 @@
 #include <toku_portability.h>
 #include <toku_time.h>
 #include <db.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -86,13 +86,13 @@ static unsigned char get_random_c(void) {
     return random_c[next_random_c];
 }
 
-static int min(int a, int b) {
+static int min_int(int a, int b) {
     return a > b ? b : a;
 }
 
 static void copy_random_c(unsigned char *p, int n) {
     while (n > 0) {
-	int m = min(n, MAX_RANDOM_C-next_random_c);
+	int m = min_int(n, MAX_RANDOM_C-next_random_c);
 	memcpy(p, &random_c[next_random_c], m);
 	n -= m;
 	p += m;

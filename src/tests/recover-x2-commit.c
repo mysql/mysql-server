@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
+
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 char *namea="a.db";
 char *nameb="b.db";
@@ -55,7 +56,7 @@ do_x2_shutdown (BOOL do_commit) {
     if (do_commit) {
 	r = txnV->commit(txnV, 0);                                                      CKERR(r);
     }
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 static void

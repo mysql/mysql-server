@@ -3,7 +3,7 @@
 #include "test.h"
 
 /* Does removing a database free the DB structure's memory? */
-#include <assert.h>
+
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>

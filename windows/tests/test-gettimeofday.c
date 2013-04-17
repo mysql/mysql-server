@@ -1,6 +1,6 @@
 #include <test.h>
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <toku_time.h>
 
 int test_main(int argc, char *argv[]) {

@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
+
 char descriptor_contents[] = "Spoon full of sugar";
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
@@ -72,7 +73,7 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
         r = txn->commit(txn, 0);                                                        CKERR(r);
     }
     //printf("shutdown\n");
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 static void

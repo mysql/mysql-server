@@ -5,7 +5,7 @@
  *   - Obtaining it for the second one?
  *   - The third one? */
 
-#include <assert.h>
+#include <toku_assert.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>

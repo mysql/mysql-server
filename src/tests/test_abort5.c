@@ -4,7 +4,7 @@
 
 //Verify aborting transactions works properly when transaction 
 //starts with an empty db and a table lock.
-#include <assert.h>
+
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>

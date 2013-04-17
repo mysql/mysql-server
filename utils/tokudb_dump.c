@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -273,7 +273,7 @@ int create_init_env()
    //However, do we need to use DB_INIT_LOG to join a logging environment?
    //REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
-#if USE_BDB==1
+#if defined(USE_BDB) && USE_BDB==1
    {
        int r;
        r = dbenv->set_lk_max_objects(dbenv, 100000);

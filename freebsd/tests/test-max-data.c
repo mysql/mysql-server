@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <string.h>
 #if defined(__linux__)
 #include <bits/wordsize.h>

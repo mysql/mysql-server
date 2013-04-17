@@ -5,7 +5,7 @@
 #include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
-#include <assert.h>
+
 #include <errno.h>
 #include <sys/stat.h>
 
