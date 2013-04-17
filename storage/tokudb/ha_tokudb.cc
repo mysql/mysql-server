@@ -7768,6 +7768,16 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+#else
+
+volatile int ha_tokudb_add_index_wait = 0;
+
+int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
+    while (ha_tokudb_add_index_wait) sleep(1); // debug
+    int error = HA_ERR_WRONG_COMMAND;
+    TOKUDB_DBUG_RETURN(error);
+}
 #endif
 
 volatile int ha_tokudb_drop_indexes_wait = 0; // debug
