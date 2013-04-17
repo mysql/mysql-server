@@ -76,7 +76,7 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
 /* Copy memory.  Analogous to strdup() */
 void *toku_memdup (const void *v, size_t len);
 /* Toku-version of strdup.  Use this so that it calls toku_malloc() */
-char *toku_strdup (const char *s);
+char *toku_strdup (const char *s)   __attribute__((__visibility__("default")));
 
 void toku_malloc_cleanup (void); /* Before exiting, call this function to free up any internal data structures from toku_malloc.  Otherwise valgrind will complain of memory leaks. */
 

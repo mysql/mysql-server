@@ -8,10 +8,10 @@ extern "C" {
 #include "toku_os_types.h"
 
 // Returns: the current process id
-int toku_os_getpid(void);
+int toku_os_getpid(void)   __attribute__((__visibility__("default")));
 
 // Returns: the current thread id
-int toku_os_gettid(void);
+int toku_os_gettid(void)  __attribute__((__visibility__("default")));
 
 // Returns: the number of processors in the system
 int toku_os_get_number_processors(void);
@@ -27,7 +27,7 @@ uint64_t toku_os_get_phys_memory_size(void);
 
 // Returns: 0 on success
 // sets fsize to the number of bytes in a file
-int toku_os_get_file_size(int fildes, int64_t *fsize);
+int toku_os_get_file_size(int fildes, int64_t *fsize)   __attribute__((__visibility__("default")));
 
 // Returns: 0 on success
 // Initializes id as a unique fileid for fildes on success.
