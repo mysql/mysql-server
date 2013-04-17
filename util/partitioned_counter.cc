@@ -210,17 +210,21 @@ static uint64_t allocate_counter (void)
 // Effect: Find an unused counter number, and allocate it, returning the counter number.
 //  Grabs the pc_lock.
 {
-    pc_lock();    
+    uint64_t ret;
+    pc_lock();
     size_t size = counters_in_use.get_size();
     for (uint64_t i=0; i<size; i++) {
         if (!counters_in_use.fetch_unchecked(i)) {
             counters_in_use.store_unchecked(i, true);
-            return i;
+            ret = i;
+            goto unlock;
         }
     }
     counters_in_use.push(true);
-    pc_unlock();    
-    return size;
+    ret = size;
+unlock:
+    pc_unlock();
+    return ret;
 }
 
 
