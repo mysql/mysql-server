@@ -89,129 +89,117 @@ static void launch_reader(void) {
     sleep(1);
 }
 
+static bool locks_are_expensive(void) {
+    toku_mutex_lock(&mutex);
+    assert(w.write_lock_is_expensive() == w.read_lock_is_expensive());
+    bool is_expensive = w.write_lock_is_expensive();
+    toku_mutex_unlock(&mutex);
+    return is_expensive;
+}
+
 static void test_write_cheapness(void) {
     toku_mutex_init(&mutex, NULL);    
     w.init(&mutex);
 
     // single expensive write lock
     grab_write_lock(true);
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_write_lock();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
 
     // single cheap write lock
     grab_write_lock(false);
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     release_write_lock();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
 
     // multiple read locks
     grab_read_lock();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     grab_read_lock();
     grab_read_lock();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     release_read_lock();
     release_read_lock();
     release_read_lock();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
 
     // expensive write lock and cheap writers waiting
     grab_write_lock(true);
     launch_cheap_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     launch_cheap_waiter();
     launch_cheap_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_write_lock();
     sleep(1);
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
-    
+    assert(!locks_are_expensive());
 
     // cheap write lock and expensive writer waiter
     grab_write_lock(false);
     launch_expensive_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_write_lock();
     sleep(1);
 
     // expensive write lock and expensive waiter
     grab_write_lock(true);
     launch_expensive_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_write_lock();
     sleep(1);
 
     // cheap write lock and cheap waiter
     grab_write_lock(false);
     launch_cheap_waiter();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     release_write_lock();
     sleep(1);
 
     // read lock held and cheap waiter
     grab_read_lock();
     launch_cheap_waiter();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     // add expensive waiter
     launch_expensive_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_read_lock();
     sleep(1);
-    
 
     // read lock held and expensive waiter
     grab_read_lock();
     launch_expensive_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     // add expensive waiter
     launch_cheap_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_read_lock();
     sleep(1);
 
     // cheap write lock held and waiting read
     grab_write_lock(false);
     launch_reader();
-    assert(!w.write_lock_is_expensive());
-    assert(!w.read_lock_is_expensive());
+    assert(!locks_are_expensive());
     launch_expensive_waiter();
+    toku_mutex_lock(&mutex);
     assert(w.write_lock_is_expensive());
     // tricky case here, because we have a launched reader
     // that should be in the queue, a new read lock
     // should piggy back off that
     assert(!w.read_lock_is_expensive());
+    toku_mutex_unlock(&mutex);
     release_write_lock();
     sleep(1);
 
     // expensive write lock held and waiting read
     grab_write_lock(true);
     launch_reader();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     launch_cheap_waiter();
-    assert(w.write_lock_is_expensive());
-    assert(w.read_lock_is_expensive());
+    assert(locks_are_expensive());
     release_write_lock();
     sleep(1);
-    
+
     w.deinit();
     toku_mutex_destroy(&mutex);
 }
@@ -220,4 +208,3 @@ int main (int UU(argc), const char* UU(argv[])) {
     test_write_cheapness();
     return 0;
 }
-
