@@ -30,7 +30,6 @@ TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
 endif
 
-
 SRCS = $(sort $(wildcard *.c))
 RECOVER_SRCS = $(wildcard recover-*.c)
 
@@ -334,18 +333,21 @@ else
     TDBDUMP=$(TOKUROOT)utils/tokudb_dump_static$(BINSUF)
     TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
 endif
+TDBRECOVER=$(TOKUROOT)newbrt/tdb-recover$(BINSUF)
+$(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
+	cd $(@D) && $(MAKE) $(@F)
 
-%.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
+%.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL) $(TDBRECOVER) $(TDBDUMP)
 	echo doing ./$< &&\
-	./$< --no-shutdown                                                                      && \
-	rm -rf dir.$*.c.tdb.recover                                                             && \
-	mkdir dir.$*.c.tdb.recover                                                              && \
-	cp dir.$*.c.tdb/tokudb.directory   dir.$*.c.tdb.recover/                                && \
-	cp dir.$*.c.tdb/tokudb.environment dir.$*.c.tdb.recover/                                && \
-	cp dir.$*.c.tdb/tokudb.rollback    dir.$*.c.tdb.recover/                                && \
-	cp dir.$*.c.tdb/*.tokulog          dir.$*.c.tdb.recover/                                && \
+	./$< --no-shutdown                                                         && \
+	rm -rf dir.$*.c.tdb.recover                                                && \
+	mkdir dir.$*.c.tdb.recover                                                 && \
+	cp dir.$*.c.tdb/tokudb.directory   dir.$*.c.tdb.recover/                   && \
+	cp dir.$*.c.tdb/tokudb.environment dir.$*.c.tdb.recover/                   && \
+	cp dir.$*.c.tdb/tokudb.rollback    dir.$*.c.tdb.recover/                   && \
+	cp dir.$*.c.tdb/*.tokulog          dir.$*.c.tdb.recover/                   && \
 	echo doing recovery &&\
-	$(VGRIND) ../../newbrt/tdb-recover dir.$*.c.tdb.recover dir.$*.c.tdb.recover            && \
+	$(VGRIND) $(TDBRECOVER) dir.$*.c.tdb.recover dir.$*.c.tdb.recover         && \
 	echo dump and compare &&\
 	$(TDBDUMP) -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
 	$(TDBDUMP) -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
@@ -372,20 +374,23 @@ all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
 #DISABLE standard tdbrun for recover tests.
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
 
-%.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0 -DTOKU_ALLOW_DEPRECATED
+BDB_CFLAGS=
+TDB_CFLAGS=
+%.bdb$(BINSUF): BDB_CFLAGS= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0 -DTOKU_ALLOW_DEPRECATED
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BDB_CFLAGS) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
-%.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
+
+%.tdb$(BINSUF) %.tdbt$(BINSUF): TDB_CFLAGS= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
 loader-stress-test: CPPFLAGS+=-I$(TOKUROOT)include -DENVDIR=\"dir.$<\"
 loader-stress-test: LOADLIBES+=-L.. -ltokudb -Wl,-rpath,..
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
-	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(TDB_CFLAGS) $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
 
 clean:
 	rm -f $(ALL_BINS)
@@ -476,7 +481,7 @@ endif
 
 # test1426 is run by comparing the BDB output to the TDB output
 # we use the -x flag (no transactions or recovery) in the dump program.  (-x is not in the BDB version of dump, but it's in ours)
-test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426 $(PTHREAD_LOCAL)
+test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426 $(PTHREAD_LOCAL) $(TDBDUMP)
 	(./test1426.tdb$(BINSUF) -q && \
 	 $(TDBDUMP) -x -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
