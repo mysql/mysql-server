@@ -3,14 +3,12 @@
 
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
-    int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, (TOKULOGGER)0);
 
     *blocknum = node->thisnodename;
     r = toku_unpin_brtnode(brt, node);
-    if (r!=0) return r;
-    r = toku_unpin_brt_header(brt);
     if (r!=0) return r;
     return 0;
 }
@@ -19,7 +17,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
 int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens) {
     BRTNODE node;
     assert(n_children<=BRT_FANOUT);
-    int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, (TOKULOGGER)0);
     node->u.n.n_children=n_children;
@@ -40,20 +38,15 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 	node->u.n.totalchildkeylens += keylens[i];
     }
     *blocknum = node->thisnodename;
-    r = toku_unpin_brtnode(brt, node);
-    if (r!=0) return r;
-    r = toku_unpin_brt_header(brt);
-    if (r!=0) return r;
-    return 0;
+    return toku_unpin_brtnode(brt, node);
 }
 
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
-    int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
     brt->h->roots[0] = blocknum;
     brt->h->root_hashes[0].valid = FALSE;
-    r = toku_unpin_brt_header(brt);
-    return r;
+    return 0;
 }
 
 int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on disk

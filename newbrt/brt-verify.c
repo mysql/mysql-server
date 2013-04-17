@@ -154,15 +154,9 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 }
 
 int toku_verify_brt (BRT brt) {
-    int r;
     CACHEKEY *rootp;
-    if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
-	if (0) { died0: toku_unpin_brt_header(brt); }
-	return r;
-    }
+    assert(brt->h);
     u_int32_t root_hash;
     rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
-    if ((r=toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1))) goto died0;
-    if ((r = toku_unpin_brt_header(brt))!=0) return r;
-    return 0;
+    return toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1);
 }

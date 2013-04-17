@@ -119,9 +119,11 @@ struct block_translation_pair {
     DISKOFF size;
 };
 
+// The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
+
 struct brt_header {
+    int refcount;
     int dirty;
-    u_int32_t fullhash;
     int layout_version;
     unsigned int nodesize;
     int n_named_roots; /* -1 if the only one is unnamed */
@@ -172,6 +174,7 @@ struct brt {
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
     u_int64_t txn_that_created; // which txn created it.  Use  0 if no such txn.
     u_int64_t root_put_counter;
+
 };
 
 /* serialization code */
@@ -185,7 +188,7 @@ void toku_verify_counts(BRTNODE);
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
-int toku_deserialize_brtheader_from (int fd, BLOCKNUM off, u_int32_t fullhash, struct brt_header **brth);
+int toku_deserialize_brtheader_from (int fd, BLOCKNUM off, struct brt_header **brth);
 
 int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
 
@@ -204,10 +207,9 @@ struct brtenv {
 //    SPINLOCK  checkpointing;
 };
 
-extern void toku_brtnode_flush_callback(), toku_brtheader_flush_callback();
-extern int toku_brtnode_fetch_callback(), toku_brtheader_fetch_callback();
-extern int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header);
-extern int toku_unpin_brt_header (BRT brt);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
+extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn);
+extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
 static const BRTNODE null_brtnode=0;
@@ -277,5 +279,6 @@ enum brt_layout_version_e {
 };
 
 void toku_brtheader_free (struct brt_header *h);
+int toku_brtheader_close (CACHEFILE cachefile, void *header_v);
 
 #endif

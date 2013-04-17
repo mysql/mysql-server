@@ -124,7 +124,6 @@ struct fileid {
 
 struct cachefile {
     CACHEFILE next;
-    u_int32_t header_fullhash;
     u_int64_t refcount; /* CACHEFILEs are shared. Use a refcount to decide when to really close it.
 			 * The reference count is one for every open DB.
 			 * Plus one for every commit/rollback record.  (It would be harder to keep a count for every open transaction,
@@ -136,6 +135,9 @@ struct cachefile {
     struct fileid fileid;
     FILENUM filenum;
     char *fname;
+
+    void *userdata;
+    int (*close_userdata)(CACHEFILE cf, void *userdata); // when closing the last reference to a cachefile, first call this function.
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
@@ -163,6 +165,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     t->size_writing = 0;
     t->lsn_of_checkpoint = initial_lsn;
     t->logger = logger;
+
     int r;
     writequeue_init(&t->wq);
     r = pthread_mutex_init(&t->mutex, 0); assert(r == 0);
@@ -233,9 +236,12 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
         newcf->filenum.fileid = next_filenum_to_use.fileid++;
         cachefile_init_filenum(newcf, fd, fname, fileid);
 	newcf->refcount = 1;
-	newcf->header_fullhash = toku_cachetable_hash(newcf, header_blocknum);
 	newcf->next = t->cachefiles;
 	t->cachefiles = newcf;
+
+	newcf->userdata = 0;
+	newcf->close_userdata = 0;
+
 	*cf = newcf;
 	return 0;
     }
@@ -301,6 +307,12 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
             cachetable_unlock(ct);
             return r;
         }
+	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata))) {
+	    cachetable_unlock(ct);
+	    return r;
+	}
+	cf->close_userdata = NULL;
+	cf->userdata = NULL;
         cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
         cachetable_unlock(ct);
 	r = close(cf->fd);
@@ -1117,11 +1129,6 @@ FILENUM toku_cachefile_filenum (CACHEFILE cf) {
     return cf->filenum;
 }
 
-u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile) {
-    return cachefile->header_fullhash;
-}
-
-
 #if DO_WRITER_THREAD
 
 // The writer thread waits for work in the write queue and writes the pair
@@ -1204,4 +1211,12 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
     cachetable_unlock(ct);
     note_hash_count(count);
     return r;
+}
+
+void toku_cachefile_set_userdata (CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*)) {
+    cf->userdata = userdata;
+    cf->close_userdata = close_userdata;
+}
+void *toku_cachefile_get_userdata(CACHEFILE cf) {
+    return cf->userdata;
 }
