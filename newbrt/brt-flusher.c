@@ -10,14 +10,12 @@
 
 static BRT_FLUSHER_STATUS_S brt_flusher_status;
 
-void toku_brt_flusher_status_init(void)
-{
+void toku_brt_flusher_status_init(void) {
     brt_flusher_status.cleaner_min_buffer_size = UINT64_MAX;
     brt_flusher_status.cleaner_min_buffer_workdone = UINT64_MAX;
 }
 
-void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS status)
-{
+void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS status) {
     *status = brt_flusher_status;
 }
 
@@ -75,8 +73,7 @@ find_heaviest_child(BRTNODE node)
 }
 
 static void
-update_flush_status(BRTNODE child, int cascades)
-{
+update_flush_status(BRTNODE child, int cascades) {
     brt_flusher_status.flush_total++;
     if (cascades > 0) {
         brt_flusher_status.flush_cascades++;
@@ -1842,4 +1839,11 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
             place_node_and_bnc_on_background_thread(brt, parent, NULL);
         }
     }
+}
+
+#include <valgrind/drd.h>
+void __attribute__((__constructor__)) toku_brt_flusher_drd_ignore(void);
+void
+toku_brt_flusher_drd_ignore(void) {
+    DRD_IGNORE_VAR(brt_flusher_status);
 }
