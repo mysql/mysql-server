@@ -35,8 +35,7 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
     if (verbose)
         printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, sub_block_size, n_sub_blocks);
 
-    struct sub_block *sub_blocks[n_sub_blocks];
-    for (int i=0; i<n_sub_blocks; i++) sub_blocks[i] = sub_block_create();
+    struct sub_block sub_blocks[n_sub_blocks];
     set_all_sub_block_sizes(total_size, sub_block_size, n_sub_blocks, sub_blocks);
 
     size_t cbuf_size_bound = get_sum_compressed_size_bound(n_sub_blocks, sub_blocks);
@@ -51,13 +50,13 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
 
     for (int xidx = 0; xidx < n_sub_blocks; xidx++) {
         // corrupt a checksum
-        sub_blocks[xidx]->xsum += 1;
+        sub_blocks[xidx].xsum += 1;
 
         r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
         assert(r != 0);
 
         // reset the checksums
-        sub_blocks[xidx]->xsum -= 1;
+        sub_blocks[xidx].xsum -= 1;
 
         r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
         assert(r == 0);
@@ -75,10 +74,10 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
         set_uint8_at_offset(cbuf, offset, c);
 
         r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
+
         assert(r == 0);
         assert(memcmp(buf, ubuf, total_size) == 0);
     }
-    for (int i=0; i<n_sub_blocks; i++) sub_block_destroy(sub_blocks[i]);
     toku_free(ubuf);
     toku_free(cbuf);
 }
