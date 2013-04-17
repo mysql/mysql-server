@@ -565,8 +565,8 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
 
-    uint64_t i;
-    for (i = 0; i < arg->cli->txn_size; ++i) {
+    uint64_t puts_to_increment = 0;
+    for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
         rand_key.key = randu64(arg->random_data);
         if (arg->cli->interleave) {
             rand_key.i[3] = arg->thread_idx;
@@ -581,9 +581,14 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
         if (r != 0) {
             goto cleanup;
         }
+        puts_to_increment++;
+        if (puts_to_increment == 100) {
+            increment_counter(stats_extra, PUTS, puts_to_increment);
+            puts_to_increment = 0;
+        }
     }
 cleanup:
-    increment_counter(stats_extra, PUTS, i);
+    increment_counter(stats_extra, PUTS, puts_to_increment);
     return r;
 }
 
@@ -619,8 +624,8 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
 
-    uint64_t i;
-    for (i = 0; i < arg->cli->txn_size; ++i) {
+    uint64_t puts_to_increment = 0;
+    for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
         rand_key.key = extra->current++;
         if (arg->cli->interleave) {
             rand_key.i[3] = arg->thread_idx;
@@ -635,9 +640,14 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
         if (r != 0) {
             goto cleanup;
         }
+        puts_to_increment++;
+        if (puts_to_increment == 100) {
+            increment_counter(stats_extra, PUTS, puts_to_increment);
+            puts_to_increment = 0;
+        }
     }
 cleanup:
-    increment_counter(stats_extra, PUTS, i);
+    increment_counter(stats_extra, PUTS, puts_to_increment);
     return r;
 }
 
