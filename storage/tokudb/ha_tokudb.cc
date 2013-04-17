@@ -73,8 +73,6 @@ typedef struct st_tokudb_trx_data {
 
 /* Bits for share->status */
 #define STATUS_PRIMARY_KEY_INIT 1
-#define STATUS_ROW_COUNT_INIT   2
-#define STATUS_TOKUDB_ANALYZE      4
 #define STATUS_AUTO_INCREMENT_INIT 8
 
 // tokudb debug tracing
@@ -1735,24 +1733,22 @@ int ha_tokudb::read_last() {
 void ha_tokudb::get_status() {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
 
-    if (!test_all_bits(share->status, (STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT))) {
+    if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
         pthread_mutex_lock(&share->mutex);
-        if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
-            (void) extra(HA_EXTRA_KEYREAD);
-            int error = read_last();
-            (void) extra(HA_EXTRA_NO_KEYREAD);
-            if (error == 0) {
-                share->auto_ident = uint5korr(current_ident);
+        (void) extra(HA_EXTRA_KEYREAD);
+        int error = read_last();
+        (void) extra(HA_EXTRA_NO_KEYREAD);
+        if (error == 0) {
+            share->auto_ident = uint5korr(current_ident);
 
-                // mysql may not initialize the next_number_field here
-                // so we do this in the get_auto_increment method
-                // index_last uses record[1]
-                assert(table->next_number_field == 0);
-                if (table->next_number_field) {
-                    share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
-                    if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
-                        TOKUDB_TRACE("init auto increment:%lld\n", share->last_auto_increment);
-                }
+            // mysql may not initialize the next_number_field here
+            // so we do this in the get_auto_increment method
+            // index_last uses record[1]
+            assert(table->next_number_field == 0);
+            if (table->next_number_field) {
+                share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
+                if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
+                    TOKUDB_TRACE("init auto increment:%lld\n", share->last_auto_increment);
             }
         }
 
@@ -1773,14 +1769,12 @@ void ha_tokudb::get_status() {
             }
         }
 
-        if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
-            //
-            // do nothing for now
-            // previously added info from status.tokudb
-            // as of now, that info is not needed so removed dead code
-            //
-        }
-        share->status |= STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT;
+        //
+        // do nothing for now
+        // previously added info from status.tokudb
+        // as of now, that info is not needed so removed dead code
+        //
+        share->status |= STATUS_PRIMARY_KEY_INIT;
         pthread_mutex_unlock(&share->mutex);
     }
     DBUG_VOID_RETURN;
@@ -1788,34 +1782,31 @@ void ha_tokudb::get_status() {
 
 static void update_status(TOKUDB_SHARE * share, TABLE * table) {
     TOKUDB_DBUG_ENTER("update_status");
-    if (share->status & STATUS_TOKUDB_ANALYZE) {
-        pthread_mutex_lock(&share->mutex);
-        if (!share->status_block) {
-            /*
-               Create sub database 'status' if it doesn't exist from before
-               (This '*should*' always exist for table created with MySQL)
-             */
+    pthread_mutex_lock(&share->mutex);
+    if (!share->status_block) {
+        /*
+           Create sub database 'status' if it doesn't exist from before
+           (This '*should*' always exist for table created with MySQL)
+         */
 
-            char name_buff[FN_REFLEN];
-            char newname[get_name_length(share->table_name) + 32];
-            make_name(newname, share->table_name, "status");
-            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            if (db_create(&share->status_block, db_env, 0))
-                goto end;
-            share->status_block->set_flags(share->status_block, 0);
-            if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask))
-                goto end;
-        }
-        {
-            //
-            // used to write data here. The data that was written
-            // is no longer required to be put in status.tokudb
-            //
-            share->status &= ~STATUS_TOKUDB_ANALYZE;
-        }
-      end:
-        pthread_mutex_unlock(&share->mutex);
+        char name_buff[FN_REFLEN];
+        char newname[get_name_length(share->table_name) + 32];
+        make_name(newname, share->table_name, "status");
+        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        if (db_create(&share->status_block, db_env, 0))
+            goto end;
+        share->status_block->set_flags(share->status_block, 0);
+        if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask))
+            goto end;
     }
+    {
+        //
+        // used to write data here. The data that was written
+        // is no longer required to be put in status.tokudb
+        //
+    }
+  end:
+    pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
 
@@ -4064,6 +4055,10 @@ void ha_tokudb::print_error(int error, myf errflag) {
 }
 
 #if 0 // QQQ use default
+//
+// This function will probably need to be redone from scratch
+// if we ever choose to implement it
+//
 int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
     uint i;
     DB_BTREE_STAT *stat = 0;
