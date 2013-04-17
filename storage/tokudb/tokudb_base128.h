@@ -5,16 +5,12 @@ namespace tokudb {
 
     static size_t base128_encode_uint32(uint32_t n, void *p, size_t s) {
         unsigned char *pp = (unsigned char *)p;
-        uint i = 0;
-        while (i < s) {
-            uint32_t m = n & 127;
-            n >>= 7;
-            if (n != 0)
-                m |= 128;
-            pp[i++] = m;
-            if (n == 0)
-                break;
+        size_t i = 0;
+        while (n >= 128) {
+            pp[i++] = n%128;
+            n = n/128;
         }
+        pp[i++] = 128+n;
         return i;
     }
 
@@ -23,10 +19,10 @@ namespace tokudb {
         uint32_t n = 0;
         uint i = 0;
         while (i < s) {
-            uint m = pp[i];
+            unsigned char m = pp[i];
             n |= (m & 127) << 7*i;
             i++;
-            if ((m & 128) == 0)
+            if ((m & 128) != 0)
                 break;
         }
         *np = n;

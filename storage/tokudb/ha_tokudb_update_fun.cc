@@ -1529,8 +1529,9 @@ static int tokudb_update_2_fun(
 {
     tokudb::buffer extra_val(extra->data, 0, extra->size);
     
-    uint32_t operation = extra_val.consume_uint32();
-    assert(operation == UPDATE_OP_UPDATE_2);
+    uint8_t op;
+    extra_val.consume(&op, sizeof op);
+    assert(op == UPDATE_OP_UPDATE_2);
 
     if (old_val_dbt != NULL) {
         tokudb::buffer old_val(old_val_dbt->data, old_val_dbt->size, old_val_dbt->size);
@@ -1567,8 +1568,9 @@ static int tokudb_upsert_2_fun(
 {
     tokudb::buffer extra_val(extra->data, 0, extra->size);
 
-    uint32_t operation = extra_val.consume_uint32();
-    assert(operation == UPDATE_OP_UPSERT_2);
+    uint8_t op;
+    extra_val.consume(&op, sizeof op);
+    assert(op == UPDATE_OP_UPSERT_2);
 
     uint32_t insert_length = extra_val.consume_uint32();
     assert(insert_length < extra_val.limit());
@@ -1645,6 +1647,7 @@ int tokudb_update_fun(
         error = tokudb_upsert_2_fun(db, key, old_val, extra, set_val, set_extra);
         break;
     default:
+        assert(0);
         error = EINVAL;
         break;
     }

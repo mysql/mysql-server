@@ -681,7 +681,8 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
     // construct the update message
     tokudb::buffer update_message;
    
-    update_message.append_uint32(UPDATE_OP_UPDATE_2);
+    uint8_t op = UPDATE_OP_UPDATE_2;
+    update_message.append(&op, sizeof op);
 
     uint32_t num_updates = update_fields.elements;
     uint num_varchars = 0, num_blobs = 0;
@@ -834,7 +835,8 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     tokudb::buffer update_message;
 
     // append the operation
-    update_message.append_uint32(UPDATE_OP_UPSERT_2);
+    uint8_t op = UPDATE_OP_UPSERT_2;
+    update_message.append(&op, sizeof op);
 
     // append the row
     update_message.append_uint32(row.size);
