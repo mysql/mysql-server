@@ -47,9 +47,9 @@ int toku_txn_manager_start_txn(
 void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 
 void toku_txn_manager_clone_state_for_gc(
-    TXN_MANAGER txn_manager, 
-    OMT* snapshot_xids, 
-    OMT* live_list_reverse, 
+    TXN_MANAGER txn_manager,
+    OMT* snapshot_xids,
+    OMT* referenced_xids,
     OMT* live_root_txns
     );
 
@@ -61,8 +61,8 @@ int toku_txn_manager_get_txn_from_xid (TXN_MANAGER txn_manager, TOKU_XA_XID *xid
 u_int32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager);
 
 int toku_txn_manager_iter_over_live_txns(
-    TXN_MANAGER txn_manager, 
-    int (*f)(OMTVALUE, u_int32_t, void*), 
+    TXN_MANAGER txn_manager,
+    int (*f)(OMTVALUE, u_int32_t, void*),
     void* v
     );
 
@@ -71,10 +71,10 @@ void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 
 int toku_txn_manager_recover_txn(
-    TXN_MANAGER txn_manager, 
-    struct tokulogger_preplist preplist[/*count*/], 
-    long count, 
-    long *retp, /*out*/ 
+    TXN_MANAGER txn_manager,
+    struct tokulogger_preplist preplist[/*count*/],
+    long count,
+    long *retp, /*out*/
     u_int32_t flags
     );
 
@@ -91,6 +91,7 @@ TXNID toku_txn_manager_get_last_xid(TXN_MANAGER mgr);
 // Test-only function
 void toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment);
 
+TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, OMT snapshot_txnids, OMT referenced_xids);
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
 #endif
