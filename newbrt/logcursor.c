@@ -73,7 +73,7 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
 //        int index = lc->cur_logfiles_index;
 //        fprintf(stderr, "Bad LSN: %d %s direction = %d, lsn.lsn = %"PRIu64", cur_lsn.lsn=%"PRIu64"\n", 
 //                index, lc->logfiles[index], dir, lsn.lsn, lc->cur_lsn.lsn);
-        if (toku_recover_trace) 
+        if (tokudb_recovery_trace) 
             printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, 0);
         return LC_LSN_ERROR;
     }

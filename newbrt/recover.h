@@ -32,6 +32,6 @@ int tokudb_recover_delete_rolltmp_files(const char *datadir, const char *logdir)
 int tokudb_recover_log_exists(const char * log_dir);
 
 
-extern int toku_recover_trace;
+extern int tokudb_recovery_trace;
 
 #endif // TOKURECOVER_H
