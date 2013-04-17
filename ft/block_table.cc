@@ -232,24 +232,6 @@ void toku_block_translation_note_skipped_checkpoint (BLOCK_TABLE bt) {
     unlock_for_blocktable(bt);
 }
 
-static void
-cleanup_failed_checkpoint (BLOCK_TABLE bt) {
-    int64_t i;
-    struct translation *t = &bt->inprogress;
-
-    for (i = 0; i < t->length_of_array; i++) {
-        struct block_translation_pair *pair = &t->block_translation[i];
-        if (pair->size > 0 &&
-            !translation_prevents_freeing(&bt->current, make_blocknum(i), pair) &&
-            !translation_prevents_freeing(&bt->checkpointed, make_blocknum(i), pair)) {
-PRNTF("free", i, pair->size, pair->u.diskoff, bt);
-            block_allocator_free_block(bt->block_allocator, pair->u.diskoff);
-        }
-    }
-    toku_free(bt->inprogress.block_translation);
-    memset(&bt->inprogress, 0, sizeof(bt->inprogress));
-}
-
 // Purpose: free any disk space used by previous checkpoint that isn't in use by either
 //           - current state
 //           - in-progress checkpoint
@@ -267,7 +249,8 @@ toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd) {
     uint64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
     paranoid_invariant_notnull(bt->inprogress.block_translation);
     if (bt->checkpoint_skipped) {
-        cleanup_failed_checkpoint(bt);
+        toku_free(bt->inprogress.block_translation);
+        memset(&bt->inprogress, 0, sizeof(bt->inprogress));
         goto end;
     }
 
