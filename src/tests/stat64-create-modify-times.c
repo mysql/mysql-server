@@ -37,8 +37,7 @@ test_stat64_create_time (uint64_t n) {
     r = db->stat64(db, txn, &s0); assert(r == 0);
     printf("initial stat create %lu\n", s0.bt_create_time_sec);
     assert(s0.bt_create_time_sec != 0);
-    printf("initial stat modify %lu\n", s0.bt_modify_time_sec);
-    assert(s0.bt_modify_time_sec == 0);
+    assert(s0.bt_modify_time_sec == s0.bt_create_time_sec);
     r = txn->commit(txn, 0);    assert(r == 0);
 
     // stats after create is committed
