@@ -6260,8 +6260,16 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 // All searches are performed through this function.
 {
     int r;
+    uint retrycount = 0;   // How many retries did it take to get the result?
+    uint root_tries = 0;   // How many times did we fetch the root node from disk?
+    uint tree_height;      // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
+    BOOL retry = false;    // Have we attempted this search yet?  
 
 try_again:
+    
+    if (retry)             // don't count first attempt as a retry
+	retrycount++;
+    retry = true;
 
     assert(brt->h);
 
@@ -6311,9 +6319,10 @@ try_again:
     r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
     assert(r==0 || r== TOKUDB_TRY_AGAIN);
     if (r == TOKUDB_TRY_AGAIN) {
+	root_tries++;
         goto try_again;
     }
-
+    tree_height = node->height + 1;  // height of tree (leaf is at height 0)
     
     struct unlock_brtnode_extra unlock_extra   = {brt,node};
     struct unlockers		unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
@@ -6361,6 +6370,23 @@ try_again:
 	int r2 = getf(0,NULL, 0,NULL, getf_v);
 	if (r2!=0) r = r2;
     }
+
+    {   // accounting (to detect and measure thrashing)
+	if (root_tries > 1) {                   // if root was read from disk more than once
+	    brt_status.search_root_retries++;   
+	    if (root_tries > brt_status.max_search_root_tries)
+		brt_status.max_search_root_tries = root_tries; 
+	}
+	if (retrycount > tree_height) {         // if at least one node was read from disk more than once
+	    brt_status.search_tries_gt_height++;
+	    uint excess_tries = retrycount - tree_height;  
+	    if (excess_tries > brt_status.max_search_excess_retries)
+		brt_status.max_search_excess_retries = excess_tries;
+	    if (retrycount > (tree_height+3))
+		brt_status.search_tries_gt_heightplus3++;
+	}
+    }
+
     return r;
 }
 

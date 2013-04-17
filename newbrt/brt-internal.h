@@ -765,14 +765,19 @@ typedef struct brt_status {
     u_int64_t updates;
     u_int64_t updates_broadcast;
     u_int64_t descriptor_set;
-    u_int64_t partial_fetch_hit;        // node partition is present
-    u_int64_t partial_fetch_miss;       // node is present but partition is absent
-    u_int64_t partial_fetch_compressed; // node partition is present but compressed
-    u_int64_t msn_discards;             // how many messages were ignored by leaf because of msn
-    u_int64_t max_workdone;             // max workdone value of any buffer
-    u_int64_t dsn_gap;                  // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
-    u_int64_t bytes_leaf;               // memory used by leaf nodes
-    u_int64_t bytes_nonleaf;            // memory used by nonleaf nodes
+    u_int64_t partial_fetch_hit;           // node partition is present
+    u_int64_t partial_fetch_miss;          // node is present but partition is absent
+    u_int64_t partial_fetch_compressed;    // node partition is present but compressed
+    u_int64_t msn_discards;                // how many messages were ignored by leaf because of msn
+    u_int64_t max_workdone;                // max workdone value of any buffer
+    u_int64_t dsn_gap;                     // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
+    u_int64_t bytes_leaf;                  // memory used by leaf nodes
+    u_int64_t bytes_nonleaf;               // memory used by nonleaf nodes
+    uint64_t  max_search_excess_retries;   // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
+    uint64_t  max_search_root_tries;       // max number of times root node was fetched in a single search
+    uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
+    uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
+    uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
 } BRT_STATUS_S, *BRT_STATUS;
 
 void toku_brt_get_status(BRT_STATUS);
