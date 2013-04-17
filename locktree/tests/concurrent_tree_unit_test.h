@@ -29,6 +29,10 @@ public:
     // whether keys exist using iterate()
     void test_lkr_insert_remove(void);
 
+    // test that the concurrent tree can survive many serial inserts
+    // this is a blackbox test for tree rotations.
+    void test_lkr_insert_serial_large(void);
+
 private:
 
     // populate the given concurrent tree with elements from min..max but

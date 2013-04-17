@@ -174,7 +174,7 @@ void treenode::insert(const keyrange &range, TXNID txnid) {
     // otherwise recur down that child's subtree
     keyrange::comparison c = range.compare(m_cmp, m_range);
     if (c == keyrange::comparison::LESS_THAN) {
-        treenode *left_child = m_left_child.get_locked();
+        treenode *left_child = lock_and_rebalance_left();
         if (left_child == nullptr) {
             left_child = treenode::alloc(m_cmp, range, txnid);
             m_left_child.set(left_child);
@@ -184,7 +184,7 @@ void treenode::insert(const keyrange &range, TXNID txnid) {
         }
     } else {
         invariant(c == keyrange::comparison::GREATER_THAN);
-        treenode *right_child = m_right_child.get_locked();
+        treenode *right_child = lock_and_rebalance_right();
         if (right_child == nullptr) {
             right_child = treenode::alloc(m_cmp, range, txnid);
             m_right_child.set(right_child);
