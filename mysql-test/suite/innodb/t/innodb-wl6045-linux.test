@@ -72,6 +72,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -114,6 +115,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -143,6 +145,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -205,6 +208,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -254,6 +258,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -314,6 +319,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
  $_=~ s/file .+ =/file - =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -343,6 +349,7 @@ while(<IN_FILE>) {
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
  $_=~ s/file .+ =/file t1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
