@@ -91,7 +91,7 @@ COMBINE_C = -combine -c
 LIBPORTABILITY   = $(TOKUROOT)lib/libtokuportability.$(AEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)linux
-ALWAYS_LINK= -lz -lpthread 
+ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
 C99       = -std=c99
 W64       = #-Wshorten-64-to-32
 BINOUTPUT = -o
@@ -128,6 +128,7 @@ LINK_DLINK_FILES=$(patsubst %,$(LINK)%,$(notdir $(DLINK_FILES_PREPROCESS_2)))
 
 CRUNTIME=
 DEPEND_LINK += \
+	$(LIBPORTABILITY) \
 	$(LINK_FILES) \
 # keep this line so I can have a \ on the previous line
 
@@ -184,7 +185,7 @@ ifneq ($(CYGWIN),)
     #Cygwin (Windows) Must override some settings
     BINSUF=.exe
     WRONGBINSUF=#empty
-    ALWAYS_LINK=/usr/lib/libz.a
+    ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
     VGRIND   =#No Valgrind in cygwin
     HGRIND   =#No Hgrind in cygwin
     FPICFLAGS=#FPIC is default and not allowed as an option.
@@ -199,7 +200,7 @@ ifneq ($(CYGWIN),)
 	    CRUNTIME=MDd
 	endif
 	endif
-        ALWAYS_LINK=$(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
+        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
         LINK=#Empty
         BINOUTPUT=-Fe
         OOUTPUT=-Fo

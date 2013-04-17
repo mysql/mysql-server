@@ -158,7 +158,6 @@ endif
 %.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	echo portability now $(LIBPORTABILITY)
 	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS) $(LIBPORTABILITY)
 
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
