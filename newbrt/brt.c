@@ -3946,15 +3946,17 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
 #if TOKU_MULTIPLE_MAIN_THREADS
 static int
 brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
-    int r = toku_cachetable_maybe_get_and_pin(brtcursor->brt->cf,
-                                              brtcursor->leaf_info.blocknumber,
-                                              brtcursor->leaf_info.fullhash,
-                                              &brtcursor->leaf_info.node);
+    void *leafv;
+    int r = toku_cachetable_maybe_get_and_pin_clean(brtcursor->brt->cf,
+                                                    brtcursor->leaf_info.blocknumber,
+                                                    brtcursor->leaf_info.fullhash,
+                                                   &leafv);
+    assert(r==0);
     if (r == 0) {
-	BRTNODE leaf = brtcursor->leaf_info.node;
-	assert(leaf->height == 0);	// verify that returned node is leaf...
-	assert(leaf->u.l.buffer == toku_omt_cursor_get_omt(brtcursor->omtcursor));  // ... and has right omt
-	*leafp = leaf;
+	brtcursor->leaf_info.node = leafv;
+	assert(brtcursor->leaf_info.node->height == 0);	// verify that returned node is leaf...
+	assert(brtcursor->leaf_info.node->u.l.buffer == toku_omt_cursor_get_omt(brtcursor->omtcursor));  // ... and has right omt
+	*leafp = brtcursor->leaf_info.node;
     }
     return r;
 }
