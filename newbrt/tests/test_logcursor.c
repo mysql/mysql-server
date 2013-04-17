@@ -5,9 +5,9 @@
 #include "brttypes.h"
 #include "includes.h"
 
-int test_0 ();
-int test_1 ();
-static void usage() {
+static int test_0 (void);
+static int test_1 (void);
+static void usage(void) {
     printf("test_logcursors [OPTIONS]\n");
     printf("[-v]\n");
     printf("[-q]\n");
@@ -35,7 +35,7 @@ int test_main(int argc, const char *argv[]) {
     return r;
 }
 
-int test_0 () {
+int test_0 (void) {
     int r=0;
     char dbdir[100] = "./dir.test_logcursor";
     struct toku_logcursor *cursor;

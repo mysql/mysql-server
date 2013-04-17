@@ -65,7 +65,7 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && le->cmd == LT_timestamp);
     assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
     if (verbose)
-        printf("%"PRId64"\n", le->u.timestamp.timestamp - t);
+        printf("%"PRIu64"\n", le->u.timestamp.timestamp - t);
     assert(le->u.timestamp.timestamp - t >= 10*1000000);
 
     r = toku_logcursor_next(lc, &le);
@@ -87,7 +87,7 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && le->cmd == LT_timestamp);
     assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
     if (verbose)
-        printf("%"PRId64"\n", t - le->u.timestamp.timestamp);
+        printf("%"PRIu64"\n", t - le->u.timestamp.timestamp);
     assert(t - le->u.timestamp.timestamp >= 10*1000000);
 
     r = toku_logcursor_prev(lc, &le);
