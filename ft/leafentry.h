@@ -188,7 +188,8 @@ void toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                              const xid_omt_t &snapshot_xids,
                              const rx_omt_t &referenced_xids,
                              const xid_omt_t &live_root_txns,
-                             TXNID oldest_known_referenced_xid);
+                             TXNID oldest_known_referenced_xid,
+                             int64_t * numbytes_delta_p);
 
 #endif /* TOKU_LEAFENTRY_H */
 

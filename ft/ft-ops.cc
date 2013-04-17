@@ -2182,6 +2182,10 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
 
     // Cache the size of the leaf entry.
     oldsize = leafentry_memsize(leaf_entry);
+    // These will represent the number of bytes and rows changed as
+    // part of the garbage collection.
+    int64_t numbytes_delta;
+    int64_t numrows_delta;
     toku_le_garbage_collect(leaf_entry,
                             &new_leaf_entry,
                             &newsize,
@@ -2191,13 +2195,9 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
                             snapshot_xids,
                             referenced_xids,
                             live_root_txns,
-                            oldest_known_referenced_xid);
+                            oldest_known_referenced_xid,
+                            &numbytes_delta);
 
-    // These will represent the number of bytes and rows changed as
-    // part of the garbage collection.
-    int64_t numbytes_delta;
-    numbytes_delta = newsize - oldsize;
-    int64_t numrows_delta;
     numrows_delta = 0;
     if (new_leaf_entry) {
         // If we have a new leaf entry, we must update the size of the

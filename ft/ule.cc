@@ -432,9 +432,14 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                         const xid_omt_t &snapshot_xids,
                         const rx_omt_t &referenced_xids,
                         const xid_omt_t &live_root_txns,
-                        TXNID oldest_known_referenced_xid) {
+                        TXNID oldest_known_referenced_xid,
+                        int64_t * numbytes_delta_p) {
     ULE_S ule;
+    int64_t oldnumbytes = 0;
+    int64_t newnumbytes = 0;
     le_unpack(&ule, old_leaf_entry);
+
+    oldnumbytes = ule_get_innermost_numbytes(&ule);
 
     // Before running garbage collection, try to promote the outermost provisional
     // entries to committed if its xid is older than the oldest possible live xid.
@@ -453,6 +458,10 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                     mp,
                     maybe_free);
     assert(r == 0);
+    if (new_leaf_entry) {
+        newnumbytes = ule_get_innermost_numbytes(&ule);
+    }
+    *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
 }
 
