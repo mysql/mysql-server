@@ -11,7 +11,7 @@ int main (int argc __attribute__((__unused__)),
     int r;
     long long lognum;
     system(rmrf);
-    r = os_mkdir(dname, S_IRWXU);    assert(r==0);
+    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==0LL);
 

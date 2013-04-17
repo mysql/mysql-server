@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <os.h>
+#include <toku_os.h>
 
 static void do_mallocs(void) {
     int i;
@@ -18,10 +18,10 @@ static void do_mallocs(void) {
 int main(void) {
     int64_t rss;
 
-    os_get_max_rss(&rss);
+    toku_os_get_max_rss(&rss);
     printf("%"PRId64"\n", rss);
     do_mallocs();
-    os_get_max_rss(&rss);
+    toku_os_get_max_rss(&rss);
     printf("%"PRId64"\n", rss);
 
     return 0;

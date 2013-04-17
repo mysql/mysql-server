@@ -1,6 +1,6 @@
 #ifndef _MISC_H
 #define _MISC_H
-#include "os.h"
+#include "toku_os.h"
 #include <sys/stat.h>
 
 //These are functions that really exist in windows but are named
@@ -15,7 +15,7 @@ long long int strtoll(const char *nptr, char **endptr, int base);
 
 
 //TODO: Enforce use of these macros. Otherwise, open, creat, and chmod may fail
-//os_mkdir actually ignores the permissions, so it won't fail.
+//toku_os_mkdir actually ignores the permissions, so it won't fail.
 
 //Permissions
 //User permissions translate to global

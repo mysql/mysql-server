@@ -50,7 +50,7 @@ parse_args (int argc, const char *argv[]) {
 	argc--;
 	argv++;
     }
-    os_initialize_settings(1);
+    toku_os_initialize_settings(1);
 }
 
 static __attribute__((__unused__)) DBT *

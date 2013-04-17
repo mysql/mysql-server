@@ -154,7 +154,7 @@ static int open_logfile (TOKULOGGER logger) {
 
 static int close_and_open_logfile (TOKULOGGER logger) {
     int r;
-    r=toku_os_fsync_function(logger->fd);                if (r!=0) return errno;
+    r = toku_os_fsync_function(logger->fd);              if (r!=0) return errno;
     r = close(logger->fd);                               if (r!=0) return errno;
     return open_logfile(logger);
 }

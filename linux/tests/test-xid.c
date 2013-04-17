@@ -3,17 +3,17 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <assert.h>
-#include "os.h"
+#include "toku_os.h"
 #include <syscall.h>
 
-int os_getpid(void);
+int toku_os_getpid(void);
 
 static int gettid(void) {
     return syscall(__NR_gettid);
 }
 
 int main(void) {
-    assert(os_getpid() == getpid());
-    assert(os_gettid() == gettid());
+    assert(toku_os_getpid() == getpid());
+    assert(toku_os_gettid() == gettid());
     return 0;
 }

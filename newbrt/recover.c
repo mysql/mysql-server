@@ -65,7 +65,7 @@ create_dir_from_file (const char *fname) {
 	    if (i>0) {
 		tmp[i]=0;
 		mode_t oldu = umask(0);
-		int r = os_mkdir(tmp, S_IRWXU);
+		int r = toku_os_mkdir(tmp, S_IRWXU);
 		if (r!=0 && errno!=EEXIST) {
 		    printf("error: %s\n", strerror(errno));
 		}
@@ -702,7 +702,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	char lockfname[namelen+sizeof(fname)];
 
 	snprintf(lockfname, sizeof(lockfname), "%s%s", data_dir, fname);
-        lockfd = os_lock_file(lockfname);
+        lockfd = toku_os_lock_file(lockfname);
 	if (lockfd<0) {
 	    printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
 	    return errno;
@@ -760,7 +760,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
     }
     toku_free(logfiles);
 
-    r=os_unlock_file(lockfd);
+    r=toku_os_unlock_file(lockfd);
     if (r!=0) return errno;
 
     r=chdir(org_wd);

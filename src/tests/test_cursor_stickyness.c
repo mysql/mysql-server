@@ -83,7 +83,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
     r = system("rm -rf " ENVDIR); assert(r == 0);
-    r = os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     for (i=1; i<65537; i *= 2) {
         test_cursor_sticky(i, 0);

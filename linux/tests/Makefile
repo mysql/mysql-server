@@ -1,4 +1,4 @@
-CPPFLAGS = -I../../include
+CPPFLAGS = -I../../include -I..
 CFLAGS = -Wall -Werror -g -O0
 LDFLAGS = ../tokulinux.a
 SRCS = $(wildcard test-*.c)

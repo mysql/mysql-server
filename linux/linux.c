@@ -13,42 +13,42 @@
 #include <sys/resource.h>
 #include <assert.h>
 #include "portability.h"
-#include "os.h"
+#include "toku_os.h"
 
 int
-os_getpid(void) {
+toku_os_getpid(void) {
     return getpid();
 }
 
 int
-os_gettid(void) {
+toku_os_gettid(void) {
     return syscall(__NR_gettid);
 }
 
 int
-os_get_number_processors(void) {
+toku_os_get_number_processors(void) {
     return sysconf(_SC_NPROCESSORS_CONF);
 }
 
 int
-os_get_number_active_processors(void) {
+toku_os_get_number_active_processors(void) {
     return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 int
-os_get_pagesize(void) {
+toku_os_get_pagesize(void) {
     return sysconf(_SC_PAGESIZE);
 }
 
 uint64_t
-os_get_phys_memory_size(void) {
+toku_os_get_phys_memory_size(void) {
     uint64_t npages = sysconf(_SC_PHYS_PAGES);
     uint64_t pagesize = sysconf(_SC_PAGESIZE);
     return npages*pagesize;
 }
 
 int
-os_get_file_size(int fildes, int64_t *fsize) {
+toku_os_get_file_size(int fildes, int64_t *fsize) {
     struct stat sbuf;
     int r = fstat(fildes, &sbuf);
     if (r==0) {
@@ -58,7 +58,7 @@ os_get_file_size(int fildes, int64_t *fsize) {
 }
 
 int
-os_get_unique_file_id(int fildes, struct fileid *id) {
+toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     struct stat statbuf;
     memset(id, 0, sizeof(*id));
     int r=fstat(fildes, &statbuf);
@@ -71,7 +71,7 @@ os_get_unique_file_id(int fildes, struct fileid *id) {
 }
 
 int
-os_lock_file(char *name) {
+toku_os_lock_file(char *name) {
     int r;
     int fd = open(name, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
     if (fd>=0) {
@@ -87,20 +87,20 @@ os_lock_file(char *name) {
 }
 
 int
-os_unlock_file(int fildes) {
+toku_os_unlock_file(int fildes) {
     int r = flock(fildes, LOCK_UN);
     if (r==0) r = close(fildes);
     return r;
 }
 
 int
-os_mkdir(const char *pathname, mode_t mode) {
+toku_os_mkdir(const char *pathname, mode_t mode) {
     int r = mkdir(pathname, mode);
     return r;
 }
 
 int
-os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
+toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
     int r;
     struct rusage rusage;
     r = getrusage(RUSAGE_SELF, &rusage);
@@ -114,7 +114,7 @@ os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) {
 }
 
 int
-os_initialize_settings(int UU(verbosity)) {
+toku_os_initialize_settings(int UU(verbosity)) {
     int r = 0;
     static int initialized = 0;
     assert(initialized==0);
@@ -123,7 +123,7 @@ os_initialize_settings(int UU(verbosity)) {
 }
 
 int
-os_get_max_rss(int64_t *maxrss) {
+toku_os_get_max_rss(int64_t *maxrss) {
     char statusname[100];
     sprintf(statusname, "/proc/%d/status", getpid());
     FILE *f = fopen(statusname, "r");
@@ -144,7 +144,7 @@ os_get_max_rss(int64_t *maxrss) {
 }
 
 int
-os_get_rss(int64_t *rss) {
+toku_os_get_rss(int64_t *rss) {
     char statusname[100];
     sprintf(statusname, "/proc/%d/status", getpid());
     FILE *f = fopen(statusname, "r");

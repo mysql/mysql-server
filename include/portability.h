@@ -64,7 +64,7 @@ extern "C" {
 
 #endif
 
-#include "os.h"
+#include "toku_os.h"
 #include "toku_htonl.h"
 
 #define UU(x) x __attribute__((__unused__))

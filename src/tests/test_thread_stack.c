@@ -27,13 +27,13 @@ db_put (DB *db, my_t k, my_t v) {
 static void *
 do_inserts (void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
-    if (verbose) printf("%lu:%d:do_inserts:start:%u-%u\n", (unsigned long)toku_pthread_self(), os_gettid(), mywork->startno, mywork->endno);
+    if (verbose) printf("%lu:%d:do_inserts:start:%u-%u\n", (unsigned long)toku_pthread_self(), toku_os_gettid(), mywork->startno, mywork->endno);
     my_t i;
     for (i=mywork->startno; i < mywork->endno; i++) {
         int r = db_put(mywork->db, htonl(i), i); assert(r == 0);
     }
     
-    if (verbose) printf("%lu:%d:do_inserts:end\n", (unsigned long)toku_pthread_self(), os_gettid());
+    if (verbose) printf("%lu:%d:do_inserts:end\n", (unsigned long)toku_pthread_self(), toku_os_gettid());
     if (mywork->do_exit) return arg;
     return 0;
 }
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
             work[i].endno = n;
     }
 
-    if (verbose) printf("pid:%d tid:%d\n", os_getpid(), os_gettid());
+    if (verbose) printf("pid:%d tid:%d\n", toku_os_getpid(), toku_os_gettid());
 
     for (i=all_on_threads ? 0 : 1; i<nthreads; i++) {
         toku_pthread_attr_t attr;

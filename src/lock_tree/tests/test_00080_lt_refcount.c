@@ -145,7 +145,7 @@ int main(int argc, const char *argv[]) {
     dup_compare = intcmp;
 
     system("rm -rf " TESTDIR);
-    os_mkdir(TESTDIR, S_IRWXU|S_IRWXG|S_IRWXO);
+    toku_os_mkdir(TESTDIR, S_IRWXU|S_IRWXG|S_IRWXO);
 
     initial_setup();
 

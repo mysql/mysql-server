@@ -1,5 +1,5 @@
 #include "portability.h"
-#include "os.h"
+#include "toku_os.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -53,7 +53,7 @@ fbusy (void *arg) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
     r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", (unsigned long)os_gettid(), __FUNCTION__); 
+    if (verbose) printf("%lu:%s:exit\n", (unsigned long)toku_os_gettid(), __FUNCTION__); 
     return arg;
 }
 
@@ -68,7 +68,7 @@ fidle (void *arg) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
     r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", (unsigned long)os_gettid(), __FUNCTION__); 
+    if (verbose) printf("%lu:%s:exit\n", (unsigned long)toku_os_gettid(), __FUNCTION__); 
     return arg;
 }
 

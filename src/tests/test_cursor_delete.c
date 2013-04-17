@@ -156,7 +156,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     r = system("rm -rf " ENVDIR); assert(r == 0);
-    r = os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     
     test_cursor_delete(0);
 #ifdef USE_BDB

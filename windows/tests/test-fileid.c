@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include "portability.h"
-#include "os.h"
+#include "toku_os.h"
 
 int verbose=0;
 
@@ -17,10 +17,10 @@ static void test_handles(const char *fname) {
     int i;
     struct fileid id_base;
     struct fileid id;
-    int r = os_get_unique_file_id(fd, &id_base);
+    int r = toku_os_get_unique_file_id(fd, &id_base);
     assert(r==0);
     for (i=0; i < 1<<16; i++) {
-        r = os_get_unique_file_id(fd, &id);
+        r = toku_os_get_unique_file_id(fd, &id);
         assert(r==0);
         assert(memcmp(&id, &id_base, sizeof(id))==0);
     }

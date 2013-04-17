@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <assert.h>
-#include "os.h"
+#include "toku_os.h"
 
 int main(void) {
-    assert(os_get_pagesize() == getpagesize());
+    assert(toku_os_get_pagesize() == getpagesize());
     return 0;
 }
