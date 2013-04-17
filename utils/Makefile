@@ -95,7 +95,7 @@ build.tdb: $(UTILS) $(STATIC_UTILS);
 build.bdb: $(BDB_UTILS);
 endif
 
-copy.tdb:
+copy.tdb: $(PTHREAD_LOCAL)
 	cp ../lib/*.dll ./
 copy.bdb:
 	cp $(BDBDIR)/lib/*.dll ./

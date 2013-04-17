@@ -1,6 +1,6 @@
 // test for a pthread handle leak
 
-#include <toku_portability.h>
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -12,7 +12,7 @@ static void *mythreadfunc(void *arg) {
     return arg;
 }
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
 #define N 1000000
 
     int i;

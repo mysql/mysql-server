@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <toku_portability.h>
+#include <test.h>
 #include "toku_os.h"
 
 int verbose=0;
@@ -28,7 +28,7 @@ static void test_handles(const char *fname) {
     assert(r==0);
 }
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
     int i;
 
     for (i=1; i<argc; i++) {

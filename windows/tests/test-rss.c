@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <toku_portability.h>
+#include <test.h>
 #include <toku_os.h>
 
 static void do_mallocs(void) {
@@ -16,7 +16,7 @@ static void do_mallocs(void) {
     }
 }
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int64_t rss;
 
     toku_os_get_max_rss(&rss);

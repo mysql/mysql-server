@@ -6,14 +6,18 @@
 #include "includes.h"
 
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
-void toku_logger_lock_init(void) {
+int
+toku_logger_lock_init(void) {
     int r = toku_pthread_mutex_init(&logger_mutex, NULL);
     assert(r == 0);
+    return r;
 }
 
-void toku_logger_lock_destroy(void) {
+int
+toku_logger_lock_destroy(void) {
     int r = toku_pthread_mutex_destroy(&logger_mutex);
     assert(r == 0);
+    return r;
 }
 
 void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {

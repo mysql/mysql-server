@@ -51,7 +51,7 @@ toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
     return pthread_rwlock_unlock(rwlock);
 }
 
-int toku_pthread_yield(void);
+int toku_pthread_yield(void) __attribute__((__visibility__("default")));
 
 static inline
 int toku_pthread_attr_init(toku_pthread_attr_t *attr) {

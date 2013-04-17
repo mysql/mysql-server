@@ -1,8 +1,9 @@
+#include <toku_portability.h>
+#include "test.h"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 
-#include <toku_portability.h>
 #include "toku_assert.h"
 #include "toku_pthread.h"
 #include "memory.h"
@@ -183,7 +184,7 @@ test_flow_control (int limit, int n, int maxthreads) {
 }
 
 int
-main(int argc, const char *argv[]) {
+test_main (int argc, const char *argv[]) {
     int i;
     for (i=1; i<argc; i++) {
         const char *arg = argv[i];

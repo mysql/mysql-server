@@ -7,8 +7,8 @@
 
 typedef struct leaflock *LEAFLOCK;
 
-void toku_leaflock_init(void);
-void toku_leaflock_destroy(void);
+int toku_leaflock_init(void);
+int toku_leaflock_destroy(void);
 
 int toku_leaflock_borrow(LEAFLOCK *leaflockp);
 void toku_leaflock_unlock_and_return(LEAFLOCK *leaflockp);

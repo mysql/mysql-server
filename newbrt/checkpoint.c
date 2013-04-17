@@ -69,16 +69,18 @@ static void (*ydb_unlock)(void) = NULL;
 // and use the "writer" calls for locking and unlocking.
 
 
-static void 
+static int 
 multi_operation_lock_init(void) {
     int r = toku_pthread_rwlock_init(&multi_operation_lock, NULL); 
     assert(r == 0);
+    return r;
 }
 
-static void 
+static int 
 multi_operation_lock_destroy(void) {
     int r = toku_pthread_rwlock_destroy(&multi_operation_lock); 
     assert(r == 0);
+    return r;
 }
 
 static void 
@@ -94,16 +96,18 @@ multi_operation_checkpoint_unlock(void) {
 }
 
 
-static void 
+static int 
 checkpoint_safe_lock_init(void) {
     int r = toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
     assert(r == 0);
+    return r;
 }
 
-static void 
+static int 
 checkpoint_safe_lock_destroy(void) {
     int r = toku_pthread_rwlock_destroy(&checkpoint_safe_lock); 
     assert(r == 0);
+    return r;
 }
 
 static void 
@@ -150,19 +154,29 @@ toku_checkpoint_safe_client_unlock(void) {
 static BOOL initialized = FALSE;
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
-void 
+int 
 toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
+    int r = 0;
     ydb_lock   = ydb_lock_callback;
     ydb_unlock = ydb_unlock_callback;
-    multi_operation_lock_init();
-    checkpoint_safe_lock_init();
-    initialized = TRUE;
+    if (r==0)
+        r = multi_operation_lock_init();
+    if (r==0)
+        r = checkpoint_safe_lock_init();
+    if (r==0)
+        initialized = TRUE;
+    return r;
 }
 
-void toku_checkpoint_destroy(void) {
-    multi_operation_lock_destroy();
-    checkpoint_safe_lock_destroy();
+int
+toku_checkpoint_destroy(void) {
+    int r = 0;
+    if (r==0)
+        r = multi_operation_lock_destroy();
+    if (r==0)
+        r = checkpoint_safe_lock_destroy();
     initialized = FALSE;
+    return r;
 }
 
 

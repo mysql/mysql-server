@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <toku_portability.h>
+#include <test.h>
 #include "toku_os.h"
 #include <dirent.h>
 
@@ -33,7 +33,7 @@ static int walk(const char *dirname) {
     return otherfound;
 }
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
     int i;
     int found;
     int fd;

@@ -6,7 +6,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 #include <time.h>
 
 #include <toku_portability.h>
@@ -228,15 +227,6 @@ u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
 }
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
-#if defined __linux__
-    {
-	static int did_mallopt = 0;
-	if (!did_mallopt) {
-	    mallopt(M_MMAP_THRESHOLD, 1024*64); // 64K and larger should be malloced with mmap().
-	    did_mallopt = 1;
-	}
-    }
-#endif
     TAGMALLOC(CACHETABLE, ct);
     if (ct == 0) return ENOMEM;
     memset(ct, 0, sizeof(*ct));

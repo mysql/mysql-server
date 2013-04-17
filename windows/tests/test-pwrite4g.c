@@ -1,9 +1,9 @@
 /* Verify that toku_os_pwrite does the right thing when writing beyond 4GB.  */
 #include <fcntl.h>
-#include <toku_portability.h>
+#include <test.h>
 #include <assert.h>
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int test_main(int argc, char *argv[]) {
     char fname[] = "pwrite4g.data";
     int r;
     unlink(fname);

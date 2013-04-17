@@ -33,6 +33,7 @@
    toku_os_mkdir;
    toku_realloc;
    toku_strdup;
+   toku_pthread_yield;
 
    dlmalloc;
    dlrealloc;

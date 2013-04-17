@@ -24,8 +24,8 @@ struct logbytes {
 
 #define MALLOC_LOGBYTES(n) toku_malloc(sizeof(struct logbytes)+n -1)
 
-void toku_logger_lock_init(void);
-void toku_logger_lock_destroy(void);
+int toku_logger_lock_init(void);
+int toku_logger_lock_destroy(void);
 int toku_logger_create(TOKULOGGER */*resultp*/);
 void toku_logger_set_cachetable (TOKULOGGER, CACHETABLE);
 void toku_logger_write_log_files (TOKULOGGER, int do_write_log_files);

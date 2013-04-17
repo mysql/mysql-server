@@ -1,4 +1,4 @@
-#include <toku_portability.h>
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@ static int ftruncate(int fd, uint64_t offset) {
 }
 #endif
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int r;
     int fd;
 

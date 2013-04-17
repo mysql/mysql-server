@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <toku_portability.h>
+#include <test.h>
 #include "toku_os.h"
 
 int verbose;
@@ -24,7 +24,7 @@ static void test_pread_empty(const char *fname) {
         printf("close %s %"PRIu64"\n", fname, r);
 }
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
     int i;
 
     for (i=1; i<argc; i++) {

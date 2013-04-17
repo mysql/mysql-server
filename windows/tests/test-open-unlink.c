@@ -1,3 +1,4 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -17,7 +18,7 @@
 
 const char TESTFILE[] = "test-open-unlink-file";
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int r;
     int fd;
 

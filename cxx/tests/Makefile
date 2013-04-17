@@ -13,6 +13,8 @@ DEPEND_COMPILE += \
 HERE = cxx/tests
 include $(TOKUROOT)toku_include/Makefile.include
 
+SHELL=/bin/bash #Use of &> is a bash feature
+
 SHOULD_FAIL = 
 $(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
 

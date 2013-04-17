@@ -31,6 +31,7 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "checkpoint.h"
 #include "key.h"
 
+
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
  #define DB_CREATE_FUN db_create_toku10
@@ -51,31 +52,24 @@ init_dbt_realloc(DBT *dbt) {
     return dbt;
 }
 
-static void
-toku_ydb_init_malloc(void) {
-#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
-    //Set the heap (malloc/free/realloc) to use the low fragmentation mode.
-    ULONG  HeapFragValue = 2;
-
-    int r;
-    r = HeapSetInformation(GetProcessHeap(),
-                           HeapCompatibilityInformation,
-                           &HeapFragValue,
-                           sizeof(HeapFragValue));
-    //if (r==0) //Do some error output if necessary.
-    assert(r!=0);
-#endif
+int toku_ydb_init(void) {
+    int r = 0;
+    //Lower level must be initialized first.
+    if (r==0) 
+        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
+    if (r==0) 
+        r = toku_ydb_lock_init();
+    return r;
 }
 
-void toku_ydb_init(void) {
-    toku_ydb_init_malloc();
-    toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
-    toku_ydb_lock_init();
-}
-
-void toku_ydb_destroy(void) {
-    toku_brt_destroy();
-    toku_ydb_lock_destroy();
+int toku_ydb_destroy(void) {
+    int r = 0;
+    if (r==0)
+        r = toku_ydb_lock_destroy();
+    //Lower level must be cleaned up last.
+    if (r==0)
+        r = toku_brt_destroy();
+    return r;
 }
 
 static int
@@ -3839,3 +3833,14 @@ void db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
     toku_checkpoint_safe_client_unlock();
     //printf("set callback = %p, extra = %p\n", callback_f, extra);
 }
+
+// HACK: To ensure toku_pthread_yield gets included in the .so
+// non-static would require a prototype in a header
+// static (since unused) would give a warning
+// static + unused would not actually help toku_pthread_yield get in the .so
+// static + used avoids all the warnings and makes sure toku_pthread_yield is in the .so
+static void __attribute__((__used__))
+include_toku_pthread_yield (void) {
+    toku_pthread_yield();
+}
+

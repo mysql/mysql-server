@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <toku_portability.h>
+#include <test.h>
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int r;
     int fd;
     struct fileid fid;

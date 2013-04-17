@@ -29,12 +29,14 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
 static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
 
-void toku_pwrite_lock_init(void) {
+int toku_pwrite_lock_init(void) {
     int r = toku_pthread_mutex_init(&pwrite_mutex, NULL); assert(r == 0);
+    return r;
 }
 
-void toku_pwrite_lock_destroy(void) {
+int toku_pwrite_lock_destroy(void) {
     int r = toku_pthread_mutex_destroy(&pwrite_mutex); assert(r == 0);
+    return r;
 }
 
 static inline void

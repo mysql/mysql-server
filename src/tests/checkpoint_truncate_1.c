@@ -2,10 +2,10 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+#include <test.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "toku_pthread.h"
-#include "test.h"
 #include "checkpoint_test.h"
 
 
@@ -57,8 +57,9 @@ checkpoint_truncate_test(u_int32_t flags, u_int32_t n) {
     insert_n_fixed(db_test.db, db_control.db, NULL, firstkey, numkeys);
     snapshot(&db_test, TRUE);  // take checkpoint, truncate db_test during checkpoint callback
     verify_sequential_rows(db_control.db, firstkey, numkeys);
-    pthread_join(thread, &ignore);
+    toku_pthread_join(thread, &ignore);
     db_shutdown(&db_control);
+    db_shutdown(&db_test);
     env_shutdown();
 }
 
@@ -79,7 +80,7 @@ truncate_thread(void * extra) {
 	fflush(stdout);
     }
     if (iter & 1)
-	pthread_yield();  // increase probability of collision by having some different timing
+	toku_pthread_yield();  // increase probability of collision by having some different timing
     db_truncate(d->db, NULL);
     return NULL;
 } 

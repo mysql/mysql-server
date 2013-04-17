@@ -1,4 +1,4 @@
-#include <toku_portability.h>
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -68,7 +68,7 @@ static void *reader(void *arg) {
     return arg;
 }
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int i;
     void *ret;
     toku_pthread_t t[2];
