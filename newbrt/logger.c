@@ -194,12 +194,10 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     r = toku_brt_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
     assert_zero(r);
     logger->rollback_cachefile = t->h->cf;
-    toku_brtheader_lock(t->h);
     //Verify it is empty
     assert(!t->h->panic);
     //Must have no data blocks (rollback logs or otherwise).
     toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root_blocknum);
-    toku_brtheader_unlock(t->h);
     BOOL is_empty;
     is_empty = toku_brt_is_empty_fast(t);
     assert(is_empty);
@@ -219,10 +217,9 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
         BRT brt_to_close;
         {   //Find "brt"
             struct brt_header *h = toku_cachefile_get_userdata(cf);
-            toku_brtheader_lock(h);
             if (!h->panic && recovery_failed) {
                 r = toku_brt_header_set_panic(h, EINVAL, "Recovery failed");
-		assert_zero(r);
+                assert_zero(r);
             }
             //Verify it is safe to close it.
             if (!h->panic) { //If paniced, it is safe to close.
@@ -230,19 +227,15 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
                 //Must have no data blocks (rollback logs or otherwise).
                 toku_block_verify_no_data_blocks_except_root_unlocked(h->blocktable, h->root_blocknum);
             }
-            assert(!toku_list_empty(&h->live_brts));  // there is always one brt associated with the header
-	    brt_to_close = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
+            assert(!h->dirty);
+            brt_to_close = toku_brtheader_get_some_existing_brt(h);
             assert(brt_to_close);
-	    assert(!brt_to_close->h->dirty);
-            toku_brtheader_unlock(h);
-	    {
-		// This almost doesn't work.  If there were anything in there, then the header might get dirtied by
-		// toku_brt_is_empty().  But it turns out absolutely nothing is in there, so it's OK to assert that it's empty.
-		BOOL is_empty;
+            {
+                BOOL is_empty;
                 is_empty = toku_brt_is_empty_fast(brt_to_close);
-		assert(is_empty);
-	    }
-	    assert(!h->dirty); // it should not have been dirtied by the toku_brt_is_empty test.
+                assert(is_empty);
+            }
+            assert(!h->dirty); // it should not have been dirtied by the toku_brt_is_empty test.
         }
 
         char *error_string_ignore = NULL;

@@ -30,6 +30,8 @@ void toku_brtheader_note_brt_open(BRT live);
 int toku_brt_header_needed(struct brt_header* h);
 int toku_remove_brtheader (struct brt_header* h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
+BRT toku_brtheader_get_some_existing_brt(struct brt_header* h);
+
 void toku_brt_header_note_hot_begin(BRT brt);
 void toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot);
 

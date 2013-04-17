@@ -532,6 +532,18 @@ int toku_remove_brtheader (struct brt_header* h, char **error_string, BOOL oplsn
     return r;
 }
 
+// gets the first existing BRT handle, if it exists. If no BRT handle exists
+// for this header, returns NULL
+BRT toku_brtheader_get_some_existing_brt(struct brt_header* h) {
+    BRT brt_ret = NULL;
+    toku_brtheader_lock(h);
+    if (toku_list_empty(&h->live_brts)) {
+        brt_ret = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
+    }
+    toku_brtheader_unlock(h);
+    return brt_ret;
+}
+
 // Purpose: set fields in brt_header to capture accountability info for start of HOT optimize.
 // Note: HOT accountability variables in header are modified only while holding header lock.
 //       (Header lock is really needed for touching the dirty bit, but it's useful and 
