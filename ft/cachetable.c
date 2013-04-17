@@ -3068,8 +3068,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
     FILENUMS open_filenums;
     uint32_t num_filenums = toku_omt_size(txn->open_fts);
     FILENUM array[num_filenums];
-    if (!txn->begin_was_logged) {
-        invariant(num_filenums == 0);
+    if (toku_txn_is_read_only(txn)) {
         goto cleanup;
     }
     else {

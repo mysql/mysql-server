@@ -349,7 +349,10 @@ static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     int r = 0;
     if (txn->parent || toku_txn_is_read_only(txn)) {
-        // nothing to do if there's a parent, or if it's read-only
+        // We do not prepare children.
+        //
+        // Readonly transactions do the same if they commit or abort, so
+        // XA guarantees are free.  No need to pay for overhead of prepare.
         goto cleanup;
     }
     toku_txn_manager_add_prepared_txn(txn->logger->txn_manager, txn);

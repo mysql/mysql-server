@@ -551,7 +551,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
         invariant_zero(r);
 
-        if (txn->begin_was_logged || garbage_collection_debug) {
+        if (!toku_txn_is_read_only(txn) || garbage_collection_debug) {
             if (!is_snapshot) {
                 // If it's a snapshot, we already calculated index_in_snapshot_txnids.
                 // Otherwise, calculate it now.
@@ -693,7 +693,14 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
 }
 
 void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
+    // Purpose:
+    //  Delay until any indexer is done pinning this transaction.
+    //  Update status of a transaction from live->aborting (or prepared->aborting)
+    //  Do so in a thread-safe manner that does not conflict with hot indexing or
+    //  begin checkpoint.
     if (toku_txn_is_read_only(txn)) {
+        // Neither hot indexing nor checkpoint do any work with readonly txns,
+        // so we can skip taking the txn_manager lock here.
         invariant(txn->state==TOKUTXN_LIVE);
         txn->state = TOKUTXN_ABORTING;
         goto done;
@@ -720,7 +727,14 @@ done:
 }
 
 void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
+    // Purpose:
+    //  Delay until any indexer is done pinning this transaction.
+    //  Update status of a transaction from live->committing (or prepared->committing)
+    //  Do so in a thread-safe manner that does not conflict with hot indexing or
+    //  begin checkpoint.
     if (toku_txn_is_read_only(txn)) {
+        // Neither hot indexing nor checkpoint do any work with readonly txns,
+        // so we can skip taking the txn_manager lock here.
         invariant(txn->state==TOKUTXN_LIVE);
         txn->state = TOKUTXN_COMMITTING;
         goto done;
