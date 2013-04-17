@@ -124,6 +124,9 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 // void**.  If the item is not in memory, then return a nonzero error number.
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
+// Like maybe get and pin, but may pin a clean pair.
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
+
 // cachetable pair clean or dirty WRT external memory
 enum cachetable_dirty {
     CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile

@@ -1158,6 +1158,33 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     return r;
 }
 
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
+    CACHETABLE ct = cachefile->cachetable;
+    PAIR p;
+    int count = 0;
+    int r = -1;
+    cachetable_lock(ct);
+    for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
+	count++;
+	if (p->key.b==key.b && p->cachefile==cachefile && p->state == CTPAIR_IDLE) {
+
+	    if (p->checkpoint_pending) {
+		goto finish;
+	    }
+	    *value = p->value;
+	    rwlock_read_lock(&p->rwlock, ct->mutex);
+	    lru_touch(ct,p);
+            r = 0;
+	    //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+            break;
+	}
+    }
+ finish:
+    note_hash_count(count);
+    cachetable_unlock(ct);
+    return r;
+}
+
 
 int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size) {
     CACHETABLE ct = cachefile->cachetable;
