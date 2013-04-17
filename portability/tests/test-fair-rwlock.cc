@@ -30,19 +30,20 @@
 //  During unpin: It grabs the mutex, unlocks the rwlock lock in the pair, and releases the mutex. 
 //  Both actions must acquire a cachetable lock during that time, so definitely saves time to do it that way.
 
-#include <toku_pthread.h>
-#include <toku_portability.h>
-#include <toku_time.h>
-#include <toku_assert.h>
 #include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/types.h>
+
+#include <toku_pthread.h>
+#include <toku_portability.h>
+#include <toku_time.h>
+#include <toku_assert.h>
 #include <util/rwlock.h>
 #include <util/frwlock.h>
 #include <portability/toku_atomic.h>
 #include "toku_fair_rwlock.h"
-#include <sys/types.h>
 
 #include "rwlock_condvar.h"
 

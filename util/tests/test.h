@@ -4,11 +4,11 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <stdlib.h>
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <util/partitioned_counter.h>
 #include <string.h>
-#include <stdlib.h>
 
 #define CKERR(r) ({ int __r = r; if (__r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, __r, strerror(r)); assert(__r==0); })
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)

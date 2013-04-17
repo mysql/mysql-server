@@ -6,8 +6,9 @@ set(tokuportability_srcs
   os_malloc
   portability
   toku_assert
-  toku_pthread
   toku_fair_rwlock
+  toku_pthread
+  toku_time
   )
 
 add_library(${LIBTOKUPORTABILITY} SHARED ${tokuportability_srcs})
