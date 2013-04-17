@@ -489,7 +489,6 @@ static void print_db_txn_stat_struct (void) {
 static void print_dbc_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
-    STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, uint32_t)");
     //STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, uint32_t)");  // c_del was removed.  See #4576.
     STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, uint32_t)");
     STRUCT_SETUP(DBC, dbp,     "DB *%s");
@@ -499,8 +498,6 @@ static void print_dbc_struct (void) {
 	"int (*c_getf_next)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_prev)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_current)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_current_binding)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
-
 	"int (*c_getf_set)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
