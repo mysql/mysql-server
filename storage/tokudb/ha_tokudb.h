@@ -438,8 +438,14 @@ public:
     }
 
     double scan_time();
-    double keyread_time(uint index, uint ranges, ha_rows rows);
+
     double read_time(uint index, uint ranges, ha_rows rows);
+    
+    // Defined in mariadb
+    double keyread_time(uint index, uint ranges, ha_rows rows);
+
+    // Defined in mysql 5.6
+    double index_only_read_time(uint keynr, double records);
 
     int open(const char *name, int mode, uint test_if_locked);
     int close(void);
