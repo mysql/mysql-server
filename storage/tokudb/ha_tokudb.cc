@@ -6854,6 +6854,14 @@ cleanup:
     }
     if (txn) {
         if (error) {
+            //
+            // need to restore num_DBs
+            //
+            if (incremented_numDBs) {
+                rw_wrlock(&share->num_DBs_lock);
+                share->num_DBs--;
+                rw_unlock(&share->num_DBs_lock);
+            }
             curr_index = curr_num_DBs;
             for (uint i = 0; i < num_of_keys; i++, curr_index++) {
                 if (share->key_file[curr_index]) {
@@ -6876,14 +6884,6 @@ cleanup:
 another transaction has accessed the table. \
 To add indexes, make sure no transactions touch the table.", share->table_name);
             }
-    //
-    // need to restore num_DBs
-    //
-    if (error && incremented_numDBs) {
-        rw_wrlock(&share->num_DBs_lock);
-        share->num_DBs--;
-        rw_unlock(&share->num_DBs_lock);
-    }
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
