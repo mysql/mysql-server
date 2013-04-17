@@ -1628,8 +1628,8 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 
         // if the insertion point is within a window of the right edge of
         // the leaf then it is sequential
-
         // window = min(32, number of leaf entries/16)
+        {
         u_int32_t s = toku_omt_size(node->u.l.buffer);
         u_int32_t w = s / 16;
         if (w == 0) w = 1; 
@@ -1640,6 +1640,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
             node->u.l.seqinsert += 1;
         } else {
             node->u.l.seqinsert = 0;
+        }
         }
 	break;
     case BRT_DELETE_BOTH:
@@ -2381,6 +2382,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	    if (r!=0) goto return_r;
 	}
 	// Now all those children may need fixing.
+        {
 	int i;
 	int original_n_children = node->u.n.n_children;
 	for (i=0; i<original_n_children; i++) {
@@ -2390,6 +2392,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	    if (r!=0) break;
 	    if (*did_io) break;
 	}
+        }
     return_r:
 	*re = get_nonleaf_reactivity(node);
 	return r;
