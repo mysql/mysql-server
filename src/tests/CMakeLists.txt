@@ -160,7 +160,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       recover-tablelock
       recover-test-logsuppress
       recover-test-logsuppress-put
-      recover-test_stress0
       recover-test_stress1
       recover-test_stress2
       recover-test_stress3

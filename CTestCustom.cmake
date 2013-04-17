@@ -90,6 +90,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE ${tests_that_should_fail})
 
 ## don't run drd stress tests with valgrind either (because that would do valgrind twice)
 set(stress_tests
+  test_stress0.tdb
   test_stress1.tdb
   test_stress2.tdb
   test_stress3.tdb
