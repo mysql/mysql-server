@@ -166,8 +166,6 @@ extern int toku_ft_debug_mode;
 int toku_verify_ft (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 int toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
 
-//int show_ft_blocknumbers(BRT);
-
 typedef struct ft_cursor *FT_CURSOR;
 int toku_ft_cursor (FT_HANDLE, FT_CURSOR*, TOKUTXN, BOOL, BOOL)  __attribute__ ((warn_unused_result));
 void toku_ft_cursor_set_leaf_mode(FT_CURSOR);

@@ -203,7 +203,6 @@ static void  test_read_what_was_written (void) {
     }
     if (verbose) printf("Now read them out\n");
 
-    //show_ft_blocknumbers(brt);
     r = toku_verify_ft(brt);
     assert(r==0);
     //dump_ft(brt);
