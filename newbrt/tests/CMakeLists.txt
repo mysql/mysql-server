@@ -95,4 +95,13 @@ if(BUILD_TESTING)
       add_test(${base} ${base})
     endif()
   endforeach(src)
+
+  ## give some tests, that time out when run with valgrind, 1 hour to complete
+  set_tests_properties(
+    subblock-test-checksum
+    subblock-test-compression
+    benchmark-test
+    benchmark-test_256
+    PROPERTIES TIMEOUT 3600
+    )
 endif(BUILD_TESTING)
