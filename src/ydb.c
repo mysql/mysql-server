@@ -4568,7 +4568,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
                 invariant(which_src_db < num_dbs);
                 indexer_src_key = &keys[which_src_db];
             }
-            do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, indexer_src_key);
+            do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_db, indexer_src_key);
         }
         if (r == 0 && do_put) {
             r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
