@@ -101,6 +101,8 @@ if(BUILD_TESTING)
   declare_custom_tests(bnc-insert-benchmark)
   add_test(ft/bnc-insert-benchmark bnc-insert-benchmark 100 4096000 1000)
 
+  add_helgrind_test(ft/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
+
   foreach(test ${tests})
     if(NOT "${test}" MATCHES "dir[.].*")
       ## add a default test rule that runs with no options
