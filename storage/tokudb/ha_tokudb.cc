@@ -5415,6 +5415,7 @@ cleanup:
         int r = status_block->close(status_block, 0);
         assert(r==0);
     }
+    free_key_and_col_info(&kc_info);
     if (txn) {
         if (error) {
             abort_txn(txn);
