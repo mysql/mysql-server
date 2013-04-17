@@ -201,8 +201,10 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
+#if TOKU_INCLUDE_XA
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len);
+#endif
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
 
@@ -353,8 +355,10 @@ static int tokudb_init_func(void *p) {
     
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
+#if TOKU_INCLUDE_XA
     tokudb_hton->prepare=tokudb_xa_prepare;
     tokudb_hton->recover=tokudb_xa_recover;
+#endif
     tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
     tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
 
@@ -846,6 +850,8 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
+#if TOKU_INCLUDE_XA
+
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_xa_prepare");
     int r = 0;
@@ -870,6 +876,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     }
     TOKUDB_DBUG_RETURN(r);
 }
+
 static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
     TOKUDB_DBUG_ENTER("tokudb_xa_recover");
     int r = 0;
@@ -886,6 +893,9 @@ static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
         );
     TOKUDB_DBUG_RETURN((int)num_returned);
 }
+
+#endif
+
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
     TOKUDB_DBUG_ENTER("tokudb_commit_by_xid");
     int r = 0;
@@ -902,6 +912,7 @@ static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
 cleanup:
     TOKUDB_DBUG_RETURN(r);
 }
+
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
     TOKUDB_DBUG_ENTER("tokudb_rollback_by_xid");
     int r = 0;
@@ -990,22 +1001,10 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
-#if 0
-static int
-smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
-    DBT* stored_frm = (DBT *)context;
-    stored_frm->size = row->size;
-    stored_frm->data = (uchar *)my_malloc(row->size, MYF(MY_WME));
-    assert(stored_frm->data);
-    memcpy(stored_frm->data, row->data, row->size);
-    return 0;
-}
-#endif
-
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
-                        const char *name,
-                        uchar **frmblob, 
-                        size_t *frmlen)
+			   const char *name,
+			   uchar **frmblob, 
+			   size_t *frmlen)
 {
     TOKUDB_DBUG_ENTER("tokudb_discover");
     int error;
