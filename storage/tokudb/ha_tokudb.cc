@@ -1024,7 +1024,7 @@ inline int tokudb_generate_row(
         if (dest_key->flags == DB_DBT_REALLOC && dest_key->data != NULL) {
             free(dest_key->data);
         }
-        if (pack_val) {
+        if (pack_val && dest_val != NULL) {
             assert(dest_val->flags != DB_DBT_USERMEM);
             if (dest_val->flags == DB_DBT_REALLOC && dest_val->data != NULL) {
                 free(dest_val->data);
@@ -1033,7 +1033,7 @@ inline int tokudb_generate_row(
         dest_key->data = src_key->data;
         dest_key->size = src_key->size;
         dest_key->flags = 0;
-        if (pack_val) {
+        if (pack_val && dest_val != NULL) {
             dest_val->data = src_val->data;
             dest_val->size = src_val->size;
             dest_val->flags = 0;
@@ -1083,7 +1083,7 @@ inline int tokudb_generate_row(
     row_desc += desc_size;
     desc_size = (*(u_int32_t *)row_desc) - 4;
     row_desc += 4;
-    if (pack_val) {
+    if (pack_val && dest_val != NULL) {
         if (!is_key_clustering(row_desc, desc_size)) {
             dest_val->size = 0;
         }
