@@ -8,7 +8,7 @@ set(JEMALLOC_SOURCE_DIR "${TOKU_SVNROOT}/jemalloc-3.2.0" CACHE FILEPATH "Where t
 if (NOT EXISTS "${JEMALLOC_SOURCE_DIR}/configure")
   message(FATAL_ERROR "Can't find jemalloc sources.  Please check them out to ${JEMALLOC_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or JEMALLOC_SOURCE_DIR.")
 endif ()
-set(jemalloc_configure_opts "CC=${CMAKE_C_COMPILER}" "--with-private-namespace=tokudb_jemalloc_internal_")
+set(jemalloc_configure_opts "CC=${CMAKE_C_COMPILER}" "--with-jemalloc-prefix=" "--with-private-namespace=tokudb_jemalloc_internal_" "--enable-cc-silence")
 if (NOT CMAKE_BUILD_TYPE MATCHES Release)
   list(APPEND jemalloc_configure_opts --enable-debug)
 endif ()
