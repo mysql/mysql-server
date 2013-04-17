@@ -316,6 +316,35 @@ toku_set_func_free(free_fun_t f) {
     t_free = f;
 }
 
+#define HUGEPAGE_SIZE (2L*1024L*1024L)
+void toku_memory_dontneed_after_but_i_touched(void *malloced_object, size_t malloced_size, size_t just_touched_start, size_t just_touched_length) {
+    if (which_mallocator==M_JEMALLOC) {
+        if ((just_touched_length>0) && (0==((long)malloced_object & (HUGEPAGE_SIZE-1)))) {
+            // If it's zero, then we didn't touch anything.
+            // jemalloc aligns all large objects on 4MB boundaries, so if it's not 2MB aligned, then don't bother to continue.
+            // Since we know that o is aligned, we can just do arithmetic on the offsets.
+            long prevhugepage = (just_touched_start                    -1)/HUGEPAGE_SIZE;
+            long thishugepage = (just_touched_start+just_touched_length-1)/HUGEPAGE_SIZE;
+            if (prevhugepage != thishugepage) {
+                // Crossed a hugepage boundary.
+                // Take the ceiling modulo page size of the first untouched byte:
+                long start_offset = (just_touched_start + just_touched_length + pagesize -1)&~(pagesize-1);
+                char *madvise_start = (char*)malloced_object + start_offset;
+                size_t usable        = toku_malloc_usable_size(malloced_object);
+                assert(usable >= malloced_size);
+                if (usable%HUGEPAGE_SIZE == 0) { // We knew it was 2MB-aligned, and now we know that it's a big block
+		    long madvise_len = usable-start_offset;
+		    assert(madvise_len>=0);
+		    if (madvise_len>0) {
+			int r = madvise(madvise_start, madvise_len, MADV_DONTNEED);
+			assert(r==0);
+		    }
+		}
+            }
+        }
+    }
+}
+
 #include <valgrind/helgrind.h>
 void __attribute__((constructor)) toku_memory_helgrind_ignore(void);
 void
