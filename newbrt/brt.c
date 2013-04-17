@@ -1703,11 +1703,11 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
             set_BNULL(B, curr_dest_bn_index);
             set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
             move_leafentries(BLB(B, curr_dest_bn_index),
-			     BLB(node, curr_src_bn_index),
-			     last_le_on_left_within_bn+1,         // first row to be moved to B
-			     toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),    // number of rows in basement to be split
-			     &diff_size
-			     );
+                             BLB(node, curr_src_bn_index),
+                             last_le_on_left_within_bn+1,         // first row to be moved to B
+                             toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),    // number of rows in basement to be split
+                             &diff_size);
+            BLB_MAX_MSN_APPLIED(B, curr_dest_bn_index) = BLB_MAX_MSN_APPLIED(node, curr_src_bn_index);
             BLB_NBYTESINBUF(node, curr_src_bn_index) -= diff_size;
             BLB_NBYTESINBUF(B, curr_dest_bn_index) += diff_size;
             curr_dest_bn_index++;
