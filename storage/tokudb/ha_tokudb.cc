@@ -58,18 +58,18 @@ typedef struct st_tokudb_trx_data {
 
 const char *ha_tokudb_ext = ".tokudb";
 
-static my_bool tokudb_shared_data = FALSE;
+//static my_bool tokudb_shared_data = FALSE;
 static u_int32_t tokudb_init_flags = DB_PRIVATE | DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
-static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
+//static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 static ulong tokudb_log_buffer_size = 0;
 static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
 static char *tokudb_home;
 static char *tokudb_tmpdir;
 static char *tokudb_logdir;
-static long tokudb_lock_scan_time = 0;
-static ulong tokudb_region_size = 0;
+//static long tokudb_lock_scan_time = 0;
+//static ulong tokudb_region_size = 0;
 static ulong tokudb_cache_parts = 1;
 static ulong tokudb_trans_retry = 1;
 static ulong tokudb_max_lock;
@@ -206,7 +206,7 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 
-    DBUG_PRINT("info", ("tokudb_env_flags: 0x%lx\n", tokudb_env_flags));
+    DBUG_PRINT("info", ("tokudb_env_flags: 0x%x\n", tokudb_env_flags));
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) // QQQ
         printf("WARNING: flags %x r %d\n", tokudb_env_flags, r); // goto error;
@@ -261,7 +261,6 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
     db_env->set_lk_detect(db_env, tokudb_lock_type);
 #endif
-#if 1 // QQQ not yet
     if (tokudb_max_lock) {
         DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
         r = db_env->set_lk_max_locks(db_env, tokudb_max_lock);
@@ -270,7 +269,6 @@ static int tokudb_init_func(void *p) {
             goto error;
         }
     }
-#endif
 
     if ((r = db_env->open(db_env, tokudb_home, 
                           tokudb_init_flags | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_THREAD, 
@@ -309,7 +307,6 @@ static int tokudb_done_func(void *p) {
 static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
     TOKUDB_SHARE *share;
     uint length;
-    char *tmp_name;
 
     pthread_mutex_lock(&tokudb_mutex);
     length = (uint) strlen(table_name);
@@ -654,7 +651,7 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
         }
         if (0)
             printf("%s:%d:insert_or_update=%d\n", __FILE__, __LINE__, key->table->insert_or_update);
-        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0))) // key->table->insert_or_update)))
+        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
             return cmp;
         length = key_part->field->packed_col_length(new_key_ptr, key_part->length);
         new_key_ptr += length;
@@ -1230,7 +1227,7 @@ int ha_tokudb::write_row(uchar * record) {
     if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
         if (0) 
             printf("%s:%d:unique:%d\n", __FILE__, __LINE__, 
-                   thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS));
+                   thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) != 0);
         put_flags = DB_YESOVERWRITE;
     }
 
