@@ -35,8 +35,6 @@ BOOL ignore_if_was_already_open;
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens) {
     BRTNODE node;
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
-    if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, n_children);
     int i;
     for (i=0; i<n_children; i++) {
@@ -58,8 +56,6 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     BRTNODE node;
     assert(testsetup_initialized);
     assert(n_children<=BRT_FANOUT);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
-    if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, n_children);
     int i;
     for (i=0; i<n_children; i++) {
@@ -77,8 +73,6 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
-    if (r!=0) return r;
     brt->h->root_blocknum = blocknum;
     return 0;
 }
