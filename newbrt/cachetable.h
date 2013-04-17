@@ -491,7 +491,6 @@ typedef enum {
     CT_WAITTIME,               // how many usec spent waiting for another thread to release cache line
     CT_WAIT_READING,
     CT_WAIT_WRITING,
-    CT_WAIT_CHECKPOINT,        // number of times get_and_pin waits for a node to be written for a checkpoint
     CT_PUTS,                   // how many times has a newly created node been put into the cachetable?
     CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
     CT_MAYBE_GET_AND_PINS,     // how many times has maybe_get_and_pin(_clean) been called?
