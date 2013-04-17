@@ -731,7 +731,7 @@ typedef struct {
 typedef struct {
     u_int16_t           version;
     u_int32_t           num_fields;
-    tokutrace_field     fields[0];
+    tokutrace_field     fields[1];
 } tokutrace_cmp_fun;
 
 static int tokutrace_db_get_cmp_byte_stream(DB* db, DBT* byte_stream) {
