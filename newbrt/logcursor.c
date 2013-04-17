@@ -463,11 +463,11 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
     off_t last_good_pos;
     last_good_pos = ftello(lc->cur_fp);
     while (1) {
-        if ( lc->entry_valid ) {
-            toku_log_free_log_entry_resources(&le);
-            lc->entry_valid = FALSE;
-        }
+        // initialize le 
+        //  - reading incomplete entries can result in fields that cannot be freed
+        memset(&le, 0, sizeof(le));
         r = toku_log_fread(lc->cur_fp, &le);
+        toku_log_free_log_entry_resources(&le);
         if ( r!=0 ) break;
         last_good_pos = ftello(lc->cur_fp);
     }
