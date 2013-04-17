@@ -118,14 +118,6 @@ typedef struct {
 
 
 
-void toku_ydb_lock_init(void);
-void toku_ydb_lock_destroy(void);
-void toku_ydb_lock(void);
-void toku_ydb_unlock(void);
-void toku_ydb_unlock_and_yield(unsigned long useconds);
-
-void toku_ydb_lock_get_status(YDB_LOCK_STATUS statp);
-
 int toku_ydb_check_avail_fs_space(DB_ENV *env);
 
 
