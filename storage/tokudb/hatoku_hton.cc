@@ -955,8 +955,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable wait reading", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_writing);  
       STATPRINT("cachetable wait writing", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_checkpoint);  
+      STATPRINT("cachetable wait checkpoint", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.puts);  
-      STATPRINT("cachetable puts (new node)", buf);
+      STATPRINT("cachetable puts (new nodes)", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.prefetches);  
       STATPRINT("cachetable prefetches", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pins);  
@@ -971,6 +973,12 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable size_writing", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
       STATPRINT("cachetable get_and_pin_footprint", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint);  
+      STATPRINT("local checkpoint", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint_files);  
+      STATPRINT("local checkpoint files", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint_during_checkpoint);  
+      STATPRINT("local checkpoint during checkpoint", buf);
 
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
       STATPRINT("max range locks", buf);
@@ -982,6 +990,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("range lock escalation successes", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_failures);
       STATPRINT("range lock escalation failures", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_read_locks);
+      STATPRINT("range read locks acquired", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_read_locks_fail);
+      STATPRINT("range read locks unable to be acquired", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_out_of_read_locks);
+      STATPRINT("range read locks exhausted", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_write_locks);
+      STATPRINT("range write locks acquired", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_write_locks_fail);
+      STATPRINT("range write locks unable to be acquired", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_out_of_write_locks);
+      STATPRINT("range write locks exhausted", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_count);
       STATPRINT("fsync count", buf);
