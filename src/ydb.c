@@ -4932,7 +4932,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
                 zombie = env_get_zombie_db_with_dname(env, dname);
                 if (zombie)
                     r = toku_db_pre_acquire_table_lock(zombie, child, TRUE);
-                if (r!=0)
+                if (r!=0 && r!=DB_LOCK_NOTGRANTED)
                     toku_ydb_do_error(env, r, "Cannot rename dictionary.\n");
             }
             if (r==0 && env_is_db_with_dname_open(env, newname))
