@@ -50,7 +50,7 @@ static void wbuf_int (struct wbuf *w, int32_t i) {
     w->buf[w->ndone+2] = i>>8;
     w->buf[w->ndone+3] = i>>0;
  #else
-    *(u_int32_t*)(&w->buf[w->ndone]) = htonl(i);
+    *(u_int32_t*)(&w->buf[w->ndone]) = toku_htonl(i);
  #endif
     x1764_add(&w->checksum, &w->buf[w->ndone], 4);
     w->ndone += 4;

@@ -23,7 +23,7 @@ static inline unsigned int rbuf_char (struct rbuf *r) {
 static unsigned int rbuf_int (struct rbuf *r) {
 #if 1
     assert(r->ndone+4 <= r->size);
-    u_int32_t result = ntohl(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
+    u_int32_t result = toku_ntohl(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
     r->ndone+=4;
     return result;
 #else
