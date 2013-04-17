@@ -3774,7 +3774,6 @@ static bool search_pivot_is_bounded (ft_search_t *search, DESCRIPTOR desc, ft_co
 struct store_fifo_offset_extra {
     int32_t *offsets;
     int i;
-    FIFO fifo;
 };
 
 __attribute__((nonnull(3)))
@@ -3782,8 +3781,6 @@ static int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), stru
 {
     extra->offsets[extra->i] = offset;
     extra->i++;
-    struct fifo_entry *entry = toku_fifo_get_entry(extra->fifo, offset);
-    entry->is_fresh = false;
     return 0;
 }
 
@@ -4014,7 +4011,7 @@ bnc_apply_messages_to_basement_node(
         // them in MSN order.
         const int buffer_size = ((stale_ube - stale_lbi) + (fresh_ube - fresh_lbi) + bnc->broadcast_list.size());
         int32_t *XMALLOC_N(buffer_size, offsets);
-        struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0, .fifo = bnc->buffer };
+        struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
         // Populate offsets array with offsets to stale messages
         r = bnc->stale_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(stale_lbi, stale_ube, &sfo_extra);
