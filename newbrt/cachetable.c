@@ -1700,7 +1700,9 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
     }
 
     if (logger) {
-	int r = toku_log_end_checkpoint(logger, NULL, 0, ct->lsn_of_checkpoint_in_progress.lsn);
+	int r = toku_log_end_checkpoint(logger, NULL,
+					1, // want the end_checkpoint to be fsync'd
+					ct->lsn_of_checkpoint_in_progress.lsn);
 	assert(r==0);
 	toku_logger_note_checkpoint(logger, ct->lsn_of_checkpoint_in_progress);
     }
