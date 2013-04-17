@@ -20,6 +20,7 @@ make_node(BRT brt, int height) {
     BRTNODE node = NULL;
     int n_children = (height == 0) ? 1 : 0;
     toku_create_new_brtnode(brt, &node, height, n_children);
+    if (n_children) BP_STATE(node,0) = PT_AVAIL;
     return node;
 }
 

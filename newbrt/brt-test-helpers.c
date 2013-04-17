@@ -35,6 +35,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, 1);
+    BP_STATE(node,0) = PT_AVAIL;
 
     *blocknum = node->thisnodename;
     toku_unpin_brtnode(brt, node);
@@ -51,7 +52,8 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     toku_create_new_brtnode(brt, &node, height, n_children);
     int i;
     for (i=0; i<n_children; i++) {
-        node->u.n.childinfos[i].blocknum = children[i];
+        BP_BLOCKNUM(node, i) = children[i];
+        BP_STATE(node,i) = PT_AVAIL;
     }
     for (i=0; i+1<n_children; i++) {
 	node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
@@ -113,22 +115,22 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 
 
     struct cmd_leafval_heaviside_extra be = {brt, &keydbt};
-    r = toku_omt_find_zero(node->u.l.bn[0].buffer, toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
+    r = toku_omt_find_zero(BLB_BUFFER(node, 0), toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
 
 
     if (r==0) {
 	LEAFENTRY storeddata=storeddatav;
 	// It's already there.  So now we have to remove it and put the new one back in.
-	node->u.l.bn[0].n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
+	BLB_NBYTESINBUF(node, 0) -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
 	toku_free(storeddata);
 	// Now put the new kv in.
-	toku_omt_set_at(node->u.l.bn[0].buffer, leafentry, idx);
+	toku_omt_set_at(BLB_BUFFER(node, 0), leafentry, idx);
     } else {
-	r = toku_omt_insert(node->u.l.bn[0].buffer, leafentry, toku_cmd_leafval_heaviside, &be, 0);
+	r = toku_omt_insert(BLB_BUFFER(node, 0), leafentry, toku_cmd_leafval_heaviside, &be, 0);
 	assert(r==0);
     }
 
-    node->u.l.bn[0].n_bytes_in_buffer += OMT_ITEM_OVERHEAD + disksize;
+    BLB_NBYTESINBUF(node, 0) += OMT_ITEM_OVERHEAD + disksize;
 
     node->dirty=1;
 
@@ -160,7 +162,6 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0);
     assert(r==0);
     int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids_0);
-    node->u.n.n_bytes_in_buffers += sizediff;
     BNC_NBYTESINBUF(node, childnum) += sizediff;
     node->dirty = 1;
 

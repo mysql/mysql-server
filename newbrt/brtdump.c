@@ -136,19 +136,16 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
-    printf(" max_msn_applied_to_node=%"PRId64" (0x%"PRIx64")\n", n->max_msn_applied_to_node.msn, n->max_msn_applied_to_node.msn);
+    printf(" max_msn_applied_to_node_on_disk=%"PRId64" (0x%"PRIx64")\n", n->max_msn_applied_to_node_on_disk.msn, n->max_msn_applied_to_node_on_disk.msn);
 
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);
-    if (n->height > 0) {
-        printf(" n_bytes_in_buffers=%u\n", n->u.n.n_bytes_in_buffers);
-    }
-    
+
     int i;
     printf(" subleafentry_estimates={");
     for (i=0; i<n->n_children; i++) {
         if (i>0) printf(" ");
-        struct subtree_estimates *est = &n->subtree_estimates[i];
+        struct subtree_estimates *est = &BP_SUBTREE_EST(n,i);
         printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
     }
     printf("}\n");
@@ -163,7 +160,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" children:\n");
     for (i=0; i<n->n_children; i++) {
         if (n->height > 0) {
-            printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
+            printf("   child %d: %" PRId64 "\n", i, BP_BLOCKNUM(n, i).b);
             unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
             int n_entries = toku_fifo_n_entries(BNC_BUFFER(n, i));
             if (n_bytes > 0 || n_entries > 0) {
@@ -204,10 +201,10 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 			     );
 	    }
 	} else {
-	    printf(" optimized_for_upgrade=%u\n", n->u.l.bn[i].optimized_for_upgrade);
-	    printf(" n_bytes_in_buffer=%u\n", n->u.l.bn[i].n_bytes_in_buffer);
-	    printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.bn[i].buffer));
-	    if (dump_data) toku_omt_iterate(n->u.l.bn[i].buffer, print_le, 0);
+	    printf(" optimized_for_upgrade=%u\n", BLB_OPTIMIZEDFORUPGRADE(n, i));
+	    printf(" n_bytes_in_buffer=%u\n", BLB_NBYTESINBUF(n, i));
+	    printf(" items_in_buffer  =%u\n", toku_omt_size(BLB_BUFFER(n, i)));
+	    if (dump_data) toku_omt_iterate(BLB_BUFFER(n, i), print_le, 0);
 	}
     }
     toku_brtnode_free(&n);

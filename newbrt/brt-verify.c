@@ -119,7 +119,8 @@ toku_verify_brtnode (BRT brt,
     }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node = node_v;
-    thismsn = node->max_msn_applied_to_node;
+    toku_assert_entire_node_in_memory(node);
+    thismsn = node->max_msn_applied_to_node_in_memory;
     if (rootmsn.msn == ZERO_MSN.msn) {
         assert(parentmsn.msn == ZERO_MSN.msn);
         rootmsn = thismsn;
@@ -163,11 +164,11 @@ toku_verify_brtnode (BRT brt,
                                                                 curr_geq_pivot);
                              VERIFY_ASSERTION(r==0, i, "A message in the buffer is out of place");
                              VERIFY_ASSERTION((msn.msn > lastmsn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
-                             VERIFY_ASSERTION((msn.msn <= thismsn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node");
+                             VERIFY_ASSERTION((msn.msn <= thismsn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
                          });
         }
         else {
-            BASEMENTNODE bn = &node->u.l.bn[i];
+            BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
             for (u_int32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= thismsn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 LEAFENTRY le = get_ith_leafentry(bn, j);
@@ -192,7 +193,7 @@ toku_verify_brtnode (BRT brt,
     if (recurse && node->height > 0) {
         for (int i = 0; i < node->n_children; i++) {
             int r = toku_verify_brtnode(brt, rootmsn, thismsn,
-                                        BNC_BLOCKNUM(node, i), node->height-1,
+                                        BP_BLOCKNUM(node, i), node->height-1,
                                         (i==0)                  ? lesser_pivot        : node->childkeys[i-1],
                                         (i==node->n_children-1) ? greatereq_pivot     : node->childkeys[i],
                                         progress_callback, progress_extra,
