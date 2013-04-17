@@ -100,6 +100,10 @@ else
 WERROR    = -Werror
 endif
 
+ifeq ($(GCCVERSION),)
+GCCVERSION = $(shell $(CC) --version | head -1 | cut -f3 -d " ")
+endif
+
 # -Wno-deprecated is needed on gcc 4.4.{0,1,2,4} to make the #ident complaints go away.
 # -Wno-strict-aliasing is needed on gcc 4.4.{1,2,4} to make certain gratuitous warnings go away.
 # -Wno-unused-result is needed on gcc 4.4.1 to make warnings about ignoring the results of certain system calls go away.
