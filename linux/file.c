@@ -213,6 +213,12 @@ static uint64_t get_tnow(void) {
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
+
 // keep trying if fsync fails because of EINTR
 int
 toku_file_fsync(int fd) {
