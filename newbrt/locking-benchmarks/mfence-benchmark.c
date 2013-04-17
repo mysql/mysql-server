@@ -62,7 +62,7 @@ static inline void sfence (void) {
 
 int lock_for_lock_and_unlock;
 static inline void lock_and_unlock (void) {
-    (void*)__sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
+    (void)__sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
     __sync_lock_release(&lock_for_lock_and_unlock);
 }
 
