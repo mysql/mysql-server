@@ -31,7 +31,7 @@ test2 (void) {
     enum { N=200 };
     char v[N];
     int i;
-    for (i=0; i<N; i++) v[i]=random();
+    for (i=0; i<N; i++) v[i]=(char)random();
     for (i=0; i<N; i++) {
 	int j;
 	for (j=i; j<=N; j++) {
