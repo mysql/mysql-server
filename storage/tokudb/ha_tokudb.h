@@ -108,6 +108,9 @@ typedef enum {
     lock_write
 } TABLE_LOCK_TYPE;
 
+int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx);
+
+
 class ha_tokudb : public handler {
 private:
     THR_LOCK_DATA lock;         ///< MySQL lock

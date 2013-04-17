@@ -982,6 +982,21 @@ cleanup:
     return error;
 }
 
+int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
+    int error;
+    tokudb_trx_data* trx = NULL;
+    trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
+    if (!trx) {
+        error = ENOMEM;
+        goto cleanup;
+    }
+    trx->iso_level = hatoku_iso_not_set;
+
+    *out_trx = trx;
+cleanup:
+    return error;
+}
+
 
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) 
     // flags defined in sql\handler.h
@@ -4440,12 +4455,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
 
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
-        trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
-        if (!trx) {
-            error = 1;
-            goto cleanup;
-        }
-        trx->iso_level = hatoku_iso_not_set;
+        error = create_tokudb_trx_data_instance(&trx);
+        if (error) { goto cleanup; }
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
     if (trx->all == NULL) {
