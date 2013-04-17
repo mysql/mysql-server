@@ -192,21 +192,20 @@ toku_os_initialize_settings(int UU(verbosity)) {
 
 int
 toku_os_get_max_rss(int64_t *maxrss) {
+    int r;
     char statusname[100];
     sprintf(statusname, "/proc/%d/status", getpid());
     FILE *f = fopen(statusname, "r");
     if (f == NULL) {
-#if defined(HAVE_SYS_RESOURCE_H)
-        // try getrusage instead
         struct rusage rusage;
-        getrusage(RUSAGE_SELF, &rusage);
+        r = getrusage(RUSAGE_SELF, &rusage);
+        if (r != 0) {
+            return get_error_errno();
+        }
         *maxrss = rusage.ru_maxrss * 1024; // ru_maxrss is in kB
         return 0;
-#else
-        return get_error_errno();
-#endif
     }
-    int r = ENOENT;
+    r = ENOENT;
     char line[100];
     while (fgets(line, sizeof line, f)) {
         r = sscanf(line, "VmHWM:\t%lld kB\n", (long long *) maxrss);
@@ -222,21 +221,20 @@ toku_os_get_max_rss(int64_t *maxrss) {
 
 int
 toku_os_get_rss(int64_t *rss) {
+    int r;
     char statusname[100];
     sprintf(statusname, "/proc/%d/status", getpid());
     FILE *f = fopen(statusname, "r");
     if (f == NULL) {
-#if defined(HAVE_SYS_RESOURCE_H)
-        // try getrusage instead
         struct rusage rusage;
-        getrusage(RUSAGE_SELF, &rusage);
+        r = getrusage(RUSAGE_SELF, &rusage);
+        if (r != 0) {
+            return get_error_errno();
+        }
         *rss = (rusage.ru_idrss + rusage.ru_ixrss + rusage.ru_isrss) * 1024;
         return 0;
-#else
-        return get_error_errno();
-#endif
     }
-    int r = ENOENT;
+    r = ENOENT;
     char line[100];
     while (fgets(line, sizeof line, f)) {
         r = sscanf(line, "VmRSS:\t%lld kB\n", (long long *) rss);
