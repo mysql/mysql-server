@@ -2974,8 +2974,8 @@ int cleaner::run_cleaner(void) {
                         best_score = score;
                         best_pair = m_pl->m_cleaner_head;
                     }
-                    m_pl->m_cleaner_head = m_pl->m_cleaner_head->clock_next;
                 }
+                m_pl->m_cleaner_head = m_pl->m_cleaner_head->clock_next;
                 continue;
             }
             pair_lock(m_pl->m_cleaner_head);
