@@ -89,11 +89,13 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
+        myargs[i].do_prepare = true;
     }
 
     // make the guy that does point queries
     for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
+        myargs[i].do_prepare = true;
     }
 
     int num_seconds = random() % cli_args->time_of_test;

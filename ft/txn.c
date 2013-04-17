@@ -63,6 +63,12 @@ toku_txn_unlock(TOKUTXN txn)
     toku_mutex_unlock(&txn->txn_lock);
 }
 
+u_int64_t
+toku_txn_get_id(TOKUTXN txn)
+{
+    return txn->txnid64;
+}
+
 int 
 toku_txn_begin_txn (
     DB_TXN  *container_db_txn,

@@ -314,16 +314,33 @@ setup_live_root_txn_list(TXN_MANAGER txn_manager, TOKUTXN txn) {
     return r;
 }
 
-// Add this txn to the global list of txns that have their own snapshots.
-// (Note, if a txn is a child that creates its own snapshot, then that child xid
-// is the xid stored in the global list.) 
+//Heaviside function to search through an OMT by a TXNID
 static int
-snapshot_txnids_note_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
+find_by_xid (OMTVALUE v, void *txnidv) {
+    TOKUTXN txn = v;
+    TXNID   txnidfind = (TXNID)txnidv;
+    if (txn->txnid64<txnidfind) return -1;
+    if (txn->txnid64>txnidfind) return +1;
+    return 0;
+}
+
+static void
+omt_insert_at_end_unless_recovery(OMT omt, int (*h)(OMTVALUE, void*extra), TOKUTXN txn, OMTVALUE v, bool for_recovery)
+// Effect: insert v into omt that is sorted by xid gotten from txn.
+// Rationale:
+//   During recovery, we get txns in the order that they did their first
+//   write operation, which is not necessarily monotonically increasing.
+//   During normal operation, txns are created with strictly increasing
+//   txnids, so we can always insert at the end.
+{
     int r;
-    OMT txnids = txn_manager->snapshot_txnids;
-    r = toku_omt_insert_at(txnids, (OMTVALUE) txn->txnid64, toku_omt_size(txnids));
-    assert_zero(r);
-    return r;
+    uint32_t idx = toku_omt_size(omt);
+    if (for_recovery) {
+        r = toku_omt_find_zero(omt, h, (void *) txn->txnid64, NULL, &idx);
+        invariant(r==DB_NOTFOUND);
+    }
+    r = toku_omt_insert_at(omt, v, idx);
+    lazy_assert_zero(r);
 }
 
 static TXNID
@@ -382,19 +399,25 @@ int toku_txn_manager_start_txn(
 
     toku_txn_update_xids_in_txn(txn, xid, xids);
 
-    if (toku_omt_size(txn_manager->live_txns) == 0) {
-        assert(txn_manager->oldest_living_xid == TXNID_NONE_LIVING);
-        txn_manager->oldest_living_xid = txn->txnid64;
-        txn_manager->oldest_living_starttime = txn->starttime;
+    if (!for_recovery) {
+        // TODO(leif): this would be WRONG during recovery.  We cannot
+        // assume that the first xbegin we see is the oldest, because it's
+        // just the txn that *did a write* first.  Right now, this cached
+        // value is only used for engine status, so we're not too worried.
+        // Maybe we just kill this (txn_manager->oldest_living_*).  Also
+        // see comment on txn_manager_get_oldest_living_xid_unlocked.
+        if (toku_omt_size(txn_manager->live_txns) == 0) {
+            assert(txn_manager->oldest_living_xid == TXNID_NONE_LIVING);
+            txn_manager->oldest_living_xid = txn->txnid64;
+            txn_manager->oldest_living_starttime = txn->starttime;
+        }
+        assert(txn_manager->oldest_living_xid <= txn->txnid64);
     }
-    assert(txn_manager->oldest_living_xid <= txn->txnid64);
+
+    //Add txn to list (omt) of live transactions
+    omt_insert_at_end_unless_recovery(txn_manager->live_txns, find_by_xid, txn, (OMTVALUE) txn, for_recovery);
 
     {
-        //Add txn to list (omt) of live transactions
-        //We know it is the newest one.
-        r = toku_omt_insert_at(txn_manager->live_txns, txn, toku_omt_size(txn_manager->live_txns));
-        assert_zero(r);
-
         //
         // maintain the data structures necessary for MVCC:
         //  1. add txn to list of live_root_txns if this is a root transaction
@@ -411,12 +434,7 @@ int toku_txn_manager_start_txn(
         // add ancestor information, and maintain global live root txn list
         if (parent == NULL) {
             //Add txn to list (omt) of live root txns
-            r = toku_omt_insert_at(
-                txn_manager->live_root_txns,
-                (OMTVALUE) txn->txnid64,
-                toku_omt_size(txn_manager->live_root_txns)
-                ); //We know it is the newest one.
-            assert_zero(r);
+            omt_insert_at_end_unless_recovery(txn_manager->live_root_txns, toku_find_xid_by_xid, txn, (OMTVALUE) txn->txnid64, for_recovery);
         }
 
         // setup information for snapshot reads
@@ -426,8 +444,11 @@ int toku_txn_manager_start_txn(
             if (parent == NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD) {
                 r = setup_live_root_txn_list(txn_manager, txn);  
                 assert_zero(r);
-                r = snapshot_txnids_note_txn(txn_manager, txn);
-                assert_zero(r);
+
+                // Add this txn to the global list of txns that have their own snapshots.
+                // (Note, if a txn is a child that creates its own snapshot, then that child xid
+                // is the xid stored in the global list.) 
+                omt_insert_at_end_unless_recovery(txn_manager->snapshot_txnids, toku_find_xid_by_xid, txn, (OMTVALUE) txn->txnid64, for_recovery);
             }
             // in this case, it is a child transaction that specified its snapshot to be that 
             // of the root transaction
@@ -615,6 +636,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 
     assert(txn_manager->oldest_living_xid <= txn->txnid64);
     if (txn->txnid64 == txn_manager->oldest_living_xid) {
+        // oldest_living_xid is always zero during recovery
         OMTVALUE oldest_txnv;
         r = toku_omt_fetch(txn_manager->live_txns, 0, &oldest_txnv);
         if (r==0) {
@@ -657,16 +679,6 @@ void toku_txn_manager_clone_state_for_gc(
                              txn_manager->live_root_txns);
     assert_zero(r);
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
-}
-
-//Heaviside function to search through an OMT by a TXNID
-static int
-find_by_xid (OMTVALUE v, void *txnidv) {
-    TOKUTXN txn = v;
-    TXNID   txnidfind = (TXNID)txnidv;
-    if (txn->txnid64<txnidfind) return -1;
-    if (txn->txnid64>txnidfind) return +1;
-    return 0;
 }
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *result) {

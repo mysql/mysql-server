@@ -14,6 +14,8 @@ extern "C" {
 void toku_txn_lock(TOKUTXN txn);
 void toku_txn_unlock(TOKUTXN txn);
 
+u_int64_t toku_txn_get_id(TOKUTXN txn);
+
 int toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
