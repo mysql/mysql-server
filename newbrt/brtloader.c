@@ -191,20 +191,20 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     bl->N = N;
 
 #define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; }
-#define MY_STRDUP(s) ({ char *v = toku_strdup(s); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; } v; })
+#define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->dbs);
     for (int i=0; i<N; i++) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
     for (int i=0; i<N; i++) bl->descriptors[i]=descriptors[i];
     MY_CALLOC_N(N, bl->new_fnames_in_env);
-    for (int i=0; i<N; i++) bl->new_fnames_in_env[i] = MY_STRDUP(new_fnames_in_env[i]);
+    for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
     MY_CALLOC_N(N, bl->bt_compare_funs);
     for (int i=0; i<N; i++) bl->bt_compare_funs[i] = bt_compare_functions[i];
 
     brtloader_init_file_infos(&bl->file_infos);
 
-    bl->temp_file_template = MY_STRDUP(temp_file_template);
+    SET_TO_MY_STRDUP(bl->temp_file_template, temp_file_template);
     bl->fprimary_rows = bl->fprimary_idx = FIDX_NULL;
     { int r = brtloader_open_temp_file(bl, &bl->fprimary_rows); if (r!=0) return r; }
     { int r = brtloader_open_temp_file(bl, &bl->fprimary_idx);  if (r!=0) return r; }
