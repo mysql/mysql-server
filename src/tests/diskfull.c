@@ -15,7 +15,7 @@ do_db_work(void) {
     int did_fail=0;
     {
 
-	system("rm -rf " ENVDIR);
+	r=system("rm -rf " ENVDIR); CKERR(r);
 	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          assert(r==0);
 
 	FILE *error_file = 0;
@@ -58,7 +58,7 @@ do_db_work(void) {
 	if (did_fail) return;
     }
     {
-	system("rm -rf " ENVDIR);
+	r=system("rm -rf " ENVDIR); CKERR(r);
 	r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          assert(r==0);
 
 	FILE *error_file = 0;
