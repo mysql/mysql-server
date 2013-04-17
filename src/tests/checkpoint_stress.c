@@ -227,9 +227,9 @@ run_test (int iter, int die) {
 
     int recovery_flags = 0;
     if ( do_log_recover ) {
-        flags += DB_INIT_LOG;
+        recovery_flags += DB_INIT_LOG;
         if ( iter != 0 )
-            flags += DB_RECOVER;
+            recovery_flags += DB_RECOVER;
     }
     env_startup(cachebytes, recovery_flags);
 
