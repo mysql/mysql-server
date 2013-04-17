@@ -350,6 +350,11 @@ struct brt_header {
     enum brtheader_type type;
     struct brt_header * checkpoint_header;
     CACHEFILE cf;
+    // lock used by a thread to pin the root node to start a descent into 
+    // the tree. This lock protects the blocknum of the root node. Any 
+    // thread that wants to descend down the tree starting at the root 
+    // must grab this lock before pinning the root.
+    toku_pthread_mutex_t tree_lock; 
     u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.
@@ -372,7 +377,7 @@ struct brt_header {
     int64_t num_blocks_to_upgrade_14;   // Number of v14 blocks still not newest version. 
     unsigned int nodesize;
     unsigned int basementnodesize;
-    BLOCKNUM root;            // roots of the dictionary
+    BLOCKNUM root_blocknum;            // roots of the dictionary
     unsigned int flags;
     DESCRIPTOR_S descriptor;
 
@@ -773,6 +778,10 @@ toku_verify_brtnode (BRT brt,
                      int recurse, int verbose, int keep_going_on_failure)
     __attribute__ ((warn_unused_result));
 
+void toku_brtheader_init_treelock(struct brt_header* h);
+void toku_brtheader_destroy_treelock(struct brt_header* h);
+void toku_brtheader_grab_treelock(struct brt_header* h);
+void toku_brtheader_release_treelock(struct brt_header* h);
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn) __attribute__((__warn_unused_result__));
 int toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));

@@ -1077,6 +1077,7 @@ brtheader_destroy(struct brt_header *h) {
 	for (int i=0; i<h->free_me_count; i++) {
 	    toku_free(h->free_me[i]);
 	}
+        toku_brtheader_destroy_treelock(h);
 	toku_free(h->free_me);
     }
 }
@@ -1104,7 +1105,7 @@ brtheader_copy_for_checkpoint(struct brt_header *h, LSN checkpoint_lsn) {
     //printf("checkpoint_lsn=%" PRIu64 "\n", checkpoint_lsn.lsn);
     ch->checkpoint_lsn = checkpoint_lsn;
     ch->panic_string = NULL;
-    
+
     //ch->blocktable is SHARED between the two headers
     h->checkpoint_header = ch;
 }
@@ -1119,6 +1120,26 @@ brtheader_free(struct brt_header *h)
 void
 toku_brtheader_free (struct brt_header *h) {
     brtheader_free(h);
+}
+
+void
+toku_brtheader_init_treelock(struct brt_header* h) {
+    int r = toku_pthread_mutex_init(&h->tree_lock, NULL); assert(r == 0);
+}
+
+void
+toku_brtheader_destroy_treelock(struct brt_header* h) {
+    int r = toku_pthread_mutex_destroy(&h->tree_lock); assert(r == 0);
+}
+
+void
+toku_brtheader_grab_treelock(struct brt_header* h) {
+    int r = toku_pthread_mutex_lock(&h->tree_lock); assert(r == 0);
+}
+
+void
+toku_brtheader_release_treelock(struct brt_header* h) {
+    int r = toku_pthread_mutex_unlock(&h->tree_lock); assert(r == 0);
 }
 
 void
@@ -2235,8 +2256,8 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 }
 
 CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *roothash) {
-    *roothash = toku_cachetable_hash(h->cf, h->root);
-    return &h->root;
+    *roothash = toku_cachetable_hash(h->cf, h->root_blocknum);
+    return &h->root_blocknum;
 }
 
 int 
@@ -2250,28 +2271,61 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     CACHEKEY *rootp;
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     assert(brt->h);
-    u_int32_t fullhash;
-    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+    //
+    // As of Dr. Noga, the following code is currently protected by two locks:
+    //  - the ydb lock
+    //  - header's tree lock
+    //
+    // We hold the header's tree lock to stop other threads from
+    // descending down the tree while the root node may change.
+    // The root node may change when brt_handle_maybe_reactive_root is called.
+    // Other threads (such as the cleaner thread or hot optimize) that want to 
+    // descend down the tree must grab the header's tree lock, so they are
+    // ensured that what they think is the root's blocknum is actually
+    // the root's blocknum.
+    //
+    // We also hold the ydb lock for a number of reasons, but an important
+    // one is to make sure that a begin_checkpoint may not start while
+    // this code is executing. A begin_checkpoint does (at least) two things
+    // that can interfere with the operations here:
+    //  - copies the header to a checkpoint header. Because we may change
+    //    the root blocknum below, we don't want the header to be copied in 
+    //    the middle of these operations.
+    //  - Takes note of the log's LSN. Because this put operation has 
+    //     already been logged, this message injection must be included 
+    //     in any checkpoint that contains this put's logentry. 
+    //     Holding the ydb lock throughout this function ensures that fact.
+    //  As of Dr. Noga, I (Zardosht) THINK these are the only reasons why
+    //  the ydb lock must be held for this function, but there may be
+    //  others
+    //
+    {
+        toku_brtheader_grab_treelock(brt->h);
 
-    // get the root node
-    struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
-    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
+        u_int32_t fullhash;
+        rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
-    toku_assert_entire_node_in_memory(node);
-    cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
-    // Note, the lower level function that filters messages based on msn, 
-    // (brt_leaf_put_cmd() or brt_nonleaf_put_cmd()) will capture the msn and
-    // store it in the relevant node, including the root node.	This is how the 
-    // new msn is set in the root.
+        // get the root node
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, brt->h);
+        toku_pin_brtnode_holding_lock(brt, *rootp, fullhash,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
+        toku_assert_entire_node_in_memory(node);
 
-    VERIFY_NODE(brt, node);
-    assert(node->fullhash==fullhash);
-    brt_verify_flags(brt, node);
+        cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
+        // Note, the lower level function that filters messages based on
+        // msn, (brt_leaf_put_cmd() or brt_nonleaf_put_cmd()) will capture
+        // the msn and store it in the relevant node, including the root
+        // node. This is how the new msn is set in the root.
 
-    // first handle a reactive root, then put in the message
-    brt_handle_maybe_reactive_root(brt, rootp, &node);
+        VERIFY_NODE(brt, node);
+        assert(node->fullhash==fullhash);
+        brt_verify_flags(brt, node);
 
+        // first handle a reactive root, then put in the message
+        brt_handle_maybe_reactive_root(brt, rootp, &node);
+
+        toku_brtheader_release_treelock(brt->h);
+    }
     push_something_at_root(brt, &node, cmd);
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
@@ -2871,7 +2925,7 @@ brt_init_header_partial (BRT t, TOKUTXN txn) {
     t->h->on_disk_stats            = ZEROSTATS;
     t->h->checkpoint_staging_stats = ZEROSTATS;
 
-    BLOCKNUM root = t->h->root;
+    BLOCKNUM root = t->h->root_blocknum;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
     toku_cachefile_set_userdata(t->cf,
@@ -2892,11 +2946,12 @@ static int
 brt_init_header (BRT t, TOKUTXN txn) {
     t->h->type = BRTHEADER_CURRENT;
     t->h->checkpoint_header = NULL;
+    toku_brtheader_init_treelock(t->h);
     toku_blocktable_create_new(&t->h->blocktable);
     BLOCKNUM root;
     //Assign blocknum for root block, also dirty the header
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
-    t->h->root = root;
+    t->h->root_blocknum = root;
 
     toku_list_init(&t->h->live_brts);
     toku_list_init(&t->h->zombie_brts);
@@ -5023,6 +5078,13 @@ brt_search_node(
     return r;
 }
 
+// When this is called, the cachetable lock is held
+static void
+unlock_root_tree_lock (void *v) {
+    struct brt_header* h = v;
+    toku_brtheader_release_treelock(h);
+}
+
 static int
 toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BRT_CURSOR brtcursor, BOOL can_bulk_fetch)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
@@ -5037,11 +5099,6 @@ try_again:
     
     trycount++;
     assert(brt->h);
-
-    u_int32_t fullhash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
-    BRTNODE node;
 
     //
     // Here is how searches work
@@ -5070,24 +5127,45 @@ try_again:
     //  - brt_search_node is called, assuming that the node and its relevant partition are in memory.
     //
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_subset_read(
-        &bfe, 
-        brt->h,
-        search,
-        &brtcursor->range_lock_left_key,
-        &brtcursor->range_lock_right_key,
-        brtcursor->left_is_neg_infty,
-        brtcursor->right_is_pos_infty,
-        brtcursor->disable_prefetching
-        );
-    r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
-    assert(r==0 || r== TOKUDB_TRY_AGAIN);
-    if (r == TOKUDB_TRY_AGAIN) {
-	root_tries++;
-        goto try_again;
+    BRTNODE node = NULL;
+    {
+        toku_brtheader_grab_treelock(brt->h);
+
+        u_int32_t fullhash;
+        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+
+
+        fill_bfe_for_subset_read(
+            &bfe,
+            brt->h,
+            search,
+            &brtcursor->range_lock_left_key,
+            &brtcursor->range_lock_right_key,
+            brtcursor->left_is_neg_infty,
+            brtcursor->right_is_pos_infty,
+            brtcursor->disable_prefetching
+            );
+        struct unlockers root_unlockers = {
+            .locked = TRUE,
+            .f = unlock_root_tree_lock,
+            .extra = brt->h,
+            .next = NULL
+        };
+        r = toku_pin_brtnode(brt, *rootp, fullhash,&root_unlockers,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
+        assert(r==0 || r== TOKUDB_TRY_AGAIN);
+        if (r == TOKUDB_TRY_AGAIN) {
+            // unlock_root_tree_lock will have released tree_lock of header
+            assert(!root_unlockers.locked);
+            root_tries++;
+            goto try_again;
+        }
+        assert(root_unlockers.locked);
+
+        toku_brtheader_release_treelock(brt->h);
     }
+
     tree_height = node->height + 1;  // height of tree (leaf is at height 0)
-    
+
     struct unlock_brtnode_extra unlock_extra   = {brt,node};
     struct unlockers		unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
@@ -5651,23 +5729,37 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
 //   If KEY is NULL then the system picks an arbitrary key and returns it.
 {
     assert(brt->h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_min_read(&bfe, brt->h);  // read pivot keys but not message buffers
  try_again:
     {
 	u_int64_t less = 0, equal = 0, greater = 0;
-	u_int32_t fullhash;
-	CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+        BRTNODE node = NULL;
+        {
+            toku_brtheader_grab_treelock(brt->h);
 
-	struct brtnode_fetch_extra bfe;
-	fill_bfe_for_min_read(&bfe, brt->h);  // read pivot keys but not message buffers
+            u_int32_t fullhash;
+            CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
-	BRTNODE node;
-	{
-	    int r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
-	    assert(r == 0 || r == TOKUDB_TRY_AGAIN);
-	    if (r == TOKUDB_TRY_AGAIN) {
-		goto try_again;
-	    }
-	}
+
+            {
+                struct unlockers root_unlockers = {
+                    .locked = TRUE,
+                    .f = unlock_root_tree_lock,
+                    .extra = brt->h,
+                    .next = NULL
+                };
+                int r = toku_pin_brtnode(brt, *rootp, fullhash, &root_unlockers,(ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
+                assert(r == 0 || r == TOKUDB_TRY_AGAIN);
+                if (r == TOKUDB_TRY_AGAIN) {
+                    assert(!root_unlockers.locked);
+                    goto try_again;
+                }
+                assert(root_unlockers.locked);
+            }
+
+            toku_brtheader_release_treelock(brt->h);
+        }
 
 	struct unlock_brtnode_extra unlock_extra = {brt,node};
 	struct unlockers unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
@@ -5813,12 +5905,19 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
 }
 
 int toku_dump_brt (FILE *f, BRT brt) {
-    CACHEKEY *rootp = NULL;
+    int r;
     assert(brt->h);
-    u_int32_t fullhash = 0;
     toku_dump_translation_table(f, brt->h->blocktable);
-    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-    return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0);
+    {
+        toku_brtheader_grab_treelock(brt->h);
+
+        u_int32_t fullhash = 0;
+        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+        r = toku_dump_brtnode(f, brt, *rootp, 0, 0, 0);
+
+        toku_brtheader_release_treelock(brt->h);
+    }
+    return r;
 }
 
 int toku_brt_truncate (BRT brt) {
@@ -5835,7 +5934,7 @@ int toku_brt_truncate (BRT brt) {
 	//Free all data blocknums and associated disk space (if not held on to by checkpoint)
 	toku_block_translation_truncate_unlocked(brt->h->blocktable, fd, brt->h);
 	//Assign blocknum for root block, also dirty the header
-	toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root, brt->h);
+	toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root_blocknum, brt->h);
 	// reinit the header
 	r = brt_init_header_partial(brt, NULL);
     }
@@ -5878,6 +5977,7 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
     if (r==0)
 	callback_db_set_brt = db_set_brt;
     toku_brt_flusher_status_init();
+    toku_brt_hot_status_init();
     return r;
 }
 
@@ -6091,23 +6191,25 @@ BOOL toku_brt_is_empty_fast (BRT brt)
 // messages and leafentries would all optimize away and that the tree is empty, but we'll say it is nonempty.
 {
     u_int32_t fullhash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
     BRTNODE node;
     //assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
+        toku_brtheader_grab_treelock(brt->h);
+
+        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 	void *node_v;
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt->h);
 	int rr = toku_cachetable_get_and_pin(
-            brt->cf, 
-            *rootp, 
+            brt->cf,
+            *rootp,
             fullhash,
-            &node_v, 
-            NULL, 
-            toku_brtnode_flush_callback, 
-            toku_brtnode_fetch_callback, 
+            &node_v,
+            NULL,
+            toku_brtnode_flush_callback,
+            toku_brtnode_fetch_callback,
             toku_brtnode_pe_est_callback,
-            toku_brtnode_pe_callback, 
+            toku_brtnode_pe_callback,
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
             toku_brtnode_cleaner_callback,
@@ -6116,6 +6218,8 @@ BOOL toku_brt_is_empty_fast (BRT brt)
             );
 	assert_zero(rr);
 	node = node_v;
+
+        toku_brtheader_release_treelock(brt->h);
     }
     BOOL r = is_empty_fast_iter(brt, node);
     toku_unpin_brtnode(brt, node);
@@ -6219,7 +6323,7 @@ toku_brt_header_init(struct brt_header *h,
     h->checkpoint_lsn   = checkpoint_lsn;
     h->nodesize         = target_nodesize;
     h->basementnodesize = target_basementnodesize;
-    h->root             = root_blocknum_on_disk;
+    h->root_blocknum    = root_blocknum_on_disk;
     h->flags            = 0;
     h->root_xid_that_created = root_xid_that_created;
 }

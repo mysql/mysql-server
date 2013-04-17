@@ -352,20 +352,19 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         toku_unpin_brtnode_off_client_thread(h, parent);
         toku_unpin_brtnode_off_client_thread(h, child);
 
-        // grab ydb lock, if it exists, if we are running a brt
-        // layer test, there may be no ydb lock and that is ok
-        toku_cachetable_call_ydb_lock(h->cf);
-        CACHEKEY *rootp;
-        u_int32_t fullhash;
-        rootp = toku_calculate_root_offset_pointer(h, &fullhash);
-        struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, h);
-        BRTNODE root_node;
-        toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, 0,NULL, &root_node);
-        toku_assert_entire_node_in_memory(root_node);
-        // release ydb lock, if it exists, if we are running a brt
-        // layer test, there may be no ydb lock and that is ok
-        toku_cachetable_call_ydb_unlock(h->cf);
+        BRTNODE root_node = NULL;
+        {
+            toku_brtheader_grab_treelock(h);
+
+            u_int32_t fullhash;
+            CACHEKEY *rootp = toku_calculate_root_offset_pointer(h, &fullhash);
+            struct brtnode_fetch_extra bfe;
+            fill_bfe_for_full_read(&bfe, h);
+            toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, 0,NULL, &root_node);
+            toku_assert_entire_node_in_memory(root_node);
+
+            toku_brtheader_release_treelock(h);
+        }
 
         (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_started, 1);
         (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_running, 1);

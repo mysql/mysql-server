@@ -44,7 +44,7 @@ typedef struct brt_flusher_status {
     uint64_t  balance_leaf;                // number of times a leaf node is balanced inside brt
 } BRT_FLUSHER_STATUS_S, *BRT_FLUSHER_STATUS;
 
-void toku_brt_flusher_status_init(void);
+void toku_brt_flusher_status_init(void) __attribute__((__constructor__));
 void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS);
 
 /**
@@ -139,6 +139,7 @@ typedef struct brt_hot_status {
     uint64_t  max_root_flush_count; // max number of flushes from root ever required to optimize a tree
 } BRT_HOT_STATUS_S, *BRT_HOT_STATUS;
 
+void toku_brt_hot_status_init(void) __attribute__((__constructor__));
 void toku_brt_hot_get_status(BRT_HOT_STATUS);
 
 /**

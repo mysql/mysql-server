@@ -394,12 +394,16 @@ done:
 int 
 toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_on_going) {
     assert(brt->h);
-    toku_cachetable_call_ydb_lock(brt->cf);
-    u_int32_t root_hash;
-    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &root_hash);
-    BRTNODE root_node;
-    toku_get_node_for_verify(*rootp, brt, &root_node);
-    toku_cachetable_call_ydb_unlock(brt->cf);
+    BRTNODE root_node = NULL;
+    {
+        toku_brtheader_grab_treelock(brt->h);
+
+        u_int32_t root_hash;
+        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &root_hash);
+        toku_get_node_for_verify(*rootp, brt, &root_node);
+
+        toku_brtheader_release_treelock(brt->h);
+    }
     int r = toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, root_node, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
     if (r == 0) {
         toku_brtheader_lock(brt->h);

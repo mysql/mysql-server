@@ -176,7 +176,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     //Verify it is empty
     assert(!t->h->panic);
     //Must have no data blocks (rollback logs or otherwise).
-    toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root);
+    toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root_blocknum);
     toku_brtheader_unlock(t->h);
     BOOL is_empty;
     is_empty = toku_brt_is_empty_fast(t);
@@ -206,7 +206,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             if (!h->panic) { //If paniced, it is safe to close.
                 assert(!h->dirty);  //Must not be dirty.
                 //Must have no data blocks (rollback logs or otherwise).
-                toku_block_verify_no_data_blocks_except_root_unlocked(h->blocktable, h->root);
+                toku_block_verify_no_data_blocks_except_root_unlocked(h->blocktable, h->root_blocknum);
             }
             assert(!toku_list_empty(&h->live_brts));  // there is always one brt associated with the header
 	    brt_to_close = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
