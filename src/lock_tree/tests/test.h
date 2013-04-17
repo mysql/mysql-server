@@ -118,5 +118,5 @@ static inline void* fail_malloc(size_t size) {
         errno = ENOMEM;
         return NULL;
     }
-    return malloc(size);
+    return toku_malloc(size);
 }
