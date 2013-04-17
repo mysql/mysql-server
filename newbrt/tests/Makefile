@@ -94,6 +94,12 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
 
+check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.brtloader-test-bad-generate
+
+check_brtloader-test-extractor-errors$(BINSUF): EXTRA_ARGS=-s -r 10000 dir.brtloader-test-extractor-errors
+
+check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir.brtloader-test-open
+
 check_brtloader-test-writer$(BINSUF): EXTRA_ARGS=-s -r 100000 dir.brtloader-test-writer
 
 check_brtloader-test-writer-errors$(BINSUF): EXTRA_ARGS=-s -r 10000 dir.brtloader-test-writer-errors
