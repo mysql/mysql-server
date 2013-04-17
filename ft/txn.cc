@@ -127,11 +127,8 @@ toku_txn_create_txn (
     }
     assert(logger->rollback_cachefile);
 
-    OMT open_fts;
-    {
-        int r = toku_omt_create(&open_fts);
-        assert_zero(r);
-    }
+    omt<FT> open_fts;
+    open_fts.create();
 
     struct txn_roll_info roll_info = {
         .num_rollback_nodes = 0,
@@ -401,13 +398,10 @@ void toku_txn_close_txn(TOKUTXN txn) {
     toku_txn_destroy_txn(txn);
 }
 
-static int remove_txn (OMTVALUE hv, uint32_t UU(idx), void *txnv)
+static int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn)
 // Effect:  This function is called on every open FT that a transaction used.
 //  This function removes the transaction from that FT.
 {
-    FT CAST_FROM_VOIDP(h, hv);
-    TOKUTXN CAST_FROM_VOIDP(txn, txnv);
-
     if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
         h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
     }
@@ -421,7 +415,7 @@ static int remove_txn (OMTVALUE hv, uint32_t UU(idx), void *txnv)
 
 // for every BRT in txn, remove it.
 static void note_txn_closing (TOKUTXN txn) {
-    toku_omt_iterate(txn->open_fts, remove_txn, txn);
+    txn->open_fts.iterate<struct tokutxn, remove_txn>(txn);
 }
 
 void toku_txn_complete_txn(TOKUTXN txn) {
@@ -437,9 +431,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
 }
 
 void toku_txn_destroy_txn(TOKUTXN txn) {
-    if (txn->open_fts) {
-        toku_omt_destroy(&txn->open_fts);
-    }
+    txn->open_fts.destroy();
     xids_destroy(&txn->xids);
     toku_mutex_destroy(&txn->txn_lock);
     toku_free(txn);
@@ -528,7 +520,7 @@ toku_txn_is_read_only(TOKUTXN txn) {
         // Did no work.
         invariant(txn->roll_info.num_rollentries == 0);
         invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
-        invariant(toku_omt_size(txn->open_fts) == 0);
+        invariant(txn->open_fts.size() == 0);
         invariant(txn->num_pin==0);
         return true;
     }

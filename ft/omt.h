@@ -57,8 +57,9 @@
 // The programming API:
 
 //typedef struct value *OMTVALUE; // A slight improvement over using void*.
+#include "omt-tmpl.h"
 typedef void *OMTVALUE;
-typedef struct omt *OMT;
+typedef struct toku::omt<OMTVALUE> *OMT;
 
 
 int toku_omt_create (OMT *omtp);
@@ -321,7 +322,7 @@ void toku_omt_clear(OMT omt);
 //  Note: Will not reallocate or resize any memory, since returning void precludes calling malloc.
 // Performance: time=O(1)
 
-unsigned long toku_omt_memory_size (OMT omt);
+size_t toku_omt_memory_size (OMT omt);
 // Effect: Return the size (in bytes) of the omt, as it resides in main memory.  Don't include any of the OMTVALUES.
 
 

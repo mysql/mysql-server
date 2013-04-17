@@ -214,7 +214,7 @@ default_parse_args (int argc, const char *argv[]) {
     argc--; argv++;
     while (argc>0) {
 	if (strcmp(argv[0],"-v")==0) {
-	    verbose=1;
+	    ++verbose;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose=0;
 	} else {

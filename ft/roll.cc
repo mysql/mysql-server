@@ -128,12 +128,10 @@ done:
     return 0;
 }
 
-static int find_ft_from_filenum (OMTVALUE v, void *filenumvp) {
-    FILENUM *CAST_FROM_VOIDP(filenump, filenumvp);
-    FT CAST_FROM_VOIDP(h, v);
+static int find_ft_from_filenum (const FT &h, const FILENUM &filenum) {
     FILENUM thisfnum = toku_cachefile_filenum(h->cf);
-    if (thisfnum.fileid<filenump->fileid) return -1;
-    if (thisfnum.fileid>filenump->fileid) return +1;
+    if (thisfnum.fileid<filenum.fileid) return -1;
+    if (thisfnum.fileid>filenum.fileid) return +1;
     return 0;
 }
 
@@ -155,12 +153,10 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     }
     assert(r==0);
 
-    OMTVALUE hv;
-    hv=NULL;
-    r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &hv, NULL);
-    assert(r==0);
     FT h;
-    CAST_FROM_VOIDP(h, hv);
+    h = NULL;
+    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &h, NULL);
+    assert(r==0);
 
     if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
         LSN treelsn = toku_ft_checkpoint_lsn(h);  
@@ -530,12 +526,10 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
     // noted it, 
     assert(r == 0);
 
-    OMTVALUE ftv;
-    ftv = NULL;
-    r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &ftv, NULL);
-    assert(r == 0);
     FT ft;
-    CAST_FROM_VOIDP(ft, ftv);
+    ft = NULL;
+    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &ft, NULL);
+    assert(r == 0);
 
     DESCRIPTOR_S d;
     toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);

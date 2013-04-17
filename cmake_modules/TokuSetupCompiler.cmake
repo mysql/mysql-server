@@ -76,7 +76,6 @@ endmacro(set_ldflags_if_supported)
 ## disable some warnings
 set_cflags_if_supported(
   -Wno-missing-field-initializers
-  -Wno-error=strict-overflow
   -Wstrict-null-sentinel
   -Winit-self
   -Wswitch

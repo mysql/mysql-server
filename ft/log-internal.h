@@ -20,7 +20,9 @@
 #include <string.h>
 #include <dirent.h>
 #include "txn_manager.h"
+#include "omt-tmpl.h"
 
+using namespace toku;
 // Locking for the logger
 //  For most purposes we use the big ydb lock.
 // To log: grab the buf lock
@@ -163,7 +165,7 @@ struct tokutxn {
 
     toku_mutex_t txn_lock;
     // Protected by the txn lock:
-    OMT open_fts; // a collection of the fts that we touched.  Indexed by filenum.
+    omt<FT> open_fts; // a collection of the fts that we touched.  Indexed by filenum.
     struct txn_roll_info roll_info; // Info used to manage rollback entries
 
     // Protected by the txn manager lock:

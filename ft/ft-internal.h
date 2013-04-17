@@ -294,7 +294,8 @@ static inline void set_BNC(FTNODE node, int i, NONLEAF_CHILDINFO nl) {
     p->u.nonleaf = nl;
 }
 static inline BASEMENTNODE BLB(FTNODE node, int i) {
-    assert(0<=i && i<node->n_children);
+    assert(i<node->n_children);
+    assert(0<=i);
     FTNODE_CHILD_POINTER p = node->bp[i].ptr;
     assert(p.tag==BCT_LEAF);
     return p.u.leaf;

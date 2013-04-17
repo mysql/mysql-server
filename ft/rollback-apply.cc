@@ -41,10 +41,8 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
 }
 
 static int
-note_ft_used_in_txns_parent(OMTVALUE ftv, uint32_t UU(index), void *txnv) {
-    TOKUTXN CAST_FROM_VOIDP(child, txnv);
+note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child) {
     TOKUTXN parent = child->parent;
-    FT CAST_FROM_VOIDP(ft, ftv);
     toku_txn_maybe_note_ft(parent, ft);
     if (ft->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
         //Pass magic "no rollback needed" flag to parent.
@@ -194,7 +192,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
         }
 
         // Note the open brts, the omts must be merged
-        r = toku_omt_iterate(txn->open_fts, note_ft_used_in_txns_parent, txn);
+        r = txn->open_fts.iterate<struct tokutxn, note_ft_used_in_txns_parent>(txn);
         assert(r==0);
 
         // Merge the list of headers that must be checkpointed before commit
