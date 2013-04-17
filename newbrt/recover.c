@@ -122,8 +122,30 @@ toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     return 0;
 }
 
+static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
+    int i;
+    for (i=0; i<n_cf_pairs; i++) {
+	if (fnum.fileid==cf_pairs[i].filenum.fileid) {
+	    *cf_pair = cf_pairs+i;
+	    return 0;
+	}
+    }
+    return 1;
+}
+
 static void
-internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum) {
+internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum)
+// Open the file if it is not already open.  If it is already open, then do nothing.
+{
+    {
+	struct cf_pair *pair = NULL;
+	int r = find_cachefile(filenum, &pair);
+	if (0==r) {
+	    toku_free(fixedfname);
+	    return;
+	}
+    }
+
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR|O_BINARY|flags, mode);
     if (fd<0) {
@@ -178,17 +200,6 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *l, struct back
     return 0;
 }
 
-static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
-    int i;
-    for (i=0; i<n_cf_pairs; i++) {
-	if (fnum.fileid==cf_pairs[i].filenum.fileid) {
-	    *cf_pair = cf_pairs+i;
-	    return 0;
-	}
-    }
-    return 1;
-}
-
 static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, LOGGEDBRTHEADER header) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
@@ -231,8 +242,10 @@ static void
 toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
-    assert(r==0);
-    
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return;
+    }    
     struct brt_cmd cmd;
     DBT keydbt, valdbt;
     cmd.type=(enum brt_cmd_type) typ;
@@ -351,14 +364,15 @@ static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *
     abort();
 }
 
-static int toku_recover_fassociate (LSN UU(lsn), FILENUM filenum, BYTESTRING fname) {
-    char *fixedfname = fixup_fname(&fname);
-    toku_free_BYTESTRING(fname);
-    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
+// going backward we open it, so going forward we don't have to do anything
+static int toku_recover_fassociate (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(fname)) {
     return 0;
 }
 
-static int toku_recover_backward_fassociate (struct logtype_fassociate *UU(l), struct backward_scan_state *UU(bs)) {
+static int toku_recover_backward_fassociate (struct logtype_fassociate *l, struct backward_scan_state *UU(bs)) {
+    char *fixedfname = fixup_fname(&l->fname);
+    toku_free_BYTESTRING(l->fname);
+    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, l->filenum);
     return 0;
 }
 
@@ -496,6 +510,8 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	r = fseek(f, 0, SEEK_END); assert(r==0);
 	struct log_entry le;
 	struct backward_scan_state bs = initial_bss;
+	r=chdir(data_wd);
+	assert(r==0);
 	while (1) {
 	    r = toku_log_fread_backward(f, &le);
 	    if (r==-1) break; // Ran out of file
