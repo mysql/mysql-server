@@ -70,11 +70,11 @@ else
 	        test 0 = 1; \
 	fi \
 	$(INVERTER) \
-	$(SUMMARIZE_CMD)
+	$(SUMMARIZE_SHOULD_FAIL)
 endif
 
 try-assert0.tdbrun: try-assert0
-	./$< 2> /dev/null $(INVERTER) $(SUMMARIZE_CMD)
+	./$< 2> /dev/null $(INVERTER) $(SUMMARIZE_SHOULD_FAIL)
 
 clean:
 	rm -rf $(TARGETS) *.check.output *.check.valgrind pwrite4g.data testdir
