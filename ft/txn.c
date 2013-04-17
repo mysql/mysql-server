@@ -241,7 +241,6 @@ BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
-// Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     toku_txn_manager_note_commit_txn(txn->logger->txn_manager, txn);
     int r;
