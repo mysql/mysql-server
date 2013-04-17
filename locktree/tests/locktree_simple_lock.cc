@@ -103,16 +103,8 @@ void locktree_unit_test::test_simple_lock(void) {
 #undef ACQUIRE_LOCK
     }
 
-    // TODO: test read locks from different txns that overlap!
-
-#if 0
-    const int64_t num_locks = 1000000;
-#else
     const int64_t num_locks = 10000;
-#endif
 
-
-    long t0, t1;
     int64_t *keys = (int64_t *) toku_malloc(num_locks * sizeof(int64_t));
     for (int64_t i = 0; i < num_locks; i++) {
         keys[i] = i; 
@@ -133,20 +125,16 @@ void locktree_unit_test::test_simple_lock(void) {
     k.size = sizeof(keys[0]);
     k.flags = DB_DBT_USERMEM;
 
-    t0 = current_time_usec();
     for (int64_t i = 0; i < num_locks; i++) {
         k.data = (void *) &keys[i];
         r = lt->acquire_read_lock(txnid_a, &k, &k, nullptr);
         invariant(r == 0);
     }
-    t1 = current_time_usec();
 
-    t0 = current_time_usec();
     for (int64_t i = 0; i < num_locks; i++) {
         k.data = (void *) &keys[i];
         lt->remove_overlapping_locks_for_txnid(txnid_a, &k, &k);
     }
-    t1 = current_time_usec();
 
     toku_free(keys);
 
