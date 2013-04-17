@@ -218,6 +218,8 @@ toku_txn_abort_only(DB_TXN * txn,
     return r;
 }
 
+// requires: must hold the multi operation lock. it is
+//           released here before the fsync.
 static int
 toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     if (!txn) return EINVAL;
@@ -240,10 +242,14 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     LSN do_fsync_lsn;
     bool do_fsync;
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
+    // release the multi operation lock before fsyncing the log
+    toku_multi_operation_client_unlock();
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
     return r;
 }
 
+// requires: must hold the multi operation lock. it is
+//           released in toku_txn_xa_prepare before the fsync.
 static int
 toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     TOKU_XA_XID xid;
@@ -331,17 +337,19 @@ locked_txn_abort(DB_TXN *txn) {
 
 static int
 locked_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+    // toku_txn_prepare eventually releases the multi operation lock
+    // before fsyncing the log
     toku_multi_operation_client_lock();
     int r = toku_txn_prepare(txn, gid); 
-    toku_multi_operation_client_unlock();
     return r;
 }
 
 static int
 locked_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
+    // toku_txn_xa_prepare eventually releases the multi operation lock
+    // before fsyncing the log
     toku_multi_operation_client_lock();
     int r = toku_txn_xa_prepare(txn, xid); 
-    toku_multi_operation_client_unlock();
     return r;
 }
 
