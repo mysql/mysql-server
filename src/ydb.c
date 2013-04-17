@@ -62,6 +62,12 @@ static u_int64_t num_multi_updates;
 static u_int64_t num_multi_updates_fail;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
+
+static u_int64_t directory_read_locks;        /* total directory read locks taken */ 
+static u_int64_t directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
+static u_int64_t directory_write_locks;       /* total directory write locks taken */ 
+static u_int64_t directory_write_locks_fail;  /* total directory write locks unable to be taken */ 
+
 static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
 static u_int64_t logsuppressfail;            // number of times unable to suppress logs for empty table (2440)
 static time_t    startuptime;                // timestamp of system startup
@@ -85,6 +91,10 @@ init_status_info(void) {
     num_multi_updates_fail = 0;
     num_point_queries = 0;
     num_sequential_queries = 0;
+    directory_read_locks = 0;
+    directory_read_locks_fail = 0;
+    directory_write_locks = 0;
+    directory_write_locks_fail = 0;
     logsuppress = 0;
     logsuppressfail = 0;
     startuptime = time(NULL);
@@ -1754,7 +1764,14 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->total_time_ydb_lock_held = schedstat.total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
 	    engstat->max_time_ydb_lock_held = schedstat.max_time_ydb_lock_held;    /* max time client threads held the ydb lock  */ 
 	}
-
+        {
+	    LE_STATUS_S lestat;                    // Rice's vampire
+	    toku_le_get_status(&lestat);
+            engstat->le_max_committed_xr    = lestat.max_committed_xr;
+            engstat->le_max_provisional_xr  = lestat.max_provisional_xr;
+            engstat->le_expanded            = lestat.expanded;
+            engstat->le_max_memsize         = lestat.max_memsize;
+        }
 	engstat->checkpoint_period = toku_get_checkpoint_period_unlocked(env->i->cachetable);  // do not take any locks (not even minicron lock)
 	{
             CHECKPOINT_STATUS_S cpstat;
@@ -1846,6 +1863,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->multi_updates_fail = num_multi_updates_fail;
 	    engstat->point_queries      = num_point_queries;
 	    engstat->sequential_queries = num_sequential_queries;
+            engstat->directory_read_locks = directory_read_locks;
+            engstat->directory_read_locks_fail = directory_read_locks_fail;
+            engstat->directory_write_locks = directory_write_locks;
+            engstat->directory_write_locks_fail = directory_write_locks_fail;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -1881,6 +1902,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->loader_create         = loader_stat.create;
 	    engstat->loader_create_fail    = loader_stat.create_fail;
 	    engstat->loader_put            = loader_stat.put;
+	    engstat->loader_put_fail       = loader_stat.put_fail;
 	    engstat->loader_close          = loader_stat.close;
 	    engstat->loader_close_fail     = loader_stat.close_fail;
 	    engstat->loader_abort          = loader_stat.abort;
@@ -1974,6 +1996,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
 	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
 	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
+	n += snprintf(buff + n, bufsiz - n, "le_max_committed_xr              %"PRIu64"\n", engstat.le_max_committed_xr);
+	n += snprintf(buff + n, bufsiz - n, "le_max_provisional_xr            %"PRIu64"\n", engstat.le_max_provisional_xr);
+	n += snprintf(buff + n, bufsiz - n, "le_expanded                      %"PRIu64"\n", engstat.le_expanded);
+	n += snprintf(buff + n, bufsiz - n, "le_max_memsize                   %"PRIu64"\n", engstat.le_max_memsize);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %d \n", engstat.checkpoint_period);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %d \n", engstat.checkpoint_footprint);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
@@ -2033,6 +2059,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "multi_updates_fail               %"PRIu64"\n", engstat.multi_updates_fail);
 	n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
 	n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
+	n += snprintf(buff + n, bufsiz - n, "directory_read_locks             %"PRIu64"\n", engstat.directory_read_locks);
+	n += snprintf(buff + n, bufsiz - n, "directory_read_locks_fail        %"PRIu64"\n", engstat.directory_read_locks_fail);
+	n += snprintf(buff + n, bufsiz - n, "directory_write_locks            %"PRIu64"\n", engstat.directory_write_locks);
+	n += snprintf(buff + n, bufsiz - n, "directory_write_locks_fail       %"PRIu64"\n", engstat.directory_write_locks_fail);
 	n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
 	n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
 	n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
@@ -2048,6 +2078,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
 	n += snprintf(buff + n, bufsiz - n, "loader_create_fail               %"PRIu64"\n", engstat.loader_create_fail);
 	n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
+	n += snprintf(buff + n, bufsiz - n, "loader_put_fail                  %"PRIu64"\n", engstat.loader_put_fail);
 	n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
 	n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
 	n += snprintf(buff + n, bufsiz - n, "loader_abort                     %"PRIu64"\n", engstat.loader_abort);
@@ -3163,6 +3194,10 @@ toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
         &key_in_directory
         );
     int r = grab_range_lock(&request);
+    if (r == 0)
+	directory_read_locks++;
+    else
+	directory_read_locks_fail++;
     return r;
 }
 
@@ -5257,6 +5292,10 @@ static int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
         &key_in_directory
         );
     int r = grab_range_lock(&request);
+    if (r == 0)
+	directory_write_locks++;
+    else
+	directory_write_locks_fail++;
     return r;
 }
 

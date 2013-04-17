@@ -479,7 +479,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        txn_commit;              /* txn commit operations                         */ \n");
     printf("  u_int64_t        txn_abort;               /* txn abort operations                          */ \n");
     printf("  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ \n");
-    printf("  u_int64_t        txn_oldest_live;         /* oldest extant txn                             */ \n");
+    printf("  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ \n");
+    printf("  char             txn_oldest_live_begin;   /* oldest extant txn start time                      */ \n");
     printf("  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ \n");
     printf("  u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ \n");
     printf("  u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ \n");
@@ -513,6 +514,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        range_write_locks;       /* total range write locks taken */ \n");
     printf("  u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ \n");
     printf("  u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ \n");
+    printf("  u_int64_t        directory_read_locks;        /* total directory read locks taken */ \n");
+    printf("  u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ \n");
+    printf("  u_int64_t        directory_write_locks;       /* total directory write locks taken */ \n");
+    printf("  u_int64_t        directory_write_locks_fail;  /* total directory write locks unable to be taken */ \n");
     printf("  u_int64_t        inserts;                 /* ydb row insert operations              */ \n");
     printf("  u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ \n");
     printf("  u_int64_t        deletes;                 /* ydb row delete operations              */ \n");
@@ -527,6 +532,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
+    printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
+    printf("  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ \n");
+    printf("  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ \n");
+    printf("  u_int64_t        le_expanded;             /* number of times ule used expanded memory     */ \n");
     printf("  u_int64_t        fsync_count;             /* number of times fsync performed        */ \n");
     printf("  u_int64_t        fsync_time;              /* total time required to fsync           */ \n");
     printf("  u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ \n");
@@ -539,7 +548,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        enospc_state;            /* state of ydb-level ENOSPC prevention (0 = green, 1 = yellow, 2 = red) */ \n");
     printf("  u_int64_t        loader_create;           /* number of loaders created */ \n");
     printf("  u_int64_t        loader_create_fail;      /* number of failed loader creations */ \n");
-    printf("  u_int64_t        loader_put;              /* number of loader puts */ \n");
+    printf("  u_int64_t        loader_put;              /* number of loader puts (success) */ \n");
+    printf("  u_int64_t        loader_put_fail;         /* number of loader puts that failed */ \n");
     printf("  u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ \n");
     printf("  u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ \n");
     printf("  u_int64_t        loader_abort;            /* number of loaders aborted  */ \n");

@@ -111,7 +111,8 @@ int toku_loader_cleanup_temp_files(DB_ENV *env);
 typedef struct loader_status {
   uint64_t create;          // number of loaders succefully created
   uint64_t create_fail;     // number of calls to toku_loader_create_loader() that failed
-  uint64_t put;             // number of calls to toku_loader_put()
+  uint64_t put;             // number of calls to toku_loader_put() that succeeded
+  uint64_t put_fail;        // number of calls to toku_loader_put() that failed
   uint64_t close;           // number of calls to toku_loader_close()
   uint64_t close_fail;      // number of calls to toku_loader_close() that failed
   uint64_t abort;           // number of calls to toku_loader_abort()

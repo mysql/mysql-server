@@ -93,7 +93,8 @@ typedef struct __toku_engine_status {
   u_int64_t        txn_commit;              /* txn commit operations                         */ 
   u_int64_t        txn_abort;               /* txn abort operations                          */ 
   u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ 
-  u_int64_t        txn_oldest_live;         /* oldest extant txn                             */ 
+  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ 
+  char             txn_oldest_live_begin;   /* oldest extant txn start time                      */ 
   u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ 
   u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ 
   u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ 
@@ -127,6 +128,10 @@ typedef struct __toku_engine_status {
   u_int64_t        range_write_locks;       /* total range write locks taken */ 
   u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ 
   u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ 
+  u_int64_t        directory_read_locks;        /* total directory read locks taken */ 
+  u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
+  u_int64_t        directory_write_locks;       /* total directory write locks taken */ 
+  u_int64_t        directory_write_locks_fail;  /* total directory write locks unable to be taken */ 
   u_int64_t        inserts;                 /* ydb row insert operations              */ 
   u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ 
   u_int64_t        deletes;                 /* ydb row delete operations              */ 
@@ -141,6 +146,10 @@ typedef struct __toku_engine_status {
   u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ 
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
+  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
+  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ 
+  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ 
+  u_int64_t        le_expanded;             /* number of times ule used expanded memory     */ 
   u_int64_t        fsync_count;             /* number of times fsync performed        */ 
   u_int64_t        fsync_time;              /* total time required to fsync           */ 
   u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ 
@@ -153,7 +162,8 @@ typedef struct __toku_engine_status {
   u_int64_t        enospc_state;            /* state of ydb-level ENOSPC prevention (0 = green, 1 = yellow, 2 = red) */ 
   u_int64_t        loader_create;           /* number of loaders created */ 
   u_int64_t        loader_create_fail;      /* number of failed loader creations */ 
-  u_int64_t        loader_put;              /* number of loader puts */ 
+  u_int64_t        loader_put;              /* number of loader puts (success) */ 
+  u_int64_t        loader_put_fail;         /* number of loader puts that failed */ 
   u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ 
   u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ 
   u_int64_t        loader_abort;            /* number of loaders aborted  */ 

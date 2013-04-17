@@ -34,6 +34,8 @@
 
 #define ULE_DEBUG 0
 
+static LE_STATUS_S status;
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Accessor functions used by outside world (e.g. indexer)
@@ -51,8 +53,10 @@ void toku_ule_free(ULEHANDLE ule_p) {
     toku_free(ule_p);
 }
 
-
-
+void 
+toku_le_get_status(LE_STATUS s) {
+    *s = status;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -589,6 +593,18 @@ uxr_unpack_data(UXR uxr, uint8_t *p) {
     return 0;
 }
 
+// executed too often to be worth making threadsafe
+static inline void
+update_le_status(ULE ule, size_t memsize, LE_STATUS s) {
+    if (ule->num_cuxrs > s->max_committed_xr)
+	s->max_committed_xr = ule->num_cuxrs;
+    if (ule->num_puxrs > s->max_provisional_xr)
+	s->max_provisional_xr = ule->num_puxrs;
+    if (ule->num_cuxrs > MAX_TRANSACTION_RECORDS)
+	s->expanded++;
+    if (memsize > s->max_memsize)
+	s->max_memsize = memsize;
+}
 
 // Purpose is to return a newly allocated leaf entry in packed format, or
 // return null if leaf entry should be destroyed (if no transaction records 
@@ -607,6 +623,7 @@ le_pack(ULE ule,                            // data to be packed into new leafen
     invariant(ule->num_cuxrs > 0);
     invariant(ule->uxrs[0].xid == TXNID_NONE);
     int rval;
+    size_t memsize = 0;
     {
         // The unpacked leafentry may contain no inserts anywhere on its stack.
         // If so, then there IS no leafentry to pack, we should return NULL
@@ -624,7 +641,7 @@ le_pack(ULE ule,                            // data to be packed into new leafen
         goto cleanup;
     }
 found_insert:;
-    size_t memsize = le_memsize_from_ule(ule);
+    memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry = le_malloc(omt, mp, memsize, maybe_free);
     if (new_leafentry==NULL) {
         rval = ENOMEM;
@@ -754,6 +771,7 @@ found_insert:;
     *new_leafentry_disksize   = memsize;
     rval = 0;
 cleanup:
+    update_le_status(ule, memsize, &status);
     return rval;
 }
 
