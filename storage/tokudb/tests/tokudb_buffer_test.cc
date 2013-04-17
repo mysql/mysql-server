@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #include <tokudb_buffer.h>
 
 static void test_null() {
