@@ -168,7 +168,7 @@ static void
 dump_block_translation(struct brt_header *h, u_int64_t offset) {
     if (offset < h->translated_blocknum_limit) {
         struct block_translation_pair *bx = &h->block_translation[offset];
-        printf("%lu: %ld %ld\n", offset, bx->diskoff, bx->size);
+        printf("%lu: %lu %lu\n", offset, bx->diskoff, bx->size);
     }
 }
 
@@ -237,7 +237,8 @@ split_fields (char *line, char *fields[], int maxfields) {
     return i;
 }
 
-int main (int argc, const char *argv[]) {
+int 
+main (int argc, const char *argv[]) {
     const char *arg0 = argv[0];
     static int interactive = 0;
     argc--; argv++;

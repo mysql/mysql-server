@@ -247,5 +247,6 @@ clean:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt *.dir *.tdb *.dat *.out
 	rm -rf *.exe *.pdb *.ilk *.obj
+	rm -f cachetable-fd-test.ctest2.data
 
 foo: ../cachetable.o ../fifo.o ../fingerprint.o ../key.o ../memory.o ../memarena.o ../mempool.o ../omt.o ../toku_assert.o ../ybt.o ../x1764.o ../trace_mem.o ../threadpool.o
