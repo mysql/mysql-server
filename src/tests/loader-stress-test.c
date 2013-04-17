@@ -2,6 +2,9 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+// Need to use malloc for the malloc instrumentation tests
+#define TOKU_ALLOW_DEPRECATED
+
 #include "test.h"
 #include "toku_pthread.h"
 #include "toku_atomic.h"
@@ -22,6 +25,44 @@ int ALLOW_DUPS=0;
 enum {MAGIC=311};
 char *datadir = NULL;
 BOOL check_est = TRUE; // do check the estimates by default
+BOOL footprint_print = FALSE; // print memory footprint info 
+
+
+// Code for showing memory footprint information.
+pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
+size_t hiwater;
+size_t water;
+size_t hiwater_start;
+static long long mcount = 0, fcount=0;
+
+
+size_t malloc_usable_size(void *p);
+
+static void my_free(void*p) {
+    if (p) {
+	water-=malloc_usable_size(p);
+    }
+    free(p);
+}
+
+static void *my_malloc(size_t size) {
+    void *r = malloc(size);
+    if (r) {
+	water += malloc_usable_size(r);
+	if (water>hiwater) hiwater=water;
+    }
+    return r;
+}
+
+static void *my_realloc(void *p, size_t size) {
+    size_t old_usable = p ? malloc_usable_size(p) : 0;
+    void *r = realloc(p, size);
+    if (r) {
+	water -= old_usable;
+	water += malloc_usable_size(r);
+    }
+    return r;
+}
 
 //
 //   Functions to create unique key/value pairs, row generators, checkers, ... for each of NUM_DBS
@@ -271,8 +312,11 @@ static void test_loader(DB **dbs)
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
+    hiwater_start = hiwater;
+    if (footprint_print)  printf("%s:%d Hiwater=%ld water=%ld\n", __FILE__, __LINE__, hiwater, water);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
+    if (footprint_print)  printf("%s:%d Hiwater=%ld water=%ld\n", __FILE__, __LINE__, hiwater, water);
     r = loader->set_error_callback(loader, NULL, NULL);
     CKERR(r);
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
@@ -302,7 +346,9 @@ static void test_loader(DB **dbs)
 
     // close the loader
     printf("%9.6fs closing\n", elapsed_time());
+    if (footprint_print) printf("%s:%d Hiwater=%ld water=%ld\n", __FILE__, __LINE__, hiwater, water);
     r = loader->close(loader);
+    if (footprint_print) printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM)\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024));
     printf("%9.6fs done\n",    elapsed_time());
     CKERR2s(r,0,TOKUDB_CANCELED);
 
@@ -414,11 +460,13 @@ static void run_test(void)
     toku_free(dbs);
 }
 
+
 // ------------ infrastructure ----------
 static void do_args(int argc, char * const argv[]);
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
+
     run_test();
     if (free_me) toku_free(free_me);
 
@@ -432,10 +480,26 @@ int test_main(int argc, char * const *argv) {
 	}
 	toku_free(progress_infos);
     }
+    if (footprint_print) {
+	printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM) mcount=%lld fcount=%lld\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024), mcount, fcount);
+	extern void malloc_stats(void);
+	malloc_stats();
+    }
     return 0;
 }
 
 static void do_args(int argc, char * const argv[]) {
+
+    // Must look for "-f" right away before we malloc anything.
+    for (int i=1; i<argc; i++)  {
+
+	if (strcmp(argv[i], "-f")) {
+	    db_env_set_func_malloc(my_malloc);
+	    db_env_set_func_realloc(my_realloc);
+	    db_env_set_func_free(my_free);
+	}
+    }
+
     int resultcode;
     char *cmd = argv[0];
     argc--; argv++;
@@ -452,11 +516,13 @@ static void do_args(int argc, char * const argv[]) {
 	    resultcode=0;
 	do_usage:
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ] [-m <megabytes>] [-M]\n%s\n", cmd);
-	    fprintf(stderr, "  where -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
+	    fprintf(stderr, "  where -d <num_dbs>     is the number of dictionaries to build (primary & secondary).  (Default=%d)\n", NUM_DBS);
+	    fprintf(stderr, "        -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
 	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "        -m <m>           use m MB of memory for the cachetable (default is %d MB)\n", CACHESIZE);
             fprintf(stderr, "        -M               use %d MB of memory for the cachetable\n", old_default_cachesize);
 	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");
+	    fprintf(stderr,  "        -f               print memory footprint information at various points in the load\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -479,6 +545,8 @@ static void do_args(int argc, char * const argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
+	} else if (strcmp(argv[0], "-f")==0) {
+	    footprint_print = TRUE;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
