@@ -1530,6 +1530,8 @@ note_hash_count (int count) {
 }
 
 // has ct locked on entry
+// This function MUST NOT release and reacquire the cachetable lock
+// Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
 static int cachetable_put_internal(
     CACHEFILE cachefile, 
     CACHEKEY key, 
@@ -1706,6 +1708,19 @@ int toku_cachetable_put_with_dep_pairs(
     //
     CACHETABLE ct = cachefile->cachetable;
     cachetable_lock(ct);
+    //
+    // The reason we call cachetable_wait_write outside 
+    // of cachetable_put_internal is that we want the operations
+    // get_key_and_fullhash and cachetable_put_internal
+    // to be atomic and NOT release the cachetable lock.
+    // If the cachetable lock is released within cachetable_put_internal,
+    // we may end up with a checkpoint beginning that has 
+    // called get_key_and_fullhash (which causes a blocknum
+    // to be allocated) but without the PAIR being in the cachetable
+    // and checkpointed. The checkpoint would have a leaked blocknum.
+    // So, we call cachetable_wait_write outside, and ensure that 
+    // cachetable_put_internal does not release the cachetable lock
+    //
     cachetable_wait_write(ct);
     get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
     int r = cachetable_put_internal(
