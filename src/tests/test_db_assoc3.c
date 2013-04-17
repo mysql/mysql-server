@@ -172,7 +172,7 @@ static void dbg_name_insert (unsigned char *name) {
     if (names==0) {
 	names=malloc(sizeof(*names));
     } else {
-	names = realloc(names, n_names*sizeof(*names));
+	names = toku_realloc(names, n_names*sizeof(*names));
     }
     names[n_names-1]=name;
 }
@@ -460,7 +460,7 @@ step_name (void) {
 	assert(cursor_count_n_items==calc_n_items);
 	r = name_cursor->c_get(name_cursor, &nc_key, &nc_data, DB_FIRST);
 	if (r==DB_NOTFOUND) {
-	    nc_key.data = realloc(nc_key.data, 1);
+	    nc_key.data = toku_realloc(nc_key.data, 1);
 	    ((char*)nc_key.data)[0]=0;
 	    cursor_count_n_items=0;
 	} else {

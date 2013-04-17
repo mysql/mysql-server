@@ -24,6 +24,7 @@
    toku_os_initialize_settings;
    toku_os_is_absolute_name;
    toku_os_mkdir;
+   toku_realloc;
    toku_strdup;
 
  local: *;

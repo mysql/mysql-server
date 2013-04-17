@@ -45,11 +45,11 @@ test_key_size_limit (int dup_mode) {
         assert(lo <= mi && mi <= hi);
         u_int32_t ks = mi;
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
-        k = realloc(k, ks); assert(k);
+        k = toku_realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
         u_int32_t vs = sizeof (u_int32_t);
-        v = realloc(v, vs); assert(v);
+        v = toku_realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
         DBT key, val;
@@ -101,11 +101,11 @@ test_data_size_limit (int dup_mode) {
         assert(lo <= mi && mi <= hi);
         u_int32_t ks = sizeof (u_int32_t);
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
-        k = realloc(k, ks); assert(k);
+        k = toku_realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
         u_int32_t vs = mi;
-        v = realloc(v, vs); assert(v);
+        v = toku_realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
         DBT key, val;

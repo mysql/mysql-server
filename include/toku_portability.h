@@ -86,6 +86,7 @@ char*    strdup(const char *)           __attribute__((__deprecated__));
 char*    __strdup(const char *)         __attribute__((__deprecated__));
 void *malloc(size_t)                    __attribute__((__deprecated__));
 void free(void*)                        __attribute__((__deprecated__));
+void *realloc(void*, size_t)            __attribute__((__deprecated__));
 #   endif
 #endif
 
