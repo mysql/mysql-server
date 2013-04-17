@@ -4957,21 +4957,6 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             goto cleanup;
         }
 
-        //
-        // create a row descriptor that is the same as a hidden primary key
-        //
-        row_descriptor.size = create_toku_key_descriptor(
-            row_desc_buff,
-            true,
-            false,
-            NULL,
-            false,
-            NULL
-            );
-        error = status_block->set_descriptor(status_block, 1, &row_descriptor, toku_dbt_up);
-        if (error) {
-            goto cleanup;
-        }
         if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
             uint version = HA_TOKU_VERSION;
             uint capabilities = HA_TOKU_CAP;

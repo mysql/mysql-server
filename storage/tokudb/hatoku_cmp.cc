@@ -1424,7 +1424,7 @@ int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
     // for no_dup tables, file->descriptor->size == row_desc_offset
     // so just use a default comparison function
     //
-    if (file->descriptor->size - row_desc_offset == 0) {
+    if ( (file->descriptor->size == 0) || (file->descriptor->size - row_desc_offset == 0) ) {
         int num_bytes_cmp = keya->size < keyb->size ? 
             keya->size : keyb->size;
         cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
