@@ -75,6 +75,7 @@ void evictor_unit_test::disable_ev_thread() {
 void evictor_unit_test::verify_ev_counts() {
     long limit = 10;
     long expected_m_size_reserved = limit/4;
+    ZERO_STRUCT(m_ev);
     m_ev.init(limit, &m_pl, m_kb, 0);
     this->verify_ev_init(limit);
 
@@ -140,6 +141,7 @@ void evictor_unit_test::verify_ev_counts() {
 void evictor_unit_test::verify_ev_m_size_reserved() {
     long limit = 400;
     long expected_m_size_reserved = 100; //limit/4
+    ZERO_STRUCT(m_ev);
     m_ev.init(limit, &m_pl, m_kb, 0);
     this->verify_ev_init(limit);
     assert(m_ev.m_size_reserved == expected_m_size_reserved);
@@ -162,6 +164,7 @@ void evictor_unit_test::verify_ev_m_size_reserved() {
 // threads up works correctly
 void evictor_unit_test::verify_ev_handling_cache_pressure() {
     long limit = 400;
+    ZERO_STRUCT(m_ev);
     m_ev.init(limit, &m_pl, m_kb, 0);
     this->verify_ev_init(limit);
     m_ev.m_low_size_watermark = 400;
