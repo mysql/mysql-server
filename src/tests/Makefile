@@ -126,6 +126,7 @@ BDB_DONTRUN_TESTS = \
         loader-dup-test \
         loader-no-puts \
         loader-reference-test \
+	loader-stress-del \
         loader-stress-test \
         loader-tpch-load \
 	lock-pressure \
