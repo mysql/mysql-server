@@ -144,7 +144,7 @@ test_main(int argc, const char *argv[]) {
     test_db_delete(0, 0);
 
     int i;
-    for (i = 1; i <= (1<<16); i *= 2) {
+    for (i = 1; i <= (1<<8); i *= 2) {
         test_db_delete(i, 0);
     }
 

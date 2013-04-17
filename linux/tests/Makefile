@@ -1,6 +1,6 @@
 CPPFLAGS = -I../../include -I..
 CFLAGS = -Wall -Werror -g -O0
-LDFLAGS = ../libtokuportability.a 
+LDFLAGS = ../libtokuportability.a -lpthread
 SRCS = $(wildcard test-*.c)
 TARGETS = $(patsubst %.c,%,$(SRCS))
 
