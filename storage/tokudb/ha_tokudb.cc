@@ -698,7 +698,6 @@ static void make_name(char *newname, const char *tablename, const char *dictname
 }
 
 
-
 #define CHECK_VALID_CURSOR() \
     if (cursor == NULL) { \
         error = last_cursor_error; \
@@ -712,6 +711,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
     changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
+    transaction = NULL;
 }
 
 static const char *ha_tokudb_exts[] = {
@@ -957,6 +957,9 @@ int primary_key_part_compare (const void* left, const void* right) {
     return left_part->offset - right_part->offset;
 }
 
+
+
+
 //
 // macro that modifies read flag for cursor operations depending on whether
 // we have preacquired lock or not
@@ -1191,6 +1194,75 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     TOKUDB_DBUG_RETURN(0);
 }
+
+//
+// estimate the number of rows in a DB
+// Parameters:
+//      [in]    db - DB whose number of rows will be estimated
+//      [out]   num_rows - number of estimated rows in db
+// Returns:
+//      0 on success
+//      error otherwise
+//
+int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
+    DBT key;
+    DBT data;
+    int error = ENOSYS;
+    DBC* crsr = NULL;
+    u_int64_t less, equal, greater;
+    int is_exact;
+    bool do_commit = false;
+
+    bzero((void *)&key, sizeof(key));
+    bzero((void *)&data, sizeof(data));
+
+    if (transaction == NULL) {
+        error = db_env->txn_begin(db_env, 0, &transaction, 0);
+        if (error) goto cleanup;
+        do_commit = true;
+    }
+    
+    error = db->cursor(db, transaction, &crsr, 0);
+    if (error) { goto cleanup; }
+
+    //
+    // get the first element, then estimate number of records
+    // by calling key_range64 on the first element
+    //
+    error = crsr->c_get(crsr, &key, &data, DB_FIRST);
+    if (error == DB_NOTFOUND) {
+        *num_rows = 0;
+        error = 0;
+        goto cleanup;
+    }
+    else if (error) { goto cleanup; }
+
+    error = db->key_range64(
+        db, 
+        transaction, 
+        &key, 
+        &less,
+        &equal,
+        &greater,
+        &is_exact
+        );
+    if (error) {
+        goto cleanup;
+    }
+
+
+    *num_rows = equal + greater;
+    error = 0;
+cleanup:
+    if (do_commit) {        
+        transaction->commit(transaction, 0);
+        transaction = NULL;
+    }
+    return error;
+}
+
+
+
 
 //
 // Closes a handle to a table. 
@@ -2974,7 +3046,15 @@ int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld %ld", this, flag, share->rows, changed_rows);
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
-        stats.records = share->rows + changed_rows;
+        u_int64_t num_rows = 0;
+        int error = estimate_num_rows(share->file,&num_rows);
+        //
+        // estimate_num_rows should not fail under normal conditions
+        // if it does fail, just keep stats.record unchanged
+        //
+        if (error == 0) {
+            stats.records = num_rows;
+        }
         stats.deleted = 0;
     }
     if ((flag & HA_STATUS_CONST) || version != share->version) {
@@ -3202,9 +3282,10 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 error = trx->stmt->commit(trx->stmt, 0);
                 if (tokudb_debug & TOKUDB_DEBUG_TXN)
                     TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
-                trx->stmt = transaction = NULL;
+                trx->stmt = NULL;
             }
         }
+        transaction = NULL;
     }
 cleanup:
     TOKUDB_DBUG_RETURN(error);

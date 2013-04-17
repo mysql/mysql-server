@@ -159,6 +159,7 @@ private:
  
     int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
+    int estimate_num_rows(DB* db, u_int64_t* num_rows);
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
