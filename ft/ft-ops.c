@@ -3262,7 +3262,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
     //Opening a brt may restore to previous checkpoint.         Truncate if necessary.
     {
         int fd = toku_cachefile_get_fd (ft->cf);
-        toku_maybe_truncate_cachefile_on_open(ft->blocktable, fd, ft);
+        toku_maybe_truncate_file_on_open(ft->blocktable, fd);
     }
 
     r = 0;

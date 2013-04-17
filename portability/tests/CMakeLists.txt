@@ -9,6 +9,12 @@ if(BUILD_TESTING)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES dir.${src}.test)
   endforeach(src)
 
+  include(CheckCCompilerFlag)
+  check_c_compiler_flag(-Wno-unused-result HAVE_WNO_UNUSED_RESULT)
+  if (HAVE_WNO_UNUSED_RESULT)
+    set_property(SOURCE try-leak-lost.c APPEND PROPERTY COMPILE_FLAGS -Wno-unused-result)
+  endif ()
+
   foreach(src ${srcs})
     get_filename_component(test ${src} NAME_WE)
 

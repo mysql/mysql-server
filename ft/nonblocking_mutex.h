@@ -52,7 +52,7 @@ static inline void nb_mutex_lock(NB_MUTEX nb_mutex,
 // release a write lock
 // expects: mutex is locked
 
-static inline void nb_mutex_write_unlock(NB_MUTEX nb_mutex) {
+static inline void nb_mutex_unlock(NB_MUTEX nb_mutex) {
     rwlock_write_unlock(&nb_mutex->lock);
 }
 

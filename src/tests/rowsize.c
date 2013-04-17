@@ -13,7 +13,7 @@ static void setup_env (void) {
     const int len = strlen(envdir)+100;
     char cmd[len];
     snprintf(cmd, len, "rm -rf %s", envdir);
-    system(cmd);
+    {int r = system(cmd);                                                                                                               CKERR(r); }
     {int r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                                            CKERR(r); }
     {int r = db_env_create(&env, 0);                                                                                                    CKERR(r); }
     //env->set_errfile(env, stderr);

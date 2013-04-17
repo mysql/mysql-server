@@ -430,9 +430,6 @@ void toku_cachefile_unlink_on_close(CACHEFILE cf);
 // is this cachefile marked as unlink on close?
 bool toku_cachefile_is_unlink_on_close(CACHEFILE cf);
 
-// Truncate a cachefile
-int toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size);
-
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);
 

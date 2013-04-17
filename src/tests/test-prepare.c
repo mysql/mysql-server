@@ -9,7 +9,8 @@ static void clean_env (const char *envdir) {
     const int len = strlen(envdir)+100;
     char cmd[len];
     snprintf(cmd, len, "rm -rf %s", envdir);
-    system(cmd);
+    int r = system(cmd);
+    CKERR(r);
     CKERR(toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO));
 }
 

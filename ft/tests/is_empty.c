@@ -16,7 +16,8 @@
 static void test_it (int N) {
     FT_HANDLE brt;
     int r;
-    system("rm -rf " TESTDIR);
+    r = system("rm -rf " TESTDIR);
+    CKERR(r);
     r = toku_os_mkdir(TESTDIR, S_IRWXU);                                                                    CKERR(r);
 
     TOKULOGGER logger;

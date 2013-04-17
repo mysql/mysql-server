@@ -245,11 +245,12 @@ void toku_ft_layer_destroy(void);
 void toku_ft_serialize_layer_init(void);
 void toku_ft_serialize_layer_destroy(void);
 
-void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
+void toku_maybe_truncate_file (int fd, uint64_t size_used, uint64_t expected_size, uint64_t *new_size);
 // Effect: truncate file if overallocated by at least 32MiB
 
-int maybe_preallocate_in_file (int fd, u_int64_t size) __attribute__ ((warn_unused_result));
-// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
+void toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int64_t *new_size);
+// Effect: make the file bigger by either doubling it or growing by 16MiB whichever is less, until it is at least size
+// Return 0 on success, otherwise an error number.
 
 void toku_ft_suppress_recovery_logs (FT_HANDLE brt, TOKUTXN txn);
 // Effect: suppresses recovery logs

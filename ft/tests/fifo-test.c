@@ -35,13 +35,13 @@ test_fifo_enq (int n) {
 
     // this was a function but icc cant handle it    
 #define buildkey(len) { \
-        thekeylen = len; \
+        thekeylen = len+1; \
         thekey = toku_realloc(thekey, thekeylen); \
         memset(thekey, len, thekeylen); \
     }
 
 #define buildval(len) { \
-        thevallen = len+1; \
+        thevallen = len+2; \
         theval = toku_realloc(theval, thevallen); \
         memset(theval, ~len, thevallen); \
     }

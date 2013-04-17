@@ -80,7 +80,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O0")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG FORTIFY_SOURCE=2)
 
 ## set extra release flags, we overwrite this because the default passes -DNDEBUG and we don't want that
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-g3 -ggdb -O3")
 
 ## check how to do inter-procedural optimization
 check_c_compiler_flag(-flto HAVE_CC_FLAG_FLTO)

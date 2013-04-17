@@ -261,6 +261,8 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
+
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -271,7 +273,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -408,6 +410,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -418,7 +421,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -552,6 +555,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -562,7 +566,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -701,6 +705,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -711,7 +716,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -866,6 +871,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -876,7 +882,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -995,6 +1001,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -1005,7 +1012,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -1129,6 +1136,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -1139,7 +1147,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -1276,6 +1284,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
     brt_h->panic = 0; brt_h->panic_string = 0;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -1286,7 +1295,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);

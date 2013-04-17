@@ -756,16 +756,6 @@ toku_cachefile_get_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
-int
-toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size) {
-    int r;
-    r = ftruncate(cf->fd, new_size);
-    if (r != 0) {
-        r = errno;
-    }
-    return r;
-}
-
 static CACHEFILE remove_cf_from_list_locked (CACHEFILE cf, CACHEFILE list) {
     if (list==0) return 0;
     else if (list==cf) {
@@ -1188,7 +1178,7 @@ static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
             cachetable_change_pair_attr(ct, old_attr, new_attr);
         }
     }
-    nb_mutex_write_unlock(&p->disk_nb_mutex);
+    nb_mutex_unlock(&p->disk_nb_mutex);
     // the pair is no longer dirty once written
     p->dirty = CACHETABLE_CLEAN;
     
@@ -1202,7 +1192,7 @@ static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
 
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed) {
     p->cq = 0;
-    nb_mutex_write_unlock(&p->value_nb_mutex);
+    nb_mutex_unlock(&p->value_nb_mutex);
     if (do_remove) {
         cachetable_maybe_remove_and_free_pair(ct, p, destroyed);
     }
@@ -1338,7 +1328,7 @@ static void do_partial_eviction(CACHETABLE ct, PAIR p) {
         workqueue_enq(p->cq, &p->asyncwork, 1);
     }
     else {
-        nb_mutex_write_unlock(&p->value_nb_mutex);
+        nb_mutex_unlock(&p->value_nb_mutex);
     }
 }
 
@@ -1437,7 +1427,7 @@ static void maybe_flush_some (CACHETABLE ct, long size) {
                         // set up a completion queue.
                         // So, a completion queue cannot exist
                         assert(!curr_in_clock->cq);
-                        nb_mutex_write_unlock(&curr_in_clock->value_nb_mutex);
+                        nb_mutex_unlock(&curr_in_clock->value_nb_mutex);
                     }
                 }
                 else {
@@ -1643,7 +1633,7 @@ static void checkpoint_cloned_pair(WORKITEM wi) {
         &new_attr,
         TRUE //is_clone
         );
-    nb_mutex_write_unlock(&p->disk_nb_mutex);
+    nb_mutex_unlock(&p->disk_nb_mutex);
     ct->n_checkpoint_clones_running--;
     if (ct->n_checkpoint_clones_running == 0) {
         toku_cond_broadcast(&ct->clones_background_wait); 
@@ -1737,7 +1727,7 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
         
         // now release value_nb_mutex, before we write the PAIR out
         // so that the PAIR is available to client threads
-        nb_mutex_write_unlock(&p->value_nb_mutex); // didn't call cachetable_write_pair so we have to unlock it ourselves.
+        nb_mutex_unlock(&p->value_nb_mutex); // didn't call cachetable_write_pair so we have to unlock it ourselves.
         if (p->clone_callback) {
             // note that pending lock is not needed here because
             // we KNOW we are in the middle of a checkpoint
@@ -1750,7 +1740,7 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
                 &attr,
                 TRUE //is_clone
                 );
-            nb_mutex_write_unlock(&p->disk_nb_mutex);
+            nb_mutex_unlock(&p->disk_nb_mutex);
         }
     }
     else {
@@ -1767,7 +1757,7 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
             workqueue_enq(p->cq, &p->asyncwork, 1);
         }
         else {
-            nb_mutex_write_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
         }
     }
 }
@@ -1950,7 +1940,7 @@ do_partial_fetch(
     p->attr = new_attr;
     cachetable_change_pair_attr(ct, old_attr, new_attr);
     p->state = CTPAIR_IDLE;
-    nb_mutex_write_unlock(&p->disk_nb_mutex);
+    nb_mutex_unlock(&p->disk_nb_mutex);
     if (keep_pair_locked) {
         // if the caller wants the pair to remain locked
         // that means the caller requests continued
@@ -1964,7 +1954,7 @@ do_partial_fetch(
             workqueue_enq(p->cq, &p->asyncwork, 1);
         }
         else {
-            nb_mutex_write_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
         }
     }
 }
@@ -1990,7 +1980,7 @@ void toku_cachetable_pf_pinned_pair(
     cachetable_unlock(cf->cachetable);
     pf_callback(value, p->disk_data, read_extraargs, fd, &attr);
     cachetable_lock(cf->cachetable);
-    nb_mutex_write_unlock(&p->disk_nb_mutex);    
+    nb_mutex_unlock(&p->disk_nb_mutex);    
     cachetable_unlock(cf->cachetable);
 }
 
@@ -2077,7 +2067,7 @@ static void cachetable_fetch_pair(
     p->attr = attr;
     cachetable_add_pair_attr(ct, attr);
     p->state = CTPAIR_IDLE;
-    nb_mutex_write_unlock(&p->disk_nb_mutex);
+    nb_mutex_unlock(&p->disk_nb_mutex);
     if (keep_pair_locked) {
         // if the caller wants the pair to remain locked
         // that means the caller requests continued
@@ -2091,7 +2081,7 @@ static void cachetable_fetch_pair(
             workqueue_enq(p->cq, &p->asyncwork, 1);
         }
         else {
-            nb_mutex_write_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
         }
     }
     if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
@@ -2374,7 +2364,7 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
             // So, we should assert that a completion queue does not
             // exist
             assert(!p->cq);
-            nb_mutex_write_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
             if (dirty) p->dirty = CACHETABLE_DIRTY;
             if (attr.is_valid) {
                 PAIR_ATTR old_attr = p->attr;
@@ -2528,7 +2518,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                     workqueue_enq(p->cq, &p->asyncwork, 1);
                 }
                 else {
-                    nb_mutex_write_unlock(&p->value_nb_mutex);
+                    nb_mutex_unlock(&p->value_nb_mutex);
                 }
                 cachetable_unlock(ct);
                 return TOKUDB_TRY_AGAIN;
@@ -2686,7 +2676,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
             // sanity check, we already have an assert 
             // before locking the PAIR
             assert(!p->cq);
-            nb_mutex_write_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
         }
     }
     cachetable_unlock(ct);
@@ -2987,7 +2977,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
         PAIR p = workitem_arg(wi);
         p->cq = 0;
         //Some other thread owned the lock, but transferred ownership to the thread executing this function
-        nb_mutex_write_unlock(&p->value_nb_mutex);  //Release the lock, no one has a pin, per our assumptions above.
+        nb_mutex_unlock(&p->value_nb_mutex);  //Release the lock, no one has a pin, per our assumptions above.
         BOOL destroyed;
         cachetable_maybe_remove_and_free_pair(ct, p, &destroyed);
     }
@@ -3113,8 +3103,8 @@ int toku_cachetable_unpin_and_remove (
             // we must not have a completion queue
             // lying around, as we may create one now
             assert(!p->cq);
-            nb_mutex_write_unlock(&p->value_nb_mutex);
-            nb_mutex_write_unlock(&p->disk_nb_mutex);
+            nb_mutex_unlock(&p->value_nb_mutex);
+            nb_mutex_unlock(&p->disk_nb_mutex);
             //
             // As of Dr. Noga, only these threads may be
             // blocked waiting to lock this PAIR:
@@ -3193,7 +3183,7 @@ int toku_cachetable_unpin_and_remove (
                     // make sure that our assumption is valid.
                     assert(!p->checkpoint_pending);
                     assert(p->attr.cache_pressure_size == 0);
-                    nb_mutex_write_unlock(&p->value_nb_mutex);
+                    nb_mutex_unlock(&p->value_nb_mutex);
                     // Because we assume it is just the checkpoint thread
                     // that may have been blocked (as argued above),
                     // it is safe to simply remove the PAIR from the 
@@ -3924,7 +3914,7 @@ toku_cleaner_thread (void *cachetable_v)
             // don't need to unlock it if the cleaner callback is called.
             if (!cleaner_callback_called) {
                 assert(!best_pair->cq);
-                nb_mutex_write_unlock(&best_pair->value_nb_mutex);
+                nb_mutex_unlock(&best_pair->value_nb_mutex);
             }
             // We need to make sure the cachefile sticks around so a close
             // can't come destroy it.  That's the purpose of this
