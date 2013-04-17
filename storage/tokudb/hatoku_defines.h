@@ -28,6 +28,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ERROR 16
 #define TOKUDB_DEBUG_TXN 32
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
+#define TOKUDB_DEBUG_LOCK 256
 
 #define TOKUDB_TRACE(f, ...) \
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
@@ -82,6 +83,8 @@ typedef struct st_tokudb_trx_data {
     DB_TXN *sp_level;
     uint tokudb_lock_count;
     HA_TOKU_ISO_LEVEL iso_level;
+    bool table_lock_wanted;
+    int table_lock_type;
 } tokudb_trx_data;
 
 
