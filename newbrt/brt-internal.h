@@ -136,10 +136,7 @@ long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
 int toku_bnc_flush_to_child(
-    brt_compare_func compare_fun, 
-    brt_update_func update_fun, 
-    DESCRIPTOR desc, 
-    CACHEFILE cf,
+    struct brt_header* h,
     NONLEAF_CHILDINFO bnc, 
     BRTNODE child
     );
