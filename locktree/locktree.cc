@@ -48,6 +48,8 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     m_sto_txnid = TXNID_NONE;
     m_sto_buffer.create();
     m_sto_score = STO_SCORE_THRESHOLD;
+    m_sto_end_early_count = 0;
+    m_sto_end_early_time = 0;
 
     m_lock_request_info.pending_lock_requests.create();
     ZERO_STRUCT(m_lock_request_info.mutex);
@@ -169,10 +171,20 @@ void locktree::sto_end(void) {
     m_sto_txnid = TXNID_NONE;
 }
 
-void locktree::sto_end_early(void *prepared_lkr) {
+void locktree::sto_end_early_no_accounting(void *prepared_lkr) {
     sto_migrate_buffer_ranges_to_tree(prepared_lkr);
     sto_end();
     m_sto_score = 0;
+}
+
+void locktree::sto_end_early(void *prepared_lkr) {
+    m_sto_end_early_count++;
+
+    tokutime_t t0 = toku_time_now();
+    sto_end_early_no_accounting(prepared_lkr);
+    tokutime_t t1 = toku_time_now();
+
+    m_sto_end_early_time += (t1 - t0);
 }
 
 void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
@@ -547,7 +559,9 @@ void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *a
     // if you have to run escalation, you probably don't care about
     // the optimization anyway, and this makes things easier.
     if (m_sto_txnid != TXNID_NONE) {
-        sto_end_early(&lkr);
+        // We are already accounting for this escalation time and
+        // count, so don't do it for sto_end_early too.
+        sto_end_early_no_accounting(&lkr);
     }
 
     // extract and remove batches of row locks from the locktree

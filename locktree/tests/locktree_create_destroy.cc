@@ -26,6 +26,8 @@ void locktree_unit_test::test_create_destroy(void) {
     invariant(lt->m_rangetree != nullptr);
     invariant(lt->m_userdata == nullptr);
     invariant(info->pending_lock_requests.size() == 0);
+    invariant(lt->m_sto_end_early_count == 0);
+    invariant(lt->m_sto_end_early_time == 0);
 
     mgr.release_lt(lt);
     mgr.destroy();
