@@ -65,7 +65,6 @@ BRT_SOURCES = \
   logcursor \
   memarena \
   mempool \
-  merger \
   minicron \
   omt \
   pqueue \
