@@ -34,7 +34,7 @@ initialize_ftnode(FTNODE node, BLOCKNUM blocknum)
 // 2. Read and check the 'magic' bytes on disk.  Returns an error if
 // the magic does not match.
 //
-inline int
+int
 read_and_check_magic(struct rbuf *rb)
 {
     int r = 0;
@@ -50,7 +50,7 @@ read_and_check_magic(struct rbuf *rb)
 
 ////////////////////
 // 3. 
-inline int
+int
 read_and_check_version(FTNODE node, struct rbuf *rb)
 {
     int r = 0;
@@ -65,7 +65,7 @@ read_and_check_version(FTNODE node, struct rbuf *rb)
 
 ////////////////////
 // 4. 
-inline void
+void
 read_node_info(FTNODE node, struct rbuf *rb, int version)
 {
     node->layout_version = version;
@@ -77,7 +77,7 @@ read_node_info(FTNODE node, struct rbuf *rb, int version)
 ////////////////////
 // 5.
 // <CER> Should these be two seperate functions?
-inline void
+void
 allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd)
 {
     XMALLOC_N(node->n_children, node->bp);
@@ -92,7 +92,7 @@ allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DA
 
 ////////////////////
 // 6. Check the node info checksum.
-inline int
+int
 check_node_info_checksum(struct rbuf *rb)
 {
     int r = 0;
