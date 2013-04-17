@@ -49,14 +49,16 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
     printf("******\n");
 }
 
-class ha_tokudb_add_index_ctx : public inplace_alter_handler_ctx {
+class tokudb_alter_ctx : public inplace_alter_handler_ctx {
 public:
-    ha_tokudb_add_index_ctx(bool _incremented_num_DBs, bool _modified_DBs) : incremented_num_DBs(_incremented_num_DBs), modified_DBs(_modified_DBs) {
+    tokudb_alter_ctx() {
+        incremented_num_DBs = modified_DBs = false;
     }
-    virtual ~ha_tokudb_add_index_ctx() {
+    virtual ~tokudb_alter_ctx() {
     }
 public:
     bool incremented_num_DBs, modified_DBs;
+    enum toku_compression_method orig_compression_method;
 };
 
 // workaround for fill_alter_inplace_info bug (#5193)
@@ -94,6 +96,9 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     THD *thd = ha_thd();
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
     HA_CREATE_INFO *create_info = ha_alter_info->create_info;
+
+    ha_alter_info->handler_ctx = new tokudb_alter_ctx;
+    assert(ha_alter_info->handler_ctx);
 
     ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
@@ -219,6 +224,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
     TOKUDB_DBUG_ENTER("inplace_alter_table");
 
     int error = 0;
+
     HA_CREATE_INFO *create_info = ha_alter_info->create_info;
     ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
@@ -235,15 +241,19 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         error = write_auto_inc_create(share->status_block, create_info->auto_increment_value, transaction);
     }
     if (error == 0 && (handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) && (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-        enum toku_compression_method method = TOKU_NO_COMPRESSION;
-        method = row_type_to_compression_method(create_info->row_type);
+        enum toku_compression_method method = row_type_to_compression_method(create_info->row_type);
 
+        // Get the current type
+        tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+        DB *db = share->key_file[0];
+        error = db->get_compression_method(db, &ctx->orig_compression_method);
+        assert(error == 0);
         // Set the new type.
         u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
-        for (u_int32_t i = 0; i < curr_num_DBs; ++i) {
-            DB *db = share->key_file[i];
+        for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+            db = share->key_file[i];
             error = db->change_compression_method(db, method);
-            if (error) 
+            if (error)
                 break;
         }
     }
@@ -280,9 +290,9 @@ ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_al
         last_dup_key = MAX_KEY;
     }
 
-    assert(ha_alter_info->handler_ctx == NULL);
-    ha_alter_info->handler_ctx = new ha_tokudb_add_index_ctx(incremented_num_DBs, modified_DBs);
-    assert(ha_alter_info->handler_ctx);
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+    ctx->incremented_num_DBs = incremented_num_DBs;
+    ctx->modified_DBs = modified_DBs;
     
     my_free(key_info);
 
@@ -462,9 +472,10 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     }
 
     if (!commit || result == true) {
+        HA_CREATE_INFO *create_info = ha_alter_info->create_info;
+        tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+
         if (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-            ha_tokudb_add_index_ctx *ctx = static_cast<ha_tokudb_add_index_ctx *>(ha_alter_info->handler_ctx);
-            assert(ctx);
             restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
         }
         if (handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
@@ -475,7 +486,14 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             
             restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
         }
-        // TODO undo auto increment, row format change
+        if ((handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) && (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
+            u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+            for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+                DB *db = share->key_file[i];
+                int error = db->change_compression_method(db, ctx->orig_compression_method);
+                assert(error == 0);
+            }
+        }
     }
     
     DBUG_RETURN(result);
