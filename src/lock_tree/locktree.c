@@ -2113,8 +2113,10 @@ cleanup:
 void 
 toku_lt_add_ref(toku_lock_tree* tree) {
     assert(tree);
+    lt_mutex_lock(tree);
     assert(tree->ref_count > 0);
-    (void) __sync_add_and_fetch(&tree->ref_count, 1);
+    tree->ref_count++;
+    lt_mutex_unlock(tree);
 }
 
 static void 
@@ -2127,27 +2129,49 @@ ltm_stop_managing_lt_unlocked(toku_ltm* mgr, toku_lock_tree* tree) {
 }
 
 int 
-toku_lt_remove_ref(toku_lock_tree* tree) {
-    int r = ENOSYS;
-    assert(tree);
+toku_lt_remove_ref(toku_lock_tree *tree) {
+    int r = 0;
+    bool do_close = false;
+    
+    // the following check is necessary to remove the lt, but not
+    // sufficient. this will only tell us if we can bail out quickly
+    // or if we have to keep going to do the actual expensive check
+    // which includes taking the lt mgr lock (bigger lock)
+
+    lt_mutex_lock(tree);
     assert(tree->ref_count > 0);
-    uint32_t ref_count = __sync_sub_and_fetch(&tree->ref_count, 1);
-    if (ref_count > 0) { 
-        r = 0; 
-        goto cleanup; 
+    if (tree->ref_count > 1) {
+        // this reference cannot possibly be the last, so we just 
+        // do the decrement and get out.
+        tree->ref_count--;
+        lt_mutex_unlock(tree);
+        goto cleanup;
     }
+    lt_mutex_unlock(tree);
+
+    // now, get the manager lock and the tree lock, in that order.
     ltm_mutex_lock(tree->mgr);
-    // Once the last reference was removed, only toku_ltm_get_lt could add a reference
-    // and requires the ltm_mutex_lock.  Prevent race condition by checking again.
-    ref_count = tree->ref_count;
-    if (ref_count == 0) { 
+    lt_mutex_lock(tree);
+    // if the ref count is still 1, then we definitely have the last 
+    // reference and can remove the lock tree. we know we have the last
+    // because toku_ltm_get_lt holds the mgr mutex and add/remove ref
+    // holds the tree mutex.
+    assert(tree->ref_count > 0);
+    if (tree->ref_count == 1) {
         assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
         ltm_stop_managing_lt_unlocked(tree->mgr, tree);
-        r = 0;
+        do_close = true;
     }
+    lt_mutex_unlock(tree);
     ltm_mutex_unlock(tree->mgr);
-    if (ref_count == 0) {
+
+    // for speed, do the actual close without holding any locks.
+    // the tree is not in the manager, no one else can get to it.
+    // so this is safe.
+    if (do_close) {
         r = toku_lt_close(tree);
+    } else {
+        r = 0;
     }
 cleanup:
     return r;
