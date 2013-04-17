@@ -284,8 +284,7 @@ int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
     if (logger->is_open) {
         if (toku_omt_size(logger->live_txns) == 0) {
-            time_t tnow = time(NULL);
-            int r2 = toku_log_shutdown(logger, NULL, TRUE, tnow);
+            int r2 = toku_log_shutdown(logger, NULL, TRUE, 0);
             if (!r) r = r2;
         }
     }
