@@ -156,6 +156,7 @@ typedef enum {
 #define DB_PRELOCKED_WRITE 0x00400000
 #define DB_IS_HOT_INDEX 0x00100000
 #define DBC_DISABLE_PREFETCHING 0x20000000
+#define DB_UPDATE_CMP_DESCRIPTOR 0x40000000
 #define DB_DBT_APPMALLOC 1
 #define DB_DBT_DUPOK 2
 #define DB_DBT_MALLOC 8
@@ -305,7 +306,6 @@ struct __toku_db {
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   DESCRIPTOR cmp_descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */;
-  int (*update_cmp_descriptor) (DB*) /* Update cmp descriptor.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra);

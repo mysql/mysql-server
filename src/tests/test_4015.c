@@ -116,8 +116,7 @@ int test_main(int argc, char * const argv[]) {
     DBT desc;
     dbt_init(&desc, "foo", sizeof("foo"));
     IN_TXN_COMMIT(env, NULL, txn, 0,
-		  CHK(db->change_descriptor(db, txn, &desc, 0)));
-    CHK(db->update_cmp_descriptor(db));
+		  CHK(db->change_descriptor(db, txn, &desc, DB_UPDATE_CMP_DESCRIPTOR)));
     pthread_t thd;
     CHK(toku_pthread_create(&thd, NULL, startA, NULL));
 

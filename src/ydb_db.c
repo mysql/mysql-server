@@ -499,12 +499,6 @@ toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newna
     return r;
 }
 
-static int
-toku_db_update_cmp_descriptor(DB *db) {
-    toku_brt_update_cmp_descriptor(db->i->brt);
-    return 0;
-}
-
 //
 // This function is the only way to set a descriptor of a DB.
 //
@@ -516,6 +510,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     DBT old_descriptor;
     BOOL is_db_hot_index  = ((flags & DB_IS_HOT_INDEX) != 0);
+    BOOL update_cmp_descriptor = ((flags & DB_UPDATE_CMP_DESCRIPTOR) != 0);
 
     toku_init_dbt(&old_descriptor);
     if (!db_opened(db) || !txn || !descriptor || (descriptor->size>0 && !descriptor->data)){
@@ -533,7 +528,14 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
     
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-    r = toku_brt_change_descriptor(db->i->brt, &old_descriptor, descriptor, TRUE, ttxn);
+    r = toku_brt_change_descriptor(
+        db->i->brt, 
+        &old_descriptor, 
+        descriptor, 
+        TRUE, 
+        ttxn, 
+        update_cmp_descriptor
+        );
 cleanup:
     if (old_descriptor.data) toku_free(old_descriptor.data);
     return r;
@@ -1077,7 +1079,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 #undef SDB
     // methods that take the ydb lock in some capacity,
     // but not from beginning to end
-    result->update_cmp_descriptor = toku_db_update_cmp_descriptor;
     result->del = autotxn_db_del;
     result->put = autotxn_db_put;
     result->update = autotxn_db_update;

@@ -869,7 +869,8 @@ static int toku_recover_change_fdescriptor (struct logtype_change_fdescriptor *l
             &old_descriptor, 
             &new_descriptor, 
             FALSE, 
-            txn
+            txn,
+            l->update_cmp_descriptor
             );
         assert(r==0);
     }    

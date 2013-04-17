@@ -30,7 +30,7 @@ change_descriptor(DB_ENV* env, DB* db) {
     DBT descriptor;
     dbt_init(&descriptor, descriptor_contents, sizeof(descriptor_contents));
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-        CHK(db->change_descriptor(db, txn_desc, &descriptor, 0));
+        CHK(db->change_descriptor(db, txn_desc, &descriptor, DB_UPDATE_CMP_DESCRIPTOR));
       });
 #endif
 }
@@ -52,12 +52,10 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     change_descriptor(env, dba);
-    dba->update_cmp_descriptor(dba);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
     change_descriptor(env, dbb);
-    dbb->update_cmp_descriptor(dbb);
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
 	DBT a={.data="a", .size=2};

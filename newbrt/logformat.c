@@ -210,6 +210,7 @@ const struct logtype logtypes[] = {
                             {"TXNID",      "xid", 0},
                             {"BYTESTRING", "old_descriptor", 0},
                             {"BYTESTRING", "new_descriptor", 0},
+                            {"BOOL",       "update_cmp_descriptor", 0},
                             NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };

@@ -203,6 +203,7 @@ static void print_defines (void) {
     //printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb. No longer supported in #4472
     printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
     printf("#define DBC_DISABLE_PREFETCHING 0x20000000\n"); // private tokudb
+    printf("#define DB_UPDATE_CMP_DESCRIPTOR 0x40000000\n"); // private tokudb
 
     {
         //dbt flags
@@ -424,7 +425,6 @@ static void print_db_struct (void) {
 			 "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
 			 "DESCRIPTOR cmp_descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
 			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
-			 "int (*update_cmp_descriptor) (DB*) /* Update cmp descriptor.  Available only while db is open */",
 			 "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			 "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
 			 "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
