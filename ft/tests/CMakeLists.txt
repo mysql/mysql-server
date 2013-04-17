@@ -33,6 +33,7 @@ if(BUILD_TESTING)
       set_property(TARGET ${base} APPEND PROPERTY
         COMPILE_DEFINITIONS "__SRCFILE__=\"${src}\";TOKUSVNROOT=\"${toku_svn_root}\"")
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${src}.ft_handle")
+      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${src}.ft")
     endif()
   endforeach(src)
 
