@@ -502,14 +502,6 @@ maybe_expand_translation (struct translation *t) {
 }
 
 void
-toku_allocate_blocknum_for_descriptor(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
-    lock_for_blocktable(bt);
-    *res = make_blocknum(RESERVED_BLOCKNUM_DESCRIPTOR);
-    brtheader_set_dirty(h, FALSE);
-    unlock_for_blocktable(bt);
-}
-
-void
 toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
     assert(bt->is_locked);
     BLOCKNUM result;
