@@ -7731,6 +7731,9 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, hand
     if (error) { goto cleanup; }
     
 cleanup:
+    DBUG_EXECUTE_IF("add_index_fail", {
+        error = 1;
+    });
     if (error) {
         if (txn) {
             restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
@@ -7738,9 +7741,6 @@ cleanup:
     } else {
         *add = new ha_tokudb_add_index(table_arg, key_info, num_of_keys, txn, incremented_numDBs, modified_DBs);
     }
-    DBUG_EXECUTE_IF("add_index_fail", {
-        error = 1;
-    });
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7760,16 +7760,16 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
 
     int error = 0;
 
-    if (!commit) {
+    DBUG_EXECUTE_IF("final_add_index_fail", {
+        error = 1;
+    });
+    if (!commit || error) {
         restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
     }
     // transaction does not need to be committed,
     // we depend on MySQL to rollback the transaction
     // by calling tokudb_rollback
 
-    DBUG_EXECUTE_IF("final_add_index_fail", {
-        error = 1;
-    });
     TOKUDB_DBUG_RETURN(error);
 }
 
