@@ -12,7 +12,7 @@
 #include "fttypes.h"
 
 void toku_rollback_flush_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, void *rollback_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool UU(is_clone));
-int toku_rollback_fetch_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, uint32_t fullhash, void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs);
+int toku_rollback_fetch_callback(CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM logname, uint32_t fullhash, void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs);
 void toku_rollback_pe_est_callback(
     void* rollback_v, 
     void* UU(disk_data),

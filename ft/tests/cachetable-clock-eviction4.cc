@@ -46,6 +46,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -111,26 +112,26 @@ cachetable_test (void) {
     wc.pe_callback = pe_callback;
     for (int i = 0; i < 100000; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-        r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(1));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     for (int i = 0; i < 8; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-        r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(1));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     for (int i = 0; i < 4; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-        r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(1));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     for (int i = 0; i < 2; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-        r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, make_pair_attr(1));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     flush_may_occur = true;
     expected_flushed_key = 4;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc);
+    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
     flush_may_occur = true;
     expected_flushed_key = 5;
-    r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(4));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(4));
 
     check_flush = false;
     r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );

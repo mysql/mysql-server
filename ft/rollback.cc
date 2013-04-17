@@ -22,7 +22,7 @@ void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
     FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
-    r = toku_cachetable_unpin_and_remove (cf, log->blocknum, rollback_unpin_remove_callback, h);
+    r = toku_cachetable_unpin_and_remove (cf, log->ct_pair, rollback_unpin_remove_callback, h);
     assert(r == 0);
 }
 
@@ -62,6 +62,11 @@ rollback_memory_size(ROLLBACK_LOG_NODE log) {
     return make_rollback_pair_attr(size);
 }
 
+static void toku_rollback_node_save_ct_pair(void *value_data, PAIR p) {
+    ROLLBACK_LOG_NODE CAST_FROM_VOIDP(log, value_data);
+    log->ct_pair = p;
+}
+
 // create and pin a new rollback log node. chain it to the other rollback nodes
 // by providing a previous blocknum/ hash and assigning the new rollback log
 // node the next sequence number
@@ -91,7 +96,8 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
     *result = log;
     r = toku_cachetable_put(cf, log->blocknum, log->hash,
                           log, rollback_memory_size(log),
-                          get_write_callbacks_for_rollback_log(h));
+                          get_write_callbacks_for_rollback_log(h),
+                          toku_rollback_node_save_ct_pair);
     assert(r == 0);
     txn->roll_info.current_rollback      = log->blocknum;
     txn->roll_info.current_rollback_hash = log->hash;
@@ -100,7 +106,7 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
 void toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    r = toku_cachetable_unpin(cf, log->blocknum, log->hash,
+    r = toku_cachetable_unpin(cf, log->ct_pair,
                               (enum cachetable_dirty)log->dirty, rollback_memory_size(log));
     assert(r == 0);
 }

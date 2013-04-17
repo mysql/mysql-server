@@ -50,6 +50,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -102,11 +103,12 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     enum cachetable_dirty cd[2];
     cd[0] = write_first ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
     cd[1] = write_second ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     if (start_checkpoint) {
         //
         // should mark the v1 and v2 as pending
         //
-        r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r==0);
+        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r==0);
     }
     //
     // This call should cause a flush for both
@@ -139,13 +141,13 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         assert(!v2_written);
     }
     check_me = false;
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
-    r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
-    r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
 
     if (start_checkpoint) {
         r = toku_cachetable_end_checkpoint(
-            ct, 
+            cp, 
             NULL, 
             NULL,
             NULL

@@ -72,6 +72,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k,
        uint32_t fullhash __attribute__((__unused__)),
@@ -159,13 +160,13 @@ static void move_number_to_child(
     usleep(10);
     (*parent_val)++;
     (*child_val)--;
-    r = toku_cachetable_unpin(f1, parent_key, parent_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, parent_key, parent_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
     if (child < NUM_INTERNAL) {
         move_number_to_child(child, child_val, CACHETABLE_DIRTY);
     }
     else {
-        r = toku_cachetable_unpin(f1, child_key, child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, child_key, child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
         assert_zero(r);
     }
 }
@@ -306,7 +307,7 @@ static void merge_and_split_child(
     // lets get rid of other_child_val with a merge
     *child_val += *other_child_val;
     *other_child_val = INT64_MAX;        
-    toku_cachetable_unpin_and_remove(f1, other_child_key, remove_data, NULL);
+    toku_test_cachetable_unpin_and_remove(f1, other_child_key, remove_data, NULL);
     dirties[1] = CACHETABLE_DIRTY;
     child_dirty = CACHETABLE_DIRTY;
     
@@ -327,22 +328,23 @@ static void merge_and_split_child(
           hashes,
           dirties,
           &new_key,
-          &new_fullhash
+          &new_fullhash,
+          put_callback_nop
           );
     assert(new_key.b == other_child);
     assert(new_fullhash == other_child_fullhash);
     *data_val = 5000;
     *child_val -= 5000;
     
-    r = toku_cachetable_unpin(f1, parent_key, parent_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, parent_key, parent_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
-    r = toku_cachetable_unpin(f1, other_child_key, other_child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, other_child_key, other_child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
     if (child < NUM_INTERNAL) {
         merge_and_split_child(child, child_val, CACHETABLE_DIRTY);
     }
     else {
-        r = toku_cachetable_unpin(f1, child_key, child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, child_key, child_fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
         assert_zero(r);
     }
 }
@@ -397,10 +399,10 @@ static void *checkpoints(void *arg) {
         // now run a checkpoint
         //
         int r;
-        
-        r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);    
+        CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);    
         r = toku_cachetable_end_checkpoint(
-            ct, 
+            cp, 
             NULL, 
             NULL,
             NULL

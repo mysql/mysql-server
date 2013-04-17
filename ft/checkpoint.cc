@@ -226,7 +226,7 @@ toku_checkpoint_destroy(void) {
 
 // Take a checkpoint of all currently open dictionaries
 int 
-toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
+toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
                 void (*callback_f)(void*),  void * extra,
                 void (*callback2_f)(void*), void * extra2,
                 checkpoint_caller_t caller_id) {
@@ -270,7 +270,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     
     SET_CHECKPOINT_FOOTPRINT(30);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
-    r = toku_cachetable_begin_checkpoint(ct, logger);
+    r = toku_cachetable_begin_checkpoint(cp, logger);
 
     toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
@@ -279,7 +279,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (r==0) {
         if (callback_f) 
             callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-        r = toku_cachetable_end_checkpoint(ct, logger, callback2_f, extra2);
+        r = toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
     }
     SET_CHECKPOINT_FOOTPRINT(50);
     if (r==0 && logger) {

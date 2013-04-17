@@ -41,8 +41,9 @@ flush (
 }
 
 static void *run_end_checkpoint(void *arg) {
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     int r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL
@@ -72,9 +73,10 @@ cachetable_test (void) {
     wc.clone_callback = clone_callback;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
-    r = toku_cachetable_begin_checkpoint(ct, NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
 
 
     clone_flush_started = false;
@@ -88,7 +90,7 @@ cachetable_test (void) {
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     assert(clone_flush_started && !clone_flush_completed);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert_zero(r);
     
     void *ret;

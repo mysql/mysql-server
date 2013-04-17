@@ -57,6 +57,13 @@
    drd:ConflictingAccess
    fun:clone
 }
+{
+   EvictorSignalUnlocked
+   drd:CondRaceErr
+   fun:pthread_cond_signal@*
+   fun:_ZL16toku_cond_signalP9toku_cond
+   fun:_ZN7evictor22signal_eviction_threadEv
+}
 
 {
    <insert_a_suppression_name_here>

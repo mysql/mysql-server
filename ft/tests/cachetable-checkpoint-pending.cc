@@ -59,24 +59,6 @@ flush (
     sleep_random();
 }
 
-static int
-fetch (
-    CACHEFILE UU(thiscf), 
-    int UU(fd), 
-    CACHEKEY UU(key), 
-    uint32_t UU(fullhash), 
-    void **UU(value),
-    void **UU(dd), 
-    PAIR_ATTR *UU(sizep), 
-    int *UU(dirtyp), 
-    void *UU(extraargs)
-    )
-{
-    assert(0); // should not be called
-    return 0;
-}
-
-
 static void*
 do_update (void *UU(ignore))
 {
@@ -89,7 +71,7 @@ do_update (void *UU(ignore))
 	long size;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, true, 0);
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch_die, def_pf_req_callback, def_pf_callback, true, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
@@ -97,7 +79,7 @@ do_update (void *UU(ignore))
 	assert(*v==42);
 	*v = 43;
 	//printf("[%d]43\n", i);
-	r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
+	r = toku_test_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
 	sleep_random();
     }
     return 0;
@@ -106,7 +88,8 @@ do_update (void *UU(ignore))
 static void*
 do_checkpoint (void *UU(v))
 {
-  int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    int r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(r == 0);
     return 0;
 }
@@ -140,10 +123,10 @@ static void checkpoint_pending(void) {
 	values[i] = 42;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), wc);
+        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), wc, put_callback_nop);
         assert(r == 0);
 
-        r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
+        r = toku_test_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
         assert(r == 0);
     }
 
@@ -162,15 +145,15 @@ static void checkpoint_pending(void) {
     // after the checkpoint, all of the items should be 43
     //printf("E43\n");
     n_flush = n_write_me = n_keep_me = n_fetch = 0; expect_value = 43;
-
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(r == 0);
     assert(n_flush == N && n_write_me == N && n_keep_me == N);
 
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

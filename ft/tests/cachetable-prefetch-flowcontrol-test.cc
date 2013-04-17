@@ -8,6 +8,7 @@
 
 #include "includes.h"
 #include "test.h"
+#include "cachetable-internal.h"
 
 static int flush_calls = 0;
 static int flush_evict_calls = 0;
@@ -28,10 +29,11 @@ flush (CACHEFILE f __attribute__((__unused__)),
         bool UU(is_clone)
        ) {
     assert(w == false);
+    sleep(1);
     flush_calls++;
     if (keep == false) {
         flush_evict_calls++;
-	if (verbose) printf("%s:%d flush %" PRId64 "\n", __FUNCTION__, __LINE__, k.b);
+        if (verbose) printf("%s:%d flush %" PRId64 "\n", __FUNCTION__, __LINE__, k.b);
         evicted_keys |= 1 << k.b;
     }
 }
@@ -40,6 +42,7 @@ static int fetch_calls = 0;
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k,
        uint32_t fullhash __attribute__((__unused__)),
@@ -65,6 +68,8 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, cachetable_size_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    evictor_test_helpers::set_hysteresis_limits(&ct->ev, cachetable_size_limit, cachetable_size_limit);
+    evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -75,40 +80,33 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     wc.flush_callback = flush;
 
     // prefetch keys 0 .. N-1.  they should all fit in the cachetable
-    for (i=0; i<cachetable_size_limit; i++) {
+    for (i=0; i<cachetable_size_limit+1; i++) {
         CACHEKEY key = make_blocknum(i);
         uint32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
+        bool doing_prefetch = false;
+        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, &doing_prefetch);
+        assert(doing_prefetch);
         toku_cachetable_verify(ct);
     }
 
     // wait for all of the blocks to be fetched
-    sleep(10);
+    sleep(3);
 
     // prefetch keys N .. 2*N-1.  0 .. N-1 should be evicted.
-    for (i=i; i<2*cachetable_size_limit; i++) {
+    for (i=i+1; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         uint32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
+        bool doing_prefetch = false;
+        r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, &doing_prefetch);
+        assert(!doing_prefetch);
         toku_cachetable_verify(ct);
-	// sleep(1);
     }
 
-    // wait for everything to finish
-    sleep(10);
-#if 0 //If we flush using reader thread.
-    assert(flush_evict_calls == cachetable_size_limit);
-    assert(evicted_keys == (1 << cachetable_size_limit)-1);
-#else
-    assert(flush_evict_calls == 0);
-    assert(evicted_keys == 0);
-#endif
 
     char *error_string;
     r = toku_cachefile_close(&f1, &error_string, false, ZERO_LSN); assert(r == 0);
     if (verbose) printf("%s:%d 0x%x 0x%x\n", __FUNCTION__, __LINE__,
-	evicted_keys, (1 << (2*cachetable_size_limit))-1);
-    assert(evicted_keys == (1 << (2*cachetable_size_limit))-1);
+        evicted_keys, (1 << (2*cachetable_size_limit))-1);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

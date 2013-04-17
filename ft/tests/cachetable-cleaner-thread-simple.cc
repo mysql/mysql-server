@@ -25,7 +25,7 @@ my_cleaner_callback(
     assert(fullhash == 100);
     PAIR_ATTR attr = make_pair_attr(8);
     attr.cache_pressure_size = 100;
-    int r = toku_cachetable_unpin(f1, make_blocknum(100), 100, CACHETABLE_CLEAN, attr);
+    int r = toku_test_cachetable_unpin(f1, make_blocknum(100), 100, CACHETABLE_CLEAN, attr);
     my_cleaner_callback_called = true;
     return r;
 }
@@ -58,7 +58,7 @@ run_test (void) {
                                     NULL);
     PAIR_ATTR attr = make_pair_attr(8);
     attr.cache_pressure_size = 100;
-    r = toku_cachetable_unpin(f1, make_blocknum(100), 100, CACHETABLE_CLEAN, attr);
+    r = toku_test_cachetable_unpin(f1, make_blocknum(100), 100, CACHETABLE_CLEAN, attr);
 
     for (int i = 0; i < 4; ++i) {
         r = toku_cachetable_get_and_pin(f1, make_blocknum(i+1), i+1, &vs[i], &ss[i],
@@ -72,7 +72,7 @@ run_test (void) {
         // set cachepressure_size to 0
         attr = make_pair_attr(8);
         attr.cache_pressure_size = 0;
-        r = toku_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_CLEAN, attr);
+        r = toku_test_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_CLEAN, attr);
         assert_zero(r);
     }
 

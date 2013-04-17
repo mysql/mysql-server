@@ -162,7 +162,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Intel)
   set(CMAKE_CXX_FLAGS "-Wcheck ${CMAKE_CXX_FLAGS}")
 else()
   set(CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
   ## set gcc warnings
   set(CMAKE_C_FLAGS "-Wextra ${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "-Wextra ${CMAKE_CXX_FLAGS}")

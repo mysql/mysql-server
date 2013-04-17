@@ -2664,7 +2664,7 @@ toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec) {
     if (lock_wait_time_msec == UINT64_MAX)
         mgr->lock_wait_time = max_timeval;
     else
-        mgr->lock_wait_time = (struct timeval) { (time_t) lock_wait_time_msec / 1000, (__suseconds_t) (lock_wait_time_msec % 1000) * 1000 };
+        mgr->lock_wait_time = (struct timeval) { (time_t) lock_wait_time_msec / 1000, (SUSECONDS) (lock_wait_time_msec % 1000) * 1000 };
 }
 
 void 

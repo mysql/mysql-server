@@ -53,7 +53,7 @@ cachetable_test (void) {
   assert_zero(r);    
   // sleep 3 seconds
   usleep(3*1024*1024);
-  r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
+  r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
   assert_zero(r);
   
   void *ret;

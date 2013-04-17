@@ -364,6 +364,12 @@ ft_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 // End of Functions that are callbacks to the cachefile
 /////////////////////////////////////////////////////////////////////////
 
+
+void toku_node_save_ct_pair(void *value_data, PAIR p) {
+    FTNODE CAST_FROM_VOIDP(node, value_data);
+    node->ct_pair = p;
+}
+
 static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
     FTNODE XMALLOC(node);
     toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->nodesize, ft->h->flags);
@@ -373,7 +379,8 @@ static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
     node->fullhash = fullhash;
     int r = toku_cachetable_put(ft->cf, blocknum, fullhash,
                                 node, make_ftnode_pair_attr(node),
-                                get_write_callbacks_for_node(ft));
+                                get_write_callbacks_for_node(ft),
+                                toku_node_save_ct_pair);
     if (r != 0)
         toku_free(node);
     else

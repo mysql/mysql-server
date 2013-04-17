@@ -252,6 +252,7 @@ struct ftnode {
     // for internal nodes, the ith partition corresponds to the ith message buffer
     // for leaf nodes, the ith partition corresponds to the ith basement node
     struct ftnode_partition *bp;
+    PAIR ct_pair;
 };
 
 // ftnode partition macros
@@ -642,7 +643,7 @@ void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
 extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 extern void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
-extern int toku_ftnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
+extern int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
 extern void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
 extern int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
 extern bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);

@@ -41,6 +41,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -89,14 +90,14 @@ cachetable_test (void) {
   // Then we will begin a checkpoint, which should theoretically mark both as pending, but
   // flush will be called only for v1, because v1 is dirty
   //
-
-  r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);
+  CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+  r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
 
 
   check_me = true;
   flush_called = false;
   r = toku_cachetable_end_checkpoint(
-      ct, 
+      cp, 
       NULL, 
       NULL,
       NULL

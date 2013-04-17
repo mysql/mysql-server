@@ -96,6 +96,7 @@ struct recover_env {
     keep_cachetable_callback_t keep_cachetable_callback; // after recovery, store the cachetable into the environment.
     CACHETABLE ct;
     TOKULOGGER logger;
+    CHECKPOINTER cp;
     ft_compare_func bt_compare;
     ft_update_func update_function;
     generate_row_for_put_func generate_row_for_put;
@@ -226,7 +227,7 @@ static int recover_env_init (RECOVER_ENV renv,
     renv->generate_row_for_del     = generate_row_for_del;
     file_map_init(&renv->fmap);
     renv->goforward = false;
-
+    renv->cp = toku_cachetable_get_checkpointer(renv->ct);
     if (tokudb_recovery_trace)
         fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
     return r;
@@ -1510,7 +1511,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     // checkpoint 
     tnow = time(NULL);
     fprintf(stderr, "%.24s Tokudb recovery making a checkpoint\n", ctime(&tnow));
-    r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL, RECOVERY_CHECKPOINT);
+    r = toku_checkpoint(renv->cp, renv->logger, NULL, NULL, NULL, NULL, RECOVERY_CHECKPOINT);
     assert(r == 0);
     tnow = time(NULL);
     fprintf(stderr, "%.24s Tokudb recovery done\n", ctime(&tnow));

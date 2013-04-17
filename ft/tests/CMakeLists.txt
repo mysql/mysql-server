@@ -1,6 +1,6 @@
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING OR BUILD_FT_TESTS)
   ## get a list of the sources in this directory
   file(GLOB srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cc)
   set(tests)
@@ -131,4 +131,4 @@ if(BUILD_TESTING)
     ft/benchmark-test_256
     )
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
-endif(BUILD_TESTING)
+endif(BUILD_TESTING OR BUILD_FT_TESTS)

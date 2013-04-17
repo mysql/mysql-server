@@ -1415,14 +1415,13 @@ ft_merge_child(
     // now we possibly flush the children
     //
     if (did_merge) {
-        BLOCKNUM bn = childb->thisnodename;
         // for test
         call_flusher_thread_callback(flt_flush_before_unpin_remove);
 
         // merge_remove_key_callback will free the blocknum
         int rrb = toku_cachetable_unpin_and_remove(
             h->cf,
-            bn,
+            childb->ct_pair,
             merge_remove_key_callback,
             h
             );

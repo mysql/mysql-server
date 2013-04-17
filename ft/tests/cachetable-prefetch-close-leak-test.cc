@@ -29,6 +29,7 @@ static int fetch_calls = 0;
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),

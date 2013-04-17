@@ -33,6 +33,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -88,6 +89,7 @@ pe_callback (
     ) 
 {
     *bytes_freed = make_pair_attr(bytes_to_free.size-1);
+    usleep(1*1024*1024);
     if (verbose) printf("calling pe_callback\n");
     expected_bytes_to_free--;
     int* CAST_FROM_VOIDP(foo, ftnode_pv);
@@ -114,6 +116,8 @@ cachetable_test (void) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    evictor_test_helpers::set_hysteresis_limits(&ct->ev, test_limit, 100*test_limit);
+    evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -129,7 +133,7 @@ cachetable_test (void) {
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
       r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(4));
+      r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 8; i++) {
       CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
@@ -137,7 +141,7 @@ cachetable_test (void) {
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
       r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(4));
+      r = toku_test_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 4; i++) {
       CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
@@ -145,7 +149,7 @@ cachetable_test (void) {
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
       r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(4));
+      r = toku_test_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 2; i++) {
       CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
@@ -153,7 +157,7 @@ cachetable_test (void) {
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
       r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, make_pair_attr(4));
+      r = toku_test_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     flush_may_occur = false;
     expected_bytes_to_free = 4;
@@ -161,9 +165,10 @@ cachetable_test (void) {
     wc.flush_callback = other_flush;
     wc.pe_est_callback = pe_est_callback;
     wc.pe_callback = other_pe_callback;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc);
+    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
     flush_may_occur = true;
-    r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(8));
+    ct->ev.signal_eviction_thread();
 
     // we are testing that having a wildly different estimate than
     // what actually gets freed is ok
@@ -171,7 +176,7 @@ cachetable_test (void) {
     // whereas in reality, only 1 byte will be freed
     // we measure that only 1 byte gets freed (which leaves cachetable
     // oversubscrubed)
-    usleep(2*1024*1024);
+    usleep(3*1024*1024);
     assert(expected_bytes_to_free == 3);
 
 

@@ -29,7 +29,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    sleep(2);
+    sleep(3);
     *bytes_freed = make_pair_attr(bytes_to_free.size-7);
     return 0;
 }
@@ -45,6 +45,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -73,7 +74,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
             0
             );
         assert(r==0);
-        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
     }
     
     struct timeval tstart;
@@ -96,7 +97,10 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         0
         );
     assert(r==0);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    ct->ev.signal_eviction_thread();
+    usleep(1*1024*1024);        
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+
         
     toku_cachetable_verify(ct);
 
@@ -140,7 +144,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     if (verbose) printf("time %" PRIu64 " \n", tdelta_usec(&tend, &tstart));
     toku_cachetable_verify(ct);
 
-    r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
+    r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
     assert(r == 0);
     toku_cachetable_verify(ct);
 

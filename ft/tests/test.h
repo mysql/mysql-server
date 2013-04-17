@@ -12,7 +12,7 @@
 
 #include "ft-ops.h"
 #include <toku_htonl.h>
-
+#include "cachetable-internal.h"
 
 
 #define CKERR(r) ({ int __r = r; if (__r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, __r, strerror(r)); assert(__r==0); })
@@ -167,6 +167,7 @@ static UU() bool def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraarg
 
 static UU() int
 def_fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -179,6 +180,30 @@ def_fetch (CACHEFILE f        __attribute__((__unused__)),
     *dirtyp = 0;
     *value = NULL;
     *sizep = make_pair_attr(8);
+    return 0;
+}
+
+static UU() void
+put_callback_nop(
+    void *UU(v),
+    PAIR UU(p)) {
+}
+
+static UU() int
+fetch_die(
+    CACHEFILE UU(thiscf), 
+    PAIR UU(p),
+    int UU(fd), 
+    CACHEKEY UU(key), 
+    uint32_t UU(fullhash), 
+    void **UU(value),
+    void **UU(dd), 
+    PAIR_ATTR *UU(sizep), 
+    int *UU(dirtyp), 
+    void *UU(extraargs)
+    )
+{
+    assert(0); // should not be called
     return 0;
 }
 
@@ -205,6 +230,29 @@ static UU() CACHETABLE_WRITE_CALLBACK def_write_callback(void* write_extraargs) 
     wc.clone_callback = NULL;
     return wc;
 }
+
+class evictor_test_helpers {
+public:
+    static void set_hysteresis_limits(evictor* ev, long low_size_watermark, long high_size_watermark) {
+        ev->m_low_size_watermark = low_size_watermark;
+        ev->m_low_size_hysteresis = low_size_watermark;
+        ev->m_high_size_hysteresis = high_size_watermark;
+        ev->m_high_size_watermark = high_size_watermark;
+    }
+    static void disable_ev_thread(evictor* ev) {
+        toku_mutex_lock(&ev->m_ev_thread_lock);
+        ev->m_period_in_seconds = 0;
+        // signal eviction thread so that it wakes up
+        // and then sleeps indefinitely
+        ev->signal_eviction_thread();
+        toku_mutex_unlock(&ev->m_ev_thread_lock);
+        // sleep for one second to ensure eviction thread picks up new period
+        usleep(1*1024*1024);
+    }
+    static uint64_t get_num_eviction_runs(evictor* ev) {
+        return ev->m_num_eviction_thread_runs;
+    }
+};
 
 int verbose=0;
 

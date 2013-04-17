@@ -44,11 +44,11 @@ void memarena_clear (MEMARENA ma) {
 
 static size_t
 round_to_page (size_t size) {
-    const size_t PAGE_SIZE = 4096;
-    const size_t result = PAGE_SIZE+((size-1)&~(PAGE_SIZE-1));
-    assert(0==(result&(PAGE_SIZE-1))); // make sure it's aligned
+    const size_t _PAGE_SIZE = 4096;
+    const size_t result = _PAGE_SIZE+((size-1)&~(_PAGE_SIZE-1));
+    assert(0==(result&(_PAGE_SIZE-1))); // make sure it's aligned
     assert(result>=size);              // make sure it's not too small
-    assert(result<size+PAGE_SIZE);     // make sure we didn't grow by more than a page.
+    assert(result<size+_PAGE_SIZE);     // make sure we didn't grow by more than a page.
     return result;
 }
 

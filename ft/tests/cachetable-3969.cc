@@ -13,7 +13,7 @@ static void
 unlock_test_fun (void *v) {
     assert(v == NULL);
     // CT lock is held
-    int r = toku_cachetable_unpin_ct_prelocked_no_flush(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
+    int r = toku_test_cachetable_unpin_ct_prelocked_no_flush(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
     assert(r==0);
 }
 
@@ -34,11 +34,11 @@ run_test (void) {
     long s2;
     
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
 
     for (int i = 0; i < 20; i++) {
         r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-        r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
+        r = toku_test_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
     }
 
     //
@@ -50,9 +50,10 @@ run_test (void) {
 
     // pin 1 and 2
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-    r = toku_cachetable_begin_checkpoint(ct, NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
     // mark nodes as pending a checkpoint, so that get_and_pin_nonblocking on block 1 will return TOKUDB_TRY_AGAIN
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
 
     r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     // now we try to pin 1, and it should get evicted out from under us
@@ -78,7 +79,7 @@ run_test (void) {
     assert(r==TOKUDB_TRY_AGAIN);
     
     r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL

@@ -65,21 +65,22 @@ cachetable_test (void) {
     
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
 
     flush_completed = false;
     evict_called = false;
-    r = toku_cachetable_begin_checkpoint(ct, NULL); assert_zero(r);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL); assert_zero(r);
     assert_zero(r);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
-    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
+    r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
     assert_zero(r);
 
 
     r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL

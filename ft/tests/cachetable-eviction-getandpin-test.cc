@@ -24,7 +24,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
         bool UU(is_clone)
        ) {
     if (do_sleep) {
-        sleep(2);
+        sleep(3);
     }
 }
 
@@ -39,6 +39,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -66,7 +67,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
             0
             );
         assert(r==0);
-        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
     }
     
     struct timeval tstart;
@@ -91,13 +92,14 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
         0
         );
     assert(r==0);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
-        
+    ct->ev.signal_eviction_thread();
+    usleep(1*1024*1024);        
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     toku_cachetable_verify(ct);
 
     void *v = 0;
     long size = 0;
-    // now verify that the block we are trying to evict may be pinned
+    // now verify that the block we are trying to evict is gone
     wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
@@ -113,7 +115,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     if (verbose)printf("time %" PRIu64 " \n", tdelta_usec(&tend, &tstart));
     toku_cachetable_verify(ct);
 
-    r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
+    r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
     assert(r == 0);
     toku_cachetable_verify(ct);
 

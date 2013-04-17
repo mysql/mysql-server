@@ -13,11 +13,11 @@
 
 enum { N  = 5 };
 enum { M = 10 };
-static void test1 (size_t chars_per_file, size_t bytes_per_read) {
+static void test1 (size_t chars_per_file, size_t UU(bytes_per_read)) {
     int fds[N];
     char fnames[N][100];
     size_t n_read[N];
-    int n_live=N;
+    int UU(n_live)=N;
     for (int i=0; i<N; i++) {
 	snprintf(fnames[i], 100, "dbufio-test-destroy-file%d.data", i);
 	unlink(fnames[i]);
@@ -45,8 +45,6 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
 	int r = create_dbufio_fileset(&bfs, N, fds, M);
 	assert(r==0);
     }
-
-    n_live = n_live; bytes_per_read = bytes_per_read;
 
     { int r = panic_dbufio_fileset(bfs, EIO); assert(r == 0); }
 

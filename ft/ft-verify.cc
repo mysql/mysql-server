@@ -364,8 +364,7 @@ done:
     {
     int r = toku_cachetable_unpin(
         brt->ft->cf, 
-        node->thisnodename, 
-        toku_cachetable_hash(brt->ft->cf, node->thisnodename), 
+        node->ct_pair,
         CACHETABLE_CLEAN, 
         make_ftnode_pair_attr(node)
         );

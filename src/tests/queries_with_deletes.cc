@@ -22,7 +22,7 @@ int test_main (int argc, char * const argv[]) {
   r = db_env_create(&env, 0);                                                         CKERR(r);
   env->set_errfile(env, stderr);
   // set a cachetable size of 10K
-  uint32_t cachesize = 10*1024;
+  uint32_t cachesize = 100*1024;
   // as part of #4503, arbitrarily increasing sizze of cachetable
   // the idea is to make it small enough such that all data 
   // cannot fit in the cachetable, but big enough such that 

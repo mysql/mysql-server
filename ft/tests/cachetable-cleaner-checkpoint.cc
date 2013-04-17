@@ -51,7 +51,7 @@ cleaner_callback(
     assert(!cleaner_called);
     assert(flush_called);
     cleaner_called = true;
-    int r = toku_cachetable_unpin(f1, blocknum, fullhash, CACHETABLE_CLEAN, make_pair_attr(8));
+    int r = toku_test_cachetable_unpin(f1, blocknum, fullhash, CACHETABLE_CLEAN, make_pair_attr(8));
     assert_zero(r);
     return 0;
 }
@@ -77,15 +77,16 @@ cachetable_test (void) {
   r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
   PAIR_ATTR attr = make_pair_attr(8);
   attr.cache_pressure_size = 8;
-  r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, attr);
+  r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, attr);
 
   cleaner_called = false;
-  r = toku_cachetable_begin_checkpoint(ct, NULL);
+  CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+  r = toku_cachetable_begin_checkpoint(cp, NULL);
   assert_zero(r);
-  toku_cleaner_thread(ct);
+  toku_cleaner_thread_for_test(ct);
   assert(cleaner_called);
   r = toku_cachetable_end_checkpoint(
-      ct, 
+      cp, 
       NULL, 
       NULL,
       NULL
