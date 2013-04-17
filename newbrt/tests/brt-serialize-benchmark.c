@@ -67,6 +67,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1234;
     sn.n_children = 8;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -79,7 +80,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
-        BLB_OPTIMIZEDFORUPGRADE(&sn, 0) = BRT_LAYOUT_VERSION;
     }
     int nperbn = nelts / sn.n_children;
     LEAFENTRY les[nelts];
@@ -188,6 +188,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
+    sn.optimized_for_upgrade = 1234;
     sn.n_children = 8;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);

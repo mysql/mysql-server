@@ -205,7 +205,6 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 			     );
 	    }
 	} else {
-	    printf("  bn %2d: optimized_for_upgrade=%u", i, BLB_OPTIMIZEDFORUPGRADE(n, i));
 	    printf(" n_bytes_in_buffer=%u", BLB_NBYTESINBUF(n, i));
 	    printf(" items_in_buffer=%u\n", toku_omt_size(BLB_BUFFER(n, i)));
 	    if (dump_data) toku_omt_iterate(BLB_BUFFER(n, i), print_le, 0);

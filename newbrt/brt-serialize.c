@@ -250,7 +250,6 @@ serialize_brtnode_partition_size (BRTNODE node, int i)
     }
     else {
         result += 4; // n_entries in buffer table
-        result += 4; // optimized_for_upgrade, see if we can get rid of this
         result += BLB_NBYTESINBUF(node, i);
     }
     result += 4; // checksum
@@ -303,8 +302,6 @@ serialize_brtnode_partition(BRTNODE node, int i, struct sub_block *sb) {
     else {
         unsigned char ch = BRTNODE_PARTITION_OMT_LEAVES;
         wbuf_nocrc_char(&wb, ch);
-        wbuf_nocrc_int(&wb, BLB_OPTIMIZEDFORUPGRADE(node, i));
-        
         wbuf_nocrc_uint(&wb, toku_omt_size(BLB_BUFFER(node, i)));
 
         //
@@ -531,10 +528,9 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     // now we need to fill in the new basement nodes and pivots
 
     // TODO: (Zardosht) this is an ugly thing right now
-    // Need to figure out how to properly deal with the values seqinsert
-    // and optimized_for_upgrade. I am not happy with how this is being
+    // Need to figure out how to properly deal with seqinsert.
+    // I am not happy with how this is being
     // handled with basement nodes
-    u_int32_t tmp_optimized_for_upgrade = BLB_OPTIMIZEDFORUPGRADE(node, node->n_children-1);
     u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, node->n_children-1);
 
     MSN max_msn = MIN_MSN;
@@ -574,9 +570,8 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     }
     // now the basement nodes
     for (int i = 0; i < num_children; i++) {
-        // put back optimized_for_upgrade and seqinsert
+        // put back seqinsert
         BLB_SEQINSERT(node, i) = tmp_seqinsert;
-        BLB_OPTIMIZEDFORUPGRADE(node, i) = tmp_optimized_for_upgrade;
 
         // create start (inclusive) and end (exclusive) boundaries for data of basement node
         u_int32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;
@@ -976,7 +971,6 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
-    bn->optimized_for_upgrade = 0;
     bn->stale_ancestor_messages_applied = false;
     return bn;
 }
@@ -1244,7 +1238,6 @@ deserialize_brtnode_partition(
     else {
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_OMT_LEAVES);
-        BLB_OPTIMIZEDFORUPGRADE(node, index) = rbuf_int(&rb);
         BLB_SEQINSERT(node, index) = 0;
         u_int32_t num_entries = rbuf_int(&rb);
         OMTVALUE *XMALLOC_N(num_entries, array);
