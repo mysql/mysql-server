@@ -117,7 +117,7 @@ PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
 ifeq ($(GCCVERSION),4.4.2)
- COMBINE_C += -Wno-strict-aliasing 
+ CFLAGS += -Wno-strict-aliasing 
 endif
 LIBPORTABILITY        = $(TOKUROOT)lib/libtokuportability.$(AEXT)
 LIBPORTABILITY_BUNDLE = $(TOKUROOT)lib/libtokuportability.bundle
@@ -317,7 +317,7 @@ else
     ARFLAGS  = $(DBG_ARFLAGS)
 endif
 
-CFLAGS = $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW) $(ARCHFLAGS)
+CFLAGS += $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW) $(ARCHFLAGS)
 CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99) $(CCQUIET)
 

@@ -53,9 +53,9 @@ ifeq ($(OS_CHOICE),windows)
 #Does not support parallel builds for files in src.
 .NOTPARALLEL:;
     ifeq ($(DEBUG),0)
-    	WINYDB = $(IPO_YDB)
+	WINYDB = $(IPO_YDB)
     else
-    	WINYDB = $(NOIPO_YDB)
+	WINYDB = $(NOIPO_YDB)
     endif
     LIBRARIES += $(WINYDB)
 libtokudb.pdb :  $(WINYDB);
@@ -116,7 +116,6 @@ ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT
 
 $(IPO_YDB): ipo_libtokudb.obj
 	xilib /out:$@ $^
-
 
 check_globals: $(LIBNAME).$(SOEXT)
 	python tokuglobals.py $<

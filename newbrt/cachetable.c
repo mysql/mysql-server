@@ -1860,7 +1860,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	if (logger) {
 	    // The checkpoint must be performed after the lock is acquired.
 	    {
-		LSN begin_lsn; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
+		LSN begin_lsn={.lsn=-1}; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
 		int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, 0);
 		ct->lsn_of_checkpoint_in_progress = begin_lsn;
 		assert(r==0);
