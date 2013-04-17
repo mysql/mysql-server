@@ -5,10 +5,12 @@ static void foo(int i) {
     printf("%d\n", i);
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    int arg;
     int i;
-    if (0)
-        i = 42;
-    foo(i);
+    for (i = 1; i < argc; i++) {
+        arg = atoi(argv[i]);
+    }
+    foo(arg);
     return 0;
 }

@@ -7,10 +7,12 @@
 int x;
 
 static void *starta(void* ignore __attribute__((__unused__))) {
+    if (verbose) printf("%s %d\n", __FUNCTION__, x);
     x++;
     return 0;
 }
 static void *startb(void* ignore __attribute__((__unused__))) {
+    if (verbose) printf("%s %d\n", __FUNCTION__, x);
     x++;
     return 0;
 }
