@@ -67,14 +67,14 @@ status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(CP_PERIOD,                              nullptr, UINT64,   "period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_PERIOD,                              TOKUDB_CHECKPOINT_PERIOD, UINT64,   "period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CP_FOOTPRINT,                           nullptr, UINT64,   "footprint", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN,          nullptr, UNIXTIME, "last checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE, nullptr, UNIXTIME, "last complete checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_END,            nullptr, UNIXTIME, "last complete checkpoint ended", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN,          TOKUDB_CHECKPOINT_LAST_BEGAN, UNIXTIME, "last checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE, TOKUDB_CHECKPOINT_LAST_COMPLETE_BEGAN, UNIXTIME, "last complete checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_END,            TOKUDB_CHECKPOINT_LAST_COMPLETE_ENDED, UNIXTIME, "last complete checkpoint ended", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CP_LAST_LSN,                            nullptr, UINT64,   "last complete checkpoint LSN", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CHECKPOINT_COUNT,                    nullptr, UINT64,   "checkpoints taken ", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CHECKPOINT_COUNT_FAIL,               nullptr, UINT64,   "checkpoints failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_CHECKPOINT_COUNT,                    TOKUDB_CHECKPOINT_TAKEN, UINT64,   "checkpoints taken ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_CHECKPOINT_COUNT_FAIL,               TOKUDB_CHECKPOINT_FAILED, UINT64,   "checkpoints failed", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CP_WAITERS_NOW,                         nullptr, UINT64,   "waiters now", TOKU_ENGINE_STATUS);
     STATUS_INIT(CP_WAITERS_MAX,                         nullptr, UINT64,   "waiters max", TOKU_ENGINE_STATUS);
     STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   nullptr, UINT64,   "non-checkpoint client wait on mo lock", TOKU_ENGINE_STATUS);

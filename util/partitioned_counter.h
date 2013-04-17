@@ -67,7 +67,7 @@ void partitioned_counters_destroy(void);
     array.status[k].type    = t;                     \
     array.status[k].legend  = l;                     \
     static_assert((inc) != 0, "Var must be included in at least one place"); \
-    static_assert(true || (inc) == TOKU_ENGINE_STATUS ||                             \
+    static_assert((inc) == TOKU_ENGINE_STATUS ||                             \
             (strcmp(#c, "nullptr") && strcmp(#c, "NULL") && strcmp(#c, "0")) \
             , "Missing column name.");                                       \
     array.status[k].include = static_cast<toku_engine_status_include_type>(inc);  \

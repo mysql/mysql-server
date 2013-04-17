@@ -121,10 +121,10 @@ ydb_layer_status_init (void) {
     STATUS_INIT(YDB_LAYER_TIME_CREATION,              nullptr, UNIXTIME, "time of environment creation", TOKU_ENGINE_STATUS);
     STATUS_INIT(YDB_LAYER_TIME_STARTUP,               nullptr, UNIXTIME, "time of engine startup", TOKU_ENGINE_STATUS);
     STATUS_INIT(YDB_LAYER_TIME_NOW,                   nullptr, UNIXTIME, "time now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                nullptr, UINT64,   "db opens", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               nullptr, UINT64,   "db closes", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               nullptr, UINT64,   "num open dbs now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               nullptr, UINT64,   "max open dbs", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                TOKUDB_DB_OPENS, UINT64,   "db opens", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               TOKUDB_DB_CLOSES, UINT64,   "db closes", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               TOKUDB_DB_OPEN_CURRENT, UINT64,   "num open dbs now", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               TOKUDB_DB_OPEN_MAX, UINT64,   "max open dbs", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           nullptr, UINT64,   "period, in ms, that recovery log is automatically fsynced", TOKU_ENGINE_STATUS);
 
     STATUS_VALUE(YDB_LAYER_TIME_STARTUP) = time(NULL);
@@ -1701,12 +1701,12 @@ static FS_STATUS_S fsstat;
 static void
 fs_status_init(void) {
     FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   nullptr, FS_STATE, "ENOSPC redzone state", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, nullptr, UINT64,   "threads currently blocked by full disk", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, TOKUDB_FILESYSTEM_THREADS_BLOCKED_BY_FULL_DISK, UINT64,   "threads currently blocked by full disk", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     nullptr, UINT64,   "number of operations rejected by enospc prevention (red zone)", TOKU_ENGINE_STATUS);
     FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     nullptr, UNIXTIME, "most recent disk full", TOKU_ENGINE_STATUS);
     FS_STATUS_INIT(FS_ENOSPC_COUNT,           nullptr, UINT64,   "number of write operations that returned ENOSPC", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_FSYNC_TIME,             nullptr, UINT64,   "fsync time", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_FSYNC_COUNT,            nullptr, UINT64,   "fsync count", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_TIME,             TOKUDB_FILESYSTEM_FSYNC_SECONDS, UINT64,   "fsync time", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_COUNT,            TOKUDB_FILESYSTEM_FSYNC_NUM, UINT64,   "fsync count", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     fsstat.initialized = true;
 }
 #undef FS_STATUS_INIT
@@ -1775,7 +1775,7 @@ memory_status_init(void) {
     STATUS_INIT(MEMORY_REQUESTED,          nullptr, UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_USED,               nullptr, UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_FREED,              nullptr, UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_MAX_IN_USE,         nullptr, UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MAX_IN_USE,         TOKUDB_MEM_ESTIMATED_MAXIMUM_MEMORY_FOOTPRINT, UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(MEMORY_MALLOCATOR_VERSION, nullptr, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_MMAP_THRESHOLD,     nullptr, UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
     memory_status.initialized = true;  
