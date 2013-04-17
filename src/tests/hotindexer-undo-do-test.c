@@ -185,16 +185,20 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
     return 0;
 }
 
+static DB_INDEXER *test_indexer = NULL;
+static DB *test_hotdb = NULL;
+
 static int
 test_is_xid_live(DB_INDEXER *indexer, TXNID xid) {
-    indexer = indexer;
+    invariant(indexer == test_indexer);
     int r = is_live(&live_xids, xid);
     return r;
 }
 
 static int 
 test_maybe_lock_provisional_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
-    hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     if (test_is_xid_live(indexer, xid)) {
         printf("lock [%lu] ", xid);
         print_dbt(key);
@@ -205,7 +209,8 @@ test_maybe_lock_provisional_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *
 
 static int 
 test_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
-    indexer = indexer; hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     printf("delete_provisional ");
     print_xids(xids);
     print_dbt(hotkey);
@@ -215,7 +220,8 @@ test_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) 
 
 static int
 test_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
-    indexer = indexer; hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     printf("delete_committed ");
     print_xids(xids);
     print_dbt(hotkey);
@@ -225,7 +231,8 @@ test_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
 
 static int 
 test_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
-    indexer = indexer; hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     printf("insert_provisional ");
     print_xids(xids);
     print_dbt(hotkey);
@@ -236,7 +243,8 @@ test_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval
 
 static int 
 test_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
-    indexer = indexer; hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     printf("insert_committed ");
     print_xids(xids);
     print_dbt(hotkey);
@@ -247,7 +255,8 @@ test_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, 
 
 static int
 test_commit_any(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
-    indexer = indexer; hotdb = hotdb;
+    invariant(indexer == test_indexer);
+    invariant(hotdb == test_hotdb);
     printf("commit_any ");
     print_xids(xids);
     print_dbt(hotkey);
@@ -401,6 +410,10 @@ run_test(char *envdir, char *testname) {
     indexer->i->test_insert_provisional = test_insert_provisional;
     indexer->i->test_insert_committed = test_insert_committed;
     indexer->i->test_commit_any = test_commit_any;
+
+    // verify indexer and hotdb in the callbacks
+    test_indexer = indexer;
+    test_hotdb = dest_db;
 
     // create a ule
     ULE ule = ule_create(); 
