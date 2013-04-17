@@ -1,7 +1,7 @@
 #ifndef _TOKU_PTHREAD_H
 #define _TOKU_PTHREAD_H
 
-#if defined __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -100,7 +100,7 @@ int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond) {
     return pthread_cond_broadcast(cond);
 }
 
-#if defined __cplusplus
+#if defined(__cplusplus)
 };
 #endif
 

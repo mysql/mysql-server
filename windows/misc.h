@@ -1,5 +1,10 @@
 #ifndef _MISC_H
 #define _MISC_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "toku_os.h"
 #include <sys/stat.h>
 
@@ -67,6 +72,10 @@ char *realpath(const char *path, char *resolved_path);
 
 int unsetenv(const char *name);
 int setenv(const char *name, const char *value, int overwrite);
+
+#if defined(__cplusplus)
+};
+#endif
 
 #endif
 
