@@ -1041,12 +1041,7 @@ env_close(DB_ENV * env, uint32_t flags) {
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
-            r = toku_logger_close_rollback(env->i->logger);
-            if (r) {
-                err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
-            }
+            toku_logger_close_rollback(env->i->logger);
             //Do a second checkpoint now that the rollback cachefile is closed.
             r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {

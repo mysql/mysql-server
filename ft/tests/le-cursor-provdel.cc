@@ -89,7 +89,6 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     toku_logger_close_rollback(logger);
-    assert(error == 0);
     
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
@@ -193,7 +192,6 @@ test_provdel(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     toku_logger_close_rollback(logger);
-    assert(error == 0);
     error = toku_logger_close(&logger);
     assert(error == 0);
 

@@ -232,8 +232,7 @@ static void recover_env_cleanup (RECOVER_ENV renv) {
     file_map_destroy(&renv->fmap);
 
     if (renv->destroy_logger_at_end) {
-        r = toku_logger_close_rollback(renv->logger);
-        assert(r==0);
+        toku_logger_close_rollback(renv->logger);
         r = toku_logger_close(&renv->logger);
         assert(r == 0);
     } else {
