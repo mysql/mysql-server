@@ -994,6 +994,13 @@ static int toku_txn_release_locks(DB_TXN* txn) {
     return r;
 }
 
+// Yield the lock so someone else can work, and then reacquire the lock.
+// Useful while processing commit or rollback logs, to allow others to access the system.
+static void ydb_yield (void *UU(v)) {
+    toku_ydb_unlock(); 
+    toku_ydb_lock();
+}
+
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -1020,15 +1027,22 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     int nosync = (flags & DB_TXN_NOSYNC)!=0 || (txn->i->flags&DB_TXN_NOSYNC);
     flags &= ~DB_TXN_NOSYNC;
 
-    int r2 = toku_txn_release_locks(txn);
     int r;
     if (r_child_first || flags!=0)
-        r = toku_logger_abort(txn->i->tokutxn); // frees the tokutxn
+	// frees the tokutxn
+	// Calls ydb_yield(NULL) occasionally
+        r = toku_logger_abort(txn->i->tokutxn, ydb_yield, NULL);
     else
-        r = toku_logger_commit(txn->i->tokutxn, nosync); // frees the tokutxn
+	// frees the tokutxn
+	// Calls ydb_yield(NULL) occasionally
+        r = toku_logger_commit(txn->i->tokutxn, nosync, ydb_yield, NULL);
+
+    // Close the logger after releasing the locks
+    int r2 = toku_txn_release_locks(txn);
+    toku_logger_txn_close(txn->i->tokutxn);
     // the toxutxn is freed, and we must free the rest. */
 
-    // The txn is no good after the commit even if the commit fails.
+    // The txn is no good after the commit even if the commit fails, so free it up.
     if (txn->i)
         toku_free(txn->i);
     toku_free(txn);
@@ -1064,8 +1078,9 @@ static int toku_txn_abort(DB_TXN * txn) {
             txn->i->prev->i->next = txn->i->next;
         }
     }
+    int r = toku_logger_abort(txn->i->tokutxn, ydb_yield, NULL);
     int r2 = toku_txn_release_locks(txn);
-    int r = toku_logger_abort(txn->i->tokutxn);
+    toku_logger_txn_close(txn->i->tokutxn);
 
     toku_free(txn->i);
     toku_free(txn);

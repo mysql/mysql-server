@@ -39,7 +39,14 @@ LSN toku_logger_last_lsn(TOKULOGGER);
 int toku_logger_set_lg_max (TOKULOGGER logger, u_int32_t);
 int toku_logger_get_lg_max (TOKULOGGER logger, u_int32_t *);
 
-int toku_logger_commit (TOKUTXN txn, int no_sync);
+// Doesn't close the txn, just performs the commit operations.
+int toku_logger_commit (TOKUTXN txn, int no_sync, void(*yield)(void*yield_v), void*yield_v);
+
+// Doesn't close the txn, just performs the abort operations.
+int toku_logger_abort(TOKUTXN, void(*/*yield*/)(void*), void*/*yield_v*/);
+
+// Closes a txn.  Call after commiting or aborting.
+void toku_logger_txn_close (TOKUTXN);
 
 int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TOKULOGGER /*logger*/);
 
@@ -155,7 +162,6 @@ static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER val) {
 
 int toku_recover_init(void);
 void toku_recover_cleanup(void);
-int toku_logger_abort(TOKUTXN);
 
 // Find the txn that belongs to a txnid.
 // Return nonzero if no such txn is live (either didn't exist ever, or it is committed or aborted.)
@@ -168,10 +174,20 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 int toku_maybe_spill_rollbacks (TOKUTXN txn);
 
 struct roll_entry;
-int toku_rollback_fileentries (int fd, toku_off_t filesize, TOKUTXN txn);
-int toku_commit_fileentries (int fd, toku_off_t filesize, TOKUTXN txn);
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item);
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item);
+int toku_rollback_fileentries (int        fd,
+			       toku_off_t filesize,
+			       TOKUTXN    txn,
+			       void (*yield)(void*yieldv),
+			       void *     yieldv);
+int toku_commit_fileentries (int        fd,
+			     toku_off_t filesize,
+			     TOKUTXN    txn,
+			     void (*yield)(void*yieldv),
+			     void *     yieldv);
+
+// do the commit items.  Call yield(yield_v) once in a while.
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, void(*yield)(void*yield_v), void*yield_v);
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, void(*yield)(void*yield_v), void*yield_v);
 
 int toku_txn_note_brt (TOKUTXN txn, BRT brt);
 int toku_txn_note_close_brt (BRT brt);

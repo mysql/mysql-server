@@ -1,8 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+
 #define DONT_DEPRECATE_MALLOC
 #include "test.h"
-
 
 /* Test to see if setting malloc works, and if dlmalloc works. */
 
