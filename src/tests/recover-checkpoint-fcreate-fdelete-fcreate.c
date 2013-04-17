@@ -1,4 +1,4 @@
-// this test makes sure that fassociate can open nodup and dupsort dictionaries
+// fcreate, fdelete, fcreate after a checkpoint
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -14,29 +14,27 @@ static void run_test (void) {
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
-    DB *dba, *dbb;
+    DB *db;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
-    r = db_create(&dba, env, 0);                                                        CKERR(r);
-    r = dba->set_flags(dba, DB_DUPSORT);                                                CKERR(r);
-    r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    // checkpoint
+    r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
-    r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->set_flags(dbb, DB_DUPSORT);                                                CKERR(r);
-    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    // create
+    r = db_create(&db, env, 0);                                                         CKERR(r);
+    r = db->open(db, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
+    r = db->close(db, 0);                                                               CKERR(r);
 
-    DB_TXN *txn;
-    r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
-    {
-	DBT a={.data="a", .size=2};
-	DBT b={.data="b", .size=2};
-	r = dba->put(dba, txn, &a, &b, DB_YESOVERWRITE);                                CKERR(r);
-	r = env->txn_checkpoint(env, 0, 0, 0);                                          CKERR(r);
-	r = dbb->put(dbb, txn, &b, &a, DB_YESOVERWRITE);                                CKERR(r);
-    }
+    // delete
+    r = db_create(&db, env, 0);                                                         CKERR(r);
+    r = db->remove(db, namea, NULL, 0);                                                 CKERR(r);
 
-    r = txn->commit(txn, 0);                                                            CKERR(r);
+    // create
+    r = db_create(&db, env, 0);                                                         CKERR(r);
+    r = db->set_flags(db, DB_DUPSORT);                                                  CKERR(r);
+    r = db->open(db, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
+    r = db->close(db, 0);                                                               CKERR(r);
 
     abort();
 }
@@ -49,19 +47,23 @@ static void run_recover (void) {
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     
     u_int32_t dbflags;
-    DB *dba;
-    r = db_create(&dba, env, 0);                                                            CKERR(r);
-    r = dba->open(dba, NULL, namea, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                CKERR(r);
-    r = dba->get_flags(dba, &dbflags);                                                      CKERR(r);
+    DB *db;
+    r = db_create(&db, env, 0);                                                             CKERR(r);
+    r = db->open(db, NULL, namea, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                  CKERR(r);
+    r = db->get_flags(db, &dbflags);                                                        CKERR(r);
     assert(dbflags == DB_DUPSORT);
-    r = dba->close(dba, 0);                                                                 CKERR(r);
-    DB *dbb;
-    r = db_create(&dbb, env, 0);                                                            CKERR(r);
-    r = dbb->open(dbb, NULL, nameb, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                CKERR(r);
-    r = dbb->get_flags(dbb, &dbflags);                                                      CKERR(r);
-    assert(dbflags == DB_DUPSORT);
-    r = dbb->close(dbb, 0);                                                                 CKERR(r);
+    r = db->close(db, 0);                                                                   CKERR(r);
 
+    r = env->close(env, 0);                                                                 CKERR(r);
+    exit(0);
+}
+
+static void run_recover_only (void) {
+    DB_ENV *env;
+    int r;
+
+    r = db_env_create(&env, 0);                                                             CKERR(r);
+    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }
@@ -120,7 +122,7 @@ int test_main (int argc, char *argv[]) {
     } else if (do_recover) {
         run_recover();
     } else if (do_recover_only) {
-        run_recover();
+        run_recover_only();
     } else if (do_no_recover) {
         run_no_recover();
     } 
