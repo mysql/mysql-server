@@ -75,6 +75,10 @@ void toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMEN
 
 int64_t toku_block_get_blocks_in_use_unlocked(BLOCK_TABLE bt);
 
+void toku_blocktable_get_info64(BLOCK_TABLE, struct ftinfo64 *);
+
+int toku_blocktable_iterate_translation_tables(BLOCK_TABLE, uint64_t, int (*)(uint64_t, int64_t, int64_t, int64_t, int64_t, void *), void *);
+
 //Unmovable reserved first, then reallocable.
 // We reserve one blocknum for the translation table itself.
 enum {RESERVED_BLOCKNUM_NULL       =0,

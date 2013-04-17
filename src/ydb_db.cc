@@ -605,6 +605,24 @@ toku_db_get_compression_method(DB *db, enum toku_compression_method *compression
     return 0;
 }
 
+static int
+toku_db_get_fractal_tree_info64(DB *db, uint64_t *num_blocks_allocated, uint64_t *num_blocks_in_use, uint64_t *size_allocated, uint64_t *size_in_use) {
+    HANDLE_PANICKED_DB(db);
+    struct ftinfo64 ftinfo;
+    toku_ft_handle_get_fractal_tree_info64(db->i->ft_handle, &ftinfo);
+    *num_blocks_allocated = ftinfo.num_blocks_allocated;
+    *num_blocks_in_use = ftinfo.num_blocks_in_use;
+    *size_allocated = ftinfo.size_allocated;
+    *size_in_use = ftinfo.size_in_use;
+    return 0;
+}
+
+static int
+toku_db_iterate_fractal_tree_block_map(DB *db, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra) {
+    HANDLE_PANICKED_DB(db);
+    return toku_ft_handle_iterate_fractal_tree_block_map(db->i->ft_handle, iter, iter_extra);
+}
+
 static int 
 toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
@@ -913,6 +931,8 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(key_range64);
     USDB(hot_optimize);
     USDB(stat64);
+    USDB(get_fractal_tree_info64);
+    USDB(iterate_fractal_tree_block_map);
     USDB(verify_with_progress);
     USDB(cursor);
     USDB(dbt_pos_infty);

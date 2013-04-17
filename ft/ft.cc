@@ -770,6 +770,16 @@ toku_ft_stat64 (FT ft, struct ftstat64_s *s) {
     s->verify_time_sec = ft->h->time_of_last_verification;    
 }
 
+void
+toku_ft_get_fractal_tree_info64(FT ft, struct ftinfo64 *s) {
+    toku_blocktable_get_info64(ft->blocktable, s);
+}
+
+int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra) {
+    uint64_t this_checkpoint_count = ft->h->checkpoint_count;
+    return toku_blocktable_iterate_translation_tables(ft->blocktable, this_checkpoint_count, iter, iter_extra);
+}
+
 void 
 toku_ft_update_descriptor(FT ft, DESCRIPTOR d) 
 // Effect: Changes the descriptor in a tree (log the change, make sure it makes it to disk eventually).

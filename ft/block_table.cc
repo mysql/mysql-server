@@ -1070,3 +1070,56 @@ toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATIO
 
     block_allocator_get_unused_statistics(bt->block_allocator, report);
 }
+
+void
+toku_blocktable_get_info64(BLOCK_TABLE bt, struct ftinfo64 *s) {
+    lock_for_blocktable(bt);
+
+    struct translation *current = &bt->current;
+    s->num_blocks_allocated = current->length_of_array;
+    s->num_blocks_in_use = 0;
+    s->size_allocated = 0;
+    s->size_in_use = 0;
+
+    for (int64_t i = 0; i < current->length_of_array; ++i) {
+        struct block_translation_pair *block = &current->block_translation[i];
+        if (block->size != size_is_free) {
+            ++s->num_blocks_in_use;
+            s->size_in_use += block->size;
+            if (block->u.diskoff != diskoff_unused) {
+                uint64_t limit = block->u.diskoff + block->size;
+                if (limit > s->size_allocated) {
+                    s->size_allocated = limit;
+                }
+            }
+        }
+    }
+
+    unlock_for_blocktable(bt);
+}
+
+int
+toku_blocktable_iterate_translation_tables(BLOCK_TABLE bt, uint64_t checkpoint_count,
+                                           int (*iter)(uint64_t checkpoint_count,
+                                                       int64_t total_num_rows,
+                                                       int64_t blocknum,
+                                                       int64_t diskoff,
+                                                       int64_t size,
+                                                       void *extra),
+                                           void *iter_extra) {
+    int error = 0;
+    lock_for_blocktable(bt);
+
+    int64_t total_num_rows = bt->current.length_of_array + bt->checkpointed.length_of_array;
+    for (int64_t i = 0; error == 0 && i < bt->current.length_of_array; ++i) {
+        struct block_translation_pair *block = &bt->current.block_translation[i];
+        error = iter(checkpoint_count, total_num_rows, i, block->u.diskoff, block->size, iter_extra);
+    }
+    for (int64_t i = 0; error == 0 && i < bt->checkpointed.length_of_array; ++i) {
+        struct block_translation_pair *block = &bt->checkpointed.block_translation[i];
+        error = iter(checkpoint_count - 1, total_num_rows, i, block->u.diskoff, block->size, iter_extra);
+    }
+
+    unlock_for_blocktable(bt);
+    return error;
+}

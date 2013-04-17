@@ -67,6 +67,8 @@ void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *ro
 void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key);
 LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
 void toku_ft_stat64 (FT h, struct ftstat64_s *s);
+void toku_ft_get_fractal_tree_info64 (FT h, struct ftinfo64 *s);
+int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra);
 
 // unconditionally set the descriptor for an open FT. can't do this when
 // any operation has already occurred on the ft.
