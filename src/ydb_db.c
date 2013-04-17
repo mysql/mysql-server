@@ -499,6 +499,12 @@ toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newna
     return r;
 }
 
+static int
+toku_db_update_cmp_descriptor(DB *db) {
+    toku_brt_update_cmp_descriptor(db->i->brt);
+    return 0;
+}
+
 //
 // This function is the only way to set a descriptor of a DB.
 //
@@ -1071,6 +1077,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 #undef SDB
     // methods that take the ydb lock in some capacity,
     // but not from beginning to end
+    result->update_cmp_descriptor = toku_db_update_cmp_descriptor;
     result->del = autotxn_db_del;
     result->put = autotxn_db_put;
     result->update = autotxn_db_update;

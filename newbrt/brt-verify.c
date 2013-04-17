@@ -172,7 +172,7 @@ verify_sorted_by_key_msn(BRT brt, FIFO fifo, OMT mt) {
         assert_zero(r);
         size_t offset = (size_t) v;
         if (i > 0) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->descriptor, .cmp = brt->compare_fun, .fifo = fifo };
+            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo };
             if (toku_fifo_entry_key_msn_cmp(&extra, &last_offset, &offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
@@ -186,7 +186,7 @@ verify_sorted_by_key_msn(BRT brt, FIFO fifo, OMT mt) {
 static int
 count_eq_key_msn(BRT brt, FIFO fifo, OMT mt, const void *key, size_t keylen, MSN msn) {
     struct toku_fifo_entry_key_msn_heaviside_extra extra = { 
-        .desc = &brt->h->descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .keylen = keylen, .msn = msn 
+        .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .keylen = keylen, .msn = msn 
     };
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(mt, toku_fifo_entry_key_msn_heaviside, &extra, &v, &idx);

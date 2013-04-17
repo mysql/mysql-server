@@ -32,6 +32,7 @@ C_BEGIN
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
+void toku_brt_update_cmp_descriptor(BRT t);
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 // Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.

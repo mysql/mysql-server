@@ -142,7 +142,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     brtnode_put_cmd (
         brt->h->compare_fun,
         brt->h->update_fun,
-        &brt->h->descriptor,
+        &brt->h->cmp_descriptor,
         node,
         &cmd,
         true,
@@ -209,7 +209,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     DBT k;
     int childnum = toku_brtnode_which_child(node,
                                             toku_fill_dbt(&k, key, keylen),
-                                            &brt->h->descriptor, brt->compare_fun);
+                                            &brt->h->cmp_descriptor, brt->compare_fun);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
