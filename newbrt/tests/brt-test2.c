@@ -30,7 +30,7 @@ static void test2 (int memcheck, int limit) {
 	r = toku_verify_brt(t); assert(r==0);
 	//printf("%s:%d did insert %d\n", __FILE__, __LINE__, i);
 	if (0) {
-	    brt_flush(t);
+	    toku_brt_flush(t);
 	    {
 		int n = toku_get_n_items_malloced();
 		if (verbose) printf("%s:%d i=%d n_items_malloced=%d\n", __FILE__, __LINE__, i, n);
