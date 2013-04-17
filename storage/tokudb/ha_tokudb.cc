@@ -3859,6 +3859,13 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (error) { goto cleanup; }
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
+    if (mult_put_flags[primary_key] == DB_NOOVERWRITE_NO_ERROR) {
+        //
+        //hopefully temporary, right now, put_multiple does not
+        // support use of DB_NOOVERWRITE_NO_ERROR as put_flag
+        //
+        mult_put_flags[primary_key] = DB_NOOVERWRITE;
+    }
     lockretryN(wait_lock_time){
         error = db_env->update_multiple(
             db_env, 
