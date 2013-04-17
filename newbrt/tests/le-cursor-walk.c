@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
 // test the LE_CURSOR next function

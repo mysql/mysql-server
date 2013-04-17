@@ -1,5 +1,6 @@
 // Test the first case for the bug in #1308 (brt-serialize.c:33 does the cast wrong)
-
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
 

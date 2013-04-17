@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id$"
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
 // generate fractal trees with a given height, fanout, and number of leaf elements per leaf.

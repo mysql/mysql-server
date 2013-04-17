@@ -1,4 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 
 #include "test.h"

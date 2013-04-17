@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 // verify that closing the cachetable with prefetches in progress works
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
 

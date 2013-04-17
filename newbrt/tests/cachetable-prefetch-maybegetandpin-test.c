@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 /* verify that maybe_get_and_pin returns an error while a prefetch block is pending */
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
 
