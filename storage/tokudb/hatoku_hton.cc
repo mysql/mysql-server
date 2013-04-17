@@ -1211,9 +1211,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_waiters_max);
       STATPRINT("checkpoint waiters max", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_mo);
-      STATPRINT("checkpoint client wait on mo lock", buf);
+      STATPRINT("checkpoint client wait on mo lock, not for a checkpoint", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_cs);
-      STATPRINT("checkpoint client wait on cs lock", buf);
+      STATPRINT("checkpoint client wait on cs lock, not for a checkpoint", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_sched_cs);
       STATPRINT("checkpoint sched wait on cs lock", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_client_cs);
