@@ -5,19 +5,21 @@
 #ident "$Id$"
 
 #include <ctype.h>
+
 #include <db.h>
-#include "ydb-internal.h"
+#include <locktree/locktree.h>
 #include <ft/ft.h>
 #include <ft/ft-flusher.h>
 #include <ft/checkpoint.h>
-#include "indexer.h"
-#include "ydb_load.h"
 #include <ft/log_header.h>
+
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_db.h"
 #include "ydb_write.h"
-#include <lock_tree/locktree.h>
+#include "ydb-internal.h"
+#include "ydb_load.h"
+#include "indexer.h"
 #include <portability/toku_atomic.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
@@ -81,7 +83,6 @@ create_iname_hint(const char *dname, char *hint) {
     *hint = '\0';
 }
 
-
 // n < 0  means to ignore mark and ignore n
 // n >= 0 means to include mark ("_B_" or "_P_") with hex value of n in iname
 // (intended for use by loader, which will create many inames using one txnid).
@@ -128,7 +129,7 @@ toku_db_close(DB * db) {
     // close the ft handle, and possibly close the locktree
     toku_ft_handle_close(db->i->ft_handle);
     if (db->i->lt) {
-        toku_lt_remove_db_ref(db->i->lt);
+        db->dbenv->i->ltm.release_lt(db->i->lt);
     }
     toku_sdbt_cleanup(&db->i->skey);
     toku_sdbt_cleanup(&db->i->sval);
@@ -179,7 +180,6 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags) {
     flags &= ~DB_ISOLATION_FLAGS;
     // And DB_GET_BOTH is no longer supported. #2862.
     if (flags != 0) return EINVAL;
-
 
     DBC *dbc;
     r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
@@ -292,7 +292,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 
     // we now have an iname
     if (r == 0) {
-        r = db_open_iname(db, txn, iname, flags, mode);
+        r = toku_db_open_iname(db, txn, iname, flags, mode);
         if (r == 0) {
             db->i->dname = toku_xstrdup(dname);
             env_note_db_opened(db->dbenv, db);  // tell env that a new db handle is open (using dname)
@@ -306,34 +306,28 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 }
 
 // set the descriptor and cmp_descriptor to the
-// descriptors from the given ft
+// descriptors from the given ft, updating the
+// locktree's descriptor pointer if necessary
 static void
 db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
     db->descriptor = toku_ft_get_descriptor(ft_handle);
     db->cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
+    if (db->i->lt) {
+        db->i->lt->set_descriptor(db->cmp_descriptor);
+    }
 }
 
 // callback that sets the descriptors when 
 // a dictionary is redirected at the ft layer
-// I wonder if client applications can safely access
-// the descriptor via db->descriptor, because
-// a redirect may be happening underneath the covers.
-// Need to investigate further.
 static void
 db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
     DB *db = (DB *) extra;
     db_set_descriptors(db, ft_handle);
 }
 
-struct lt_on_create_callback_extra {
-    DB_TXN *txn;
-    FT_HANDLE ft_handle;
-};
-
 // when a locktree is created, clone a ft handle and store it
 // as userdata so we can close it later.
-static void
-lt_on_create_callback(toku_lock_tree *lt, void *extra) {
+void toku_db_lt_on_create_callback(toku::locktree *lt, void *extra) {
     int r;
     struct lt_on_create_callback_extra *info = (struct lt_on_create_callback_extra *) extra;
     TOKUTXN ttxn = info->txn ? db_txn_struct_i(info->txn)->tokutxn : NULL;
@@ -343,20 +337,20 @@ lt_on_create_callback(toku_lock_tree *lt, void *extra) {
     r = toku_ft_handle_clone(&cloned_ft_handle, ft_handle, ttxn);
     invariant_zero(r);
 
-    assert(toku_lt_get_userdata(lt) == NULL);
-    toku_lt_set_userdata(lt, cloned_ft_handle);
+    assert(lt->get_userdata() == NULL);
+    lt->set_userdata(cloned_ft_handle);
 }
 
-// when a locktree closes, get its ft handle as userdata and close it.
-static void
-lt_on_close_callback(toku_lock_tree *lt) {
-    FT_HANDLE ft_handle = (FT_HANDLE) toku_lt_get_userdata(lt);
+// when a locktree is about to be destroyed, 
+// close the ft handle stored as userdata.
+void toku_db_lt_on_destroy_callback(toku::locktree *lt) {
+    FT_HANDLE ft_handle = (FT_HANDLE) lt->get_userdata();
     assert(ft_handle);
     toku_ft_handle_close(ft_handle);
 }
 
 int 
-db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
+toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
     //Set comparison functions if not yet set.
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
         toku_ft_set_bt_compare(db->i->ft_handle, db->dbenv->i->bt_compare);
@@ -421,11 +415,12 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, i
             .txn = txn,
             .ft_handle = db->i->ft_handle,
         };
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, 
-                toku_ft_get_bt_compare(db->i->ft_handle), lt_on_create_callback, &on_create_extra, lt_on_close_callback);
-        if (r != 0) { 
-            goto error_cleanup; 
-        }
+        db->i->lt = db->dbenv->i->ltm.get_lt(
+                db->i->dict_id,
+                db->cmp_descriptor,
+                toku_ft_get_bt_compare(db->i->ft_handle),
+                &on_create_extra);
+        invariant_notnull(db->i->lt);
     }
     return 0;
  
@@ -433,7 +428,7 @@ error_cleanup:
     db->i->dict_id = DICTIONARY_ID_NONE;
     db->i->opened = 0;
     if (db->i->lt) {
-        toku_lt_remove_db_ref(db->i->lt);
+        db->dbenv->i->ltm.release_lt(db->i->lt);
         db->i->lt = NULL;
     }
     return r;
@@ -456,7 +451,9 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
 
     DBT key_in_directory = { .data = dname, .size = (uint32_t) strlen(dname)+1 };
     //Left end of range == right end of range (point lock)
-    int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_WRITE);
+    int r = toku_db_get_range_lock(db->dbenv->i->directory, txn,
+            &key_in_directory, &key_in_directory,
+            toku::lock_request::type::WRITE);
     if (r == 0)
         STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS)++;  // accountability 
     else
@@ -514,12 +511,6 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         update_cmp_descriptor
         );
 
-    // the lock tree uses a copy of the header's descriptor for comparisons.
-    // if we need to update the cmp descriptor, we need to make sure the lock
-    // tree can get a copy of the new descriptor.
-    if (db->i->lt && update_cmp_descriptor) {
-        toku_lt_update_descriptor(db->i->lt, db->cmp_descriptor);
-    }
 cleanup:
     if (old_descriptor.data) {
         toku_free(old_descriptor.data);
@@ -655,7 +646,9 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return 0;
     int r;
-    r = get_range_lock(db, txn, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_WRITE);
+    r = toku_db_get_range_lock(db, txn, 
+            toku_dbt_negative_infinity(), toku_dbt_positive_infinity(),
+            toku::lock_request::type::WRITE);
     return r;
 }
 
@@ -750,16 +743,17 @@ static int
 toku_db_fd(DB * UU(db), int * UU(fdp)) {
     return 0;
 }
+
 static const DBT* toku_db_dbt_pos_infty(void) __attribute__((pure));
 static const DBT*
 toku_db_dbt_pos_infty(void) {
-    return toku_lt_infinity;
+    return toku_dbt_positive_infinity();
 }
 
 static const DBT* toku_db_dbt_neg_infty(void) __attribute__((pure));
 static const DBT* 
 toku_db_dbt_neg_infty(void) {
-    return toku_lt_neg_infinity;
+    return toku_dbt_negative_infinity();
 }
 
 static int
@@ -889,7 +883,6 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
 
     int r = toku_setup_db_internal(db, env, flags, brt, false);
     if (r != 0) return r;
-
 
     DB *result=*db;
     // methods that grab the ydb lock
@@ -1047,7 +1040,6 @@ locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], char * ne
     return r;
 
 }
-
 
 #undef STATUS_VALUE
 

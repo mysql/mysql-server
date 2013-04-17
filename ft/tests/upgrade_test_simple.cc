@@ -10,7 +10,7 @@
 #include "test.h"
 
 #include "ft-flusher.h"
-#include "includes.h"
+
 #include "checkpoint.h"
 
 static TOKUTXN const null_txn = NULL;

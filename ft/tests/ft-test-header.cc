@@ -3,7 +3,7 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "includes.h"
+
 #include "test.h"
 
 // The purpose of this test is to verify that certain information in the 

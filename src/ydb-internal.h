@@ -7,16 +7,21 @@
 #ident "$Id$"
 
 #include <db.h>
-#include "../ft/fttypes.h"
-#include "../ft/ft-ops.h"
-#include "toku_list.h"
-#include "./lock_tree/locktree.h"
-#include "./lock_tree/idlth.h"
-#include "../ft/minicron.h"
 #include <limits.h>
 
+#include <ft/fttypes.h>
+#include <ft/ft-ops.h>
+#include <ft/minicron.h>
+// TODO: remove vanilla omt in favor of templated one
+#include <ft/omt.h>
 
-struct __toku_lock_tree;
+#include <util/growable_array.h>
+#include <util/omt.h>
+
+#include <locktree/locktree.h>
+#include <locktree/range_buffer.h>
+
+#include <toku_list.h>
 
 struct __toku_db_internal {
     int opened;
@@ -24,7 +29,7 @@ struct __toku_db_internal {
     int open_mode;
     FT_HANDLE ft_handle;
     DICTIONARY_ID dict_id;        // unique identifier used by locktree logic
-    struct __toku_lock_tree* lt;
+    toku::locktree *lt;
     struct simple_dbt skey, sval; // static key and value
     bool key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
     char *dname;                  // dname is constant for this handle (handle must be closed before file is renamed)
@@ -58,16 +63,16 @@ struct __toku_db_env_internal {
     int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
     generate_row_for_put_func generate_row_for_put;
     generate_row_for_del_func generate_row_for_del;
-    //void (*noticecall)(DB_ENV *, db_notices);
 
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
-    toku_ltm* ltm;
+    toku::locktree::manager ltm;
 
     int32_t open_txns;                                      // Number of open transactions
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
+    // TODO: toku::omt<DB *>
     OMT open_dbs;                                       // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
     toku_mutex_t open_dbs_lock;                         // lock that protects the OMT of open dbs.
 
@@ -90,36 +95,14 @@ struct __toku_db_env_internal {
     int tmpdir_lockfd;
 };
 
-int toku_ydb_check_avail_fs_space(DB_ENV *env);
-
-
-/* *********************************************************
-
-   Error handling
-
-   ********************************************************* */
-
-/* Exception handling */
-/** Raise a C-like exception: currently returns an status code */
-#define RAISE_EXCEPTION(status) {return status;}
-/** Raise a C-like conditional exception: currently returns an status code 
-    if condition is true */
-#define RAISE_COND_EXCEPTION(cond, status) {if (cond) return status;}
-/** Propagate the exception to the caller: if the status is non-zero,
-    returns it to the caller */
-#define PROPAGATE_EXCEPTION(status) ({if (status != 0) return status;})
-
-/** Handle a panicked environment: return EINVAL if the env is panicked */
-#define HANDLE_PANICKED_ENV(env) \
-        RAISE_COND_EXCEPTION(toku_env_is_panicked(env), EINVAL)
-/** Handle a panicked database: return EINVAL if the database env is panicked */
+// Common error handling macros and panic detection
+#define MAYBE_RETURN_ERROR(cond, status) if (cond) return status;
+#define HANDLE_PANICKED_ENV(env) if (toku_env_is_panicked(env)) { sleep(1); return EINVAL; }
 #define HANDLE_PANICKED_DB(db) HANDLE_PANICKED_ENV(db->dbenv)
 
-
-/** Handle a transaction that has a child: return EINVAL if the transaction tries to do any work.
-    Only commit/abort/prelock (which are used by handlerton) are allowed when a child exists.  */
+// Only commit/abort/prelock (which are used by handlerton) are allowed when a child exists.
 #define HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn) \
-        RAISE_COND_EXCEPTION(((txn) && db_txn_struct_i(txn)->child), \
+        MAYBE_RETURN_ERROR(((txn) && db_txn_struct_i(txn)->child), \
                              toku_ydb_do_error((env),                \
                                                EINVAL,               \
                                                "%s: Transaction cannot do work when child exists\n", __FUNCTION__))
@@ -130,14 +113,15 @@ int toku_ydb_check_avail_fs_space(DB_ENV *env);
 #define HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c)   \
         HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN((c)->dbp, dbc_struct_i(c)->txn)
 
+// Bail out if we get unknown flags
 #define HANDLE_EXTRA_FLAGS(env, flags_to_function, allowed_flags) \
-    RAISE_COND_EXCEPTION((env) && ((flags_to_function) & ~(allowed_flags)), \
+        MAYBE_RETURN_ERROR((env) && ((flags_to_function) & ~(allowed_flags)), \
 			 toku_ydb_do_error((env),			\
 					   EINVAL,			\
 					   "Unknown flags (%" PRIu32 ") in " __FILE__ ":%s(): %d\n", (flags_to_function) & ~(allowed_flags), __FUNCTION__, __LINE__))
 
+int toku_ydb_check_avail_fs_space(DB_ENV *env);
 
-/* */
 void toku_ydb_error_all_cases(const DB_ENV * env, 
                               int error, 
                               bool include_stderrstring, 
@@ -148,10 +132,6 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
 
 int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *string, ...)
                        __attribute__((__format__(__printf__, 3, 4)));
-
-/* Location specific debug print-outs */
-void toku_ydb_barf(void);
-void toku_ydb_notef(const char *, ...);
 
 /* Environment related errors */
 int toku_env_is_panicked(DB_ENV *dbenv);
@@ -165,15 +145,32 @@ typedef enum __toku_isolation_level {
     TOKU_ISO_READ_UNCOMMITTED=3
 } TOKU_ISOLATION;
 
+// needed in ydb_db.c
+#define DB_ISOLATION_FLAGS (DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT | DB_SERIALIZABLE | DB_INHERIT_ISOLATION)
+
+struct txn_lock_range {
+    DBT left;
+    DBT right;
+};
+
+struct txn_lt_key_ranges {
+    toku::locktree *lt;
+    toku::range_buffer *buffer;
+};
+
 struct __toku_db_txn_internal {
-    //TXNID txnid64; /* A sixty-four bit txn id. */
     struct tokutxn *tokutxn;
-    struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched, only initialized if txn touches a dictionary
     uint32_t flags;
     TOKU_ISOLATION iso;
     DB_TXN *child;
     toku_mutex_t txn_mutex;
+
+    // maps a locktree to a buffer of key ranges that are locked.
+    // it is protected by the txn_mutex, so hot indexing and a client
+    // thread can concurrently operate on this txn.
+    toku::omt<txn_lt_key_ranges> lt_map;
 };
+
 struct __toku_db_txn_external {
     struct __toku_db_txn           external_part;
     struct __toku_db_txn_internal  internal_part;
@@ -199,19 +196,13 @@ struct __toku_dbc_external {
 	
 #define dbc_struct_i(x) (&((struct __toku_dbc_external *)x)->internal_part)
 
-// needed in ydb_db.c
-#define DB_ISOLATION_FLAGS (DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT | DB_SERIALIZABLE | DB_INHERIT_ISOLATION)
-
-
 static inline int 
 env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
+
 void env_panic(DB_ENV * env, int cause, const char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);
-int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags);
-int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags);
-
 
 #endif

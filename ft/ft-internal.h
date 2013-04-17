@@ -23,7 +23,7 @@
 #include "fifo.h"
 #include "ft-ops.h"
 #include "toku_list.h"
-#include "omt.h"
+#include <util/omt.h>
 #include "leafentry.h"
 #include "block_table.h"
 #include "compress.h"
@@ -486,7 +486,14 @@ static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
     memset(fake_db, 0, sizeof *fake_db);
     fake_db->cmp_descriptor = orig_desc;
 }
-#define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc))
+
+#define FAST_FAKE_DB
+
+#ifdef FAST_FAKE_DB
+#define FAKE_DB(db, desc) struct __toku_db db; db.cmp_descriptor = desc;
+#else
+#define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc));
+#endif
 
 struct ft_options {
     unsigned int nodesize;

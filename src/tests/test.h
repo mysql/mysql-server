@@ -32,6 +32,10 @@
 #define DB_DELETE_ANY 0
 #endif
 
+// Certain tests fail when row locks taken for read are not shared.
+// This switch prevents them from failing so long as read locks are not shared.
+#define BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+
 int verbose=0;
 
 #define UU(x) x __attribute__((__unused__))
@@ -314,17 +318,17 @@ toku_hard_crash_on_purpose(void) {
 
 static void UU()
 multiply_locks_for_n_dbs(DB_ENV *env, int num_dbs) {
-    int r;
-    uint32_t current_max_locks;
-    r = env->get_lk_max_locks(env, &current_max_locks);
-    CKERR(r);
-    r = env->set_lk_max_locks(env, current_max_locks * num_dbs);
-    CKERR(r);
-#if defined(USE_TDB)
+#ifdef USE_TDB
     uint64_t current_max_lock_memory;
-    r = env->get_lk_max_memory(env, &current_max_lock_memory);
+    int r = env->get_lk_max_memory(env, &current_max_lock_memory);
     CKERR(r);
     r = env->set_lk_max_memory(env, current_max_lock_memory * num_dbs);
+    CKERR(r);
+#else
+    uint32_t current_max_locks;
+    int r = env->get_lk_max_locks(env, &current_max_locks);
+    CKERR(r);
+    r = env->set_lk_max_locks(env, current_max_locks * num_dbs);
     CKERR(r);
 #endif
 }

@@ -9,24 +9,24 @@
  */
 #ident "$Id$"
 
+#include <toku_portability.h>
+#include <toku_assert.h>
 
 #include <stdio.h>
 #include <string.h>
-#include <toku_portability.h>
-#include "toku_assert.h"
-#include "ydb-internal.h"
+
 #include <ft/le-cursor.h>
-#include "indexer.h"
-#include <ft/ft-internal.h>
 #include <ft/tokuconst.h>
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/xids.h>
-#include "ft/txn_manager.h"
+#include <ft/txn_manager.h>
 #include <ft/checkpoint.h>
-#include "ydb_row_lock.h"
 
+#include "ydb-internal.h"
+#include "ydb_row_lock.h"
+#include "indexer.h"
 #include "indexer-internal.h"
 
 // initialize the commit keys
@@ -83,7 +83,7 @@ static int indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotk
 static int indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids, TOKUTXN txn);
 static int indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
 static int indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
-static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid, TOKUTXN txn);
+static void indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid, TOKUTXN txn);
 
 
 // initialize undo globals located in the indexer private object
@@ -295,8 +295,9 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                     case TOKUTXN_PREPARING:
                         invariant(this_xid_state != TOKUTXN_ABORTING);
                         result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids, curr_txn);
-                        if (result == 0)
-                            result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], curr_txn);
+                        if (result == 0) {
+                            indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], curr_txn);
+                        }
                         break;
                     case TOKUTXN_COMMITTING:
                     case TOKUTXN_RETIRED:
@@ -328,7 +329,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                     assert(this_xid_state != TOKUTXN_ABORTING);
                     result = indexer_ft_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids, curr_txn);
                     if (result == 0) {
-                        result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], prov_txns[0]);
+                        indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], prov_txns[0]);
                     }
                     break;
                 case TOKUTXN_COMMITTING:
@@ -440,16 +441,14 @@ indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRH
 }
 
 // Take a write lock on the given key for the outermost xid in the xids list.
-static int 
+static void 
 indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid, TOKUTXN txn) {
-    int result = 0;
     // TEST
     if (indexer->i->test_lock_key) {
-        result = indexer->i->test_lock_key(indexer, outermost_live_xid, hotdb, key);
+        indexer->i->test_lock_key(indexer, outermost_live_xid, hotdb, key);
     } else {
-        result = toku_grab_write_lock(hotdb, key, txn);
+        toku_db_grab_write_lock(hotdb, key, txn);
     }
-    return result;
 }
 
 // find the index of a non-placeholder transaction record that is previous to the transaction record

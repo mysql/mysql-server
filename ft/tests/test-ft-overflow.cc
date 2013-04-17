@@ -7,7 +7,7 @@
 
 
 #include "test.h"
-#include "includes.h"
+
 
 static const char fname[]= __SRCFILE__ ".ft_handle";
 

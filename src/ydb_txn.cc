@@ -4,47 +4,41 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#include <db.h>
-#include "ydb-internal.h"
-#include <ft/checkpoint.h>
-#include <ft/log_header.h>
-#include "ydb_txn.h"
-#include <lock_tree/lth.h>
 #include <toku_race_tools.h>
+
+#include <db.h>
+#include <ft/txn_manager.h>
+#include <ft/log_header.h>
+#include <ft/checkpoint.h>
+
 #include <portability/toku_atomic.h>
-#include "ft/txn_manager.h"
 
-static int 
-toku_txn_release_locks(DB_TXN* txn) {
-    assert(txn);
+#include "ydb-internal.h"
+#include "ydb_txn.h"
+#include "ydb_row_lock.h"
 
-    toku_lth* lth = db_txn_struct_i(txn)->lth;
-    int r = ENOSYS;
-    int first_error = 0;
-    if (lth) {
-        toku_lth_start_scan(lth);
-        toku_lock_tree* next = toku_lth_next(lth);
-        while (next) {
-            r = toku_lt_unlock_txn(next, toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn));
-            if (!first_error && r!=0) { first_error = r; }
-            if (r == 0) {
-                r = toku_lt_remove_ref(next);
-                if (!first_error && r!=0) { first_error = r; }
-            }
-            next = toku_lth_next(lth);
-        }
-        toku_lth_close(lth);
-        db_txn_struct_i(txn)->lth = NULL;
+static uint64_t 
+toku_txn_id64(DB_TXN * txn) {
+    HANDLE_PANICKED_ENV(txn->mgrp);
+    return toku_txn_get_id(db_txn_struct_i(txn)->tokutxn);
+}
+
+static void 
+toku_txn_release_locks(DB_TXN *txn) {
+    size_t num_ranges = db_txn_struct_i(txn)->lt_map.size();
+    for (size_t i = 0; i < num_ranges; i++) {
+        txn_lt_key_ranges ranges;
+        int r = db_txn_struct_i(txn)->lt_map.fetch(i, &ranges);
+        invariant_zero(r);
+        toku_db_release_lt_key_ranges(txn, &ranges);
     }
-    r = first_error;
-
-    return r;
 }
 
 static void
 toku_txn_destroy(DB_TXN *txn) {
     int32_t open_txns = toku_sync_sub_and_fetch(&txn->mgrp->i->open_txns, 1);
     invariant(open_txns >= 0);
+    db_txn_struct_i(txn)->lt_map.destroy();
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
     toku_mutex_destroy(&db_txn_struct_i(txn)->txn_mutex);
     toku_free(txn);
@@ -71,8 +65,6 @@ toku_txn_commit(DB_TXN * txn, uint32_t flags,
         assert(db_txn_struct_i(txn->parent)->child == txn);
         db_txn_struct_i(txn->parent)->child=NULL;
     }
-
-    //toku_ydb_notef("flags=%d\n", flags);
     if (flags & DB_TXN_SYNC) {
         toku_txn_force_fsync_on_commit(db_txn_struct_i(txn)->tokutxn);
         flags &= ~DB_TXN_SYNC;
@@ -105,7 +97,7 @@ toku_txn_commit(DB_TXN * txn, uint32_t flags,
     // release the lock tree locks. MVCC requires that toku_txn_complete_txn
     // get called first, otherwise we have bugs, such as #4145 and #4153
     toku_txn_complete_txn(ttxn);
-    r = toku_txn_release_locks(txn);
+    toku_txn_release_locks(txn);
     // this lock must be released after toku_txn_complete_txn and toku_txn_release_locks because
     // this lock must be held until the references to the open FTs is released
     // begin checkpoint logs these associations, so we must be protect
@@ -126,15 +118,8 @@ cleanup:
 static uint32_t 
 toku_txn_id(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    toku_ydb_barf();
     abort();
     return (uint32_t) -1;
-}
-
-static uint64_t 
-toku_txn_id64(DB_TXN * txn) {
-    HANDLE_PANICKED_ENV(txn->mgrp);
-    return toku_txn_get_id(db_txn_struct_i(txn)->tokutxn);
 }
 
 static int 
@@ -165,7 +150,7 @@ toku_txn_abort(DB_TXN * txn,
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert_zero(r);
     toku_txn_complete_txn(db_txn_struct_i(txn)->tokutxn);
-    r = toku_txn_release_locks(txn);
+    toku_txn_release_locks(txn);
     toku_txn_destroy(txn);
     return r;
 }
@@ -416,21 +401,14 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
     struct __toku_db_txn_external *XCALLOC(eresult); // so the internal stuff is stuck on the end.
     DB_TXN *result = &eresult->external_part;
 
-    //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
     result->mgrp = env;
     txn_func_init(result);
 
     result->parent = stxn;
     db_txn_struct_i(result)->flags = txn_flags;
     db_txn_struct_i(result)->iso = child_isolation;
+    db_txn_struct_i(result)->lt_map.create();
 
-    // we used to initialize the transaction's lth here.
-    // Now we initialize the lth only if the transaction needs the lth,
-    // in toku_txn_add_lt. If this transaction never does anything 
-    // that requires using a lock tree, then the lth is never 
-    // created.
-    int r = 0;
-    
     TXN_SNAPSHOT_TYPE snapshot_type;
     switch(db_txn_struct_i(result)->iso){
         case(TOKU_ISO_SNAPSHOT):
@@ -449,7 +427,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
             break;
         }
     }
-    r = toku_txn_manager_start_txn(&db_txn_struct_i(result)->tokutxn,
+    int r = toku_txn_manager_start_txn(&db_txn_struct_i(result)->tokutxn,
                                    toku_logger_get_txn_manager(env->i->logger),
                                    stxn ? db_txn_struct_i(stxn)->tokutxn : 0,
                                    env->i->logger,
@@ -482,10 +460,9 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     txn_func_init(result);
     
     result->parent = NULL;
-    int r = toku_lth_create(&db_txn_struct_i(result)->lth);
-    assert(r==0);
 
     db_txn_struct_i(result)->tokutxn = tokutxn;
+    db_txn_struct_i(result)->lt_map.create();
 
     toku_txn_set_container_db_txn(tokutxn, result);
 

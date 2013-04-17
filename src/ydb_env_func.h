@@ -13,7 +13,7 @@ extern void * checkpoint_callback_extra;
 extern void (*checkpoint_callback2_f)(void*);
 extern void * checkpoint_callback2_extra;
 
-extern uint32_t engine_status_enable;
+extern bool engine_status_enable;
 
 // Called to use dlmalloc functions.
 void setup_dlmalloc(void) __attribute__((__visibility__("default")));

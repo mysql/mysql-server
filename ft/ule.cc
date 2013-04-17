@@ -21,7 +21,7 @@
 #include "fttypes.h"
 #include "ft-internal.h"
 
-#include "omt.h"
+#include <util/omt.h>
 
 #include "leafentry.h"
 #include "xids.h"

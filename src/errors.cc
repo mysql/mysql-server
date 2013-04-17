@@ -23,7 +23,6 @@ int toku_env_is_panicked(DB_ENV *dbenv /**< The environment to check */) {
     return dbenv->i->is_panicked;
 }
 
-
 /* Prints an error message to a file specified by env (or stderr),
    preceded by the environment's error prefix. */
 static void toku__ydb_error_file(const DB_ENV *env, bool use_stderr, 
@@ -38,7 +37,6 @@ static void toku__ydb_error_file(const DB_ENV *env, bool use_stderr,
 	fprintf(efile, "%s", errmsg);
     }
 }
-
 
 /**  
 
@@ -109,22 +107,3 @@ void toku_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     toku_ydb_error_all_cases(env, error, false, true, fmt, ap);
     va_end(ap);
 }
-
-
-/** Barf out where ydb is and what it is doing */
-void toku_ydb_barf() {
-    fprintf(stderr, "YDB: BARF %s:%d in %s\n", __FILE__, __LINE__, __func__); 
-}
-
-/** Prints a note with the point where it was generated
-    \param fmt The format string for the note to be printed */
-#if 0
-void toku_ydb_notef(const char *fmt, ...) {
-    fprintf(stderr, "YDB: Note %s:%d in %s, ", __FILE__, __LINE__, __func__); 
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
-#endif
-

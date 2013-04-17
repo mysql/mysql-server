@@ -6,7 +6,7 @@
 // test recovery of a clean shutdown
 
 #include "test.h"
-#include "includes.h"
+
 
 #define TESTDIR __SRCFILE__ ".dir"
 

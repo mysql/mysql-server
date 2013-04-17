@@ -4,7 +4,6 @@
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
-#include "includes.h"
 
 static  int
 int64_key_cmp (DB *db UU(), const DBT *a, const DBT *b) {

@@ -223,7 +223,6 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
                 void (*callback_f)(void*),  void * extra,
                 void (*callback2_f)(void*), void * extra2,
                 checkpoint_caller_t caller_id) {
-    int r = 0;
     int footprint_offset = (int) caller_id * 1000;
 
     assert(initialized);
@@ -248,30 +247,26 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     multi_operation_checkpoint_unlock();
 
     SET_CHECKPOINT_FOOTPRINT(40);
-    if (r==0) {
-        if (callback_f) 
-            callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-        toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
+    if (callback_f) {
+        callback_f(extra);      // callback is called with checkpoint_safe_lock still held
     }
+    toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
+
     SET_CHECKPOINT_FOOTPRINT(50);
-    if (r==0 && logger) {
+    if (logger) {
         last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
-        r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
+        toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
         STATUS_VALUE(CP_LAST_LSN) = last_completed_checkpoint_lsn.lsn;
     }
 
     SET_CHECKPOINT_FOOTPRINT(60);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_END) = time(NULL);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE) = STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN);
-
-    if (r == 0)
-        STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
-    else
-        STATUS_VALUE(CP_CHECKPOINT_COUNT_FAIL)++;
-
+    STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
     STATUS_VALUE(CP_FOOTPRINT) = 0;
+
     checkpoint_safe_checkpoint_unlock();
-    return r;
+    return 0;
 }
 
 #include <toku_race_tools.h>

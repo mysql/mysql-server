@@ -6,16 +6,13 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-
-/*
- * Header file for Leafentries
- */
-
 #include <toku_portability.h>
+
 #include <util/mempool.h>
+
 #include "rbuf.h"
 #include "x1764.h"
-
+#include "omt.h"
 
 #if 0
     Memory format of packed leaf entry

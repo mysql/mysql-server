@@ -3,9 +3,8 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "logcursor.h"
 #include "test.h"
-
-#include "includes.h"
 
 const int N = 2;
 
@@ -145,7 +144,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_create(&logger);  assert(r==0);
         r = toku_logger_open(dname, logger);  assert(r==0);
 
-        r = toku_logger_maybe_trim_log(logger, trim_lsn);
+        toku_logger_maybe_trim_log(logger, trim_lsn);
         assert( toku_logfilemgr_num_logfiles(logger->logfilemgr) == 4 ); // untrimmed log, empty log, plus newly openned log
 
         r = toku_logger_close(&logger);

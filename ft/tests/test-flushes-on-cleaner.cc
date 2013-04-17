@@ -6,7 +6,7 @@
 
 
 #include "test.h"
-#include "includes.h"
+
 #include <ft-cachetable-wrappers.h>
 #include "ft-flusher.h"
 #include "checkpoint.h"

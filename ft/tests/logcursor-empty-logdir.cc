@@ -3,9 +3,8 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "logcursor.h"
 #include "test.h"
-
-#include "includes.h"
 
 #define dname __SRCFILE__ ".dir"
 #define rmrf "rm -rf " dname "/"

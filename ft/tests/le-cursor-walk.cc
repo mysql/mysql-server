@@ -5,7 +5,7 @@
 
 // test the LE_CURSOR next function
 
-#include "includes.h"
+
 #include "checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"

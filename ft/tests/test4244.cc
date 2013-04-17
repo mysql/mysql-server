@@ -7,7 +7,7 @@
 
 
 #include "test.h"
-#include "includes.h"
+
 #include <ft-cachetable-wrappers.h>
 
 static TOKUTXN const null_txn = 0;

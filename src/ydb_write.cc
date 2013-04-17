@@ -152,7 +152,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock) {
     }
     if (r == 0 && do_locking) {
         //Do locking if necessary.
-        r = get_point_write_lock(db, txn, key);
+        r = toku_db_get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
         //Do the actual deleting.
@@ -186,9 +186,9 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_
         r = db_put_check_overwrite_constraint(db, txn, key, lock_flags, flags);
     }
     bool do_locking = (bool)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
-    if (r == 0 && do_locking) {
+    if (r == 0 && do_locking && !(flags & DB_NOOVERWRITE)) {
         //Do locking if necessary.
-        r = get_point_write_lock(db, txn, key);
+        r = toku_db_get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
         //Insert into the brt.
@@ -232,7 +232,7 @@ toku_db_update(DB *db, DB_TXN *txn,
     bool do_locking;
     do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
-        r = get_point_write_lock(db, txn, key);
+        r = toku_db_get_point_write_lock(db, txn, key);
         if (r != 0) { goto cleanup; }
     }
 
@@ -476,7 +476,7 @@ env_del_multiple(
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_write_lock(db, txn, &del_keys[which_db]);
+            r = toku_db_get_point_write_lock(db, txn, &del_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->ft_handle;
@@ -629,7 +629,7 @@ env_put_multiple_internal(
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_write_lock(db, txn, &put_keys[which_db]);
+            r = toku_db_get_point_write_lock(db, txn, &put_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->ft_handle;
@@ -740,7 +740,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 curr_new_key = keys[which_db];
                 curr_new_val = vals[which_db];
             }
-            toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
+            ft_compare_func cmpfun = toku_db_get_compare_fun(db);
             bool key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
             bool key_bytes_eq = (curr_old_key.size == curr_new_key.size && 
                                  (memcmp(curr_old_key.data, curr_new_key.data, curr_old_key.size) == 0)
@@ -761,7 +761,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
                 // lock old key
                 if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
-                    r = get_point_write_lock(db, txn, &curr_old_key);
+                    r = toku_db_get_point_write_lock(db, txn, &curr_old_key);
                     if (r != 0) goto cleanup;
                 }
                 del_dbs[n_del_dbs] = db;
@@ -780,7 +780,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
                 // lock new key
                 if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
-                    r = get_point_write_lock(db, txn, &curr_new_key);
+                    r = toku_db_get_point_write_lock(db, txn, &curr_new_key);
                     if (r != 0) goto cleanup;
                 }
                 put_dbs[n_put_dbs] = db;

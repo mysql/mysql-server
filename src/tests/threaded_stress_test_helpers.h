@@ -29,7 +29,12 @@
 #include <portability/toku_atomic.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_random.h>
+#include <portability/toku_time.h>
+
 #include <util/rwlock.h>
+#include <util/kibbutz.h>
+
+#include <ft/ybt.h>
 
 using namespace toku;
 
@@ -67,7 +72,7 @@ struct env_args {
     int checkpointing_period;
     int cleaner_period;
     int cleaner_iterations;
-    int64_t lk_max_memory;
+    uint64_t lk_max_memory;
     uint64_t cachetable_size;
     uint32_t num_bucket_mutexes;
     const char *envdir;
@@ -116,10 +121,12 @@ struct cli_args {
     bool single_txn;
     bool warm_cache; // warm caches before running stress_table
     bool blackhole; // all message injects are no-ops. helps measure txn/logging/locktree overhead.
-    bool prelocked_write; // use prelocked_write flag for insertions, avoiding the locktree
+    bool nolocktree; // use this flag to avoid the locktree on insertions
     bool unique_checks; // use uniqueness checking during insert. makes it slow.
     bool nosync; // do not fsync on txn commit. useful for testing in memory performance.
     bool nolog; // do not log. useful for testing in memory performance.
+    bool nocrashstatus; // do not print engine status upon crash
+    bool prelock_updates; // update threads perform serial updates on a prelocked range
     bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
 };
 
@@ -140,6 +147,7 @@ struct arg {
     int num_threads;
     struct cli_args *cli;
     bool do_prepare;
+    bool prelock_updates;
 };
 
 DB_TXN * const null_txn = 0;
@@ -154,6 +162,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->txn_type = DB_TXN_SNAPSHOT;
     arg->operation_extra = NULL;
     arg->do_prepare = false;
+    arg->prelock_updates = false;
 }
 
 enum operation_type {
@@ -459,7 +468,7 @@ static int get_env_open_flags(struct cli_args *args) {
 
 static int get_put_flags(struct cli_args *args) {
     int flags = 0;
-    flags |= args->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+    flags |= args->nolocktree ? DB_PRELOCKED_WRITE : 0;
     flags |= args->unique_checks ? DB_NOOVERWRITE : 0;
     return flags;
 }
@@ -839,11 +848,6 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
         rand_key_key[0] = extra->current++;
-        if (arg->cli->interleave) {
-            rand_key_i[3] = arg->thread_idx;
-        } else {
-            rand_key_i[0] = arg->thread_idx;
-        }
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
@@ -951,6 +955,39 @@ static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, vo
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, false);
         assert_zero(r);
     }
+    return 0;
+}
+
+struct scan_op_worker_info {
+    DB *db;
+    DB_TXN *txn;
+    void *extra;
+};
+
+static void scan_op_worker(void *arg) {
+    struct scan_op_worker_info *CAST_FROM_VOIDP(info, arg);
+    struct scan_op_extra *CAST_FROM_VOIDP(extra, info->extra);
+    int r = scan_op_and_maybe_check_sum(
+            info->db,
+            info->txn,
+            extra,
+            false
+            );
+    assert_zero(r);
+    toku_free(info);
+}
+
+static int UU() scan_op_no_check_parallel(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
+    const int num_cores = toku_os_get_number_processors();
+    KIBBUTZ kibbutz = toku_kibbutz_create(num_cores);
+    for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
+        struct scan_op_worker_info *XCALLOC(info);
+        info->db = arg->dbp[i];
+        info->txn = txn;
+        info->extra = operation_extra;
+        toku_kibbutz_enq(kibbutz, scan_op_worker, info);
+    }
+    toku_kibbutz_destroy(kibbutz);
     return 0;
 }
 
@@ -1131,13 +1168,27 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
     return r;
 }
 
+static int pre_acquire_write_lock(DB *db, DB_TXN *txn,
+        const DBT *left_key, const DBT *right_key) {
+    int r;
+    DBC *cursor;
+
+    r = db->cursor(db, txn, &cursor, DB_RMW);
+    CKERR(r);
+    int cursor_r = cursor->c_pre_acquire_range_lock(cursor, left_key, right_key);
+    r = cursor->c_close(cursor);
+    CKERR(r);
+
+    return cursor_r;
+}
+
 // take the given db and do an update on it
 static int
 UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
-    int r;
+    int r = 0;
     int curr_val_sum = 0;
     DBT key, val;
-    int rand_key;
+    int update_key;
     update_count++;
     struct update_op_args* CAST_FROM_VOIDP(op_args, operation_extra);
     struct update_op_extra extra;
@@ -1149,45 +1200,87 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
             extra.pad_bytes = 100;
         }
     }
+    const int update_flags = arg->cli->prelock_updates ? DB_PRELOCKED_WRITE : 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
-        rand_key = myrandom_r(arg->random_data);
+        if (arg->prelock_updates) {
+            if (i == 0) {
+                update_key = myrandom_r(arg->random_data);
+                if (arg->bounded_element_range) {
+                    update_key = update_key % arg->cli->num_elements;
+                }
+
+                const uint32_t max_key_in_table = arg->cli->num_elements - 1;
+                const bool range_wraps = (update_key + arg->cli->txn_size - 1) > max_key_in_table;
+                int left_key, right_key;
+                DBT left_key_dbt, right_key_dbt;
+
+                // acquire the range starting at the random key, plus txn_size - 1
+                // elements, but lock no further than the end of the table. if the
+                // range wraps around to the beginning we will handle it below.
+                left_key = update_key;
+                right_key = range_wraps ? max_key_in_table : (left_key + arg->cli->txn_size - 1);
+                r = pre_acquire_write_lock(
+                        db,
+                        txn,
+                        dbt_init(&left_key_dbt, &left_key, sizeof update_key),
+                        dbt_init(&right_key_dbt, &right_key, sizeof right_key)
+                        );
+                if (r != 0) {
+                    return r;
+                }
+
+                // check if the right end point wrapped around to the beginning
+                // if so, lock from 0 to the right key, modded by table size.
+                if (range_wraps) {
+                    right_key = (left_key + arg->cli->txn_size - 1) - max_key_in_table;
+                    invariant(right_key > 0);
+                    left_key = 0;
+                    r = pre_acquire_write_lock(
+                            db,
+                            txn,
+                            dbt_init(&left_key_dbt, &left_key, sizeof update_key),
+                            dbt_init(&right_key_dbt, &right_key, sizeof right_key)
+                            );
+                    if (r != 0) {
+                        return r;
+                    }
+                }
+            } else {
+                update_key++;
+            }
+        } else {
+            // just do a usual, random point update without locking first
+            update_key = myrandom_r(arg->random_data);
+        }
+
         if (arg->bounded_element_range) {
-            rand_key = rand_key % arg->cli->num_elements;
+            update_key = update_key % arg->cli->num_elements;
         }
-        extra.u.d.diff = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
-        // just make every other value random
-        if (i%2 == 0) {
-            extra.u.d.diff = -extra.u.d.diff;
+
+        // the last update keeps the table's sum as zero
+        // every other update except the last applies a random delta
+        if (i == arg->cli->txn_size - 1) {
+            extra.u.d.diff = -curr_val_sum;
+        } else {
+            extra.u.d.diff = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
+            // just make every other value random
+            if (i%2 == 0) {
+                extra.u.d.diff = -extra.u.d.diff;
+            }
+            curr_val_sum += extra.u.d.diff;
         }
-        curr_val_sum += extra.u.d.diff;
+
+        // do the update
         r = db->update(
             db,
             txn,
-            dbt_init(&key, &rand_key, sizeof rand_key),
+            dbt_init(&key, &update_key, sizeof update_key),
             dbt_init(&val, &extra, sizeof extra),
-            0
+            update_flags
             );
         if (r != 0) {
             return r;
         }
-    }
-    //
-    // now put in one more to ensure that the sum stays 0
-    //
-    extra.u.d.diff = -curr_val_sum;
-    rand_key = myrandom_r(arg->random_data);
-    if (arg->bounded_element_range) {
-        rand_key = rand_key % arg->cli->num_elements;
-    }
-    r = db->update(
-        db,
-        txn,
-        dbt_init(&key, &rand_key, sizeof rand_key),
-        dbt_init(&val, &extra, sizeof extra),
-        0
-        );
-    if (r != 0) {
-        return r;
     }
 
     return r;
@@ -1512,13 +1605,18 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     return r;
 }
 
-static int fill_table_from_fun(DB *db, int num_elements, int key_bufsz, int val_bufsz,
+static int fill_table_from_fun(DB_ENV *env, DB *db, int num_elements, int key_bufsz, int val_bufsz,
                                void (*callback)(int idx, void *extra,
                                                 void *key, int *keysz,
                                                 void *val, int *valsz),
-                               void *extra) {
+                               void *extra, void (*progress_cb)(int num_rows)) {
+    DB_TXN *txn = nullptr;
+    const int puts_per_txn = 100000;
     int r = 0;
     for (long i = 0; i < num_elements; ++i) {
+        if (txn == nullptr) {
+            r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
+        }
         char keybuf[key_bufsz], valbuf[val_bufsz];
         memset(keybuf, 0, sizeof(keybuf));
         memset(valbuf, 0, sizeof(valbuf));
@@ -1534,12 +1632,24 @@ static int fill_table_from_fun(DB *db, int num_elements, int key_bufsz, int val_
         // function, not what was stored by the callback
         r = db->put(
             db, 
-            null_txn, 
+            txn, 
             dbt_init(&key, keybuf, key_bufsz),
             dbt_init(&val, valbuf, val_bufsz), 
-            0
+            // don't bother taking locks in the locktree
+            DB_PRELOCKED_WRITE
             );
         assert(r == 0);
+        if (i > 0 && i % puts_per_txn == 0) {
+            // don't bother fsyncing to disk.
+            // the caller can checkpoint if they want.
+            r = txn->commit(txn, DB_TXN_NOSYNC); CKERR(r);
+            txn = nullptr;
+            progress_cb(puts_per_txn);
+        }
+    }
+    if (txn) {
+        r = txn->commit(txn, DB_TXN_NOSYNC);
+        invariant_zero(r);
     }
     return r;
 }
@@ -1575,20 +1685,75 @@ static void zero_element_callback(int idx, void *extra, void *keyv, int *keysz, 
     *valsz = sizeof(int);
 }
 
-static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, uint32_t key_size, uint32_t val_size, bool disperse_keys) {
+struct fill_table_worker_info {
+    DB_ENV *env;
+    DB *db;
+    int num_elements;
+    uint32_t key_size;
+    uint32_t val_size;
+    bool disperse_keys;
+    void (*progress_cb)(int num_rows);
+};
+
+static void fill_table_worker(void *arg) {
+    struct fill_table_worker_info *CAST_FROM_VOIDP(info, arg);
+    int r = fill_table_from_fun(
+        info->env,
+        info->db, 
+        info->num_elements, 
+        info->key_size, 
+        info->val_size, 
+        zero_element_callback, 
+        &info->disperse_keys,
+        info->progress_cb
+        );
+    invariant_zero(r);
+    toku_free(info);
+}
+
+static int num_tables_to_fill = 1;
+static int rows_per_table = 1;
+
+static void report_overall_fill_table_progress(int num_rows) {
+    static uint64_t t0;
+    static int rows_inserted;
+    static double last_progress;
+    if (t0 == 0) {
+        t0 = toku_current_time_usec();
+    }
+    uint64_t rows_so_far = toku_sync_add_and_fetch(&rows_inserted, num_rows);
+    double progress = rows_so_far /
+        (rows_per_table * num_tables_to_fill * 1.0);
+    if (progress > (last_progress + .01)) {
+        uint64_t t1 = toku_current_time_usec();
+        double inserts_per_sec = (rows_so_far*1000000) / ((t1 - t0) * 1.0);
+        printf("fill tables: %ldpct complete, %.2lf rows/sec\n",
+                (long)(progress * 100), inserts_per_sec);
+        last_progress = progress;
+    }
+}
+
+static int fill_tables_with_zeroes(DB_ENV *env, DB **dbs, int num_DBs, int num_elements, uint32_t key_size, uint32_t val_size, bool disperse_keys) {
+    // set the static globals that the progress reporter uses
+    num_tables_to_fill = num_DBs;
+    rows_per_table = num_elements;
+
+    const int num_cores = toku_os_get_number_processors();
+    KIBBUTZ kibbutz = toku_kibbutz_create(num_cores);
     for (int i = 0; i < num_DBs; i++) {
         assert(key_size >= sizeof(int));
         assert(val_size >= sizeof(int));
-        int r = fill_table_from_fun(
-            dbs[i],
-            num_elements,
-            key_size,
-            val_size,
-            zero_element_callback,
-            &disperse_keys
-            );
-        CKERR(r);
+        struct fill_table_worker_info *XCALLOC(info);
+        info->env = env;
+        info->db = dbs[i];
+        info->num_elements = num_elements;
+        info->key_size = key_size;
+        info->val_size = val_size;
+        info->disperse_keys = disperse_keys;
+        info->progress_cb = report_overall_fill_table_progress;
+        toku_kibbutz_enq(kibbutz, fill_table_worker, info);
     }
+    toku_kibbutz_destroy(kibbutz);
     return 0;
 }
 
@@ -1683,7 +1848,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .checkpointing_period = 10,
     .cleaner_period = 1,
     .cleaner_iterations = 1,
-    .lk_max_memory = 1 * 1024 * 1024,
+    .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 300000,
     .num_bucket_mutexes = 1024,
     .envdir = ENVDIR,
@@ -1741,10 +1906,12 @@ static struct cli_args UU() get_default_args(void) {
         .single_txn = false,
         .warm_cache = false,
         .blackhole = false,
-        .prelocked_write = false,
+        .nolocktree = false,
         .unique_checks = false,
         .nosync = false,
         .nolog = false,
+        .nocrashstatus = false,
+        .prelock_updates = false,
         .disperse_keys = false,
         };
     return DEFAULT_ARGS;
@@ -2095,39 +2262,48 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_NONNEG("--num_ptquery_threads",     num_ptquery_threads,           " threads"),
         INT32_ARG_NONNEG("--num_put_threads",         num_put_threads,               " threads"),
         INT32_ARG_NONNEG("--num_update_threads",      num_update_threads,            " threads"),
-        UINT32_ARG("--txn_size",                txn_size,                      " rows"),
-        INT32_ARG_R("--performance_period",      performance_period,          "s", 1, INT32_MAX),
 
-        UINT64_ARG("--cachetable_size",         env_args.cachetable_size,      " bytes"),
-        UINT32_ARG("--num_bucket_mutexes",      env_args.num_bucket_mutexes,   " mutexes"),
+        UINT32_ARG("--txn_size",                      txn_size,                      " rows"),
+        UINT32_ARG("--num_bucket_mutexes",            env_args.num_bucket_mutexes,   " mutexes"),
 
-        DOUBLE_ARG_R("--compressibility",       compressibility,               "", 0.0, 1.0),
+        INT32_ARG_R("--performance_period",           performance_period,            "s", 1, INT32_MAX),
+
+        // TODO: John thinks the cachetable size should be in megabytes
+        // and that lock memory should be in kilobytes. Is it worth the
+        // inconsitency for a bit of convenience when running tests?
+        UINT64_ARG("--cachetable_size",               env_args.cachetable_size,      " bytes"),
+        UINT64_ARG("--lk_max_memory",                 env_args.lk_max_memory,        " bytes"),
+
+        DOUBLE_ARG_R("--compressibility",             compressibility,               "", 0.0, 1.0),
 
         //TODO: when outputting help.. skip min/max that is min/max of data range.
-        UINT32_ARG_R("--key_size",              key_size,                      " bytes", MIN_KEY_SIZE, UINT32_MAX),
-        UINT32_ARG_R("--val_size",              val_size,                      " bytes", MIN_VAL_SIZE, UINT32_MAX),
+        UINT32_ARG_R("--key_size",                    key_size,                      " bytes", MIN_KEY_SIZE, UINT32_MAX),
+        UINT32_ARG_R("--val_size",                    val_size,                      " bytes", MIN_VAL_SIZE, UINT32_MAX),
 
-        BOOL_ARG("serial_insert",               serial_insert),
-        BOOL_ARG("interleave",                  interleave),
-        BOOL_ARG("crash_on_operation_failure",  crash_on_operation_failure),
-        BOOL_ARG("single_txn",                  single_txn),
-        BOOL_ARG("warm_cache",                  warm_cache),
-        BOOL_ARG("print_performance",           print_performance),
-        BOOL_ARG("print_thread_performance",    print_thread_performance),
-        BOOL_ARG("print_iteration_performance", print_iteration_performance),
-        BOOL_ARG("only_create", only_create),
-        BOOL_ARG("only_stress", only_stress),
-        BOOL_ARG("test",        do_test_and_crash),
-        BOOL_ARG("recover",     do_recover),
-        BOOL_ARG("blackhole",     blackhole),
-        BOOL_ARG("prelocked_write",     prelocked_write),
-        BOOL_ARG("unique_checks",     unique_checks),
-        BOOL_ARG("nosync",     nosync),
-        BOOL_ARG("nolog",     nolog),
-        BOOL_ARG("disperse_keys", disperse_keys),
+        BOOL_ARG("serial_insert",                     serial_insert),
+        BOOL_ARG("interleave",                        interleave),
+        BOOL_ARG("crash_on_operation_failure",        crash_on_operation_failure),
+        BOOL_ARG("single_txn",                        single_txn),
+        BOOL_ARG("warm_cache",                        warm_cache),
+        BOOL_ARG("print_performance",                 print_performance),
+        BOOL_ARG("print_thread_performance",          print_thread_performance),
+        BOOL_ARG("print_iteration_performance",       print_iteration_performance),
+        BOOL_ARG("only_create",                       only_create),
+        BOOL_ARG("only_stress",                       only_stress),
+        BOOL_ARG("test",                              do_test_and_crash),
+        BOOL_ARG("recover",                           do_recover),
+        BOOL_ARG("blackhole",                         blackhole),
+        BOOL_ARG("nolocktree",                        nolocktree),
+        BOOL_ARG("unique_checks",                     unique_checks),
+        BOOL_ARG("nosync",                            nosync),
+        BOOL_ARG("nolog",                             nolog),
+        BOOL_ARG("nocrashstatus",                     nocrashstatus),
+        BOOL_ARG("prelock_updates",                   prelock_updates),
+        BOOL_ARG("disperse_keys",                     disperse_keys),
 
-        STRING_ARG("--envdir",    env_args.envdir),
-        LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
+        STRING_ARG("--envdir",                        env_args.envdir),
+
+        LOCAL_STRING_ARG("--perf_format",             perf_format_s,                 "human"),
         //TODO(add --quiet, -v, -h)
     };
 #undef UINT32_ARG
@@ -2256,10 +2432,12 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
     scan_arg.operation = scan_op_no_check;
     scan_arg.lock_type = STRESS_LOCK_NONE;
     DB_TXN* txn = NULL;
-    int r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
+    // don't take serializable read locks when scanning.
+    int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
     // make sure the scan doesn't terminate early
     run_test = true;
-    scan_op_no_check(txn, &scan_arg, &soe, NULL);
+    // warm up each DB in parallel
+    scan_op_no_check_parallel(txn, &scan_arg, &soe, NULL);
     r = txn->commit(txn,0); CKERR(r);
 }
 
@@ -2270,6 +2448,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
     DB_ENV* env = NULL;
     DB* dbs[args->num_DBs];
     memset(dbs, 0, sizeof(dbs));
+    db_env_enable_engine_status(args->nocrashstatus ? false : true);
     if (!args->only_stress) {
         create_tables(
             &env,
@@ -2278,7 +2457,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
             bt_compare,
             args
             );
-        { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size, args->disperse_keys); CKERR(chk_r); }
+        { int chk_r = fill_tables_with_zeroes(env, dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size, args->disperse_keys); CKERR(chk_r); }
         { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
     if (!args->only_create) {

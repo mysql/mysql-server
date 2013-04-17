@@ -49,12 +49,12 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
+    const int num_threads = 1 + cli_args->num_update_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
     }
-    struct scan_op_extra soe[4];
+    struct scan_op_extra soe[1];
 
     // make the forward fast scanner
     soe[0].fast = true;
@@ -63,39 +63,15 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
-    // make the forward slow scanner
-    soe[1].fast = false;
-    soe[1].fwd = true;
-    soe[1].prefetch = false;
-    myargs[1].operation_extra = &soe[1];
-    myargs[1].operation = scan_op;
-
-    // make the backward fast scanner
-    soe[2].fast = true;
-    soe[2].fwd = false;
-    soe[2].prefetch = false;
-    myargs[2].operation_extra = &soe[2];
-    myargs[2].operation = scan_op;
-
-    // make the backward slow scanner
-    soe[3].fast = false;
-    soe[3].fwd = false;
-    soe[3].prefetch = false;
-    myargs[3].operation_extra = &soe[3];
-    myargs[3].operation = scan_op;
-
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     // make the guy that updates the db
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+    for (int i = 1; i < 1 + cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
-        myargs[i].do_prepare = true;
-    }
-
-    // make the guy that does point queries
-    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
-        myargs[i].operation = ptquery_op;
-        myargs[i].do_prepare = true;
+        myargs[i].do_prepare = false;
+        if (i < 3) {
+            myargs[i].prelock_updates = true;
+        }
     }
 
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);

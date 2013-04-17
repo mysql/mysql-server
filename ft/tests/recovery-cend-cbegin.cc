@@ -6,7 +6,7 @@
 // run recovery on a log with an incomplete checkpoint 
 
 #include "test.h"
-#include "includes.h"
+
 
 #define TESTDIR __SRCFILE__ ".dir"
 

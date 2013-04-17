@@ -101,12 +101,20 @@ int test_main(int argc, char * const argv[]) {
     r = db->put(db, write_txn, &key, &val, DB_NOOVERWRITE); assert_zero(r);
     r = write_txn->commit(write_txn, 0); assert_zero(r);
 
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    test_set_rmw(env, db, k, 0, 0, DB_LOCK_NOTGRANTED);
+#else
     test_set_rmw(env, db, k, 0, 0, 0);
+#endif
     test_set_rmw(env, db, k, 0, DB_RMW, DB_LOCK_NOTGRANTED);
     test_set_rmw(env, db, k, DB_RMW, 0, DB_LOCK_NOTGRANTED);
     test_set_rmw(env, db, k, DB_RMW, DB_RMW, DB_LOCK_NOTGRANTED);
 
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    test_create_rmw(env, db, k, 0, 0, DB_LOCK_NOTGRANTED);
+#else
     test_create_rmw(env, db, k, 0, 0, 0);
+#endif
     test_create_rmw(env, db, k, 0, DB_RMW, DB_LOCK_NOTGRANTED);
     test_create_rmw(env, db, k, DB_RMW, 0, DB_LOCK_NOTGRANTED);
     test_create_rmw(env, db, k, DB_RMW, DB_RMW, DB_LOCK_NOTGRANTED);

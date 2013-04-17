@@ -6,7 +6,7 @@
 // force a bad LSN during the forward scan.  recovery should fail.
 
 #include "test.h"
-#include "includes.h"
+
 #if defined(HAVE_LIMITS_H)
 # include <limits.h>
 #endif

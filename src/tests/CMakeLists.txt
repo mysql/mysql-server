@@ -160,6 +160,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       recover-tablelock
       recover-test-logsuppress
       recover-test-logsuppress-put
+      recover-test_stress0
       recover-test_stress1
       recover-test_stress2
       recover-test_stress3
@@ -241,6 +242,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_query
       test_redirect_func
       test_row_size_supported
+      test_stress0
       test_stress1
       test_stress2
       test_stress3
@@ -336,7 +338,11 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     get_filename_component(base ${bin} NAME_WE)
 
     add_executable(${base}.tdb ${base})
-    target_link_libraries(${base}.tdb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    # Some of the symbols in util may not be exported properly by
+    # libtokudb.so.
+    # We link the test with util directly so that the test code itself can use
+    # some of those things (i.e. kibbutz in the threaded tests).
+    target_link_libraries(${base}.tdb util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
@@ -371,7 +377,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
   function(add_custom_executable prefix binary source)
     add_executable(${prefix}_${binary} ${source})
-    target_link_libraries(${prefix}_${binary} ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${prefix}_${binary} util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_target_properties(${prefix}_${binary} PROPERTIES
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
@@ -449,6 +455,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_custom_executable(drd test_4015.tdb test_4015)
   add_drd_test(ydb/drd_test_4015.tdb $<TARGET_FILE:drd_test_4015.tdb>)
 
+  # Set up drd tests. Exclude hot_index.
   configure_file(run_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if(NOT ${src} MATCHES hot_index)
@@ -468,6 +475,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif()
   endforeach(src)
 
+  # Set up upgrade tests. Exclude test_stress_openclose
   configure_file(run_upgrade_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if (NOT ${src} MATCHES test_stress_openclose)

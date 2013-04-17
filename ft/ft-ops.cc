@@ -3871,11 +3871,13 @@ int toku_ft_cursor (
             return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
         }
     }
-    FT_CURSOR MALLOC(cursor);
+    FT_CURSOR XCALLOC(cursor);
+#if 0
     // if this cursor is to do read_committed fetches, then the txn objects must be valid.
     if (cursor == 0)
         return ENOMEM;
     memset(cursor, 0, sizeof(*cursor));
+#endif
     cursor->ft_handle = brt;
     cursor->prefetching = false;
     toku_init_dbt(&cursor->range_lock_left_key);
@@ -3935,6 +3937,7 @@ toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *righ
 
 void toku_ft_cursor_close(FT_CURSOR cursor) {
     ft_cursor_cleanup_dbts(cursor);
+#if 0
     if (cursor->range_lock_left_key.data) {
         toku_free(cursor->range_lock_left_key.data);
         toku_destroy_dbt(&cursor->range_lock_left_key);
@@ -3943,6 +3946,9 @@ void toku_ft_cursor_close(FT_CURSOR cursor) {
         toku_free(cursor->range_lock_right_key.data);
         toku_destroy_dbt(&cursor->range_lock_right_key);
     }
+#endif
+    toku_destroy_dbt(&cursor->range_lock_left_key);
+    toku_destroy_dbt(&cursor->range_lock_right_key);
     toku_free(cursor);
 }
 

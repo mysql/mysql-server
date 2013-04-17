@@ -232,7 +232,7 @@ test_xid_state(DB_INDEXER *indexer, TXNID xid) {
     return r;
 }
 
-static int 
+static void 
 test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(indexer == test_indexer);
     invariant(hotdb == test_hotdb);
@@ -241,7 +241,6 @@ test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     printf("lock [%" PRIu64 "] ", xid);
     print_dbt(key);
     printf("\n");
-    return 0;
 }
 
 static int 

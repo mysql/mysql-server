@@ -5,7 +5,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 // Test the toku_dump_ft() call that is available in the debugger.
 #include <stdio.h>
-#include "includes.h"
+
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;

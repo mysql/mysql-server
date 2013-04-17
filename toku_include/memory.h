@@ -64,11 +64,12 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
 #define XMALLOC(v) CAST_FROM_VOIDP(v, toku_xmalloc(sizeof(*v)))
 #define XMALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xmalloc((n)*sizeof(*v)))
 #define XCALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xcalloc((n), (sizeof(*v))))
-
 #define XCALLOC(v) XCALLOC_N(1,(v))
+#define XREALLOC(v,s) CAST_FROM_VOIDP(v, toku_xrealloc(v, s))
 #define XREALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xrealloc(v, (n)*sizeof(*v)))
 
 #define XMEMDUP(dst, src) CAST_FROM_VOIDP(dst, toku_xmemdup(src, sizeof(*src)))
+#define XMEMDUP_N(dst, src, len) CAST_FROM_VOIDP(dst, toku_xmemdup(src, len))
 
 // ZERO_ARRAY writes zeroes to a stack-allocated array
 #define ZERO_ARRAY(o) do { memset((o), 0, sizeof (o)); } while (0)

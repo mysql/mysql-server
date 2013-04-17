@@ -4,15 +4,16 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <toku_race_tools.h>
 
-#include "includes.h"
+#include <util/omt.h>
+
+#include "log-internal.h"
 #include "txn.h"
 #include "checkpoint.h"
 #include "ule.h"
 #include "txn_manager.h"
 #include "rollback.h"
-#include <toku_race_tools.h>
-#include <util/omt.h>
 
 bool garbage_collection_debug = false;
 

@@ -83,6 +83,25 @@ static void update_deadlock(DB_ENV *db_env, DB *db, int do_txn, int nrows, int n
         }
     }
 
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    // spice this test up a bit when reads locks are not shared.
+    // test that a dining philosopher's style deadlock is detected
+    // by having each txn take a distinct read lock, and then request
+    // a write lock on the value "next" to it (i + 1 mod ntxns)
+
+    // get read locks
+    for (int i = 0; i < ntxns; i++) {
+        read_row(db, txns[i], htonl(i), 0);
+    }
+
+    // get write locks
+    toku_pthread_t tids[ntxns];
+    for (int i = 0 ; i < ntxns; i++) {
+        struct write_one_arg *XMALLOC(arg);
+        *arg = (struct write_one_arg) { txns[i], db, (int) htonl((i + 1) % ntxns), 0};
+        r = toku_pthread_create(&tids[i], NULL, write_one_f, arg);
+    }
+#else
     // get read locks
     for (int i = 0; i < ntxns; i++) {
         read_row(db, txns[i], htonl(0), 0);
@@ -95,6 +114,7 @@ static void update_deadlock(DB_ENV *db_env, DB *db, int do_txn, int nrows, int n
         *arg = (struct write_one_arg) { txns[i], db, (int) htonl(0), 0};
         r = toku_pthread_create(&tids[i], NULL, write_one_f, arg);
     }
+#endif
 
 #if defined(USE_BDB)
     // check for deadlocks

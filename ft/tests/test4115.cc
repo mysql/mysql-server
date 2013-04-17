@@ -5,7 +5,7 @@
 
 // Test toku_ft_handle_stat64 to make sure it works even if the comparison function won't allow an arbitrary prefix of the key to work.
 
-#include "includes.h"
+
 #include "test.h"
 
 #include <unistd.h>

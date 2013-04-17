@@ -5,9 +5,10 @@
 #include <toku_portability.h>
 #include <string.h>
 
+#include "logcursor.h"
 #include "test.h"
 #include "fttypes.h"
-#include "includes.h"
+
 #if defined(HAVE_LIMITS_H)
 # include <limits.h>
 #endif

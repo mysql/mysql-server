@@ -89,7 +89,7 @@ setup (void) {
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->set_lk_max_locks(env, N); CKERR(r);
+    
 #ifndef TOKUDB
     r=env->set_lk_max_objects(env, N); CKERR(r);
 #endif

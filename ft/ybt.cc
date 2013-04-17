@@ -4,7 +4,12 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "includes.h"
+#include <db.h>
+#include <memory.h>
+#include <string.h>
+#include <fttypes.h>
+
+#include "ybt.h"
 
 DBT *
 toku_init_dbt(DBT *ybt) {
@@ -32,18 +37,27 @@ toku_destroy_dbt(DBT *dbt) {
 
 DBT *
 toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
-    toku_init_dbt(dbt);
+    dbt->flags = 0;
+    dbt->ulen = 0;
     dbt->size=len;
     dbt->data=(char*)k;
     return dbt;
 }
 
 DBT *toku_copyref_dbt(DBT *dst, const DBT src) {
-    return toku_fill_dbt(dst, src.data, src.size);
+    dst->flags = 0;
+    dst->ulen = 0;
+    dst->size = src.size;
+    dst->data = src.data;
+    return dst;
 }
 
-DBT *toku_clone_dbt(DBT *dst, const DBT src) {
-    return toku_fill_dbt(dst, toku_xmemdup(src.data, src.size), src.size);
+DBT *toku_clone_dbt(DBT *dst, const DBT &src) {
+    dst->flags = DB_DBT_MALLOC;
+    dst->ulen = 0;
+    dst->size = src.size;
+    dst->data = toku_xmemdup(src.data, src.size);
+    return dst;
 }
 
 void
@@ -143,3 +157,40 @@ toku_dbt_set (ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt) {
     return r;
 }
 
+const DBT *toku_dbt_positive_infinity(void) {
+    static DBT positive_infinity_dbt = {};
+    return &positive_infinity_dbt;
+}
+
+const DBT *toku_dbt_negative_infinity(void) {
+    static DBT negative_infinity_dbt = {};
+    return &negative_infinity_dbt;
+}
+
+bool toku_dbt_is_infinite(const DBT *dbt) {
+    return dbt == toku_dbt_positive_infinity() || dbt == toku_dbt_negative_infinity();
+}
+
+int toku_dbt_infinite_compare(const DBT *a, const DBT *b) {
+    if (a == b) {
+        return 0;
+    } else if (a == toku_dbt_positive_infinity()) {
+        return 1;
+    } else if (b == toku_dbt_positive_infinity()) {
+        return -1;
+    } else if (a == toku_dbt_negative_infinity()) {
+        return -1;
+    } else {
+        invariant(b == toku_dbt_negative_infinity());     
+        return 1;
+    }
+}
+
+bool toku_dbt_equals(const DBT *a, const DBT *b) {
+    if (!toku_dbt_is_infinite(a) && !toku_dbt_is_infinite(b)) {
+        return a->data == b->data && a->size == b->size;
+    } else {
+        // a or b is infinite, so they're equal if they are the same infinite
+        return a == b ? true : false;
+    }
+}

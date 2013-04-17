@@ -4,7 +4,11 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "includes.h"
+#include <memory.h>
+#include <ctype.h>
+
+#include "ft.h"
+#include "log-internal.h"
 #include "txn_manager.h"
 #include "rollback_log_node_cache.h"
 
@@ -12,7 +16,7 @@ static const int log_format_version=TOKU_LOG_VERSION;
 
 static int open_logfile (TOKULOGGER logger);
 static void logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn);
-static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
+static void delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
@@ -654,21 +658,20 @@ static int open_logfile (TOKULOGGER logger)
     return 0;
 }
 
-static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version)
+static void delete_logfile(TOKULOGGER logger, long long index, uint32_t version)
 // Entry and Exit: This thread has permission to modify the output.
 {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, index, version);
     int r = remove(fname);
-    return r;
+    invariant_zero(r);
 }
 
-int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
+void toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
 // On entry and exit: No logger locks held.
 // Acquires and releases output permission.
 {
-    int r=0;
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
     TOKULOGFILEMGR lfm = logger->logfilemgr;
@@ -689,14 +692,10 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
             long index = lf_info->index;
             toku_logfilemgr_delete_oldest_logfile_info(lfm);
             n_logfiles--;
-            r = delete_logfile(logger, index, log_version);
-            if (r!=0) {
-                break;
-            }
+            delete_logfile(logger, index, log_version);
         }
     }
     release_output(logger, fsynced_lsn);
-    return r;
 }
 
 void toku_logger_write_log_files (TOKULOGGER logger, bool write_log_files)

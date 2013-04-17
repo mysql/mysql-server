@@ -64,9 +64,13 @@ int test_main(int argc, char * const argv[]) {
     r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
     r = create_txn->commit(create_txn, 0); assert_zero(r);
 
+    test_read_read(env, db, DB_READ_COMMITTED, 0);
     test_read_read(env, db, DB_READ_UNCOMMITTED, 0);
-    test_read_read(env, db, DB_READ_UNCOMMITTED, 0);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    test_read_read(env, db, DB_SERIALIZABLE, DB_LOCK_NOTGRANTED);
+#else
     test_read_read(env, db, DB_SERIALIZABLE, 0);
+#endif
  
     r = db->close(db, 0); assert_zero(r);
 

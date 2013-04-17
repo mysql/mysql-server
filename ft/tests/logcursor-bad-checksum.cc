@@ -3,9 +3,9 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "logcursor.h"
 #include "test.h"
 
-#include "includes.h"
 #if defined(HAVE_LIMITS_H)
 # include <limits.h>
 #endif

@@ -8,7 +8,7 @@
 // - LE_CURSOR at pos infinity
 // - LE_CURSOR somewhere else
 
-#include "includes.h"
+
 #include "checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"

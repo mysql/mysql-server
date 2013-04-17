@@ -284,7 +284,6 @@ static void print_db_env_struct (void) {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     STRUCT_SETUP(DB_ENV, get_cachesize, "int  (*%s) (DB_ENV *, uint32_t *, uint32_t *, int *)");
     STRUCT_SETUP(DB_ENV, get_flags, "int  (*%s) (DB_ENV *, uint32_t *)");
-    STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, uint32_t *)");    
     STRUCT_SETUP(DB_ENV, get_lg_max, "int  (*%s) (DB_ENV *, uint32_t*)");
 #endif
     STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], uint32_t)");
@@ -308,7 +307,6 @@ static void print_db_env_struct (void) {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, uint32_t)");
 #endif
-    STRUCT_SETUP(DB_ENV, set_lk_max_locks, "int  (*%s) (DB_ENV *, uint32_t)");
     //STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
     STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
     STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, uint32_t, int)");
@@ -707,7 +705,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("void db_env_set_recover_callback2 (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_loader_size_factor (uint32_t) %s;\n", VISIBLE);
     printf("void db_env_set_mvcc_garbage_collection_verification(uint32_t) %s;\n", VISIBLE);
-    printf("void db_env_enable_engine_status(uint32_t) %s;\n", VISIBLE);
+    printf("void db_env_enable_engine_status(bool) %s;\n", VISIBLE);
     printf("void db_env_set_flusher_thread_callback (void (*)(int, void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_num_bucket_mutexes(uint32_t) %s;\n", VISIBLE);
 
