@@ -594,22 +594,13 @@ void toku_brtnode_free (BRTNODE *nodep) {
 }
 
 static void
-brtheader_init(struct brt_header *h) {
-    memset(h, 0, sizeof *h);
-}
-
-static void
 brtheader_partial_destroy(struct brt_header *h) {
     if (h->type == BRTHEADER_CHECKPOINT_INPROGRESS) {
-        //header and checkpoint_header have same Blocktable pointer
-        //cannot destroy since it is still in use by CURRENT
-        h->blocktable = NULL; 
         //Share fifo till #1603
         h->fifo = NULL;
     }
     else {
         assert(h->type == BRTHEADER_CURRENT);
-        toku_blocktable_destroy(&h->blocktable);
         toku_fifo_free(&h->fifo); //TODO: #1603 delete
     }
 }
@@ -619,18 +610,23 @@ brtheader_destroy(struct brt_header *h) {
     if (!h->panic) assert(!h->checkpoint_header);
 
     brtheader_partial_destroy(h);
-    if (h->type == BRTHEADER_CURRENT && h->descriptor.sdbt.data) toku_free(h->descriptor.sdbt.data);
+
+    //header and checkpoint_header have same Blocktable pointer
+    //cannot destroy since it is still in use by CURRENT
+    if (h->type == BRTHEADER_CHECKPOINT_INPROGRESS) h->blocktable = NULL; 
+    else {
+        assert(h->type == BRTHEADER_CURRENT);
+        toku_blocktable_destroy(&h->blocktable);
+        if (h->descriptor.sdbt.data) toku_free(h->descriptor.sdbt.data);
+    }
 }
 
 static int
 brtheader_alloc(struct brt_header **hh) {
-    int r;
-    if ((MALLOC(*hh))==0) {
+    int r = 0;
+    if ((CALLOC(*hh))==0) {
         assert(errno==ENOMEM);
         r = ENOMEM;
-    } else {
-        brtheader_init(*hh);
-        r = 0;
     }
     return r;
 }
@@ -2862,18 +2858,11 @@ static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BO
 }
 
 static int 
-brt_init_header (BRT t) {
+brt_init_header_partial (BRT t) {
     int r;
-    t->h->type = BRTHEADER_CURRENT;
-    t->h->checkpoint_header = NULL;
     t->h->flags = t->flags;
     t->h->nodesize=t->nodesize;
-    toku_blocktable_create_new(&t->h->blocktable);
-    BLOCKNUM root;
-    //Assign blocknum for root block, also dirty the header
-    toku_allocate_blocknum(t->h->blocktable, &root, t->h);
 
-    t->h->root = root;
     compute_and_fill_remembered_hash(t);
 
     toku_fifo_create(&t->h->fifo);
@@ -2902,6 +2891,7 @@ brt_init_header (BRT t) {
         //if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
     }
 #endif
+    BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
     toku_block_verify_no_free_blocknums(t->h->blocktable);
@@ -2909,6 +2899,21 @@ brt_init_header (BRT t) {
 
     return r;
 }
+
+static int
+brt_init_header (BRT t) {
+    t->h->type = BRTHEADER_CURRENT;
+    t->h->checkpoint_header = NULL;
+    toku_blocktable_create_new(&t->h->blocktable);
+    BLOCKNUM root;
+    //Assign blocknum for root block, also dirty the header
+    toku_allocate_blocknum(t->h->blocktable, &root, t->h);
+    t->h->root = root;
+
+    int r = brt_init_header_partial(t);
+    return r;
+}
+
 
 // allocate and initialize a brt header.
 // t->cf is not set to anything.
@@ -4689,47 +4694,24 @@ int toku_dump_brt (FILE *f, BRT brt) {
 
 int toku_brt_truncate (BRT brt) {
     int r;
-    //save information about the descriptor.
-    DISKOFF descriptor_size;
-    DISKOFF descriptor_location_ignore;
-    BLOCKNUM b = brt->h->descriptor.b;
-    if (b.b > 0) {
-        toku_translate_blocknum_to_offset_size(brt->h->blocktable, b,
-                                               &descriptor_location_ignore,
-                                               &descriptor_size);
-    }
 
     // flush the cached tree blocks
     r = toku_brt_flush(brt);
-    if (r != 0)
-        return r;
-
-    // truncate the underlying file
-    r = toku_cachefile_truncate0(brt->cf);
-    if (r != 0)
-        return r;
 
     // TODO log the truncate?
 
-    // reinit the header
-    brtheader_partial_destroy(brt->h);
-    r = brt_init_header(brt);
+    toku_block_lock_for_multiple_operations(brt->h->blocktable);
+    if (r==0) {
+        // reinit the header
+        toku_block_translation_truncate_unlocked(brt->h->blocktable, brt->h);
+        //Assign blocknum for root block, also dirty the header
+        toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root, brt->h);
 
-    brt->h->descriptor.b.b = 0;
-    if (b.b > 0) { //There was a descriptor.
-        //Write the db descriptor to file
-        toku_allocate_blocknum(brt->h->blocktable, &brt->h->descriptor.b, brt->h);
-        DISKOFF offset;
-        //4 for checksum
-        toku_blocknum_realloc_on_disk(brt->h->blocktable, brt->h->descriptor.b,
-                                      descriptor_size, &offset,
-                                      brt->h, FALSE);
-        DBT dbt_descriptor;
-        toku_fill_dbt(&dbt_descriptor, brt->h->descriptor.sdbt.data, brt->h->descriptor.sdbt.len);
-        r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(brt->cf),
-                                                     &dbt_descriptor, offset);
-        assert(r==0);
+        brtheader_partial_destroy(brt->h);
+        r = brt_init_header_partial(brt);
     }
+
+    toku_block_unlock_for_multiple_operations(brt->h->blocktable);
 
     return r;
 }
