@@ -25,7 +25,7 @@ typedef cpuset_t toku_cpuset_t;
 // dummy implementation to get rid of unused warnings etc
 typedef int toku_cpuset_t;
 # define TOKU_CPU_ZERO(p) (*p = 0)
-# define TOKU_CPU_SET(n, p) ((void) (n, p))
+# define TOKU_CPU_SET(n, p) (((void) n, (void) p))
 #endif
 
 // see sched_getaffinity(2)
