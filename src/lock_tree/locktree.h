@@ -119,8 +119,12 @@ void
 toku_lt_update_descriptor(toku_lock_tree* tree, DESCRIPTOR desc);
 
 /**
-    Gets a lock tree for a given DB with id dict_id. If the locktree is created,
-    the on_create_callback will be called with a pointer to the new tree and extra.
+    Gets a lock tree for a given DB with id dict_id. 
+
+    If an on_create callback is given, then an on_close callback must be given,
+    and vice-versa. The on_create callback is called if the locktree is actually
+    created by this call and the on_close callback is called when the locktree
+    eventually closes, by the user or by an error path in this call.
 */
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, 
         toku_dbt_cmp compare_fun, toku_lt_on_create_cb on_create_callback, void *on_create_extra,

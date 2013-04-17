@@ -1353,6 +1353,13 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     toku_lock_tree* tree = NULL;
     bool added_to_ltm    = FALSE;
     bool added_to_idlth  = FALSE;
+
+    // verify that the on_create and on_close callbacks are either 
+    // mutually null or mutually non-null.
+    if ((on_close_callback == NULL) != (on_close_callback == NULL)) {
+        r = EINVAL;
+        goto out;
+    }
     
     ltm_mutex_lock(mgr);
     map = toku_idlth_find(mgr->idlth, dict_id);
@@ -1370,11 +1377,15 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     if (r != 0) {
         goto cleanup;
     }
-    // we just created the locktree, so call the callback if necessary
+
+    // we just created the locktree, so call the callback if necessary,
+    // and set the on_close callback. we checked above that these callbacks
+    // are either mutually null or non-null, so this is correct.
     if (on_create_callback) {
         on_create_callback(tree, on_create_extra);
+    } else {
+        assert(on_close_callback == NULL);
     }
-    // set the on close callback
     tree->on_close_callback = on_close_callback;
     
     lt_set_dict_id(tree, dict_id);
@@ -1406,22 +1417,24 @@ cleanup:
     if (r == 0) {
         mgr->STATUS_VALUE(LTM_LT_CREATE)++;
         mgr->STATUS_VALUE(LTM_LT_NUM)++;
-        if (mgr->STATUS_VALUE(LTM_LT_NUM) > mgr->STATUS_VALUE(LTM_LT_NUM_MAX))
+        if (mgr->STATUS_VALUE(LTM_LT_NUM) > mgr->STATUS_VALUE(LTM_LT_NUM_MAX)) {
             mgr->STATUS_VALUE(LTM_LT_NUM_MAX) = mgr->STATUS_VALUE(LTM_LT_NUM);
+        }
     }
     else {
         if (tree != NULL) {
-            if (added_to_ltm)
+            if (added_to_ltm) {
                 ltm_remove_lt(mgr, tree);
-            if (added_to_idlth)
+            }
+            if (added_to_idlth) {
                 toku_idlth_delete(mgr->idlth, dict_id);
+            }
+            // if the on_create callback was called, then we will have set
+            // the on_close callback to something non-null, and it will
+            // be called in toku_lt_close(), as required.
             toku_lt_close(tree); 
         }
         mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
-        // need to make sure the on close callback is called
-        // here, otherwise we might leak something from the 
-        // on create callback.
-        on_close_callback(tree);
     }
     ltm_mutex_unlock(mgr);
     return r;
