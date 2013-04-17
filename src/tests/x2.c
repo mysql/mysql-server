@@ -1,15 +1,19 @@
 /* Transaction consistency:  
  *  fork a process:
- *   Open two tables, T1 and T2
- *   begin transaction
- *   store A in T1
+ *   Open two tables, A and B
+ *   begin transaction U
+ *   begin transaction V
+ *   store U.A into A using U
+ *   store V.B into B using V
  *   checkpoint
- *   store B in T2
- *   commit (or abort)
- *   signal to end the process abruptly
+ *   store U.C into A using U
+ *   store V.D into B using V
+ *   commit U
+ *   maybe commit V
+ *   abort the process abruptly
  *  wait for the process to finish
  *   open the environment doing recovery
- *   check to see if both A and B are present (or absent)
+ *   check to see if both rows are present in A and maybe present in B
  */
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -19,7 +23,6 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 char *namea="a.db";
 char *nameb="b.db";
 
-
 static void
 put (DB_TXN *txn, DB *db, char *key, char *data) {
     DBT k = {.data = key,  .size=1+strlen(key) };
@@ -28,10 +31,8 @@ put (DB_TXN *txn, DB *db, char *key, char *data) {
     CKERR(r);
 }
    
-
 static void
-do_x2_shutdown (BOOL do_commit)
-{
+do_x2_shutdown (BOOL do_commit) {
     int r;
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -74,8 +75,7 @@ checkcurs (DBC *curs, int cursflags, char *key, char *val, BOOL expect_it) {
 }
 
 static void
-do_x1_recover (BOOL did_commit)
-{
+do_x2_recover (BOOL did_commit) {
     DB_ENV *env;
     int r;
     r = db_env_create(&env, 0);                                                             CKERR(r);
@@ -115,8 +115,7 @@ do_x1_recover (BOOL did_commit)
 const char *cmd;
 
 static void
-do_test_internal (BOOL commit)
-{
+do_test_internal (BOOL commit) {
     pid_t pid;
     if (0 == (pid=fork())) {
 	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--commit" : "--abort", NULL);
@@ -157,7 +156,7 @@ do_test (void) {
 BOOL do_commit=FALSE, do_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
 
 static void
-x1_parse_args (int argc, char *argv[]) {
+x2_parse_args (int argc, char *argv[]) {
     int resultcode;
     cmd = argv[0];
     argc--; argv++;
@@ -192,7 +191,7 @@ x1_parse_args (int argc, char *argv[]) {
 	int n_specified=0;
 	if (do_commit)            n_specified++;
 	if (do_abort)             n_specified++;
-	if (do_recover_committed)  n_specified++;
+	if (do_recover_committed) n_specified++;
 	if (do_recover_aborted)   n_specified++;
 	if (n_specified>1) {
 	    printf("Specify only one of --commit or --abort or --recover-committed or --recover-aborted\n");
@@ -203,17 +202,16 @@ x1_parse_args (int argc, char *argv[]) {
 }
 
 int
-test_main (int argc, char *argv[])
-{
-    x1_parse_args(argc, argv);
+test_main (int argc, char *argv[]) {
+    x2_parse_args(argc, argv);
     if (do_commit) {
 	do_x2_shutdown (TRUE);
     } else if (do_abort) {
 	do_x2_shutdown (FALSE);
     } else if (do_recover_committed) {
-	do_x1_recover(TRUE);
+	do_x2_recover(TRUE);
     } else if (do_recover_aborted) {
-	do_x1_recover(FALSE);
+	do_x2_recover(FALSE);
     } else {
 	do_test();
     }

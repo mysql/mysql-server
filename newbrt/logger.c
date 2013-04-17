@@ -173,12 +173,10 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 
 int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
-
-    // TODO: checkpoint?
-    
-    // log a shutdown
-    if (logger->is_open)
-        r = toku_log_shutdown(logger, NULL, TRUE, 0);
+    if (logger->is_open) {
+        if (toku_omt_size(logger->live_txns) == 0)
+            r = toku_log_shutdown(logger, NULL, TRUE, 0);
+    }
     return r;
 }
 
