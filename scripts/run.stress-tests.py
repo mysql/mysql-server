@@ -130,7 +130,6 @@ class TestRunnerBase(object):
         self.envdir = ('../%s-%d-%d-%d-%d-%d.dir' %
                        (self.execf, self.tsize, self.csize,
                         self.ptquery, self.update, get_ident()))
-        os.mkdir(self.envdir)
 
         try:
             try:
