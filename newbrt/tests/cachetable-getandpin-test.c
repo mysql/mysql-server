@@ -37,30 +37,6 @@ fetch (
     return 0;
 }
 
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
-    PAIR_ATTR* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
 static void
 cachetable_getandpin_test (int n) {
     const int test_limit = 1024*1024;
@@ -79,7 +55,9 @@ cachetable_getandpin_test (int n) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         void *v; long size;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch, pe_est_callback, pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
         assert(r == 0);
         assert(size == i);
 

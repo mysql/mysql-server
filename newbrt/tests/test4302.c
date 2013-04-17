@@ -107,19 +107,20 @@ cachetable_test (void) {
   long s1;
   u_int64_t val1 = 0;
   u_int64_t val2 = 0;
+  CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+  wc.flush_callback = flush;
+  wc.pe_est_callback = pe_est_callback;
+  wc.pe_callback = pe_callback;
   r = toku_cachetable_get_and_pin(
       f1, 
       make_blocknum(1), 
       1, 
       &v1, 
       &s1, 
-      flush, 
+      wc, 
       fetch, 
-      pe_est_callback, 
-      pe_callback, 
-      def_pf_req_callback, def_pf_callback, def_cleaner_callback, 
-      &val1, 
-      NULL
+      def_pf_req_callback, def_pf_callback, 
+      &val1
       );
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
   CACHEKEY key;
@@ -130,11 +131,7 @@ cachetable_test (void) {
         test_get_key_and_fullhash,
         &val2,
         make_pair_attr(8),
-        flush,
-        pe_est_callback,
-        pe_callback, 
-        def_cleaner_callback,
-        NULL, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+        wc,
         NULL,
         0, // number of dependent pairs that we may need to checkpoint
         NULL, // array of cachefiles of dependent pairs

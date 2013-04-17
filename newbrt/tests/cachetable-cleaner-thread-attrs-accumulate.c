@@ -76,16 +76,16 @@ run_test (void) {
     long ss[n_pairs];
     //long s2;
     PAIR_ATTR expect = { .size = 0, .nonleaf_size = 0, .leaf_size = 0, .rollback_size = 0, .cache_pressure_size = 0 };
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
+    wc.write_extraargs = &expect;
     for (int i = 0; i < n_pairs; ++i) {
         r = toku_cachetable_get_and_pin(f1, make_blocknum(i+1), i+1, &vs[i], &ss[i],
-                                        flush,
+                                        wc,
                                         def_fetch,
-                                        def_pe_est_callback,
-                                        def_pe_callback,
                                         def_pf_req_callback,
                                         def_pf_callback,
-                                        def_cleaner_callback,
-                                        NULL, &expect);
+                                        &expect);
         assert_zero(r);
         r = toku_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_DIRTY, attrs[i]);
         assert_zero(r);
@@ -105,14 +105,11 @@ run_test (void) {
     void *big_v;
     long big_s;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(n_pairs + 1), n_pairs + 1, &big_v, &big_s,
-                                    flush,
+                                    wc,
                                     def_fetch,
-                                    def_pe_est_callback,
-                                    def_pe_callback,
                                     def_pf_req_callback,
                                     def_pf_callback,
-                                    def_cleaner_callback,
-                                    NULL, &expect);
+                                    &expect);
     toku_cachetable_unpin(f1, make_blocknum(n_pairs + 1), n_pairs + 1, CACHETABLE_CLEAN,
                           make_pair_attr(test_limit - expect.size + 20));
 

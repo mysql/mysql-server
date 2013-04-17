@@ -94,20 +94,20 @@ static void cachetable_eviction_full_test (void) {
     // and really bring up its clock count
     //
     for (int i = 0; i < 20; i++) {
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.flush_callback = flush;
+        wc.pe_est_callback = pe_est_callback;
+        wc.pe_callback = pe_callback;
         r = toku_cachetable_get_and_pin(
             f1, 
             key, 
             fullhash, 
             &value1, 
             &size1, 
-            flush, 
+            wc, 
             fetch,
-            pe_est_callback, 
-            pe_callback, 
             def_pf_req_callback,
             def_pf_callback,
-            def_cleaner_callback,
-            0,
             0
             );
         assert(r==0);
@@ -116,20 +116,19 @@ static void cachetable_eviction_full_test (void) {
     }
     expect_full_flush = TRUE;
     // now pin a different, causing an eviction
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.pe_est_callback = pe_est_callback;
+    wc.pe_callback = pe_callback;
     r = toku_cachetable_get_and_pin(
         f1, 
         make_blocknum(1), 
         1, 
         &value2, 
         &size2, 
-        def_flush, 
+        wc, 
         fetch,
-        pe_est_callback, 
-        pe_callback, 
         def_pf_req_callback,
         def_pf_callback,
-        def_cleaner_callback,
-        0,
         0
         );
     assert(r==0);

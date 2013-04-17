@@ -82,9 +82,11 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     void* v2;
     long s1;
     long s2;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val1, NULL);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, &val1);
     assert(r==0);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val2, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, &val2);
     assert(r==0);
     
     CACHEFILE dependent_cfs[2];
@@ -120,11 +122,7 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
         get_key_and_fullhash,
         &val3,
         make_pair_attr(8),
-        flush,
-        def_pe_est_callback,
-        def_pe_callback,
-        def_cleaner_callback,
-        NULL,
+        wc,
         NULL,
         2, //num_dependent_pairs
         dependent_cfs,

@@ -25,7 +25,8 @@ cachetable_debug_test (int n) {
         const int item_size = 1;
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(item_size), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(item_size), wc);
         assert(r == 0);
 
         void *v; int dirty; long long pinned; long pair_size;

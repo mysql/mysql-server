@@ -94,15 +94,11 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
         toku_cachetable_hash(brt->cf, diskoff),
         &node_v,
         NULL,
-        toku_brtnode_flush_callback,
+        get_write_callbacks_for_node(brt->h),
         toku_brtnode_fetch_callback,
-        toku_brtnode_pe_est_callback,
-        toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        toku_brtnode_cleaner_callback,
-        &bfe,
-        brt->h
+        &bfe
         );
     assert(r==0);
     int size = toku_serialize_brtnode_size(node_v);
@@ -124,15 +120,11 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
         toku_cachetable_hash(brt->cf, blocknum),
         &node_v,
         NULL,
-	toku_brtnode_flush_callback,
+        get_write_callbacks_for_node(brt->h),
 	toku_brtnode_fetch_callback,
-	toku_brtnode_pe_est_callback,
-	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        toku_brtnode_cleaner_callback,
-	&bfe,
-	brt->h
+	&bfe
 	);
     if (r!=0) return r;
     BRTNODE node=node_v;
@@ -200,15 +192,11 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
         toku_cachetable_hash(brt->cf, blocknum),
         &node_v,
         NULL,
-	toku_brtnode_flush_callback,
+        get_write_callbacks_for_node(brt->h),
 	toku_brtnode_fetch_callback,
-	toku_brtnode_pe_est_callback,
-	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-	toku_brtnode_cleaner_callback,
-	&bfe,
-	brt->h
+	&bfe
         );
     if (r!=0) return r;
     BRTNODE node=node_v;

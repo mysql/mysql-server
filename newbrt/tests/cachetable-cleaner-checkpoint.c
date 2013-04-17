@@ -32,22 +32,6 @@ flush (CACHEFILE f __attribute__((__unused__)),
   }
 }
 
-static int
-fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       PAIR_ATTR *sizep        __attribute__((__unused__)),
-       int  *dirtyp,
-       void *extraargs    __attribute__((__unused__))
-       ) {
-  *dirtyp = 0;
-  *value = NULL;
-  *sizep = make_pair_attr(8);
-  return 0;
-}
-
 BOOL cleaner_called;
 
 static int
@@ -83,7 +67,10 @@ cachetable_test (void) {
   //void* v2;
   long s1;
   //long s2;
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, cleaner_callback, NULL, NULL);
+  CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+  wc.flush_callback = flush;
+  wc.cleaner_callback = cleaner_callback;
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
   PAIR_ATTR attr = make_pair_attr(8);
   attr.cache_pressure_size = 8;
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, attr);

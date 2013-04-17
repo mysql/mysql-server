@@ -100,9 +100,11 @@ static void test_rename (void) {
 	    long     nval = random();
 	    if (verbose) printf("n_keys=%d Insert %08" PRIx64 "\n", n_keys, nkey.b);
 	    u_int32_t hnkey = toku_cachetable_hash(f, nkey);
+            CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+            wc.flush_callback = r_flush;
 	    r = toku_cachetable_put(f, nkey, hnkey,
 				    (void*)nval, make_pair_attr(1),
-				    r_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+				    wc);
 	    assert(r==0);
             test_mutex_lock();
             while (n_keys >= KEYLIMIT) {
@@ -127,7 +129,9 @@ static void test_rename (void) {
 	    void *current_value;
 	    long current_size;
 	    if (verbose) printf("Rename %" PRIx64 " to %" PRIx64 "\n", okey.b, nkey.b);
-	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+            CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+            wc.flush_callback = r_flush;
+	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, wc, r_fetch, def_pf_req_callback, def_pf_callback, 0);
 	    if (r == -42) continue;
             assert(r==0);
 	    r = toku_cachetable_rename(f, okey, nkey);

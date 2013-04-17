@@ -42,7 +42,9 @@ cachetable_test (void) {
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     for (int64_t i = 0; i < num_entries; i++) {
-        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, NULL);
+       CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+       wc.flush_callback = flush;
+        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc);
         int curr_size = __sync_fetch_and_add(&total_size, 1);
         assert(curr_size <= test_limit + test_limit/2+1);
         r = toku_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(4));

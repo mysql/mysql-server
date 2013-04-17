@@ -1745,11 +1745,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
                                  enum ctpair_state state,
                                  u_int32_t fullhash, 
                                  PAIR_ATTR attr,
-                                 CACHETABLE_FLUSH_CALLBACK flush_callback,
-                                 CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-                                 CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                                 CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-                                 void *write_extraargs, 
+                                 CACHETABLE_WRITE_CALLBACK write_callback,
                                  enum cachetable_dirty dirty) {
     PAIR MALLOC(p);
     assert(p);
@@ -1762,11 +1758,11 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     p->dirty = dirty;
     p->attr = attr;
     p->state = state;
-    p->flush_callback = flush_callback;
-    p->pe_callback = pe_callback;
-    p->pe_est_callback = pe_est_callback;
-    p->cleaner_callback = cleaner_callback;
-    p->write_extraargs = write_extraargs;
+    p->flush_callback = write_callback.flush_callback;
+    p->pe_callback = write_callback.pe_callback;
+    p->pe_est_callback = write_callback.pe_est_callback;
+    p->cleaner_callback = write_callback.cleaner_callback;
+    p->write_extraargs = write_callback.write_extraargs;
     p->fullhash = fullhash;
     p->clock_next = p->clock_prev = 0;
     p->remove_me = FALSE;
@@ -1811,11 +1807,7 @@ static int cachetable_put_internal(
     u_int32_t fullhash, 
     void*value, 
     PAIR_ATTR attr,
-    CACHETABLE_FLUSH_CALLBACK flush_callback,
-    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void *write_extraargs
+    CACHETABLE_WRITE_CALLBACK write_callback
     )
 {
     CACHETABLE ct = cachefile->cachetable;
@@ -1833,9 +1825,9 @@ static int cachetable_put_internal(
                 //
                 // Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
                 // In practice, the functions better be the same.
-                assert(p->flush_callback==flush_callback);
-                assert(p->pe_callback==pe_callback);
-                assert(p->cleaner_callback==cleaner_callback);
+                assert(p->flush_callback == write_callback.flush_callback);
+                assert(p->pe_callback == write_callback.pe_callback);
+                assert(p->cleaner_callback == write_callback.cleaner_callback);
                 return -1; /* Already present, don't grab lock. */
             }
         }
@@ -1850,11 +1842,7 @@ static int cachetable_put_internal(
         CTPAIR_IDLE, 
         fullhash, 
         attr, 
-        flush_callback,
-        pe_est_callback,
-        pe_callback, 
-        cleaner_callback,
-        write_extraargs, 
+        write_callback,
         CACHETABLE_DIRTY
         );
     assert(p);
@@ -1956,11 +1944,7 @@ int toku_cachetable_put_with_dep_pairs(
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
     void*value, 
     PAIR_ATTR attr,
-    CACHETABLE_FLUSH_CALLBACK flush_callback,
-    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void *write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+    CACHETABLE_WRITE_CALLBACK write_callback,
     void *get_key_and_fullhash_extra,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -2012,11 +1996,7 @@ int toku_cachetable_put_with_dep_pairs(
 				       *fullhash,
 				       value,
 				       attr,
-				       flush_callback,
-				       pe_est_callback,
-				       pe_callback,
-				       cleaner_callback,
-				       write_extraargs
+				       write_callback
 				       );
 
 	//
@@ -2040,11 +2020,7 @@ int toku_cachetable_put_with_dep_pairs(
 
 
 int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void*value, PAIR_ATTR attr,
-			CACHETABLE_FLUSH_CALLBACK flush_callback,
-			CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-                        CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
-                        CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-                        void *write_extraargs // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+                        CACHETABLE_WRITE_CALLBACK write_callback
                         ) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     CACHETABLE ct = cachefile->cachetable;
@@ -2057,11 +2033,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
         fullhash,
         value,
         attr,
-        flush_callback,
-        pe_est_callback,
-        pe_callback,
-        cleaner_callback,
-        write_extraargs
+        write_callback
         );
     cachetable_unlock(ct);
     return r;
@@ -2171,15 +2143,11 @@ int toku_cachetable_get_and_pin (
     u_int32_t fullhash, 
     void**value, 
     long *sizep,
-    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
-    void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
-    void* write_extraargs // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
+    void* read_extraargs // parameter for fetch_callback, pf_req_callback, and pf_callback
     ) 
 {
     // We have separate parameters of read_extraargs and write_extraargs because
@@ -2194,15 +2162,11 @@ int toku_cachetable_get_and_pin (
         fullhash, 
         value, 
         sizep,
-        flush_callback, 
+        write_callback,
         fetch_callback, 
-        pe_est_callback,
-        pe_callback, 
         pf_req_callback,
         pf_callback,
-        cleaner_callback,
         read_extraargs,
-        write_extraargs,
         0, // number of dependent pairs that we may need to checkpoint
         NULL, // array of cachefiles of dependent pairs
         NULL, // array of cachekeys of dependent pairs
@@ -2218,15 +2182,11 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     u_int32_t fullhash, 
     void**value, 
     long *sizep,
-    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
-    void* write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
@@ -2294,11 +2254,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             CTPAIR_READING, 
             fullhash, 
             zero_attr, 
-            flush_callback, 
-            pe_est_callback,
-            pe_callback, 
-            cleaner_callback,
-            write_extraargs, 
+            write_callback,
             CACHETABLE_CLEAN
             );
         assert(p);
@@ -2507,15 +2463,11 @@ int toku_cachetable_get_and_pin_nonblocking (
     u_int32_t fullhash, 
     void**value, 
     long *sizep,
-    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void *read_extraargs,
-    void* write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
     UNLOCKERS unlockers
     )
 // Effect:  If the block is in the cachetable, then pin it and return it. 
@@ -2642,11 +2594,7 @@ int toku_cachetable_get_and_pin_nonblocking (
         CTPAIR_READING, 
         fullhash, 
         zero_attr, 
-        flush_callback, 
-        pe_est_callback, 
-        pe_callback, 
-        cleaner_callback, 
-        write_extraargs, 
+        write_callback,
         CACHETABLE_CLEAN
         );
     assert(p);
@@ -2675,15 +2623,11 @@ struct cachefile_partial_prefetch_args {
 };
 
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
-                            CACHETABLE_FLUSH_CALLBACK flush_callback,
+                            CACHETABLE_WRITE_CALLBACK write_callback,
                             CACHETABLE_FETCH_CALLBACK fetch_callback,
-                            CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
                             CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-                            CACHETABLE_CLEANER_CALLBACK cleaner_callback,
                             void *read_extraargs,
-                            void *write_extraargs, // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
                             BOOL *doing_prefetch)
 // Effect: See the documentation for this function in cachetable.h
 {
@@ -2723,11 +2667,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
             CTPAIR_READING, 
             fullhash, 
             zero_attr, 
-            flush_callback, 
-            pe_est_callback, 
-            pe_callback, 
-            cleaner_callback, 
-            write_extraargs, 
+            write_callback,
             CACHETABLE_CLEAN
             );
         assert(p);

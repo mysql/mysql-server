@@ -58,7 +58,9 @@ static void cachetable_prefetch_close_leak_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.flush_callback = flush;
+    r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
     toku_cachetable_verify(ct);
 
     // close with the prefetch in progress. the close should block until

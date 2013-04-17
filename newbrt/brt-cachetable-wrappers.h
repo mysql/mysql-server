@@ -8,6 +8,7 @@
 
 #include <c_dialects.h>
 #include <brttypes.h>
+#include "cachetable.h"
 
 C_BEGIN
 

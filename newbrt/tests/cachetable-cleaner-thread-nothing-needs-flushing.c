@@ -38,15 +38,14 @@ run_test (void) {
     long ss[8];
     //long s2;
     for (int i = 0; i < 8; ++i) {
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        wc.cleaner_callback = everything_pinned_cleaner_callback;
         r = toku_cachetable_get_and_pin(f1, make_blocknum(i+1), i+1, &vs[i], &ss[i],
-                                        def_flush,
+                                        wc,
                                         def_fetch,
-                                        def_pe_est_callback,
-                                        def_pe_callback,
                                         def_pf_req_callback,
                                         def_pf_callback,
-                                        everything_pinned_cleaner_callback,
-                                        NULL, NULL);
+                                        NULL);
         assert_zero(r);
         // set cachepressure_size to 0
         PAIR_ATTR attr = make_pair_attr(8);

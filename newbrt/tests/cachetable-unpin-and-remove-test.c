@@ -32,6 +32,7 @@ cachetable_unpin_and_remove_test (int n) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
 
     // generate some random keys
     CACHEKEY keys[n]; int nkeys = n;
@@ -42,7 +43,7 @@ cachetable_unpin_and_remove_test (int n) {
     // put the keys into the cachetable
     for (i=0; i<n; i++) {
         u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(keys[i].b));
-        r = toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *)(long) keys[i].b, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *)(long) keys[i].b, make_pair_attr(1),wc);
         assert(r == 0);
     }
     
@@ -96,6 +97,7 @@ cachetable_put_evict_remove_test (int n) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
 
     u_int32_t hi[n];
     for (i=0; i<n; i++)
@@ -103,7 +105,7 @@ cachetable_put_evict_remove_test (int n) {
 
     // put 0, 1, 2, ... should evict 0
     for (i=0; i<n; i++) {
-        r = toku_cachetable_put(f1, make_blocknum(i), hi[i], (void *)(long)i, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi[i], (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
         r = toku_cachetable_unpin(f1, make_blocknum(i), hi[i], CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
@@ -111,7 +113,7 @@ cachetable_put_evict_remove_test (int n) {
 
     // get 0
     void *v; long s;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(0), hi[0], &v, &s, def_flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(0), hi[0], &v, &s, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
     assert(r == 0);
         
     // remove 0

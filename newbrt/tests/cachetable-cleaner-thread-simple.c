@@ -11,7 +11,7 @@
 CACHEFILE f1;
 bool my_cleaner_callback_called;
 
-static UU() int
+static int
 my_cleaner_callback(
     void* UU(brtnode_pv),
     BLOCKNUM UU(blocknum),
@@ -45,29 +45,25 @@ run_test (void) {
     //void* v2;
     long ss[5];
     //long s2;
+    CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    wc.cleaner_callback = my_cleaner_callback;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(100), 100, &vs[4], &ss[4],
-                                    def_flush,
+                                    wc,
                                     def_fetch,
-                                    def_pe_est_callback,
-                                    def_pe_callback,
                                     def_pf_req_callback,
                                     def_pf_callback,
-                                    my_cleaner_callback,
-                                    NULL, NULL);
+                                    NULL);
     PAIR_ATTR attr = make_pair_attr(8);
     attr.cache_pressure_size = 100;
     r = toku_cachetable_unpin(f1, make_blocknum(100), 100, CACHETABLE_CLEAN, attr);
 
     for (int i = 0; i < 4; ++i) {
         r = toku_cachetable_get_and_pin(f1, make_blocknum(i+1), i+1, &vs[i], &ss[i],
-                                        def_flush,
+                                        wc,
                                         def_fetch,
-                                        def_pe_est_callback,
-                                        def_pe_callback,
                                         def_pf_req_callback,
                                         def_pf_callback,
-                                        def_cleaner_callback,
-                                        NULL, NULL);
+                                        NULL);
         assert_zero(r);
         // set cachepressure_size to 0
         attr = make_pair_attr(8);

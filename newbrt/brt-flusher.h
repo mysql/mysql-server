@@ -66,22 +66,6 @@ toku_flusher_thread_set_callback(
     );
 
 /**
- * Brings the node into memory and flushes the fullest buffer.  If the
- * heaviest child is empty, does nothing, otherwise, executes
- * flush_some_child to do the flush.
- *
- * Wrapped by toku_brtnode_cleaner_callback to provide access to
- * brt_status which currently just lives in brt.c.
- */
-int
-toku_brtnode_cleaner_callback(
-    void *brtnode_pv,
-    BLOCKNUM blocknum,
-    u_int32_t fullhash,
-    void *extraargs
-    );
-
-/**
  * Puts a workitem on the flusher thread queue, scheduling the node to be
  * flushed by flush_some_child.
  */

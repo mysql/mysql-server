@@ -17,7 +17,8 @@ cachetable_put_test (int n) {
     for (i=1; i<=n; i++) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), def_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
+        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
