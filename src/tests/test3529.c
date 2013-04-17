@@ -48,11 +48,13 @@ insert(int i, DB_TXN *txn)
     snprintf(hello, sizeof(hello), "hello%04d", i);
     snprintf(there, sizeof(there), "there%d", i);
     DBT key, val;
+    if (db) {
     int r=db->put(db, txn,
 		  dbt_init(&key, hello, strlen(hello)+1),
 		  dbt_init(&val, there, strlen(there)+1),
 		  0);
     CKERR(r);
+    }
 }
 
 static void delete (int i, DB_TXN *x) {
@@ -77,6 +79,7 @@ do_nothing(DBT const *UU(a), DBT  const *UU(b), void *UU(c)) {
 
 static void
 setup (void) {
+    db = NULL;
     db_env_set_func_pread(my_pread);
     int r;
     r = system("rm -rf " ENVDIR);                                                     CKERR(r);
