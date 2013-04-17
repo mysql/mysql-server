@@ -326,9 +326,8 @@ static void test (const char *directory, BOOL is_error) {
     brt_loader_init_error_callback(&bl->error_callback);
     brt_loader_set_error_function(&bl->error_callback, err_cb, NULL);
     brt_loader_init_poll_callback(&bl->poll_callback);
-
     brt_loader_set_poll_function(&bl->poll_callback, loader_poll_callback, NULL);
-
+    brt_loader_set_fractal_workers_count_from_c(bl);
 
     QUEUE q;
     { int r = queue_create(&q, 1000); assert(r==0); }
