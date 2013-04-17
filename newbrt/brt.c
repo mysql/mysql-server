@@ -5797,7 +5797,7 @@ try_again:
     {   // accounting (to detect and measure thrashing)
         uint retrycount = trycount - 1;         // how many retries were needed?
         STATUS_VALUE(BRT_TOTAL_SEARCHES)++;
-        STATUS_VALUE(BRT_TOTAL_RETRIES) += retrycount;
+        if (retrycount) STATUS_VALUE(BRT_TOTAL_RETRIES) += retrycount;
         if (root_tries > 1) {                   // if root was read from disk more than once
             STATUS_VALUE(BRT_SEARCH_ROOT_RETRIES)++;
             if (root_tries > STATUS_VALUE(BRT_MAX_SEARCH_ROOT_TRIES))

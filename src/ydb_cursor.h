@@ -8,9 +8,7 @@ extern "C" {
 #endif
 
 typedef enum {
-    YDB_C_LAYER_NUM_POINT_QUERIES = 0,
-    YDB_C_LAYER_NUM_SEQUENTIAL_QUERIES,
-    YDB_C_LAYER_STATUS_NUM_ROWS              /* number of rows in this status array */
+    YDB_C_LAYER_STATUS_NUM_ROWS = 0             /* number of rows in this status array */
 } ydb_c_lock_layer_status_entry;
 
 typedef struct {
