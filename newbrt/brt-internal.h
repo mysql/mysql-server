@@ -756,11 +756,21 @@ void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **m
 //  from the OMT (which items refer to items in the old mempool) into the new mempool.
 //  If MAYBE_FREE is NULL then free the old mempool's space.
 //  Otherwise, store the old mempool's space in maybe_free.
+void
+toku_get_node_for_verify(
+    BLOCKNUM blocknum,
+    BRT brt,
+    BRTNODE* nodep
+    );
 
-int toku_verify_brtnode (BRT brt, MSN rootmsn, MSN parentmsn,
-                         BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, 
-                         int (*progress_callback)(void *extra, float progress), void *extra,
-                         int recurse, int verbose, int keep_on_going)
+int
+toku_verify_brtnode (BRT brt,
+                     MSN rootmsn, MSN parentmsn,
+                     BRTNODE node, int height,
+                     struct kv_pair *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     struct kv_pair *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     int (*progress_callback)(void *extra, float progress), void *progress_extra,
+                     int recurse, int verbose, int keep_going_on_failure)
     __attribute__ ((warn_unused_result));
 
 void toku_brtheader_free (struct brt_header *h);

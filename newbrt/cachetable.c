@@ -1234,6 +1234,30 @@ static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
     p->already_removed = TRUE;
 }
 
+
+static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
+    // helgrind
+    CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
+    CACHEFILE cachefile = p->cachefile;
+    CACHEKEY key = p->key;
+    void *value = p->value;
+    void *write_extraargs = p->write_extraargs;
+    PAIR_ATTR old_attr = p->attr;
+    
+    rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
+    cachetable_evictions++;
+    cachetable_unlock(ct);
+    PAIR_ATTR new_attr = p->attr;
+    // Note that flush_callback is called with write_me FALSE, so the only purpose of this 
+    // call is to tell the brt layer to evict the node (keep_me is FALSE).
+    flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE);
+    
+    cachetable_lock(ct);
+    rwlock_read_unlock(&cachefile->fdlock);
+    
+    ctpair_destroy(p);
+}
+
 // Maybe remove a pair from the cachetable and free it, depending on whether
 // or not there are any threads interested in the pair.  The flush callback
 // is called with write_me and keep_me both false, and the pair is destroyed.
@@ -1244,27 +1268,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* 
     *destroyed = FALSE;
     if (nb_mutex_users(&p->nb_mutex) == 0) {
         cachetable_remove_pair(ct, p);
-
-        // helgrind
-        CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
-        CACHEFILE cachefile = p->cachefile;
-        CACHEKEY key = p->key;
-        void *value = p->value;
-        void *write_extraargs = p->write_extraargs;
-        PAIR_ATTR old_attr = p->attr;
-
-        rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
-        cachetable_evictions++;
-        cachetable_unlock(ct);
-        PAIR_ATTR new_attr = p->attr;
-	// Note that flush_callback is called with write_me FALSE, so the only purpose of this 
-	// call is to tell the brt layer to evict the node (keep_me is FALSE).
-        flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE);
-
-        cachetable_lock(ct);
-        rwlock_read_unlock(&cachefile->fdlock);
-
-        ctpair_destroy(p);
+        cachetable_free_pair(ct, p);
         *destroyed = TRUE;
     }
 }
@@ -1404,6 +1408,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
     if (p->cq)
         workqueue_enq(p->cq, &p->asyncwork, 1);
     else {
+        p->state = CTPAIR_IDLE;
         BOOL destroyed;
         cachetable_complete_write_pair(ct, p, remove_me, &destroyed);
     }
@@ -1415,8 +1420,6 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
 
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed) {
     p->cq = 0;
-    p->state = CTPAIR_IDLE;
-    
     nb_mutex_write_unlock(&p->nb_mutex);
     if (do_remove) {
         cachetable_maybe_remove_and_free_pair(ct, p, destroyed);
@@ -1592,6 +1595,16 @@ static void maybe_flush_some (CACHETABLE ct, long size) {
                         workqueue_enq(&ct->wq, wi, 0);
                     }
                     else {
+                        // maybe_flush_some is always run on a client thread
+                        // As a result, the cachefile cannot be in process of closing,
+                        // and therefore a completion queue is not set up for
+                        // closing the cachefile
+                        // Also, because we locked this PAIR when there were no
+                        // other users trying to get access, no thread running 
+                        // unpin_and_remove may have gotten in here and 
+                        // set up a completion queue.
+                        // So, a completion queue cannot exist
+                        assert(!curr_in_clock->cq);
                         nb_mutex_write_unlock(&curr_in_clock->nb_mutex);
                     }
                 }
@@ -2341,6 +2354,15 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    assert(nb_mutex_writers(&p->nb_mutex)>0);
+            // this is a client thread that is unlocking the PAIR
+            // That is, a cleaner, flusher, or get_and_pin thread
+            // So, there must not be a completion queue lying around
+            // cachefile closes wait for the client threads to complete,
+            // and unpin_and_remove cannot be running because
+            // unpin_and_remove starts by holding the PAIR lock
+            // So, we should assert that a completion queue does not
+            // exist
+            assert(!p->cq);
             nb_mutex_write_unlock(&p->nb_mutex);
 	    if (dirty) p->dirty = CACHETABLE_DIRTY;
             PAIR_ATTR old_attr = p->attr;
@@ -2483,7 +2505,27 @@ int toku_cachetable_get_and_pin_nonblocking (
                         cachetable_wait_writing++;
                     }
                     nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
-                    nb_mutex_write_unlock(&p->nb_mutex);
+                    // deadlock discovered in #4357 shows we need
+                    // to do this. After running unlockers and waiting
+                    // on the PAIR lock, a flusher thread may come 
+                    // along and try to unpin_and_remove this PAIR.
+                    // In that case, the thread running unpin_and_remove
+                    // sets up a completion queue and we must transfer ownership
+                    // of this PAIR lock to that thread via the completion 
+                    // queue
+                    if (p->cq) {
+                        // while we wait on the PAIR lock, a thread may come in and
+                        // call toku_cachetable_unpin_and_remove on this PAIR.
+                        // In that case, we must do NOTHING with the PAIR, as
+                        // it has been removed from the cachetable's data structures.
+                        // So, we should just pass the PAIR over to the completion
+                        // queue.
+                        workitem_init(&p->asyncwork, NULL, p);
+                        workqueue_enq(p->cq, &p->asyncwork, 1);
+                    }
+                    else {
+                        nb_mutex_write_unlock(&p->nb_mutex);
+                    }
                 }
                 cachetable_unlock(ct);
                 if (ct->ydb_lock_callback) ct->ydb_lock_callback();
@@ -2601,7 +2643,13 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
         if (doing_prefetch) {
             *doing_prefetch = TRUE;
         }
-    } else if (nb_mutex_users(&p->nb_mutex)==0) {
+    }
+    else if (nb_mutex_users(&p->nb_mutex)==0) {
+        // client should not be trying to prefetch a node that is either
+        // belongs to a cachefile being flushed or to a PAIR being
+        // unpinned and removed
+        assert(!p->cq);
+        
         // nobody else is using the node, so we should go ahead and prefetch
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
         BOOL partial_fetch_required = pf_req_callback(p->value, read_extraargs);
@@ -2619,6 +2667,9 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
             }
         }
 	else {
+            // sanity check, we already have an assert 
+            // before locking the PAIR
+            assert(!p->cq);
             nb_mutex_write_unlock(&p->nb_mutex);
 	}
     }
@@ -3018,15 +3069,19 @@ int toku_cachetable_unpin_and_remove (
             p->checkpoint_pending = FALSE;
             //
             // Here is a tricky thing.
-            // In the code below, we may release the
-            // cachetable lock if there are blocked writers
-            // on this pair. While the cachetable lock is released,
+            // Later on in this function, we may release the
+            // cachetable lock if other threads are blocked
+            // on this pair, trying to acquire the PAIR lock. 
+            // While the cachetable lock is released,
             // we may theoretically begin another checkpoint, or start
             // a cleaner thread.
-            // So, in order for this PAIR to not be marked
+            // So, just to be sure this PAIR won't be marked
             // for the impending checkpoint, we mark the
             // PAIR as clean. For the PAIR to not be picked by the
             // cleaner thread, we mark the cachepressure_size to be 0
+            // This should not be an issue because we call
+            // cachetable_remove_pair before
+            // releasing the cachetable lock.
             //
             p->dirty = CACHETABLE_CLEAN;
             CACHEKEY key_to_remove = key;
@@ -3043,25 +3098,54 @@ int toku_cachetable_unpin_and_remove (
                     remove_key_extra
                     );
             }
-            
+            // we must not have a completion queue
+            // lying around, as we may create one now
+            assert(!p->cq);
             nb_mutex_write_unlock(&p->nb_mutex);
             //
-            // need to find a way to assert that 
-            // ONLY the checkpoint thread may be blocked here
+            // As of Dr. Noga, only these threads may be
+            // blocked waiting to lock this PAIR:
+            //  - the checkpoint thread (because a checkpoint is in progress
+            //     and the PAIR was in the list of pending pairs)
+            //  - a client thread running get_and_pin_nonblocking, who
+            //     ran unlockers, then waited on the PAIR lock.
+            //     While waiting on a PAIR lock, another thread comes in,
+            //     locks the PAIR, and ends up calling unpin_and_remove,
+            //     all while get_and_pin_nonblocking is waiting on the PAIR lock.
+            //     We did not realize this at first, which caused bug #4357
+            // The following threads CANNOT be blocked waiting on 
+            // the PAIR lock:
+            //  - a thread trying to run eviction via maybe_flush_some. 
+            //     That cannot happen because maybe_flush_some only
+            //     attempts to lock PAIRS that are not locked, and this PAIR
+            //     is locked.
+            //  - cleaner thread, for the same reason as a thread running 
+            //     eviction
+            //  - client thread doing a normal get_and_pin. The client is smart
+            //     enough to not try to lock a PAIR that another client thread
+            //     is trying to unpin and remove. Note that this includes work
+            //     done on kibbutzes.
+            //  - writer thread. Writer threads do not grab PAIR locks. They
+            //     get PAIR locks transferred to them by client threads.
             //
-            // The assumption here is that only the checkpoint thread may 
-            // be blocked here. No writer thread may be a blocked writer, 
-            // because the writer thread has only locked PAIRs. 
-            // The writer thread does not try to acquire a lock. It cannot be a 
-            // client thread either, because no client thread should be trying 
-            // to lock a node that another thread is trying to remove 
-            // from the cachetable. It cannot be a kibbutz thread either
-            // because the client controls what work is done on the kibbutz, 
-            // and should be smart enough to make sure that no other thread 
-            // tries to lock a PAIR while trying to unpin_and_remove it. So, 
-            // the only thread that is left that can possibly be a blocked 
-            // writer is the checkpoint thread.
+
+            // first thing we do is remove the PAIR from the various
+            // cachetable data structures, so no other thread can possibly
+            // access it. We do not want to risk some other thread
+            // trying to lock this PAIR if we release the cachetable lock
+            // below. If some thread is already waiting on the lock,
+            // then we let that thread grab the lock and finish, but
+            // we don't want any NEW threads to try to grab the PAIR
+            // lock.
             //
+            // Because we call cachetable_remove_pair and setup a completion queue,
+            // the threads that may be waiting
+            // on this PAIR lock must be careful to do NOTHING with the PAIR because
+            // it notices a completion queue. As per our analysis above, we only need
+            // to make sure the checkpoint thread and get_and_pin_nonblocking do
+            // nothing, and looking at those functions, it is clear they do nothing.
+            // 
+            cachetable_remove_pair(ct, p);
             if (nb_mutex_blocked_writers(&p->nb_mutex)>0) {
                 struct workqueue cq;
                 workqueue_init(&cq);
@@ -3071,7 +3155,7 @@ int toku_cachetable_unpin_and_remove (
                     //They are still blocked because we have not released the
                     //cachetable lock.
                     //If we freed the memory for the pair we would have dangling
-                    //pointers.  We need to let the checkpoint thread finish up with
+                    //pointers.  We need to let the other threads finish up with
                     //this pair.
 
                     p->cq = &cq;
@@ -3089,7 +3173,6 @@ int toku_cachetable_unpin_and_remove (
                     //We are holding the write lock on the pair
                     cachetable_lock(ct);
                     assert(nb_mutex_writers(&p->nb_mutex) == 1);
-                    BOOL destroyed = FALSE;
                     // let's also assert that this PAIR was not somehow marked 
                     // as pending a checkpoint. Above, when calling
                     // remove_key(), we cleared the dirty bit so that
@@ -3097,12 +3180,13 @@ int toku_cachetable_unpin_and_remove (
                     // make sure that our assumption is valid.
                     assert(!p->checkpoint_pending);
                     assert(p->attr.cache_pressure_size == 0);
+                    nb_mutex_write_unlock(&p->nb_mutex);
                     // Because we assume it is just the checkpoint thread
                     // that may have been blocked (as argued above),
                     // it is safe to simply remove the PAIR from the 
                     // cachetable. We don't need to write anything out.
-                    cachetable_complete_write_pair(ct, p, TRUE, &destroyed);
-                    if (destroyed) {
+                    if (nb_mutex_blocked_writers(&p->nb_mutex) == 0) {
+                        cachetable_free_pair(ct, p);
                         break;
                     }
                 }
@@ -3110,13 +3194,11 @@ int toku_cachetable_unpin_and_remove (
             }
             else {
                 //Remove pair.
-                BOOL destroyed = FALSE;;
-                cachetable_maybe_remove_and_free_pair(ct, p, &destroyed);
-                assert(destroyed);
+                cachetable_free_pair(ct, p);
             }
             r = 0;
-	    goto done;
-	}
+            goto done;
+        }
     }
  done:
     note_hash_count(count);
@@ -3899,6 +3981,7 @@ toku_cleaner_thread (void *cachetable_v)
             // The cleaner callback must have unlocked the pair, so we
             // don't need to unlock it if the cleaner callback is called.
             if (!cleaner_callback_called) {
+                assert(!best_pair->cq);
                 nb_mutex_write_unlock(&best_pair->nb_mutex);
             }
             rwlock_read_unlock(&cf->fdlock);

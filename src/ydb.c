@@ -6476,20 +6476,17 @@ struct ydb_verify_context {
 static int
 ydb_verify_progress_callback(void *extra, float progress) {
     struct ydb_verify_context *context = (struct ydb_verify_context *) extra;
-    toku_ydb_unlock_and_yield(1000);
     int r = 0;
-    if (context->progress_callback)
+    if (context->progress_callback) {
         r = context->progress_callback(context->progress_extra, progress);
-    toku_ydb_lock();
+    }
     return r;
 }
 
 static int
 locked_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_going) {
     struct ydb_verify_context context = { progress_callback, progress_extra };
-    toku_ydb_lock();
     int r = toku_verify_brt_with_progress(db->i->brt, ydb_verify_progress_callback, &context, verbose, keep_going);
-    toku_ydb_unlock();
     return r;
 }
 

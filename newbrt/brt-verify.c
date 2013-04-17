@@ -13,6 +13,7 @@
 
 #include "includes.h"
 #include <brt-flusher.h>
+#include "brt-cachetable-wrappers.h"
 
 static int 
 compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
@@ -197,44 +198,42 @@ count_eq_key_msn(BRT brt, FIFO fifo, OMT mt, const void *key, size_t keylen, MSN
     return count;
 }
 
+void
+toku_get_node_for_verify(
+    BLOCKNUM blocknum,
+    BRT brt,
+    BRTNODE* nodep
+    )
+{
+    u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt->h);
+    toku_pin_brtnode_off_client_thread(
+        brt->h,
+        blocknum,
+        fullhash,
+        &bfe,
+        0,
+        NULL,
+        nodep
+        );
+}
+
+// input is a pinned node, on exit, node is unpinned
 int
 toku_verify_brtnode (BRT brt,
                      MSN rootmsn, MSN parentmsn,
-                     BLOCKNUM blocknum, int height,
+                     BRTNODE node, int height,
                      struct kv_pair *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      struct kv_pair *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      int (*progress_callback)(void *extra, float progress), void *progress_extra,
                      int recurse, int verbose, int keep_going_on_failure)
 {
     int result=0;
-    BRTNODE node;
-    void *node_v;
     MSN   this_msn;
+    BLOCKNUM blocknum = node->thisnodename;
 
-    u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
-    {
-        struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h);
-        int r = toku_cachetable_get_and_pin(
-            brt->cf, 
-            blocknum, 
-            fullhash, 
-            &node_v, 
-            NULL,
-            toku_brtnode_flush_callback, 
-            toku_brtnode_fetch_callback, 
-            toku_brtnode_pe_est_callback,
-            toku_brtnode_pe_callback, 
-            toku_brtnode_pf_req_callback,
-            toku_brtnode_pf_callback,
-            toku_brtnode_cleaner_callback,
-            &bfe, 
-            brt->h
-            );
-        assert_zero(r); // this is a bad failure if it happens.
-    }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
-    node = node_v;
     toku_assert_entire_node_in_memory(node);
     this_msn = node->max_msn_applied_to_node_on_disk;
     if (rootmsn.msn == ZERO_MSN.msn) {
@@ -243,7 +242,6 @@ toku_verify_brtnode (BRT brt,
         parentmsn = this_msn;
     }
 
-    invariant(node->fullhash == fullhash);   // this is a bad failure if wrong
     if (height >= 0) {
         invariant(height == node->height);   // this is a bad failure if wrong
     }
@@ -326,7 +324,7 @@ toku_verify_brtnode (BRT brt,
                              }
                              last_msn = msn;
                          }));
-            struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = blocknum, .keep_going_on_failure = keep_going_on_failure };
+            struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure };
             int r = toku_omt_iterate(bnc->fresh_message_tree, verify_message_tree, &extra);
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;
@@ -361,8 +359,10 @@ toku_verify_brtnode (BRT brt,
     // Verify that the subtrees have the right properties.
     if (recurse && node->height > 0) {
         for (int i = 0; i < node->n_children; i++) {
+            BRTNODE child_node;
+            toku_get_node_for_verify(BP_BLOCKNUM(node, i), brt, &child_node);
             int r = toku_verify_brtnode(brt, rootmsn, this_msn,
-                                        BP_BLOCKNUM(node, i), node->height-1,
+                                        child_node, node->height-1,
                                         (i==0)                  ? lesser_pivot        : node->childkeys[i-1],
                                         (i==node->n_children-1) ? greatereq_pivot     : node->childkeys[i],
                                         progress_callback, progress_extra,
@@ -375,7 +375,13 @@ toku_verify_brtnode (BRT brt,
     }
 done:
     {
-    int r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, make_brtnode_pair_attr(node));
+    int r = toku_cachetable_unpin(
+        brt->cf, 
+        node->thisnodename, 
+        toku_cachetable_hash(brt->cf, node->thisnodename), 
+        CACHETABLE_CLEAN, 
+        make_brtnode_pair_attr(node)
+        );
     assert_zero(r); // this is a bad failure if it happens.
     }
     
@@ -388,9 +394,13 @@ done:
 int 
 toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_on_going) {
     assert(brt->h);
+    toku_cachetable_call_ydb_lock(brt->cf);
     u_int32_t root_hash;
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &root_hash);
-    int r = toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, *rootp, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
+    BRTNODE root_node;
+    toku_get_node_for_verify(*rootp, brt, &root_node);
+    toku_cachetable_call_ydb_unlock(brt->cf);
+    int r = toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, root_node, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
     if (r == 0) {
         toku_brtheader_lock(brt->h);
         brt->h->time_of_last_verification = time(NULL);
