@@ -55,7 +55,7 @@ struct omt {
     /**
      * 
      */
-    __attribute__((nonnull(2)))
+    __attribute__((nonnull))
     void create_steal_sorted_array(omtdata_t **const values, const uint32_t numvalues, const uint32_t new_capacity)
     {
         invariant_notnull(values);
@@ -68,7 +68,7 @@ struct omt {
     /**
      * 
      */
-    __attribute__((nonnull(2)))
+    __attribute__((nonnull))
     void split_at(omt *const newomt, const uint32_t idx) {
         invariant_notnull(newomt);
         if (idx > this->size()) { return EINVAL; }
@@ -82,7 +82,7 @@ struct omt {
     /**
      * 
      */
-    __attribute__((nonnull(2,3)))
+    __attribute__((nonnull))
     void merge(omt *const leftomt, omt *const rightomt) {
         invariant_notnull(leftomt);
         invariant_notnull(rightomt);
@@ -471,7 +471,7 @@ private:
         }
     }
 
-    __attribute__((nonnull(2)))
+    __attribute__((nonnull))
     inline void fill_array_with_subtree_values(omtdata_t *const array, const node_idx tree_idx) const {
         if (tree_idx==NODE_NULL) return;
         const omt_node &tree = this->d.t.nodes[tree_idx];
@@ -497,7 +497,7 @@ private:
         }
     }
 
-    __attribute__((nonnull(2,3)))
+    __attribute__((nonnull))
     inline void rebuild_from_sorted_array(node_idx *const n_idxp, const omtdata_t *const values, const uint32_t numvalues) {
         if (numvalues==0) {
             *n_idxp = NODE_NULL;
@@ -558,8 +558,8 @@ private:
                 (1+weight_right < (1+1+weight_left)/2));
     }
 
-    __attribute__((nonnull(5)))
-    inline void insert_internal(node_idx *n_idxp, const omtdata_t &value, const uint32_t idx, node_idx **const rebalance_idx) {
+    __attribute__((nonnull))
+    inline void insert_internal(node_idx *const n_idxp, const omtdata_t &value, const uint32_t idx, node_idx **const rebalance_idx) {
         if (*n_idxp == NODE_NULL) {
             invariant_zero(idx);
             const node_idx newidx = this->node_malloc();
@@ -605,8 +605,9 @@ private:
         }
     }
 
-    __attribute__((nonnull(2,5)))
     inline void delete_internal(node_idx *const n_idxp, const uint32_t idx, omt_node *const copyn, node_idx **const rebalance_idx) {
+        invariant_notnull(n_idxp);
+        invariant_notnull(rebalance_idx);
         invariant(*n_idxp != NODE_NULL);
         omt_node *const n = &this->d.t.nodes[*n_idxp];
         const uint32_t leftweight = this->nweight(n->left);
@@ -738,7 +739,7 @@ private:
         }
     }
 
-    __attribute__((nonnull(2)))
+    __attribute__((nonnull))
     inline void fill_array_with_subtree_idxs(node_idx *const array, const node_idx tree_idx) const {
         if (tree_idx != NODE_NULL) {
             const omt_node &tree = this->d.t.nodes[tree_idx];
@@ -748,7 +749,7 @@ private:
         }
     }
 
-    __attribute__((nonnull(2,3)))
+    __attribute__((nonnull))
     inline void rebuild_subtree_from_idxs(node_idx *const n_idxp, const node_idx *const idxs, const uint32_t numvalues) {
         if (numvalues==0) {
             *n_idxp = NODE_NULL;
@@ -765,7 +766,7 @@ private:
         }
     }
 
-    __attribute__((nonnull(2)))
+    __attribute__((nonnull))
     inline void rebalance(node_idx *const n_idxp) {
         node_idx idx = *n_idxp;
         if (idx==this->d.t.root) {
@@ -796,30 +797,30 @@ private:
         }
     }
 
-    __attribute__((nonnull(1)))
+    __attribute__((nonnull))
     static inline void copyout(omtdata_t *const out, const omt_node *const n) {
         *out = n->value;
     }
 
-    __attribute__((nonnull(1,2)))
+    __attribute__((nonnull))
     static inline void copyout(omtdata_t **const out, omt_node *const n) {
         *out = &n->value;
     }
 
-    __attribute__((nonnull(1)))
+    __attribute__((nonnull))
     static inline void copyout(omtdata_t *const out, const omtdata_t *const stored_value_ptr) {
         *out = *stored_value_ptr;
     }
 
-    __attribute__((nonnull(1,2)))
+    __attribute__((nonnull))
     static inline void copyout(omtdata_t **const out, omtdata_t *const stored_value_ptr) {
         *out = stored_value_ptr;
     }
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(4)))
     inline int find_internal_zero_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         uint32_t min = this->d.a.start_idx;
         uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
         uint32_t best_pos = NODE_NULL;
@@ -855,8 +856,8 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(5)))
     inline int find_internal_zero(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         if (n_idx==NODE_NULL) {
             *idxp = 0;
             return DB_NOTFOUND;
@@ -884,8 +885,8 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(4)))
     inline int find_internal_plus_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         uint32_t min = this->d.a.start_idx;
         uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
         uint32_t best = NODE_NULL;
@@ -910,8 +911,8 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(5)))
     inline int find_internal_plus(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         if (n_idx==NODE_NULL) {
             return DB_NOTFOUND;
         }
@@ -938,8 +939,8 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(4)))
     inline int find_internal_minus_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         uint32_t min = this->d.a.start_idx;
         uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
         uint32_t best = NODE_NULL;
@@ -964,8 +965,8 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    __attribute__((nonnull(5)))
     inline int find_internal_minus(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const {
+        invariant_notnull(idxp);
         if (n_idx==NODE_NULL) {
             return DB_NOTFOUND;
         }
@@ -988,10 +989,10 @@ private:
         }
     }
 
-    __attribute__((nonnull(3)))
+    __attribute__((nonnull))
     static inline int deep_clone_iter(const omtdata_t &value, const uint32_t idx, omt *const dest) {
         static_assert(std::is_pointer<omtdata_t>::value, "omtdata_t isn't a pointer, can't do deep clone");
-        invariant_nonnull(dest);
+        invariant_notnull(dest);
         invariant(idx == dest->d.a.num_values);
         invariant(idx < dest->capacity);
         XMEMDUP(dest->d.a.values[dest->d.a.num_values++], value);
