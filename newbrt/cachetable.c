@@ -1251,7 +1251,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* 
 }
 
 // Read a pair from a cachefile into memory using the pair's fetch callback
-static int cachetable_fetch_pair(
+static void cachetable_fetch_pair(
     CACHETABLE ct, 
     CACHEFILE cf, 
     PAIR p, 
@@ -1274,8 +1274,8 @@ static int cachetable_fetch_pair(
     cachetable_unlock(ct);
 
     int r;
-    if (toku_cachefile_is_dev_null_unlocked(cf)) r = -1;
-    else r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &attr, &dirty, read_extraargs);
+    assert(!toku_cachefile_is_dev_null_unlocked(cf));
+    r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &attr, &dirty, read_extraargs);
     if (dirty)
 	p->dirty = CACHETABLE_DIRTY;
 
@@ -1292,13 +1292,11 @@ static int cachetable_fetch_pair(
     if (p->cq) {
         workitem_init(&p->asyncwork, NULL, p);
         workqueue_enq(p->cq, &p->asyncwork, 1);
-        return 0;
     }
     p->state = CTPAIR_IDLE;
     
     nb_mutex_write_unlock(&p->nb_mutex);
     if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
-    return 0;
 }
 
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed);
@@ -2125,8 +2123,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
 	uint64_t t0 = get_tnow();
 
-        r = cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs);
-	assert(r==0);
+        cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs);
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
@@ -2439,13 +2436,12 @@ int toku_cachetable_get_and_pin_nonblocking (
     run_unlockers(unlockers); // we hold the ct mutex.
     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
     u_int64_t t0 = get_tnow();
-    int r = cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
+    cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
     cachetable_miss++;
     cachetable_misstime += get_tnow() - t0;
     cachetable_unlock(ct);
     if (ct->ydb_lock_callback) ct->ydb_lock_callback();
-    if (r!=0) return r;
-    else return TOKUDB_TRY_AGAIN;
+    return TOKUDB_TRY_AGAIN;
 }
 
 struct cachefile_prefetch_args {
