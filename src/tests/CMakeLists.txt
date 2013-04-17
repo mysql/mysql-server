@@ -328,7 +328,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   ## #5138 only reproduces when using the static library.
   list(REMOVE_ITEM tdb_bins test-5138.tdb)
   add_executable(test-5138.tdb test-5138)
-  target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static ${LIBTOKUPORTABILITY}_static)
+  target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static z ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
   set_property(TARGET test-5138.tdb APPEND PROPERTY
     COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.test-5138.tdb")
