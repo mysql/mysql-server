@@ -140,7 +140,6 @@ struct brtnode_leaf_basement_node {
     OMT buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
-    MSN max_msn_applied;
 };
 
 #define PT_INVALID 0
@@ -300,7 +299,6 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
 }
 
 #define BNC_BUFFER(node,i) (BNC(node,i)->buffer)
-#define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
 #define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
 
 // leaf node macros
@@ -614,7 +612,6 @@ brt_leaf_apply_cmd_once (
     TOKULOGGER logger,
     uint64_t *workdonep
     );
-void brt_leaf_put_cmd (BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, bool *made_change, uint64_t *workdonep);
 
 void 
 toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdonep);

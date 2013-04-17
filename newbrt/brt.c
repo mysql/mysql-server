@@ -196,13 +196,22 @@ nonleaf_node_is_gorged (BRTNODE node) {
 
     bool buffers_are_empty = TRUE;
     toku_assert_entire_node_in_memory(node);
+    //
+    // the nonleaf node is gorged if the following holds true:
+    //  - the buffers are non-empty
+    //  - the total workdone by the buffers PLUS the size of the buffers
+    //     is greater than node->nodesize (which as of Maxwell should be
+    //     4MB)
+    //
     assert(node->height > 0);
+    for (int child = 0; child < node->n_children; ++child) {
+        size += BP_WORKDONE(node, child);
+    }
     for (int child = 0; child < node->n_children; ++child) {
         if (BNC_NBYTESINBUF(node, child) > 0) {
             buffers_are_empty = FALSE;
             break;
         }
-	size += BP_WORKDONE(node, child);
     }
     return ((size > node->nodesize)
 	    &&
@@ -255,7 +264,7 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
     abort(); return 0;
 }
 
-static void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool *made_change);
+static void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds);
 
 static long brtnode_memory_size (BRTNODE node);
 
@@ -281,8 +290,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
-	bool made_change;
-	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, &made_change);
+	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
 	*node_p = node;
 	// printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
     } else {
@@ -313,8 +321,7 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         );
     assert(r==0);
     BRTNODE node = node_v;
-    bool made_change;
-    maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, &made_change);
+    maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
     *node_p = node;
 }
 
@@ -1614,7 +1621,7 @@ struct setval_extra_s {
     u_int32_t idx;
     LEAFENTRY le;
     TOKULOGGER logger;	  
-    int made_change;
+    bool made_change;
     uint64_t * workdonep;  // set by brt_leaf_apply_cmd_once()
 };
 
@@ -1723,7 +1730,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
 }
 
 // should be static, but used by test program(s)
-void
+static void
 brt_leaf_put_cmd (
     BRT t, 
     BASEMENTNODE bn, 
@@ -1738,13 +1745,6 @@ brt_leaf_put_cmd (
 {
     uint64_t workdone_total = 0;  // may be for one row or for many (or all) rows in leaf (if broadcast message)
     
-    // ignore messages that have already been applied to this leaf
-    if (cmd->msn.msn <= bn->max_msn_applied.msn) {
-	// TODO3514  add accountability counter here
-	goto exit;
-    }
-    else bn->max_msn_applied = cmd->msn;	
-
     TOKULOGGER logger = toku_cachefile_logger(t->cf);
 
     LEAFENTRY storeddata;
@@ -1951,10 +1951,8 @@ brt_leaf_put_cmd (
 
     // node->dirty = 1;
 
- exit:
     if (workdonep)
 	*workdonep = workdone_total;
-    VERIFY_NODE(t, node);
     return;
 }
 
@@ -4922,8 +4920,8 @@ apply_buffer_messages_to_basement_node (
     SUBTREE_EST se, 
     BRTNODE ancestor, 
     int childnum, 
-    struct pivot_bounds const * const bounds,
-    bool *made_change
+    MSN min_applied_msn,
+    struct pivot_bounds const * const bounds
     )
 // Effect: For each messages in ANCESTOR that is between lower_bound_exclusive (exclusive) and upper_bound_inclusive (inclusive), apply the message to the node.
 //  In ANCESTOR, the relevant messages are all in the buffer for child number CHILDNUM.
@@ -4957,14 +4955,15 @@ apply_buffer_messages_to_basement_node (
 		 ({
 		     DBT hk;
 		     toku_fill_dbt(&hk, key, keylen);
-		     if (msn.msn > bn->max_msn_applied.msn && (!msg_type_has_key(type) || key_is_in_leaf_range(t, &hk, lbe_ptr, ubi_ptr))) {
+		     if (msn.msn > min_applied_msn.msn && (!msg_type_has_key(type) || key_is_in_leaf_range(t, &hk, lbe_ptr, ubi_ptr))) {
 			 DBT hv;
 			 BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id = {&hk,
 											   toku_fill_dbt(&hv, val, vallen)} };
 			 uint64_t workdone_this_leaf = 0;
+                         bool made_change;
 			 brt_leaf_put_cmd(t,
 					  bn, se,
-					  &brtcmd, made_change, &workdone_this_leaf);
+					  &brtcmd, &made_change, &workdone_this_leaf);
 			 BP_WORKDONE(ancestor, childnum) += workdone_this_leaf;
 			 workdone_this_leaf_total += workdone_this_leaf;
 		     }
@@ -4977,6 +4976,7 @@ apply_buffer_messages_to_basement_node (
     return r;
 }
 
+/*
 //###########
 static void
 maybe_flush_pinned_node(BRT t, BRTNODE node, int childnum, BRTNODE child) {
@@ -5065,11 +5065,13 @@ maybe_flush_pinned_node(BRT t, BRTNODE node, int childnum, BRTNODE child) {
     }
 
 }
+*/
 
-
+/*
 static void
 apply_ancestors_messages_to_leafnode_and_maybe_flush (BRT t, BASEMENTNODE bm, SUBTREE_EST se, ANCESTORS ancestors, BRTNODE child,
-						      const struct pivot_bounds const *bounds, bool *made_change)
+                                                                   MSN min_applied_msn,
+						      const struct pivot_bounds const *bounds)
 // Effect: Go through ancestors list applying messages from first ancestor (height one), then next, until
 //  all messages have been applied.
 //  Then mark the node as up_to_date.
@@ -5086,17 +5088,18 @@ apply_ancestors_messages_to_leafnode_and_maybe_flush (BRT t, BASEMENTNODE bm, SU
 //   With background flushing we will be able to back to a simpler loop (since the recursion will be tail recursion).
 {
     if (ancestors) {
-	apply_buffer_messages_to_basement_node(t, bm, se, ancestors->node, ancestors->childnum, bounds, made_change); 
-	apply_ancestors_messages_to_leafnode_and_maybe_flush(t, bm, se, ancestors->next, ancestors->node, bounds, made_change);
+	apply_buffer_messages_to_basement_node(t, bm, se, ancestors->node, ancestors->childnum, min_applied_msn, bounds); 
+	apply_ancestors_messages_to_leafnode_and_maybe_flush(t, bm, se, ancestors->next, ancestors->node, min_applied_msn, bounds);
 	maybe_flush_pinned_node(t, ancestors->node, ancestors->childnum, child);
     } else {
 	// have just applied messages stored in root
 	bm->soft_copy_is_up_to_date = true;
     }
 }
+*/
 
 static void
-maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool *made_change)
+maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds)
 // Effect:
 //   Bring a leaf node up-to-date according to all the messages in the ancestors.   
 //   If the leaf node is already up-to-date then do nothing.
@@ -5119,22 +5122,20 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
         SUBTREE_EST curr_se = &BP_SUBTREE_EST(node,i);
 	ANCESTORS curr_ancestors = ancestors;
 	struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
-	BRTNODE child = node;
 	while (curr_ancestors) {
 	    height++;
-	    apply_ancestors_messages_to_leafnode_and_maybe_flush(
-		t,
-		curr_bn,
-		curr_se,
-		curr_ancestors,
-		child,
-		&curr_bounds,
-		made_change
-		); 
+            apply_buffer_messages_to_basement_node(
+                t,
+                curr_bn,
+                curr_se,
+                curr_ancestors->node,
+                curr_ancestors->childnum,
+                node->max_msn_applied_to_node_on_disk,
+                &curr_bounds
+                );
 	    if (curr_ancestors->node->max_msn_applied_to_node_in_memory.msn > node->max_msn_applied_to_node_in_memory.msn) {
 		node->max_msn_applied_to_node_in_memory = curr_ancestors->node->max_msn_applied_to_node_in_memory;
 	    }
-	    child = curr_ancestors->node;
 	    curr_ancestors= curr_ancestors->next;
 	}
 	BLB_SOFTCOPYISUPTODATE(node, i) = TRUE;
