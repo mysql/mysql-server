@@ -100,10 +100,10 @@ $(TLIBRARY_S): $(TLIBRARY) ;
 #$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 endif
 
-static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 	xilib /out:$@ $^
 
-ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE)
+ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT_BUNDLE)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 	mv ipo_out.obj $@
 
