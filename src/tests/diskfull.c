@@ -6,6 +6,8 @@
 
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #define DOERR(r) do { if (r!=0) { did_fail=1; fprintf(error_file, "%s:%d error %d (%s)\n", __FILE__, __LINE__, r, db_strerror(r)); }} while (0)
 
@@ -174,7 +176,21 @@ do_writes_that_fail (void) {
     for (fail_at = 0; fail_at<count; fail_at++) {
 	if (verbose) fprintf(stderr, "About to fail at %d:\n", fail_at);
 	write_count=0;
-	do_db_work();
+	pid_t child;
+	if ((child=fork())==0) {
+	    int devnul = open("/dev/null", O_WRONLY);
+	    assert(devnul>=0);
+	    { int r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr)); }
+	    { int r = close(devnul);                          assert(r==0);              }
+	    do_db_work();
+	    exit(1);
+	} else {
+	    int status;
+	    pid_t r = waitpid(child, &status, 0);
+	    assert(r==child);
+	    assert(WIFSIGNALED(status));
+	    assert(WTERMSIG(status)==SIGABRT);
+	}
     }
 
    // fail_at = FAIL_NEVER;  write_count=0;
