@@ -109,7 +109,6 @@ multi_operation_checkpoint_unlock(void) {
     assert(r == 0);
 }
 
-
 static int 
 checkpoint_safe_lock_init(void) {
     int r = toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
@@ -296,4 +295,6 @@ void __attribute__((__constructor__)) toku_checkpoint_drd_ignore(void);
 void
 toku_checkpoint_drd_ignore(void) {
     DRD_IGNORE_VAR(cp_status);
+    DRD_IGNORE_VAR(locked_mo);
+    DRD_IGNORE_VAR(locked_cs);
 }
