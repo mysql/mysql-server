@@ -5222,7 +5222,7 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
     else 
 	assert(r==ENOENT);
 
-    txn->force_fsync_on_commit = 1;  //If the txn commits, the commit MUST be in the log
+    toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
                                      //before the file is actually unlinked
     {
         const char *iname_within_cwd = iname_within_cwd_dbt_p->data;

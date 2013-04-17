@@ -118,8 +118,8 @@ struct tokutxn {
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
     XIDS       xids;      //Represents the xid list
-    int        force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
-    int        has_done_work;          //If this transaction has not done work, there is no need to fsync.
+    BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
+    BOOL       has_done_work;          //If this transaction has not done work, there is no need to fsync.
 };
 
 static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
