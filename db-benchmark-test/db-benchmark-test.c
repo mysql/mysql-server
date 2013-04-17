@@ -64,6 +64,42 @@ u_int32_t checkpoint_period = 0;
 static const char *log_dir = NULL;
 static int commitflags = 0;
 
+static int use_random = 0;
+enum { MAX_RANDOM_C = 16000057 }; // prime-numbers.org
+static unsigned char random_c[MAX_RANDOM_C];
+static int next_random_c;
+
+static void init_random_c(void) {
+    int i;
+    for (i=0; i<MAX_RANDOM_C; i++)
+	random_c[i] = (unsigned char) random();
+}
+
+static void update_random_c_index(int n) {
+    next_random_c += n;
+    if (next_random_c >= MAX_RANDOM_C)
+	next_random_c = 0;
+}
+
+static unsigned char get_random_c(void) {
+    update_random_c_index(1);
+    return random_c[next_random_c];
+}
+
+static int min(int a, int b) {
+    return a > b ? b : a;
+}
+
+static void copy_random_c(unsigned char *p, int n) {
+    while (n > 0) {
+	int m = min(n, MAX_RANDOM_C-next_random_c);
+	memcpy(p, &random_c[next_random_c], m);
+	n -= m;
+	p += m;
+	update_random_c_index(m);
+    }
+}
+
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
 #if !defined(NO_DB_PRELOCKED)
@@ -259,10 +295,14 @@ static DBT *fill_dbt(DBT *dbt, const void *data, int size) {
 static void fill_array (unsigned char *data, int size) {
     memset(data, 0, size);
     if (compressibility>0) {
-	int i;
-	for (i=0; i<size/compressibility; i++) {
-	    data[i] = (unsigned char) random();
-	}
+	if (use_random) {
+            int i;
+            for (i=0; i<size/compressibility; i++) {
+                data[i] = (unsigned char) random();
+            }
+        } else {
+            copy_random_c(data, size/compressibility);
+        }
     }
 }
 
@@ -374,11 +414,12 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --log_dir LOGDIR      Put the logs in LOGDIR\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
-    fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
+    // fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
+    // fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
+    // fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --append              append to an existing file\n");
+    fprintf(stderr, "    --userandom           use random()\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
@@ -437,6 +478,7 @@ int main (int argc, const char *argv[]) {
 	    norandom=1;
 	} else if (strcmp(arg, "--compressibility") == 0) {
 	    compressibility = atof(argv[++i]);
+	    init_random_c(); (void) get_random_c();
 	} else if (strcmp(arg, "--nolog") == 0) {
 	    if_transactions_do_logging = 0;
 	} else if (strcmp(arg, "--singlex-create") == 0) {
@@ -502,6 +544,18 @@ int main (int argc, const char *argv[]) {
             checkpoint_period = (u_int32_t) atoi(argv[++i]);
         } else if (strcmp(arg, "--nosync") == 0) {
             commitflags += DB_TXN_NOSYNC;
+        } else if (strcmp(arg, "--userandom") == 0) {
+            use_random = 1;
+        } else if (strcmp(arg, "--unique_checks") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            int unique_checks = atoi(argv[++i]);
+            if (unique_checks)
+                put_flags = DB_NOOVERWRITE;
+            else
+                put_flags = DB_YESOVERWRITE;
+        } else if (strcmp(arg, "--log_dir") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            log_dir = argv[++i];
         } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             if (atoi(argv[++i]))
@@ -518,16 +572,6 @@ int main (int argc, const char *argv[]) {
                 env_open_flags |= DB_INIT_LOCK;
             else
                 env_open_flags &= ~DB_INIT_LOCK;
-        } else if (strcmp(arg, "--unique_checks") == 0) {
-            if (i+1 >= argc) return print_usage(argv[0]);
-            int unique_checks = atoi(argv[++i]);
-            if (unique_checks)
-                put_flags = DB_NOOVERWRITE;
-            else
-                put_flags = DB_YESOVERWRITE;
-        } else if (strcmp(arg, "--log_dir") == 0) {
-            if (i+1 >= argc) return print_usage(argv[0]);
-            log_dir = argv[++i];
         } else {
 	    return print_usage(argv[0]);
 	}

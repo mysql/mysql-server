@@ -10,7 +10,11 @@ static const int log_format_version=TOKU_LOG_VERSION;
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static u_int32_t logger_lock_ctr = 0;	// useful for debug at a live installation
 
-static int (*toku_os_fsync_function)(int)=fsync;
+static int toku_fsync(int UU(fd)) {
+    return fsync(fd);
+}
+
+static int (*toku_os_fsync_function)(int)=toku_fsync;
 static int open_logfile (TOKULOGGER logger);
 static int toku_logger_write_buffer (TOKULOGGER logger, int do_fsync);
 static int delete_logfile(TOKULOGGER logger, long long index);
