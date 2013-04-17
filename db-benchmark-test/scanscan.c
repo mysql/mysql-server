@@ -24,6 +24,7 @@ u_int32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
+static int verbose = 0;
 
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
@@ -52,13 +53,21 @@ int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT
 int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
 
+static double gettime (void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, 0);
+    assert(r==0);
+    return tv.tv_sec + 1e-6*tv.tv_usec;
+}
 
 static void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
     argc--; argv++;
     int specified_run_mode=0;
     while (argc>0) {
-	if (strcmp(*argv,"--verify-lwc")==0) {
+        if (strcmp(*argv,"--verbose")==0) {
+            verbose++;
+        } else if (strcmp(*argv,"--verify-lwc")==0) {
 	    if (specified_run_mode && run_mode!=RUN_VERIFY) { two_modes: fprintf(stderr, "You specified two run modes\n"); exit(1); }
 	    run_mode = RUN_VERIFY;
 	} else if (strcmp(*argv, "--lwc")==0)  {
@@ -101,6 +110,9 @@ static void parse_args (int argc, const char *argv[]) {
         } else if (strcmp(*argv, "--experiments") == 0 && argc > 1) {
             argc--; argv++;
             n_experiments = strtol(*argv, NULL, 10);
+        } else if (strcmp(*argv, "--recover") == 0) {
+            env_open_flags_yesx |= DB_RECOVER;
+            env_open_flags_nox |= DB_RECOVER;
 	} else {
             exit(print_usage(pname));
 	}
@@ -139,7 +151,11 @@ static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
+    double tstart = gettime();
     r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);   assert(r==0);
+    double tend = gettime();
+    if (verbose)
+        printf("env open %f seconds\n", tend-tstart);
     r = db_create(&db, env, 0);                                                           assert(r==0);
     if (do_mysql) {
         r = db->set_bt_compare(db, mysql_key_compare); assert(r == 0);
@@ -176,13 +192,6 @@ static void scanscan_shutdown (void) {
 	printf("maxrss=%.2fMB\n", mrss/256.0);
     }
 #endif
-}
-
-static double gettime (void) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, 0);
-    assert(r==0);
-    return tv.tv_sec + 1e-6*tv.tv_usec;
 }
 
 static void scanscan_hwc (void) {
@@ -472,7 +481,7 @@ int main (int argc, const char *argv[]) {
     scanscan_shutdown();
 
 #if defined(TOKUDB)
-    if (1) {
+    if (verbose) {
 	toku_cachetable_print_hash_histogram();
     }
 
@@ -483,17 +492,19 @@ int main (int argc, const char *argv[]) {
     }
 #endif
 #if defined(__linux__) && __linux__
-    char fname[256];
-    sprintf(fname, "/proc/%d/status", toku_os_getpid());
-    FILE *f = fopen(fname, "r");
-    if (f) {
-        char line[256];
-        while (fgets(line, sizeof line, f)) {
-            int n;
-            if (sscanf(line, "VmPeak: %d", &n) || sscanf(line, "VmHWM: %d", &n) || sscanf(line, "VmRSS: %d", &n))
-                fputs(line, stdout);
+    if (verbose) {
+        char fname[256];
+        sprintf(fname, "/proc/%d/status", toku_os_getpid());
+        FILE *f = fopen(fname, "r");
+        if (f) {
+            char line[256];
+            while (fgets(line, sizeof line, f)) {
+                int n;
+                if (sscanf(line, "VmPeak: %d", &n) || sscanf(line, "VmHWM: %d", &n) || sscanf(line, "VmRSS: %d", &n))
+                    fputs(line, stdout);
+            }
+            fclose(f);
         }
-        fclose(f);
     }
 #endif
     return 0;

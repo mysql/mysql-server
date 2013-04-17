@@ -55,7 +55,7 @@ struct tokulogger {
     struct mylock  input_lock, output_lock; // acquired in that order
     int is_open;
     int is_panicked;
-    int write_log_files;
+    BOOL write_log_files;
     int panic_errno;
     char *directory;
     int fd;

@@ -458,6 +458,8 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	}
     }
     if (env->i->logger) {
+        r1=toku_logger_shutdown(env->i->logger);
+        // TODO: check return
         r1=toku_logger_close(&env->i->logger);
 	if (r0==0 && r1) {
 	    toku_ydb_do_error(env, r0, "Cannot close environment (logger close error)\n");

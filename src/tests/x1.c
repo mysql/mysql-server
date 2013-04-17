@@ -21,8 +21,7 @@ char *nameb="b.db";
 
 
 static void
-do_x1_shutdown (BOOL do_commit, BOOL do_abort)
-{
+do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     int r;
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -48,14 +47,17 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort)
 	r = txn->commit(txn, 0);                                                        CKERR(r);
     } else if (do_abort) {
         r = txn->abort(txn);                                                            CKERR(r);
+        
+        // force an fsync of the log
+        r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
+        r = txn->commit(txn, 0);                                                        CKERR(r);
     }
     //printf("shutdown\n");
     abort();
 }
 
 static void
-do_x1_recover (BOOL did_commit)
-{
+do_x1_recover (BOOL did_commit) {
     DB_ENV *env;
     DB *dba, *dbb;
     int r;
@@ -107,6 +109,17 @@ do_x1_recover (BOOL did_commit)
     exit(0);
 }
 
+static void
+do_x1_recover_only (void) {
+    DB_ENV *env;
+    int r;
+
+    r = db_env_create(&env, 0);                                                             CKERR(r);
+    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
+    r = env->close(env, 0);                                                                 CKERR(r);
+    exit(0);
+}
+
 const char *cmd;
 
 static void
@@ -149,7 +162,7 @@ do_test (void) {
     do_test_internal(FALSE);
 }
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
+BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE;
 
 static void
 x1_parse_args (int argc, char *argv[]) {
@@ -162,16 +175,18 @@ x1_parse_args (int argc, char *argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-	} else if (strcmp(argv[0],"--commit")==0) {
+	} else if (strcmp(argv[0], "--commit")==0) {
 	    do_commit=1;
-	} else if (strcmp(argv[0],"--abort")==0) {
+	} else if (strcmp(argv[0], "--abort")==0) {
 	    do_abort=1;
-	} else if (strcmp(argv[0],"--explicit-abort")==0) {
+	} else if (strcmp(argv[0], "--explicit-abort")==0) {
 	    do_explicit_abort=1;
-	} else if (strcmp(argv[0],"--recover-committed")==0) {
+	} else if (strcmp(argv[0], "--recover-committed")==0) {
 	    do_recover_committed=1;
-	} else if (strcmp(argv[0],"--recover-aborted")==0) {
+	} else if (strcmp(argv[0], "--recover-aborted")==0) {
 	    do_recover_aborted=1;
+        } else if (strcmp(argv[0], "--recover-only") == 0) {
+            do_recover_only=1;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
@@ -189,9 +204,10 @@ x1_parse_args (int argc, char *argv[]) {
 	int n_specified=0;
 	if (do_commit)            n_specified++;
 	if (do_abort)             n_specified++;
-	if (do_explicit_abort)             n_specified++;
-	if (do_recover_committed)  n_specified++;
+	if (do_explicit_abort)    n_specified++;
+	if (do_recover_committed) n_specified++;
 	if (do_recover_aborted)   n_specified++;
+	if (do_recover_only)      n_specified++;
 	if (n_specified>1) {
 	    printf("Specify only one of --commit or --abort or --recover-committed or --recover-aborted\n");
 	    resultcode=1;
@@ -214,6 +230,8 @@ test_main (int argc, char *argv[])
 	do_x1_recover(TRUE);
     } else if (do_recover_aborted) {
 	do_x1_recover(FALSE);
+    } else if (do_recover_only) {
+        do_x1_recover_only();
     } else {
 	do_test();
     }

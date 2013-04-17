@@ -12,7 +12,7 @@ DEPEND_COMPILE += \
 HERE = utils
 include $(TOKUROOT)toku_include/Makefile.include
 ifndef BDBDIR
-BDBDIR=/usr/local/BerkeleyDB.4.4
+BDBDIR=/usr/local/BerkeleyDB.4.6
 endif
 BDB_DUMP=$(BDBDIR)/bin/db_dump$(BINSUF)
 BDB_LOAD=$(BDBDIR)/bin/db_load$(BINSUF)

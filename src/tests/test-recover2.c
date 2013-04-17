@@ -44,7 +44,9 @@ static void test (void) {
     r=tid->commit(tid, 0);                                                     assert(r==0);
 
     r=db->close(db, 0);                                                        assert(r==0);
-    r=env->close(env, 0);                                                      assert(r==0);
+
+    // dont close the env. we want recovery to run over the entire log and rebuild the database
+    // r=env->close(env, 0);                                                      assert(r==0);
 
     unlink(ENVDIR "/foo.db");
 
