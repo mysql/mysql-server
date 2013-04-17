@@ -15,6 +15,7 @@
 /* This code requires that the buffer be big enough to hold whatever you put into it. */ 
 /* This abstraction doesn't do a good job of hiding its internals.
  * Why?  The performance of this code is important, and we want to inline stuff */
+//Why is size here an int instead of DISKOFF like in the initializer?
 struct wbuf {
     unsigned char *buf;
     unsigned int  size;

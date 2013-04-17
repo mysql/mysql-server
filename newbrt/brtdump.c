@@ -30,8 +30,10 @@ dump_header (int f, struct brt_header **header) {
     else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
-    printf(" free_blocks=%" PRId64 "\n", h->free_blocks.b);
-    printf(" unused_memory=%" PRId64 "\n", h->unused_blocks.b);
+    BLOCKNUM free_blocks = toku_block_get_free_blocks(h->blocktable);
+    BLOCKNUM unused_blocks = toku_block_get_unused_blocks(h->blocktable);
+    printf(" free_blocks=%" PRId64 "\n", free_blocks.b);
+    printf(" unused_memory=%" PRId64 "\n", unused_blocks.b);
     if (h->n_named_roots==-1) {
 	printf(" unnamed_root=%" PRId64 "\n", h->roots[0].b);
 	printf(" flags=%u\n", h->flags_array[0]);
@@ -165,10 +167,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 
 static void 
 dump_block_translation(struct brt_header *h, u_int64_t offset) {
-    if (offset < h->translated_blocknum_limit) {
-        struct block_translation_pair *bx = &h->block_translation[offset];
-        printf("%" PRIu64 ": %" PRId64 " %" PRId64 "\n", offset, bx->diskoff, bx->size);
-    }
+    toku_block_dump_translation(h->blocktable, offset);
 }
 
 static int 
@@ -187,28 +186,31 @@ dump_fragmentation(int f, struct brt_header *h) {
     u_int64_t leafblocks = 0;
     u_int64_t fragsizes = 0;
     u_int64_t i;
-    for (i = 0; i < h->translated_blocknum_limit; i++) {
+    u_int64_t limit = toku_block_get_translated_blocknum_limit(h->blocktable);
+    for (i = 0; i < limit; i++) {
         BRTNODE n;
 	BLOCKNUM blocknum = make_blocknum(i);
         int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
 	if (r != 0) continue;
-        blocksizes += h->block_translation[i].size;
+
+        DISKOFF size = toku_block_get_size(h->blocktable, blocknum);
+        blocksizes += size;
 	if (n->height == 0) {
-	    leafsizes += h->block_translation[i].size;
+	    leafsizes += size;
 	    leafblocks += 1;
 	}
 	toku_brtnode_free(&n);
     }
-    size_t n = h->translated_blocknum_limit * sizeof (struct block_translation_pair);
+    size_t n = limit * sizeof (struct block_translation_pair);
     struct block_translation_pair *bx = toku_malloc(n);
-    memcpy(bx, h->block_translation, n);
-    qsort(bx, h->translated_blocknum_limit, sizeof (struct block_translation_pair), bxpcmp);
-    for (i = 0; i < h->translated_blocknum_limit - 1; i++) {
+    toku_block_memcpy_translation_table(h->blocktable, n, bx);
+    qsort(bx, limit, sizeof (struct block_translation_pair), bxpcmp);
+    for (i = 0; i < limit - 1; i++) {
         // printf("%lu %lu %lu\n", i, bx[i].diskoff, bx[i].size);
         fragsizes += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
     }
     toku_free(bx);
-    printf("translated_blocknum_limit: %" PRIu64 "\n", h->translated_blocknum_limit);
+    printf("translated_blocknum_limit: %" PRIu64 "\n", limit);
     printf("leafblocks: %" PRIu64 "\n", leafblocks);
     printf("blocksizes: %" PRIu64 "\n", blocksizes);
     printf("leafsizes: %" PRIu64 "\n", leafsizes);
@@ -299,15 +301,24 @@ main (int argc, const char *argv[]) {
     } else {
 	BLOCKNUM blocknum;
 	printf("Block translation:");
-	for (blocknum.b=0; blocknum.b<h->unused_blocks.b; blocknum.b++) {
+
+        u_int64_t limit = toku_block_get_translated_blocknum_limit(h->blocktable);
+        BLOCKNUM unused_blocks = toku_block_get_unused_blocks(h->blocktable);
+        size_t bx_size = limit * sizeof (struct block_translation_pair);
+        struct block_translation_pair *bx = toku_malloc(bx_size);
+        toku_block_memcpy_translation_table(h->blocktable, bx_size, bx);
+
+
+	for (blocknum.b=0; blocknum.b< unused_blocks.b; blocknum.b++) {
 	    printf(" %" PRId64 ":", blocknum.b);
-	    if (h->block_translation[blocknum.b].size == -1) printf("free");
-	    else printf("%" PRId64 ":%" PRId64, h->block_translation[blocknum.b].diskoff, h->block_translation[blocknum.b].size);
+	    if (bx[blocknum.b].size == -1) printf("free");
+	    else printf("%" PRId64 ":%" PRId64, bx[blocknum.b].diskoff, bx[blocknum.b].size);
 	}
-	for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
-	    if (h->block_translation[blocknum.b].size != -1)
+	for (blocknum.b=1; blocknum.b<unused_blocks.b; blocknum.b++) {
+	    if (bx[blocknum.b].size != -1)
 		dump_node(f, blocknum, h);
         }
+        toku_free(bx);
     }
     toku_brtheader_free(h);
     toku_malloc_cleanup();

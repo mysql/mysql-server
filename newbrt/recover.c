@@ -137,8 +137,9 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     XMALLOC(h->flags_array);
     h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
-    h->free_blocks   = header.free_blocks;
-    h->unused_blocks = header.unused_blocks;
+    assert(h->blocktable /* Not initialized.  Is this used? */);
+    toku_block_recovery_set_free_blocks(h->blocktable, header.free_blocks);
+    toku_block_recovery_set_unused_blocks(h->blocktable, header.unused_blocks);
     h->n_named_roots = header.n_named_roots;
     r=toku_fifo_create(&h->fifo);
     assert(r==0);
@@ -687,7 +688,7 @@ toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldun
     assert(r==0);
     assert(pair->brt);
     assert(pair->brt->h);
-    pair->brt->h->unused_blocks = newunused;
+    toku_block_recovery_set_unused_blocks(pair->brt->h->blocktable, newunused);
 }
 
 static int toku_recover_checkpoint (LSN UU(lsn)) {

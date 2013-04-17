@@ -84,8 +84,6 @@ REGRESSION_TESTS_RAW = \
 	omt-cursor-test \
 	omt-test \
 	shortcut \
-	test1305 \
-	test1308a \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \
