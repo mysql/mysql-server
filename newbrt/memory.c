@@ -17,18 +17,28 @@ int toku_malloc_counter = 0;
 int toku_realloc_counter = 0;
 int toku_free_counter = 0;
 
+static inline size_t resize(size_t n) {
+#if defined(_WIN32)
+    if (64*1024 < n && n < 1024*1024)
+	n = 1024*1024;
+    return n;
+#else
+    return n;
+#endif
+}
+
 void *toku_calloc(size_t nmemb, size_t size) {
     toku_calloc_counter++;
-    return calloc(nmemb, size);
+    return calloc(nmemb, resize(size));
 }
 
 void *toku_malloc(size_t size) {
     toku_malloc_counter++;
-    return malloc(size);
+    return malloc(resize(size));
 }
 
 void *toku_xmalloc(size_t size) {
-    void *r = malloc(size);
+    void *r = toku_malloc(size);
     if (r==0) abort();
     return r;
 }
@@ -44,7 +54,7 @@ void *toku_tagmalloc(size_t size, enum typ_tag typtag) {
 
 void *toku_realloc(void *p, size_t size) {
     toku_realloc_counter++;
-    return realloc(p, size);
+    return realloc(p, resize(size));
 }
 
 void toku_free(void* p) {
