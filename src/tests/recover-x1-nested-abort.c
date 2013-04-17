@@ -52,7 +52,7 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
         
         // force an fsync of the log
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
-        r = txn->commit(txn, 0);                                                        CKERR(r);
+        r = txn->commit(txn, DB_TXN_SYNC);                                              CKERR(r);
     }
     //printf("shutdown\n");
     abort();

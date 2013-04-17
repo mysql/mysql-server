@@ -118,6 +118,8 @@ BDB_DONTRUN_TESTS = \
 	transactional_fileops \
 	env_startup \
 	zombie_db \
+	recover-delboth-checkpoint \
+	recover-delboth-after-checkpoint \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
