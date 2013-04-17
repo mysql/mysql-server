@@ -11,6 +11,10 @@
 #include <sys/stat.h>
 #include "db.h"
 
+#if defined(BDB)
+#define DB_YESOVERWRITE 0
+#endif
+
 static int verbose = 0;
 
 static int get_int(void *p) {
@@ -19,6 +23,7 @@ static int get_int(void *p) {
     return htonl(v);
 }
 
+#if !defined(BDB)
 static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
     if (old_val == NULL) {
         // new_val = extra
@@ -38,6 +43,7 @@ static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const 
     }
     return 0;
 }
+#endif
 
 static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b, int c, int d, bool do_update_callback) {
     int r;
@@ -56,12 +62,15 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     int newd = htonl(d);
     memcpy(val_buffer+4, &newd, sizeof newd);
 
+#if !defined(BDB)
     if (do_update_callback) {
         // extra = value_buffer, implicit combine column c update function
         DBT key = { .data = key_buffer, .size = sizeof key_buffer };
         DBT extra = { .data = val_buffer, .size = sizeof val_buffer };
         r = db->update(db, txn, &key, &extra, 0); assert(r == 0);
-    } else {
+    } else
+#endif
+    {
         DBT key = { .data = key_buffer, .size = sizeof key_buffer };
         DBT value = { .data = val_buffer, .size = sizeof val_buffer };
         r = db->put(db, txn, &key, &value, DB_NOOVERWRITE);
@@ -159,6 +168,10 @@ int main(int argc, char *argv[]) {
             rows_per_report = atol(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--key_range") == 0 && i+1 < argc) {
+            key_range = atol(argv[++i]);
+            continue;
+        }
         if (strcmp(arg, "--update_callback") == 0) {
             do_update_callback = true;
             continue;
@@ -177,7 +190,9 @@ int main(int argc, char *argv[]) {
     // create and open the env
     DB_ENV *db_env = NULL;
     r = db_env_create(&db_env, 0); assert(r == 0);
+#if !defined(BDB)
     db_env->set_update(db_env, my_update_callback);
+#endif
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // create the db

@@ -1,4 +1,4 @@
-TARGETS = db-insert db-insert-bdb db-scan db-scan-bdb db-update
+TARGETS = db-insert db-insert-bdb db-scan db-scan-bdb db-update db-update-bdb
 CFLAGS = -g
 CPPFLAGS = -I../include
 LIBTOKUDB = tokudb
@@ -11,6 +11,10 @@ db-insert-bdb: db-insert.c
 
 db-scan-bdb: db-scan.c
 	cc -ldb db-scan.c    -o db-scan-bdb   -DBDB $(CFLAGS)
+
+db-update-bdb: db-update.c
+	cc -ldb db-update.c  -o db-update-bdb -DBDB $(CFLAGS)
+
 
 default: db-insert
 
