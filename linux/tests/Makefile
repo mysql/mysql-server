@@ -1,7 +1,7 @@
 # -*- Mode: Makefile -*-
 CPPFLAGS = -D_GNU_SOURCE
 CPPFLAGS += -I../../toku_include -I..
-CFLAGS = -Wall -Werror -g -O0
+CFLAGS = -Wall -Werror -g -O0 -std=c99
 LDFLAGS = ../libtokuportability.a -lpthread
 SRCS = $(wildcard test-*.c)
 TARGETS = $(patsubst %.c,%,$(SRCS))
