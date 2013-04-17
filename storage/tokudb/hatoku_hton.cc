@@ -137,7 +137,7 @@ u_int32_t tokudb_write_status_frequency;
 u_int32_t tokudb_read_status_frequency;
 my_bool tokudb_prelock_empty;
 #ifdef TOKUDB_VERSION
-char *tokudb_version = (char *)TOKUDB_VERSION;
+char *tokudb_version = (char*) TOKUDB_VERSION;
 #else
  char *tokudb_version;
 #endif
@@ -491,7 +491,7 @@ void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
     if (progress->stalled_on_checkpoint) {
         r = sprintf(
             progress_info->status, 
-            "stalled on checkpoint, processed %lld out of %lld", 
+            "stalled on checkpoint, processed %"PRId64" out of %"PRId64, 
             progress->entries_processed, 
             progress->entries_total
             ); 
@@ -500,7 +500,7 @@ void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
     else {
         r = sprintf(
             progress_info->status, 
-            "processed %lld out of %lld", 
+            "processed %"PRId64" out of %"PRId64, 
             progress->entries_processed, 
             progress->entries_total
             ); 
@@ -841,13 +841,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("max_time_ydb_lock_held", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);  
       STATPRINT("total_time_ydb_lock_held", buf);
-
+#if 0
       lockstat = (engstat.logger_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       lockctr =  engstat.logger_lock_ctr >> 1;   // lsb indicates if locked
       snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
       STATPRINT("logger lock", lockstat);
       STATPRINT("logger lock counter", buf);
-
+#endif
       snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
       STATPRINT("checkpoint period", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);

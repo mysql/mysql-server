@@ -57,7 +57,7 @@ static const char *ha_tokudb_exts[] = {
             break;  \
         } \
         if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) { \
-            TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
+	  TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, (int) lockretrycount); \
         } \
         if (lockretrycount%200 == 0) { \
             if (ha_thd()->killed) { \
@@ -3504,7 +3504,7 @@ cleanup:
 //
 int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::remove_key");
-    int error;
+    int error = 0;
     DBT key;
     bool has_null;
     ulonglong wait_lock_time = get_write_lock_wait_time(ha_thd());
@@ -3670,7 +3670,7 @@ void ha_tokudb::column_bitmaps_signal() {
 //      error otherwise
 //
 int ha_tokudb::prepare_index_scan() {
-    int error;
+    int error = 0;
     DB* db = share->key_file[active_index];
     lockretryN(read_lock_wait_time){
         error = db->pre_acquire_read_lock(
@@ -3947,7 +3947,7 @@ exit:
 //
 int ha_tokudb::read_full_row(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_full_row");
-    int error;
+    int error = 0;
     struct smart_dbt_info info;
     info.ha = this;
     info.buf = buf;
@@ -3988,7 +3988,7 @@ int ha_tokudb::read_full_row(uchar * buf) {
 // 
 int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) { 
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this); 
-    int error; 
+    int error = 0; 
     struct smart_dbt_info info; 
     DBT curr_key;
     DBT found_key;
@@ -4058,7 +4058,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     // TOKUDB_DBUG_DUMP("key=", key, key_len);
     DBT row;
     DBT lookup_key;
-    int error;    
+    int error = 0;    
     u_int32_t flags = 0;
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
@@ -4179,7 +4179,7 @@ cleanup:
 //
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
-    int error; 
+    int error = 0; 
     struct smart_dbt_info info;
     u_int32_t flags = SET_READ_FLAG(0);
     THD* thd = ha_thd();
@@ -4227,7 +4227,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 //
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
-    int error; 
+    int error = 0; 
     struct smart_dbt_info info;
     u_int32_t flags = SET_READ_FLAG(0);
     THD* thd = ha_thd();
@@ -4271,7 +4271,7 @@ cleanup:
 //
 int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
-    int error;
+    int error = 0;
     struct smart_dbt_info info;
     u_int32_t flags = SET_READ_FLAG(0);
     THD* thd = ha_thd();
@@ -4315,7 +4315,7 @@ cleanup:
 //
 int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
-    int error;
+    int error = 0;
     struct smart_dbt_info info;
     u_int32_t flags = SET_READ_FLAG(0);
     THD* thd = ha_thd();
@@ -4359,7 +4359,7 @@ cleanup:
 //
 int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
-    int error;
+    int error = 0;
     read_lock_wait_time = get_read_lock_wait_time(ha_thd());
     range_lock_grabbed = false;
     if (scan) {
@@ -4406,7 +4406,7 @@ int ha_tokudb::rnd_end() {
 //
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
-    int error;
+    int error = 0;
     u_int32_t flags = SET_READ_FLAG(0);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
@@ -4499,7 +4499,7 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
 int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_pos");
     DBT db_pos;
-    int error;
+    int error = 0;
     struct smart_dbt_info info;
     bool old_unpack_entire_row = unpack_entire_row;
     DBT* key = get_pos(&db_pos, pos); 
@@ -4530,7 +4530,8 @@ cleanup:
 
 int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_range_first");
-    int error;
+
+    int error = 0;
     DBT start_dbt_key;
     const DBT* start_dbt_data = NULL;
     DBT end_dbt_key;
