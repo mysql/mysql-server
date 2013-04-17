@@ -138,7 +138,8 @@ toku_os_gettid(void) {
 int 
 toku_os_get_max_process_data_size(uint64_t *maxdata) {
 #ifdef _WIN32
-    // the process gets 1/2 of the 32 bit address space
+    // the process gets 1/2 of the 32 bit address space.  
+    // we are ignoring the 3GB feature for now.
     *maxdata = 1ULL << 31;
     return 0;
 #else
