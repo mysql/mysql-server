@@ -58,8 +58,7 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->cur_le = NULL;
     cursor->is_open = 0;
     cursor->cur_logfiles_index = 0;
-//    cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
-    cursor->logdir = (char *) toku_malloc(strlen(log_dir));
+    cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
     if ( NULL==cursor->logdir ) 
         return ENOMEM;
     strcpy(cursor->logdir, log_dir);

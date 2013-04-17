@@ -2630,13 +2630,6 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
 // Effect:  Flush the root fifo into the brt, and then push the cmd into the brt.
 {
-    if (logger) {
-        BYTESTRING keybs = {.len=cmd->u.id.key->size, .data=cmd->u.id.key->data};
-        BYTESTRING valbs = {.len=cmd->u.id.val->size, .data=cmd->u.id.val->data};
-        int r = toku_log_enqrootentry(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), cmd->xid, cmd->type, keybs, valbs);
-        if (r!=0) return r;
-    }
-
     void *node_v;
     BRTNODE node;
     CACHEKEY *rootp;
@@ -2675,37 +2668,54 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 // Effect: Insert the key-val pair into brt.
 {
     int r;
-    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    TXNID xid = toku_txn_get_txnid(txn);
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
         if (need_data) {
             BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
-            r = toku_logger_save_rollback_cmdinsertboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
+            r = toku_logger_save_rollback_cmdinsertboth(txn, xid, toku_cachefile_filenum(brt->cf), keybs, databs);
         } else {
-            r = toku_logger_save_rollback_cmdinsert    (txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
+            r = toku_logger_save_rollback_cmdinsert    (txn, xid, toku_cachefile_filenum(brt->cf), keybs);
         }
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
     }
-    BRT_CMD_S brtcmd = { BRT_INSERT, toku_txn_get_txnid(txn), .u.id={key,val}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
+        r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        if (r!=0) return r;
+    }
+
+    BRT_CMD_S brtcmd = { BRT_INSERT, xid, .u.id={key,val}};
+    r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     if (r!=0) return r;
     return r;
 }
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    TXNID xid = toku_txn_get_txnid(txn);
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
-        r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
+        r = toku_logger_save_rollback_cmddelete(txn, xid, toku_cachefile_filenum(brt->cf), keybs);
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
     }
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=0, .data=NULL};
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        if (r!=0) return r;
+    }
     DBT val;
-    BRT_CMD_S brtcmd = { BRT_DELETE_ANY, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
+    BRT_CMD_S brtcmd = { BRT_DELETE_ANY, xid, .u.id={key, toku_init_dbt(&val)}};
+    r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
 
@@ -4533,16 +4543,25 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
-    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    TXNID xid = toku_txn_get_txnid(txn);
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
-        r = toku_logger_save_rollback_cmddeleteboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
+        r = toku_logger_save_rollback_cmddeleteboth(txn, xid, toku_cachefile_filenum(brt->cf), keybs, databs);
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
     }
-    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, toku_txn_get_txnid(txn), .u.id={key,val}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
+        r = toku_log_enq_delete_both(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        if (r!=0) return r;
+    }
+
+    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, xid, .u.id={key,val}};
+    r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
 

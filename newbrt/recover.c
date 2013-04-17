@@ -200,6 +200,7 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *l, struct back
     return 0;
 }
 
+#if 0
 static void
 toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
     struct cf_pair *pair = NULL;
@@ -225,7 +226,85 @@ static int toku_recover_backward_enqrootentry (struct logtype_enqrootentry *l, s
     toku_free_BYTESTRING(l->data);
     return 0;
 }
+#endif
 
+static void
+toku_recover_enq_insert (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return;
+    }    
+    struct brt_cmd cmd;
+    DBT keydbt, valdbt;
+    cmd.type=BRT_INSERT;
+    cmd.xid =xid;
+    cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
+    cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
+    r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+static int toku_recover_backward_enq_insert (struct logtype_enq_insert *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->key);
+    toku_free_BYTESTRING(l->value);
+    return 0;
+}
+
+static void
+toku_recover_enq_delete_both (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return;
+    }    
+    struct brt_cmd cmd;
+    DBT keydbt, valdbt;
+    cmd.type = BRT_DELETE_BOTH;
+    cmd.xid =xid;
+    cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
+    cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
+    r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->key);
+    toku_free_BYTESTRING(l->value);
+    return 0;
+}
+
+static void
+toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return;
+    }    
+    struct brt_cmd cmd;
+    DBT keydbt, valdbt;
+    cmd.type = BRT_DELETE_ANY;
+    cmd.xid = xid;
+    cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
+    cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
+    r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->key);
+    toku_free_BYTESTRING(l->value);
+    return 0;
+}
 
 static void
 toku_recover_fclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
@@ -355,6 +434,14 @@ static int toku_recover_timestamp (LSN UU(lsn), u_int64_t UU(timestamp), BYTESTR
 
 static int toku_recover_backward_timestamp (struct logtype_timestamp *l, struct backward_scan_state *UU(bs)) {
     toku_free_BYTESTRING(l->comment);
+    return 0;
+}
+
+static int toku_recover_shutdown (LSN UU(lsn)) {
+    return 0;
+}
+
+static int toku_recover_backward_shutdown (struct logtype_shutdown *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 

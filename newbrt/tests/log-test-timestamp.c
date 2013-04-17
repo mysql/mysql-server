@@ -49,6 +49,22 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
 
     // TODO verify the log
+    TOKULOGCURSOR lc = NULL;
+    r = toku_logcursor_create(&lc, dname);
+    assert(r == 0 && lc != NULL);
+
+    struct log_entry le;
+    r = toku_logcursor_next(lc, &le);
+    assert(r == 0 && le.cmd == LT_timestamp);
+    
+    r = toku_logcursor_next(lc, &le);
+    assert(r == 0 && le.cmd == LT_timestamp);
+
+    r = toku_logcursor_next(lc, &le);
+    assert(r != 0);
+
+    r = toku_logcursor_destroy(&lc);
+    assert(r == 0 && lc == NULL);
 
     return 0;
 }
