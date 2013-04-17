@@ -37,20 +37,3 @@ u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key,
     toku_calc_more_murmur_kvpair(&mm, key, keylen, val, vallen);
     return x1764_finish(&mm);
 }
-
-u_int32_t toku_calc_fingerprint_cmdstruct (BRT_CMD cmd) {
-    switch (cmd->type) {
-    case BRT_INSERT:
-    case BRT_DELETE_ANY:
-    case BRT_DELETE_BOTH:
-    case BRT_COMMIT_ANY:
-    case BRT_COMMIT_BOTH:
-    case BRT_ABORT_ANY:
-    case BRT_ABORT_BOTH:
-	return toku_calc_fingerprint_cmd (cmd->type, cmd->xid, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size);
-    case BRT_NONE:
-	return 0;
-    }
-    assert(0); /* Should not have come here. */
-    return 0;
-}
