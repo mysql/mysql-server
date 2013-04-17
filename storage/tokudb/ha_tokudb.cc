@@ -703,7 +703,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
     // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
-    last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
+    last_dup_key((uint) - 1), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
     transaction = NULL;
 }
 
@@ -2988,8 +2988,7 @@ int ha_tokudb::info(uint flag) {
         }
         stats.deleted = 0;
     }
-    if ((flag & HA_STATUS_CONST) || version != share->version) {
-        version = share->version;
+    if ((flag & HA_STATUS_CONST)) {
         for (uint i = 0; i < table_share->keys; i++) {
             table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 0;
         }
