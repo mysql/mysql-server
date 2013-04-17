@@ -606,10 +606,9 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
         
     poll_count=0;
 
-    int n = count_temp(env->i->real_data_dir);
+    // You cannot count the temp files here.
     if (verbose) {
 	printf("Data dir is %s\n", env->i->real_data_dir);
-	printf("Num temp files = %d\n", n);
     }
     if (t == commit || t == abort_txn) {
 	// close the loader
@@ -621,10 +620,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	CKERR(r);
 	if (!USE_PUTS) {
 	    assert(poll_count>0);
-	    if (assert_temp_files && n == 0) {
-		printf("Test is not complete if no temp files are created.\n");
-		assert(0);
-	    }
+	    // You cannot count temp files here
 	}
     }
     else if (t == abort_via_poll) {
@@ -660,7 +656,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	r = loader->abort(loader);
 	CKERR(r);
     }
-    n = count_temp(env->i->real_data_dir);
+    int n = count_temp(env->i->real_data_dir);
     if (verbose) printf("Num temp files = %d\n", n);
     fflush(stdout);
     assert(n==0);
