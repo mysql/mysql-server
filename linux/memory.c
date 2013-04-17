@@ -67,14 +67,20 @@ my_malloc_usable_size(void *p) {
     return p == NULL ? 0 : malloc_usable_size(p);
 }
 
-// max_in_use may be slightly off because use of max_in_use is not thread-safe.
-// It is not worth the overhead to make it completely accurate.
+// Note that max_in_use may be slightly off because use of max_in_use is not thread-safe.
+// It is not worth the overhead to make it completely accurate, but
+// this logic is intended to guarantee that it increases monotonically.
+// Note that status.sum_used and status.sum_freed increase monotonically
+// and that status.max_in_use is declared volatile.
 static inline void 
 set_max(uint64_t sum_used, uint64_t sum_freed) {
-    uint64_t in_use = (sum_used - sum_freed);
-    if ((!(in_use & 0x8000000000000000)) // if wrap due to another thread, ignore bogus "negative" value
-	&& (in_use > status.max_in_use)) {
-	status.max_in_use = in_use;
+    if (sum_used >= sum_freed) {
+	uint64_t in_use = sum_used - sum_freed;
+	uint64_t old_max;
+	do {
+	    old_max = status.max_in_use;
+	} while (old_max < in_use &&
+		 !__sync_bool_compare_and_swap(&status.max_in_use, old_max, in_use));
     }
 }
 
