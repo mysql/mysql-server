@@ -33,9 +33,25 @@ static void *my_malloc(size_t n) {
         return malloc(n);
 }
 
-static void test_loader_open(void) {
+static int my_compare(DB *UU(db), const DBT *UU(akey), const DBT *UU(bkey)) {
+    return EINVAL;
+}
+
+static void test_loader_open(int ndbs) {
     int r;
     BRTLOADER loader;
+
+    // open the brtloader. this runs the extractor.
+    DB *dbs[ndbs];
+    const struct descriptor *descriptors[ndbs];
+    const char *fnames[ndbs];
+    brt_compare_func compares[ndbs];
+    for (int i = 0; i < ndbs; i++) {
+        dbs[i] = NULL;
+        descriptors[i] = NULL;
+        fnames[i] = "";
+        compares[i] = my_compare;
+    }
 
     toku_set_func_malloc(my_malloc);
 
@@ -43,7 +59,7 @@ static void test_loader_open(void) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_brt_loader_open(&loader, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, "", ZERO_LSN);
+        r = toku_brt_loader_open(&loader, NULL, NULL, NULL, ndbs, dbs, descriptors, fnames, compares, "", ZERO_LSN);
         if (r == 0)
             break;
     }
@@ -72,7 +88,8 @@ int test_main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    test_loader_open();
+    test_loader_open(0);
+    test_loader_open(1);
 
     return 0;
 }
