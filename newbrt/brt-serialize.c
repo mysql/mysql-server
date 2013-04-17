@@ -669,7 +669,7 @@ toku_create_compressed_partition_from_available(
 
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
-#pragma cilk grainsize = 1
+#pragma cilk grainsize = 2
     cilk_for (int i = 0; i < npartitions; i++) {
         serialize_and_compress_partition(node, i, &sb[i]);
     }
