@@ -16,10 +16,10 @@ typedef struct ctpair_rwlock *CTPAIR_RWLOCK;
 struct ctpair_rwlock {
     int pinned;                  // the number of readers
     int want_pin;                // the number of blocked readers
-    pthread_cond_t wait_pin;
+    toku_pthread_cond_t wait_pin;
     int writer;                  // the number of writers
     int want_write;              // the number of blocked writers
-    pthread_cond_t wait_write;
+    toku_pthread_cond_t wait_write;
 };
 
 // initialize a read write lock
@@ -29,9 +29,9 @@ void
 ctpair_rwlock_init(CTPAIR_RWLOCK rwlock) {
     int r;
     rwlock->pinned = rwlock->want_pin = 0;
-    r = pthread_cond_init(&rwlock->wait_pin, 0); assert(r == 0);
+    r = toku_pthread_cond_init(&rwlock->wait_pin, 0); assert(r == 0);
     rwlock->writer = rwlock->want_write = 0;
-    r = pthread_cond_init(&rwlock->wait_write, 0); assert(r == 0);
+    r = toku_pthread_cond_init(&rwlock->wait_write, 0); assert(r == 0);
 }
 
 // destroy a read write lock
@@ -42,18 +42,18 @@ ctpair_rwlock_destroy(CTPAIR_RWLOCK rwlock) {
     int r;
     assert(rwlock->pinned == 0 && rwlock->want_pin == 0);
     assert(rwlock->writer == 0 && rwlock->want_write == 0);
-    r = pthread_cond_destroy(&rwlock->wait_pin); assert(r == 0);
-    r = pthread_cond_destroy(&rwlock->wait_write); assert(r == 0);
+    r = toku_pthread_cond_destroy(&rwlock->wait_pin); assert(r == 0);
+    r = toku_pthread_cond_destroy(&rwlock->wait_write); assert(r == 0);
 }
 
 // obtain a read lock
 // expects: mutex is locked
 
-static inline void ctpair_read_lock(CTPAIR_RWLOCK rwlock, pthread_mutex_t *mutex) {
+static inline void ctpair_read_lock(CTPAIR_RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
     if (rwlock->writer || rwlock->want_write) {
         rwlock->want_pin++;
         while (rwlock->writer || rwlock->want_write) {
-            int r = pthread_cond_wait(&rwlock->wait_pin, mutex); assert(r == 0);
+            int r = toku_pthread_cond_wait(&rwlock->wait_pin, mutex); assert(r == 0);
         }
         rwlock->want_pin--;
     }
@@ -66,18 +66,18 @@ static inline void ctpair_read_lock(CTPAIR_RWLOCK rwlock, pthread_mutex_t *mutex
 static inline void ctpair_read_unlock(CTPAIR_RWLOCK rwlock) {
     rwlock->pinned--;
     if (rwlock->pinned == 0 && rwlock->want_write) {
-        int r = pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
+        int r = toku_pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
     }
 }
 
 // obtain a write lock
 // expects: mutex is locked
 
-static inline void ctpair_write_lock(CTPAIR_RWLOCK rwlock, pthread_mutex_t *mutex) {
+static inline void ctpair_write_lock(CTPAIR_RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
     if (rwlock->pinned || rwlock->writer) {
         rwlock->want_write++;
         while (rwlock->pinned || rwlock->writer) {
-            int r = pthread_cond_wait(&rwlock->wait_write, mutex); assert(r == 0);
+            int r = toku_pthread_cond_wait(&rwlock->wait_write, mutex); assert(r == 0);
         }
         rwlock->want_write--;
     }
@@ -91,9 +91,9 @@ static inline void ctpair_write_unlock(CTPAIR_RWLOCK rwlock) {
     rwlock->writer--;
     if (rwlock->writer == 0) {
         if (rwlock->want_write) {
-            int r = pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
+            int r = toku_pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
         } else if (rwlock->want_pin) {
-            int r = pthread_cond_broadcast(&rwlock->wait_pin); assert(r == 0);
+            int r = toku_pthread_cond_broadcast(&rwlock->wait_pin); assert(r == 0);
         }
     }
 }

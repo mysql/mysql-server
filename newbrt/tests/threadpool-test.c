@@ -5,15 +5,15 @@
 #include <string.h>
 #include <errno.h>
 #include <malloc.h>
-#include <pthread.h>
+#include <toku_pthread.h>
 #include "threadpool.h"
 
 int verbose = 0;
 
 struct my_threadpool {
     THREADPOOL threadpool;
-    pthread_mutex_t mutex;
-    pthread_cond_t wait;
+    toku_pthread_mutex_t mutex;
+    toku_pthread_cond_t wait;
     int closed;
 };
 
@@ -22,23 +22,23 @@ my_threadpool_init (struct my_threadpool *my_threadpool, int max_threads) {
     int r;
     r = threadpool_create(&my_threadpool->threadpool, max_threads); assert(r == 0);
     assert(my_threadpool != 0);
-    r = pthread_mutex_init(&my_threadpool->mutex, 0); assert(r == 0);
-    r = pthread_cond_init(&my_threadpool->wait, 0); assert(r == 0);
+    r = toku_pthread_mutex_init(&my_threadpool->mutex, 0); assert(r == 0);
+    r = toku_pthread_cond_init(&my_threadpool->wait, 0); assert(r == 0);
     my_threadpool->closed = 0;
 }
 
 static void
 my_threadpool_destroy (struct my_threadpool *my_threadpool) {
     int r;
-    r = pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
     my_threadpool->closed = 1;
-    r = pthread_cond_broadcast(&my_threadpool->wait); assert(r == 0);
-    r = pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
+    r = toku_pthread_cond_broadcast(&my_threadpool->wait); assert(r == 0);
+    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
 
     if (verbose) printf("current %d\n", threadpool_get_current_threads(my_threadpool->threadpool));
     threadpool_destroy(&my_threadpool->threadpool); assert(my_threadpool->threadpool == 0);
-    r = pthread_mutex_destroy(&my_threadpool->mutex); assert(r == 0);
-    r = pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&my_threadpool->mutex); assert(r == 0);
+    r = toku_pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
 }
 
 static void *
@@ -46,12 +46,12 @@ fbusy (void *arg) {
     struct my_threadpool *my_threadpool = arg;
     int r;
     
-    r = pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
     while (!my_threadpool->closed) {
-        r = pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
+        r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
-    r = pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", pthread_self(), __FUNCTION__); 
+    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
+    if (verbose) printf("%lu:%s:exit\n", toku_pthread_self(), __FUNCTION__); 
     return arg;
 }
 
@@ -60,13 +60,13 @@ fidle (void *arg) {
     struct my_threadpool *my_threadpool = arg;
     int r;
     
-    r = pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
     threadpool_set_thread_idle(my_threadpool->threadpool);
     while (!my_threadpool->closed) {
-        r = pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
+        r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
-    r = pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", pthread_self(), __FUNCTION__); 
+    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
+    if (verbose) printf("%lu:%s:exit\n", toku_pthread_self(), __FUNCTION__); 
     return arg;
 }
 

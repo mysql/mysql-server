@@ -1,4 +1,4 @@
-#include "../portability.h"
+#include "portability.h"
 
 #include <assert.h>
 #include <fcntl.h>

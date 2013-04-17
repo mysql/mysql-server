@@ -8,22 +8,22 @@
 // global data, especially between the test thread and the cachetable
 // writeback threads
 
-pthread_mutex_t  test_mutex;
+toku_pthread_mutex_t  test_mutex;
 
 static inline void test_mutex_init() {
-    int r = pthread_mutex_init(&test_mutex, 0); assert(r == 0);
+    int r = toku_pthread_mutex_init(&test_mutex, 0); assert(r == 0);
 }
 
 static inline void test_mutex_destroy() {
-    int r = pthread_mutex_destroy(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&test_mutex); assert(r == 0);
 }
 
 static inline void test_mutex_lock() {
-    int r = pthread_mutex_lock(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_lock(&test_mutex); assert(r == 0);
 }
 
 static inline void test_mutex_unlock() {
-    int r = pthread_mutex_unlock(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 
 static const int test_object_size = 1;
@@ -48,7 +48,7 @@ static void print_ints(void) {
 }
 
 static void item_becomes_present(CACHEFILE cf, CACHEKEY key) {
-    while (n_present >= N_PRESENT_LIMIT) pthread_yield();
+    while (n_present >= N_PRESENT_LIMIT) toku_pthread_yield();
     test_mutex_lock();
     assert(n_present<N_PRESENT_LIMIT);
     present_items[n_present].cf     = cf;

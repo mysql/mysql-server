@@ -74,7 +74,7 @@ struct cachetable {
     long size_writing;      // the sum of the sizes of the pairs being written
     LSN lsn_of_checkpoint;  // the most recent checkpoint in the log.
     TOKULOGGER logger;
-    pthread_mutex_t mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pair's
+    toku_pthread_mutex_t mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pair's
     struct writequeue wq;   // write queue for the writer threads
     THREADPOOL threadpool;  // pool of writer threads
     char checkpointing;     // checkpoint in progress
@@ -84,7 +84,7 @@ struct cachetable {
 
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
-    int r = pthread_mutex_lock(&ct->mutex); assert(r == 0);
+    int r = toku_pthread_mutex_lock(&ct->mutex); assert(r == 0);
 #endif
 }
 
@@ -92,7 +92,7 @@ static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
 
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
-    int r = pthread_mutex_unlock(&ct->mutex); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&ct->mutex); assert(r == 0);
 #endif
 }
 
@@ -104,11 +104,6 @@ static inline void cachetable_wait_write(CACHETABLE ct) {
         writequeue_wait_write(&ct->wq, &ct->mutex);
     }
 }
-
-struct fileid {
-    dev_t st_dev; /* device and inode are enough to uniquely identify a file in unix. */
-    ino_t st_ino;
-};
 
 struct cachefile {
     CACHEFILE next;
@@ -156,7 +151,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     t->checkpointing = 0;
     int r;
     writequeue_init(&t->wq);
-    r = pthread_mutex_init(&t->mutex, 0); assert(r == 0);
+    r = toku_pthread_mutex_init(&t->mutex, 0); assert(r == 0);
 
     // set the max number of writeback threads to min(MAX_WRITER_THREADS,nprocs_online)
     int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -969,7 +964,7 @@ int toku_cachetable_close (CACHETABLE *tp) {
     cachetable_unlock(t);
     threadpool_destroy(&t->threadpool);
     writequeue_destroy(&t->wq);
-    r = pthread_mutex_destroy(&t->mutex); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&t->mutex); assert(r == 0);
     toku_free(t->table);
     toku_free(t);
     *tp = 0;
@@ -1118,7 +1113,7 @@ FILENUM toku_cachefile_filenum (CACHEFILE cf) {
 // The writer thread waits for work in the write queue and writes the pair
 
 static void *cachetable_writer(void *arg) {
-    // printf("%lu:%s:start %p\n", pthread_self(), __FUNCTION__, arg);
+    // printf("%lu:%s:start %p\n", toku_pthread_self(), __FUNCTION__, arg);
     CACHETABLE ct = arg;
     int r;
     cachetable_lock(ct);
@@ -1132,7 +1127,7 @@ static void *cachetable_writer(void *arg) {
         cachetable_write_pair(ct, p);
     }
     cachetable_unlock(ct);
-    // printf("%lu:%s:exit %p\n", pthread_self(), __FUNCTION__, arg);
+    // printf("%lu:%s:exit %p\n", toku_pthread_self(), __FUNCTION__, arg);
     return arg;
 }
 

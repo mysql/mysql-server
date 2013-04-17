@@ -9,22 +9,22 @@
 // global data, especially between the test thread and the cachetable
 // writeback threads
 
-pthread_mutex_t  test_mutex;
+toku_pthread_mutex_t  test_mutex;
 
 static inline void test_mutex_init() {
-    int r = pthread_mutex_init(&test_mutex, 0); assert(r == 0);
+    int r = toku_pthread_mutex_init(&test_mutex, 0); assert(r == 0);
 }
 
 static inline void test_mutex_destroy() {
-    int r = pthread_mutex_destroy(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&test_mutex); assert(r == 0);
 }
 
 static inline void test_mutex_lock() {
-    int r = pthread_mutex_lock(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_lock(&test_mutex); assert(r == 0);
 }
 
 static inline void test_mutex_unlock() {
-    int r = pthread_mutex_unlock(&test_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 #endif
 
@@ -198,14 +198,14 @@ static void test0 (void) {
     expect1(2); /* 2 is the oldest unpinned item. */
     r=toku_cachetable_put(f, make_blocknum(6), h6, make_item(6), test_object_size, flush, fetch, t3);   /* 6P 5U 4P 3U 1P */
     assert(r==0);
-    while (expect_n_flushes != 0) pthread_yield();
+    while (expect_n_flushes != 0) toku_pthread_yield();
     assert(expect_n_flushes==0);
 
 
     expect1(3);
     r=toku_cachetable_put(f, make_blocknum(7), h7, make_item(7), test_object_size, flush, fetch, t3);
     assert(r==0);
-    while (expect_n_flushes != 0) pthread_yield();
+    while (expect_n_flushes != 0) toku_pthread_yield();
     assert(expect_n_flushes==0);
     r=toku_cachetable_unpin(f, make_blocknum(7), h7, CACHETABLE_DIRTY, test_object_size);           /* 7U 6P 5U 4P 1P */
     assert(r==0);
@@ -231,7 +231,7 @@ static void test0 (void) {
 	assert(did_fetch.b==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key.b==2);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
-        while (expect_n_flushes != 0) pthread_yield();
+        while (expect_n_flushes != 0) toku_pthread_yield();
         assert(expect_n_flushes==0);
     }
 	
@@ -624,7 +624,7 @@ static void test_size_flush() {
         int n_entries, hash_size; long size_current, size_limit;
         toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit);
         while (n_entries != min2(i+1, n)) {
-            pthread_yield();
+            toku_pthread_yield();
             toku_cachetable_get_state(t, &n_entries, 0, 0, 0);
         }
         assert(n_entries == min2(i+1, n));

@@ -6,9 +6,9 @@
 typedef struct writequeue *WRITEQUEUE;
 struct writequeue {
     PAIR head, tail;            // head and tail of the linked list of pair's
-    pthread_cond_t wait_read;   // wait for read
+    toku_pthread_cond_t wait_read;   // wait for read
     int want_read;              // number of threads waiting to read
-    pthread_cond_t wait_write;  // wait for write
+    toku_pthread_cond_t wait_write;  // wait for write
     int want_write;             // number of threads waiting to write
     int ninq;                   // number of pairs in the queue
     char closed;                // kicks waiting threads off of the write queue
@@ -21,9 +21,9 @@ struct writequeue {
 static void writequeue_init(WRITEQUEUE wq) {
     wq->head = wq->tail = 0;
     int r;
-    r = pthread_cond_init(&wq->wait_read, 0); assert(r == 0);
+    r = toku_pthread_cond_init(&wq->wait_read, 0); assert(r == 0);
     wq->want_read = 0;
-    r = pthread_cond_init(&wq->wait_write, 0); assert(r == 0);
+    r = toku_pthread_cond_init(&wq->wait_write, 0); assert(r == 0);
     wq->want_write = 0;
     wq->ninq = 0;
     wq->closed = 0;
@@ -35,8 +35,8 @@ static void writequeue_init(WRITEQUEUE wq) {
 static void writequeue_destroy(WRITEQUEUE wq) {
     assert(wq->head == 0 && wq->tail == 0);
     int r;
-    r = pthread_cond_destroy(&wq->wait_read); assert(r == 0);
-    r = pthread_cond_destroy(&wq->wait_write); assert(r == 0);
+    r = toku_pthread_cond_destroy(&wq->wait_read); assert(r == 0);
+    r = toku_pthread_cond_destroy(&wq->wait_write); assert(r == 0);
 }
 
 // close the writequeue
@@ -45,8 +45,8 @@ static void writequeue_destroy(WRITEQUEUE wq) {
 static void writequeue_set_closed(WRITEQUEUE wq) {
     wq->closed = 1;
     int r;
-    r = pthread_cond_broadcast(&wq->wait_read); assert(r == 0);
-    r = pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
+    r = toku_pthread_cond_broadcast(&wq->wait_read); assert(r == 0);
+    r = toku_pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
 }
 
 // determine whether or not the write queue is empty
@@ -70,7 +70,7 @@ static void writequeue_enq(WRITEQUEUE wq, PAIR pair) {
     wq->tail = pair;
     wq->ninq++;
     if (wq->want_read) {
-        int r = pthread_cond_signal(&wq->wait_read); assert(r == 0);
+        int r = toku_pthread_cond_signal(&wq->wait_read); assert(r == 0);
     }
 }
 
@@ -80,12 +80,12 @@ static void writequeue_enq(WRITEQUEUE wq, PAIR pair) {
 // write queue and return it
 // returns: 0 if success, otherwise an error 
 
-static int writequeue_deq(WRITEQUEUE wq, pthread_mutex_t *mutex, PAIR *pairptr) {
+static int writequeue_deq(WRITEQUEUE wq, toku_pthread_mutex_t *mutex, PAIR *pairptr) {
     while (writequeue_empty(wq)) {
         if (wq->closed)
             return EINVAL;
         wq->want_read++;
-        int r = pthread_cond_wait(&wq->wait_read, mutex); assert(r == 0);
+        int r = toku_pthread_cond_wait(&wq->wait_read, mutex); assert(r == 0);
         wq->want_read--;
     }
     PAIR pair = wq->head;
@@ -101,9 +101,9 @@ static int writequeue_deq(WRITEQUEUE wq, pthread_mutex_t *mutex, PAIR *pairptr) 
 // suspend the writer thread
 // expects: the mutex is locked
 
-static void writequeue_wait_write(WRITEQUEUE wq, pthread_mutex_t *mutex) {
+static void writequeue_wait_write(WRITEQUEUE wq, toku_pthread_mutex_t *mutex) {
     wq->want_write++;
-    int r = pthread_cond_wait(&wq->wait_write, mutex); assert(r == 0);
+    int r = toku_pthread_cond_wait(&wq->wait_write, mutex); assert(r == 0);
     wq->want_write--;
 }
 
@@ -112,7 +112,7 @@ static void writequeue_wait_write(WRITEQUEUE wq, pthread_mutex_t *mutex) {
 
 static void writequeue_wakeup_write(WRITEQUEUE wq) {
     if (wq->want_write) {
-        int r = pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
+        int r = toku_pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
     }
 }
    

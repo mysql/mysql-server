@@ -156,5 +156,57 @@ void* le_any_val (LEAFENTRY le);
 u_int32_t le_any_vallen (LEAFENTRY le);
 u_int64_t le_any_xid (LEAFENTRY le);
 
+void *latest_key_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+void *latest_key_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+void *latest_key_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+void *latest_key_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int32_t latest_keylen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int32_t latest_keylen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int32_t latest_keylen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int32_t latest_keylen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+void *latest_val_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+void *latest_val_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+void *latest_val_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+void *latest_val_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int32_t latest_vallen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int32_t latest_vallen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int32_t latest_vallen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int32_t latest_vallen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int64_t latest_xid_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int64_t latest_xid_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int64_t latest_xid_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int64_t latest_xid_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+//
+
+void *any_key_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+void *any_key_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+void *any_key_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+void *any_key_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int32_t any_keylen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int32_t any_keylen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int32_t any_keylen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int32_t any_keylen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+void *any_val_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+void *any_val_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+void *any_val_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+void *any_val_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int32_t any_vallen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int32_t any_vallen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int32_t any_vallen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int32_t any_vallen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
+u_int64_t any_xid_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
+u_int64_t any_xid_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
+u_int64_t any_xid_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
+u_int64_t any_xid_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+
 #endif
 

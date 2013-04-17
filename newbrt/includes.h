@@ -12,7 +12,7 @@
 #if !defined(TOKU_WINDOWS)
 #include <dirent.h>
 #include <inttypes.h>
-#include <pthread.h>
+#include <toku_pthread.h>
 #include <sys/file.h>
 #include <sys/resource.h>
 #include <sys/time.h>
