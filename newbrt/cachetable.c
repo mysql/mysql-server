@@ -1468,7 +1468,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
                 if (rwlock_users(&p->rwlock) == 0)
                     ctpair_destroy(p);
                 cachetable_unlock(ct);
-		get_and_pin_footprint = 0;
+		get_and_pin_footprint = 1001;
                 return ENODEV;
             }
 	    lru_touch(ct,p);
@@ -1478,7 +1478,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	    note_hash_count(count);
             cachetable_unlock(ct);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
-	    get_and_pin_footprint = 0;
+	    get_and_pin_footprint = 1000;
 	    return 0;
 	}
     }
@@ -1496,7 +1496,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
         r = cachetable_fetch_pair(ct, cachefile, p);
         if (r) {
             cachetable_unlock(ct);
-	    get_and_pin_footprint = 0;
+	    get_and_pin_footprint = 1002;
             return r;
         }
         cachetable_miss++;
@@ -1512,7 +1512,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     r = maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
-    get_and_pin_footprint = 0;
+    get_and_pin_footprint = 1003;
     return r;
 }
 
