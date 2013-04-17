@@ -86,7 +86,7 @@ SYMBOLS   = -g3 -ggdb3
 PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
-LIBPORTABILITY   = $(TOKUROOT)lib/libportability.$(AEXT)
+LIBPORTABILITY   = $(TOKUROOT)lib/libtokuportability.$(AEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)linux
 ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
