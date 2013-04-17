@@ -1247,8 +1247,14 @@ toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_
 
 void 
 toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
-    s->ilock_ctr = logger->input_lock_ctr;
-    s->olock_ctr = logger->output_condition_lock_ctr;
-    s->swap_ctr  = logger->swap_ctr;
+    if (logger) {
+	s->ilock_ctr = logger->input_lock_ctr;
+	s->olock_ctr = logger->output_condition_lock_ctr;
+	s->swap_ctr  = logger->swap_ctr;
+    }
+    else {
+	s->ilock_ctr = 0;
+	s->olock_ctr = 0;
+	s->swap_ctr  = 0;
+    }
 }
-
