@@ -110,7 +110,8 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
     VALIDATE(ba);
 }
     
-static u_int64_t align (u_int64_t value, BLOCK_ALLOCATOR ba) {
+static inline u_int64_t
+align (u_int64_t value, BLOCK_ALLOCATOR ba) {
     return ((value+ba->alignment-1)/ba->alignment)*ba->alignment;
 }
 
