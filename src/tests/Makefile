@@ -483,6 +483,9 @@ test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426 $(PTHREAD_LOCAL)
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # STRESS RUNS is number of iterations, STRESS_SIZE is operations per iteration (must not change between iterations)
+# Note the magic with the brackets is there to suppress the printout of "/bin/bash: line 11: 1234 Killed ...."
+# See http://stackoverflow.com/questions/714855/bash-suppress-notice-of-forked-command-being-killed
+# also we only print the date if VERBOSE is set to non-null
 STRESS_RUNS=5
 STRESS_SIZE=5001
 checkpoint_stress.tdbrun: SHELL=/bin/bash
@@ -490,8 +493,8 @@ checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< -C -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
-		date; \
-		./$< -c -i $$i -n $(STRESS_SIZE) $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+		$(if $(VERBOSE),date;) \
+		{ ./$< -c -i $$i -n $(STRESS_SIZE) $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; } 2>/dev/null ; \
                 if [ $$? -ne $(ABORTCODE) ] ; then \
                    exit 1 ; \
                 fi ; \
@@ -505,8 +508,8 @@ recover_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< -C -n $(STRESS_SIZE) -l $(VERBVERBOSE) && \
 	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) -l $(VERBVERBOSE) && \
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
-		date; \
-		./$< -c -i $$i -n $(STRESS_SIZE) -l $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+		$(if $(VERBOSE),date;) \
+		{ ./$< -c -i $$i -n $(STRESS_SIZE) -l $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; } 2>/dev/null ; \
                 if [ $$? -ne $(ABORTCODE) ] ; then \
                    exit 1 ; \
                 fi ; \
@@ -557,7 +560,7 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
                                    for i in $$iset; do \
                                       errorfile=dir.$@.errors/crash.$$O.$$a.$$b.$$c.$$d.$$e.$$f.$$g.$$h.$$i; \
                                       combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$h -I $$i"; \
-                                      ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile ; \
+                                      { ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile ; } 2>/dev/null ;\
                                       if [ $$? -ne $(ABORTCODE) ] ; then \
                                          { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
                                       fi ; \
