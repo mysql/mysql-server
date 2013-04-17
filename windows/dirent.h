@@ -1,6 +1,7 @@
 #ifndef _TOKU_DIRENT_H
 #define _TOKU_DIRENT_H
 
+#include "toku_os_types.h"
 #if defined(__cplusplus)
 extern "C" {
 #endif
