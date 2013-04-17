@@ -1,6 +1,10 @@
 #ifndef TOKU_SUB_BLOCK_H
 #define TOKU_SUB_BLOCK_H
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 static const int max_sub_blocks = 8;
 static const int target_sub_block_size = 512*1024;
 
@@ -98,5 +102,8 @@ decompress_worker(void *arg);
 int
 decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores);
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

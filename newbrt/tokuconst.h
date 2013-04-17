@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2009-2010 Tokutek Inc.  All rights reserved."
 
 #ifndef TOKUCONST_H
 #define TOKUCONST_H
@@ -9,10 +9,19 @@
  * one slot in the packed leaf entry is used for the implicit
  * root transaction (id 0).
  */
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 enum {MAX_NESTED_TRANSACTIONS = 253};
 enum {MAX_TRANSACTION_RECORDS = MAX_NESTED_TRANSACTIONS + 1};
 
 #define DO_IMPLICIT_PROMOTION_ON_QUERY 0
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif
 

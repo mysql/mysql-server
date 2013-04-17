@@ -29,6 +29,7 @@ static void test_flat (void) {
 	permute[ra]=i;
     }
     for (i=0; i<limit; i++) {
+        if (verbose) printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, i);
 	char key[100],val[100];
 	u_int64_t ri = permute[i];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*ri+1);
@@ -43,6 +44,7 @@ static void test_flat (void) {
     u_int64_t prevless=0;
     u_int64_t prevgreater=limit;
     for (i=0; i<2*limit+1; i++) {
+        if (verbose) printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, i);
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)i);
 	DBT k;

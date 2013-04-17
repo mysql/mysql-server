@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
@@ -187,13 +187,16 @@ enum reactivity { RE_STABLE, RE_FUSIBLE, RE_FISSIBLE };
 
 static enum reactivity
 get_leaf_reactivity (BRTNODE node) {
+    enum reactivity re = RE_STABLE;
     assert(node->height==0);
-    unsigned int size = toku_serialize_brtnode_size(node);
-    if (size     > node->nodesize && toku_omt_size(node->u.l.buffer) > 1) 
-        return RE_FISSIBLE;
-    if ((size*4) < node->nodesize && !node->u.l.seqinsert)     
-        return RE_FUSIBLE;
-    return RE_STABLE;
+    if (node->dirty) {
+        unsigned int size = toku_serialize_brtnode_size(node);
+        if (size     > node->nodesize && toku_omt_size(node->u.l.buffer) > 1) 
+            re = RE_FISSIBLE;
+        else if ((size*4) < node->nodesize && !node->u.l.seqinsert)     
+            re = RE_FUSIBLE;
+    }
+    return re;
 }
 
 static enum reactivity
@@ -4632,18 +4635,18 @@ brt_cursor_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBACK_FUNC
     return r;
 }
 
-static inline int compare_kv_xy(BRT brt, DBT *k, DBT *v, DBT *x, DBT *y) {
+static inline int compare_kv_xy(BRT brt, const DBT *k, const DBT *v, const DBT *x, const DBT *y) {
     int cmp = brt->compare_fun(brt->db, k, x);
     if (cmp == 0 && v && y)
         cmp = brt->dup_compare(brt->db, v, y);
     return cmp;
 }
 
-static inline int compare_k_x(BRT brt, DBT *k, DBT *x) {
+static inline int compare_k_x(BRT brt, const DBT *k, const DBT *x) {
     return brt->compare_fun(brt->db, k, x);
 }
 
-static inline int compare_v_y(BRT brt, DBT *v, DBT *y) {
+static inline int compare_v_y(BRT brt, const DBT *v, const DBT *y) {
     return brt->dup_compare(brt->db, v, y);
 }
 
@@ -5272,7 +5275,7 @@ toku_brt_cursor_heaviside(BRT_CURSOR cursor, BRT_GET_STRADDLE_CALLBACK_FUNCTION 
 {
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_heaviside,
                                          wrapper->direction < 0 ? BRT_SEARCH_RIGHT : BRT_SEARCH_LEFT,
-                                         (DBT*)toku_dbt_fake,
+                                         toku_dbt_fake,
                                          cursor->brt->flags & TOKU_DB_DUPSORT ? (DBT*)toku_dbt_fake : NULL,
                                          wrapper);
 

@@ -1,13 +1,16 @@
 #ifndef FIFO_H
 #define FIFO_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "brttypes.h"
 #include "xids-internal.h"
 #include "xids.h"
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // If the fifo_entry is unpacked, the compiler aligns the xids array and we waste a lot of space
 #if TOKU_WINDOWS
@@ -74,5 +77,8 @@ int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
 int toku_fifo_iterate_internal_next(FIFO fifo, int off);
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

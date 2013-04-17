@@ -2,7 +2,7 @@
 #define BRTTYPES_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <sys/types.h>
@@ -13,6 +13,10 @@
 
 #include <db.h>
 #include <inttypes.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 typedef struct brt *BRT;
 struct brt_header;
@@ -125,6 +129,10 @@ typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val,
 
 typedef struct memarena *MEMARENA;
 typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif
 

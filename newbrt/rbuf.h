@@ -2,7 +2,7 @@
 #define RBUF_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
@@ -11,6 +11,10 @@
 #include "brttypes.h"
 #include "memory.h"
 #include "toku_htonl.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 struct rbuf {
     unsigned char *buf;
@@ -132,7 +136,7 @@ static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
     u_int32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
-    bs->data = toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
+    bs->data = (char *) toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;
 }
@@ -141,9 +145,13 @@ static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING 
     bs->len  = rbuf_int(r);
     u_int32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
-    bs->data = memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
+    bs->data = (char *) memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;
 }
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

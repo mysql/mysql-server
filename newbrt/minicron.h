@@ -1,11 +1,17 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
+
+#ifndef TOKU_MINICRON_H
+#define TOKU_MINICRON_H
 
 #include <toku_pthread.h>
 #include <toku_time.h>
 #include "brttypes.h"
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // Specification:
 // A minicron is a miniature cron job for executing a job periodically inside a pthread.
@@ -37,3 +43,9 @@ int toku_minicron_change_period(struct minicron *p, u_int32_t new_period);
 u_int32_t toku_minicron_get_period(struct minicron *p);
 int toku_minicron_shutdown(struct minicron *p);
 BOOL toku_minicron_has_been_shutdown(struct minicron *p);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
+#endif

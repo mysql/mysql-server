@@ -1,7 +1,8 @@
-#ifndef MEMARENA_H
-#define MEMARENA_H
+#ifndef TOKU_MEMARENA_H
+#define TOKU_MEMARENA_H
+
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 /* We have too many memory management tricks:
@@ -18,6 +19,10 @@
  */
 
 #include <sys/types.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 MEMARENA memarena_create_presized (size_t initial_size);
 // Effect: Create a memarena with initial size.  In case of ENOMEM, aborts.
@@ -43,5 +48,9 @@ size_t memarena_total_memory_size (MEMARENA);
 // Effect: Calculate the amount of memory used by a memory arena.
 
 size_t memarena_total_size_in_use (MEMARENA);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

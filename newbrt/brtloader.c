@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
@@ -17,16 +17,49 @@
 #include "zlib.h"
 #include <fcntl.h>
 #include "x1764.h"
-
 #include "brtloader-internal.h"
 #include "brt-internal.h"
 #include "sub_block.h"
 #include "sub_block_map.h"
+#include "pqueue.h"
+#include "trace_mem.h"
+// to turn on tracing, 
+//   cd .../newbrt
+//   edit trace_mem.h, set #define BL_DO_TRACE 1
+//   make local
+//   cd ../src;make local
+
+#if defined(__cilkplusplus)
+#include <cilk.h>
+#include <cilk_mutex.h>
+#include <fake_mutex.h>
+#define CILK_BEGIN extern "Cilk++" {
+#define CILK_END };
+#else
+// maybe #include <cilk_stub.h>
+#if !defined(CILK_STUB)
+#define CILK_STUB
+#define cilk_spawn
+#define cilk_sync
+#define cilk_for for
+#endif
+#define CILK_BEGIN
+#define CILK_END
+#endif
+
+// mark everything as C and selectively mark cilk functions
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#if 0
+} // make emacs happy about matching parens....
+#endif
+#endif
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
     os_fwrite_fun=fwrite_fun;
 }
+
 static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     if (os_fwrite_fun) {
 	return os_fwrite_fun(ptr, size, nmemb, stream);
@@ -35,8 +68,24 @@ static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *strea
     }
 }
 
+static void add_big_buffer(struct file_info *file) {
+    if (file->buffer == NULL)
+        file->buffer = toku_malloc(file->buffer_size);
+    if (file->buffer) {
+        int r = setvbuf(file->file, (char *) file->buffer, _IOFBF, file->buffer_size); assert(r == 0);
+    }
+}
+
+static void cleanup_big_buffer(struct file_info *file) {
+    if (file->buffer) {
+        toku_free(file->buffer);
+        file->buffer = NULL;
+    }
+}
 
 int brtloader_init_file_infos (struct file_infos *fi) {
+    int r = toku_pthread_mutex_init(&fi->lock, NULL);
+    assert(r==0);
     fi->n_files = 0;
     fi->n_files_limit = 1;
     fi->n_files_open = 0;
@@ -52,6 +101,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 // If !is_error then requires that all the temp files have been closed and destroyed
 // No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
 {
+    toku_pthread_mutex_destroy(&fi->lock);
     if (!is_error) {
 	assert(fi->n_files_open==0);
 	assert(fi->n_files_extant==0);
@@ -66,6 +116,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 	    unlink(fi->file_infos[i].fname);
 	    toku_free(fi->file_infos[i].fname);
 	}
+        cleanup_big_buffer(&fi->file_infos[i]);
     }
     toku_free(fi->file_infos);
     fi->n_files=0;
@@ -78,6 +129,7 @@ static void open_file_add (struct file_infos *fi,
 			   char *fname,
 			   /* out */ FIDX *idx)
 {
+    int r = toku_pthread_mutex_lock(&fi->lock); assert(r==0);
     if (fi->n_files >= fi->n_files_limit) {
 	fi->n_files_limit *=2;
 	XREALLOC_N(fi->n_files_limit, fi->file_infos);
@@ -88,37 +140,49 @@ static void open_file_add (struct file_infos *fi,
     fi->file_infos[fi->n_files].fname     = fname;
     fi->file_infos[fi->n_files].file      = file;
     fi->file_infos[fi->n_files].n_rows    = 0;
+    fi->file_infos[fi->n_files].buffer_size = 1<<20;
+    fi->file_infos[fi->n_files].buffer    = NULL;
+    add_big_buffer(&fi->file_infos[fi->n_files]);
     idx->idx = fi->n_files;
     fi->n_files++;
     fi->n_files_extant++;
     fi->n_files_open++;
+    r = toku_pthread_mutex_unlock(&fi->lock); assert(r==0);
 }
 
 int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
+    int result = 0;
+    int r = toku_pthread_mutex_lock(&fi->lock); assert(r==0);
     int i = idx.idx;
     assert(i>=0 && i<fi->n_files);
     assert(!fi->file_infos[i].is_open);
     assert(fi->file_infos[i].is_extant);
     fi->file_infos[i].file = fopen(fi->file_infos[i].fname, mode);
-    if (fi->file_infos[i].file==NULL) return errno;
+    if (fi->file_infos[i].file==NULL) { result = errno; goto error; }
     fi->file_infos[i].is_open = TRUE;
+    add_big_buffer(&fi->file_infos[i]);
     fi->n_files_open++;
-    return 0;
+    r = toku_pthread_mutex_unlock(&fi->lock); assert(r==0);
+ error:
+    return result;
 }
 
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
+    { int r2 = toku_pthread_mutex_lock(&fi->lock); assert(r2==0); }
     assert(fi->n_files_open>0);
     fi->n_files_open--;
     assert(idx.idx >=0 && idx.idx < fi->n_files);
     assert(fi->file_infos[idx.idx].is_open);
     fi->file_infos[idx.idx].is_open = FALSE;
     int r = fclose(fi->file_infos[idx.idx].file);
+    { int r2 = toku_pthread_mutex_unlock(&fi->lock); assert(r2==0); }
     if (r!=0) return errno;
     else return 0;
 }
 
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
+    { int r2 = toku_pthread_mutex_lock(&fi->lock); assert(r2==0); }
     assert(fi->n_files_extant>0);
     fi->n_files_extant--;
     int id = idx.idx;
@@ -129,6 +193,7 @@ int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     int r = unlink(fi->file_infos[id].fname);  if (r!=0) r=errno;
     toku_free(fi->file_infos[id].fname);
     fi->file_infos[id].fname = NULL;
+    { int r2 = toku_pthread_mutex_unlock(&fi->lock); assert(r2==0); }
     return r;
 }
 
@@ -156,15 +221,38 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
-    for (int i=0; i<bl->N; i++) {
-	if (bl->new_fnames_in_env) toku_free((char*)bl->new_fnames_in_env[i]);
+    for (int i = 0; i < bl->N; i++) {
+	if (bl->new_fnames_in_env) 
+            toku_free((char*)bl->new_fnames_in_env[i]);
     }
     toku_free(bl->new_fnames_in_env);
     toku_free(bl->bt_compare_funs);
     toku_free((char*)bl->temp_file_template);
     brtloader_fi_destroy(&bl->file_infos, is_error);
+
+    for (int i = 0; i < bl->N; i++) 
+        destroy_rowset(&bl->rows[i]);
+    toku_free(bl->rows);
+
+    for (int i = 0; i < bl->N; i++)
+        destroy_merge_fileset(&bl->fs[i]);
+    toku_free(bl->fs);
+
+    // 
+    for (int i=0; i<bl->N; i++) {
+	assert(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
+    }
+    toku_free(bl->fractal_threads);
+    toku_free(bl->fractal_queues);
+    toku_free(bl->fractal_threads_live);
+
+    brt_loader_destroy_error_callback(bl);
+    brt_loader_destroy_poll_callback(bl);
 }
 
+static void *extractor_thread (void*);
+
+// RFP 2535 error recovery in the loader open needs to be replaced
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
@@ -190,6 +278,12 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     BRTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
     if (!bl) return errno;
 
+    BL_TRACE("calibrate begin");
+#if BL_DO_TRACE
+    sleep(1);
+#endif
+    BL_TRACE("calibrate done");
+
     bl->panic = 0;
     bl->panic_errno = 0;
 
@@ -198,6 +292,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->src_db = src_db;
     bl->N = N;
+    bl->load_lsn = load_lsn;
 
 #define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; }
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; } lval = v; } while (0)
@@ -211,26 +306,51 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     MY_CALLOC_N(N, bl->bt_compare_funs);
     for (int i=0; i<N; i++) bl->bt_compare_funs[i] = bt_compare_functions[i];
 
+    MY_CALLOC_N(N, bl->fractal_queues);
+    for (int i=0; i<N; i++) bl->fractal_queues[i]=NULL;
+    MY_CALLOC_N(N, bl->fractal_threads);
+    MY_CALLOC_N(N, bl->fractal_threads_live);
+    for (int i=0; i<N; i++) bl->fractal_threads_live[i] = FALSE;
+
     brtloader_init_file_infos(&bl->file_infos);
 
     SET_TO_MY_STRDUP(bl->temp_file_template, temp_file_template);
-    bl->fprimary_rows = FIDX_NULL;
-    { int r = brtloader_open_temp_file(bl, &bl->fprimary_rows); if (r!=0) return r; }
-    bl->fprimary_offset = 0;
 
     bl->n_rows   = 0; 
     bl->progress = 0;
-    bl->load_lsn = load_lsn;
+
+    bl->rows = (struct rowset *) toku_malloc(N*sizeof(struct rowset));                   if (bl->rows == NULL) return ENOSPC;
+    bl->fs   = (struct merge_fileset *) toku_malloc(N*sizeof(struct merge_fileset));     if (bl->rows == NULL) return ENOSPC;
+    for(int i=0;i<N;i++) {
+        { int r = init_rowset(&bl->rows[i]); if (r!=0) return r; }
+        init_merge_fileset(&bl->fs[i]);
+    }
+
+    brt_loader_init_error_callback(bl);
+    brt_loader_init_poll_callback(bl);
+
+    { int r = init_rowset(&bl->primary_rowset); if (r!=0) return r; }
+    { int r = queue_create(&bl->primary_rowset_queue, 1); if (r!=0) return r; }
+    //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
+    { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
 
     *blp = bl;
+    BL_TRACE("open");
     return 0;
+}
 
+static void brt_loader_set_panic(BRTLOADER bl, int error) {
+    bl->panic = 1;
+    bl->panic_errno = error;
 }
 
 static FILE *bl_fidx2file (BRTLOADER bl, FIDX i) {
+    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); assert(r2==0); }
     assert(i.idx >=0 && i.idx < bl->file_infos.n_files);
     assert(bl->file_infos.file_infos[i.idx].is_open);
-    return bl->file_infos.file_infos[i.idx].file;
+    FILE *result=bl->file_infos.file_infos[i.idx].file;
+    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); assert(r2==0); }
+    return result;
 }
 
 static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOADER bl)
@@ -253,8 +373,7 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOAD
 	else
 	    e = ferror(stream);
 	assert(e!=0);
-	bl->panic       = 1;
-	bl->panic_errno = e;
+        brt_loader_set_panic(bl, e);
 	return e;
     }
     return 0;
@@ -278,8 +397,7 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOAD
 	else {
 	do_error: ;
 	    int e = ferror(stream);
-	    bl->panic       = 1;
-	    bl->panic_errno = e;
+            brt_loader_set_panic(bl, e);
 	    return e;
 	}
     } else if (r<nmemb) {
@@ -333,18 +451,10 @@ int loader_write_row(DBT *key, DBT *val, FIDX data, u_int64_t *dataoff, BRTLOADE
     // we have a chance to handle the errors because when we close we can delete all the files.
     if ((r=bl_write_dbt(key, data, dataoff, bl))) return r;
     if ((r=bl_write_dbt(val, data, dataoff, bl))) return r;
+    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); assert(r2==0); }
     bl->file_infos.file_infos[data.idx].n_rows++;
+    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); assert(r2==0); }
     return 0;
-}
-
-int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val)
-/* Effect: Put a key-value pair into the brt loader.  Called by DB_LOADER->put().
- * Return value: 0 on success, an error number otherwise.
- */
-{
-    if (bl->panic) return EINVAL; // previous panic
-    bl->n_rows++;
-    return loader_write_row(key, val, bl->fprimary_rows, &bl->fprimary_offset, bl);
 }
 
 int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl)
@@ -384,8 +494,7 @@ int init_rowset (struct rowset *rows)
     MALLOC_N(rows->n_rows_limit, rows->rows);
     rows->n_bytes = 0;
     rows->n_bytes_limit = 1024*SIZE_FACTOR*16;
-    rows->data = toku_malloc(rows->n_bytes_limit);
-
+    rows->data = (char *) toku_malloc(rows->n_bytes_limit);
     if (rows->rows==NULL || rows->data==NULL) {
 	int r = errno;
 	toku_free(rows->rows);
@@ -398,22 +507,31 @@ int init_rowset (struct rowset *rows)
     }
 }
 
+static void zero_rowset (struct rowset *rows) {
+    memset(rows, 0, sizeof(*rows));
+}
+
 void destroy_rowset (struct rowset *rows) {
     toku_free(rows->data);
     toku_free(rows->rows);
+    zero_rowset(rows);
 }
+
 const size_t data_buffer_limit = 1024*SIZE_FACTOR*64;
+
 static int row_wont_fit (struct rowset *rows, size_t size)
 /* Effect: Return nonzero if adding a row of size SIZE would be too big (bigger than the buffer limit) */ 
 {
     return (data_buffer_limit < rows->n_bytes + size);
 }
+
 static void reset_rows (struct rowset *rows)
 /* Effect: Reset the rows to an empty collection (but reuse any allocated space) */
 {
     rows->n_bytes = 0;
     rows->n_rows = 0;
 }
+
 void add_row (struct rowset *rows, DBT *key, DBT *val)
 /* Effect: add a row to a collection. */
 {
@@ -423,9 +541,10 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
     }
     size_t off      = rows->n_bytes;
     size_t next_off = off + key->size + val->size;
-    struct row newrow = {.off  = off,
-			 .klen = key->size,
-			 .vlen = val->size};
+
+    struct row newrow; 
+    memset(&newrow, 0, sizeof newrow); newrow.off = off; newrow.klen = key->size; newrow.vlen = val->size;
+
     rows->rows[rows->n_rows++] = newrow;
     if (next_off > rows->n_bytes_limit) {
 	while (next_off > rows->n_bytes_limit) {
@@ -439,12 +558,265 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
     rows->n_bytes = next_off;
 }
 
-int merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
-	   DB *dest_db, brt_compare_func compare,
-	   struct error_callback_s *error_callback,
-	   struct rowset *rowset)
-/* Effect: Given two arrays of rows, a and b, merge them using the comparison function, and writ them into dest.
+static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset);
+
+CILK_BEGIN
+static int finish_primary_rows_internal (BRTLOADER bl) {
+    // now we have been asked to finish up.
+    int ra[bl->N];
+
+    cilk_for (int i = 0; i < bl->N; i++) {
+	struct rowset *rows = &(bl->rows[i]);
+	//printf("%s:%d extractor finishing index %d with %ld rows\n", __FILE__, __LINE__, i, rows->n_rows);
+	int progress_this_sort = 0; // fix?
+	ra[i] = /*cilk_spawn*/sort_and_write_rows(rows, &(bl->fs[i]), bl, i, bl->dbs[i], bl->bt_compare_funs[i], progress_this_sort);
+    }
+    // cilk_sync;
+
+    int r = 0;
+    for (int i = 0; i < bl->N; i++)
+        if (ra[i] != 0)
+            r = ra[i];
+
+    return r;
+}
+CILK_END
+
+static int finish_primary_rows (BRTLOADER bl) {
+#if defined(__cilkplusplus)
+    return cilk::run(finish_primary_rows_internal, bl);
+#else
+    return           finish_primary_rows_internal (bl);
+#endif
+}
+
+static void* extractor_thread (void *blv) {
+    BRTLOADER bl = (BRTLOADER)blv;
+    while (1) {
+	void *item;
+	{
+	    int r = queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
+	    if (r==EOF) break;
+	    assert(r==0); // other errors are arbitrarily bad.
+	}
+	struct rowset *primary_rowset = (struct rowset *)item;
+
+	//printf("%s:%d extractor got %ld rows\n", __FILE__, __LINE__, primary_rowset.n_rows);
+
+	assert(primary_rowset->n_rows>0);
+
+	// Now we have some rows to output
+	{
+	    int r = process_primary_rows(bl, primary_rowset);
+	    // !!! need to handle this error better.
+	    if (r!=0) abort();
+	}
+    }
+
+    //printf("%s:%d extractor finishing\n", __FILE__, __LINE__);
+
+    int r = finish_primary_rows(bl); 
+    r = r; // RFP 2535 assert(r==0); // !!! should deal with this.
+
+    for (int i=0; i<bl->N; i++) {
+	destroy_rowset(&bl->rows[i]); // destroy the rowset here so that  if we spawn the sort_and_write, there won't be a race on destroying the rows (thanks to the cilk_sync 2 lines up)
+    }
+
+    return 0;
+}
+
+static void enqueue_for_extraction (BRTLOADER bl) {
+    //printf("%s:%d enqueing %ld items\n", __FILE__, __LINE__, bl->primary_rowset.n_rows);
+    struct rowset *MALLOC(enqueue_me);
+    *enqueue_me = bl->primary_rowset;
+    zero_rowset(&bl->primary_rowset);
+    int r = queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
+    assert(r==0);
+}
+
+static int loader_do_put(BRTLOADER bl,
+                         DBT *pkey,
+                         DBT *pval)
+{
+    add_row(&bl->primary_rowset, pkey, pval);
+    if (row_wont_fit(&bl->primary_rowset, 0)) {
+	// queue the rows for further processing by the extractor thread.
+	//printf("%s:%d please extract %ld\n", __FILE__, __LINE__, bl->primary_rowset.n_rows);
+	enqueue_for_extraction(bl);
+	init_rowset(&bl->primary_rowset);
+    }
+    return 0;
+}
+
+static int finish_extractor (BRTLOADER bl) {
+    //printf("%s:%d now finishing extraction\n", __FILE__, __LINE__);
+
+    if (bl->primary_rowset.n_rows>0) {
+	enqueue_for_extraction(bl);
+    } else {
+	destroy_rowset(&bl->primary_rowset);
+    }
+    //printf("%s:%d please finish extraction\n", __FILE__, __LINE__);
+    {
+	int r = queue_eof(bl->primary_rowset_queue);
+	assert(r==0);
+    }
+    //printf("%s:%d joining\n", __FILE__, __LINE__);
+    {
+	void *toku_pthread_retval;
+	int r = toku_pthread_join(bl->extractor_thread, &toku_pthread_retval);
+	assert(r==0 && toku_pthread_retval==NULL);
+    }
+    {
+	int r = queue_destroy(bl->primary_rowset_queue);
+	assert(r==0);
+    }
+   //printf("%s:%d joined\n", __FILE__, __LINE__);
+    return 0;
+}
+
+static const DBT zero_dbt = {0,0,0,0};
+static DBT make_dbt (void *data, u_int32_t size) {
+    DBT result = zero_dbt;
+    result.data = data;
+    result.size = size;
+    return result;
+}
+
+CILK_BEGIN
+
+static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_rowset)
+// process the rows in primary_rowset, and then destroy the rowset.
+// if FLUSH is true then write all the buffered rows out.
+// if primary_rowset is NULL then treat it as empty.
+{
+    int error_count = 0;
+    int *MALLOC_N(bl->N, error_codes);
+
+    // Do parallelize this loop with cilk_grainsize = 1 so that every iteration will run in parallel.
+#if defined(__cilkplusplus)
+    #pragma cilk_grainsize = 1
+#endif
+    cilk_for (int i = 0; i < bl->N; i++) {
+	error_codes[i] = 0;
+	struct rowset *rows = &(bl->rows[i]);
+	struct merge_fileset *fs = &(bl->fs[i]);
+	brt_compare_func compare = bl->bt_compare_funs[i];
+
+	DBT skey = zero_dbt;
+	skey.flags = DB_DBT_REALLOC;
+	DBT sval=skey;
+
+	// Don't parallelize this loop, or we have to lock access to add_row() which would be a lot of overehad.
+	// Also this way we can reuse the DB_DBT_REALLOC'd value inside skey and sval without a race.
+	for (size_t prownum=0; prownum<primary_rowset->n_rows; prownum++) {
+	    if (error_count) break;
+
+	    struct row *prow = &primary_rowset->rows[prownum];
+	    DBT pkey = zero_dbt;
+	    DBT pval = zero_dbt;
+	    pkey.data = primary_rowset->data + prow->off;
+	    pkey.size = prow->klen;
+	    pval.data = primary_rowset->data + prow->off + prow->klen;
+	    pval.size = prow->vlen;
+	
+
+	    {
+		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
+		assert(r==0);
+	    }
+
+	    if (row_wont_fit(rows, skey.size + sval.size)) {
+		//printf("rows.n_rows=%ld\n", rows.n_rows);
+		BL_TRACE("puts");
+		int progress_this_sort = 0; // fix?
+		int r = sort_and_write_rows(rows, fs, bl, i, bl->dbs[i], compare, progress_this_sort); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
+		BL_TRACE("sort_and_write_rows");
+		if (r!=0) {
+		    error_codes[i] = r;
+#if defined(__cilkplusplus)
+		    __sync_fetch_and_add(&error_count, 1);
+#else
+                    error_count++;
+#endif
+		    break;
+		}
+		reset_rows(rows);
+	    }
+	    add_row(rows, &skey, &sval);
+
+	    //flags==0 means generate_row_for_put callback changed it
+	    //(and freed any memory necessary to do so) so that values are now stored
+	    //in temporary memory that does not need to be freed.  We need to continue
+	    //using DB_DBT_REALLOC however.
+	    if (skey.flags == 0) {
+		toku_init_dbt(&skey);
+		skey.flags = DB_DBT_REALLOC;
+	    }
+	    if (sval.flags == 0) {
+		toku_init_dbt(&sval);
+		sval.flags = DB_DBT_REALLOC;
+	    }
+	}
+
+	{
+	    toku_free(skey.data);
+	    toku_free(sval.data);
+	    skey.data = sval.data = NULL; // set to NULL so that the final cleanup won't free them again.
+	}
+    }
+    
+    destroy_rowset(primary_rowset);
+    toku_free(primary_rowset);
+    int r = 0;
+    if (error_count>0) {
+	for (int i=0; i<bl->N; i++) {
+	    if (error_codes[i]) r = error_codes[i];
+	}
+	assert(0); // could not find the error code.  This is an error in the program if we get here.
+    }
+    toku_free(error_codes);
+    return r;
+}
+CILK_END
+
+static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset) {
+#if defined(__cilkplusplus)
+    return cilk::run(process_primary_rows_internal, bl, primary_rowset);
+#else
+    return           process_primary_rows_internal (bl, primary_rowset);
+#endif
+}
+
+ 
+int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val)
+/* Effect: Put a key-value pair into the brt loader.  Called by DB_LOADER->put().
+ * Return value: 0 on success, an error number otherwise.
+ */
+{
+    if (bl->panic || brt_loader_get_error(bl)) 
+        return EINVAL; // previous panic
+    bl->n_rows++;
+//    return loader_write_row(key, val, bl->fprimary_rows, &bl->fprimary_offset, bl);
+    return loader_do_put(bl, key, val);
+}
+
+void toku_brt_loader_set_n_rows(BRTLOADER bl, u_int64_t n_rows) {
+    bl->n_rows = n_rows;
+}
+
+u_int64_t toku_brt_loader_get_n_rows(BRTLOADER bl) {
+    return bl->n_rows;
+}
+
+int merge_row_arrays_base (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
+			   int which_db, DB *dest_db, brt_compare_func compare,
+			   
+			   BRTLOADER bl,
+			   struct rowset *rowset)
+/* Effect: Given two arrays of rows, a and b, merge them using the comparison function, and write them into dest.
  *   This function is suitable for use in a mergesort.
+ *   If a pair of duplicate keys is ever noticed, then call the error_callback function (if it exists), and return DB_KEYEXIST.
  * Arguments:
  *   dest    write the rows here
  *   a,b     the rows being merged
@@ -454,19 +826,16 @@ int merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row 
  */
 {
     while (an>0 && bn>0) {
-	DBT akey = {.data=rowset->data+a->off, .size=a->klen};
-	DBT bkey = {.data=rowset->data+b->off, .size=b->klen};
+	DBT akey; memset(&akey, 0, sizeof akey); akey.data=rowset->data+a->off; akey.size=a->klen;
+	DBT bkey; memset(&bkey, 0, sizeof bkey); bkey.data=rowset->data+b->off; bkey.size=b->klen;
+
 	int compare_result = compare(dest_db, &akey, &bkey);
 	if (compare_result==0) {
-	    if (error_callback->error_callback) {
-		DBT aval = {.data=rowset->data + a->off + a->klen, .size = a->vlen};
-		error_callback->error_callback(error_callback->db, error_callback->which_db,
-					       DB_KEYEXIST,
-					       &akey, &aval,
-					       error_callback->extra
-					       );
-		return DB_KEYEXIST;
+            if (bl->error_callback.error_callback) {
+                DBT aval; memset(&aval, 0, sizeof aval); aval.data=rowset->data + a->off + a->klen; aval.size = a->vlen;
+                brt_loader_set_error(bl, DB_KEYEXIST, dest_db, which_db, &akey, &aval);
 	    }
+	    return DB_KEYEXIST;
 	} else if (compare_result<0) {
 	    // a is smaller
 	    *dest = *a;
@@ -487,7 +856,102 @@ int merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row 
     return 0;
 }
 
-int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback, struct rowset *rowset)
+static int binary_search (int *location,
+			  const DBT *key,
+			  struct row a[/*an*/], int an,
+			  int abefore,
+			  int which_db, DB *dest_db, brt_compare_func compare,
+			  BRTLOADER bl,
+			  struct rowset *rowset)
+// Given a sorted array of rows a, and a dbt key, find the first row in a that is > key.
+// If no such row exists, then consider the result to be equal to an.
+// On success store abefore+the index into *location
+// Return 0 on success.
+// Return DB_KEYEXIST if we find a row that is equal to key.
+{
+    if (an==0) {
+	*location = abefore;
+	return 0;
+    } else {
+	int a2 = an/2;
+	DBT akey = make_dbt(rowset->data+a[a2].off,  a[a2].klen);
+	int compare_result = compare(dest_db, key, &akey);
+	if (compare_result==0) {
+	    if (bl->error_callback.error_callback) {
+                DBT aval = make_dbt(rowset->data + a[a2].off + a[a2].klen,  a[a2].vlen);
+                brt_loader_set_error(bl, DB_KEYEXIST, dest_db, which_db, &akey, &aval);
+	    }
+	    return DB_KEYEXIST;
+	} else if (compare_result<0) {
+	    // key is before a2
+	    if (an==1) {
+		*location = abefore;
+		return 0;
+	    } else {
+		return binary_search(location, key,
+				     a,    a2,
+				     abefore,
+				     which_db, dest_db, compare, bl, rowset);
+	    }
+	} else {
+	    // key is after a2
+	    if (an==1) {
+		*location = abefore + 1;
+		return 0;
+	    } else {
+		return binary_search(location, key,
+				     a+a2, an-a2,
+				     abefore+a2,
+				     which_db, dest_db, compare, bl, rowset);
+	    }
+	}
+    }
+}
+		   
+
+#define SWAP(typ,x,y) { typ tmp = x; x=y; y=tmp; }
+
+CILK_BEGIN
+static int merge_row_arrays (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
+			     int which_db, DB *dest_db, brt_compare_func compare,
+			     BRTLOADER bl,
+			     struct rowset *rowset)
+/* Effect: Given two sorted arrays of rows, a and b, merge them using the comparison function, and write them into dest.
+ *   This function is a cilk function with parallelism, and is suitable for use in a mergesort.
+ * Arguments:
+ *   dest    write the rows here
+ *   a,b     the rows being merged
+ *   an,bn   the lenth of a and b respectively.
+ *   dest_db We need the dest_db to run the comparison function.
+ *   compare We need the compare function for the dest_db.
+ */
+{
+    if (an + bn < 10000) {
+	return merge_row_arrays_base(dest, a, an, b, bn, which_db, dest_db, compare, bl, rowset);
+    }
+    if (an < bn) {
+	SWAP(struct row *,a, b)
+	SWAP(int         ,an,bn)
+    }
+    // an >= bn
+    int a2 = an/2;
+    DBT akey = make_dbt(rowset->data+a[a2].off, a[a2].klen);
+    int b2 = 0; // initialize to zero so we can add the answer in.
+    {
+	int r = binary_search(&b2, &akey, b, bn, 0, which_db, dest_db, compare, bl, rowset);
+	if (r!=0) return r; // for example if we found a duplicate, called the error_callback, and now we return an error code.
+    }
+    int ra, rb;
+    ra = cilk_spawn merge_row_arrays(dest,       a,    a2,    b,    b2,    which_db, dest_db, compare, bl, rowset);
+    rb =            merge_row_arrays(dest+a2+b2, a+a2, an-a2, b+b2, bn-b2, which_db, dest_db, compare, bl, rowset);
+    cilk_sync;
+    if (ra!=0) return ra;
+    else       return rb;
+}
+CILK_END
+
+CILK_BEGIN
+int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func compare, BRTLOADER bl, struct rowset *rowset)
 /* Sort an array of rows (using mergesort).
  * Arguments:
  *   rows   sort this array of rows.
@@ -498,17 +962,19 @@ int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare
 {
     if (n<=1) return 0; // base case is sorted
     int mid = n/2;
-    {
-	int r = mergesort_row_array (rows,     mid,   dest_db, compare, error_callback, rowset);
-	if (r!=0) return r;
-    }
-    {
-	int r = mergesort_row_array (rows+mid, n-mid, dest_db, compare, error_callback, rowset);
-	if (r!=0) return r;
-    }
+    int r1, r2;
+    r1 = cilk_spawn mergesort_row_array (rows,     mid,   which_db, dest_db, compare, bl, rowset);
+
+    // Don't spawn this one explicitly
+    r2 =            mergesort_row_array (rows+mid, n-mid, which_db, dest_db, compare, bl, rowset);
+
+    cilk_sync;
+    if (r1!=0) return r1;
+    if (r2!=0) return r2;
+
     struct row *MALLOC_N(n, tmp);
     {
-	int r = merge(tmp, rows, mid, rows+mid, n-mid, dest_db, compare, error_callback, rowset);
+	int r = merge_row_arrays(tmp, rows, mid, rows+mid, n-mid, which_db, dest_db, compare, bl, rowset);
 	if (r!=0) {
 	    toku_free(tmp);
 	    return r;
@@ -518,17 +984,29 @@ int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare
     toku_free(tmp);
     return 0;
 }
+CILK_END
 
-static int sort_rows (struct rowset *rows, DB *dest_db, brt_compare_func compare,
-		      struct error_callback_s *error_callback)
+// C function for testing mergesort_row_array 
+int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func compare, BRTLOADER bl, struct rowset *rowset) {
+#if defined(__cilkplusplus)
+    return cilk::run(mergesort_row_array, rows, n, which_db, dest_db, compare, bl, rowset);
+#else
+    return           mergesort_row_array (rows, n, which_db, dest_db, compare, bl, rowset);
+#endif
+}
+
+CILK_BEGIN
+static int sort_rows (struct rowset *rows, int which_db, DB *dest_db, brt_compare_func compare,
+		      BRTLOADER bl)
 /* Effect: Sort a collection of rows.
  * If any duplicates are found, then call the error_callback function and return non zero.
  * Otherwise return 0.
  * Arguments:
  *   rowset    the */
 {
-    return mergesort_row_array(rows->rows, rows->n_rows, dest_db, compare, error_callback, rows);
+    return mergesort_row_array(rows->rows, rows->n_rows, which_db, dest_db, compare, bl, rows);
 }
+CILK_END
 
 /* filesets Maintain a collection of files.  Typically these files are each individually sorted, and we will merge them.
  * These files have two parts, one is for the data rows, and the other is a collection of offsets so we an more easily parallelize the manipulation (e.g., by allowing us to find the offset of the ith row quickly). */
@@ -575,20 +1053,28 @@ static int extend_fileset (BRTLOADER bl, struct merge_fileset *fs, FIDX*ffile)
     return 0;
 }
 
+// RFP maybe this should be buried in the brtloader struct
+// This was previously a cilk lock, but now we need it to work for pthreads too.
+toku_pthread_mutex_t update_progress_lock = TOKU_PTHREAD_MUTEX_INITIALIZER;
+
 static int update_progress (int N,
 			    BRTLOADER bl,
 			    const char *UU(message))
 {
-    // Need a cilk lock here if we call this function from inside cilk.
+    // Need a lock here because of cilk and also the various pthreads.
+    // Must protect the increment and the call to the poll_function.
+    toku_pthread_mutex_lock(&update_progress_lock);
     bl->progress+=N;
+
     //printf(" %20s: %d ", message, bl->progress);
-    if (bl->poll_function)
-	return bl->poll_function(bl->poll_extra, (float)bl->progress/(float)PROGRESS_MAX);
-    else return 0;
+    int r = brt_loader_call_poll_function(bl, (float)bl->progress/(float)PROGRESS_MAX);
+    toku_pthread_mutex_unlock(&update_progress_lock);
+    return r;
 }
 
-int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare,
-			 struct error_callback_s *error_callback, int progress_allocation)
+CILK_BEGIN
+int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare,
+			 int progress_allocation)
 /* Effect: Given a rowset, sort it and write it to a temporary file.
  * Arguments:
  *   rows    the rowset
@@ -603,7 +1089,8 @@ int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADE
     FIDX sfile;
     u_int64_t soffset=0;
     // TODO: erase the files, and deal with all the cleanup on error paths
-    int r = sort_rows(rows, dest_db, compare, error_callback);
+    //printf("%s:%d sort_rows n_rows=%ld\n", __FILE__, __LINE__, rows->n_rows);
+    int r = sort_rows(rows, which_db, dest_db, compare, bl);
     if (r!=0) {
 	return r;
     }
@@ -614,8 +1101,9 @@ int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADE
     r = extend_fileset(bl, fs, &sfile);
     if (r!=0) return r;
     for (size_t i=0; i<rows->n_rows; i++) {
-	DBT skey = {.data = rows->data + rows->rows[i].off,                      .size=rows->rows[i].klen};
-	DBT sval = {.data = rows->data + rows->rows[i].off + rows->rows[i].klen, .size=rows->rows[i].vlen};
+	DBT skey; memset(&skey, 0, sizeof skey); skey.data = rows->data + rows->rows[i].off;                      skey.size=rows->rows[i].klen;
+	DBT sval; memset(&sval, 0, sizeof sval); sval.data = rows->data + rows->rows[i].off + rows->rows[i].klen; sval.size=rows->rows[i].vlen;
+
 	r = loader_write_row(&skey, &sval, sfile, &soffset, bl);
 	if (r!=0) return r;
     }
@@ -623,15 +1111,29 @@ int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADE
     
     return update_progress(progress_allocation, bl, "wrote sorted");
 }
+CILK_END
 
-static int merge_some_files (FIDX dest_data, int n_sources, FIDX srcs_data[/*n_sources*/], BRTLOADER bl, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback, int progress_allocation)
-/* Effect: Given an array of FILE*'s each containing sorted, merge the data and write it to dest.  All the files remain open after the merge.
+// C function for testing sort_and_write_rows
+int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare,
+                                    int progress_allocation) {
+#if defined(__cilkplusplus)
+    return cilk::run(sort_and_write_rows, rows, fs, bl, which_db, dest_db, compare, progress_allocation);
+#else
+    return           sort_and_write_rows (rows, fs, bl, which_db, dest_db, compare, progress_allocation);
+#endif
+}
+
+static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, FIDX srcs_data[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation)
+/* Effect: Given an array of FILE*'s each containing sorted, merge the data and write it to an output.  All the files remain open after the merge.
  *   This merge is performed in one pass, so don't pass too many files in.  If you need a tree of merges do it elsewhere.
+ *   If TO_Q is true then we write rowsets into queue Q.  Otherwise we write into dest_data.
  * Modifies:  May modify the arrays of files (but if modified, it must be a permutation so the caller can use that array to close everything.)
  * Requires: The number of sources is at least one, and each of the input files must have at least one row in it.
  * Implementation note: Currently this code uses a really stupid heap O(n) time per pop instead of O(log n), but we'll fix that soon.
  * Arguments:
+ *   to_q         boolean indicating that output is queue (true) or a file (false)
  *   dest_data    where to write the sorted data
+ *   q            where to write the sorted data
  *   n_sources    how many source files.
  *   srcs_data    the array of source data files.
  *   bl           the brtloader.
@@ -640,71 +1142,125 @@ static int merge_some_files (FIDX dest_data, int n_sources, FIDX srcs_data[/*n_s
  */
 {
     //printf(" merge_some_files progress=%d fin at %d\n", bl->progress, bl->progress+progress_allocation);
-    // We'll use a really stupid heap:  O(n) time per pop instead of O(log n), because we need to get this working soon. ???
-    FIDX datas[n_sources];
     DBT keys[n_sources];
     DBT vals[n_sources];
     u_int64_t dataoff[n_sources];
-    DBT zero = {.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
+    DBT zero; memset(&zero, 0, sizeof zero);  zero.data=0; zero.flags=DB_DBT_REALLOC; zero.size=0; zero.ulen=0;
+
     for (int i=0; i<n_sources; i++) {
 	keys[i] = vals[i] = zero; // fill these all in with zero so we can delete stuff more reliably.
-	datas[i] = FIDX_NULL;
     }
+
+    pqueue_t      *pq;
+    pqueue_node_t *pq_nodes = (pqueue_node_t *)toku_malloc(n_sources * sizeof(pqueue_node_t));
+
+    {
+	int r = pqueue_init(&pq, n_sources, which_db, dest_db, compare, &bl->error_callback);
+	if (r) return r;
+    }
+
     u_int64_t n_rows = 0;
+    // load pqueue with first value from each source
     for (int i=0; i<n_sources; i++) {
-	datas[i] = srcs_data[i];
-	int r = loader_read_row(datas[i], &keys[i], &vals[i], bl);
+	int r = loader_read_row(srcs_data[i], &keys[i], &vals[i], bl);
+	if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
 	if (r!=0) return r;
+
+        pq_nodes[i].key = &keys[i];
+        pq_nodes[i].val = &vals[i];
+        pq_nodes[i].i   = i;
+        r = pqueue_insert(pq, &pq_nodes[i]);
+        if (r!=0) {
+            for (int j=0; j<=i; j++) {
+                toku_free(keys[j].data);
+                toku_free(vals[j].data);
+            }
+            pqueue_free(pq);
+            toku_free(pq_nodes);
+            return r;
+        }
+
 	dataoff[i] = 0;
-	n_rows += bl->file_infos.file_infos[datas[i].idx].n_rows;
+	{ int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); assert(r2==0); }
+	n_rows += bl->file_infos.file_infos[srcs_data[i].idx].n_rows;
+	{ int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); assert(r2==0); }
     }
     u_int64_t n_rows_done = 0;
+
+    struct rowset *output_rowset = NULL;
+    if (to_q) {
+	MALLOC(output_rowset);
+	assert(output_rowset);
+	int r = init_rowset(output_rowset);
+	assert(r==0);
+    }
+    
     //printf(" n_rows=%ld\n", n_rows);
-    while (n_sources>0) {
-	int mini=0;
-	for (int j=1; j<n_sources; j++) {
-	    int compare_result = compare(dest_db, &keys[mini], &keys[j]);
-	    if (compare_result==0) {
-		if (error_callback->error_callback) {
-		    error_callback->error_callback(error_callback->db, error_callback->which_db,
-						   DB_KEYEXIST,
-						   &keys[mini], &vals[mini],
-						   error_callback->extra
-						   );
-		    for (int i=0; i<n_sources; i++) {
-			toku_free(keys[i].data);
-			toku_free(vals[i].data);
-		    }
-		    return DB_KEYEXIST;
-		}
+    while (pqueue_size(pq)>0) {
+        int r;
+        int mini;
+        {
+            // get the minimum 
+            pqueue_node_t *node;
+            r = pqueue_pop(pq, &node);
+            if (r!=0) {
+                for (int i=0; i<n_sources; i++) {
+                    toku_free(keys[i].data);
+                    toku_free(vals[i].data);
+                }
+                pqueue_free(pq);
+                toku_free(pq_nodes);
+                return r;
+            }
+            mini = node->i;
+        }
+	if (to_q) {
+	    if (row_wont_fit(output_rowset, keys[mini].size + vals[mini].size)) {
+		r = queue_enq(q, (void*)output_rowset, 1, NULL);
+		assert(r==0);
+		MALLOC(output_rowset);
+		assert(output_rowset);
+		r = init_rowset(output_rowset);
+		assert(r==0);
 	    }
-	    if (compare_result>0) {
-		mini=j;
-	    }
-	}
-	{
-	    int r = loader_write_row(&keys[mini], &vals[mini], dest_data, &dataoff[mini], bl);
+	    add_row(output_rowset, &keys[mini], &vals[mini]);
+	} else {
+            // write it to the dest file
+	    r = loader_write_row(&keys[mini], &vals[mini], dest_data, &dataoff[mini], bl);
 	    if (r!=0) return r;
 	}
+        
 	{
-	    int r = loader_read_row(datas[mini], &keys[mini], &vals[mini], bl);
+            // read next row from file that just sourced min value 
+	    r = loader_read_row(srcs_data[mini], &keys[mini], &vals[mini], bl);
 	    if (r!=0) {
-		if (feof(bl_fidx2file(bl, datas[mini]))) {
+		if (feof(bl_fidx2file(bl, srcs_data[mini]))) {
+                    // on feof, queue size permanently smaller
 		    toku_free(keys[mini].data);
 		    toku_free(vals[mini].data);
-		    datas[mini] = datas[n_sources-1];
-		    keys[mini] = keys[n_sources-1];
-		    vals[mini] = vals[n_sources-1];
-		    n_sources--;
 		} else {
-		    r = ferror(bl_fidx2file(bl, datas[mini]));
+		    r = ferror(bl_fidx2file(bl, srcs_data[mini]));
 		    assert(r!=0);
 		    return r;
 		}
 	    }
-	}
-
-	n_rows_done++;
+            else {
+                // insert value into queue (re-populate queue)
+                pq_nodes[mini].key = &keys[mini];
+                r = pqueue_insert(pq, &pq_nodes[mini]);
+                if (r!=0) {
+                    for (int i=0; i<n_sources; i++) {
+                        toku_free(keys[i].data);
+                        toku_free(vals[i].data);
+                    }
+                    pqueue_free(pq);
+                    toku_free(pq_nodes);
+                    return r;
+                }
+            }
+        }
+            
+        n_rows_done++;
 	const u_int64_t rows_per_report = SIZE_FACTOR*1024;
 	if (n_rows_done%rows_per_report==0) {
 	    // need to update the progress.
@@ -712,12 +1268,21 @@ static int merge_some_files (FIDX dest_data, int n_sources, FIDX srcs_data[/*n_s
 	    assert(0<= fraction_of_remaining_we_just_did && fraction_of_remaining_we_just_did<=1);
 	    int progress_just_done = fraction_of_remaining_we_just_did * progress_allocation;
 	    progress_allocation -= progress_just_done;
-	    int r = update_progress(progress_just_done, bl, "in file merge");
+	    r = update_progress(progress_just_done, bl, "in file merge");
 	    if (r!=0) return r;
 	}
     }
+    if (to_q) {
+		int r = queue_enq(q, (void*)output_rowset, 1, NULL);
+		assert(r==0);
+    }
+    pqueue_free(pq);
+    toku_free(pq_nodes);
     return update_progress(progress_allocation, bl, "end of merge_some_files");
 }
+
+
+
 
 static int int_min (int a, int b)
 {
@@ -734,9 +1299,16 @@ static int n_passes (int N, int B) {
     return result;
 }
 
-int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func compare, struct error_callback_s *error_callback, int progress_allocation)
-/* Effect:  Given a fileset, merge all the files into one file.  At the end the fileset will have one file in it.
- *   All the other files will be closed and unlinked.
+int merge_files (struct merge_fileset *fs,
+		 BRTLOADER bl,
+		 // These are needed for the comparison function and error callback.
+		 int which_db, DB *dest_db, brt_compare_func compare,
+		 int progress_allocation,
+		 // Write rowsets into this queue.
+		 QUEUE output_q
+		 )
+/* Effect:  Given a fileset, merge all the files writing all the answers into a queue.
+ *   All the files in fs, and any temporary files will be closed and unlinked (and the fileset will be empty)
  * Return value: 0 on success, otherwise an error number.
  *   On error *fs will contain no open files.  All the files (including any temporary files) will be closed and unlinked.
  *    (however the fs will still need to be deallocated.)
@@ -744,16 +1316,17 @@ int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compar
 {
     //printf(" merge_files use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
     const int mergelimit = (SIZE_FACTOR == 1) ? 4 : 256;
-    int n_passes_left = n_passes(fs->n_temp_files, mergelimit);
+//    const int mergelimit = (SIZE_FACTOR == 1) ? 4 : 16;
+    int n_passes_left = (fs->n_temp_files==1) ? 1 : n_passes(fs->n_temp_files, mergelimit);
     //printf("%d files, %d per pass, %d passes\n", fs->n_temp_files, mergelimit, n_passes_left);
-    int r = 0;
-    while (fs->n_temp_files!=1) {
-	assert(n_passes_left>0);
+    int result = 0;
+    while (fs->n_temp_files > 0) {
 	int progress_allocation_for_this_pass = progress_allocation/n_passes_left;
 	progress_allocation -= progress_allocation_for_this_pass;
 
 	assert(fs->n_temp_files>0);
 	struct merge_fileset next_file_set;
+	BOOL to_queue = (BOOL)(fs->n_temp_files <= mergelimit);
 	init_merge_fileset(&next_file_set);
 	while (fs->n_temp_files>0) {
 	    // grab some files and merge them.
@@ -764,223 +1337,101 @@ int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compar
 	    progress_allocation_for_this_pass -= progress_allocation_for_this_subpass;
 
 
+	    //printf("%s:%d merging\n", __FILE__, __LINE__);
+	    FIDX merged_data = FIDX_NULL;
+
 	    FIDX *MALLOC_N(n_to_merge, datafiles);
 	    for (int i=0; i<n_to_merge; i++) datafiles[i] = FIDX_NULL;
 	    for (int i=0; i<n_to_merge; i++) {
 		int idx = fs->n_temp_files -1 -i;
 		datafiles[i] = fs->data_fidxs[idx];
-		r = brtloader_fi_reopen(&bl->file_infos, datafiles[i], "r");      if (r) goto error;
+		result = brtloader_fi_reopen(&bl->file_infos, datafiles[i], "r");
+		if (result) { printf("%s:%d r=%d\n", __FILE__, __LINE__, result); break; }
 	    }
-	    FIDX merged_data;
-	    r = extend_fileset(bl, &next_file_set,  &merged_data);
-	    if (r!=0) goto error;
+	    if (result==0 && !to_queue) {
+		result = extend_fileset(bl, &next_file_set,  &merged_data);
+		if (result!=0) { printf("%s:%d r=%d\n", __FILE__, __LINE__, result); break; }
+	    }
 
-	    r = merge_some_files(merged_data, n_to_merge, datafiles, bl, dest_db, compare, error_callback, progress_allocation_for_this_subpass);
-	    if (r!=0) goto error;
+	    if (result==0) {
+		result = merge_some_files(to_queue, merged_data, output_q, n_to_merge, datafiles, bl, which_db, dest_db, compare, progress_allocation_for_this_subpass);
+		// if result!=0, fall through
+		if (result==0) {
+		    /*nothing*/;// this is gratuitous, but we need something to give code coverage tools to help us know that it's important to distinguish between result==0 and result!=0
+		}
+	    }
 
+	    //printf("%s:%d merged\n", __FILE__, __LINE__);
 	    for (int i=0; i<n_to_merge; i++) {
-		r = brtloader_fi_close(&bl->file_infos, datafiles[i]);            if (r!=0) goto error;
-		r = brtloader_fi_unlink(&bl->file_infos, datafiles[i]);           if (r!=0) goto error;
-
+		if (!fidx_is_null(datafiles[i])) {
+		    {
+			int r = brtloader_fi_close(&bl->file_infos, datafiles[i]);
+			if (r!=0 && result==0) result = r;
+		    }
+		    {
+			int r = brtloader_fi_unlink(&bl->file_infos, datafiles[i]);
+			if (r!=0 && result==0) result = r;
+		    }
+		    datafiles[i] = FIDX_NULL;
+		}
 	    }
 
 	    fs->n_temp_files -= n_to_merge;
-	    r = brtloader_fi_close(&bl->file_infos, merged_data); assert(r==0);
-	    toku_free(datafiles);
-	    if (0) {
-	    error:
-		toku_free(fs->data_fidxs);
-		toku_free(datafiles);
-		return r;
+	    if (!to_queue && !fidx_is_null(merged_data)) {
+		int r = brtloader_fi_close(&bl->file_infos, merged_data);
+		if (r!=0 && result==0) result = r;
 	    }
+	    toku_free(datafiles);
+
+	    if (result!=0) break;
 	}
-	assert(fs->n_temp_files==0);
+
+
 	toku_free(fs->data_fidxs);
 	*fs = next_file_set;
 
 	// Update the progress
 	n_passes_left--;
-	r = update_progress(progress_allocation_for_this_pass, bl, "merging files");
-	if (r!=0) return r;
-    }
-    assert(n_passes_left == 0);
-    return update_progress(progress_allocation, bl, "did merge_files");
-}
-
-static int loader_do_i (BRTLOADER bl,
-			DB *dest_db,
-			brt_compare_func compare,
-			const struct descriptor *descriptor,
-			const char *new_fname,
-			int which_db,
-			void (*error_callback)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra,
-			int progress_allocation // how much progress do I need to add into bl->progress by the end..
-			)
-/* Effect: Handle the file creating for one particular DB in the bulk loader. */
-{
-    int expect_progress_at_end = bl->progress+progress_allocation;
-    //printf("doing i use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
-    int r = fseek(bl_fidx2file(bl, bl->fprimary_rows), 0, SEEK_SET);
-    if (r!=0) return errno;
-    DBT pkey={.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
-    DBT pval=pkey;
-    DBT skey=pkey;
-    DBT sval=pkey;
-    struct merge_fileset fs;
-    init_merge_fileset(&fs);
-    struct rowset rows;
-    r = init_rowset(&rows);
-    if (r!=0) return r;
-    struct error_callback_s ec = {.error_callback = error_callback,
-				  .db             = dest_db,
-				  .which_db       = which_db,
-				  .extra          = error_callback_extra};
-
-    int allocation_for_read_pass = progress_allocation/4;
-    progress_allocation -= allocation_for_read_pass;
-
-    u_int64_t previous_n_rows_remaining = bl->n_rows;
-    u_int64_t n_rows_remaining = bl->n_rows;
-
-    while (0==(r=loader_read_row(bl->fprimary_rows, &pkey, &pval, bl))) {
-	r = bl->generate_row_for_put(dest_db, bl->src_db, &skey, &sval, &pkey, &pval, NULL);
-	assert(r==0);
-
-	if (row_wont_fit(&rows, skey.size + sval.size)) {
-
-	    // divide the progress into a piece for sort_and_write_rows
-	    u_int64_t n_rows_handled_now = previous_n_rows_remaining - n_rows_remaining;
-	    // we had allocation_for_read_pass left over to do previous_n_rows_remaining
-	    // We did n_rows_handled_now.
-	    int progress_this_sort = allocation_for_read_pass * (double)n_rows_handled_now / (double)previous_n_rows_remaining;
-	    allocation_for_read_pass -= progress_this_sort;
-	    previous_n_rows_remaining = n_rows_remaining;
-
-	    //printf("rows.n_rows=%ld\n", rows.n_rows);
-	    r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare, &ec, progress_this_sort);
-	    if (r!=0) goto error;
-	    reset_rows(&rows);
-
+	{
+	    int r = update_progress(progress_allocation_for_this_pass, bl, "merging files");
+	    if (r!=0 && result==0) result = r;
 	}
-	add_row(&rows, &skey, &sval);
 
-        //flags==0 means generate_row_for_put callback changed it
-        //(and freed any memory necessary to do so) so that values are now stored
-        //in temporary memory that does not need to be freed.  We need to continue
-        //using DB_DBT_REALLOC however.
-        if (skey.flags == 0) {
-            toku_init_dbt(&skey);
-            skey.flags = DB_DBT_REALLOC;
-        }
-        if (sval.flags == 0) {
-            toku_init_dbt(&sval);
-            sval.flags = DB_DBT_REALLOC;
-        }
-	n_rows_remaining--;
-    }
-    
-    
-    { // clean up this stuff early, to save memory
-	toku_free(skey.data);
-	toku_free(sval.data);
-	toku_free (pkey.data);
-	toku_free (pval.data);
-	skey.data = sval.data = pkey.data = pval.data = NULL; // set to NULL so that the final cleanup won't free them again.
-    }
-    
-    {
-	r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare, &ec, allocation_for_read_pass);
-	if (r!=0) goto error;
+	if (result!=0) break;
     }
     {
-	// clean up this stuff early, to save memory
-	toku_free(rows.data);
-	toku_free(rows.rows);
-	rows.data = NULL; //set to NULL so the final cleanup won't free them again.
-	rows.rows = NULL; 
+	int r = queue_eof(output_q);
+	if (r!=0 && result==0) result = r;
     }
-
-    int allocation_for_merge = (2*progress_allocation)/3;
-    progress_allocation -= allocation_for_merge;
-    r = merge_files(&fs, bl, dest_db, compare, &ec, allocation_for_merge);
-    if (r!=0) goto error;
-
-    // Now it's down to one file.  Need to write the data out.  The file is in fs.
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-    int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
-    assert(fd>=0);
-    assert(fs.n_temp_files==1);
-    r = brtloader_fi_reopen(&bl->file_infos, fs.data_fidxs[0], "r");
-    if (r) goto error;
-    r = write_file_to_dbfile(fd, fs.data_fidxs[0], bl, descriptor, progress_allocation);
-    if (r) goto error;
-    r = fsync(fd);
-    if (r) { r=errno; goto error; }
-    r = close(fd);
-    if (r) { r=errno; goto error; }
-    r = brtloader_fi_close(&bl->file_infos, fs.data_fidxs[0]);
-    if (r) goto error;
-    r = brtloader_fi_unlink(&bl->file_infos, fs.data_fidxs[0]);
-    if (r) goto error;
-
-    assert(expect_progress_at_end == bl->progress);
-
- error: // this is the cleanup code.  Even if r==0 (no error) we fall through to here.
-    // if we get here we need to free up the merge_fileset and the rowset, as well as the keys
-    toku_free(rows.data);
-    toku_free(rows.rows);
-    toku_free(fs.data_fidxs);
-    toku_free(skey.data);
-    toku_free(sval.data);
-    toku_free (pkey.data);
-    toku_free (pval.data);
-    return r;
-}
-
-int toku_brt_loader_close (BRTLOADER bl,
-			   void (*error_callback)(DB *, int i, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra,
-			   int (*poll_function)(void *extra, float progress), void *poll_extra
-			   )
-/* Effect: Close the bulk loader.
- * Return all the file descriptors in the array fds. */
-{
-    int result = 0;
-    int remaining_progress = PROGRESS_MAX;
-    bl->poll_function = poll_function;
-    bl->poll_extra    = poll_extra;
-    for (int i=0; i<bl->N; i++) {
-        char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
-	// Take the unallocated progress and divide it among the unfinished jobs.
-	// This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
-	int allocate_here = remaining_progress/(bl->N - i);
-	remaining_progress -= allocate_here;
-	result = loader_do_i(bl, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd, i, error_callback, error_callback_extra,
-			     allocate_here
-			     );
-        toku_free(fname_in_cwd);
-	if (result!=0) goto error;
-        toku_free((void*)bl->new_fnames_in_env[i]);
-	bl->new_fnames_in_env[i] = NULL;
-	assert(0<=bl->progress && bl->progress <= PROGRESS_MAX);
-	result = update_progress(0, bl, "did index");
-	if (result) goto error;
+    {
+	int r = update_progress(progress_allocation, bl, "did merge_files");
+	if (r!=0 && result==0) result = r;
     }
-    result = brtloader_fi_close (&bl->file_infos, bl->fprimary_rows); if (result) goto error;
-    result = brtloader_fi_unlink(&bl->file_infos, bl->fprimary_rows); if (result) goto error;
-    assert(bl->file_infos.n_files_open   == 0);
-    assert(bl->file_infos.n_files_extant == 0);
-    assert(bl->progress == PROGRESS_MAX);
- error:
-    brtloader_destroy(bl, result!=0);
     return result;
 }
 
-int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
-/* Effect : Abort the bulk loader, free brtloader resources */
-{
-    int result = 0;
-    brtloader_destroy(bl, is_error);
-    return result;
+struct subtree_info {
+    int64_t block;
+    struct subtree_estimates subtree_estimates;
+    int32_t fingerprint;
+};
+
+struct subtrees_info {
+    int64_t next_free_block;
+    int64_t n_subtrees;       // was n_blocks
+    int64_t n_subtrees_limit;
+    struct subtree_info *subtrees;
+};
+
+static void allocate_node (struct subtrees_info *sts, int64_t b, const struct subtree_estimates est, const int fingerprint) {
+    if (sts->n_subtrees >= sts->n_subtrees_limit) {
+	sts->n_subtrees_limit *= 2;
+	XREALLOC_N(sts->n_subtrees_limit, sts->subtrees);
+    }
+    sts->subtrees[sts->n_subtrees].subtree_estimates = est;
+    sts->subtrees[sts->n_subtrees].block = b;
+    sts->subtrees[sts->n_subtrees].fingerprint = fingerprint;
+    sts->n_subtrees++;
 }
 
 struct dbuf {
@@ -989,6 +1440,71 @@ struct dbuf {
     int off;
 };
 
+struct leaf_buf {
+    int64_t blocknum;
+    struct dbuf dbuf;
+    unsigned int rand4fingerprint;
+    unsigned int local_fingerprint;
+    int local_fingerprint_p;
+    int nkeys, ndata, dsize, n_in_buf;
+    int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
+};
+
+const int nodesize = (SIZE_FACTOR==1) ? (1<<15) : (1<<22);
+
+struct translation {
+    int64_t off, size;
+};
+
+struct dbout {
+    int fd;
+    toku_off_t current_off;
+
+    int64_t n_translations;
+    int64_t n_translations_limit;
+    struct translation *translation;
+#ifndef CILK_STUB
+    cilk::mutex mutex;
+#endif
+};
+
+static inline void dbout_lock(struct dbout *out) {
+#ifndef CILK_STUB
+    out->mutex.lock();
+#else
+    out = out;
+#endif
+}
+
+static inline void dbout_unlock(struct dbout *out) {
+#ifndef CILK_STUB
+    out->mutex.unlock();
+#else
+    out = out;
+#endif
+}
+
+static void seek_align_locked(struct dbout *out) {
+    toku_off_t old_current_off = out->current_off;
+    int alignment = 4096;
+    out->current_off += alignment-1;
+    out->current_off &= ~(alignment-1);
+    toku_off_t r = lseek(out->fd, out->current_off, SEEK_SET);
+    if (r!=out->current_off) {
+	fprintf(stderr, "Seek failed %s (errno=%d)\n", strerror(errno), errno);
+    }
+    assert(r==out->current_off);
+    assert(out->current_off >= old_current_off);
+    assert(out->current_off < old_current_off+alignment);
+    assert(out->current_off % alignment == 0);
+}
+
+static void seek_align(struct dbout *out) {
+    dbout_lock(out);
+    seek_align_locked(out);
+    dbout_unlock(out);
+}
+
 static void dbuf_init (struct dbuf *dbuf) {
     dbuf->buf=0;
     dbuf->buflen=0;
@@ -996,6 +1512,24 @@ static void dbuf_init (struct dbuf *dbuf) {
 }
 static void dbuf_destroy (struct dbuf *dbuf) {
     toku_free(dbuf->buf);
+}
+
+static int64_t allocate_block (struct dbout *out)
+// Return the new block number
+{
+    dbout_lock(out);
+    int64_t result = out->n_translations;
+    if (result >= out->n_translations_limit) {
+	if (out->n_translations_limit==0) {
+	    out->n_translations_limit = 1;
+	} else {
+	    out->n_translations_limit *= 2;
+	}
+	REALLOC_N(out->n_translations_limit, out->translation);
+    }
+    out->n_translations++;
+    dbout_unlock(out);
+    return result;
 }
 
 static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
@@ -1038,58 +1572,25 @@ static void putbuf_int64_at(struct dbuf *dbuf, int off, unsigned long long v) {
     putbuf_int32_at(dbuf, off+4, b);
 }
 
-struct leaf_buf {
-    int64_t blocknum;
-    struct dbuf dbuf;
-    unsigned int rand4fingerprint;
-    unsigned int local_fingerprint;
-    int local_fingerprint_p;
-    int nkeys, ndata, dsize, n_in_buf;
-    int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
-};
+// glibc protects the "random" function with an inlined lock.  this lock is not understood by
+// cilkscreen, so we have to tell cilkscreen that "random" is safe.
+// RFP check windows random behaviour.
+#ifndef CILK_STUB
+static cilk::fake_mutex random_mutex;
+#endif
 
-const int nodesize = (SIZE_FACTOR==1) ? (1<<15) : (1<<22);
-
-struct translation {
-    int64_t off, size;
-};
-
-struct dbout {
-    int fd;
-    toku_off_t current_off;
-
-    int64_t n_translations;
-    int64_t n_translations_limit;
-    struct translation *translation;
-};
-
-static int64_t allocate_block (struct dbout *out)
-// Return the new block number
-{
-    int64_t result = out->n_translations;
-    if (result >= out->n_translations_limit) {
-	if (out->n_translations_limit==0) {
-	    out->n_translations_limit = 1;
-	} else {
-	    out->n_translations_limit *= 2;
-	}
-	REALLOC_N(out->n_translations_limit, out->translation);
-    }
-    out->n_translations++;
-    return result;
+static inline long int loader_random(void) {
+#ifndef CILK_STUB
+    random_mutex.lock();
+#endif
+    long int r = random();
+#ifndef CILK_STUB
+    random_mutex.unlock();
+#endif
+    return r;
 }
 
-//#ifndef CILK_STUB
-//cilk::mutex *ttable_and_write_lock = new cilk::mutex;
-//#endif
-
 static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *desc, int64_t lblocknum) {
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->lock();
-//#endif
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->unlock();
-//#endif
     assert(lblocknum < out->n_translations_limit);
     struct leaf_buf *MALLOC(lbuf);
     assert(lbuf);
@@ -1109,7 +1610,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
     putbuf_int32(&lbuf->dbuf, nodesize);
     putbuf_int32(&lbuf->dbuf, flags);
     putbuf_int32(&lbuf->dbuf, height);
-    lbuf->rand4fingerprint = random();
+    lbuf->rand4fingerprint = loader_random();
     putbuf_int32(&lbuf->dbuf, lbuf->rand4fingerprint);
     lbuf->local_fingerprint = 0;
     lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
@@ -1124,6 +1625,347 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
     lbuf->n_in_buf_p          = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
 
     return lbuf;
+}
+
+CILK_BEGIN
+static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl);
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor);
+CILK_END
+static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen);
+static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
+static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
+
+CILK_BEGIN
+static int toku_loader_write_brt_from_q (BRTLOADER bl,
+					 const struct descriptor *descriptor,
+					 int fd, // write to here
+					 int progress_allocation,
+					 QUEUE q)
+// Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
+{
+
+    int r;
+
+    // The pivots file will contain all the pivot strings (in the form <size(32bits)> <data>)
+    // The pivots_fname is the name of the pivots file.
+    // Note that the pivots file will have one extra pivot in it (the last key in the dictionary) which will not appear in the tree.
+    int64_t n_pivots=0; // number of pivots in pivots_file
+    FIDX pivots_file;  // the file
+    brtloader_open_temp_file (bl, &pivots_file);
+
+    // The blocks_array will contain all the block numbers that correspond to the pivots.  Generally there should be one more block than pivot.
+    struct subtrees_info sts; memset(&sts, 0, sizeof sts);
+    sts.next_free_block = 3;
+    sts.n_subtrees       = 0;
+    sts.n_subtrees_limit = 1;
+
+    XMALLOC_N(sts.n_subtrees_limit, sts.subtrees);
+
+    struct dbout out; memset(&out, 0, sizeof out);
+    out.fd = fd;
+    out.current_off = 8192; // leave 8K reserved at beginning
+    out.n_translations = 3; // 3 translations reserved at the beginning
+    out.n_translations_limit = 4;
+
+    MALLOC_N(out.n_translations_limit, out.translation);
+    out.translation[0].off = -2LL; out.translation[0].size = 0; // block 0 is NULL
+    assert(1==RESERVED_BLOCKNUM_TRANSLATION);
+    assert(2==RESERVED_BLOCKNUM_DESCRIPTOR);
+    out.translation[1].off = -1;                                // block 1 is the block translation, filled in later
+    out.translation[2].off = -1;                                // block 2 is the descriptor
+    seek_align(&out);
+    int64_t lblock = allocate_block(&out);
+    struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
+    struct subtree_estimates est = zero_estimates;
+    est.exact = TRUE;
+    u_int64_t n_rows_remaining = bl->n_rows;
+    u_int64_t old_n_rows_remaining = bl->n_rows;
+
+    while (1) {
+	void *item;
+	{
+	    int rr = queue_deq(q, &item, NULL, NULL);
+	    if (rr==EOF) break;
+	    if (rr!=0) { r=rr;  goto error; }
+	}
+	struct rowset *output_rowset = (struct rowset *)item;
+
+	for (unsigned int i=0; i<output_rowset->n_rows; i++) {
+	    DBT key = make_dbt(output_rowset->data+output_rowset->rows[i].off,                               output_rowset->rows[i].klen);
+	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
+
+	    if (lbuf->dbuf.off >= nodesize) {
+
+		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
+		progress_allocation -= progress_this_node;
+		old_n_rows_remaining = n_rows_remaining;
+
+		allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+
+		n_pivots++;
+		if ((r=bl_write_dbt(&key, pivots_file, NULL, bl))) {
+		    // how to handle errors in fractal thread?
+		    assert(r==0); // this always fails.
+		    return r;
+		}
+	    
+		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl);
+
+		lblock = allocate_block(&out);
+		lbuf = start_leaf(&out, descriptor, lblock);
+	    }
+	
+	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size);
+	    est.nkeys++;
+	    est.ndata++;
+	    est.dsize+=key.size + val.size;
+	    n_rows_remaining--;
+	}
+	destroy_rowset(output_rowset);
+	toku_free(output_rowset);
+    }
+
+    allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+    {
+	int p = progress_allocation/2;
+	finish_leafnode(&out, lbuf, p, bl);
+	progress_allocation -= p;
+    }
+
+    cilk_sync;
+
+    n_pivots++;
+
+    {
+	DBT key=make_dbt(0,0); // must write an extra DBT into the pivots file.
+	r=bl_write_dbt(&key, pivots_file, NULL, bl);
+	assert(r==0); //???!!!
+    }
+
+    r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor);
+    assert(r==0); //???!!!
+
+    {
+	assert(sts.n_subtrees==1);
+	BLOCKNUM root_block = make_blocknum(sts.subtrees[0].block);
+	toku_free(sts.subtrees);
+
+	// write the descriptor
+	{
+	    seek_align(&out);
+	    assert(out.n_translations >= RESERVED_BLOCKNUM_DESCRIPTOR);
+	    assert(out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off == -1);
+	    out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off = out.current_off;
+	    size_t desc_size = 4+toku_serialize_descriptor_size(descriptor);
+	    assert(desc_size>0);
+	    out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].size = desc_size;
+	    struct wbuf wbuf;
+	    char *MALLOC_N(desc_size, buf);
+	    wbuf_init(&wbuf, buf, desc_size);
+	    toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
+	    u_int32_t checksum = x1764_finish(&wbuf.checksum);
+	    wbuf_int(&wbuf, checksum);
+	    assert(wbuf.ndone==desc_size);
+	    r = toku_os_write(out.fd, wbuf.buf, wbuf.ndone);
+	    assert(r==0);
+	    out.current_off += desc_size;
+	    toku_free(buf);
+	}
+    
+	long long off_of_translation;
+	r = write_translation_table(&out, &off_of_translation);
+	assert(r==0);
+	write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn);
+	if (out.translation) toku_free(out.translation);
+	r = update_progress(progress_allocation, bl, "wrote tdb file");
+    }
+
+    if (r) goto error;
+    r = fsync(fd);
+    if (r) { r=errno; goto error; }
+    r = close(fd);
+    if (r) { r=errno; goto error; }
+
+    // Do we need to pay attention to user_said_stop?  Or should the guy at the other end of the queue pay attention and send in an EOF.
+
+ error:
+    return 0;
+}
+CILK_END
+
+int toku_loader_write_brt_from_q_in_C (BRTLOADER bl,
+				       const struct descriptor *descriptor,
+				       int fd, // write to here
+				       int progress_allocation,
+				       QUEUE q)
+// This is probably only for testing.
+{
+#if defined(__cilkplusplus)
+    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q);
+#else
+    return toku_loader_write_brt_from_q(bl, descriptor, fd, progress_allocation, q);
+#endif
+}
+
+
+static void* fractal_thread (void *ftav) {
+    struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
+#if defined(__cilkplusplus)
+    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
+#else
+    int r = toku_loader_write_brt_from_q(fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
+#endif
+    fta->errno_result = r;
+    return NULL;
+}
+
+static int loader_do_i (BRTLOADER bl,
+			int which_db,
+                        DB *dest_db,
+                        brt_compare_func compare,
+                        const struct descriptor *descriptor,
+                        const char *new_fname,
+                        int progress_allocation // how much progress do I need to add into bl->progress by the end..
+                        )
+/* Effect: Handle the file creating for one particular DB in the bulk loader. */
+{
+    //printf("doing i use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
+    struct merge_fileset *fs = &(bl->fs[which_db]);
+    struct rowset *rows = &(bl->rows[which_db]);
+    assert(rows->data==NULL); // the rows should be all cleaned up alrea
+
+    // a better allocation would be to figure out roughly how many merge passes we'll need.
+    int allocation_for_merge = (2*progress_allocation)/3;
+    progress_allocation -= allocation_for_merge;
+
+    int r;
+    r = queue_create(&bl->fractal_queues[which_db], 3);
+    if (r) goto error;
+
+    {
+	mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+	int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
+	assert(fd>=0);
+
+
+	struct fractal_thread_args fta = {bl,
+					  descriptor,
+					  fd,
+					  progress_allocation,
+					  bl->fractal_queues[which_db],
+					  0 // result
+	};
+
+	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
+	if (r) {
+	    int r2 __attribute__((__unused__)) = queue_destroy(bl->fractal_queues[which_db]);
+	    // ignore r2, since we already have an error
+	    goto error;
+	}
+	assert(bl->fractal_threads_live[which_db]==FALSE);
+	bl->fractal_threads_live[which_db] = TRUE;
+    }
+
+    r = merge_files(fs, bl, which_db, dest_db, compare, allocation_for_merge, bl->fractal_queues[which_db]);
+
+    {
+	void *toku_pthread_retval;
+	int r2 = toku_pthread_join(bl->fractal_threads[which_db], &toku_pthread_retval);
+	assert(r2==0 && toku_pthread_retval==NULL);
+	assert(bl->fractal_threads_live[which_db]);
+	bl->fractal_threads_live[which_db] = FALSE;
+    }
+
+    {
+	int r2 = queue_destroy(bl->fractal_queues[which_db]);
+	assert(r2==0);
+	bl->fractal_queues[which_db]=NULL;
+    }
+
+ error: // this is the cleanup code.  Even if r==0 (no error) we fall through to here.
+    // if we get here we need to free up the merge_fileset and the rowset, as well as the keys
+    toku_free(rows->data); rows->data = NULL;
+    toku_free(rows->rows); rows->rows = NULL;
+    toku_free(fs->data_fidxs); fs->data_fidxs = NULL;
+    return r;
+}
+
+CILK_BEGIN
+static int toku_brt_loader_close_internal (BRTLOADER bl)
+/* Effect: Close the bulk loader.
+ * Return all the file descriptors in the array fds. */
+{
+    BL_TRACE("puts");
+    int result = 0;
+    int remaining_progress = PROGRESS_MAX;
+    // RFP cilk_for, no breaks in the loop
+    for (int i=0; i<bl->N; i++) {
+        char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
+	// Take the unallocated progress and divide it among the unfinished jobs.
+	// This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
+	int allocate_here = remaining_progress/(bl->N - i);
+	remaining_progress -= allocate_here;
+	//printf("%s:%d do_i(%d)\n", __FILE__, __LINE__, i);
+	result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd,
+			     allocate_here
+                             );
+        toku_free(fname_in_cwd);
+	if (result!=0) goto error;
+        toku_free((void*)bl->new_fnames_in_env[i]);
+	bl->new_fnames_in_env[i] = NULL;
+	assert(0<=bl->progress && bl->progress <= PROGRESS_MAX);
+	result = update_progress(0, bl, "did index");
+	if (result) goto error;
+    }
+    assert(bl->file_infos.n_files_open   == 0);
+    assert(bl->file_infos.n_files_extant == 0);
+    assert(bl->progress == PROGRESS_MAX);
+ error:
+    brtloader_destroy(bl, (BOOL)(result!=0));
+    BL_TRACE("close");
+    BL_TRACE_END;
+    return result;
+}
+CILK_END
+
+int toku_brt_loader_close (BRTLOADER bl,
+                           brt_loader_error_func error_function, void *error_extra,
+			   brt_loader_poll_func  poll_function,  void *poll_extra
+			   )
+{
+    int r;
+
+    //printf("Closing\n");
+
+    brt_loader_set_error_function(bl, error_function, error_extra);
+
+    brt_loader_set_poll_function(bl, poll_function, poll_extra);
+
+    r = finish_extractor(bl);
+    assert(r==0); // !!! should check this error code and cleanup if needed.
+
+    // check for an error during extraction
+    r = brt_loader_call_error_function(bl);
+    if (r) {
+        brtloader_destroy(bl, TRUE);
+        return r;
+    }
+
+#if defined(__cilkplusplus)
+    r = cilk::run(toku_brt_loader_close_internal, bl);
+#else
+    r = toku_brt_loader_close_internal(bl);
+#endif
+
+    return r;
+}
+
+int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
+/* Effect : Abort the bulk loader, free brtloader resources */
+{
+    int result = 0;
+    brtloader_destroy(bl, is_error);
+    return result;
 }
 
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen) {
@@ -1157,21 +1999,8 @@ static void write_literal(struct dbout *out, void*data,  size_t len) {
     assert(r==0);
     out->current_off+=len;
 }
-static void seek_align(struct dbout *out) {
-    toku_off_t old_current_off = out->current_off;
-    int alignment = 4096;
-    out->current_off += alignment-1;
-    out->current_off &= ~(alignment-1);
-    toku_off_t r = lseek(out->fd, out->current_off, SEEK_SET);
-    if (r!=out->current_off) {
-	fprintf(stderr, "Seek failed %s (errno=%d)\n", strerror(errno), errno);
-    }
-    assert(r==out->current_off);
-    assert(out->current_off >= old_current_off);
-    assert(out->current_off < old_current_off+alignment);
-    assert(out->current_off % alignment == 0);
-}
 
+CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl) {
     //printf("  finishing leaf node progress=%d fin at %d\n", bl->progress, bl->progress+progress_allocation);
     //printf("local_fingerprint=%8x\n", lbuf->local_fingerprint);
@@ -1206,7 +2035,8 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     int header_len = n_uncompressed_bytes_at_beginning + sub_block_header_size(n_sub_blocks) + sizeof (uint32_t);
 
     // initialize the sub blocks
-    struct sub_block sub_block[n_sub_blocks];
+    // struct sub_block sub_block[n_sub_blocks]; RFP cilk++ dynamic array bug, use malloc instead
+    struct sub_block *MALLOC_N(n_sub_blocks, sub_block);
     for (int i = 0; i < n_sub_blocks; i++) 
         sub_block_init(&sub_block[i]);
     set_all_sub_block_sizes(uncompressed_len, sub_block_size, n_sub_blocks, sub_block);
@@ -1218,7 +2048,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     // compress and checksum the sub blocks
     int compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, 
                                                  (char *) (lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning),
-                                                 (char *) (compressed_buf + header_len), 2);
+                                                 (char *) (compressed_buf + header_len), 1);
 
     // cppy the uncompressed header to the compressed buffer
     memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);
@@ -1235,14 +2065,12 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     u_int32_t header_xsum = x1764_memory(compressed_buf, header_len - sizeof (u_int32_t));
     memcpy(compressed_buf + header_len - sizeof (u_int32_t), &header_xsum, 4);
 
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->lock();
-//#endif
+    dbout_lock(out);
     long long off_of_leaf = out->current_off;
     int size = header_len + compressed_len;
     if (0) {
 	fprintf(stderr, "uncompressed buf size=%d (amount of data compressed)\n", uncompressed_len);
-	fprintf(stderr, "compressed buf size=%d, off=%lld\n", compressed_len, off_of_leaf);
+	fprintf(stderr, "compressed buf size=%u, off=%lld\n", compressed_len, off_of_leaf);
 	fprintf(stderr, "compressed bytes are:");
 	//for (int i=0; i<compressed_len; i++) {
 	//    unsigned char c = compressed_buf[28+i];
@@ -1255,10 +2083,10 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     //printf("translation[%lld].off = %lld\n", lbuf->blocknum, off_of_leaf);
     out->translation[lbuf->blocknum].off  = off_of_leaf;
     out->translation[lbuf->blocknum].size = size;
-    seek_align(out);
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->unlock();
-//#endif
+    seek_align_locked(out);
+    dbout_unlock(out);
+
+    toku_free(sub_block); // RFP cilk++ bug
 
     toku_free(compressed_buf);
     dbuf_destroy(&lbuf->dbuf);
@@ -1268,6 +2096,8 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     int r = update_progress(progress_allocation, bl, "wrote node");
     if (r!=0) bl->user_said_stop = r;
 }
+
+CILK_END
 
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p) {
     seek_align(out);
@@ -1294,14 +2124,15 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 
 
 static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn) {
-    struct brt_header h = {.layout_version   = BRT_LAYOUT_VERSION,
-			   .checkpoint_count = 1,
-			   .checkpoint_lsn   = load_lsn, // Nothing is logged after the load.
-			   .nodesize         = nodesize,
-			   .root             = root_blocknum_on_disk,
-			   .flags            = 0,
-			   .layout_version_original = BRT_LAYOUT_VERSION
-    };
+    struct brt_header h; memset(&h, 0, sizeof h);
+    h.layout_version   = BRT_LAYOUT_VERSION;
+    h.checkpoint_count = 1;
+    h.checkpoint_lsn   = load_lsn; // (max_uint_long means that this doesn't need any kind of recovery
+    h.nodesize         = nodesize;
+    h.root             = root_blocknum_on_disk;
+    h.flags            = 0;
+    h.layout_version_original = BRT_LAYOUT_VERSION;
+
     unsigned int size = toku_serialize_brt_header_size (&h);
     struct wbuf wbuf;
     char *MALLOC_N(size, buf);
@@ -1312,37 +2143,12 @@ static void write_header (struct dbout *out, long long translation_location_on_d
     toku_free(buf);
 }
 
-
-struct subtree_info {
-    int64_t block;
-    struct subtree_estimates subtree_estimates;
-    int32_t fingerprint;
-};
-
-struct subtrees_info {
-    int64_t next_free_block;
-    int64_t n_subtrees;       // was n_blocks
-    int64_t n_subtrees_limit;
-    struct subtree_info *subtrees;
-};
-
-static void allocate_node (struct subtrees_info *sts, int64_t b, const struct subtree_estimates est, const int fingerprint) {
-    if (sts->n_subtrees >= sts->n_subtrees_limit) {
-	sts->n_subtrees_limit *= 2;
-	XREALLOC_N(sts->n_subtrees_limit, sts->subtrees);
-    }
-    sts->subtrees[sts->n_subtrees].subtree_estimates = est;
-    sts->subtrees[sts->n_subtrees].block = b;
-    sts->subtrees[sts->n_subtrees].fingerprint = fingerprint;
-    sts->n_subtrees++;
-}
-
 static int read_some_pivots (FIDX pivots_file, int n_to_read, BRTLOADER bl,
 		      /*out*/ DBT pivots[/*n_to_read*/])
 // pivots is an array to be filled in.  The pivots array is uninitialized.
 {
     for (int i=0; i<n_to_read; i++) {
-	pivots[i] = (DBT){.ulen=0, .data=0};
+        memset(&pivots[i], 0, sizeof pivots[i]);
 	int r = bl_read_dbt(&pivots[i], pivots_file, bl);
 	if (r!=0) return r;
     };
@@ -1375,9 +2181,11 @@ static int setup_nonleaf_block (int n_children,
     if ((r=bl_write_dbt(&pivots[n_children-1], next_pivots_file, NULL, bl))) return r;
     // The last pivot was written to the next_pivots file, so we free it now instead of returning it.
     toku_free(pivots[n_children-1].data);
-    memset(&pivots[n_children-1], 0, sizeof(DBT));
+    pivots[n_children-1] = zero_dbt;
 
-    struct subtree_estimates new_subtree_estimates = {.nkeys=0, .ndata=0, .dsize=0, .exact=TRUE};
+    struct subtree_estimates new_subtree_estimates; 
+    memset(&new_subtree_estimates, 0, sizeof new_subtree_estimates);
+    new_subtree_estimates.exact = TRUE;
 
     struct subtree_info *MALLOC_N(n_children, subtrees_array);
     int32_t fingerprint = 0;
@@ -1396,10 +2204,11 @@ static int setup_nonleaf_block (int n_children,
     return 0;
 }
 
-static
-int write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_children,
-			DBT *pivots, /* must free this array, as well as the things it points t */
-			struct subtree_info *subtree_info, int height, const struct descriptor *desc)
+CILK_BEGIN
+
+static void write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_children,
+                                DBT *pivots, /* must free this array, as well as the things it points t */
+                                struct subtree_info *subtree_info, int height, const struct descriptor *desc)
 {
     assert(height>0);
     BRTNODE XMALLOC(node);
@@ -1412,7 +2221,7 @@ int write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_c
     node->u.n.n_children = n_children;
     node->flags = 0;
     node->local_fingerprint = 0;
-    node->rand4fingerprint = random();
+    node->rand4fingerprint = loader_random();
     XMALLOC_N(n_children-1, node->u.n.childkeys);
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
@@ -1441,18 +2250,14 @@ int write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_c
     int r = toku_serialize_brtnode_to_memory(node, 1, 1, &n_bytes, &bytes);
     assert(r==0);
 
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->lock();
-//#endif
+    dbout_lock(out);
     out->translation[blocknum_of_new_node].off = out->current_off;
     out->translation[blocknum_of_new_node].size = n_bytes;
     //fprintf(stderr, "Wrote internal node at %ld (%ld bytes)\n", out->current_off, n_bytes);
     //for (uint32_t i=0; i<n_bytes; i++) { unsigned char b = bytes[i]; printf("%d:%02x (%d) ('%c')\n", i, b, b, (b>=' ' && b<128) ? b : '*'); }
     write_literal(out, bytes, n_bytes);
-    seek_align(out);
-//#ifndef CILK_STUB
-//    ttable_and_write_lock->unlock();
-//#endif
+    seek_align_locked(out);
+    dbout_unlock(out);
 
     toku_free(bytes);
     for (int i=0; i<n_children-1; i++) {
@@ -1469,11 +2274,9 @@ int write_nonleaf_node (struct dbout *out, int64_t blocknum_of_new_node, int n_c
     toku_free(subtree_info);
 
     blocknum_of_new_node = blocknum_of_new_node;
-    return 0;
 }
 
-static
-int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
 
     int height=1;
     // Watch out for the case where we saved the last pivot but didn't write any more nodes out.
@@ -1495,8 +2298,10 @@ int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct s
 	FIDX next_pivots_file;
 	brtloader_open_temp_file (bl, &next_pivots_file);
 
-	struct subtrees_info next_sts = {.n_subtrees = 0,
-					 .n_subtrees_limit = 1};
+	struct subtrees_info next_sts; memset(&next_sts, 0, sizeof next_sts);
+        next_sts.n_subtrees = 0;
+        next_sts.n_subtrees_limit = 1;
+
 	XMALLOC_N(next_sts.n_subtrees_limit, next_sts.subtrees);
 
 	const int n_per_block = 16;
@@ -1512,8 +2317,7 @@ int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct s
 					 out, bl,
 					 &blocknum_of_new_node, &subtree_info, &pivots);
 	    assert(r==0);
-	    r = /*spawn*/write_nonleaf_node(out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor); // frees all the data structures that go into making the node.
-	    assert(r==0);
+	    cilk_spawn write_nonleaf_node(out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor); // frees all the data structures that go into making the node.
 	    n_subtrees_used += n_per_block;
 	}
 	// Now we have a one or two blocks at the end to handle.
@@ -1531,8 +2335,7 @@ int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct s
 					out, bl,
 					&blocknum_of_new_node, &subtree_info, &pivots);
 	    assert(r==0);
-	    r = /*spawn*/write_nonleaf_node(out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor);
-	    assert(r==0);
+	    cilk_spawn write_nonleaf_node(out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor);
 	    n_blocks_left -= n_first;
 	    n_subtrees_used += n_first;
 	}
@@ -1547,11 +2350,13 @@ int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct s
 					out, bl,
 					&blocknum_of_new_node, &subtree_info, &pivots);
 	    assert(r==0);
-	    r = /*spawn*/write_nonleaf_node(out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor);
-	    assert(r==0);
+	    cilk_spawn write_nonleaf_node(out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor);
 	    n_subtrees_used += n_blocks_left;
 	}
 	assert(n_subtrees_used == sts->n_subtrees);
+
+        cilk_sync;
+
 	// Now set things up for the next iteration.
 	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); assert(r==0);
 	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    assert(r==0);
@@ -1565,120 +2370,119 @@ int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct s
     return 0;
 }
 
-int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation) {
-    //printf(" write_file_to_dbfile use %d at %d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
-    // The pivots file will contain all the pivot strings (in the form <size(32bits)> <data>)
-    // The pivots_fname is the name of the pivots file.
-    // Note that the pivots file will have one extra pivot in it (the last key in the dictionary) which will not appear in the tree.
-    int64_t n_pivots=0; // number of pivots in pivots_file
-    FIDX pivots_file;  // the file
-    brtloader_open_temp_file (bl, &pivots_file);
+CILK_END
 
-    // The blocks_array will contain all the block numbers that correspond to the pivots.  Generally there should be one more block than pivot.
-    struct subtrees_info sts = {.next_free_block = 3,
-				.n_subtrees       = 0,
-				.n_subtrees_limit = 1};
-    XMALLOC_N(sts.n_subtrees_limit, sts.subtrees);
-
-    DBT key={.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
-    DBT val=key;
-    struct dbout out = {.fd = outfile,
-			.current_off = 8192, // leave 8K reserved at beginning
-			.n_translations = 3, // 3 translations reserved at the beginning
-			.n_translations_limit = 4};
-    MALLOC_N(out.n_translations_limit, out.translation);
-    out.translation[0].off = -2LL; out.translation[0].size = 0; // block 0 is NULL
-    assert(1==RESERVED_BLOCKNUM_TRANSLATION);
-    assert(2==RESERVED_BLOCKNUM_DESCRIPTOR);
-    out.translation[1].off = -1;                                // block 1 is the block translation, filled in later
-    out.translation[2].off = -1;                                 // block 2 is the descriptor
-    seek_align(&out);
-    int64_t lblock = allocate_block(&out);
-    struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
-    struct subtree_estimates est = zero_estimates;
-    est.exact = TRUE;
-    u_int64_t n_rows_remaining = bl->n_rows;
-    u_int64_t old_n_rows_remaining = bl->n_rows;
-    if (n_rows_remaining > 0) {
-	// If there were no rows then the infile may be invalid.
-	while (0==loader_read_row(infile, &key, &val, bl)) {
-	    if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
-	    if (lbuf->dbuf.off >= nodesize) {
-
-		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
-		progress_allocation -= progress_this_node;
-		old_n_rows_remaining = n_rows_remaining;
-
-
-		allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
-
-		n_pivots++;
-		int r;
-		if ((r=bl_write_dbt(&key, pivots_file, NULL, bl))) return r;
-
-		struct leaf_buf *writeit = lbuf;
-		/*cilk_spawn*/ finish_leafnode(&out, writeit, progress_this_node, bl);
-
-		lblock = allocate_block(&out);
-		lbuf = start_leaf(&out, descriptor, lblock);
-	    }
-	    add_pair_to_leafnode(lbuf, key.data, key.size, val.data, val.size);
-	    est.nkeys++;
-	    est.ndata++;
-	    est.dsize+=key.size + val.size;
-	    n_rows_remaining--;
-	}
-	if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
-    }
-
-    allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
-
-    n_pivots++;
-    {
-	int r;
-	if ((r=bl_write_dbt(&key, pivots_file, NULL, bl))) return r;
-    }
-
-    finish_leafnode(&out, lbuf, progress_allocation/2, bl);
-    progress_allocation -= progress_allocation/2;
-
-    {
-	int r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor);
-	assert(r==0);
-    }
-
-    assert(sts.n_subtrees==1);
-    BLOCKNUM root_block = make_blocknum(sts.subtrees[0].block);
-    toku_free(sts.subtrees);
-
-    // write the descriptor
-    {
-	seek_align(&out);
-	assert(out.n_translations >= RESERVED_BLOCKNUM_DESCRIPTOR);
-	assert(out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off == -1);
-	out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off = out.current_off;
-	size_t desc_size = 4+toku_serialize_descriptor_size(descriptor);
-	assert(desc_size>0);
-	out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].size = desc_size;
-	struct wbuf wbuf;
-	char *MALLOC_N(desc_size, buf);
-	wbuf_init(&wbuf, buf, desc_size);
-	toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
-	u_int32_t checksum = x1764_finish(&wbuf.checksum);
-	wbuf_int(&wbuf, checksum);
-	assert(wbuf.ndone==desc_size);
-	int r = toku_os_write(out.fd, wbuf.buf, wbuf.ndone);
-	assert(r==0);
-	out.current_off += desc_size;
-	toku_free(buf);
-    }
-    
-    long long off_of_translation;
-    int r = write_translation_table(&out, &off_of_translation);
-    assert(r==0);
-    write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn);
-    if (key.data) toku_free(key.data);
-    if (val.data) toku_free(val.data);
-    if (out.translation) toku_free(out.translation);
-    return update_progress(progress_allocation, bl, "wrote tdb file");
+#if 0
+// C function for testing write_file_to_dbfile
+int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation) {
+#if defined(__cilkplusplus)
+    return cilk::run(write_file_to_dbfile,outfile, infile, bl, descriptor, progress_allocation);
+#else
+    return write_file_to_dbfile(outfile, infile, bl, descriptor, progress_allocation);
+#endif
 }
+#endif
+
+int brt_loader_init_error_callback(BRTLOADER bl) {
+    memset(&bl->error_callback, 0, sizeof bl->error_callback);
+    bl->error_callback.set_error_and_callback = brt_loader_set_error_and_callback;
+    bl->error_callback.bl                     = bl;
+    int r = toku_pthread_mutex_init(&bl->error_callback.mutex, NULL); assert(r == 0);
+    return r;
+}
+
+void brt_loader_destroy_error_callback(BRTLOADER bl) { 
+    int r = toku_pthread_mutex_destroy(&bl->error_callback.mutex); assert(r == 0);
+    toku_free(bl->error_callback.key.data);
+    toku_free(bl->error_callback.val.data);
+    memset(&bl->error_callback, 0, sizeof bl->error_callback);
+}
+
+int brt_loader_get_error(BRTLOADER bl) {
+    return bl->error_callback.error;
+}
+
+void brt_loader_set_error_function(BRTLOADER bl, brt_loader_error_func error_function, void *error_extra) {
+    bl->error_callback.error_callback = error_function;
+    bl->error_callback.extra = error_extra;
+}
+
+static void error_callback_lock(BRTLOADER bl) {
+    int r = toku_pthread_mutex_lock(&bl->error_callback.mutex); assert(r == 0);
+}
+
+static void error_callback_unlock(BRTLOADER bl) {
+    int r = toku_pthread_mutex_unlock(&bl->error_callback.mutex); assert(r == 0);
+}
+
+static void copy_dbt(DBT *dest, DBT *src) {
+    if (src) {
+        dest->data = toku_malloc(src->size);
+        memcpy(dest->data, src->data, src->size);
+        dest->size = src->size;
+    }
+}
+
+int brt_loader_set_error(BRTLOADER bl, int error, DB *db, int which_db, DBT *key, DBT *val) {
+    int r = 0;
+    error_callback_lock(bl);
+    if (bl->error_callback.error) {              // there can be only one
+        r = EEXIST;
+    } else {
+        bl->error_callback.error = error;        // set the error 
+        bl->error_callback.db = db;
+        bl->error_callback.which_db = which_db;
+        copy_dbt(&bl->error_callback.key, key);  // copy the data
+        copy_dbt(&bl->error_callback.val, val);
+    }
+    error_callback_unlock(bl);
+    return r;
+}
+
+int brt_loader_call_error_function(BRTLOADER bl) {
+    int r;
+    error_callback_lock(bl);
+    r = bl->error_callback.error;
+    if (r && !bl->error_callback.did_callback) {
+        bl->error_callback.did_callback = 1;
+        bl->error_callback.error_callback(bl->error_callback.db, 
+					  bl->error_callback.which_db,
+					  bl->error_callback.error,
+					  &bl->error_callback.key,
+					  &bl->error_callback.val,
+					  bl->error_callback.extra);
+    }
+    error_callback_unlock(bl);    return r;
+}
+
+int brt_loader_set_error_and_callback(BRTLOADER bl, int error, DB *db, int which_db, DBT *key, DBT *val) {
+    int r = brt_loader_set_error(bl, error, db, which_db, key, val);
+    if (r == 0)
+        r = brt_loader_call_error_function(bl);
+    return r;
+}
+
+int brt_loader_init_poll_callback(BRTLOADER bl) {
+    memset(&bl->poll_callback, 0, sizeof bl->poll_callback);
+    return 0;
+}
+
+void brt_loader_destroy_poll_callback(BRTLOADER bl) {
+    memset(&bl->poll_callback, 0, sizeof bl->poll_callback);
+}
+
+void brt_loader_set_poll_function(BRTLOADER bl, brt_loader_poll_func poll_function, void *poll_extra) {
+    bl->poll_callback.poll_function = poll_function;
+    bl->poll_callback.poll_extra = poll_extra;
+};
+
+int brt_loader_call_poll_function(BRTLOADER bl, float progress) {
+    int r = 0;
+    if (bl->poll_callback.poll_function)
+	r = bl->poll_callback.poll_function(bl->poll_callback.poll_extra, progress);
+    return r;
+}
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif

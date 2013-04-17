@@ -94,12 +94,31 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
 
+check_brtloader-test-write-dbfile$(BINSUF): EXTRA_ARGS=-n 1000000 dir.brtloader-test-write-dbfile
+
+brtloader-test$(BINSUF): brtloader-test.$(OEXT)
+ifeq ($(BRTLOADER),cilk)
+	$(CILKPP) $(CILKFLAGS) $< -o $@ $(LDFLAGS)
+endif
+ifeq ($(BRTLOADER),cxx)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+endif
+
+brtloader-test-write-dbfile$(BINSUF): brtloader-test-write-dbfile.$(OEXT)
+ifeq ($(BRTLOADER),cilk)
+	$(CILKPP) $(CILKFLAGS) $< -o $@ $(LDFLAGS)
+endif
+ifeq ($(BRTLOADER),cxx)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
+endif
+
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
 brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
+
 ../brtloader.$(OEXT): ../brtloader.c ../brtloader-internal.h 
 	cd $(@D) && $(MAKE) $(@F)
 

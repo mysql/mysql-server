@@ -1,15 +1,17 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+
 #ident "$Id$"
-#ident "Copyright (c) 2007-2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+
 #ifndef _TOKU_PTHREAD_H
 #define _TOKU_PTHREAD_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #include <pthread.h>
 #include <time.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 typedef pthread_attr_t toku_pthread_attr_t;
 typedef pthread_t toku_pthread_t;
@@ -166,7 +168,7 @@ toku_pthread_setspecific(toku_pthread_key_t key, void *data) {
     return pthread_setspecific(key, data);
 }
 
-#if defined(__cplusplus)
+#if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
 

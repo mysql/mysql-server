@@ -74,83 +74,84 @@ endif
 
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
 BDB_DONTRUN_TESTS = \
-	bug1381 \
-	bug627 \
-	diskfull \
-	test_abort1 \
-	test_abort4 \
-	test_abort5 \
-	keyrange \
-	keyrange-unflat \
-	keyrange-dupsort \
-	keyrange-dupsort-unflat \
-	manyfiles \
-	stat64 stat64_flatten \
-	test938c \
-	test1324 \
-	helgrind1 \
-	helgrind2 \
-	helgrind3 \
-	powerfail \
-	test1426 \
-	test1572 \
-	test_logflush \
-	test_txn_abort6 \
-	test_txn_abort8 \
-	test_txn_abort9 \
-	test_txn_close_open_commit \
-	test_txn_commit8 \
-	test_txn_nested5 \
-	test_db_descriptor \
-	test_db_descriptor_named_db \
-	test_db_txn_locks_heaviside \
-	test_heaviside_rh_1756 \
-	test_heaviside_straddle_1622 \
-	test_dbremove_old \
-	root_fifo_2 \
-	root_fifo_32 \
-	root_fifo_41 \
-	checkpoint_1 \
-	checkpoint_stress \
-	checkpoint_truncate_1 \
-	checkpoint_callback \
-	recovery_stress \
-	recovery_fileops_stress \
-	recovery_fileops_unit \
-	test_txn_nested1 \
-	test_txn_nested2 \
-	test_txn_nested3 \
-	test_txn_nested4 \
-	backwards_10_each_le_and_msg \
-	test_dupsort_set_range_reverse \
-	test_dupsort_get_both_range_reverse \
-	test_cursor_delete_2119 \
-	transactional_fileops \
-	env_startup \
-	zombie_db \
-	filesize \
+        backwards_10_each_le_and_msg \
+        bug1381 \
+        bug627 \
+        checkpoint_1 \
+        checkpoint_callback \
+        checkpoint_stress \
+        checkpoint_truncate_1 \
+        diskfull \
+        env-put-multiple \
+        env_startup \
+        filesize \
+        helgrind1 \
+        helgrind2 \
+        helgrind3 \
         isolation \
-	env-put-multiple \
-	recover-2483 \
-	recover-compare-db \
-	recover-compare-db-descriptor \
-	recover-tablelock \
-	recover-fclose-in-checkpoint \
-	recover-delboth-checkpoint \
-	recover-delboth-after-checkpoint \
-	loader-reference-test \
-	loader-stress-test \
-	loader-dup-test \
-	loader-no-puts \
-	loader-cleanup-test \
-	recover-lsn-filter-multiple \
-	recover-put-multiple-fdelete-all \
-	recover-put-multiple-fdelete-some \
-	recover-split-checkpoint \
-	recover-loader-test \
-	progress \
-	redirect \
         isolation-read-committed \
+        keyrange \
+        keyrange-dupsort \
+        keyrange-dupsort-unflat \
+        keyrange-unflat \
+        loader-cleanup-test \
+        loader-dup-test \
+        loader-no-puts \
+        loader-reference-test \
+        loader-stress-test \
+        loader-tpch-load \
+        manyfiles \
+        powerfail \
+        progress \
+        recover-2483 \
+        recover-compare-db \
+        recover-compare-db-descriptor \
+        recover-delboth-after-checkpoint \
+        recover-delboth-checkpoint \
+        recover-fclose-in-checkpoint \
+        recover-loader-test \
+        recover-lsn-filter-multiple \
+        recover-put-multiple-fdelete-all \
+        recover-put-multiple-fdelete-some \
+        recover-split-checkpoint \
+        recover-tablelock \
+        recovery_fileops_stress \
+        recovery_fileops_unit \
+        recovery_stress \
+        redirect \
+        root_fifo_2 \
+        root_fifo_32 \
+        root_fifo_41 \
+        stat64 stat64_flatten \
+        test1324 \
+        test1426 \
+        test1572 \
+        test938c \
+        test_abort1 \
+        test_abort4 \
+        test_abort5 \
+        test_cursor_delete_2119 \
+        test_db_descriptor \
+        test_db_descriptor_named_db \
+        test_dbremove_old \
+        test_db_txn_locks_heaviside \
+        test_dupsort_get_both_range_reverse \
+        test_dupsort_set_range_reverse \
+        test_heaviside_rh_1756 \
+        test_heaviside_straddle_1622 \
+        test_logflush \
+        test_txn_abort6 \
+        test_txn_abort8 \
+        test_txn_abort9 \
+        test_txn_close_open_commit \
+        test_txn_commit8 \
+        test_txn_nested1 \
+        test_txn_nested2 \
+        test_txn_nested3 \
+        test_txn_nested4 \
+        test_txn_nested5 \
+        transactional_fileops \
+        zombie_db \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
@@ -193,7 +194,8 @@ endif
 TDB_TESTS_THAT_SHOULD_FAIL= \
 	test944 \
 	test_truncate_txn_abort \
-	test_db_no_env
+	test_db_no_env \
+	loader-tpch-load \
 #\ ends prev line
 #ifneq ($(OS_CHOICE),windows)
 #    TDB_TESTS_THAT_SHOULD_FAIL+= \

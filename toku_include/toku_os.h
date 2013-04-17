@@ -1,12 +1,13 @@
 #if !defined(TOKU_OS_INTERFACE_H)
 #define TOKU_OS_INTERFACE_H
 
-#if defined __cplusplus
+#include <dirent.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
 #endif
 
 #include "toku_os_types.h"
-#include <dirent.h>
 
 // Returns: the current process id
 int toku_os_getpid(void)   __attribute__((__visibility__("default")));
@@ -102,7 +103,7 @@ int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__(
 // Portable linux 'dup2'
 int toku_dup2(int fd, int fd2) __attribute__((__visibility__("default")));
 
-#if defined __cplusplus
+#if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
 

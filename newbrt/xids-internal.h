@@ -1,9 +1,13 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 
 #ifndef XIDS_INTERNAL_H
 #define XIDS_INTERNAL_H
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // Variable size list of transaction ids (known in design doc as xids<>).
 // ids[0] is the outermost transaction.
@@ -17,12 +21,16 @@
 
 typedef struct __attribute__((__packed__)) xids_t {
     u_int8_t  num_stored_xids;    // maximum value of MAX_TRANSACTION_RECORDS - 1 ...
-				    // ... because transaction 0 is implicit
+				  // ... because transaction 0 is implicit
     TXNID     ids[];
 } XIDS_S;
 
 #if TOKU_WINDOWS
 #pragma pack(pop)
+#endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
 #endif
 
 #endif

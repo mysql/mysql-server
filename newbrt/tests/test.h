@@ -7,6 +7,10 @@
 #include "brt.h"
 #include "toku_htonl.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 #define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); } while (0)
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
@@ -28,7 +32,7 @@ struct check_pair {
 };
 static int
 lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *pair_v) {
-    struct check_pair *pair = pair_v;
+    struct check_pair *pair = (struct check_pair *) pair_v;
     if (key!=NULL) {
 	if (pair->keylen!=len_ignore) {
 	    assert(pair->keylen == keylen);
@@ -48,7 +52,11 @@ lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *p
 static inline void
 brt_lookup_and_check_nodup (BRT t, char *keystring, char *valstring)
 {
+#if defined(__cplusplus)
+    DBT k; memset(&k, 0, sizeof k); k.size=1+strlen(keystring); k.data=keystring;
+#else
     DBT k = {.size=1+strlen(keystring), .data=keystring};
+#endif
     struct check_pair pair = {1+strlen(keystring), keystring,
 			      1+strlen(valstring), valstring,
 			      0};
@@ -60,7 +68,11 @@ brt_lookup_and_check_nodup (BRT t, char *keystring, char *valstring)
 static inline void
 brt_lookup_and_fail_nodup (BRT t, char *keystring)
 {
+#if defined(__cplusplus)
+    DBT k; memset(&k, 0, sizeof k); k.size=1+strlen(keystring); k.data=keystring;
+#else
     DBT k = {.size=1+strlen(keystring), .data=keystring};
+#endif
     struct check_pair pair = {1+strlen(keystring), keystring,
 			      0, 0,
 			      0};
@@ -104,3 +116,6 @@ main(int argc, const char *argv[]) {
     return r;
 }
 
+#if defined(__cplusplus)
+extern "C" {
+#endif

@@ -4,6 +4,11 @@
 /* This version will complain if NDEBUG is set. */
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
+
 #ifdef NDEBUG
 #error NDEBUG should not be set
 #endif
@@ -26,6 +31,10 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 #else
 #define WHEN_GCOV(x)
 #define WHEN_NOT_GCOV(x) x
+#endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
 #endif
 
 #endif

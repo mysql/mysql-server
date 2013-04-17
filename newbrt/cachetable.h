@@ -3,13 +3,17 @@
 #define CACHETABLE_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <fcntl.h>
 #include "brttypes.h"
 #include "workqueue.h"
 #include "leaflock.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // TODO: #1398  Get rid of this entire straddle_callback hack
 // Man is this ugly.
@@ -322,5 +326,10 @@ void toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir);
 char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 
-int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[n]);
+int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[]);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 #endif

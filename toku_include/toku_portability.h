@@ -3,7 +3,7 @@
 
 // Tokutek portability layer
 
-#if defined __cplusplus
+#if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
 #endif
 
@@ -171,7 +171,7 @@ int toku_set_func_write (ssize_t (*pwrite_fun)(int, const void *, size_t));
 int toku_portability_init    (void);
 int toku_portability_destroy (void);
 
-#if defined __cplusplus
+#if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
 

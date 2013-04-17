@@ -8,6 +8,10 @@
 //TODO: #1378  This is not threadsafe.  Make sure when splitting locks
 //that we protect these calls.
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 // This toku_list is intended to be embedded in other data structures.
 struct toku_list {
     struct toku_list *next, *prev;
@@ -83,5 +87,10 @@ static inline void toku_list_move(struct toku_list *newhead, struct toku_list *o
 #else
 #define toku_list_struct(p, t, f) ((t*)((char*)(p) - ((char*)&((t*)0)->f)))
 #endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 
 #endif

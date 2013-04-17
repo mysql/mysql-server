@@ -1,6 +1,10 @@
 #if !defined(TOKU_ATOMIC_H)
 #define TOKU_ATOMIC_H
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 #if TOKU_WINDOWS
 
 static inline uint32_t
@@ -124,5 +128,10 @@ static inline uint64_t toku_sync_fetch_and_increment_uint64(volatile uint64_t *a
 }
 
 #endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 
 #endif

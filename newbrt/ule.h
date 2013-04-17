@@ -1,13 +1,17 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 /* Purpose of this file is to provide the world with everything necessary
  * to use the nested transaction logic and nothing else.  No internal
  * requirements of the nested transaction logic belongs here.
  */
 
-#ifndef ULE_H
-#define ULE_H
+#ifndef TOKU_ULE_H
+#define TOKU_ULE_H
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 //1 does much slower debugging
 #define ULE_DEBUG 0
@@ -66,5 +70,9 @@ int le_pack(ULE ule,                            // data to be packed into new le
 
 size_t le_memsize_from_ule (ULE ule);
 
-#endif  // ULE_H
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
+#endif  // TOKU_ULE_H
 

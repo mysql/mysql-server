@@ -1,10 +1,14 @@
 #ifndef X1764_H
 #define X1764_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <sys/types.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // The x1764 hash is
 //   $s = \sum_i a_i*17^i$  where $a_i$ is the $i$th 64-bit number (represented in little-endian format)
@@ -30,4 +34,9 @@ void x1764_add (struct x1764 *l, const void *vbuf, int len);
 
 u_int32_t x1764_finish (struct x1764 *l);
 // Effect: Return the final 32-bit result.
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 #endif

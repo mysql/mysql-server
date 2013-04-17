@@ -1,6 +1,14 @@
+#ifndef TOKU_HASHFUN_H
+#define TOKU_HASHFUN_H
+
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 
 // FNV Hash: From an idea sent by Glenn Fowler and Phong Vo to the IEEE POSIX 1003.2 committee.  Landon Curt Noll improved it.
 // See: http://isthe.com/chongo/tech/comp/fnv/
@@ -36,4 +44,10 @@ static unsigned int hash_key (const char *key, ITEMLEN keylen) {
     }
     return hash;
 }
+#endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 #endif

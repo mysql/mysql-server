@@ -2,7 +2,7 @@
 #ifndef BRT_H
 #define BRT_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 // This must be first to make the 64-bit file mode work right in Linux
@@ -13,6 +13,10 @@
 #include "cachetable.h"
 #include "log.h"
 #include "brt-search.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // A callback function is invoked with the key, and the data.
 // The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
@@ -224,6 +228,10 @@ BOOL toku_brt_is_recovery_logging_suppressed (BRT);
 //TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
 #ifndef TOKU_MULTIPLE_MAIN_THREADS
 #define TOKU_MULTIPLE_MAIN_THREADS 0
+#endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
 #endif
 
 #endif

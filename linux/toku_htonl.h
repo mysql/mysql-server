@@ -1,3 +1,5 @@
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+
 #ifndef _TOKU_HTONL_H
 #define _TOKU_HTONL_H
 
@@ -5,7 +7,7 @@
 #error
 #endif
 
-#if defined(__cplusplus)
+#if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
 #endif
 
@@ -20,7 +22,7 @@ static inline uint32_t toku_ntohl(uint32_t i) {
     return ntohl(i);
 }
 
-#if defined(__cplusplus)
+#if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
 

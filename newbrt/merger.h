@@ -1,3 +1,6 @@
+#ifndef TOKU_MERGER_H
+#define TOKU_MERGER_H
+
 /* This is a C header (no Cilk or C++ inside here) */
 
 /* The merger abstraction:
@@ -28,6 +31,11 @@
  *      This could be an issue if the data was already sorted, so that file[0] is always emptying first, then file[1], and so forth.
  */
 #include "db.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 typedef struct merger *MERGER;
 typedef void (*MEMORY_ALLOCATION_UPDATER) (/*in */ size_t currently_using,
 					   /*in */ size_t currently_requested,
@@ -56,5 +64,9 @@ int merger_pop (MERGER m,
 //   It is fairly straightforward to keep the key and val "live":  In most cases, the buffer is still valid.  In the case where the key and val are the last
 //    item, then we must take care not to reuse the buffer until the next merger_pop.
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 
+#endif

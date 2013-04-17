@@ -61,7 +61,8 @@ NEWBRT_TESTS_RAW = \
 	memtest \
 	minicron-test \
 	omt-cursor-test \
-	omt-test \
+        omt-test \
+        pqueue-test \
 	recovery-cbegin \
 	recovery-cbegin-cend \
 	recovery-cbegin-cend-hello \
