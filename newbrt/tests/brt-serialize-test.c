@@ -62,7 +62,7 @@ static void test_serialize(void) {
     brt_h->block_translation = btps;
     brt_h->block_translation[20].diskoff = 4096;
     brt_h->block_translation[20].size    = 100;
-    create_block_allocator(&brt_h->block_allocator, 4096);
+    create_block_allocator(&brt_h->block_allocator, 4096, BLOCK_ALLOCATOR_ALIGNMENT);
     {
 	u_int64_t b;
 	block_allocator_alloc_block(brt_h->block_allocator, 100, &b);
