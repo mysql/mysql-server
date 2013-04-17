@@ -176,6 +176,8 @@ private:
     uchar* mult_rec_buff[MAX_KEY];
     DBT mult_key_dbt[MAX_KEY + 1];
     DBT mult_rec_dbt[MAX_KEY + 1];
+    u_int32_t mult_put_flags[MAX_KEY + 1];
+    u_int32_t mult_dbt_flags[MAX_KEY + 1];
     
     ulong alloced_mult_rec_buff_length;
 

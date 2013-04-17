@@ -1150,6 +1150,10 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     abort_loader = false;
     bzero(&lc, sizeof(lc));
     lock.type = TL_IGNORE;
+    for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
+        mult_put_flags[i] = DB_YESOVERWRITE;
+        mult_dbt_flags[i] = DB_DBT_REALLOC;
+    }
 }
 
 //
@@ -2861,8 +2865,6 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 acquire_table_lock(transaction, lock_write);
             }
             else {
-                u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
-                u_int32_t mult_dbt_flags[MAX_KEY + 1] = {DB_DBT_REALLOC};
                 uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
                 mult_dbt_flags[primary_key] = 0;
                 if (!thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !hidden_primary_key) {
@@ -6399,12 +6401,16 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DB_LOADER* loader = NULL;
     bool loader_use_puts = get_load_save_space(thd);
     u_int32_t loader_flags = loader_use_puts ? LOADER_USE_PUTS : 0;
-    u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
-    u_int32_t mult_dbt_flags[MAX_KEY + 1] = {DB_DBT_REALLOC};
+    u_int32_t mult_put_flags[MAX_KEY + 1];
+    u_int32_t mult_dbt_flags[MAX_KEY + 1];
     struct loader_context lc = {0};
     lc.thd = thd;
     lc.ha = this;
     loader_error = 0;
+    for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
+        mult_put_flags[i] = DB_YESOVERWRITE;
+        mult_dbt_flags[i] = DB_DBT_REALLOC;
+    }
     //
     // number of DB files we have open currently, before add_index is executed
     //
