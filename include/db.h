@@ -93,6 +93,7 @@ typedef enum {
 #define DB_BUFFER_SMALL -30999
 #define DB_BADFORMAT -30500
 #define DB_DELETE_ANY 65536
+#define DB_TRUNCATE_WITHCURSORS 131072
 #define DB_FIRST 7
 #define DB_GET_BOTH 8
 #define DB_GET_BOTH_RANGE 10

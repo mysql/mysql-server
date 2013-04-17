@@ -101,6 +101,7 @@ void print_defines (void) {
 #endif
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
     printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb
+    printf("#define DB_TRUNCATE_WITHCURSORS %d\n", 1<<17); // private tokudb
 
     dodefine(DB_FIRST);
     dodefine(DB_GET_BOTH);
