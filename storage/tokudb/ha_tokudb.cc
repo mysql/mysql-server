@@ -1226,6 +1226,7 @@ static int generate_row_for_put(
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) 
     // flags defined in sql\handler.h
 {
+    share = NULL;
     int_table_flags = HA_REC_NOT_IN_SEQ  | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX | HA_CAN_WRITE_DURING_OPTIMIZE;
     alloc_ptr = NULL;
@@ -1686,7 +1687,7 @@ int ha_tokudb::initialize_share(
     // verify frm file is what we expect it to be
     // only for tables that are not partitioned
     //
-    if (table->part_info == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error) {
             goto exit;
@@ -2064,7 +2065,7 @@ cleanup:
 }
 
 int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::write_frm_data, %s", frm_name);
+    TOKUDB_DBUG_ENTER("ha_tokudb::write_frm_data %p %p %p %s", this, db, txn, frm_name);
 
     uchar* frm_data = NULL;
     size_t frm_len = 0;
@@ -6723,7 +6724,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     if (error) { goto cleanup; }
 
     // only for tables that are not partitioned
-    if (form->part_info == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) { goto cleanup; }
     }

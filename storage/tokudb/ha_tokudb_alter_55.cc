@@ -162,9 +162,12 @@ ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
     TOKUDB_DBUG_ENTER("new_alter_table_path");
 
     int error = 0;
-    if (table->part_info == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
         // write frmdata to status
-        DB_TXN *txn = transaction; // use alter table transaction
+        THD *thd = ha_thd();
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        assert(trx);
+        DB_TXN *txn = trx->stmt; // use alter table transaction
         assert(txn);
         error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
     }
