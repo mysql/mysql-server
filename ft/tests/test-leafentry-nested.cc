@@ -714,96 +714,96 @@ static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_known_ref
 static void test_le_garbage_collection_birdie(void) {
     DBT key;
     DBT val;
-    ULE_S ule_initial;
-    ULE_S ule_expected;
+    ULE_S ule;
     uint8_t keybuf[MAX_SIZE];
     uint32_t keysize=8;
     uint8_t valbuf[MAX_SIZE];
     uint32_t valsize=8;
-    ule_initial.uxrs = ule_initial.uxrs_static;
-    ule_expected.uxrs = ule_expected.uxrs_static;
+    bool do_garbage_collect;
+
     memset(&key, 0, sizeof(key));
     memset(&val, 0, sizeof(val));
-    bool do_garbage_collect;
     fillrandom(keybuf, keysize);
     fillrandom(valbuf, valsize);
+    memset(&ule, 0, sizeof(ule));
+    ule.uxrs = ule.uxrs_static;
 
     //
     // Test garbage collection "worth-doing" heurstic
     //
 
     // Garbage collection should not be worth doing on a clean leafentry.
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 0;
-    ule_initial.uxrs[0].xid = TXNID_NONE;
-    ule_initial.uxrs[0].type = XR_INSERT;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 0;
+    ule.uxrs[0].xid = TXNID_NONE;
+    ule.uxrs[0].type = XR_INSERT;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(!do_garbage_collect);
     
     // It is worth doing when there is more than one committed entry
-    ule_initial.num_cuxrs = 2;
-    ule_initial.num_puxrs = 1;
-    ule_initial.uxrs[1].xid = 500;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 2;
+    ule.num_puxrs = 1;
+    ule.uxrs[1].xid = 500;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(do_garbage_collect);
     
     // It is not worth doing when there is one of each, when the
     // provisional entry is newer than the oldest known referenced xid
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 1;
-    ule_initial.uxrs[1].xid = 1500;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 1;
+    ule.uxrs[1].xid = 1500;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(!do_garbage_collect);
-    ule_initial.uxrs[1].xid = 200;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.uxrs[1].xid = 200;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(!do_garbage_collect);
 
     // It is not worth doing when there is only one committed entry,
     // multiple provisional entries, but the outermost entry is newer.
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 3;
-    ule_initial.uxrs[1].xid = 201;
-    ule_initial.uxrs[2].xid = 206;
-    ule_initial.uxrs[3].xid = 215;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 3;
+    ule.uxrs[1].xid = 201;
+    ule.uxrs[2].xid = 206;
+    ule.uxrs[3].xid = 215;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(!do_garbage_collect);
 
     // It is worth doing when the above scenario has an outermost entry
     // older than the oldest known, even if its children seem newer.
     // this children must have commit because the parent is not live.
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 3;
-    ule_initial.uxrs[1].xid = 190;
-    ule_initial.uxrs[2].xid = 206;
-    ule_initial.uxrs[3].xid = 215;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 3;
+    ule.uxrs[1].xid = 190;
+    ule.uxrs[2].xid = 206;
+    ule.uxrs[3].xid = 215;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(do_garbage_collect);
 
     // It is worth doing when there is more than one committed entry,
     // even if a provisional entry exists that is newer than the
     // oldest known refrenced xid
-    ule_initial.num_cuxrs = 2;
-    ule_initial.num_puxrs = 1;
-    ule_initial.uxrs[1].xid = 499;
-    ule_initial.uxrs[2].xid = 500;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 2;
+    ule.num_puxrs = 1;
+    ule.uxrs[1].xid = 499;
+    ule.uxrs[2].xid = 500;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(do_garbage_collect);
 
     // It is worth doing when there is one of each, and the provisional
     // entry is older than the oldest known referenced xid
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 1;
-    ule_initial.uxrs[1].xid = 199;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 1;
+    ule.uxrs[1].xid = 199;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(do_garbage_collect);
 
     // It is definately worth doing when the above case is true
     // and there is more than one provisional entry.
-    ule_initial.num_cuxrs = 1;
-    ule_initial.num_puxrs = 2;
-    ule_initial.uxrs[1].xid = 150;
-    ule_initial.uxrs[2].xid = 175;
-    do_garbage_collect = ule_worth_running_garbage_collection(&ule_initial, 200);
+    ule.num_cuxrs = 1;
+    ule.num_puxrs = 2;
+    ule.uxrs[1].xid = 150;
+    ule.uxrs[2].xid = 175;
+    do_garbage_collect = ule_worth_running_garbage_collection(&ule, 200);
     invariant(do_garbage_collect);
 }
 
