@@ -1308,10 +1308,13 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
     return ai_found;
 }
 
+#define status_dict_pagesize 1024
+
 static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
     uint open_mode = DB_THREAD;
+    u_int32_t pagesize = 0;
     newname = (char *)my_malloc(
         get_max_dict_name_path_length(name), 
         MYF(MY_WME)
@@ -1331,6 +1334,17 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     if (error) { 
         goto cleanup; 
     }
+
+    error = (*ptr)->get_pagesize(*ptr, &pagesize);
+    if (error) { 
+        goto cleanup; 
+    }
+
+    if (pagesize > status_dict_pagesize) {
+        error = (*ptr)->change_pagesize(*ptr, status_dict_pagesize);
+        if (error) { goto cleanup; }
+    }
+    
 cleanup:
     if (error) {
         if (*ptr) {
@@ -6697,7 +6711,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = db_create(&status_block, db_env, 0);
     if (error) { goto cleanup; }
 
-    error = status_block->set_pagesize(status_block, 1024);
+    error = status_block->set_pagesize(status_block, status_dict_pagesize);
     if (error) { goto cleanup; }
 
     error = status_block->open(status_block, txn, newname, NULL, DB_BTREE, DB_CREATE | DB_EXCL, 0);
