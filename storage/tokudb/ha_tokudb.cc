@@ -224,8 +224,8 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
 
 
 static int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * saved_key) {
-    ulonglong a = uint5korr((char *) new_key->data);
-    ulonglong b = uint5korr((char *) saved_key->data);
+    ulonglong a = uint8korr((char *) new_key->data);
+    ulonglong b = uint8korr((char *) saved_key->data);
     return a < b ? -1 : (a > b ? 1 : 0);
 }
 
@@ -357,8 +357,8 @@ static int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const D
             //
             // primary key hidden
             //
-            ulonglong a = uint5korr((char *) new_key_ptr);
-            ulonglong b = uint5korr((char *) saved_key_ptr);
+            ulonglong a = uint8korr((char *) new_key_ptr);
+            ulonglong b = uint8korr((char *) saved_key_ptr);
             ret_val =  a < b ? -1 : (a > b ? 1 : 0);
         }
         else {
@@ -1738,7 +1738,7 @@ void ha_tokudb::init_hidden_prim_key_info() {
         int error = read_last();
         (void) extra(HA_EXTRA_NO_KEYREAD);
         if (error == 0) {
-            share->auto_ident = uint5korr(current_ident);
+            share->auto_ident = uint8korr(current_ident);
         }
 
         share->status |= STATUS_PRIMARY_KEY_INIT;
