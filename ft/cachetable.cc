@@ -3075,8 +3075,11 @@ int cleaner::run_cleaner(void) {
 static_assert(std::is_pod<pair_list>::value, "pair_list isn't POD");
 
 const uint32_t INITIAL_PAIR_LIST_SIZE = 1<<20;
-const uint32_t PAIR_LOCK_SIZE = 1<<20;
+uint32_t PAIR_LOCK_SIZE = 1<<20;
 
+void toku_pair_list_set_lock_size(uint32_t num_locks) {
+    PAIR_LOCK_SIZE = num_locks;
+}
 
 // Allocates the hash table of pairs inside this pair list.
 //

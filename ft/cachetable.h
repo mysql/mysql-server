@@ -552,4 +552,9 @@ int toku_cachetable_get_checkpointing_user_data_status(void);
 int toku_cleaner_thread_for_test(CACHETABLE ct);
 int toku_cleaner_thread(void *cleaner_v);
 
+// test function. Exported in the ydb layer and used by tests that want to run DRD
+// The default of 1M is too high for drd tests, so this is a mechanism to set a smaller number.
+void toku_pair_list_set_lock_size(uint32_t num_locks);
+
+
 #endif /* CACHETABLE_H */
