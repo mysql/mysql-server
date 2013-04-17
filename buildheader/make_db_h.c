@@ -505,6 +505,14 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ \n");
     printf("  u_int64_t        deletes;                 /* ydb row delete operations              */ \n");
     printf("  u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ \n");
+    printf("  u_int64_t        updates;                 /* ydb row update operations              */ \n");
+    printf("  u_int64_t        updates_fail;            /* ydb row update operations that failed  */ \n");
+    printf("  u_int64_t        multi_inserts;           /* ydb multi_row insert operations, dictionaray count             */ \n");
+    printf("  u_int64_t        multi_inserts_fail;      /* ydb multi_row insert operations that failed, dictionary count  */ \n");
+    printf("  u_int64_t        multi_deletes;           /* ydb multi_row delete operations, dictionary count              */ \n");
+    printf("  u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ \n");
+    printf("  u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ \n");
+    printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        fsync_count;             /* number of times fsync performed        */ \n");
