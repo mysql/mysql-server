@@ -291,6 +291,8 @@ int toku_cachefile_fd (CACHEFILE cf) {
 }
 
 int toku_cachefile_truncate0 (CACHEFILE cf) {
+    int r = toku_graceful_dirty(cachefile);
+    if (r!=0) return r;
     int r = ftruncate(cf->fd, 0);
     if (r != 0)
         r = errno;
