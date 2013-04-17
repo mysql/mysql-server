@@ -11,6 +11,7 @@ extern "C" {
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "toku_os.h"
+#include "toku_time.h"
 }
 
 
