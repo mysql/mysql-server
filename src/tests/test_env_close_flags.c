@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <assert.h>
+#include <stdint.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>

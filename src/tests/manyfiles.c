@@ -1,5 +1,6 @@
 /* How fast can we do insertions when there are many files? */
 
+#include <stdint.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"

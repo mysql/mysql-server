@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

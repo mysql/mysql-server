@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdint.h>
 #include <db.h>
 
 #include "test.h"

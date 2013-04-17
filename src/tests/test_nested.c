@@ -1,5 +1,6 @@
 /* Nested transactions. */
 
+#include <stdint.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"

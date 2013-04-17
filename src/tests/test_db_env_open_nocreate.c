@@ -9,6 +9,7 @@
 //   One must actually create a DB I think...
 
 #include <assert.h>
+#include <stdint.h>
 #include <db.h>
 #include <errno.h>
 #include <stdio.h>

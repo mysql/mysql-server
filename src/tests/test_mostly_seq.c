@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <stdint.h>
 #include <db.h>
 #include "test.h"
 
