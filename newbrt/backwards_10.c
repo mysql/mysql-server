@@ -158,7 +158,7 @@ static int toku_fifo10_iterate_internal_next(FIFO fifo10, int off) {
     struct fifo10_entry *e = (struct fifo10_entry *)(fifo10->memory + off);
     return off + fifo10_entry_size(e);
 }
-struct fifo10_entry * toku_fifo10_iterate_internal_get_entry(FIFO fifo10, int off) {
+static struct fifo10_entry * toku_fifo10_iterate_internal_get_entry(FIFO fifo10, int off) {
     return (struct fifo10_entry *)(fifo10->memory + off);
 }
 
@@ -270,7 +270,7 @@ static u_int32_t memsize_le10_provpair (TXNID txnid __attribute__((__unused__)),
     return 1 + 8 + 4*2 + klen + plen;
 }
 
-u_int32_t leafentry_memsize_10 (LEAFENTRY le) {
+static u_int32_t leafentry_memsize_10 (LEAFENTRY le) {
     LESWITCHCALL(le, memsize);
     abort(); return 0;  // make certain compilers happy
 }
@@ -306,7 +306,7 @@ le10_disksize_internal (LEAFENTRY le) {
     abort(); return 0;  // make certain compilers happy
 }
 
-u_int32_t le10_disksize (LEAFENTRY le) {
+static u_int32_t le10_disksize (LEAFENTRY le) {
     u_int32_t d = le10_disksize_internal(le);
     // this computation is currently identical to the _disksize_internal
     u_int32_t m = leafentry_memsize_10(le);
@@ -314,39 +314,6 @@ u_int32_t le10_disksize (LEAFENTRY le) {
     return d;
 }
 
-u_int32_t any_keylen_le10_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
-    return keylen;
-}
-u_int32_t any_keylen_le10_both (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
-    return klen;
-}
-u_int32_t any_keylen_le10_provdel (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
-    return klen;
-}
-u_int32_t any_keylen_le10_provpair (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
-    return klen;
-}
-u_int32_t le10_any_keylen (LEAFENTRY le) {
-    LESWITCHCALL(le, any_keylen);
-    abort(); return 0;  // make certain compilers happy
-}
-
-u_int32_t any_vallen_le10_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
-    return vallen;
-}
-u_int32_t any_vallen_le10_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t plen, void *UU(pval)) {
-    return plen;
-}
-u_int32_t any_vallen_le10_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t clen, void *UU(cval)) {
-    return clen; // for provisional delete, there is no *any* key, so return 0.  What else can we do?
-}
-u_int32_t any_vallen_le10_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t plen, void *UU(pval)) {
-    return plen;
-}
-u_int32_t le10_any_vallen (LEAFENTRY le) {
-    LESWITCHCALL(le, any_vallen);
-    abort(); return 0;  // make certain compilers happy
-}
 //LEAFENTRY constructors
 
 //Constructors for version 10 leafentries, possibly needed for upgrades.
