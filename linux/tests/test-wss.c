@@ -11,11 +11,14 @@ const int buffersize = 1024*1024;
 
 static void do_mallocs(void) {
     int i;
+    void *vp[nbuffers];
     for (i=0; i<nbuffers; i++) {
         int nbytes = buffersize;
-        void *vp = malloc(nbytes);
-        memset(vp, 0, nbytes);
+        vp[i] = malloc(nbytes);
+        memset(vp[i], 0, nbytes);
     }
+    for (i=0; i<nbuffers; i++)
+        free(vp[i]);
 }
 
 int main(int argc, char *argv[]) {
