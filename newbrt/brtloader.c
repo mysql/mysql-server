@@ -315,10 +315,13 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
         destroy_merge_fileset(&bl->fs[i]);
     toku_free(bl->fs);
 
-    for (int i=0; i < bl->N; i++) {
-	toku_free(bl->last_key[i].data);
+    if (bl->last_key) {
+        for (int i=0; i < bl->N; i++) {
+            toku_free(bl->last_key[i].data);
+        }
+        toku_free(bl->last_key);
+        bl->last_key = NULL;
     }
-    toku_free(bl->last_key);
 
     destroy_rowset(&bl->primary_rowset);
 
