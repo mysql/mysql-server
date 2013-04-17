@@ -22,7 +22,7 @@ typedef struct st_multi_col_pack_info {
 
 typedef struct st_key_and_col_info {
     MY_BITMAP key_filters[MAX_KEY+1];
-    uchar* field_lengths; //stores the field lengths of fixed size fields (255 max)
+    u_int16_t* field_lengths; //stores the field lengths of fixed size fields (1<<16 - 1 max)
     uchar* length_bytes; // stores the length of lengths of varchars and varbinaries
     u_int32_t* blob_fields; // list of indexes of blob fields
     u_int32_t num_blobs;
