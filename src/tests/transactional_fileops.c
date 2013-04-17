@@ -39,7 +39,7 @@
 #include <db.h>
 
 static DB_ENV *env;
-
+static FILE *error_file = NULL;
 
 static void
 setup (void) {
@@ -48,7 +48,6 @@ setup (void) {
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
-    FILE *error_file = 0;
     if (verbose==0) {
 	error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
     }
@@ -65,6 +64,10 @@ static void
 test_shutdown(void) {
     int r;
     r=env->close(env, 0); CKERR(r);
+    if (verbose==0) {
+        fclose(error_file);
+        error_file = NULL;
+    }
 }
 
 
