@@ -144,9 +144,16 @@ compress_work_init(struct compress_work *w, struct sub_block *sub_block) {
     w->sub_block = sub_block;
 }
 
+// Allow the makefile to optionally configure for no compression
+#ifdef TOKU_CONFIG_NO_COMPRESSION
+static enum toku_compression_method toku_compress_method = TOKU_NO_COMPRESSION;
+#else
 static enum toku_compression_method toku_compress_method = TOKU_QUICKLZ_METHOD;
+#endif
+
 void toku_set_default_compression_method (enum toku_compression_method a) {
     switch (a) {
+    case TOKU_NO_COMPRESSION:
     case TOKU_ZLIB_METHOD: 
     case TOKU_QUICKLZ_METHOD:
 	toku_compress_method = a;
