@@ -75,6 +75,10 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     create_dummy_functions(f1);
 
+    // disable the eviction thread. this thread was written to assume
+    // evictions hapepn on the client thread, which is no longer true.
+    evictor_test_helpers::disable_ev_thread(&ct->ev);
+
     // prefetch block n+1. this will take 10 seconds.
     {
         CACHEKEY key = make_blocknum(n+1);
