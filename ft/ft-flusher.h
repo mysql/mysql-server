@@ -88,8 +88,8 @@ ftleaf_split(
     FTNODE *nodea,
     FTNODE *nodeb,
     DBT *splitk,
-    BOOL create_new_node,
-    u_int32_t num_dependent_nodes,
+    bool create_new_node,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes
     );
 
@@ -109,7 +109,7 @@ ft_nonleaf_split(
     FTNODE *nodea,
     FTNODE *nodeb,
     DBT *splitk,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes
     );
 

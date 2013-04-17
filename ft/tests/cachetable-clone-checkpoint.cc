@@ -7,14 +7,14 @@
 
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
 }
 
-BOOL clone_flush_started;
-BOOL clone_flush_completed;
+bool clone_flush_started;
+bool clone_flush_completed;
 CACHETABLE ct;
 
 static void
@@ -27,16 +27,16 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL is_clone
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool is_clone
     ) 
 {  
     if (is_clone) {
-        clone_flush_started = TRUE;
+        clone_flush_started = true;
         usleep(4*1024*1024);
-        clone_flush_completed = TRUE;
+        clone_flush_completed = true;
     }
 }
 
@@ -70,22 +70,22 @@ cachetable_test (void) {
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     wc.clone_callback = clone_callback;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
     r = toku_cachetable_begin_checkpoint(ct, NULL);
 
 
-    clone_flush_started = FALSE;
-    clone_flush_completed = FALSE;
+    clone_flush_started = false;
+    clone_flush_completed = false;
     toku_pthread_t checkpoint_tid;
     r = toku_pthread_create(&checkpoint_tid, NULL, run_end_checkpoint, NULL); 
     assert_zero(r);    
 
     usleep(1*1024*1024);
 
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     assert(clone_flush_started && !clone_flush_completed);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
@@ -97,7 +97,7 @@ cachetable_test (void) {
     assert(clone_flush_started && clone_flush_completed);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 

@@ -10,15 +10,15 @@
 #include "ft_msg.h"
 
 
-u_int32_t 
+uint32_t 
 ft_msg_get_keylen(FT_MSG ft_msg) {
-    u_int32_t rval = ft_msg->u.id.key->size;
+    uint32_t rval = ft_msg->u.id.key->size;
     return rval;
 }
 
-u_int32_t 
+uint32_t 
 ft_msg_get_vallen(FT_MSG ft_msg) {
-    u_int32_t rval = ft_msg->u.id.val->size;
+    uint32_t rval = ft_msg->u.id.val->size;
     return rval;
 }
 

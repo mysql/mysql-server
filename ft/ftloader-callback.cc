@@ -74,7 +74,7 @@ int ft_loader_call_error_function(ft_loader_error_callback loader_error) {
     error_callback_lock(loader_error);
     r = loader_error->error;
     if (r && loader_error->error_callback && !loader_error->did_callback) {
-        loader_error->did_callback = TRUE;
+        loader_error->did_callback = true;
         loader_error->error_callback(loader_error->db, 
                                      loader_error->which_db,
                                      loader_error->error,

@@ -123,7 +123,7 @@ typedef enum {
 } loader_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[LOADER_STATUS_NUM_ROWS];
 } LOADER_STATUS_S, *LOADER_STATUS;
 

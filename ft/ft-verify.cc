@@ -159,7 +159,7 @@ static int
 verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, const off_omt_t &mt) {
     int result = 0;
     size_t last_offset = 0;
-    for (u_int32_t i = 0; i < mt.size(); i++) {
+    for (uint32_t i = 0; i < mt.size(); i++) {
         long offset;
         int r = mt.fetch(i, &offset);
         assert_zero(r);
@@ -198,7 +198,7 @@ toku_get_node_for_verify(
     FTNODE* nodep
     )
 {
-    u_int32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
+    uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
@@ -206,7 +206,7 @@ toku_get_node_for_verify(
         blocknum,
         fullhash,
         &bfe,
-        TRUE, // may_modify_node, safe to set to TRUE
+        true, // may_modify_node, safe to set to true
         0,
         NULL,
         nodep
@@ -313,7 +313,7 @@ toku_verify_ftnode (FT_HANDLE brt,
         }
         else {
             BASEMENTNODE bn = BLB(node, i);
-            for (u_int32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
+            for (uint32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= this_msn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 LEAFENTRY le = get_ith_leafentry(bn, j);
                 if (curr_less_pivot) {
@@ -375,7 +375,7 @@ toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extr
     {
         toku_ft_grab_treelock(brt->ft);
 
-        u_int32_t root_hash;
+        uint32_t root_hash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(brt->ft, &root_key, &root_hash);
         toku_get_node_for_verify(root_key, brt, &root_node);

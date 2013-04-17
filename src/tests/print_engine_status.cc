@@ -30,7 +30,7 @@ test_shutdown(void) {
 }
 
 static void
-setup (u_int32_t flags) {
+setup (uint32_t flags) {
     int r;
     if (env)
         test_shutdown();

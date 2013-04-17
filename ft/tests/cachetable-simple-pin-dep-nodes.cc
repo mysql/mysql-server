@@ -7,12 +7,12 @@
 
 
 
-BOOL v1_written;
-u_int64_t val1;
-BOOL v2_written;
-u_int64_t val2;
-u_int64_t val3;
-BOOL check_me;
+bool v1_written;
+uint64_t val1;
+bool v2_written;
+uint64_t val2;
+uint64_t val3;
+bool check_me;
 
 
 static void
@@ -24,10 +24,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
     /* Do nothing */
     if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -37,13 +37,13 @@ flush (CACHEFILE f __attribute__((__unused__)),
         assert(keep);
         assert(w);
         if (v == &val1) {
-            v1_written = TRUE;
+            v1_written = true;
         }
         else if (v == &val2) {
-            v2_written = TRUE;
+            v2_written = true;
         }
         else {
-            assert(FALSE);
+            assert(false);
         }
     }
 }
@@ -52,7 +52,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
@@ -66,7 +66,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 }
 
 static void
-cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
+cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
@@ -85,9 +85,9 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(&val1);
     wc.flush_callback = flush;
     wc.write_extraargs = &val1;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, &val1);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val1);
     wc.write_extraargs = &val2;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, &val2);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val2);
 
     CACHEFILE dependent_cfs[2];
     dependent_cfs[0] = f1;
@@ -95,7 +95,7 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     CACHEKEY dependent_keys[2];
     dependent_keys[0] = make_blocknum(1);
     dependent_keys[1] = make_blocknum(2);
-    u_int32_t dependent_fullhash[2];
+    uint32_t dependent_fullhash[2];
     dependent_fullhash[0] = 1;
     dependent_fullhash[1] = 2;
     // now we set the dirty state of these two.
@@ -111,9 +111,9 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     //
     // This call should cause a flush for both
     //
-    check_me = TRUE;
-    v1_written = FALSE;
-    v2_written = FALSE;
+    check_me = true;
+    v1_written = false;
+    v2_written = false;
     wc.write_extraargs = &val3;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
@@ -122,7 +122,7 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
         &v3,
         &s3,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        TRUE,
+        true,
         &val3,
         2, //num_dependent_pairs
         dependent_cfs,
@@ -138,7 +138,7 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
         assert(!v1_written);
         assert(!v2_written);
     }
-    check_me = FALSE;
+    check_me = false;
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
     r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
@@ -154,7 +154,7 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 
@@ -163,13 +163,13 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
 int
 test_main(int argc, const char *argv[]) {
   default_parse_args(argc, argv);
-  cachetable_test(FALSE,FALSE,TRUE);
-  cachetable_test(FALSE,TRUE,TRUE);
-  cachetable_test(TRUE,FALSE,TRUE);
-  cachetable_test(TRUE,TRUE,TRUE);
-  cachetable_test(FALSE,FALSE,FALSE);
-  cachetable_test(FALSE,TRUE,FALSE);
-  cachetable_test(TRUE,FALSE,FALSE);
-  cachetable_test(TRUE,TRUE,FALSE);
+  cachetable_test(false,false,true);
+  cachetable_test(false,true,true);
+  cachetable_test(true,false,true);
+  cachetable_test(true,true,true);
+  cachetable_test(false,false,false);
+  cachetable_test(false,true,false);
+  cachetable_test(true,false,false);
+  cachetable_test(true,true,false);
   return 0;
 }

@@ -18,7 +18,7 @@ static int omt_cmp(OMTVALUE p, void *q)
     LEAFENTRY CAST_FROM_VOIDP(a, p);
     LEAFENTRY CAST_FROM_VOIDP(b, q);
     void *ak, *bk;
-    u_int32_t al, bl;
+    uint32_t al, bl;
     ak = le_key_and_len(a, &al);
     bk = le_key_and_len(b, &bl);
     int l = MIN(al, bl);
@@ -131,7 +131,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -142,7 +142,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, TRUE, brt->ft, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, true, brt->ft, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -265,7 +265,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -276,7 +276,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;

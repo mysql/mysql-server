@@ -15,19 +15,19 @@
 
 #include "threaded_stress_test_helpers.h"
 
-u_int64_t num_basements_decompressed;
-u_int64_t num_buffers_decompressed;
-u_int64_t num_basements_fetched;
-u_int64_t num_buffers_fetched;
-u_int64_t num_pivots_fetched;
+uint64_t num_basements_decompressed;
+uint64_t num_buffers_decompressed;
+uint64_t num_basements_fetched;
+uint64_t num_buffers_fetched;
+uint64_t num_pivots_fetched;
 
 static void checkpoint_callback_1(void * extra) {
     DB_ENV* CAST_FROM_VOIDP(env, extra);
-    u_int64_t old_num_basements_decompressed = num_basements_decompressed;
-    u_int64_t old_num_buffers_decompressed = num_buffers_decompressed;
-    u_int64_t old_num_basements_fetched = num_basements_fetched;
-    u_int64_t old_num_buffers_fetched = num_buffers_fetched;
-    u_int64_t old_num_pivots_fetched = num_pivots_fetched;
+    uint64_t old_num_basements_decompressed = num_basements_decompressed;
+    uint64_t old_num_buffers_decompressed = num_buffers_decompressed;
+    uint64_t old_num_basements_fetched = num_basements_fetched;
+    uint64_t old_num_buffers_fetched = num_buffers_fetched;
+    uint64_t old_num_pivots_fetched = num_pivots_fetched;
 
     num_basements_decompressed = 
         get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
@@ -133,7 +133,7 @@ static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *sta
     int i;
     for (i = 0; i < 10; i++) {
         // do point queries
-        ptquery_and_maybe_check_op(db, txn, arg, FALSE);
+        ptquery_and_maybe_check_op(db, txn, arg, false);
     }
     increment_counter(stats_extra, PTQUERIES, i);
     for (i = 0; i < 20; i++) {

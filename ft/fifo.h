@@ -63,7 +63,7 @@ unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memor
 unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
 
 //These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
-//int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);
+//int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, uint32_t *type, TXNID *xid);
 //int toku_fifo_peek_deq_cmdstruct (FIFO, FT_MSG, DBT*, DBT*); // fill in the FT_MSG, using the two DBTs for the DBT part.
 void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
 
@@ -78,7 +78,7 @@ void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,IT
       MSN     msnvar  = e->msn;                                                       \
       XIDS    xidsvar = &e->xids_s;                                                   \
       bytevec keyvar  = xids_get_end_of_array(xidsvar);                               \
-      bytevec datavar = (const u_int8_t*)keyvar + e->keylen;                          \
+      bytevec datavar = (const uint8_t*)keyvar + e->keylen;                          \
       bool is_freshvar = e->is_fresh;                                                 \
       body;	\
   } })
@@ -94,7 +94,7 @@ const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
 
 void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
 
-BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2);
+bool toku_are_fifos_same(FIFO fifo1, FIFO fifo2);
 
 
 

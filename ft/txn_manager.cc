@@ -14,10 +14,10 @@
 #include "omt-tmpl.h"
 #include "rollback.h"
 
-BOOL garbage_collection_debug = FALSE;
+bool garbage_collection_debug = false;
 
 
-static BOOL is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
+static bool is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
     TOKUTXN result = NULL;
     toku_txn_manager_id2txn_unlocked(txn_manager, txnid, &result);
     return (result != NULL);
@@ -156,7 +156,7 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
         for (i = 0; i < num_live_txns; i++) {
             TOKUTXN txn = live_txns[i];
 
-            BOOL expect = txn->snapshot_txnid64 == txn->txnid64;
+            bool expect = txn->snapshot_txnid64 == txn->txnid64;
             {
                 //verify pair->xid2 is in snapshot_xids
                 r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(txn->txnid64, nullptr, nullptr);
@@ -369,7 +369,7 @@ int toku_txn_manager_start_txn(
                 txn->live_root_txn_list = parent->live_root_txn_list;
             }
             else {
-                assert(FALSE);
+                assert(false);
             }
         }
     }
@@ -469,7 +469,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     {
         //Remove txn from list (omt) of live transactions
         TOKUTXN txnagain;
-        u_int32_t idx;
+        uint32_t idx;
         r = txn_manager->live_txns.find_zero<TOKUTXN, find_xid>(txn, &txnagain, &idx);
         invariant_zero(r);
         invariant(txn==txnagain);
@@ -497,7 +497,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 
     if (txn->parent==NULL) {
         TXNID xid;
-        u_int32_t idx;
+        uint32_t idx;
         //Remove txn from list of live root txns
         r = txn_manager->live_root_txns.find_zero<TXNID, toku_find_xid_by_xid>(txn->txnid64, &xid, &idx);
         invariant_zero(r);
@@ -598,7 +598,7 @@ exit:
     return ret_val;
 }
 
-u_int32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager) {
+uint32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager) {
     int ret_val = 0;
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     ret_val = txn_manager->live_txns.size();
@@ -692,7 +692,7 @@ int toku_txn_manager_recover_txn (
     struct tokulogger_preplist preplist[/*count*/], 
     long count, 
     long *retp, /*out*/ 
-    u_int32_t flags
+    uint32_t flags
     )
 {
     int ret_val = 0;

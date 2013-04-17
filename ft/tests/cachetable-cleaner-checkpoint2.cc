@@ -7,7 +7,7 @@
 
 CACHEFILE f1;
 
-BOOL flush_called;
+bool flush_called;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -18,10 +18,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -32,17 +32,17 @@ flush (CACHEFILE f __attribute__((__unused__)),
   if (w) {
       assert(!flush_called);
       assert(c);
-      flush_called = TRUE;
+      flush_called = true;
   }
 }
 
-BOOL cleaner_called;
+bool cleaner_called;
 
 static int
 cleaner_callback(
     void* UU(ftnode_pv),
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     void* UU(extraargs)
     )
 {
@@ -50,7 +50,7 @@ cleaner_callback(
     assert(fullhash == 1);
     assert(!cleaner_called);
     assert(flush_called);
-    cleaner_called = TRUE;
+    cleaner_called = true;
     int r = toku_cachetable_unpin(f1, blocknum, fullhash, CACHETABLE_CLEAN, make_pair_attr(8));
     assert_zero(r);
     return 0;
@@ -74,12 +74,12 @@ cachetable_test (void) {
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
   wc.flush_callback = flush;
   wc.cleaner_callback = cleaner_callback;
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
   PAIR_ATTR attr = make_pair_attr(8);
   attr.cache_pressure_size = 8;
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, attr);
 
-  cleaner_called = FALSE;
+  cleaner_called = false;
   r = toku_cachetable_begin_checkpoint(ct, NULL);
   assert_zero(r);
   toku_cleaner_thread(ct);
@@ -93,7 +93,7 @@ cachetable_test (void) {
   assert(r==0);
 
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

@@ -11,7 +11,7 @@ static int
 cleaner_callback(
     void* UU(ftnode_pv),
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     void* UU(extraargs)
     )
 {
@@ -40,14 +40,14 @@ cachetable_test (void) {
       for (int i = 0; i < 10; i++) {
           CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
           wc.cleaner_callback = cleaner_callback;
-          r = toku_cachetable_get_and_pin(f1, make_blocknum(i), i, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+          r = toku_cachetable_get_and_pin(f1, make_blocknum(i), i, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
           r = toku_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(8));
       }
       r = toku_cachefile_flush(f1);
       assert(r == 0);
   }
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

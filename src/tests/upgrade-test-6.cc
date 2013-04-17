@@ -31,8 +31,8 @@ int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
 char *datadir = NULL;
-BOOL check_est = TRUE; // do check the estimates by default
-BOOL footprint_print = FALSE; // print memory footprint info 
+bool check_est = true; // do check the estimates by default
+bool footprint_print = false; // print memory footprint info 
 
 
 // Code for showing memory footprint information.
@@ -192,9 +192,9 @@ static void test_loader(DB **dbs)
 	if (verbose)
 	    printf("n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
 		   stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
-	assert(stats.bt_nkeys == (u_int64_t)NUM_ROWS);
-	assert(stats.bt_ndata == (u_int64_t)NUM_ROWS);
-	assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
+	assert(stats.bt_nkeys == (uint64_t)NUM_ROWS);
+	assert(stats.bt_ndata == (uint64_t)NUM_ROWS);
+	assert(stats.bt_dsize == ((uint64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
 	r = txn->commit(txn, 0);
 	CKERR(r);
     }
@@ -364,7 +364,7 @@ static void do_args(int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "-f")==0) {
-	    footprint_print = TRUE;
+	    footprint_print = true;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);

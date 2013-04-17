@@ -53,7 +53,7 @@ toku_txn_destroy(DB_TXN *txn) {
 }
 
 static int
-toku_txn_commit(DB_TXN * txn, u_int32_t flags,
+toku_txn_commit(DB_TXN * txn, uint32_t flags,
                 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
                 bool release_mo_lock) {
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -101,7 +101,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     TOKULOGGER logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
-    BOOL do_fsync;
+    bool do_fsync;
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
     // remove the txn from the list of live transactions, and then
     // release the lock tree locks. MVCC requires that toku_txn_complete_txn
@@ -125,15 +125,15 @@ cleanup:
     return r;
 }
 
-static u_int32_t 
+static uint32_t 
 toku_txn_id(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     toku_ydb_barf();
     abort();
-    return (u_int32_t) -1;
+    return (uint32_t) -1;
 }
 
-static u_int64_t 
+static uint64_t 
 toku_txn_id64(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     return toku_txn_get_id(db_txn_struct_i(txn)->tokutxn);
@@ -226,7 +226,7 @@ exit:
 // requires: must hold the multi operation lock. it is
 //           released in toku_txn_xa_prepare before the fsync.
 static int
-toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+toku_txn_prepare (DB_TXN *txn, uint8_t gid[DB_GID_SIZE]) {
     TOKU_XA_XID xid;
     HELGRIND_ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
     xid.formatID=0x756b6f54; // "Toku"
@@ -236,9 +236,9 @@ toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     return toku_txn_xa_prepare(txn, &xid);
 }
 
-static u_int32_t 
+static uint32_t 
 locked_txn_id(DB_TXN *txn) {
-    u_int32_t r = toku_txn_id(txn); 
+    uint32_t r = toku_txn_id(txn); 
     return r;
 }
 
@@ -255,7 +255,7 @@ locked_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
 }
 
 static int
-locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
+locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     if (toku_txn_requires_checkpoint(ttxn)) {
@@ -299,7 +299,7 @@ locked_txn_abort_with_progress(DB_TXN *txn,
 }
 
 int 
-locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
+locked_txn_commit(DB_TXN *txn, uint32_t flags) {
     int r = locked_txn_commit_with_progress(txn, flags, NULL, NULL);
     return r;
 }
@@ -341,7 +341,7 @@ txn_func_init(DB_TXN *txn) {
 //     committed
 //
 int 
-toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
     HANDLE_PANICKED_ENV(env);
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, stxn); //Cannot create child while child already exists.
     if (!toku_logger_is_open(env->i->logger)) 
@@ -349,10 +349,10 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     if (!(env->i->open_flags & DB_INIT_TXN))  
         return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
 
-    u_int32_t txn_flags = 0;
+    uint32_t txn_flags = 0;
     txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks. RFP remove this?
     TOKU_ISOLATION child_isolation = TOKU_ISO_SERIALIZABLE;
-    u_int32_t iso_flags = flags & DB_ISOLATION_FLAGS;
+    uint32_t iso_flags = flags & DB_ISOLATION_FLAGS;
     if (!(iso_flags == 0 || 
           iso_flags == DB_TXN_SNAPSHOT || 
           iso_flags == DB_READ_COMMITTED || 
@@ -398,7 +398,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
             child_isolation = stxn ? db_txn_struct_i(stxn)->iso : TOKU_ISO_SERIALIZABLE;
             break;
         default:
-            assert(FALSE); // error path is above, so this should not happen
+            assert(false); // error path is above, so this should not happen
             break;
     }
     if (stxn && child_isolation != db_txn_struct_i(stxn)->iso) {

@@ -57,14 +57,14 @@ static void test_loader_open(int ndbs) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE, TRUE);
+        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE, true);
         if (r == 0)
             break;
     }
 
     if (verbose) printf("i=%d\n", i);
     
-    r = toku_ft_loader_abort(loader, TRUE);
+    r = toku_ft_loader_abort(loader, true);
     assert(r == 0);
 }
 

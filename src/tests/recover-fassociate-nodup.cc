@@ -53,7 +53,7 @@ static void run_recover (void) {
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     
-    u_int32_t dbflags;
+    uint32_t dbflags;
     DB *dba;
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                CKERR(r);
@@ -83,7 +83,7 @@ static void run_no_recover (void) {
 
 const char *cmd;
 
-BOOL do_test=FALSE, do_recover=FALSE, do_recover_only=FALSE, do_no_recover = FALSE;
+bool do_test=false, do_recover=false, do_recover_only=false, do_no_recover = false;
 
 static void test_parse_args (int argc, char * const argv[]) {
     int resultcode;
@@ -96,13 +96,13 @@ static void test_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--test")==0) {
-	    do_test=TRUE;
+	    do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {
-            do_recover=TRUE;
+            do_recover=true;
         } else if (strcmp(argv[0], "--recover-only") == 0) {
-            do_recover_only=TRUE;
+            do_recover_only=true;
         } else if (strcmp(argv[0], "--no-recover") == 0) {
-            do_no_recover=TRUE;
+            do_no_recover=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:

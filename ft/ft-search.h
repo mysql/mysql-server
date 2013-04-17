@@ -50,7 +50,7 @@ typedef struct ft_search {
     // There also remains a potential thrashing problem.  When we get a TOKUDB_TRY_AGAIN, we unpin everything.  There's
     //   no guarantee that we will get everything pinned again.  We ought to keep nodes pinned when we retry, except that on the
     //   way out with a DB_NOTFOUND we ought to unpin those nodes.  See #3528.
-    BOOL have_pivot_bound;
+    bool have_pivot_bound;
     DBT  pivot_bound;
 } ft_search_t;
 
@@ -60,7 +60,7 @@ static inline ft_search_t *ft_search_init(ft_search_t *so, ft_search_compare_fun
     so->direction = direction;
     so->k = k;
     so->context = context;
-    so->have_pivot_bound = FALSE;
+    so->have_pivot_bound = false;
     return so;
 }
 

@@ -50,7 +50,7 @@ static inline void wbuf_nocrc_char (struct wbuf *w, unsigned char ch) {
 }
 
 /* Write a character. */
-static inline void wbuf_nocrc_u_int8_t (struct wbuf *w, u_int8_t ch) {
+static inline void wbuf_nocrc_uint8_t (struct wbuf *w, uint8_t ch) {
     assert(w->ndone<w->size);
     w->buf[w->ndone++]=ch;
 }
@@ -64,7 +64,7 @@ static inline void wbuf_char (struct wbuf *w, unsigned char ch) {
 static void wbuf_network_int (struct wbuf *w, int32_t i) __attribute__((__unused__));
 static void wbuf_network_int (struct wbuf *w, int32_t i) {
     assert(w->ndone + 4 <= w->size);
-    *(u_int32_t*)(&w->buf[w->ndone]) = toku_htonl(i);
+    *(uint32_t*)(&w->buf[w->ndone]) = toku_htonl(i);
     x1764_add(&w->checksum, &w->buf[w->ndone], 4);
     w->ndone += 4;
 }
@@ -83,7 +83,7 @@ static inline void wbuf_nocrc_int (struct wbuf *w, int32_t i) {
     w->buf[w->ndone+2] = i>>8;
     w->buf[w->ndone+3] = i>>0;
  #else
-    *(u_int32_t*)(&w->buf[w->ndone]) = toku_htod32(i);
+    *(uint32_t*)(&w->buf[w->ndone]) = toku_htod32(i);
  #endif
     w->ndone += 4;
 #endif
@@ -94,15 +94,15 @@ static inline void wbuf_int (struct wbuf *w, int32_t i) {
     x1764_add(&w->checksum, &w->buf[w->ndone-4], 4);
 }
 
-static inline void wbuf_nocrc_uint (struct wbuf *w, u_int32_t i) {
+static inline void wbuf_nocrc_uint (struct wbuf *w, uint32_t i) {
     wbuf_nocrc_int(w, (int32_t)i);
 }
 
-static inline void wbuf_uint (struct wbuf *w, u_int32_t i) {
+static inline void wbuf_uint (struct wbuf *w, uint32_t i) {
     wbuf_int(w, (int32_t)i);
 }
 
-static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
+static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     const unsigned char *bytes = (const unsigned char *) bytes_bv;
 #if 0
     { int i; for (i=0; i<nbytes; i++) wbuf_nocrc_char(w, bytes[i]); }
@@ -113,42 +113,42 @@ static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_
 #endif
 }
 
-static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
+static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
     x1764_add(&w->checksum, &w->buf[w->ndone-nbytes], nbytes);
 }
 
-static void wbuf_nocrc_bytes (struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
+static void wbuf_nocrc_bytes (struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     wbuf_nocrc_uint(w, nbytes);
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
 }
 
-static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
+static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     wbuf_uint(w, nbytes);
     wbuf_literal_bytes(w, bytes_bv, nbytes);
 }
 
-static void wbuf_nocrc_ulonglong (struct wbuf *w, u_int64_t ull) {
-    wbuf_nocrc_uint(w, (u_int32_t)(ull>>32));
-    wbuf_nocrc_uint(w, (u_int32_t)(ull&0xFFFFFFFF));
+static void wbuf_nocrc_ulonglong (struct wbuf *w, uint64_t ull) {
+    wbuf_nocrc_uint(w, (uint32_t)(ull>>32));
+    wbuf_nocrc_uint(w, (uint32_t)(ull&0xFFFFFFFF));
 }
 
-static void wbuf_ulonglong (struct wbuf *w, u_int64_t ull) {
-    wbuf_uint(w, (u_int32_t)(ull>>32));
-    wbuf_uint(w, (u_int32_t)(ull&0xFFFFFFFF));
+static void wbuf_ulonglong (struct wbuf *w, uint64_t ull) {
+    wbuf_uint(w, (uint32_t)(ull>>32));
+    wbuf_uint(w, (uint32_t)(ull&0xFFFFFFFF));
 }
 
-static inline void wbuf_nocrc_u_int64_t(struct wbuf *w, u_int64_t ull) {
+static inline void wbuf_nocrc_uint64_t(struct wbuf *w, uint64_t ull) {
     wbuf_nocrc_ulonglong(w, ull);
 }
 
 
-static inline void wbuf_u_int64_t(struct wbuf *w, u_int64_t ull) {
+static inline void wbuf_uint64_t(struct wbuf *w, uint64_t ull) {
     wbuf_ulonglong(w, ull);
 }
 
-static inline void wbuf_nocrc_BOOL (struct wbuf *w, BOOL b) {
-    wbuf_nocrc_u_int8_t(w, (u_int8_t)(b ? 1 : 0));
+static inline void wbuf_nocrc_bool (struct wbuf *w, bool b) {
+    wbuf_nocrc_uint8_t(w, (uint8_t)(b ? 1 : 0));
 }
 
 static inline void wbuf_nocrc_BYTESTRING (struct wbuf *w, BYTESTRING v) {
@@ -159,20 +159,20 @@ static inline void wbuf_BYTESTRING (struct wbuf *w, BYTESTRING v) {
     wbuf_bytes(w, v.data, v.len);
 }
 
-static inline void wbuf_u_int8_t (struct wbuf *w, u_int8_t v) {
+static inline void wbuf_uint8_t (struct wbuf *w, uint8_t v) {
     wbuf_char(w, v);
 }
 
-static inline void wbuf_nocrc_u_int32_t (struct wbuf *w, u_int32_t v) {
+static inline void wbuf_nocrc_uint32_t (struct wbuf *w, uint32_t v) {
     wbuf_nocrc_uint(w, v);
 }
 
-static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {
+static inline void wbuf_uint32_t (struct wbuf *w, uint32_t v) {
     wbuf_uint(w, v);
 }
 
 static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
-    wbuf_ulonglong(w, (u_int64_t)off);
+    wbuf_ulonglong(w, (uint64_t)off);
 }
 
 static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
@@ -191,9 +191,9 @@ static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
 }
 
 static inline void wbuf_nocrc_XIDP (struct wbuf *w, XIDP xid) {
-    wbuf_nocrc_u_int32_t(w, xid->formatID);
-    wbuf_nocrc_u_int8_t(w, xid->gtrid_length);
-    wbuf_nocrc_u_int8_t(w, xid->bqual_length);
+    wbuf_nocrc_uint32_t(w, xid->formatID);
+    wbuf_nocrc_uint8_t(w, xid->gtrid_length);
+    wbuf_nocrc_uint8_t(w, xid->bqual_length);
     wbuf_nocrc_literal_bytes(w, xid->data, xid->gtrid_length+xid->bqual_length);
 }
 

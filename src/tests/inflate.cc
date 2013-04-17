@@ -64,8 +64,8 @@ setup(void)
 char  vdata[150];
 
 static void
-insert_n (u_int32_t ah) {
-    u_int32_t an = htonl(ah);
+insert_n (uint32_t ah) {
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     DBT val;
@@ -75,9 +75,9 @@ insert_n (u_int32_t ah) {
 }
 
 static void
-delete_n (u_int32_t ah)
+delete_n (uint32_t ah)
 {
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
@@ -89,9 +89,9 @@ delete_n (u_int32_t ah)
 }
 
 static void
-get_n (u_int32_t ah, int expect_r)
+get_n (uint32_t ah, int expect_r)
 {
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     DBT val;
@@ -104,15 +104,15 @@ get_n (u_int32_t ah, int expect_r)
 static void
 doit (void)
 {
-    u_int32_t N=100;
-    for (u_int32_t i=0; i<N; i++) {
+    uint32_t N=100;
+    for (uint32_t i=0; i<N; i++) {
 	insert_n(i<<16);
     }
     reopen_em();
-    for (u_int32_t j=0; j<46; j++) {
+    for (uint32_t j=0; j<46; j++) {
 	insert_n(('.'<<16) + 1 +j);
     }
-    for (u_int32_t i=N-1; i<N; i++) {
+    for (uint32_t i=N-1; i<N; i++) {
 	delete_n(i<<16);
 	get_n(i<<16, DB_NOTFOUND);
     }
@@ -120,16 +120,16 @@ doit (void)
     insert_n(N<<16);
     get_n(N<<16, 0);
     reopen_em();
-    for (u_int32_t i='J'; i<N+1; i++) {
+    for (uint32_t i='J'; i<N+1; i++) {
 	delete_n(i<<16);
 	get_n(i<<16, DB_NOTFOUND);
     }
     reopen_em();
     reopen_em();
-    for (u_int32_t j=0; j<46; j++) {
+    for (uint32_t j=0; j<46; j++) {
 	insert_n(('.'<<16) + 1 +j +46);
     }
-    for (u_int32_t i=0; i<13; i++) {
+    for (uint32_t i=0; i<13; i++) {
 	delete_n((73 - i)<< 16);
 	get_n((73-i) << 16, DB_NOTFOUND); 
     }

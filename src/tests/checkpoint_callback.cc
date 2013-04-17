@@ -30,7 +30,7 @@ static void checkpoint_callback_2(void * extra) {
 }
 
 static void
-checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
+checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
     if (verbose>1) { 
         printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
                __FILE__, __FUNCTION__, __LINE__, 
@@ -38,7 +38,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
         fflush(stdout); 
     }
     dir_create();
-    env_startup(0, FALSE);
+    env_startup(0, false);
     int run;
     int r;
     DICTIONARY_S db_control;
@@ -50,7 +50,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     db_startup(&db_control, NULL);
     const int num_runs = 4;
     for (run = 0; run < num_runs; run++) {
-        u_int32_t i;
+        uint32_t i;
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, db_control.db, NULL);
         snapshot(&db_test, snap_all);

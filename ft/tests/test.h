@@ -124,10 +124,10 @@ def_flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-       BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+       bool UU(is_clone)
        ) {
 }
 
@@ -156,12 +156,12 @@ def_pe_callback (
     return 0;
 }
 
-static UU() BOOL def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
-  return FALSE;
+static UU() bool def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
+  return false;
 }
 
   static UU() int def_pf_callback(void* UU(ftnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
-  assert(FALSE);
+  assert(false);
   return 0;
 }
 
@@ -169,7 +169,7 @@ static UU() int
 def_fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        void **dd     __attribute__((__unused__)),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
@@ -187,11 +187,11 @@ static UU() int
 def_cleaner_callback(
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
-    u_int32_t UU(fullhash),
+    uint32_t UU(fullhash),
     void* UU(extraargs)
     )
 {
-    assert(FALSE);
+    assert(false);
     return 0;
 }
 

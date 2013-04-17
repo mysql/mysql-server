@@ -21,8 +21,8 @@ enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 CACHETABLE ct;
 FT_HANDLE t;
 
-BOOL checkpoint_called;
-BOOL checkpoint_callback_called;
+bool checkpoint_called;
+bool checkpoint_callback_called;
 toku_pthread_t checkpoint_tid;
 
 
@@ -34,7 +34,7 @@ dont_destroy_bn(void* UU(extra))
 }
 
 static bool recursively_flush_should_not_happen(FTNODE UU(child), void* UU(extra)) {
-    assert(FALSE);
+    assert(false);
 }
 
 static int child_to_flush(FT UU(h), FTNODE parent, void* UU(extra)) {
@@ -49,7 +49,7 @@ static void dummy_update_status(FTNODE UU(child), int UU(dirtied), void* UU(extr
 
 static void checkpoint_callback(void* UU(extra)) {
     usleep(1*1024*1024);
-    checkpoint_callback_called = TRUE;
+    checkpoint_callback_called = true;
 }
 
 
@@ -69,7 +69,7 @@ static void flusher_callback(int state, void* extra) {
         printf("state %d\n", state);
     }
     if (state == desired_state) {
-        checkpoint_called = TRUE;
+        checkpoint_called = true;
         int r = toku_pthread_create(&checkpoint_tid, NULL, do_checkpoint, NULL); 
         assert_zero(r);
         while (!checkpoint_callback_called) {
@@ -84,8 +84,8 @@ doit (int state) {
     BLOCKNUM node_leaves[2];
 
     int r;
-    checkpoint_called = FALSE;
-    checkpoint_callback_called = FALSE;
+    checkpoint_called = false;
+    checkpoint_callback_called = false;
 
     toku_flusher_thread_set_callback(flusher_callback, &state);
     
@@ -173,10 +173,10 @@ doit (int state) {
     // hack to get merge going
     FTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_leaves[0], t);
-    BLB_SEQINSERT(node, node->n_children-1) = FALSE;
+    BLB_SEQINSERT(node, node->n_children-1) = false;
     toku_unpin_ftnode(t->ft, node);
     toku_pin_node_with_min_bfe(&node, node_leaves[1], t);
-    BLB_SEQINSERT(node, node->n_children-1) = FALSE;
+    BLB_SEQINSERT(node, node->n_children-1) = false;
     toku_unpin_ftnode(t->ft, node);
 
     
@@ -187,7 +187,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -205,7 +205,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -244,7 +244,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -265,7 +265,7 @@ doit (int state) {
         left_child,
         toku_cachetable_hash(c_ft->ft->cf, left_child),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -281,7 +281,7 @@ doit (int state) {
         right_child,
         toku_cachetable_hash(c_ft->ft->cf, right_child),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node

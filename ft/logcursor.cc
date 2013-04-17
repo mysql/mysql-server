@@ -16,9 +16,9 @@ struct toku_logcursor {
     FILE *cur_fp;
     size_t buffer_size;
     void *buffer;
-    BOOL is_open;
+    bool is_open;
     struct log_entry entry;
-    BOOL entry_valid;
+    bool entry_valid;
     LSN cur_lsn;
     enum lc_direction last_direction;
 };
@@ -44,7 +44,7 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
     if ( lc->is_open ) {
         r = fclose(lc->cur_fp);
         assert(0==r);
-        lc->is_open = FALSE;
+        lc->is_open = false;
     }
     return 0;
 }
@@ -94,7 +94,7 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
             return DB_BADFORMAT;
     }
     // mark as open
-    lc->is_open = TRUE;
+    lc->is_open = true;
     return r;
 }
 
@@ -122,9 +122,9 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     // malloc a cursor
     TOKULOGCURSOR cursor = (TOKULOGCURSOR) toku_xmalloc(sizeof(struct toku_logcursor));
     // find logfiles in logdir
-    cursor->is_open = FALSE;
+    cursor->is_open = false;
     cursor->cur_logfiles_index = 0;
-    cursor->entry_valid = FALSE;
+    cursor->entry_valid = false;
     cursor->buffer_size = 1<<20;                       // use a 1MB stream buffer (setvbuf)
     cursor->buffer = toku_malloc(cursor->buffer_size); // it does not matter if it failes
     // cursor->logdir must be an absolute path
@@ -189,7 +189,7 @@ int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
     if ( *lc ) {
         if ( (*lc)->entry_valid ) {
             toku_log_free_log_entry_resources(&((*lc)->entry));
-            (*lc)->entry_valid = FALSE;
+            (*lc)->entry_valid = false;
         }
         r = lc_close_cur_logfile(*lc);
         int lf;
@@ -267,7 +267,7 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-        lc->entry_valid = FALSE;
+        lc->entry_valid = false;
         if (lc->last_direction == LC_BACKWARD) {
             struct log_entry junk;
             r = toku_log_fread(lc->cur_fp, &junk);
@@ -284,7 +284,7 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
     r = lc_check_lsn(lc, LC_FORWARD);  
     if (r!=0) return r;
     lc->last_direction = LC_FORWARD;
-    lc->entry_valid = TRUE;
+    lc->entry_valid = true;
     *le = &(lc->entry);
     return r;
 }
@@ -293,7 +293,7 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-        lc->entry_valid = FALSE;
+        lc->entry_valid = false;
         if (lc->last_direction == LC_FORWARD) {
             struct log_entry junk;
             r = toku_log_fread_backward(lc->cur_fp, &junk);
@@ -310,7 +310,7 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
     r = lc_check_lsn(lc, LC_BACKWARD);
     if (r!=0) return r;
     lc->last_direction = LC_BACKWARD;
-    lc->entry_valid = TRUE;
+    lc->entry_valid = true;
     *le = &(lc->entry);
     return r;
 }
@@ -319,7 +319,7 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-        lc->entry_valid = FALSE;
+        lc->entry_valid = false;
     }
     // close any but the first log file
     if ( lc->cur_logfiles_index != 0 ) {
@@ -339,7 +339,7 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     r = lc_check_lsn(lc, LC_FIRST);
     if (r!=0) return r;
     lc->last_direction = LC_FIRST;
-    lc->entry_valid = TRUE;
+    lc->entry_valid = true;
     *le = &(lc->entry);
     return r;
 }
@@ -349,7 +349,7 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-        lc->entry_valid = FALSE;
+        lc->entry_valid = false;
     }
     // close any but last log file
     if ( lc->cur_logfiles_index != lc->n_logfiles-1 ) {
@@ -401,7 +401,7 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     if (r!=0)
         return r;
     lc->last_direction = LC_LAST;
-    lc->entry_valid = TRUE;
+    lc->entry_valid = true;
     *le = &(lc->entry);
     return r;
 }

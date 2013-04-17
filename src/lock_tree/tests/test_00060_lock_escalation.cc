@@ -147,7 +147,7 @@ static void run_escalation_test(void) {
     close_tree();
 /* ******************** */
 /*
-   test that escalation allowed flag goes from false->true->FALSE
+   test that escalation allowed flag goes from false->true->false
    TXN A grabs 1 3 5 7 9 
    TXN B grabs 2 4 6 8 10
    try to grab another lock, fail, lock escalation should be disabled

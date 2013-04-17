@@ -13,7 +13,7 @@
 static void
 ftnode_get_key_and_fullhash(
     BLOCKNUM* cachekey,
-    u_int32_t* fullhash,
+    uint32_t* fullhash,
     void* extra)
 {
     FT h = (FT) extra;
@@ -26,18 +26,18 @@ ftnode_get_key_and_fullhash(
 void
 cachetable_put_empty_node_with_dep_nodes(
     FT h,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     BLOCKNUM* name, //output
-    u_int32_t* fullhash, //output
+    uint32_t* fullhash, //output
     FTNODE* result)
 {
     FTNODE XMALLOC(new_node);
     CACHEFILE dependent_cf[num_dependent_nodes];
     BLOCKNUM dependent_keys[num_dependent_nodes];
-    u_int32_t dependent_fullhash[num_dependent_nodes];
+    uint32_t dependent_fullhash[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
-    for (u_int32_t i = 0; i < num_dependent_nodes; i++) {
+    for (uint32_t i = 0; i < num_dependent_nodes; i++) {
         dependent_cf[i] = h->cf;
         dependent_keys[i] = dependent_nodes[i]->thisnodename;
         dependent_fullhash[i] = toku_cachetable_hash(h->cf, dependent_nodes[i]->thisnodename);
@@ -69,10 +69,10 @@ create_new_ftnode_with_dep_nodes(
     FTNODE *result,
     int height,
     int n_children,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes)
 {
-    u_int32_t fullhash = 0;
+    uint32_t fullhash = 0;
     BLOCKNUM name;
 
     cachetable_put_empty_node_with_dep_nodes(
@@ -122,18 +122,18 @@ int
 toku_pin_ftnode(
     FT_HANDLE brt,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
     const PIVOT_BOUNDS bounds,
     FTNODE_FETCH_EXTRA bfe,
-    BOOL may_modify_node,
-    BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+    bool may_modify_node,
+    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
-    BOOL* msgs_applied)
+    bool* msgs_applied)
 {
     void *node_v;
-    *msgs_applied = FALSE;
+    *msgs_applied = false;
     int r = toku_cachetable_get_and_pin_nonblocking(
             brt->ft->cf,
             blocknum,
@@ -165,19 +165,19 @@ void
 toku_pin_ftnode_off_client_thread(
     FT h,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    BOOL may_modify_node,
-    u_int32_t num_dependent_nodes,
+    bool may_modify_node,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p)
 {
     void *node_v;
     CACHEFILE dependent_cf[num_dependent_nodes];
     BLOCKNUM dependent_keys[num_dependent_nodes];
-    u_int32_t dependent_fullhash[num_dependent_nodes];
+    uint32_t dependent_fullhash[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
-    for (u_int32_t i = 0; i < num_dependent_nodes; i++) {
+    for (uint32_t i = 0; i < num_dependent_nodes; i++) {
         dependent_cf[i] = h->cf;
         dependent_keys[i] = dependent_nodes[i]->thisnodename;
         dependent_fullhash[i] = toku_cachetable_hash(h->cf, dependent_nodes[i]->thisnodename);

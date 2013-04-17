@@ -189,12 +189,12 @@ int toku_loader_create_loader(DB_ENV *env,
                               uint32_t loader_flags)
 {
     int rval;
-    BOOL use_ft_loader = (loader_flags == 0); 
+    bool use_ft_loader = (loader_flags == 0); 
 
     *blp = NULL;           // set later when created
 
     DB_LOADER *loader = NULL;
-    BOOL use_puts = loader_flags&LOADER_USE_PUTS;
+    bool use_puts = loader_flags&LOADER_USE_PUTS;
     XCALLOC(loader);       // init to all zeroes (thus initializing the error_callback and poll_func)
     XCALLOC(loader->i);    // init to all zeroes (thus initializing all pointers to NULL)
 
@@ -405,7 +405,7 @@ int toku_loader_close(DB_LOADER *loader)
             loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-            r = toku_ft_loader_abort(loader->i->ft_loader, TRUE);
+            r = toku_ft_loader_abort(loader->i->ft_loader, true);
         }
         else {
             r = loader->i->err_errno;
@@ -436,7 +436,7 @@ int toku_loader_abort(DB_LOADER *loader)
     }
 
     if (!(loader->i->loader_flags & LOADER_USE_PUTS) ) {
-        r = toku_ft_loader_abort(loader->i->ft_loader, TRUE);
+        r = toku_ft_loader_abort(loader->i->ft_loader, true);
     }
     free_loader(loader);
     return r;

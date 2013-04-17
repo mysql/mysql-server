@@ -44,9 +44,9 @@ int sum32 (void *buf, int bytecount)  {
     return start;
 }
 
-u_int64_t sum64 (void *buf, int bytecount)  {
-    u_int64_t *ibuf = buf;
-    u_int64_t start = 0;
+uint64_t sum64 (void *buf, int bytecount)  {
+    uint64_t *ibuf = buf;
+    uint64_t start = 0;
     assert(bytecount%8==0);
     while (bytecount>0) {
 	start+=*ibuf;
@@ -56,13 +56,13 @@ u_int64_t sum64 (void *buf, int bytecount)  {
     return start;
 }
 
-static const u_int32_t m = 0x5bd1e995;
+static const uint32_t m = 0x5bd1e995;
 static const int r = 24;
-static const u_int32_t seed = 0x3dd3b51a;
+static const uint32_t seed = 0x3dd3b51a;
 
 #define USE_ZERO_CHECKSUM 0
 
-static u_int32_t MurmurHash2 ( const void * key, int len)
+static uint32_t MurmurHash2 ( const void * key, int len)
 {
     if (USE_ZERO_CHECKSUM) return 0;
 
@@ -72,7 +72,7 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
     // Initialize the hash to a 'random' value
 
-    u_int32_t h = seed;
+    uint32_t h = seed;
 
     // Mix 4 bytes at a time into the hash
 
@@ -80,7 +80,7 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
     while(len >= 4)
 	{
-	    u_int32_t k = *(u_int32_t *)data;
+	    uint32_t k = *(uint32_t *)data;
 
 	    k *= m; 
 	    k ^= k >> r; 
@@ -115,8 +115,8 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
 struct murmur {
     int n_bytes_in_k;  // How many bytes in k
-    u_int32_t k;       // These are the extra bytes.   Bytes are shifted into the low-order bits.
-    u_int32_t h;       // The hash so far (up to the most recent 4-byte boundary)
+    uint32_t k;       // These are the extra bytes.   Bytes are shifted into the low-order bits.
+    uint32_t h;       // The hash so far (up to the most recent 4-byte boundary)
 };
 
 void murmur_init (struct murmur *mm) {
@@ -129,11 +129,11 @@ inline void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     if (USE_ZERO_CHECKSUM) return;
     assert(mm->n_bytes_in_k<4);
     const unsigned char *data = key;
-    u_int32_t h = mm->h;
+    uint32_t h = mm->h;
     {
 	int n_bytes_in_k =  mm->n_bytes_in_k;
 	if (n_bytes_in_k>0) {
-	    u_int32_t k = mm->k;
+	    uint32_t k = mm->k;
 	    while (n_bytes_in_k<4 && len>0) {
 		k = (k << 8) | *data;
 		n_bytes_in_k++;
@@ -162,7 +162,7 @@ inline void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     // We've used up the partial bytes at the beginning of k.
     assert(mm->n_bytes_in_k==0);
     while (len >= 4) {
-	u_int32_t k = toku_dtoh32(*(u_int32_t *)data);
+	uint32_t k = toku_dtoh32(*(uint32_t *)data);
 	//printf(" oldh=%08x k=%08x", h, k);
 
 	k *= m; 
@@ -179,7 +179,7 @@ inline void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     mm->h=h;
     //printf("%s:%d h=%08x\n", __FILE__, __LINE__, h);
     {
-	u_int32_t k=0;
+	uint32_t k=0;
 	switch (len) {
 	case 3: k =  *data << 16;  data++;
 	case 2: k |= *data << 8;   data++;
@@ -192,9 +192,9 @@ inline void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     }
 }
 
-u_int32_t murmur_finish (struct murmur *mm) {
+uint32_t murmur_finish (struct murmur *mm) {
     if (USE_ZERO_CHECKSUM) return 0;
-    u_int32_t h = mm->h;
+    uint32_t h = mm->h;
     if (mm->n_bytes_in_k>0) {
 	h ^= mm->k;
 	h *= m;
@@ -209,7 +209,7 @@ u_int32_t murmur_finish (struct murmur *mm) {
 }
 
 struct sum84 {
-    u_int32_t sum;
+    uint32_t sum;
     int i;
 };
 void sum84_init (struct sum84 *s) { s->sum=0; s->i=0; };
@@ -233,7 +233,7 @@ int sum84_finish (struct sum84 *s) {
     return s->sum;
 }
 
-u_int32_t xor8_add  (u_int32_t x, unsigned char *buf, int count) {
+uint32_t xor8_add  (uint32_t x, unsigned char *buf, int count) {
     while (count>4) {
 	x ^= *(int*)buf;
 	buf+=4; count-=4;
@@ -245,13 +245,13 @@ u_int32_t xor8_add  (u_int32_t x, unsigned char *buf, int count) {
     }
     return x;
 }
-u_int32_t xor8_finish (u_int32_t x) {
+uint32_t xor8_finish (uint32_t x) {
     return (x ^ (x>>8) ^ (x>>16) ^ (x>>24))&0xff;
 }
 
-u_int64_t xor8_64_add  (u_int64_t x, unsigned char *buf, int count) {
+uint64_t xor8_64_add  (uint64_t x, unsigned char *buf, int count) {
     while (count>8) {
-	x ^= *(u_int64_t*)buf;
+	x ^= *(uint64_t*)buf;
 	buf+=8; count-=8;
     }
     while (count>0) {
@@ -261,7 +261,7 @@ u_int64_t xor8_64_add  (u_int64_t x, unsigned char *buf, int count) {
     }
     return x;
 }
-u_int32_t xor8_64_finish (u_int64_t x) {
+uint32_t xor8_64_finish (uint64_t x) {
     return (x ^ (x>>8) ^ (x>>16) ^ (x>>24) ^ (x>>32) ^ (x>>40) ^ (x>>48) ^ (x>>56))&0xff;
 }
 
@@ -837,7 +837,7 @@ inline local unsigned long crc32_big(crc, buf, len)
 #endif /* BYFOUR */
 
 // Character-by-character implementation of x17.
-static u_int32_t x17c (u_int32_t c, void *buf, int len) {
+static uint32_t x17c (uint32_t c, void *buf, int len) {
     int i;
     unsigned char *cbuf=buf;
     for (i=0; i<len; i++) {
@@ -847,14 +847,14 @@ static u_int32_t x17c (u_int32_t c, void *buf, int len) {
 }
 
 // x17 using shorts
-static u_int32_t x17s (u_int32_t c, void *buf, int len) {
+static uint32_t x17s (uint32_t c, void *buf, int len) {
     unsigned char *cbuf=buf;
     while ((((long)cbuf)&1 ) && len) {
 	c = c*17 + *cbuf;
 	len--; cbuf++;
     }
     while (len>2) {
-	u_int16_t s = *(u_int16_t*)cbuf;
+	uint16_t s = *(uint16_t*)cbuf;
 	c = c*17*17 + (s&0xff)*17 + (s>>8);
 	len-=2; cbuf+=2;
     }
@@ -865,14 +865,14 @@ static u_int32_t x17s (u_int32_t c, void *buf, int len) {
     return c;
 }
 
-static u_int32_t x17i (u_int32_t c, void *buf, int len) {
+static uint32_t x17i (uint32_t c, void *buf, int len) {
     unsigned char *cbuf=buf;
     while ((((long)cbuf)&3 ) && len) {
 	c = c*17 + *cbuf;
 	len--; cbuf++;
     }
     while (len>4) {
-	u_int32_t l = *(u_int32_t*)cbuf;
+	uint32_t l = *(uint32_t*)cbuf;
 	c = c*17*17*17*17 + (l&0xff)*17*17*17 + ((l>>8)&0xff)*17*17 + ((l>>16)&0xff)*17 + ((l>>24)&0xff);
 	len-=4; cbuf+=4;
     }
@@ -883,10 +883,10 @@ static u_int32_t x17i (u_int32_t c, void *buf, int len) {
     return c;
 }
 
-u_int32_t l17_fast64 (const void *buf, int len) {
+uint32_t l17_fast64 (const void *buf, int len) {
     assert(len%8==0);
-    const u_int64_t *lbuf=buf;
-    u_int64_t c=0;
+    const uint64_t *lbuf=buf;
+    uint64_t c=0;
     while (len>0) {
 	c = c*17 + *lbuf;
 	if (PRINT) printf("%d: c=%016lx sum=%016lx\n", __LINE__, *lbuf, c);
@@ -896,8 +896,8 @@ u_int32_t l17_fast64 (const void *buf, int len) {
     return c&0xFFFFFFFF;
 }
 struct l1764 {
-    u_int64_t sum;
-    u_int64_t input;
+    uint64_t sum;
+    uint64_t input;
     int n_input_bytes;
 };
 void l1764_init(struct l1764 *l) {
@@ -911,7 +911,7 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
     const unsigned char *cbuf = vbuf;
     // Special case short inputs
     if (len==1) {
-	u_int64_t input = l->input | ((u_int64_t)(*cbuf))<<(8*n_input_bytes);
+	uint64_t input = l->input | ((uint64_t)(*cbuf))<<(8*n_input_bytes);
 	n_input_bytes++;
 	if (n_input_bytes==8) {
 	    l->sum = l->sum*17 + input;
@@ -923,8 +923,8 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
 	}
 	return;
     } else if (len==2) {
-	u_int64_t input = l->input;
-	u_int64_t thisv = ((u_int64_t)(*(u_int16_t*)cbuf));
+	uint64_t input = l->input;
+	uint64_t thisv = ((uint64_t)(*(uint16_t*)cbuf));
 	if (n_input_bytes==7) {
 	    l->sum = l->sum*17 + (input | (thisv<<(8*7)));
 	    l->input = thisv>>8;
@@ -940,14 +940,14 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
 	return;
     }
 
-    u_int64_t sum;
+    uint64_t sum;
     //assert(len>=0);
     if (n_input_bytes) {
-	u_int64_t input = l->input;
+	uint64_t input = l->input;
 	if (len>=8) {
 	    sum = l->sum;
 	    while (len>=8) {
-		u_int64_t thisv = *(u_int64_t*)cbuf;
+		uint64_t thisv = *(uint64_t*)cbuf;
 		input |= thisv<<(8*n_input_bytes);
 		sum = sum*17 + input;
 		if (PRINT) printf("%d: input=%016lx sum=%016lx\n", __LINE__, input, sum);
@@ -961,7 +961,7 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
 	    l->sum = sum;
 	}
 	if (len>=4) {
-	    u_int64_t thisv = *(u_int32_t*)cbuf;
+	    uint64_t thisv = *(uint32_t*)cbuf;
 	    if (n_input_bytes<4) {
 		input |= thisv<<(8*n_input_bytes);
 		if (PRINT) printf("%d: input=%016lx\n", __LINE__, input);
@@ -980,7 +980,7 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
 	}
 	//assert(n_input_bytes<=8);
 	while (n_input_bytes<8 && len) {
-	    input |= ((u_int64_t)(*cbuf))<<(8*n_input_bytes);
+	    input |= ((uint64_t)(*cbuf))<<(8*n_input_bytes);
 	    n_input_bytes++;
 	    cbuf++;
 	    len--;
@@ -1000,53 +1000,53 @@ inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
     }
     //assert(len>=0);
     while (len>=8) {
-	sum = sum*17 + *(u_int64_t*)cbuf;
+	sum = sum*17 + *(uint64_t*)cbuf;
 	cbuf+=8;
 	len -=8;
     }
     l->sum = sum;
     n_input_bytes = 0;
-    u_int64_t input;
+    uint64_t input;
     l->n_input_bytes = len;
     // Surprisingly, the loop is the fastest on bradley's laptop. 
     if (1) {
 	int i;
 	input=0;
 	for (i=0; i<len; i++) {
-	    input |= ((u_int64_t)(cbuf[i]))<<(8*i);
+	    input |= ((uint64_t)(cbuf[i]))<<(8*i);
 	}
     } else if (0) {
 	switch (len) {
-	case 7: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(u_int16_t*)(cbuf+4)))<<32) | (((u_int64_t)(*(cbuf+4)))<<48); break;
-	case 6: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(u_int16_t*)(cbuf+4)))<<32); break;
-	case 5: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(cbuf+4)))<<32); break;
-	case 4: input = ((u_int64_t)(*(u_int32_t*)(cbuf))); break;
-	case 3: input = ((u_int64_t)(*(u_int16_t*)(cbuf))) | (((u_int64_t)(*(cbuf+2)))<<16); break;
-	case 2: input = ((u_int64_t)(*(u_int16_t*)(cbuf))); break;
-	case 1: input = ((u_int64_t)(*cbuf)); break;
+	case 7: input = ((uint64_t)(*(uint32_t*)(cbuf))) | (((uint64_t)(*(uint16_t*)(cbuf+4)))<<32) | (((uint64_t)(*(cbuf+4)))<<48); break;
+	case 6: input = ((uint64_t)(*(uint32_t*)(cbuf))) | (((uint64_t)(*(uint16_t*)(cbuf+4)))<<32); break;
+	case 5: input = ((uint64_t)(*(uint32_t*)(cbuf))) | (((uint64_t)(*(cbuf+4)))<<32); break;
+	case 4: input = ((uint64_t)(*(uint32_t*)(cbuf))); break;
+	case 3: input = ((uint64_t)(*(uint16_t*)(cbuf))) | (((uint64_t)(*(cbuf+2)))<<16); break;
+	case 2: input = ((uint64_t)(*(uint16_t*)(cbuf))); break;
+	case 1: input = ((uint64_t)(*cbuf)); break;
 	case 0: input = 0;                      break;
 	default: abort();
 	}
     } else {
 	input=0;
 	int i=0;
-	if (len>=4) { input  = ((u_int64_t)(*(u_int32_t*)(cbuf)));        cbuf+=4; len-=4; i=4;}
-	if (len>=2) { input |= ((u_int64_t)(*(u_int16_t*)(cbuf)))<<(i*8); cbuf+=2; len-=2; i+=2; }
-	if (len>=1) { input |= ((u_int64_t)(*(u_int8_t *)(cbuf)))<<(i*8); /*cbuf+=1; len-=1; i++;*/ }
+	if (len>=4) { input  = ((uint64_t)(*(uint32_t*)(cbuf)));        cbuf+=4; len-=4; i=4;}
+	if (len>=2) { input |= ((uint64_t)(*(uint16_t*)(cbuf)))<<(i*8); cbuf+=2; len-=2; i+=2; }
+	if (len>=1) { input |= ((uint64_t)(*(uint8_t *)(cbuf)))<<(i*8); /*cbuf+=1; len-=1; i++;*/ }
     }
     l->input = input;
     if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
 }
-u_int32_t l1764_finish (struct l1764 *l) {
+uint32_t l1764_finish (struct l1764 *l) {
     if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
     assert(l->n_input_bytes==0);
     return (l->sum)&0xffffffff;
 }
 
-u_int32_t l17_fast (const void *buf, int len) {
+uint32_t l17_fast (const void *buf, int len) {
     assert(len%4==0);
-    const u_int32_t *lbuf=buf;
-    u_int32_t c=0;
+    const uint32_t *lbuf=buf;
+    uint32_t c=0;
     while (len>0) {
 	c = c*17 + *lbuf;
 	lbuf++;
@@ -1056,8 +1056,8 @@ u_int32_t l17_fast (const void *buf, int len) {
 }
 
 struct l17 {
-    u_int32_t sum;
-    u_int32_t input;
+    uint32_t sum;
+    uint32_t input;
     int       input_len;
 };
 void l17_init (struct l17 *l17) {
@@ -1108,7 +1108,7 @@ static void measure_bandwidths (void) {
     measure_bandwidth("murmurby2", ({ struct murmur mm; murmur_init(&mm); int j; for(j=0; j<N; j+=2) murmur_add(&mm, buf+j, 2); c=murmur_finish(&mm); }));
     measure_bandwidth("sum84by1 ", ({ struct sum84 s; sum84_init(&s); int j; for(j=0; j<N; j++) sum84_add(&s, buf+j, 1); c=sum84_finish(&s); }));
     measure_bandwidth("xor8by1  ", ({ int j; c=0; for(j=0; j<N; j++) c=xor8_add(c, buf+j, 1); c=xor8_finish(c); }));
-    measure_bandwidth("xor864by1", ({ int j; u_int64_t x=0; for(j=0; j<N; j++) x=xor8_64_add(x, buf+j, 1); c=xor8_64_finish(x); }));
+    measure_bandwidth("xor864by1", ({ int j; uint64_t x=0; for(j=0; j<N; j++) x=xor8_64_add(x, buf+j, 1); c=xor8_64_finish(x); }));
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

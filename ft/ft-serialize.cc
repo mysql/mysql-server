@@ -20,18 +20,18 @@
 #endif
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version
-u_int32_t
+uint32_t
 toku_serialize_descriptor_size(const DESCRIPTOR desc) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
-    u_int32_t size = 4; // four bytes for size of descriptor
+    uint32_t size = 4; // four bytes for size of descriptor
     size += desc->dbt.size;
     return size;
 }
 
-static u_int32_t
+static uint32_t
 deserialize_descriptor_size(const DESCRIPTOR desc, int layout_version) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
-    u_int32_t size = 4; // four bytes for size of descriptor
+    uint32_t size = 4; // four bytes for size of descriptor
     if (layout_version == FT_LAYOUT_VERSION_13)
         size += 4;   // for version 13, include four bytes of "version"
     size += desc->dbt.size;
@@ -55,7 +55,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
     toku_serialize_descriptor_contents_to_wbuf(&w, desc);
     {
         //Add checksum
-        u_int32_t checksum = x1764_finish(&w.checksum);
+        uint32_t checksum = x1764_finish(&w.checksum);
         wbuf_int(&w, checksum);
     }
     lazy_assert(w.ndone==w.size);
@@ -74,7 +74,7 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_ve
         (void) rbuf_int(rb);
     }
 
-    u_int32_t size;
+    uint32_t size;
     bytevec data;
     rbuf_bytes(rb, &data, &size);
     bytevec data_copy = data;
@@ -106,9 +106,9 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
             }
             {
                 // check the checksum
-                u_int32_t x1764 = x1764_memory(dbuf, size-4);
+                uint32_t x1764 = x1764_memory(dbuf, size-4);
                 //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
-                u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
+                uint32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 if (x1764 != stored_x1764) {
                     fprintf(stderr, "Descriptor checksum failure: calc=0x%08x read=0x%08x\n", x1764, stored_x1764);
                     r = TOKUDB_BAD_CHECKSUM;
@@ -163,7 +163,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     build_id = rbuf_network_int(rb);
 
     //Size MUST be in network order regardless of disk order.
-    u_int32_t size;
+    uint32_t size;
     size = rbuf_network_int(rb);
     lazy_assert(size == rb->size);
 
@@ -365,9 +365,9 @@ exit:
     return r;
 }
 
-static u_int32_t
-serialize_ft_min_size (u_int32_t version) {
-    u_int32_t size = 0;
+static uint32_t
+serialize_ft_min_size (uint32_t version) {
+    uint32_t size = 0;
 
 
     switch(version) {
@@ -417,7 +417,7 @@ serialize_ft_min_size (u_int32_t version) {
             );
         break;
     default:
-        lazy_assert(FALSE);
+        lazy_assert(false);
     }
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
@@ -432,9 +432,9 @@ int
 deserialize_ft_from_fd_into_rbuf(int fd,
                                  toku_off_t offset_of_header,
                                  struct rbuf *rb,
-                                 u_int64_t *checkpoint_count,
+                                 uint64_t *checkpoint_count,
                                  LSN *checkpoint_lsn,
-                                 u_int32_t * version_p)
+                                 uint32_t * version_p)
 {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
@@ -461,7 +461,7 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     bytevec magic;
     rbuf_literal_bytes(rb, &magic, 8);
     if (memcmp(magic,"tokudata",8)!=0) {
-        if ((*(u_int64_t*)magic) == 0) {
+        if ((*(uint64_t*)magic) == 0) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
         } else {
             r = EINVAL; //Not a tokudb file! Do not use.
@@ -470,7 +470,7 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     }
 
     //Version MUST be in network order regardless of disk order.
-    u_int32_t version;
+    uint32_t version;
     version = rbuf_network_int(rb);
     *version_p = version;
     if (version < FT_LAYOUT_MIN_SUPPORTED_VERSION) {
@@ -482,13 +482,13 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     }
 
     //build_id MUST be in network order regardless of disk order.
-    u_int32_t build_id __attribute__((__unused__));
+    uint32_t build_id __attribute__((__unused__));
     build_id = rbuf_network_int(rb);
     int64_t min_header_size;
     min_header_size = serialize_ft_min_size(version);
 
     //Size MUST be in network order regardless of disk order.
-    u_int32_t size;
+    uint32_t size;
     size = rbuf_network_int(rb);
     //If too big, it is corrupt.  We would probably notice during checksum
     //but may have to do a multi-gigabyte malloc+read to find out.
@@ -516,9 +516,9 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     //Size is within acceptable bounds.
 
     //Verify checksum (FT_LAYOUT_VERSION_13 or later, when checksum function changed)
-    u_int32_t calculated_x1764;
+    uint32_t calculated_x1764;
     calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
-    u_int32_t stored_x1764;
+    uint32_t stored_x1764;
     stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
     if (calculated_x1764 != stored_x1764) {
         r = TOKUDB_BAD_CHECKSUM; //Header useless
@@ -563,26 +563,26 @@ toku_deserialize_ft_from(int fd,
 {
     struct rbuf rb_0;
     struct rbuf rb_1;
-    u_int64_t checkpoint_count_0;
-    u_int64_t checkpoint_count_1;
+    uint64_t checkpoint_count_0;
+    uint64_t checkpoint_count_1;
     LSN checkpoint_lsn_0;
     LSN checkpoint_lsn_1;
-    u_int32_t version_0, version_1, version = 0;
-    BOOL h0_acceptable = FALSE;
-    BOOL h1_acceptable = FALSE;
+    uint32_t version_0, version_1, version = 0;
+    bool h0_acceptable = false;
+    bool h1_acceptable = false;
     struct rbuf *rb = NULL;
     int r0, r1, r;
 
     toku_off_t header_0_off = 0;
     r0 = deserialize_ft_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0);
     if (r0 == 0 && checkpoint_lsn_0.lsn <= max_acceptable_lsn.lsn) {
-        h0_acceptable = TRUE;
+        h0_acceptable = true;
     }
 
     toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
     r1 = deserialize_ft_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
     if (r1 == 0 && checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) {
-        h1_acceptable = TRUE;
+        h1_acceptable = true;
     }
 
     // if either header is too new, the dictionary is unreadable
@@ -656,7 +656,7 @@ exit:
 
 
 int toku_serialize_ft_size (FT_HEADER h) {
-    u_int32_t size = serialize_ft_min_size(h->layout_version);
+    uint32_t size = serialize_ft_min_size(h->layout_version);
     //There is no dynamic data.
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
@@ -698,7 +698,7 @@ int toku_serialize_ft_to_wbuf (
     wbuf_MSN(wbuf, h->msn_at_start_of_last_completed_optimize);
     wbuf_char(wbuf, (unsigned char) h->compression_method);
     wbuf_MSN(wbuf, h->highest_unused_msn_for_upgrade);
-    u_int32_t checksum = x1764_finish(&wbuf->checksum);
+    uint32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
     return 0;

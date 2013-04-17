@@ -34,7 +34,7 @@ enum { ncursors = 2 };
 DBC *cursor[ncursors];
 
 static void
-testit (u_int32_t cop)  {
+testit (uint32_t cop)  {
     void *kptrs[ncursors];
     void *vptrs[ncursors];
     int i;

@@ -46,7 +46,7 @@ test_main(int argc, char *const argv[]) {
     DBT key,val;
     r = db->put(db, child_txn, dbt_init(&key, "a", 2), dbt_init(&val, "a", 2), 0);       
     CKERR(r);
-    u_int8_t gid[DB_GID_SIZE];
+    uint8_t gid[DB_GID_SIZE];
     memset(gid, 0, DB_GID_SIZE);
     gid[0]='a';
     r = child_txn->prepare(child_txn, gid);

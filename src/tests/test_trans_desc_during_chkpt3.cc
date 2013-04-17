@@ -11,17 +11,17 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 DB_ENV *env;
 
-u_int32_t four_byte_desc = 101;
-u_int64_t eight_byte_desc = 10101;
+uint32_t four_byte_desc = 101;
+uint64_t eight_byte_desc = 10101;
 
 
 static void assert_desc_four (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(four_byte_desc));
-    assert(*(u_int32_t *)(db->descriptor->dbt.data) == four_byte_desc);
+    assert(*(uint32_t *)(db->descriptor->dbt.data) == four_byte_desc);
 }
 static void assert_desc_eight (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(eight_byte_desc));
-    assert(*(u_int32_t *)(db->descriptor->dbt.data) == eight_byte_desc);
+    assert(*(uint32_t *)(db->descriptor->dbt.data) == eight_byte_desc);
 }
 
 static void checkpoint_callback_1(void * extra) {

@@ -70,7 +70,7 @@ static int ascending_keys = 0;
 static int descending_keys = 0;
 static int random_keys = 0;
 
-static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char *testdir) {
+static void test_extractor(int nrows, int nrowsets, bool expect_fail, const char *testdir) {
     if (verbose) printf("%s %d %d %s\n", __FUNCTION__, nrows, nrowsets, testdir);
 
     int r;
@@ -99,7 +99,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, TRUE);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, true);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];
@@ -141,7 +141,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char
     // verify the temp files
 
     // abort the ft_loader.  this ends the test
-    r = toku_ft_loader_abort(loader, TRUE);
+    r = toku_ft_loader_abort(loader, true);
     assert(r == 0);
 
     toku_free(keys);
@@ -217,7 +217,7 @@ int test_main (int argc, const char *argv[]) {
         ascending_keys = 1;
 
     // callibrate
-    test_extractor(nrows, nrowsets, FALSE, testdir);
+    test_extractor(nrows, nrowsets, false, testdir);
 
     // run tests
     int error_limit = event_count;
@@ -229,7 +229,7 @@ int test_main (int argc, const char *argv[]) {
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;
-        test_extractor(nrows, nrowsets, TRUE, testdir);
+        test_extractor(nrows, nrowsets, true, testdir);
     }
 
     return 0;

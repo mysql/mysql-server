@@ -32,7 +32,7 @@ static void setup_logger(int which) {
     assert(r == 0);
     r = toku_logger_set_lg_max(logger[which], LSIZE);
     {
-	u_int32_t n;
+	uint32_t n;
 	r = toku_logger_get_lg_max(logger[which], &n);
 	assert(n==LSIZE);
     }

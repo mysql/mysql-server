@@ -13,9 +13,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
-u_int32_t ft_msg_get_keylen(FT_MSG ft_msg);
+uint32_t ft_msg_get_keylen(FT_MSG ft_msg);
 
-u_int32_t ft_msg_get_vallen(FT_MSG ft_msg);
+uint32_t ft_msg_get_vallen(FT_MSG ft_msg);
 
 XIDS ft_msg_get_xids(FT_MSG ft_msg);
 

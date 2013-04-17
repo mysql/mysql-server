@@ -171,7 +171,7 @@ ft_merge_child(
     FT h,
     FTNODE node,
     int childnum_to_merge,
-    BOOL *did_react,
+    bool *did_react,
     struct flusher_advice *fa);
 
 static int
@@ -237,7 +237,7 @@ default_merge_child(struct flusher_advice *fa,
     //
     // it is responsibility of ft_merge_child to unlock parent
     //
-    BOOL did_react;
+    bool did_react;
     ft_merge_child(h, parent, childnum, &did_react, fa);
 }
 
@@ -296,7 +296,7 @@ flt_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_ex
 }
 
 struct ctm_extra {
-    BOOL is_last_child;
+    bool is_last_child;
     DBT target_key;
 };
 
@@ -368,11 +368,11 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         // to be merged
         //
         if (childnum == (parent->n_children - 1)) {
-            ctme.is_last_child = TRUE;
+            ctme.is_last_child = true;
             pivot_to_save = childnum - 1;
         }
         else {
-            ctme.is_last_child = FALSE;
+            ctme.is_last_child = false;
             pivot_to_save = childnum;
         }
         const DBT *pivot = &parent->childkeys[pivot_to_save];
@@ -397,12 +397,12 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         {
             toku_ft_grab_treelock(h);
 
-            u_int32_t fullhash;
+            uint32_t fullhash;
             CACHEKEY root;
             toku_calculate_root_offset_pointer(h, &root, &fullhash);
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, TRUE, 0, NULL, &root_node);
+            toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, true, 0, NULL, &root_node);
             toku_assert_entire_node_in_memory(root_node);
 
             toku_ft_release_treelock(h);
@@ -568,7 +568,7 @@ verify_all_in_mempool(FTNODE node)
     }
 }
 
-static u_int64_t
+static uint64_t
 ftleaf_disk_size(FTNODE node)
 // Effect: get the disk size of a leafentry
 {
@@ -592,7 +592,7 @@ ftleaf_disk_size(FTNODE node)
 static void
 ftleaf_get_split_loc(
     FTNODE node,
-    u_int64_t sumlesizes,
+    uint64_t sumlesizes,
     int* bn_index,   // which basement within leaf
     int* le_index    // which key within basement
     )
@@ -601,7 +601,7 @@ ftleaf_get_split_loc(
 // le_index is index into OMT of the last key that should be on the left side of the split.
 {
     assert(node->height == 0);
-    u_int32_t size_so_far = 0;
+    uint32_t size_so_far = 0;
     for (int i = 0; i < node->n_children; i++) {
         OMT curr_buffer = BLB_BUFFER(node, i);
         uint32_t n_leafentries = toku_omt_size(curr_buffer);
@@ -685,8 +685,8 @@ ftleaf_split(
     FTNODE *nodea,
     FTNODE *nodeb,
     DBT *splitk,
-    BOOL create_new_node,
-    u_int32_t num_dependent_nodes,
+    bool create_new_node,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes)
 // Effect: Split a leaf node.
 // Argument "node" is node to be split.
@@ -712,7 +712,7 @@ ftleaf_split(
 
 
     FTNODE B;
-    u_int32_t fullhash;
+    uint32_t fullhash;
     BLOCKNUM name;
 
     if (create_new_node) {
@@ -755,7 +755,7 @@ ftleaf_split(
     {
         {
             // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
-            u_int64_t sumlesizes=0;
+            uint64_t sumlesizes=0;
             sumlesizes = ftleaf_disk_size(node);
             // TODO: (Zardosht) #3537, figure out serial insertion optimization again later
             // split in half
@@ -815,7 +815,7 @@ ftleaf_split(
         // handle the move of a subset of data in last_bn_on_left from node to B
         if (!split_on_boundary) {
             BP_STATE(B,curr_dest_bn_index) = PT_AVAIL;
-            u_int32_t diff_size = 0;
+            uint32_t diff_size = 0;
             destroy_basement_node (BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
             set_BNULL(B, curr_dest_bn_index);
             set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
@@ -896,7 +896,7 @@ ft_nonleaf_split(
     FTNODE *nodea,
     FTNODE *nodeb,
     DBT *splitk,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes)
 {
     //VERIFY_NODE(t,node);
@@ -993,7 +993,7 @@ ft_split_child(
     dep_nodes[0] = node;
     dep_nodes[1] = child;
     if (child->height==0) {
-        ftleaf_split(h, child, &nodea, &nodeb, &splitk, TRUE, 2, dep_nodes);
+        ftleaf_split(h, child, &nodea, &nodeb, &splitk, true, 2, dep_nodes);
     } else {
         ft_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes);
     }
@@ -1080,7 +1080,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     b->dirty = 1;
 
     OMT a_last_buffer = BLB_BUFFER(a, a->n_children-1);
-    // this BOOL states if the last basement node in a has any items or not
+    // this bool states if the last basement node in a has any items or not
     // If it does, then it stays in the merge. If it does not, the last basement node
     // of a gets eliminated because we do not have a pivot to store for it (because it has no elements)
     const bool a_has_tail = toku_omt_size(a_last_buffer) > 0;
@@ -1119,7 +1119,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
         a->totalchildkeylens += keylen;
     }
 
-    u_int32_t offset = a_has_tail ? a->n_children : a->n_children - 1;
+    uint32_t offset = a_has_tail ? a->n_children : a->n_children - 1;
     for (int i = 0; i < b->n_children; i++) {
         a->bp[i+offset] = b->bp[i];
         memset(&b->bp[i],0,sizeof(b->bp[0]));
@@ -1151,7 +1151,7 @@ balance_leaf_nodes(
     merge_leaf_nodes(a,b);
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
-    ftleaf_split(NULL, a, &a, &b, splitk, FALSE, 0, NULL);
+    ftleaf_split(NULL, a, &a, &b, splitk, false, 0, NULL);
 
     return 0;
 }
@@ -1161,34 +1161,34 @@ maybe_merge_pinned_leaf_nodes(
     FTNODE a,
     FTNODE b,
     DBT *parent_splitk,
-    BOOL *did_merge,
-    BOOL *did_rebalance,
+    bool *did_merge,
+    bool *did_rebalance,
     DBT *splitk)
-// Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.
+// Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = true.
 //	   (We do this if the resulting node is not fissible)
-//	   or distribute the leafentries evenly between a and b, and set *did_rebalance = TRUE.
+//	   or distribute the leafentries evenly between a and b, and set *did_rebalance = true.
 //	   (If a and be are already evenly distributed, we may do nothing.)
 {
     unsigned int sizea = toku_serialize_ftnode_size(a);
     unsigned int sizeb = toku_serialize_ftnode_size(b);
     if ((sizea + sizeb)*4 > (a->nodesize*3)) {
         // the combined size is more than 3/4 of a node, so don't merge them.
-        *did_merge = FALSE;
+        *did_merge = false;
         if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) {
             // no need to do anything if both are more than 1/4 of a node.
-            *did_rebalance = FALSE;
+            *did_rebalance = false;
             toku_clone_dbt(splitk, *parent_splitk);
             return;
         }
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk->data); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
-        *did_rebalance = TRUE;
+        *did_rebalance = true;
         int r = balance_leaf_nodes(a, b, splitk);
         assert(r==0);
     } else {
         // we are merging them.
-        *did_merge = TRUE;
-        *did_rebalance = FALSE;
+        *did_merge = true;
+        *did_rebalance = false;
         toku_init_dbt(splitk);
         toku_free(parent_splitk->data); // if we are merging, the splitk gets freed.
         merge_leaf_nodes(a, b);
@@ -1200,8 +1200,8 @@ maybe_merge_pinned_nonleaf_nodes(
     const DBT *parent_splitk,
     FTNODE a,
     FTNODE b,
-    BOOL *did_merge,
-    BOOL *did_rebalance,
+    bool *did_merge,
+    bool *did_rebalance,
     DBT *splitk)
 {
     toku_assert_entire_node_in_memory(a);
@@ -1229,8 +1229,8 @@ maybe_merge_pinned_nonleaf_nodes(
     a->dirty = 1;
     b->dirty = 1;
 
-    *did_merge = TRUE;
-    *did_rebalance = FALSE;
+    *did_merge = true;
+    *did_rebalance = false;
     toku_init_dbt(splitk);
 
     STATUS_VALUE(FT_FLUSHER_MERGE_NONLEAF)++;
@@ -1242,12 +1242,12 @@ maybe_merge_pinned_nodes(
     DBT *parent_splitk,
     FTNODE a,
     FTNODE b,
-    BOOL *did_merge,
-    BOOL *did_rebalance,
+    bool *did_merge,
+    bool *did_rebalance,
     DBT *splitk)
-// Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.
+// Effect: either merge a and b into one node (merge them into a) and set *did_merge = true.
 //	   (We do this if the resulting node is not fissible)
-//	   or distribute a and b evenly and set *did_merge = FALSE and *did_rebalance = TRUE
+//	   or distribute a and b evenly and set *did_merge = false and *did_rebalance = true
 //	   (If a and be are already evenly distributed, we may do nothing.)
 //  If we distribute:
 //    For leaf nodes, we distribute the leafentries evenly.
@@ -1293,7 +1293,7 @@ maybe_merge_pinned_nodes(
 
 static void merge_remove_key_callback(
     BLOCKNUM *bp,
-    BOOL for_checkpoint,
+    bool for_checkpoint,
     void *extra)
 {
     FT h = (FT) extra;
@@ -1309,7 +1309,7 @@ ft_merge_child(
     FT h,
     FTNODE node,
     int childnum_to_merge,
-    BOOL *did_react,
+    bool *did_react,
     struct flusher_advice *fa)
 {
     // this function should not be called
@@ -1337,10 +1337,10 @@ ft_merge_child(
 
     FTNODE childa, childb;
     {
-        u_int32_t childfullhash = compute_child_fullhash(h->cf, node, childnuma);
+        uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnuma);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, TRUE, 1, &node, &childa);
+        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, true, 1, &node, &childa);
     }
     // for test
     call_flusher_thread_callback(flt_flush_before_pin_second_node_for_merge);
@@ -1348,10 +1348,10 @@ ft_merge_child(
         FTNODE dep_nodes[2];
         dep_nodes[0] = node;
         dep_nodes[1] = childa;
-        u_int32_t childfullhash = compute_child_fullhash(h->cf, node, childnumb);
+        uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnumb);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, TRUE, 2, dep_nodes, &childb);
+        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, true, 2, dep_nodes, &childb);
     }
 
     if (toku_bnc_n_entries(BNC(node,childnuma))>0) {
@@ -1364,7 +1364,7 @@ ft_merge_child(
     // now we have both children pinned in main memory, and cachetable locked,
     // so no checkpoints will occur.
 
-    BOOL did_merge, did_rebalance;
+    bool did_merge, did_rebalance;
     {
         DBT splitk;
         toku_init_dbt(&splitk);
@@ -1378,7 +1378,7 @@ ft_merge_child(
         }
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
-        *did_react = (BOOL)(did_merge || did_rebalance);
+        *did_react = (bool)(did_merge || did_rebalance);
         if (did_merge) {
             assert(!splitk.data);
         } else {
@@ -1479,13 +1479,13 @@ flush_some_child(
     int r;
     BLOCKNUM targetchild = BP_BLOCKNUM(parent, childnum);
     toku_verify_blocknum_allocated(h->blocktable, targetchild);
-    u_int32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
+    uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
     FTNODE child;
     struct ftnode_fetch_extra bfe;
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
     fill_bfe_for_min_read(&bfe, h);
-    toku_pin_ftnode_off_client_thread(h, targetchild, childfullhash, &bfe, TRUE, 1, &parent, &child);
+    toku_pin_ftnode_off_client_thread(h, targetchild, childfullhash, &bfe, true, 1, &parent, &child);
 
     // for test
     call_flusher_thread_callback(ft_flush_aflter_child_pin);
@@ -1609,7 +1609,7 @@ flush_some_child(
         fa->maybe_merge_child(fa, h, parent, childnum, child, fa->extra);
     }
     else {
-        assert(FALSE);
+        assert(false);
     }
 }
 
@@ -1652,7 +1652,7 @@ int
 toku_ftnode_cleaner_callback(
     void *ftnode_pv,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     void *extraargs)
 {
     FTNODE node = (FTNODE) ftnode_pv;
@@ -1784,7 +1784,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     //
     void *node_v;
     FTNODE child;
-    u_int32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
+    uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
     int r = toku_cachetable_maybe_get_and_pin_clean (
         h->cf,
         BP_BLOCKNUM(parent,childnum),

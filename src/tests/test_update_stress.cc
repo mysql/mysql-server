@@ -14,7 +14,7 @@ DB_ENV *env;
 
 const unsigned int NUM_KEYS = 10000000;
 
-static inline BOOL should_update(const unsigned int i) { return i % 3 == 0; }
+static inline bool should_update(const unsigned int i) { return i % 3 == 0; }
 static inline unsigned int _v(const unsigned int i) { return 10 - i; }
 static inline unsigned int _e(const unsigned int i) { return i + 4; }
 static inline unsigned int _u(const unsigned int v, const unsigned int e) { return v + 2 * e; }

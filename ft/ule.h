@@ -34,9 +34,9 @@ int ule_is_provisional(ULEHANDLE ule, uint64_t ith);
 void *ule_get_key(ULEHANDLE ule);
 uint32_t ule_get_keylen(ULEHANDLE ule);
 
-BOOL uxr_is_insert(UXRHANDLE uxr);
-BOOL uxr_is_delete(UXRHANDLE uxr);
-BOOL uxr_is_placeholder(UXRHANDLE uxr);
+bool uxr_is_insert(UXRHANDLE uxr);
+bool uxr_is_delete(UXRHANDLE uxr);
+bool uxr_is_placeholder(UXRHANDLE uxr);
 void *uxr_get_val(UXRHANDLE uxr);
 uint32_t uxr_get_vallen(UXRHANDLE uxr);
 TXNID uxr_get_txnid(UXRHANDLE uxr);

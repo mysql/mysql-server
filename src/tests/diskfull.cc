@@ -169,7 +169,7 @@ write_counting_and_failing (int fd, const void *buf, size_t size)
 static void
 do_writes_that_fail (void) {
     if (verbose) { printf("About to fail at %d:\n", fail_at); fflush(stdout); }
-    toku_set_assert_on_write_enospc(TRUE);
+    toku_set_assert_on_write_enospc(true);
     db_env_set_func_pwrite(pwrite_counting_and_failing);
     db_env_set_func_full_pwrite(pwrite_counting_and_failing);
     db_env_set_func_write (write_counting_and_failing);

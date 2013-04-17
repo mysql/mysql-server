@@ -6,14 +6,14 @@
 #include "test.h"
 
 
-BOOL flush_completed;
-BOOL pf_called;
+bool flush_completed;
+bool pf_called;
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
 }
 
 static void
@@ -26,21 +26,21 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL UU(is_clone)
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool UU(is_clone)
     ) 
 {  
     if (is_clone) {
         usleep(2*1024*1024);
-        flush_completed = TRUE;
+        flush_completed = true;
     }
 }
 
 static int true_pf_callback(void* UU(ftnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* sizep) {
     assert(flush_completed);
-    pf_called = TRUE;
+    pf_called = true;
     *sizep = make_pair_attr(9);
     return 0;
 }
@@ -65,21 +65,21 @@ cachetable_test (void) {
     wc.clone_callback = clone_callback;
     wc.flush_callback = flush;
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
 
-    flush_completed = FALSE;
+    flush_completed = false;
     r = toku_cachetable_begin_checkpoint(ct, NULL); assert_zero(r);
     assert_zero(r);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert_zero(r);
 
-    pf_called = FALSE;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    pf_called = false;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     assert(!pf_called);
     toku_cachetable_pf_pinned_pair(v1, true_pf_callback, NULL, f1, make_blocknum(1), 1);
@@ -99,7 +99,7 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

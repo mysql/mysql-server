@@ -30,7 +30,7 @@ typedef struct {
    char**   config_options;
    int32_t  version;
    int      exitcode;
-   u_int64_t linenumber;
+   uint64_t linenumber;
    DBTYPE   dbtype;
    DB*      db;
    DB_ENV*  dbenv;
@@ -53,7 +53,7 @@ static int   open_database  (void);
 static int   read_keys      (void);
 static int   apply_commandline_options(void);
 static int   close_database (void);
-static int   doublechararray(char** pmem, u_int64_t* size);
+static int   doublechararray(char** pmem, uint64_t* size);
 
 int test_main(int argc, char *const argv[]) {
    int ch;
@@ -382,8 +382,8 @@ if (!strcmp(field, match)) {                             \
 
 int read_header()
 {
-   static u_int64_t datasize = 1 << 10;
-   u_int64_t idx = 0;
+   static uint64_t datasize = 1 << 10;
+   uint64_t idx = 0;
    char* field;
    char* value;
    int ch;
@@ -622,7 +622,7 @@ error:
    return EXIT_FAILURE;
 }
 
-int doublechararray(char** pmem, u_int64_t* size)
+int doublechararray(char** pmem, uint64_t* size)
 {
    assert(pmem);
    assert(size);
@@ -630,7 +630,7 @@ int doublechararray(char** pmem, u_int64_t* size)
 
    *size <<= 1;
    if (*size == 0) {
-      /* Overflowed u_int64_t. */
+      /* Overflowed uint64_t. */
       PRINT_ERRORX("Line %" PRIu64 ": Line too long.\n", g.linenumber);
       goto error;
    }
@@ -647,10 +647,10 @@ error:
 static int get_dbt(DBT* pdbt)
 {
    /* Need to store a key and value. */
-   static u_int64_t datasize[2] = {1 << 10, 1 << 10};
+   static uint64_t datasize[2] = {1 << 10, 1 << 10};
    static int which = 0;
    char* datum;
-   u_int64_t idx = 0;
+   uint64_t idx = 0;
    int highch;
    int lowch;
 

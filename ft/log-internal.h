@@ -58,12 +58,12 @@ struct tokulogger {
 
     toku_mutex_t output_condition_lock; // if you need both this lock and input_lock, acquire the output_lock first, then input_lock. More typical is to get the output_is_available condition to be false, and then acquire the input_lock.
     toku_cond_t  output_condition;      //
-    BOOL output_is_available;           // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
+    bool output_is_available;           // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
 
-    BOOL is_open;
-    BOOL is_panicked;
-    BOOL write_log_files;
-    BOOL trim_log_files; // for test purposes
+    bool is_open;
+    bool is_panicked;
+    bool write_log_files;
+    bool trim_log_files; // for test purposes
     int panic_errno;
     char *directory;  // file system directory
     DIR *dir; // descriptor for directory
@@ -86,11 +86,11 @@ struct tokulogger {
     // To access the logfilemgr you must have the output condition lock.
     TOKULOGFILEMGR logfilemgr;
 
-    u_int32_t write_block_size;       // How big should the blocks be written to various logs?
+    uint32_t write_block_size;       // How big should the blocks be written to various logs?
 
-    u_int64_t input_lock_ctr;             // how many times has input_lock been taken and released
-    u_int64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
-    u_int64_t swap_ctr;                   // how many times have input/output log buffers been swapped
+    uint64_t input_lock_ctr;             // how many times has input_lock been taken and released
+    uint64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
+    uint64_t swap_ctr;                   // how many times have input/output log buffers been swapped
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
     CACHEFILE rollback_cachefile;
@@ -135,11 +135,11 @@ struct txn_roll_info {
 struct tokutxn {
     // These don't change after create:
     const time_t starttime; // timestamp in seconds of transaction start
-    const u_int64_t txnid64; // this happens to be the first lsn
-    const u_int64_t ancestor_txnid64; // this is the lsn of root transaction
-    const u_int64_t snapshot_txnid64; // this is the lsn of the snapshot
+    const uint64_t txnid64; // this happens to be the first lsn
+    const uint64_t ancestor_txnid64; // this is the lsn of root transaction
+    const uint64_t snapshot_txnid64; // this is the lsn of the snapshot
     const TXN_SNAPSHOT_TYPE snapshot_type;
-    const BOOL recovered_from_checkpoint;
+    const bool recovered_from_checkpoint;
     const TOKULOGGER logger;
     const TOKUTXN parent;
     // These don't either but they're created in a way that's hard to make
@@ -151,9 +151,9 @@ struct tokutxn {
     bool begin_was_logged;
     // These are not read until a commit, prepare, or abort starts, and
     // they're "monotonic" (only go false->true) during operation:
-    BOOL checkpoint_needed_before_commit;
-    BOOL do_fsync;
-    BOOL force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
+    bool checkpoint_needed_before_commit;
+    bool do_fsync;
+    bool force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
 
     // Not used until commit, prepare, or abort starts:
     LSN do_fsync_lsn;
@@ -187,7 +187,7 @@ struct txninfo {
     uint64_t   rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     uint32_t   num_fts;
     FT *open_fts;
-    BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
+    bool       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
     uint64_t   num_rollback_nodes;
     uint64_t   num_rollentries;
     BLOCKNUM   spilled_rollback_head;
@@ -195,19 +195,19 @@ struct txninfo {
     BLOCKNUM   current_rollback;
 };
 
-static inline int toku_logsizeof_u_int8_t (u_int32_t v __attribute__((__unused__))) {
+static inline int toku_logsizeof_uint8_t (uint32_t v __attribute__((__unused__))) {
     return 1;
 }
 
-static inline int toku_logsizeof_u_int32_t (u_int32_t v __attribute__((__unused__))) {
+static inline int toku_logsizeof_uint32_t (uint32_t v __attribute__((__unused__))) {
     return 4;
 }
 
-static inline int toku_logsizeof_u_int64_t (u_int32_t v __attribute__((__unused__))) {
+static inline int toku_logsizeof_uint64_t (uint32_t v __attribute__((__unused__))) {
     return 8;
 }
 
-static inline int toku_logsizeof_BOOL (u_int32_t v __attribute__((__unused__))) {
+static inline int toku_logsizeof_bool (uint32_t v __attribute__((__unused__))) {
     return 1;
 }
 

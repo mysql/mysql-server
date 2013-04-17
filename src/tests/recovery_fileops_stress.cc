@@ -241,7 +241,7 @@ static void do_random_fileops(void)
 
 
 static void run_test(int iter){
-    u_int32_t recovery_flags = DB_INIT_LOG | DB_INIT_TXN;
+    uint32_t recovery_flags = DB_INIT_LOG | DB_INIT_TXN;
     int r, i;
 
     XMALLOC_N(NUM_DICTIONARIES, db_array);

@@ -36,18 +36,18 @@ static int   get_delimiter(char* str);
 
 char           dbt_delimiter  = '\n';
 char           sort_delimiter[3];
-u_int32_t       lengthmin      = 0;
+uint32_t       lengthmin      = 0;
 bool           set_lengthmin  = false;
-u_int32_t       lengthlimit    = 0;
+uint32_t       lengthlimit    = 0;
 bool           set_lengthlimit= false;
-u_int64_t       numkeys        = 0;
+uint64_t       numkeys        = 0;
 bool           set_numkeys    = false;
 bool           header         = true;
 bool           footer         = true;
 bool           justheader     = false;
 bool           justfooter     = false;
 bool           outputkeys     = true;
-u_int32_t       seed           = 1;
+uint32_t       seed           = 1;
 bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
@@ -283,14 +283,14 @@ static int usage()
    return EXIT_FAILURE;
 }
 
-static u_int8_t randbyte(void)
+static uint8_t randbyte(void)
 {
-   static u_int32_t   numsavedbits   = 0;
-   static u_int64_t   savedbits      = 0;
-   u_int8_t           retval;
+   static uint32_t   numsavedbits   = 0;
+   static uint64_t   savedbits      = 0;
+   uint8_t           retval;
 
    if (numsavedbits < 8) {
-      savedbits |= ((u_int64_t)random()) << numsavedbits;
+      savedbits |= ((uint64_t)random()) << numsavedbits;
       numsavedbits += 31;  /* Random generates 31 random bits. */
    }
    retval         = savedbits & 0xff;
@@ -309,12 +309,12 @@ static int32_t random_below(int32_t limit)
 static void generate_keys()
 {
    bool     usedemptykey   = false;
-   u_int64_t  numgenerated   = 0;
-   u_int64_t  totalsize      = 0;
+   uint64_t  numgenerated   = 0;
+   uint64_t  totalsize      = 0;
    char     identifier[24]; /* 8 bytes * 2 = 16; 16+1=17; 17+null terminator = 18. Extra padding. */
    int      length;
    int      i;
-   u_int8_t  ch;
+   uint8_t  ch;
 
    srandom(seed);
    while (numgenerated < numkeys) {

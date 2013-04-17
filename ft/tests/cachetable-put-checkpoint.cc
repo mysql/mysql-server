@@ -24,19 +24,19 @@
 int64_t data[NUM_ELEMENTS];
 int64_t checkpointed_data[NUM_ELEMENTS];
 
-u_int32_t time_of_test;
-BOOL run_test;
+uint32_t time_of_test;
+bool run_test;
 
 static void 
 clone_callback(
     void* value_data, 
     void** cloned_value_data, 
     PAIR_ATTR* new_attr, 
-    BOOL UU(for_checkpoint), 
+    bool UU(for_checkpoint), 
     void* UU(write_extraargs)
     )
 {
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
     int64_t* XMALLOC(data_val);
     *data_val = *(int64_t *)value_data;
     *cloned_value_data = data_val;
@@ -52,10 +52,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size,
-       BOOL write_me,
-       BOOL keep_me,
-       BOOL checkpoint_me,
-        BOOL UU(is_clone)
+       bool write_me,
+       bool keep_me,
+       bool checkpoint_me,
+        bool UU(is_clone)
        ) {
     int64_t val_to_write = *(int64_t *)v;
     size_t data_index = (size_t)k.b;
@@ -74,7 +74,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k,
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value,
        void** UU(dd),
        PAIR_ATTR *sizep,
@@ -103,7 +103,7 @@ static void *test_time(void *arg) {
     if (time_of_test != 0) {
         usleep(time_of_test*1000*1000);
         if (verbose) printf("should now end test\n");
-        run_test = FALSE;
+        run_test = false;
     }
     if (verbose) printf("should be ending test now\n");
     return arg;
@@ -126,12 +126,12 @@ static void move_number_to_child(
     long s1;
     CACHEKEY parent_key;
     parent_key.b = parent;
-    u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+    uint32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
 
     
     CACHEKEY child_key;
     child_key.b = child;
-    u_int32_t child_fullhash = toku_cachetable_hash(f1, child_key);
+    uint32_t child_fullhash = toku_cachetable_hash(f1, child_key);
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     wc.clone_callback = clone_callback;
@@ -142,7 +142,7 @@ static void move_number_to_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        TRUE,
+        true,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -178,7 +178,7 @@ static void *move_numbers(void *arg) {
         long s1;
         CACHEKEY parent_key;
         parent_key.b = parent;
-        u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+        uint32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
         wc.clone_callback = clone_callback;
@@ -189,7 +189,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            TRUE,
+            true,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -204,7 +204,7 @@ static void *move_numbers(void *arg) {
     return arg;
 }
 
-static void remove_data(CACHEKEY* cachekey, BOOL for_checkpoint, void* UU(extra)) {
+static void remove_data(CACHEKEY* cachekey, bool for_checkpoint, void* UU(extra)) {
     assert(cachekey->b < NUM_ELEMENTS);
     data[cachekey->b] = INT64_MAX;
     if (for_checkpoint) {
@@ -213,7 +213,7 @@ static void remove_data(CACHEKEY* cachekey, BOOL for_checkpoint, void* UU(extra)
 }
 
 
-static void get_data(CACHEKEY* cachekey, u_int32_t* fullhash, void* extra) {
+static void get_data(CACHEKEY* cachekey, uint32_t* fullhash, void* extra) {
     int* CAST_FROM_VOIDP(key, extra);
     cachekey->b = *key;
     *fullhash = toku_cachetable_hash(f1, *cachekey);
@@ -229,7 +229,7 @@ static void merge_and_split_child(
     int child = 0;
     int other_child = 0;
     int r;
-    BOOL even = (random() % 2) == 0;
+    bool even = (random() % 2) == 0;
     child = (even) ? (2*parent + 1) : (2*parent + 2); 
     other_child = (!even) ? (2*parent + 1) : (2*parent + 2);
     assert(child != other_child);
@@ -239,11 +239,11 @@ static void merge_and_split_child(
 
     CACHEKEY parent_key;
     parent_key.b = parent;
-    u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+    uint32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
 
     CACHEKEY child_key;
     child_key.b = child;
-    u_int32_t child_fullhash = toku_cachetable_hash(f1, child_key);
+    uint32_t child_fullhash = toku_cachetable_hash(f1, child_key);
     enum cachetable_dirty child_dirty = CACHETABLE_CLEAN;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
@@ -255,7 +255,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        TRUE,
+        true,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -268,14 +268,14 @@ static void merge_and_split_child(
     
     CACHEKEY other_child_key;
     other_child_key.b = other_child;
-    u_int32_t other_child_fullhash = toku_cachetable_hash(f1, other_child_key);
+    uint32_t other_child_fullhash = toku_cachetable_hash(f1, other_child_key);
     CACHEFILE cfs[2];
     cfs[0] = f1;
     cfs[1] = f1;
     CACHEKEY keys[2];
     keys[0] = parent_key;
     keys[1] = child_key;
-    u_int32_t hashes[2];
+    uint32_t hashes[2];
     hashes[0] = parent_fullhash;
     hashes[1] = child_fullhash;
     enum cachetable_dirty dirties[2];
@@ -289,7 +289,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        TRUE,
+        true,
         NULL,
         2, //num_dependent_pairs
         cfs,
@@ -312,7 +312,7 @@ static void merge_and_split_child(
     
     // now do a split
     CACHEKEY new_key;
-    u_int32_t new_fullhash;
+    uint32_t new_fullhash;
     int64_t* XMALLOC(data_val);
     r = toku_cachetable_put_with_dep_pairs(
           f1,
@@ -355,7 +355,7 @@ static void *merge_and_split(void *arg) {
         long s1;
         CACHEKEY parent_key;
         parent_key.b = parent;
-        u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
+        uint32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
         wc.clone_callback = clone_callback;
@@ -366,7 +366,7 @@ static void *merge_and_split(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            TRUE,
+            true,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -490,7 +490,7 @@ cachetable_test (void) {
     toku_pthread_t checkpoint_tid;
     toku_pthread_t move_tid[NUM_MOVER_THREADS];
     toku_pthread_t merge_and_split_tid[NUM_MOVER_THREADS];
-    run_test = TRUE;
+    run_test = true;
 
     for (int i = 0; i < NUM_MOVER_THREADS; i++) {
         r = toku_pthread_create(&move_tid[i], NULL, move_numbers, NULL); 
@@ -521,7 +521,7 @@ cachetable_test (void) {
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     
     sum_vals();

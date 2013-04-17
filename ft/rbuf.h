@@ -37,12 +37,12 @@ static inline unsigned char rbuf_char (struct rbuf *r) {
     return r->buf[r->ndone++];
 }
 
-static inline void rbuf_ma_u_int8_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int8_t *num) {
+static inline void rbuf_ma_uint8_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint8_t *num) {
     *num = rbuf_char(r);
 }
 
-static inline void rbuf_ma_BOOL (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), BOOL *b) {
-    u_int8_t n = rbuf_char(r);
+static inline void rbuf_ma_bool (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), bool *b) {
+    uint8_t n = rbuf_char(r);
     *b = (n!=0);
 }
 
@@ -50,7 +50,7 @@ static inline void rbuf_ma_BOOL (struct rbuf *r, MEMARENA ma __attribute__((__un
 static unsigned int rbuf_network_int (struct rbuf *r) __attribute__((__unused__));
 static unsigned int rbuf_network_int (struct rbuf *r) {
     assert(r->ndone+4 <= r->size);
-    u_int32_t result = toku_ntohl(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
+    uint32_t result = toku_ntohl(*(uint32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
     r->ndone+=4;
     return result;
 }
@@ -58,7 +58,7 @@ static unsigned int rbuf_network_int (struct rbuf *r) {
 static unsigned int rbuf_int (struct rbuf *r) {
 #if 1
     assert(r->ndone+4 <= r->size);
-    u_int32_t result = toku_dtoh32(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
+    uint32_t result = toku_dtoh32(*(uint32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
     r->ndone+=4;
     return result;
 #else
@@ -118,11 +118,11 @@ static inline void rbuf_ma_BLOCKNUM (struct rbuf *r, MEMARENA ma __attribute__((
     *blocknum = rbuf_blocknum(r);
 }
 
-static inline void rbuf_ma_u_int32_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int32_t *num) {
+static inline void rbuf_ma_uint32_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint32_t *num) {
     *num = rbuf_int(r);
 }
 
-static inline void rbuf_ma_u_int64_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int64_t *num) {
+static inline void rbuf_ma_uint64_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint64_t *num) {
     *num = rbuf_ulonglong(r);
 }
 
@@ -147,17 +147,17 @@ static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
     filenums->num = rbuf_int(r);
     filenums->filenums = (FILENUM *) toku_malloc( filenums->num * sizeof(FILENUM) );
     assert(filenums->filenums != NULL);
-    for (u_int32_t i=0; i < filenums->num; i++) {
+    for (uint32_t i=0; i < filenums->num; i++) {
         rbuf_FILENUM(r, &(filenums->filenums[i]));
     }
 }
 
 // 2954
 static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
-    rbuf_ma_u_int32_t(r, ma, &(filenums->num));
+    rbuf_ma_uint32_t(r, ma, &(filenums->num));
     filenums->filenums = (FILENUM *) malloc_in_memarena(ma, filenums->num * sizeof(FILENUM) );
     assert(filenums->filenums != NULL);
-    for (u_int32_t i=0; i < filenums->num; i++) {
+    for (uint32_t i=0; i < filenums->num; i++) {
         rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
     }
 }
@@ -165,7 +165,7 @@ static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((
 // Don't try to use the same space, malloc it
 static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
-    u_int32_t newndone = r->ndone + bs->len;
+    uint32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
     bs->data = (char *) toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
@@ -174,7 +174,7 @@ static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
 
 static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
-    u_int32_t newndone = r->ndone + bs->len;
+    uint32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
     bs->data = (char *) memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);

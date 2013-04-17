@@ -24,7 +24,7 @@ static void do_txn(TOKULOGGER logger, bool readonly) {
     if (!readonly) {
         toku_maybe_log_begin_txn_for_write_operation(txn);
     }
-    r = toku_txn_commit_txn(txn, FALSE, NULL, NULL);
+    r = toku_txn_commit_txn(txn, false, NULL, NULL);
     CKERR(r);
 
     toku_txn_close_txn(txn);
@@ -46,7 +46,7 @@ static void test_xid_lsn_independent(int N) {
     r = toku_open_ft_handle(FILENAME, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
     CKERR(r);
 
-    r = toku_txn_commit_txn(txn, FALSE, NULL, NULL);
+    r = toku_txn_commit_txn(txn, false, NULL, NULL);
     CKERR(r);
     toku_txn_close_txn(txn);
 
@@ -70,11 +70,11 @@ static void test_xid_lsn_independent(int N) {
     CKERR(r);
         // Verify the txnid has gone up only by one (even though many log entries were done)
         invariant(txn2->txnid64 == xid_first + 1);
-        r = toku_txn_commit_txn(txn2, FALSE, NULL, NULL);
+        r = toku_txn_commit_txn(txn2, false, NULL, NULL);
     CKERR(r);
         toku_txn_close_txn(txn2);
     }
-    r = toku_txn_commit_txn(txn, FALSE, NULL, NULL);
+    r = toku_txn_commit_txn(txn, false, NULL, NULL);
     CKERR(r);
     toku_txn_close_txn(txn);
     {
@@ -84,7 +84,7 @@ static void test_xid_lsn_independent(int N) {
         r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn3, logger, TXN_SNAPSHOT_ROOT);
     CKERR(r);
         invariant(txn3->txnid64 == xid_first + 2);
-        r = toku_txn_commit_txn(txn3, FALSE, NULL, NULL);
+        r = toku_txn_commit_txn(txn3, false, NULL, NULL);
     CKERR(r);
         toku_txn_close_txn(txn3);
     }
@@ -204,7 +204,7 @@ static void test_xid_lsn_independent_parents(int N) {
             invariant(txns[i]->begin_was_logged);
         }
         for (int i = N-1; i >= 0; i--) {
-            r = toku_txn_commit_txn(txns[i], FALSE, NULL, NULL);
+            r = toku_txn_commit_txn(txns[i], false, NULL, NULL);
             CKERR(r);
 
             toku_txn_close_txn(txns[i]);

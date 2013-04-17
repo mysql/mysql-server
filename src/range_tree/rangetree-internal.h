@@ -51,11 +51,11 @@ static inline int toku__rt_p_cmp(toku_range_tree* tree,
 }
     
 static inline int toku__rt_increase_buffer(toku_range_tree* tree UU(), toku_range** buf,
-                                     u_int32_t* buflen, u_int32_t num) {
+                                     uint32_t* buflen, uint32_t num) {
     assert(buf);
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
     if (*buflen < num) {
-        u_int32_t temp_len = *buflen; 
+        uint32_t temp_len = *buflen; 
         if (temp_len == 0)
             temp_len = 1;
         while (temp_len < num) 

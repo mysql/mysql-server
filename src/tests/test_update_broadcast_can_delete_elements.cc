@@ -59,7 +59,7 @@ static int do_inserts(DB_TXN *txn, DB *db) {
     return r;
 }
 
-static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
+static int do_updates(DB_TXN *txn, DB *db, uint32_t flags) {
     DBT extra;
     DBT *extrap = dbt_init(&extra, NULL, 0);
     int r = db->update_broadcast(db, txn, extrap, flags); CKERR(r);
@@ -70,7 +70,7 @@ static void chk_original(const unsigned int k, const unsigned int v) {
     assert(v == _v(k));
 }
 
-static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsigned int k, const unsigned int v), BOOL already_deleted) {
+static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsigned int k, const unsigned int v), bool already_deleted) {
     int r = 0;
     DBT key, val;
     unsigned int i, *vp;
@@ -91,9 +91,9 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
     return r;
 }
 
-static void run_test(BOOL is_resetting) {
+static void run_test(bool is_resetting) {
     DB *db;
-    u_int32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
+    uint32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
             { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
@@ -102,7 +102,7 @@ static void run_test(BOOL is_resetting) {
             { int chk_r = do_inserts(txn_1, db); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_1, txn_11, 0, {
-                    { int chk_r = do_verify_results(txn_11, db, chk_original, FALSE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_11, db, chk_original, false); CKERR(chk_r); }
                 });
         });
 
@@ -110,12 +110,12 @@ static void run_test(BOOL is_resetting) {
             { int chk_r = do_updates(txn_2, db, update_flags); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_2, txn_21, 0, {
-                    { int chk_r = do_verify_results(txn_21, db, chk_original, TRUE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_21, db, chk_original, true); CKERR(chk_r); }
                 });
         });
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            { int chk_r = do_verify_results(txn_3, db, chk_original, FALSE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_3, db, chk_original, false); CKERR(chk_r); }
         });
 
     { int chk_r = db->close(db, 0); CKERR(chk_r); }
@@ -125,8 +125,8 @@ static void run_test(BOOL is_resetting) {
 int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
     setup();
-    run_test(TRUE);
-    run_test(FALSE);
+    run_test(true);
+    run_test(false);
     cleanup();
 
     return 0;

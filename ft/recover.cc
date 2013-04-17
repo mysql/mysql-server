@@ -15,7 +15,7 @@ int tokudb_recovery_trace = 0;                    // turn on recovery tracing, d
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
-#define VERIFY_COUNTS(n) toku_verify_or_set_counts(n, FALSE)
+#define VERIFY_COUNTS(n) toku_verify_or_set_counts(n, false)
 #else
 #define VERIFY_COUNTS(n) ((void)0)
 #endif
@@ -102,7 +102,7 @@ struct recover_env {
     generate_row_for_del_func generate_row_for_del;
     struct scan_state ss;
     struct file_map fmap;
-    BOOL goforward;
+    bool goforward;
     bool destroy_logger_at_end; // If true then destroy the logger when we are done.  If false then set the logger into write-files mode when we are done with recovery.*/
 };
 typedef struct recover_env *RECOVER_ENV;
@@ -121,11 +121,11 @@ static uint32_t file_map_get_num_dictionaries(struct file_map *fmap) {
     return toku_omt_size(fmap->filenums);
 }
 
-static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_succeeded, LSN oplsn) {
+static void file_map_close_dictionaries(struct file_map *fmap, bool recovery_succeeded, LSN oplsn) {
     int r;
 
     while (1) {
-        u_int32_t n = toku_omt_size(fmap->filenums);
+        uint32_t n = toku_omt_size(fmap->filenums);
         if (n == 0)
             break;
         OMTVALUE v;
@@ -167,7 +167,7 @@ static int file_map_insert (struct file_map *fmap, FILENUM fnum, FT_HANDLE brt, 
 }
 
 static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
-    OMTVALUE v; u_int32_t idx;
+    OMTVALUE v; uint32_t idx;
     int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
         struct file_map_tuple *CAST_FROM_VOIDP(tuple, v);
@@ -179,7 +179,7 @@ static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
 
 // Look up file info: given FILENUM, return file_map_tuple (or DB_NOTFOUND)
 static int file_map_find(struct file_map *fmap, FILENUM fnum, struct file_map_tuple **file_map_tuple) {
-    OMTVALUE v; u_int32_t idx;
+    OMTVALUE v; uint32_t idx;
     int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
         struct file_map_tuple *CAST_FROM_VOIDP(tuple, v);
@@ -211,7 +211,7 @@ static int recover_env_init (RECOVER_ENV renv,
         r = toku_logger_create(&renv->logger);
         assert(r == 0);
     }
-    toku_logger_write_log_files(renv->logger, FALSE);
+    toku_logger_write_log_files(renv->logger, false);
     r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, renv->logger);
     assert(r == 0);
     toku_cachetable_set_env_dir(renv->ct, env_dir);
@@ -225,7 +225,7 @@ static int recover_env_init (RECOVER_ENV renv,
     renv->generate_row_for_put     = generate_row_for_put;
     renv->generate_row_for_del     = generate_row_for_del;
     file_map_init(&renv->fmap);
-    renv->goforward = FALSE;
+    renv->goforward = false;
 
     if (tokudb_recovery_trace)
         fprintf(stderr, "%s:%d\n", __FUNCTION__, __LINE__);
@@ -264,7 +264,7 @@ static const char *recover_state(RECOVER_ENV renv) {
 }
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
-static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int UU(mode), BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags,
+static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, bool must_create, int UU(mode), BYTESTRING *bs_iname, FILENUM filenum, uint32_t treeflags,
                                               TOKUTXN txn, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method, LSN max_acceptable_lsn) {
     int r;
     FT_HANDLE brt = NULL;
@@ -359,7 +359,7 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
         assert(l->lsn.lsn == renv->ss.checkpoint_begin_lsn.lsn);
         renv->ss.ss = FORWARD_BETWEEN_CHECKPOINT_BEGIN_END;
         renv->ss.checkpoint_begin_timestamp = l->timestamp;
-        renv->goforward = TRUE;
+        renv->goforward = true;
         tnow = time(NULL);
         fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %" PRIu64 " time %" PRIu64 "\n", 
                 ctime(&tnow), l->lsn.lsn, 
@@ -427,7 +427,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
         // If rollback file, specify which checkpointed version of file we need (not just the latest)
         // because we cannot use a rollback log that is later than the last complete checkpoint.  See #3113.
         {
-            BOOL rollback_file = (0==strcmp(fname, ROLLBACK_CACHEFILE_NAME));
+            bool rollback_file = (0==strcmp(fname, ROLLBACK_CACHEFILE_NAME));
             LSN max_acceptable_lsn = MAX_LSN;
             if (rollback_file) {
                 max_acceptable_lsn = renv->ss.checkpoint_begin_lsn;
@@ -437,7 +437,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
                 r = toku_ft_handle_open_recovery(t, ROLLBACK_CACHEFILE_NAME, false, false, renv->ct, (TOKUTXN)NULL, l->filenum, max_acceptable_lsn);
                 renv->logger->rollback_cachefile = t->ft->cf;
             } else {
-                r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, max_acceptable_lsn);
+                r = internal_recover_fopen_or_fcreate(renv, false, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, max_acceptable_lsn);
                 assert(r==0);
             }
         }
@@ -503,16 +503,16 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
                                         LSN           UU(lsn),
                                         TXNID            xid,
                                         TXNID            parentxid,
-                                        u_int64_t        rollentry_raw_count,
+                                        uint64_t        rollentry_raw_count,
                                         FILENUMS         open_filenums,
                                         bool             force_fsync_on_commit,
-                                        u_int64_t        num_rollback_nodes,
-                                        u_int64_t        num_rollentries,
+                                        uint64_t        num_rollback_nodes,
+                                        uint64_t        num_rollentries,
                                         BLOCKNUM         spilled_rollback_head,
                                         BLOCKNUM         spilled_rollback_tail,
                                         BLOCKNUM         current_rollback,
-                                        u_int32_t     UU(crc),
-                                        u_int32_t     UU(len),
+                                        uint32_t     UU(crc),
+                                        uint32_t     UU(len),
                                         RECOVER_ENV      renv) {
     int r;
     *txnp = NULL;
@@ -685,7 +685,7 @@ static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // commit the transaction
-    r = toku_txn_commit_with_lsn(txn, TRUE, l->lsn,
+    r = toku_txn_commit_with_lsn(txn, true, l->lsn,
                                  NULL, NULL);
     assert(r == 0);
 
@@ -778,7 +778,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     toku_free(iname_in_cwd);
     toku_free(iname);
 
-    BOOL must_create = TRUE;
+    bool must_create = true;
     r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, txn, l->nodesize, l->basementnodesize, (enum toku_compression_method) l->compression_method, MAX_LSN);
     return r;
 }
@@ -798,7 +798,7 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
     assert(r==DB_NOTFOUND);
 
-    BOOL must_create = FALSE;
+    bool must_create = false;
     TOKUTXN txn = NULL;
     char *fname = fixup_fname(&l->iname);
 
@@ -838,7 +838,7 @@ static int toku_recover_change_fdescriptor (struct logtype_change_fdescriptor *l
             tuple->ft_handle, 
             &old_descriptor, 
             &new_descriptor, 
-            FALSE, 
+            false, 
             txn,
             l->update_cmp_descriptor
             );
@@ -912,7 +912,7 @@ static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV re
         DBT keydbt, valdbt;
         toku_fill_dbt(&keydbt, l->key.data, l->key.len);
         toku_fill_dbt(&valdbt, l->value.data, l->value.len);
-        r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, FT_INSERT);
+        r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, true, l->lsn, false, FT_INSERT);
         assert(r == 0);
         toku_txn_maybe_note_ft(txn, tuple->ft_handle->ft);
     }
@@ -937,7 +937,7 @@ static int toku_recover_enq_insert_no_overwrite (struct logtype_enq_insert_no_ov
         DBT keydbt, valdbt;
         toku_fill_dbt(&keydbt, l->key.data, l->key.len);
         toku_fill_dbt(&valdbt, l->value.data, l->value.len);
-        r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, FT_INSERT_NO_OVERWRITE);
+        r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, true, l->lsn, false, FT_INSERT_NO_OVERWRITE);
         assert(r == 0);
     }    
     return 0;
@@ -960,7 +960,7 @@ static int toku_recover_enq_delete_any (struct logtype_enq_delete_any *l, RECOVE
         //Maybe do the deletion if we found the cachefile.
         DBT keydbt;
         toku_fill_dbt(&keydbt, l->key.data, l->key.len);
-        r = toku_ft_maybe_delete(tuple->ft_handle, &keydbt, txn, TRUE, l->lsn, FALSE);
+        r = toku_ft_maybe_delete(tuple->ft_handle, &keydbt, txn, true, l->lsn, false);
         assert(r == 0);
     }    
     return 0;
@@ -978,7 +978,7 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
     assert(r == 0);
     assert(txn!=NULL);
     DB *src_db = NULL;
-    BOOL do_inserts = TRUE;
+    bool do_inserts = true;
     {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->src_filenum, &tuple);
@@ -988,7 +988,7 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
             if (r == 0)
                 src_db = &tuple->fake_db;
             else
-                do_inserts = FALSE; // src file was probably deleted, #3129
+                do_inserts = false; // src file was probably deleted, #3129
         }
     }
     
@@ -1007,7 +1007,7 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
                 DB *db = &tuple->fake_db;
                 r = renv->generate_row_for_put(db, src_db, &dest_key, &dest_val, &src_key, &src_val);
                 assert(r==0);
-                r = toku_ft_maybe_insert(tuple->ft_handle, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE, FT_INSERT);
+                r = toku_ft_maybe_insert(tuple->ft_handle, &dest_key, &dest_val, txn, true, l->lsn, false, FT_INSERT);
                 assert(r == 0);
 
                 //flags==0 means generate_row_for_put callback changed it
@@ -1040,7 +1040,7 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
     assert(r == 0);
     assert(txn!=NULL);
     DB *src_db = NULL;
-    BOOL do_deletes = TRUE;
+    bool do_deletes = true;
     {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->src_filenum, &tuple);
@@ -1050,7 +1050,7 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
             if (r == 0)
                 src_db = &tuple->fake_db;
             else
-                do_deletes = FALSE; // src file was probably deleted, #3129
+                do_deletes = false; // src file was probably deleted, #3129
         }
     }
 
@@ -1068,7 +1068,7 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
                 DB *db = &tuple->fake_db;
                 r = renv->generate_row_for_del(db, src_db, &dest_key, &src_key, &src_val);
                 assert(r==0);
-                r = toku_ft_maybe_delete(tuple->ft_handle, &dest_key, txn, TRUE, l->lsn, FALSE);
+                r = toku_ft_maybe_delete(tuple->ft_handle, &dest_key, txn, true, l->lsn, false);
                 assert(r == 0);
 
                 //flags==0 indicates the return values are stored in temporary memory that does
@@ -1102,8 +1102,8 @@ static int toku_recover_enq_update(struct logtype_enq_update *l, RECOVER_ENV ren
         DBT key, extra;
         toku_fill_dbt(&key, l->key.data, l->key.len);
         toku_fill_dbt(&extra, l->extra.data, l->extra.len);
-        r = toku_ft_maybe_update(tuple->ft_handle, &key, &extra, txn, TRUE, l->lsn,
-                                  FALSE);
+        r = toku_ft_maybe_update(tuple->ft_handle, &key, &extra, txn, true, l->lsn,
+                                  false);
         assert(r == 0);
     }
     return 0;
@@ -1121,8 +1121,8 @@ static int toku_recover_enq_updatebroadcast(struct logtype_enq_updatebroadcast *
         // Maybe do the update broadcast if we found the cachefile.
         DBT extra;
         toku_fill_dbt(&extra, l->extra.data, l->extra.len);
-        r = toku_ft_maybe_update_broadcast(tuple->ft_handle, &extra, txn, TRUE,
-                                            l->lsn, FALSE, l->is_resetting_op);
+        r = toku_ft_maybe_update_broadcast(tuple->ft_handle, &extra, txn, true,
+                                            l->lsn, false, l->is_resetting_op);
         assert(r == 0);
     }
     return 0;
@@ -1210,15 +1210,15 @@ static int toku_recover_backward_hot_index(struct logtype_hot_index *UU(l), RECO
 
 // Effects: If there are no log files, or if there is a clean "shutdown" at
 // the end of the log, then we don't need recovery to run.
-// Returns: TRUE if we need recovery, otherwise FALSE.
-int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
+// Returns: true if we need recovery, otherwise false.
+int tokudb_needs_recovery(const char *log_dir, bool ignore_log_empty) {
     int needs_recovery;
     int r;
     TOKULOGCURSOR logcursor = NULL;
 
     r = toku_logcursor_create(&logcursor, log_dir);
     if (r != 0) {
-        needs_recovery = TRUE; goto exit;
+        needs_recovery = true; goto exit;
     }
     
     struct log_entry *le;
@@ -1499,12 +1499,12 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         tnow = time(NULL);
         fprintf(stderr, "%.24s Tokudb recovery closing %" PRIu32 " dictionar%s\n", ctime(&tnow), n, n > 1 ? "ies" : "y");
     }
-    file_map_close_dictionaries(&renv->fmap, TRUE, lastlsn);
+    file_map_close_dictionaries(&renv->fmap, true, lastlsn);
 
     {
         // write a recovery log entry
         BYTESTRING recover_comment = { strlen("recover"), (char *) "recover" };
-        r = toku_log_comment(renv->logger, NULL, TRUE, 0, recover_comment);
+        r = toku_log_comment(renv->logger, NULL, true, 0, recover_comment);
         assert(r == 0);
     }
 
@@ -1577,7 +1577,7 @@ int tokudb_recover(DB_ENV *env,
         return r;
 
     int rr = 0;
-    if (tokudb_needs_recovery(log_dir, FALSE)) {
+    if (tokudb_needs_recovery(log_dir, false)) {
         struct recover_env renv;
         r = recover_env_init(&renv,
                              env_dir,
@@ -1594,7 +1594,7 @@ int tokudb_recover(DB_ENV *env,
 
         rr = do_recovery(&renv, env_dir, log_dir);
 
-        recover_env_cleanup(&renv, (BOOL)(rr == 0));
+        recover_env_cleanup(&renv, (bool)(rr == 0));
     }
 
     r = toku_recover_unlock(lockfd);

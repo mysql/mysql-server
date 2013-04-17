@@ -26,7 +26,7 @@ test_cachetable_def_flush (int n) {
     // insert keys 0..n-1 
     int i;
     for (i=0; i<n; i++) {
-        u_int32_t hi;
+        uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
@@ -42,7 +42,7 @@ test_cachetable_def_flush (int n) {
 
     // verify keys exists
     for (i=0; i<n; i++) {
-        u_int32_t hi;
+        uint32_t hi;
         void *v;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
@@ -62,7 +62,7 @@ test_cachetable_def_flush (int n) {
 
     // verify keys do not exist in f1 but do exist in f2
     for (i=0; i<n; i++) {
-        u_int32_t hi;
+        uint32_t hi;
         void *v;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
@@ -74,8 +74,8 @@ test_cachetable_def_flush (int n) {
         assert(r == 0);
     }
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
-    r = toku_cachefile_close(&f2, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f2, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -17,7 +17,7 @@ int CHECK_RESULTS=0;
 int USE_PUTS=0;
 enum {MAGIC=311};
 
-BOOL dup_row_at_end = FALSE; // FALSE: duplicate at the begining.  TRUE: duplicate at the end.   The duplicated row is row 0.
+bool dup_row_at_end = false; // false: duplicate at the begining.  true: duplicate at the end.   The duplicated row is row 0.
 int  dup_row_id     = 0;     // 0 means to use row 1 if inserting at the end, row NUM_ROWS if inserting at the beginning.  Otherwise insert the row specified here.
 
 //
@@ -342,7 +342,7 @@ static void run_test(void)
 // ------------ infrastructure ----------
 static void do_args(int argc, char * const argv[]);
 
-int num_rows_set = FALSE;
+int num_rows_set = false;
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
@@ -401,7 +401,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
-	    num_rows_set = TRUE;
+	    num_rows_set = true;
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
@@ -409,7 +409,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-s")==0) {
 	    db_env_set_loader_size_factor(1);            
 	} else if (strcmp(argv[0], "-E")==0) {
-	    dup_row_at_end = TRUE;
+	    dup_row_at_end = true;
 	} else if (strcmp(argv[0], "-D")==0) {
             argc--; argv++;
 	    dup_row_id = atoi(argv[0]);

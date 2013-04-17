@@ -75,7 +75,7 @@ indexer_commit_keys_set_empty(struct indexer_commit_keys *keys) {
 static int indexer_set_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result);
 static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result);
 
-static BOOL indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
+static bool indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
 
 static int indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRHANDLE uxr, DBT *hotkey, DBT *hotval);
 static int indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids, TOKUTXN txn);
@@ -186,20 +186,20 @@ static void release_txns(
     uint32_t num_provisional = ule_get_num_provisional(ule);
     DB_ENV *env = indexer->i->env;
     TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
-    BOOL some_txn_pinned = FALSE;
+    bool some_txn_pinned = false;
     if (indexer->i->test_xid_state) {
         goto exit;
     }
     // see if any txn pinned before bothering to grab txn_manager lock
-    for (u_int32_t i = 0; i < num_provisional; i++) {
+    for (uint32_t i = 0; i < num_provisional; i++) {
         if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
             assert(prov_txns[i]);
-            some_txn_pinned = TRUE;
+            some_txn_pinned = true;
         }
     }
     if (some_txn_pinned) {
         toku_txn_manager_suspend(txn_manager);
-        for (u_int32_t i = 0; i < num_provisional; i++) {
+        for (uint32_t i = 0; i < num_provisional; i++) {
             if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
                 toku_txn_manager_unpin_live_txn_unlocked(txn_manager, prov_txns[i]);
             }
@@ -280,7 +280,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
         }
         // undo
         uint64_t prev_xrindex;
-        BOOL prev_xrindex_found = indexer_find_prev_xr(indexer, ule, xrindex, &prev_xrindex);
+        bool prev_xrindex_found = indexer_find_prev_xr(indexer, ule, xrindex, &prev_xrindex);
         if (prev_xrindex_found) {
             UXRHANDLE prevuxr = ule_get_uxr(ule, prev_xrindex);
             if (uxr_is_delete(prevuxr)) {
@@ -453,18 +453,18 @@ indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_
 }
 
 // find the index of a non-placeholder transaction record that is previous to the transaction record
-// found at xrindex.  return TRUE if one is found and return its index in prev_xrindex.  otherwise,
-// return FALSE.
-static BOOL
+// found at xrindex.  return true if one is found and return its index in prev_xrindex.  otherwise,
+// return false.
+static bool
 indexer_find_prev_xr(DB_INDEXER *UU(indexer), ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex) {
     assert(xrindex < ule_num_uxrs(ule));
-    BOOL  prev_found = FALSE;
+    bool  prev_found = false;
     while (xrindex > 0) {
         xrindex -= 1;
         UXRHANDLE uxr = ule_get_uxr(ule, xrindex);
         if (!uxr_is_placeholder(uxr)) {
             *prev_xrindex = xrindex;
-            prev_found = TRUE;
+            prev_found = true;
             break; 
         }
     }
@@ -490,7 +490,7 @@ indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS 
             // this question apples to delete_committed, insert_provisional
             // and insert_committed
             toku_multi_operation_client_lock();
-            result = toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, FALSE, ZERO_LSN, TRUE);
+            result = toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, false, ZERO_LSN, true);
             toku_multi_operation_client_unlock();
         }
     }
@@ -532,7 +532,7 @@ indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *
             assert(txn != NULL);
             // comment/question in indexer_ft_delete_provisional applies
             toku_multi_operation_client_lock();
-            result = toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, FALSE, ZERO_LSN, TRUE, FT_INSERT);
+            result = toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, false, ZERO_LSN, true, FT_INSERT);
             toku_multi_operation_client_unlock();
         }
     }

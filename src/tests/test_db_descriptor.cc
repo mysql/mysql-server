@@ -21,8 +21,8 @@ const char *name = NULL;
 #define MAX_LENGTH  (1<<16)
 
 int order[NUM+1];
-u_int32_t length[NUM];
-u_int8_t data[NUM][MAX_LENGTH];
+uint32_t length[NUM];
+uint8_t data[NUM][MAX_LENGTH];
 DBT descriptors[NUM];
 DB_ENV *env;
 
@@ -34,7 +34,7 @@ int last_open_descriptor = -1;
 
 int abort_type;
 int get_table_lock;
-u_int64_t num_called = 0;
+uint64_t num_called = 0;
 
 
 static void
@@ -162,9 +162,9 @@ setup_data(void) {
     int i;
     for (i=0; i < NUM; i++) {
         length[i] = i * MAX_LENGTH / (NUM-1);
-        u_int32_t j;
+        uint32_t j;
         for (j = 0; j < length[i]; j++) {
-            data[i][j] = (u_int8_t)(random() & 0xFF);
+            data[i][j] = (uint8_t)(random() & 0xFF);
         }
         memset(&descriptors[i], 0, sizeof(descriptors[i]));
         descriptors[i].size = length[i];
@@ -205,7 +205,7 @@ test_insert (int n, int which) {
     for (i=0; i<n; i++) {
         int k = last++;
         DBT key, val;
-        u_int64_t called = num_called;
+        uint64_t called = num_called;
         int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &i, sizeof i), 0);
         if (i>0) assert(num_called > called);
         CKERR(r);

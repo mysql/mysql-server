@@ -153,7 +153,7 @@ void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo) {
     *cloned_fifo = new_fifo;
 }
 
-BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2) {
+bool toku_are_fifos_same(FIFO fifo1, FIFO fifo2) {
     return (
         fifo1->memory_used == fifo2->memory_used &&
         memcmp(fifo1->memory, fifo2->memory, fifo1->memory_used) == 0

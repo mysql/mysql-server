@@ -17,7 +17,7 @@
 
 toku_pthread_t checkpoint_tid;
 static int cnt = 0;
-static BOOL starting_a_chkpt = FALSE;
+static bool starting_a_chkpt = false;
 
 int state_to_crash = 0;
 
@@ -35,7 +35,7 @@ static void flt_callback(int flt_state, void* extra) {
     cnt++;
         if (verbose) printf("flt_state!! %d\n", flt_state);
     if (cnt > 0 && !starting_a_chkpt && flt_state == state_to_crash) {
-        starting_a_chkpt = TRUE;
+        starting_a_chkpt = true;
         if (verbose) printf("flt_state %d\n", flt_state);
         int r = toku_pthread_create(&checkpoint_tid, NULL, do_checkpoint_and_crash, extra); 
         assert(r==0);

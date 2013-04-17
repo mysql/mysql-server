@@ -27,7 +27,7 @@ static inline uint32_t toku__lth_hash(toku_lth* lth, toku_lock_tree* key) {
 }
 
 static inline void toku__invalidate_scan(toku_lth* lth) {
-    lth->iter_is_valid = FALSE;
+    lth->iter_is_valid = false;
 }
 
 int toku_lth_create(toku_lth** plth) {
@@ -75,7 +75,7 @@ toku_lock_tree* toku_lth_find(toku_lth* lth, toku_lock_tree* key) {
 void toku_lth_start_scan(toku_lth* lth) {
     assert(lth);
     lth->iter_curr = &lth->iter_head;
-    lth->iter_is_valid = TRUE;
+    lth->iter_is_valid = true;
 }
 
 static inline toku_lth_elt* toku__lth_next(toku_lth* lth) {

@@ -27,7 +27,7 @@ cachetable_debug_test (int n) {
     int i;
     for (i=1; i<=n; i++) {
         const int item_size = 1;
-        u_int32_t hi;
+        uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(item_size), wc);
@@ -53,7 +53,7 @@ cachetable_debug_test (int n) {
     }
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

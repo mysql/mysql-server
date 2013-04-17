@@ -22,14 +22,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w,
-       BOOL keep,
-       BOOL f_ckpt __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w,
+       bool keep,
+       bool f_ckpt __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
-    assert(w == FALSE);
+    assert(w == false);
     flush_calls++;
-    if (keep == FALSE) {
+    if (keep == false) {
         flush_evict_calls++;
 	if (verbose) printf("%s:%d flush %" PRId64 "\n", __FUNCTION__, __LINE__, k.b);
         evicted_keys |= 1 << k.b;
@@ -42,7 +42,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k,
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value,
        void** UU(dd),
        PAIR_ATTR *sizep,
@@ -77,7 +77,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     // prefetch keys 0 .. N-1.  they should all fit in the cachetable
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t fullhash = toku_cachetable_hash(f1, key);
+        uint32_t fullhash = toku_cachetable_hash(f1, key);
         r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
         toku_cachetable_verify(ct);
     }
@@ -88,7 +88,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     // prefetch keys N .. 2*N-1.  0 .. N-1 should be evicted.
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t fullhash = toku_cachetable_hash(f1, key);
+        uint32_t fullhash = toku_cachetable_hash(f1, key);
         r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
         toku_cachetable_verify(ct);
 	// sleep(1);
@@ -105,7 +105,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
 #endif
 
     char *error_string;
-    r = toku_cachefile_close(&f1, &error_string, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, &error_string, false, ZERO_LSN); assert(r == 0);
     if (verbose) printf("%s:%d 0x%x 0x%x\n", __FUNCTION__, __LINE__,
 	evicted_keys, (1 << (2*cachetable_size_limit))-1);
     assert(evicted_keys == (1 << (2*cachetable_size_limit))-1);

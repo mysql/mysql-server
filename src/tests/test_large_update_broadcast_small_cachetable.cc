@@ -102,7 +102,7 @@ static int do_verify_results(DB_TXN *txn, DB *db) {
     return r;
 }
 
-static int run_test(BOOL shutdown_before_update, BOOL shutdown_before_verify) {
+static int run_test(bool shutdown_before_update, bool shutdown_before_verify) {
     setup();
 
     DB *db;
@@ -149,10 +149,10 @@ static int run_test(BOOL shutdown_before_update, BOOL shutdown_before_verify) {
 int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
 
-    run_test(FALSE, FALSE);
-    run_test(FALSE, TRUE);
-    run_test(TRUE, FALSE);
-    run_test(TRUE, TRUE);
+    run_test(false, false);
+    run_test(false, true);
+    run_test(true, false);
+    run_test(true, true);
 
     return 0;
 }

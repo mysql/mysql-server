@@ -26,7 +26,7 @@ cachetable_test (void) {
     // nothing in cachetable, so this should fail
     r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
     assert(r==-1);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     // maybe_get_and_pin_clean should succeed, maybe_get_and_pin should fail
@@ -66,7 +66,7 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
         
 }

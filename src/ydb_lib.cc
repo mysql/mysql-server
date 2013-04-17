@@ -30,7 +30,7 @@ static void __attribute__((destructor)) libtokudb_destroy(void) {
 #include <windows.h>
 #define UNUSED(x) x=x
 
-BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
+bool WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
     UNUSED(h); UNUSED(reserved);
     // printf("%s:%lu\n", __FUNCTION__, reason);
     int r = 0;
@@ -53,7 +53,7 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
         break;
     }
     assert(r==0);
-    return TRUE;
+    return true;
 }
 
 #endif

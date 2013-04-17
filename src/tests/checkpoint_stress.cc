@@ -194,12 +194,12 @@ random_acts(void * d) {
 #endif
 }
 
-u_int64_t max_windows_cachesize = 256 << 20;
+uint64_t max_windows_cachesize = 256 << 20;
 
 static void
 run_test (int iter, int die) {
 
-    u_int32_t flags = 0;
+    uint32_t flags = 0;
 
     int i;
 
@@ -210,7 +210,7 @@ run_test (int iter, int die) {
     // to force lots of disk I/O
     // (each iteration inserts about 4K rows/dictionary, 16 bytes/row, 4 dictionaries = 256K bytes inserted per iteration)
     const int32_t K256 = 256 * 1024;
-    u_int64_t cachebytes = 0;
+    uint64_t cachebytes = 0;
     cachebytes = K256 * (iter + 1) - (128 * 1024);
     if (cachebytes > max_windows_cachesize)
         cachebytes = 0;
@@ -254,7 +254,7 @@ run_test (int iter, int die) {
 	    scribble(db, iter);
 	else
 	    thin_out(db, iter);
-	u_int32_t delay = myrandom();
+	uint32_t delay = myrandom();
 	delay &= 0xFFF;       // select lower 12 bits, shifted up 8 for random number ...
 	delay = delay << 8;   // ... uniformly distributed between 0 and 1M ...
 	usleep(delay);        // ... to sleep up to one second (1M usec)
@@ -322,7 +322,7 @@ test_main (int argc, char * const argv[]) {
             usage(argv[0]);
             return 1;
 	default:
-            assert(FALSE);
+            assert(false);
             return 1;
 	}
     }

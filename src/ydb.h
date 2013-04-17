@@ -17,10 +17,10 @@ int toku_ydb_init(void);
 void toku_ydb_destroy(void);
 
 // db_env_create for the trace library
-int db_env_create_toku10(DB_ENV **, u_int32_t) __attribute__((__visibility__("default")));
+int db_env_create_toku10(DB_ENV **, uint32_t) __attribute__((__visibility__("default")));
 
 // db_create for the trace library
-int db_create_toku10(DB **, DB_ENV *, u_int32_t) __attribute__((__visibility__("default")));
+int db_create_toku10(DB **, DB_ENV *, uint32_t) __attribute__((__visibility__("default")));
 
 // test only function
 extern "C" int toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN *dbtxn) __attribute__((__visibility__("default")));

@@ -28,7 +28,7 @@ static int omt_cmp(OMTVALUE p, void *q)
     LEAFENTRY CAST_FROM_VOIDP(a, p);
     LEAFENTRY CAST_FROM_VOIDP(b, q);
     void *ak, *bk;
-    u_int32_t al, bl;
+    uint32_t al, bl;
     ak = le_key_and_len(a, &al);
     bk = le_key_and_len(b, &bl);
     int l = MIN(al, bl);
@@ -72,7 +72,7 @@ test1(int fd, FT brt_h, FTNODE *dn) {
     fill_bfe_for_full_read(&bfe_all, brt_h);
     FTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_all);
-    BOOL is_leaf = ((*dn)->height == 0);
+    bool is_leaf = ((*dn)->height == 0);
     assert(r==0);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
@@ -95,7 +95,7 @@ test1(int fd, FT brt_h, FTNODE *dn) {
         }
     }
     PAIR_ATTR size;
-    BOOL req = toku_ftnode_pf_req_callback(*dn, &bfe_all);
+    bool req = toku_ftnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
     toku_ftnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
     toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
@@ -160,14 +160,14 @@ test2(int fd, FT brt_h, FTNODE *dn) {
             ),
         &left,
         &right,
-        TRUE,
-        TRUE,
-        FALSE
+        true,
+        true,
+        false
         );
     FTNODE_DISK_DATA ndd = NULL;
     int r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_subset);
     assert(r==0);
-    BOOL is_leaf = ((*dn)->height == 0);
+    bool is_leaf = ((*dn)->height == 0);
     // at this point, although both partitions are available, only the 
     // second basement node should have had its clock
     // touched
@@ -184,7 +184,7 @@ test2(int fd, FT brt_h, FTNODE *dn) {
     toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
     assert(BP_STATE(*dn, 1) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
 
-    BOOL req = toku_ftnode_pf_req_callback(*dn, &bfe_subset);
+    bool req = toku_ftnode_pf_req_callback(*dn, &bfe_subset);
     assert(req);
     toku_ftnode_pf_callback(*dn, ndd, &bfe_subset, fd, &attr);
     assert(BP_STATE(*dn, 0) == PT_AVAIL);
@@ -297,7 +297,7 @@ test_serialize_nonleaf(void) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -305,7 +305,7 @@ test_serialize_nonleaf(void) {
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
     assert(r==0);
 
     test1(fd, brt_h, &dn);
@@ -389,7 +389,7 @@ test_serialize_leaf(void) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -397,7 +397,7 @@ test_serialize_leaf(void) {
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
     assert(r==0);
 
     test1(fd, brt_h, &dn);

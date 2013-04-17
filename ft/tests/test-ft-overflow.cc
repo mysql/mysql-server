@@ -18,14 +18,14 @@ static void
 test_overflow (void) {
     FT_HANDLE t;
     CACHETABLE ct;
-    u_int32_t nodesize = 1<<20; 
+    uint32_t nodesize = 1<<20; 
     int r;
     unlink(fname);
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, nodesize / 8, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     DBT k,v;
-    u_int32_t vsize = nodesize/8;
+    uint32_t vsize = nodesize/8;
     char buf[vsize];
     memset(buf, 'a', vsize);
     int i;

@@ -55,9 +55,9 @@ ydb_write_layer_get_status(YDB_WRITE_LAYER_STATUS statp) {
 }
 
 
-static inline u_int32_t 
-get_prelocked_flags(u_int32_t flags) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+static inline uint32_t 
+get_prelocked_flags(uint32_t flags) {
+    uint32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
     return lock_flags;
 }
 
@@ -102,7 +102,7 @@ db_put_check_size_constraints(DB *db, const DBT *key, const DBT *val) {
 //Return 0 if insert is legal
 static int
 db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key,
-                                  u_int32_t lock_flags, u_int32_t overwrite_flag) {
+                                  uint32_t lock_flags, uint32_t overwrite_flag) {
     int r;
 
     if (overwrite_flag == 0) { // 0 (yesoverwrite) does not impose constraints.
@@ -128,17 +128,17 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key,
 
 
 int
-toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_mo_lock) {
+toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
-    u_int32_t unchecked_flags = flags;
+    uint32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
-    BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
+    bool error_if_missing = (bool)(!(flags&DB_DELETE_ANY));
     unchecked_flags &= ~DB_DELETE_ANY;
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    uint32_t lock_flags = get_prelocked_flags(flags);
     unchecked_flags &= ~lock_flags;
-    BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
+    bool do_locking = (bool)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
     int r = 0;
     if (unchecked_flags!=0) {
@@ -171,12 +171,12 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_mo_lock) 
 
 
 int
-toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_mo_lock) {
+toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    uint32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
     r = db_put_check_size_constraints(db, key, val);
@@ -184,7 +184,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds
         //Do any checking required by the flags.
         r = db_put_check_overwrite_constraint(db, txn, key, lock_flags, flags);
     }
-    BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
+    bool do_locking = (bool)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     if (r == 0 && do_locking) {
         //Do locking if necessary.
         r = get_point_write_lock(db, txn, key);
@@ -197,7 +197,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds
             type = FT_INSERT_NO_OVERWRITE;
         }
         if (!holds_mo_lock) toku_multi_operation_client_lock();
-        r = toku_ft_maybe_insert(db->i->ft_handle, key, val, ttxn, FALSE, ZERO_LSN, TRUE, type);
+        r = toku_ft_maybe_insert(db->i->ft_handle, key, val, ttxn, false, ZERO_LSN, true, type);
         if (!holds_mo_lock) toku_multi_operation_client_unlock();
     }
 
@@ -217,18 +217,18 @@ static int
 toku_db_update(DB *db, DB_TXN *txn,
                const DBT *key,
                const DBT *update_function_extra,
-               u_int32_t flags) {
+               uint32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    uint32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
     r = db_put_check_size_constraints(db, key, update_function_extra);
     if (r != 0) { goto cleanup; }
 
-    BOOL do_locking;
+    bool do_locking;
     do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
         r = get_point_write_lock(db, txn, key);
@@ -239,7 +239,7 @@ toku_db_update(DB *db, DB_TXN *txn,
     ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
     r = toku_ft_maybe_update(db->i->ft_handle, key, update_function_extra, ttxn,
-                              FALSE, ZERO_LSN, TRUE);
+                              false, ZERO_LSN, true);
     toku_multi_operation_client_unlock();
 
 cleanup:
@@ -258,16 +258,16 @@ cleanup:
 static int
 toku_db_update_broadcast(DB *db, DB_TXN *txn,
                          const DBT *update_function_extra,
-                         u_int32_t flags) {
+                         uint32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    uint32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
-    u_int32_t is_resetting_op_flag = flags & DB_IS_RESETTING_OP;
+    uint32_t is_resetting_op_flag = flags & DB_IS_RESETTING_OP;
     flags &= is_resetting_op_flag;
-    BOOL is_resetting_op = (is_resetting_op_flag != 0);
+    bool is_resetting_op = (is_resetting_op_flag != 0);
     
 
     if (is_resetting_op) {
@@ -285,7 +285,7 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
         if (r != 0) { goto cleanup; }
     }
 
-    BOOL do_locking;
+    bool do_locking;
     do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
         r = toku_db_pre_acquire_table_lock(db, txn);
@@ -296,7 +296,7 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
     ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
     r = toku_ft_maybe_update_broadcast(db->i->ft_handle, update_function_extra, ttxn,
-                                        FALSE, ZERO_LSN, TRUE, is_resetting_op);
+                                        false, ZERO_LSN, true, is_resetting_op);
     toku_multi_operation_client_unlock();
 
 cleanup:
@@ -358,7 +358,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
 
         // if db is being indexed by an indexer, then insert a delete message into the db if the src key is to the left or equal to the 
         // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
-        int do_delete = TRUE;
+        int do_delete = true;
         DB_INDEXER *indexer = toku_db_get_indexer(db);
         if (indexer) { // if this db is the index under construction
             DB *indexer_src_db = toku_indexer_get_src_db(indexer);
@@ -374,7 +374,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
             do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
         }
         if (r == 0 && do_delete) {
-            r = toku_ft_maybe_delete(db->i->ft_handle, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+            r = toku_ft_maybe_delete(db->i->ft_handle, &keys[which_db], ttxn, false, ZERO_LSN, false);
         }
     }
     return r;
@@ -467,7 +467,7 @@ env_del_multiple(
             r = EINVAL;
             goto cleanup;
         }
-        BOOL error_if_missing = (BOOL)(!(remaining_flags[which_db]&DB_DELETE_ANY));
+        bool error_if_missing = (bool)(!(remaining_flags[which_db]&DB_DELETE_ANY));
         if (error_if_missing) {
             //Check if the key exists in the db.
             r = db_getf_set(db, txn, lock_flags[which_db]|DB_SERIALIZABLE|DB_RMW, &del_keys[which_db], ydb_getf_do_nothing, NULL);
@@ -536,7 +536,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
 
         // if db is being indexed by an indexer, then put into that db if the src key is to the left or equal to the 
         // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
-        int do_put = TRUE;
+        int do_put = true;
         DB_INDEXER *indexer = toku_db_get_indexer(db);
         if (indexer) { // if this db is the index under construction
             DB *indexer_src_db = toku_indexer_get_src_db(indexer);
@@ -552,7 +552,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
             do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
         }
         if (r == 0 && do_put) {
-            r = toku_ft_maybe_insert(db->i->ft_handle, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, FT_INSERT);
+            r = toku_ft_maybe_insert(db->i->ft_handle, &keys[which_db], &vals[which_db], ttxn, false, ZERO_LSN, false, FT_INSERT);
         }
     }
     return r;
@@ -745,8 +745,8 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 curr_new_val = vals[which_db];
             }
             toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
-            BOOL key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
-            BOOL key_bytes_eq = (curr_old_key.size == curr_new_key.size && 
+            bool key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
+            bool key_bytes_eq = (curr_old_key.size == curr_new_key.size && 
                                  (memcmp(curr_old_key.data, curr_new_key.data, curr_old_key.size) == 0)
                                  );
             if (!key_eq) {
@@ -830,25 +830,25 @@ cleanup:
 }
 
 int 
-autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, u_int32_t flags) {
-    BOOL changed; int r;
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, uint32_t flags) {
+    bool changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
     if (r!=0) return r;
-    r = toku_db_del(db, txn, key, flags, FALSE);
+    r = toku_db_del(db, txn, key, flags, false);
     return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 int 
-autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags) {
+autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, uint32_t flags) {
     //{ unsigned i; printf("put %p keylen=%d key={", db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", data->size); for(i=0; i<data->size; i++) printf("%d,", ((char*)data->data)[i]); printf("}\n"); }
-    BOOL changed; int r;
+    bool changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
     if (r!=0) {
         goto cleanup;
     }
-    r = toku_db_put(db, txn, key, data, flags, FALSE);
+    r = toku_db_put(db, txn, key, data, flags, false);
     r = toku_db_destruct_autotxn(txn, r, changed);
 cleanup:
     return r;
@@ -858,11 +858,11 @@ int
 autotxn_db_update(DB *db, DB_TXN *txn,
                   const DBT *key,
                   const DBT *update_function_extra,
-                  u_int32_t flags) {
-    BOOL changed; int r;
+                  uint32_t flags) {
+    bool changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
     if (r != 0) { return r; }
     r = toku_db_update(db, txn, key, update_function_extra, flags);
     r = toku_db_destruct_autotxn(txn, r, changed);
@@ -873,11 +873,11 @@ cleanup:
 int
 autotxn_db_update_broadcast(DB *db, DB_TXN *txn,
                             const DBT *update_function_extra,
-                            u_int32_t flags) {
-    BOOL changed; int r;
+                            uint32_t flags) {
+    bool changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
     if (r != 0) { return r; }
     r = toku_db_update_broadcast(db, txn, update_function_extra, flags);
     r = toku_db_destruct_autotxn(txn, r, changed);

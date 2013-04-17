@@ -61,7 +61,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir) {
 	DBT key;
         dbt_init(&key, data, 3);
 	CKERR(db->put(db, txn, &key, &key, 0));
-	u_int8_t gid[DB_GID_SIZE];
+	uint8_t gid[DB_GID_SIZE];
 	memset(gid, 0, DB_GID_SIZE);
 	gid[0]='a'+tnum;
 	CKERR(txn->prepare(txn, gid));

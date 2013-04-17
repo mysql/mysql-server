@@ -37,25 +37,25 @@ print_item (bytevec val, ITEMLEN len) {
 }
 
 static void
-simple_hex_dump(unsigned char *vp, u_int64_t size) {
-    for (u_int64_t i = 0; i < size; i++) {
+simple_hex_dump(unsigned char *vp, uint64_t size) {
+    for (uint64_t i = 0; i < size; i++) {
         unsigned char c = vp[i];
         printf("%2.2X", c);
     }
 }
 
 static void
-hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
-    u_int64_t n = size / 32;
-    for (u_int64_t i = 0; i < n; i++) {
+hex_dump(unsigned char *vp, uint64_t offset, uint64_t size) {
+    uint64_t n = size / 32;
+    for (uint64_t i = 0; i < n; i++) {
 	printf("%" PRIu64 ": ", offset);
-	for (u_int64_t j = 0; j < 32; j++) {
+	for (uint64_t j = 0; j < 32; j++) {
 	    unsigned char c = vp[j];
 	    printf("%2.2X", c);
 	    if (((j+1) % 4) == 0)
 		printf(" ");
 	}
-	for (u_int64_t j = 0; j < 32; j++) {
+	for (uint64_t j = 0; j < 32; j++) {
 	    unsigned char c = vp[j];
 	    printf("%c", isprint(c) ? c : ' ');
 	}
@@ -64,7 +64,7 @@ hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
 	offset += 32;
     }
     size = size % 32;
-    for (u_int64_t i=0; i<size; i++) {
+    for (uint64_t i=0; i<size; i++) {
 	if ((i % 32) == 0)
 	    printf("%" PRIu64 ": ", offset+i);
 	printf("%2.2X", vp[i]);
@@ -116,7 +116,7 @@ dump_header (int f, FT *header, CACHEFILE cf) {
 }
 
 static int
-print_le (OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
+print_le (OMTVALUE lev, uint32_t UU(idx), void *UU(v)) {
     LEAFENTRY CAST_FROM_VOIDP(le, lev);
     print_leafentry(stdout, le);
     printf("\n");
@@ -215,16 +215,16 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
 }
 
 static void 
-dump_block_translation(FT h, u_int64_t offset) {
+dump_block_translation(FT h, uint64_t offset) {
     toku_blocknum_dump_translation(h->blocktable, make_blocknum(offset));
 }
 
 typedef struct {
     int f;
     FT h;
-    u_int64_t blocksizes;
-    u_int64_t leafsizes;
-    u_int64_t leafblocks;
+    uint64_t blocksizes;
+    uint64_t leafsizes;
+    uint64_t leafblocks;
 } frag_help_extra;
 
 static int
@@ -254,7 +254,7 @@ dump_fragmentation(int f, FT h) {
     info.f = f;
     info.h = h;
     toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
-                            fragmentation_helper, &info, TRUE, TRUE);
+                            fragmentation_helper, &info, true, true);
     int64_t used_space;
     int64_t total_space;
     toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
@@ -277,7 +277,7 @@ typedef struct {
 } garbage_help_extra;
 
 static int
-garbage_leafentry_helper(OMTVALUE v, u_int32_t UU(idx), void *extra) {
+garbage_leafentry_helper(OMTVALUE v, uint32_t UU(idx), void *extra) {
     garbage_help_extra *CAST_FROM_VOIDP(info, extra);
     LEAFENTRY CAST_FROM_VOIDP(le, v);
     info->total_space += leafentry_disksize(le);
@@ -320,21 +320,21 @@ dump_garbage_stats(int f, FT h) {
     info.f = f;
     info.h = h;
     toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
-                            garbage_helper, &info, TRUE, TRUE);
+                            garbage_helper, &info, true, true);
 
     printf("total_size: %zu\n", info.total_space);
     printf("used_size:  %zu\n", info.used_space);
 }
 
-static u_int32_t 
+static uint32_t 
 get_unaligned_uint32(unsigned char *p) {
-    return *(u_int32_t *)p;
+    return *(uint32_t *)p;
 }
 
 struct dump_sub_block {
-  u_int32_t compressed_size;
-  u_int32_t uncompressed_size;
-  u_int32_t xsum;
+  uint32_t compressed_size;
+  uint32_t uncompressed_size;
+  uint32_t xsum;
 };
 
 static void
@@ -345,22 +345,22 @@ sub_block_deserialize(struct dump_sub_block *sb, unsigned char *sub_block_header
 }
 
 static void
-verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
+verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size) {
     // verify the header checksum
-    const size_t node_header = 8 + sizeof (u_int32_t) + sizeof (u_int32_t) + sizeof (u_int32_t);
+    const size_t node_header = 8 + sizeof (uint32_t) + sizeof (uint32_t) + sizeof (uint32_t);
     
     printf("%.8s layout_version=%u %u build=%d\n", cp, get_unaligned_uint32(cp+8), get_unaligned_uint32(cp+12), get_unaligned_uint32(cp+16));
 
     unsigned char *sub_block_header = &cp[node_header];
-    u_int32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
-    u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct dump_sub_block);
-    header_length += sizeof (u_int32_t); // CRC
+    uint32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
+    uint32_t header_length = node_header + n_sub_blocks * sizeof (struct dump_sub_block);
+    header_length += sizeof (uint32_t); // CRC
     if (header_length > size) {
         printf("header length too big: %u\n", header_length);
         return;
     }
-    u_int32_t header_xsum = x1764_memory(cp, header_length);
-    u_int32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
+    uint32_t header_xsum = x1764_memory(cp, header_length);
+    uint32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
     if (header_xsum != expected_xsum) {
         printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
         return;
@@ -368,16 +368,16 @@ verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
 
     // deserialize the sub block header
     struct dump_sub_block sub_block[n_sub_blocks];
-    sub_block_header += sizeof (u_int32_t);
-    for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
+    sub_block_header += sizeof (uint32_t);
+    for (uint32_t i = 0 ; i < n_sub_blocks; i++) {
         sub_block_deserialize(&sub_block[i], sub_block_header);
         sub_block_header += sizeof (struct dump_sub_block);
     }
 
     // verify the sub block header
-    u_int32_t offset = header_length + 4;
-    for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
-        u_int32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
+    uint32_t offset = header_length + 4;
+    for (uint32_t i = 0 ; i < n_sub_blocks; i++) {
+        uint32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
             printf(" fail %u offset %" PRIu64, xsum, file_offset + offset);
@@ -395,17 +395,17 @@ dump_block(int f, BLOCKNUM blocknum, FT h) {
     printf("%" PRId64 " at %" PRId64 " size %" PRId64 "\n", blocknum.b, offset, size);
 
     unsigned char *CAST_FROM_VOIDP(vp, toku_malloc(size));
-    u_int64_t r = pread(f, vp, size, offset);
-    if (r == (u_int64_t)size) {
+    uint64_t r = pread(f, vp, size, offset);
+    if (r == (uint64_t)size) {
         verify_block(vp, offset, size);
     }
     toku_free(vp);
 }
 
 static void
-dump_file(int f, u_int64_t offset, u_int64_t size, FILE *outfp) {
+dump_file(int f, uint64_t offset, uint64_t size, FILE *outfp) {
     unsigned char *XMALLOC_N(size, vp);
-    u_int64_t r = pread(f, vp, size, offset);
+    uint64_t r = pread(f, vp, size, offset);
     if (r == size) {
         if (outfp == stdout)
             hex_dump(vp, offset, size);
@@ -416,7 +416,7 @@ dump_file(int f, u_int64_t offset, u_int64_t size, FILE *outfp) {
 }
 
 static void
-set_file(int f, u_int64_t offset, unsigned char newc) {
+set_file(int f, uint64_t offset, unsigned char newc) {
     toku_os_pwrite(f, &newc, sizeof newc, offset);
 }
 
@@ -546,7 +546,7 @@ main (int argc, const char *const argv[]) {
 	    } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
 		dump_data = strtol(fields[1], NULL, 10);
 	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
-		u_int64_t offset = 0;
+		uint64_t offset = 0;
 		if (nfields == 2)
 		    offset = getuint64(fields[1]);
 		dump_block_translation(ft, offset);
@@ -555,14 +555,14 @@ main (int argc, const char *const argv[]) {
             } else if (strcmp(fields[0], "garbage") == 0) {
                 dump_garbage_stats(f, ft);
 	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
-		u_int64_t offset = getuint64(fields[1]);
-		u_int64_t size = getuint64(fields[2]);
+		uint64_t offset = getuint64(fields[1]);
+		uint64_t size = getuint64(fields[2]);
 		FILE *outfp = stdout;
 		if (nfields >= 4)
 		    outfp = fopen(fields[3], "w");
 		dump_file(f, offset, size, outfp);
 	    } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
-		u_int64_t offset = getuint64(fields[1]);
+		uint64_t offset = getuint64(fields[1]);
 		unsigned char newc = getuint64(fields[2]);
 		set_file(f, offset, newc);
 	    } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
@@ -580,7 +580,7 @@ main (int argc, const char *const argv[]) {
 	info.f = f;
 	info.h = ft;
 	toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
-				dump_node_wrapper, &info, TRUE, TRUE);
+				dump_node_wrapper, &info, true, true);
     }
     toku_ft_free(ft);
     return 0;

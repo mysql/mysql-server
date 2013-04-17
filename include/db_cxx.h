@@ -56,14 +56,14 @@ class Dbt : private DBT {
     void *    get_data(void) const     { return data; }
     void      set_data(void *p)        { data = p; }
     
-    u_int32_t get_size(void) const     { return size; }
-    void      set_size(u_int32_t p)    { size =  p; }
+    uint32_t get_size(void) const     { return size; }
+    void      set_size(uint32_t p)    { size =  p; }
 		       
-    u_int32_t get_flags() const        { return flags; }
-    void      set_flags(u_int32_t f)   { flags = f; }
+    uint32_t get_flags() const        { return flags; }
+    void      set_flags(uint32_t f)   { flags = f; }
 
-    u_int32_t get_ulen() const         { return ulen; }
-    void      set_ulen(u_int32_t p)    { ulen = p; }
+    uint32_t get_ulen() const         { return ulen; }
+    void      set_ulen(uint32_t p)    { ulen = p; }
 
     DBT *get_DBT(void)                              { return (DBT*)this; }
     const DBT *get_const_DBT(void) const            { return (const DBT*)this; }
@@ -71,7 +71,7 @@ class Dbt : private DBT {
     static Dbt* get_Dbt(DBT *dbt)                   { return (Dbt *)dbt; }
     static const Dbt* get_const_Dbt(const DBT *dbt) { return (const Dbt *)dbt; }
 
-    Dbt(void */*data*/, u_int32_t /*size*/);
+    Dbt(void */*data*/, uint32_t /*size*/);
     Dbt(void);
     ~Dbt();
 
@@ -87,7 +87,7 @@ extern "C" {
 class Db {
  public:
     /* Functions to make C++ work, defined in the BDB C++ API documents */
-    Db(DbEnv *dbenv, u_int32_t flags);
+    Db(DbEnv *dbenv, uint32_t flags);
     ~Db();
 
     DB *get_DB(void) {
@@ -104,23 +104,23 @@ class Db {
     }
 
     /* C++ analogues of the C functions. */
-    int open(DbTxn */*txn*/, const char */*name*/, const char */*subname*/, DBTYPE, u_int32_t/*flags*/, int/*mode*/);
-    int close(u_int32_t /*flags*/);
+    int open(DbTxn */*txn*/, const char */*name*/, const char */*subname*/, DBTYPE, uint32_t/*flags*/, int/*mode*/);
+    int close(uint32_t /*flags*/);
 
-    int cursor(DbTxn */*txn*/, Dbc **/*cursorp*/, u_int32_t /*flags*/);
+    int cursor(DbTxn */*txn*/, Dbc **/*cursorp*/, uint32_t /*flags*/);
 
-    int del(DbTxn */*txn*/, Dbt */*key*/, u_int32_t /*flags*/);
+    int del(DbTxn */*txn*/, Dbt */*key*/, uint32_t /*flags*/);
 
-    int get(DbTxn */*txn*/, Dbt */*key*/, Dbt */*data*/, u_int32_t /*flags*/);
+    int get(DbTxn */*txn*/, Dbt */*key*/, Dbt */*data*/, uint32_t /*flags*/);
 
-    int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
+    int put(DbTxn *, Dbt *, Dbt *, uint32_t);
 
-    int get_flags(u_int32_t *);
-    int set_flags(u_int32_t);
+    int get_flags(uint32_t *);
+    int set_flags(uint32_t);
 
-    int set_pagesize(u_int32_t);
+    int set_pagesize(uint32_t);
 
-    int remove(const char *file, const char *database, u_int32_t flags);
+    int remove(const char *file, const char *database, uint32_t flags);
 
 #if 0
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
@@ -130,7 +130,7 @@ class Db {
     int set_dup_compare(dup_compare_fcn_type dup_compare_fcn);
     int set_dup_compare(int (*)(Db *, const Dbt *, const Dbt *));
 
-    int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
+    int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), uint32_t);
 
     int fd(int *);
 
@@ -155,7 +155,7 @@ class DbEnv {
     friend class Dbc;
     friend class DbTxn;
  public:
-    DbEnv(u_int32_t flags);
+    DbEnv(uint32_t flags);
     ~DbEnv(void);
 
     DB_ENV *get_DB_ENV(void) {
@@ -164,12 +164,12 @@ class DbEnv {
     }
 
     /* C++ analogues of the C functions. */
-    int close(u_int32_t);
-    int open(const char *, u_int32_t, int);
-    int set_cachesize(u_int32_t, u_int32_t, int);
-    int set_redzone(u_int32_t);
-    int set_flags(u_int32_t, int);
-    int txn_begin(DbTxn *, DbTxn **, u_int32_t);
+    int close(uint32_t);
+    int open(const char *, uint32_t, int);
+    int set_cachesize(uint32_t, uint32_t, int);
+    int set_redzone(uint32_t);
+    int set_flags(uint32_t, int);
+    int txn_begin(DbTxn *, DbTxn **, uint32_t);
     int set_data_dir(const char *dir);
     void set_errpfx(const char *errpfx);
     void err(int error, const char *fmt, ...)
@@ -177,7 +177,7 @@ class DbEnv {
     void set_errfile(FILE *errfile);
     void set_errcall(void (*)(const DbEnv *, const char *, const char *));
     void set_error_stream(std::ostream *);
-    int get_flags(u_int32_t *flagsp);
+    int get_flags(uint32_t *flagsp);
 
     int set_default_bt_compare(bt_compare_fcn_type bt_compare_fcn);
     // Don't support this one for now.  It's a little tricky.
@@ -186,10 +186,10 @@ class DbEnv {
     // locking
 #if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
     // set_lk_max is only defined for versions up to 4.4
-    int set_lk_max(u_int32_t);
+    int set_lk_max(uint32_t);
 #endif
-    int set_lk_max_locks(u_int32_t);
-    int get_lk_max_locks(u_int32_t *);
+    int set_lk_max_locks(uint32_t);
+    int get_lk_max_locks(uint32_t *);
 
 // somewhat_private:
     int do_no_exceptions; // This should be private!!!
@@ -201,7 +201,7 @@ class DbEnv {
  private:
     DB_ENV *the_env;
     
-    DbEnv(DB_ENV *, u_int32_t /*flags*/);
+    DbEnv(DB_ENV *, uint32_t /*flags*/);
     int maybe_throw_error(int /*err*/) throw (DbException);
     static int maybe_throw_error(int, DbEnv*, int /*no_exceptions*/) throw (DbException);
 };
@@ -209,7 +209,7 @@ class DbEnv {
 	
 class DbTxn {
  public:
-    int commit (u_int32_t /*flags*/);
+    int commit (uint32_t /*flags*/);
     int abort ();
 
     virtual ~DbTxn();
@@ -229,8 +229,8 @@ class DbTxn {
 class Dbc : protected DBC {
  public:
     int close(void);
-    int get(Dbt *, Dbt *, u_int32_t);
-    int count(db_recno_t *, u_int32_t);
+    int get(Dbt *, Dbt *, uint32_t);
+    int count(db_recno_t *, uint32_t);
  private:
     Dbc();  // User may not call it.
     ~Dbc(); // User may not delete it.

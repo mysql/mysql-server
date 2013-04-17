@@ -10,11 +10,11 @@
 
 // FNV Hash: From an idea sent by Glenn Fowler and Phong Vo to the IEEE POSIX 1003.2 committee.  Landon Curt Noll improved it.
 // See: http://isthe.com/chongo/tech/comp/fnv/
-static inline u_int32_t hash_key_extend(u_int32_t initial_hash,
+static inline uint32_t hash_key_extend(uint32_t initial_hash,
                                         const unsigned char *key,
                                         size_t keylen) {
     size_t i;
-    u_int32_t hash = initial_hash;
+    uint32_t hash = initial_hash;
     for (i=0; i<keylen; i++, key++) {
         hash *= 16777619;
         // GCC 4.1.2 -O2 and -O3 translates the following shifts back into the multiply shown on the line above here.
@@ -25,7 +25,7 @@ static inline u_int32_t hash_key_extend(u_int32_t initial_hash,
     return hash;
 }
 
-static inline u_int32_t hash_key(const unsigned char *key, size_t keylen) {
+static inline uint32_t hash_key(const unsigned char *key, size_t keylen) {
     return hash_key_extend(0, key, keylen);
 }
 

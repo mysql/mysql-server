@@ -14,10 +14,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
     /* Do nothing */
     if (verbose) { printf("FLUSH: %d write_me %d\n", (int)k.b, w); }
@@ -43,16 +43,16 @@ cachetable_test (void) {
     long s1, s2;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
 
 
     r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
     //r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 8);
 
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

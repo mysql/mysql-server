@@ -35,9 +35,9 @@ static void close_and_reopen (void) {
     open_ft_and_ct(false);
 }
 
-static void reload (u_int64_t limit) {
+static void reload (uint64_t limit) {
     // insert keys 1, 3, 5, ...
-    for (u_int64_t i=0; i<limit; i++) {
+    for (uint64_t i=0; i<limit; i++) {
 	char key[100],val[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	snprintf(val, 100, "%08llu", (unsigned long long)2*i+1);
@@ -51,7 +51,7 @@ enum memory_state {
     CLOSE_AND_REOPEN_LEAVE_ON_DISK   // close the brts, reopen them, but leave the state on disk.
 };
 
-static void maybe_reopen (enum memory_state ms, u_int64_t limit) {
+static void maybe_reopen (enum memory_state ms, uint64_t limit) {
     switch (ms) {
     case CLOSE_AND_RELOAD:
 	close_and_reopen();
@@ -66,11 +66,11 @@ static void maybe_reopen (enum memory_state ms, u_int64_t limit) {
     assert(0);
 }
 
-static void test_keyrange (enum memory_state ms, u_int64_t limit) {
+static void test_keyrange (enum memory_state ms, uint64_t limit) {
     open_ft_and_ct(true);
 
     // insert keys 1, 3, 5, ...
-    for (u_int64_t i=0; i<limit; i++) {
+    for (uint64_t i=0; i<limit; i++) {
 	char key[100],val[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	snprintf(val, 100, "%08llu", (unsigned long long)2*i+1);
@@ -90,16 +90,16 @@ static void test_keyrange (enum memory_state ms, u_int64_t limit) {
     maybe_reopen(ms, limit);
 
     {
-	u_int64_t prev_less = 0, prev_greater = 1LL << 60; 
-	u_int64_t count_less_adjacent = 0, count_greater_adjacent = 0; // count the number of times that the next value is 1 more (less) than the previous.
-	u_int64_t equal_count = 0;
+	uint64_t prev_less = 0, prev_greater = 1LL << 60; 
+	uint64_t count_less_adjacent = 0, count_greater_adjacent = 0; // count the number of times that the next value is 1 more (less) than the previous.
+	uint64_t equal_count = 0;
 
         // lookup keys 1, 3, 5, ...
-	for (u_int64_t i=0; i<limit; i++) {
+	for (uint64_t i=0; i<limit; i++) {
 	    char key[100];
 	    snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	    DBT k;
-	    u_int64_t less,equal,greater;
+	    uint64_t less,equal,greater;
 	    int r = toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
 	    assert(r == 0);
 	    if (verbose > 1) 
@@ -158,11 +158,11 @@ static void test_keyrange (enum memory_state ms, u_int64_t limit) {
     maybe_reopen(ms, limit);
 
     // lookup keys 0, 2, 4, ... not in the tree
-    for (u_int64_t i=0; i<1+limit; i++) {
+    for (uint64_t i=0; i<1+limit; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i);
 	DBT k;
-	u_int64_t less,equal,greater;
+	uint64_t less,equal,greater;
 	int r = toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
 	assert(r == 0);
         if (verbose > 1)
@@ -197,7 +197,7 @@ static void test_keyrange (enum memory_state ms, u_int64_t limit) {
 
 int
 test_main (int argc , const char *argv[]) {
-    u_int64_t limit = 30000;
+    uint64_t limit = 30000;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {

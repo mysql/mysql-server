@@ -64,8 +64,8 @@ setup(void)
 char  vdata[150];
 
 static void
-insert_n (u_int32_t ah) {
-    u_int32_t an = htonl(ah);
+insert_n (uint32_t ah) {
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     DBT val;
@@ -75,9 +75,9 @@ insert_n (u_int32_t ah) {
 }
 
 static void
-get_n (u_int32_t ah, int expect_r)
+get_n (uint32_t ah, int expect_r)
 {
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     DBT val;
@@ -89,9 +89,9 @@ get_n (u_int32_t ah, int expect_r)
 
 
 static void
-delete_n_now (u_int32_t ah)
+delete_n_now (uint32_t ah)
 {
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     DBT key;
     dbt_init(&key, &an, 4);
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
@@ -106,20 +106,20 @@ delete_n_now (u_int32_t ah)
 static void
 doit (void)
 {
-    u_int32_t N=46;
-    u_int32_t BIG=1<<16;
-    for (u_int32_t i=0; i<2*N; i++) {
+    uint32_t N=46;
+    uint32_t BIG=1<<16;
+    for (uint32_t i=0; i<2*N; i++) {
 	insert_n(i<<8);
     }
     insert_n(BIG);
     insert_n(BIG+1);
     reopen_em();
-    for (u_int32_t i=0; i<N; i++) {
+    for (uint32_t i=0; i<N; i++) {
 	insert_n((2*N+i)<<8);
     }
     delete_n_now(BIG+1);
     reopen_em();
-    for (u_int32_t i=0; i<N; i++) {
+    for (uint32_t i=0; i<N; i++) {
 	insert_n((48<<8) + i);
     }
     insert_n((48<<8) + N);

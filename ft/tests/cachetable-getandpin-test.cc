@@ -15,10 +15,10 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        void *extraargs  __attribute__((__unused__)),
        PAIR_ATTR size        __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL write_me    __attribute__((__unused__)),
-       BOOL keep_me     __attribute__((__unused__)),
-       BOOL for_checkpoint    __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool write_me    __attribute__((__unused__)),
+       bool keep_me     __attribute__((__unused__)),
+       bool for_checkpoint    __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
     assert((long) key.b == size.size);
     if (!keep_me) toku_free(v);
@@ -29,7 +29,7 @@ fetch (
     CACHEFILE cf, 
     int UU(fd), 
     CACHEKEY key, 
-    u_int32_t hash, 
+    uint32_t hash, 
     void **vptr, 
     void** UU(dd),
     PAIR_ATTR *sizep, 
@@ -59,12 +59,12 @@ cachetable_getandpin_test (int n) {
 
     // test get_and_pin size
     for (i=1; i<=n; i++) {
-        u_int32_t hi;
+        uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         void *v; long size;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, wc, fetch, def_pf_req_callback, def_pf_callback, true, 0);
         assert(r == 0);
         assert(size == i);
 
@@ -73,7 +73,7 @@ cachetable_getandpin_test (int n) {
     }
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

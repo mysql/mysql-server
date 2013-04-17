@@ -30,7 +30,7 @@ static void test_sub_block(int n) {
     error = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = toku_open_ft_handle(fname, TRUE, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
+    error = toku_open_ft_handle(fname, true, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)
@@ -49,11 +49,11 @@ static void test_sub_block(int n) {
     assert(error == 0);
 
     // verify the brt by walking a cursor through the rows
-    error = toku_open_ft_handle(fname, FALSE, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
+    error = toku_open_ft_handle(fname, false, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     FT_CURSOR cursor;
-    error = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    error = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(error == 0);
 
     for (i=0; ; i++) {

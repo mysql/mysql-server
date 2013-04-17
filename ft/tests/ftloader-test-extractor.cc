@@ -134,7 +134,7 @@ static void verify_sorted(int a[], int n) {
 struct merge_file {
     FILE *f;
     DBT key, val;
-    BOOL row_valid;
+    bool row_valid;
 };
 
 static DBT zero_dbt;
@@ -143,7 +143,7 @@ static void merge_file_init(struct merge_file *mf) {
     mf->f = NULL;
     mf->key = zero_dbt; mf->key.flags = DB_DBT_REALLOC;
     mf->val = zero_dbt; mf->val.flags = DB_DBT_REALLOC;
-    mf->row_valid = FALSE;
+    mf->row_valid = false;
 }
 
 static void merge_file_destroy(struct merge_file *mf) {
@@ -174,7 +174,7 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
 	}
 	assert(f[i].f != NULL);
         if (read_row(f[i].f, &f[i].key, &f[i].val) == 0)
-            f[i].row_valid = TRUE;
+            f[i].row_valid = true;
     }
 
     while (1) {
@@ -200,7 +200,7 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
 
         // refresh mini
         if (read_row(f[mini].f, &f[mini].key, &f[mini].val) != 0)
-            f[mini].row_valid = FALSE;
+            f[mini].row_valid = false;
     }
 
     for (int i = 0; i < ntempfiles; i++) {
@@ -319,7 +319,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE, TRUE);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE, true);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];
@@ -350,7 +350,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     verify(keys, nkeys, testdir);
 
     // abort the ft_loader.  this ends the test
-    r = toku_ft_loader_abort(loader, TRUE);
+    r = toku_ft_loader_abort(loader, true);
     assert(r == 0);
 
     toku_free(keys);

@@ -95,7 +95,7 @@ int toku_txn_manager_recover_txn(
     struct tokulogger_preplist preplist[/*count*/],
     long count,
     long *retp, /*out*/
-    u_int32_t flags
+    uint32_t flags
     );
 
 void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn);

@@ -41,24 +41,24 @@ delete db
 
 enum { TYPE_DELETE = 1, TYPE_INSERT, TYPE_PLACEHOLDER };
 
-BOOL top_is_delete;
-u_int8_t junkvalbuf[MAX_SIZE];
+bool top_is_delete;
+uint8_t junkvalbuf[MAX_SIZE];
 DBT junkval;
-u_int8_t valbufs[MAX_NEST][MAX_SIZE];
+uint8_t valbufs[MAX_NEST][MAX_SIZE];
 DBT vals        [MAX_NEST];
-u_int8_t keybuf [MAX_SIZE];
+uint8_t keybuf [MAX_SIZE];
 DBT key;
-u_int8_t types  [MAX_NEST];
-u_int8_t currval[MAX_NEST];
+uint8_t types  [MAX_NEST];
+uint8_t currval[MAX_NEST];
 DB_TXN   *txns   [MAX_NEST];
 DB_TXN   *txn_query;
 DB_TXN   *patient_txn;
 int which_expected;
 
 static void
-fillrandom(u_int8_t buf[MAX_SIZE], u_int32_t length) {
+fillrandom(uint8_t buf[MAX_SIZE], uint32_t length) {
     assert(length < MAX_SIZE);
-    u_int32_t i;
+    uint32_t i;
     for (i = 0; i < length; i++) {
         buf[i] = random() & 0xFF;
     } 
@@ -71,7 +71,7 @@ initialize_values (void) {
         fillrandom(valbufs[nest_level], nest_level);
         dbt_init(&vals[nest_level], &valbufs[nest_level][0], nest_level);
     }
-    u_int32_t len = random() % MAX_SIZE;
+    uint32_t len = random() % MAX_SIZE;
     fillrandom(keybuf, len);
     dbt_init(&key, &keybuf[0], len);
 
@@ -117,7 +117,7 @@ close_db (void) {
 }
 
 static void
-verify_val(u_int8_t nest_level) {
+verify_val(uint8_t nest_level) {
     assert(nest_level < MAX_NEST);
     if (nest_level>0) assert(txns[nest_level]);
     assert(types[nest_level] != TYPE_PLACEHOLDER);
@@ -130,16 +130,16 @@ verify_val(u_int8_t nest_level) {
         int idx = currval[nest_level];
         assert(observed_val.size == vals[idx].size);
         assert(memcmp(observed_val.data, vals[idx].data, vals[idx].size) == 0);
-        top_is_delete = FALSE;
+        top_is_delete = false;
     }
     else {
         assert(types[nest_level] == TYPE_DELETE);
         CKERR2(r, DB_NOTFOUND);
-        top_is_delete = TRUE;
+        top_is_delete = true;
     }
 }
 
-static u_int8_t
+static uint8_t
 randomize_no_placeholder_type(void) {
     int r;
     r = random() % 2;
@@ -149,12 +149,12 @@ randomize_no_placeholder_type(void) {
         case 1:
             return TYPE_DELETE;
         default:
-            assert(FALSE);
+            assert(false);
 	    return 0;
     }
 }
 
-static u_int8_t
+static uint8_t
 randomize_type(void) {
     int r;
     r = random() % 4;
@@ -167,7 +167,7 @@ randomize_type(void) {
         case 3:
             return TYPE_PLACEHOLDER;
         default:
-            assert(FALSE);
+            assert(false);
 	    return 0;
     }
 }
@@ -190,29 +190,29 @@ maybe_insert_or_delete(uint8_t nest, int type) {
             }
             r = db->put(db, txns[nest], &key, &junkval, DB_NOOVERWRITE_NO_ERROR);
                 CKERR(r);
-            top_is_delete = FALSE;
+            top_is_delete = false;
             break;
         case TYPE_DELETE:
             r = db->del(db, txns[nest], &key, DB_DELETE_ANY);
                 CKERR(r);
-            top_is_delete = TRUE;
+            top_is_delete = true;
             break;
         case TYPE_PLACEHOLDER:
             types[nest] = types[nest - 1];
             currval[nest] = currval[nest-1];
             break;
         default:
-            assert(FALSE);
+            assert(false);
     }
     verify_val(nest);
 }
 
 static void
-start_txn_and_maybe_insert_or_delete(u_int8_t nest) {
+start_txn_and_maybe_insert_or_delete(uint8_t nest) {
     int iteration;
     int r;
     for (iteration = 0; iteration < 4; iteration++) {
-        BOOL skip = FALSE;
+        bool skip = false;
         if (nest == 0) {
             types[nest] = randomize_no_placeholder_type();
             assert(types[nest] != TYPE_PLACEHOLDER);
@@ -224,7 +224,7 @@ start_txn_and_maybe_insert_or_delete(u_int8_t nest) {
                 types[nest] = randomize_type();
                 r = env->txn_begin(env, txns[nest-1], &txns[nest], 0);
                     CKERR(r);
-                if (types[nest] == TYPE_PLACEHOLDER) skip = TRUE;
+                if (types[nest] == TYPE_PLACEHOLDER) skip = true;
             }
             else {
                 types[nest] = randomize_no_placeholder_type();
@@ -306,7 +306,7 @@ futz_with_stack:
                 }
                 continue; //transaction is still alive
             default:
-                assert(FALSE);
+                assert(false);
         }
     }
     //All transactions that have touched this key are finished.

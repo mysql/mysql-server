@@ -50,10 +50,10 @@ int test_main (int argc, char * const argv[]) {
   DB_TXN* txn;
   r = env->txn_begin(env, NULL, &txn, 0);
   CKERR(r);
-  for (u_int32_t i = 0; i < 1000; i++) {
+  for (uint32_t i = 0; i < 1000; i++) {
       DBT key,val;
-      u_int64_t key_data = i;
-      u_int64_t val_data = i;
+      uint64_t key_data = i;
+      uint64_t val_data = i;
       r = db->put(
           db,
           txn,

@@ -25,7 +25,7 @@ static void make_db (int n_locks) {
     DB_TXN *tid, *tid2;
     int r;
     int i;
-    u_int32_t actual_n_locks;
+    uint32_t actual_n_locks;
 
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -49,7 +49,7 @@ static void make_db (int n_locks) {
         assert(r == EINVAL);
 #endif
         r = env->get_lk_max_locks(env, &actual_n_locks);
-        assert(r == 0 && actual_n_locks == (u_int32_t)n_locks+EXTRA_LOCK_NEEDED);
+        assert(r == 0 && actual_n_locks == (uint32_t)n_locks+EXTRA_LOCK_NEEDED);
     }
     else {
 	r = env->get_lk_max_locks(env, &actual_n_locks);	
@@ -62,11 +62,11 @@ static void make_db (int n_locks) {
     r = tid->commit(tid, 0);    assert(r == 0);
     
 #if !TOKUDB
-    u_int32_t pagesize;
+    uint32_t pagesize;
     r = db->get_pagesize(db, &pagesize); CKERR(r);
-    u_int32_t datasize = pagesize/6;
+    uint32_t datasize = pagesize/6;
 #else
-    u_int32_t datasize = 1;
+    uint32_t datasize = 1;
 #endif
     int effective_n_locks = (n_locks<0) ? (int)actual_n_locks-EXTRA_LOCK_NEEDED : n_locks;
     // create even numbered keys 0 2 4 ...  (effective_n_locks*32-2)

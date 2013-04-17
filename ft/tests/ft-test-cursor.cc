@@ -21,7 +21,7 @@ static void assert_cursor_notfound(FT_HANDLE brt, int position) {
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     struct check_pair pair = {0,0,0,0,0};
@@ -37,7 +37,7 @@ static void assert_cursor_value(FT_HANDLE brt, int position, long long value) {
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -54,7 +54,7 @@ static void assert_cursor_first_last(FT_HANDLE brt, long long firstv, long long 
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("first key: ");
@@ -252,7 +252,7 @@ static void assert_cursor_walk(FT_HANDLE brt, int n) {
     int i;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -318,7 +318,7 @@ static void assert_cursor_rwalk(FT_HANDLE brt, int n) {
     int i;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -405,7 +405,7 @@ static void assert_cursor_walk_inorder(FT_HANDLE brt, int n) {
     int r;
     char *prevkey = 0;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -507,7 +507,7 @@ static void test_ft_cursor_split(int n) {
         assert(r==0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -572,7 +572,7 @@ static void test_multiple_ft_cursors(int n) {
 
     int i;
     for (i=0; i<n; i++) {
-        r = toku_ft_cursor(brt, &cursors[i], NULL, FALSE, FALSE);
+        r = toku_ft_cursor(brt, &cursors[i], NULL, false, false);
         assert(r == 0);
     }
 
@@ -622,7 +622,7 @@ static void test_multiple_ft_cursor_walk(int n) {
     int c;
     /* create the cursors */
     for (c=0; c<ncursors; c++) {
-        r = toku_ft_cursor(brt, &cursors[c], NULL, FALSE, FALSE);
+        r = toku_ft_cursor(brt, &cursors[c], NULL, false, false);
         assert(r == 0);
     }
 
@@ -709,7 +709,7 @@ static void test_ft_cursor_set(int n, int cursor_op) {
         assert(r == 0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
@@ -782,7 +782,7 @@ static void test_ft_cursor_set_range(int n) {
         assert(r == 0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(r==0);
 
     /* pick random keys v in 0 <= v < 10*n, the cursor should point
@@ -832,7 +832,7 @@ static void test_ft_cursor_delete(int n) {
     error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
-    error = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);
+    error = toku_ft_cursor(brt, &cursor, NULL, false, false);
     assert(error == 0);
 
     DBT key, val;

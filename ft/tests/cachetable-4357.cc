@@ -17,7 +17,7 @@ static void *pin_nonblocking(void *arg) {
         &v1, 
         &s1, 
         def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, 
-        TRUE,
+        true,
         NULL, 
         NULL
         );
@@ -45,7 +45,7 @@ cachetable_test (void) {
       &v1, 
       &s1, 
       def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, 
-      TRUE, 
+      true, 
       NULL
       );
   toku_pthread_t pin_nonblocking_tid;
@@ -61,7 +61,7 @@ cachetable_test (void) {
   assert_zero(r);
   
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

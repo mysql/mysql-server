@@ -142,7 +142,7 @@ doit (void) {
     FTNODE node;
     toku_pin_node_with_min_bfe(&node, node_leaf[1], brt);
     // hack to get merge going
-    BLB_SEQINSERT(node, node->n_children-1) = FALSE;
+    BLB_SEQINSERT(node, node->n_children-1) = false;
     toku_unpin_ftnode(brt->ft, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
@@ -158,7 +158,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -181,7 +181,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node

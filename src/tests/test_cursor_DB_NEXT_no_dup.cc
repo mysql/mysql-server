@@ -80,7 +80,7 @@ static void insert(char k, char d) {
         CKERR(r);
 }
 
-static void c_get(u_int32_t flag, char key_expect, char data_expect) {
+static void c_get(uint32_t flag, char key_expect, char data_expect) {
     DBT key;
     DBT data;
 
@@ -100,7 +100,7 @@ static void c_get(u_int32_t flag, char key_expect, char data_expect) {
     assert(got_data == data_expect);
 }
 
-static void test_skip_key(u_int32_t flag, BOOL is_next) {
+static void test_skip_key(uint32_t flag, bool is_next) {
     setup_env();
     setup_db();
     setup_cursor();
@@ -126,16 +126,16 @@ static void test_skip_key(u_int32_t flag, BOOL is_next) {
 static void run_test(void) {
     /* ********************************************************************** */
     /* Test DB_NEXT works properly. */
-    test_skip_key(DB_NEXT, TRUE);
+    test_skip_key(DB_NEXT, true);
     /* ********************************************************************** */
     /* Test DB_PREV works properly. */
-    test_skip_key(DB_PREV, FALSE);
+    test_skip_key(DB_PREV, false);
     /* ********************************************************************** */
     /* Test DB_PREV_NODUP works properly. */
-    test_skip_key(DB_PREV_NODUP, FALSE);
+    test_skip_key(DB_PREV_NODUP, false);
     /* ********************************************************************** */
     /* Test DB_NEXT_NODUP works properly. */
-    test_skip_key(DB_NEXT_NODUP, TRUE);
+    test_skip_key(DB_NEXT_NODUP, true);
     /* ********************************************************************** */
 }
 

@@ -14,7 +14,6 @@
 // and print out the actions taken by the undo do function while processing the leafentry
 
 #include "test.h"
-#include <stdbool.h>
 
 #include <ft/tokuconst.h>
 #include <ft/fttypes.h>

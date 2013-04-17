@@ -39,13 +39,13 @@ int sum32 (int start, void *buf, int bytecount)  {
     return start;
 }
 
-static const u_int32_t m = 0x5bd1e995;
+static const uint32_t m = 0x5bd1e995;
 static const int r = 24;
-static const u_int32_t seed = 0x3dd3b51a;
+static const uint32_t seed = 0x3dd3b51a;
 
 #define USE_ZERO_CHECKSUM 0
 
-static u_int32_t MurmurHash2 ( const void * key, int len)
+static uint32_t MurmurHash2 ( const void * key, int len)
 {
     if (USE_ZERO_CHECKSUM) return 0;
 
@@ -55,7 +55,7 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
     // Initialize the hash to a 'random' value
 
-    u_int32_t h = seed;
+    uint32_t h = seed;
 
     // Mix 4 bytes at a time into the hash
 
@@ -63,7 +63,7 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
     while(len >= 4)
 	{
-	    u_int32_t k = *(u_int32_t *)data;
+	    uint32_t k = *(uint32_t *)data;
 
 	    k *= m; 
 	    k ^= k >> r; 
@@ -98,8 +98,8 @@ static u_int32_t MurmurHash2 ( const void * key, int len)
 
 struct murmur {
     int n_bytes_in_k;  // How many bytes in k
-    u_int32_t k;       // These are the extra bytes.   Bytes are shifted into the low-order bits.
-    u_int32_t h;       // The hash so far (up to the most recent 4-byte boundary)
+    uint32_t k;       // These are the extra bytes.   Bytes are shifted into the low-order bits.
+    uint32_t h;       // The hash so far (up to the most recent 4-byte boundary)
 };
 
 void murmur_init (struct murmur *mm) {
@@ -123,9 +123,9 @@ void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     if (USE_ZERO_CHECKSUM) return;
     if (len==0) return;
     const int n_bytes_in_k =  mm->n_bytes_in_k;
-    u_int32_t k = mm->k;
+    uint32_t k = mm->k;
     const unsigned char *data = key;
-    u_int32_t h = mm->h;
+    uint32_t h = mm->h;
     switch (n_bytes_in_k) {
     case 0:
 	switch (len) {
@@ -162,7 +162,7 @@ void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     // We've used up the partial bytes at the beginning of k.
     assert(mm->n_bytes_in_k==0);
     while (len >= 4) {
-	u_int32_t k = toku_dtoh32(*(u_int32_t *)data);
+	uint32_t k = toku_dtoh32(*(uint32_t *)data);
 	//printf(" oldh=%08x k=%08x", h, k);
 
 	k *= m; 
@@ -179,7 +179,7 @@ void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     mm->h=h;
     //printf("%s:%d h=%08x\n", __FILE__, __LINE__, h);
     {
-	u_int32_t k=0;
+	uint32_t k=0;
 	switch (len) {
 	case 3: k =  *data << 16;  data++;
 	case 2: k |= *data << 8;   data++;
@@ -192,9 +192,9 @@ void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     }
 }
 
-u_int32_t murmur_finish (struct murmur *mm) {
+uint32_t murmur_finish (struct murmur *mm) {
     if (USE_ZERO_CHECKSUM) return 0;
-    u_int32_t h = mm->h;
+    uint32_t h = mm->h;
     if (mm->n_bytes_in_k>0) {
 	h ^= mm->k;
 	h *= m;
@@ -209,7 +209,7 @@ u_int32_t murmur_finish (struct murmur *mm) {
 }
 
 struct sum84 {
-    u_int32_t sum;
+    uint32_t sum;
     int i;
 };
 void sum84_init (struct sum84 *s) { s->sum=0; s->i=0; };
@@ -233,7 +233,7 @@ int sum84_finish (struct sum84 *s) {
     return s->sum;
 }
 
-u_int32_t xor8_add  (u_int32_t x, char *buf, int count) {
+uint32_t xor8_add  (uint32_t x, char *buf, int count) {
     while (count>4) {
 	x ^= *(int*)buf;
 	buf+=4; count-=4;
@@ -245,13 +245,13 @@ u_int32_t xor8_add  (u_int32_t x, char *buf, int count) {
     }
     return x;
 }
-u_int32_t xor8_finish (u_int32_t x) {
+uint32_t xor8_finish (uint32_t x) {
     return (x ^ (x>>8) ^ (x>>16) ^ (x>>24))&0xff;
 }
 
-u_int64_t xor8_64_add  (u_int64_t x, char *buf, int count) {
+uint64_t xor8_64_add  (uint64_t x, char *buf, int count) {
     while (count>8) {
-	x ^= *(u_int64_t*)buf;
+	x ^= *(uint64_t*)buf;
 	buf+=8; count-=8;
     }
     while (count>0) {
@@ -261,7 +261,7 @@ u_int64_t xor8_64_add  (u_int64_t x, char *buf, int count) {
     }
     return x;
 }
-u_int32_t xor8_64_finish (u_int64_t x) {
+uint32_t xor8_64_finish (uint64_t x) {
     return (x ^ (x>>8) ^ (x>>16) ^ (x>>24) ^ (x>>32) ^ (x>>40) ^ (x>>48) ^ (x>>56))&0xff;
 }
 
@@ -281,7 +281,7 @@ static void measure_bandwidths (void) {
     measure_bandwidth("murmurby2", ({ struct murmur mm; murmur_init(&mm); int j; for(j=0; j<N; j+=2) murmur_add(&mm, buf+j, 2); c=murmur_finish(&mm); }));
     measure_bandwidth("sum84by1 ", ({ struct sum84 s; sum84_init(&s); int j; for(j=0; j<N; j++) sum84_add(&s, buf+j, 1); c=sum84_finish(&s); }));
     measure_bandwidth("xor8by1  ", ({ int j; c=0; for(j=0; j<N; j++) c=xor8_add(c, buf+j, 1); c=xor8_finish(c); }));
-    measure_bandwidth("xor864by1", ({ int j; u_int64_t x=0; for(j=0; j<N; j++) x=xor8_64_add(x, buf+j, 1); c=xor8_64_finish(x); }));
+    measure_bandwidth("xor864by1", ({ int j; uint64_t x=0; for(j=0; j<N; j++) x=xor8_64_add(x, buf+j, 1); c=xor8_64_finish(x); }));
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

@@ -27,7 +27,7 @@
 // If the test runs to completion without crashing, we consider it a success.
 //
 
-BOOL run_test;
+bool run_test;
 int time_of_test;
 int num_elements;
 
@@ -35,8 +35,8 @@ struct arg {
     int n;
     DB *db;
     DB_ENV* env;
-    BOOL fast;
-    BOOL fwd;
+    bool fast;
+    bool fwd;
 };
 
 static int
@@ -108,7 +108,7 @@ static void *update_db(void *arg) {
     DB_TXN* txn = NULL;
     while (run_test) {
         int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
-        for (u_int32_t i = 0; i < 1000; i++) {
+        for (uint32_t i = 0; i < 1000; i++) {
             int rand_key = random() % n;
             int rand_val = random();
             DBT key, val;
@@ -130,7 +130,7 @@ static void *test_time(void *arg) {
     assert(arg == NULL);
     usleep(time_of_test*1000*1000);
     if (verbose) printf("should now end test\n");
-    run_test = FALSE;
+    run_test = false;
     return arg;
 }
 
@@ -191,36 +191,36 @@ test_evictions (void) {
     //   - one thread doing table scan without bulk fetch
     //   - one thread doing random point queries
     //
-    run_test = TRUE;
+    run_test = true;
     if (verbose) printf("starting creation of pthreads\n");
     toku_pthread_t mytids[7];
     struct arg myargs[7];
-    for (u_int32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
+    for (uint32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
         myargs[i].n = n;
         myargs[i].db = db;
         myargs[i].env = env;
-        myargs[i].fast = TRUE;
-        myargs[i].fwd = TRUE;
+        myargs[i].fast = true;
+        myargs[i].fwd = true;
     }
 
     // make the forward fast scanner
-    myargs[0].fast = TRUE;
-    myargs[0].fwd = TRUE;
+    myargs[0].fast = true;
+    myargs[0].fwd = true;
     { int chk_r = toku_pthread_create(&mytids[0], NULL, scan_db, &myargs[0]); CKERR(chk_r); }
 
     // make the forward slow scanner
-    myargs[1].fast = FALSE;
-    myargs[1].fwd = TRUE;
+    myargs[1].fast = false;
+    myargs[1].fwd = true;
     { int chk_r = toku_pthread_create(&mytids[1], NULL, scan_db, &myargs[1]); CKERR(chk_r); }
 
     // make the backward fast scanner
-    myargs[2].fast = TRUE;
-    myargs[2].fwd = FALSE;
+    myargs[2].fast = true;
+    myargs[2].fwd = false;
     { int chk_r = toku_pthread_create(&mytids[2], NULL, scan_db, &myargs[2]); CKERR(chk_r); }
 
     // make the backward slow scanner
-    myargs[3].fast = FALSE;
-    myargs[3].fwd = FALSE;
+    myargs[3].fast = false;
+    myargs[3].fwd = false;
     { int chk_r = toku_pthread_create(&mytids[3], NULL, scan_db, &myargs[3]); CKERR(chk_r); }
 
     // make the guy that updates the db
@@ -232,7 +232,7 @@ test_evictions (void) {
     // make the guy that sleeps
     { int chk_r = toku_pthread_create(&mytids[6], NULL, test_time, NULL); CKERR(chk_r); }
     
-    for (u_int32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
+    for (uint32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
         void *ret;
         r = toku_pthread_join(mytids[i], &ret); assert_zero(r);
     }

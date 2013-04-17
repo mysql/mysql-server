@@ -38,7 +38,7 @@ put (DB_TXN *txn, DB *db, const char *key, const char *data) {
 }
    
 static void
-do_x2_shutdown (BOOL do_commit) {
+do_x2_shutdown (bool do_commit) {
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -67,7 +67,7 @@ do_x2_shutdown (BOOL do_commit) {
 }
 
 static void
-checkcurs (DBC *curs, int cursflags, const char *key, const char *val, BOOL expect_it) {
+checkcurs (DBC *curs, int cursflags, const char *key, const char *val, bool expect_it) {
     DBT k,v;
     dbt_init(&k, NULL, 0);
     dbt_init(&v, NULL, 0);
@@ -84,7 +84,7 @@ checkcurs (DBC *curs, int cursflags, const char *key, const char *val, BOOL expe
 }
 
 static void
-do_x2_recover (BOOL did_commit) {
+do_x2_recover (bool did_commit) {
     DB_ENV *env;
     int r;
     r = db_env_create(&env, 0);                                                             CKERR(r);
@@ -97,9 +97,9 @@ do_x2_recover (BOOL did_commit) {
 	r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
 	DBC *c;
 	r = dba->cursor(dba, txn, &c, 0);                                                   CKERR(r);
-	checkcurs(c, DB_FIRST, "u.a", "u.a.data", TRUE);
-	checkcurs(c, DB_NEXT,  "u.c", "u.c.data", TRUE);
-	checkcurs(c, DB_NEXT,  NULL,  NULL,       FALSE);
+	checkcurs(c, DB_FIRST, "u.a", "u.a.data", true);
+	checkcurs(c, DB_NEXT,  "u.c", "u.c.data", true);
+	checkcurs(c, DB_NEXT,  NULL,  NULL,       false);
 	r = c->c_close(c);                                                                  CKERR(r);	
 	r = dba->close(dba, 0);                                                             CKERR(r);
     }
@@ -111,7 +111,7 @@ do_x2_recover (BOOL did_commit) {
 	r = dbb->cursor(dbb, txn, &c, 0);                                                   CKERR(r);
 	checkcurs(c, DB_FIRST, "v.b", "v.b.data", did_commit);
 	checkcurs(c, DB_NEXT,  "v.d", "v.d.data", did_commit);
-	checkcurs(c, DB_NEXT,  NULL,  NULL,       FALSE);
+	checkcurs(c, DB_NEXT,  NULL,  NULL,       false);
 	r = c->c_close(c);                                                                  CKERR(r);	
 	r = dbb->close(dbb, 0);                                                             CKERR(r);
     }
@@ -126,7 +126,7 @@ const char *cmd;
 #if 0
 
 static void
-do_test_internal (BOOL commit) {
+do_test_internal (bool commit) {
     pid_t pid;
     if (0 == (pid=fork())) {
 	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--commit" : "--abort", NULL);
@@ -160,13 +160,13 @@ do_test_internal (BOOL commit) {
 
 static void
 do_test (void) {
-    do_test_internal(TRUE);
-    do_test_internal(FALSE);
+    do_test_internal(true);
+    do_test_internal(false);
 }
 
 #endif
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
+bool do_commit=false, do_abort=false, do_recover_committed=false,  do_recover_aborted=false;
 
 static void
 x2_parse_args (int argc, char * const argv[]) {
@@ -180,13 +180,13 @@ x2_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0],"--abort")==0) {
-	    do_abort=TRUE;
+	    do_abort=true;
 	} else if (strcmp(argv[0],"--commit")==0 || strcmp(argv[0], "--test") == 0) {
-	    do_commit=TRUE;
+	    do_commit=true;
 	} else if (strcmp(argv[0],"--recover-committed")==0 || strcmp(argv[0], "--recover") == 0) {
-	    do_recover_committed=TRUE;
+	    do_recover_committed=true;
 	} else if (strcmp(argv[0],"--recover-aborted")==0) {
-	    do_recover_aborted=TRUE;
+	    do_recover_aborted=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
@@ -218,13 +218,13 @@ int
 test_main (int argc, char * const argv[]) {
     x2_parse_args(argc, argv);
     if (do_commit) {
-	do_x2_shutdown (TRUE);
+	do_x2_shutdown (true);
     } else if (do_abort) {
-	do_x2_shutdown (FALSE);
+	do_x2_shutdown (false);
     } else if (do_recover_committed) {
-	do_x2_recover(TRUE);
+	do_x2_recover(true);
     } else if (do_recover_aborted) {
-	do_x2_recover(FALSE);
+	do_x2_recover(false);
     } 
 #if 0
     else {

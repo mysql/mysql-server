@@ -178,9 +178,9 @@ enum {
     uncompressed_version_offset = 8,
 };
 
-static u_int32_t
+static uint32_t
 serialize_node_header_size(FTNODE node) {
-    u_int32_t retval = 0;
+    uint32_t retval = 0;
     retval += 8; // magic
     retval += sizeof(node->layout_version);
     retval += sizeof(node->layout_version_original);
@@ -208,7 +208,7 @@ serialize_node_header(FTNODE node, FTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
         wbuf_nocrc_int(wbuf, BP_SIZE (ndd, i));         // and the size
     }
     // checksum the header
-    u_int32_t end_to_end_checksum = x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
+    uint32_t end_to_end_checksum = x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
     wbuf_nocrc_int(wbuf, end_to_end_checksum);
     invariant(wbuf->ndone == wbuf->size);
 }
@@ -221,10 +221,10 @@ wbufwriteleafentry(OMTVALUE lev, const uint32_t UU(idx), void *wbv) {
     return 0;
 }
 
-static u_int32_t 
+static uint32_t 
 serialize_ftnode_partition_size (FTNODE node, int i)
 {
-    u_int32_t result = 0;
+    uint32_t result = 0;
     assert(node->bp[i].state == PT_AVAIL);
     result++; // Byte that states what the partition is
     if (node->height > 0) {
@@ -293,7 +293,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
         //
         toku_omt_iterate(buffer, wbufwriteleafentry, &wb);
     }
-    u_int32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
+    uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
     invariant(sb->uncompressed_size==wb.ndone);
@@ -331,7 +331,7 @@ compress_ftnode_sub_block(struct sub_block *sb, enum toku_compression_method met
         method
         );
 
-    u_int32_t* extra = (u_int32_t *)(sb->compressed_ptr);
+    uint32_t* extra = (uint32_t *)(sb->compressed_ptr);
     // store the compressed and uncompressed size at the beginning
     extra[0] = toku_htod32(sb->compressed_size);
     extra[1] = toku_htod32(sb->uncompressed_size);
@@ -357,10 +357,10 @@ compress_ftnode_sub_block(struct sub_block *sb, enum toku_compression_method met
 // such as the magic, layout_version, and build_id
 // Includes only node specific info such as pivot information, n_children, and so on
 //
-static u_int32_t
+static uint32_t
 serialize_ftnode_info_size(FTNODE node)
 {
-    u_int32_t retval = 0;
+    uint32_t retval = 0;
     retval += 8; // max_msn_applied_to_node_on_disk
     retval += 4; // nodesize
     retval += 4; // flags
@@ -400,7 +400,7 @@ static void serialize_ftnode_info(FTNODE node,
         }
     }
 
-    u_int32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
+    uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
     invariant(sb->uncompressed_size==wb.ndone);
@@ -425,7 +425,7 @@ toku_serialize_ftnode_size (FTNODE node) {
 }
 
 struct array_info {
-    u_int32_t offset;
+    uint32_t offset;
     OMTVALUE* array;
 };
 
@@ -442,7 +442,7 @@ struct sum_info {
 };
 
 static int
-sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+sum_item (OMTVALUE lev, uint32_t UU(idx), void *vsi) {
     LEAFENTRY le = (LEAFENTRY) lev;
     struct sum_info *si = (struct sum_info *) vsi;
     si->count++;
@@ -463,7 +463,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
 
     uint32_t num_orig_basements = node->n_children;
     // Count number of leaf entries in this leaf (num_le).
-    u_int32_t num_le = 0;  
+    uint32_t num_le = 0;  
     for (uint32_t i = 0; i < num_orig_basements; i++) {
         num_le += toku_omt_size(BLB_BUFFER(node, i));
     }
@@ -478,7 +478,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Capture pointers to old mempools' buffers (so they can be destroyed)
     void **XMALLOC_N(num_orig_basements, old_mempool_bases);
 
-    u_int32_t curr_le = 0;
+    uint32_t curr_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
         OMT curr_omt = BLB_BUFFER(node, i);
         struct array_info ai;
@@ -493,7 +493,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Create an array that will store indexes of new pivots.
     // Each element in new_pivots is the index of a pivot key.
     // (Allocating num_le of them is overkill, but num_le is an upper bound.)
-    u_int32_t *XMALLOC_N(num_alloc, new_pivots);
+    uint32_t *XMALLOC_N(num_alloc, new_pivots);
     new_pivots[0] = 0;
 
     // Each element in le_sizes is the size of the leafentry pointed to by leafpointers.
@@ -514,11 +514,11 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Figure out the new pivots.  
     // We need the index of each pivot, and for each basement we need
     // the number of leaves and the sum of the sizes of the leaves (memory requirement for basement).
-    u_int32_t curr_pivot = 0;
-    u_int32_t num_le_in_curr_bn = 0;
-    u_int32_t bn_size_so_far = 0;
-    for (u_int32_t i = 0; i < num_le; i++) {
-        u_int32_t curr_le_size = leafentry_disksize((LEAFENTRY) leafpointers[i]);
+    uint32_t curr_pivot = 0;
+    uint32_t num_le_in_curr_bn = 0;
+    uint32_t bn_size_so_far = 0;
+    for (uint32_t i = 0; i < num_le; i++) {
+        uint32_t curr_le_size = leafentry_disksize((LEAFENTRY) leafpointers[i]);
         le_sizes[i] = curr_le_size;
         if ((bn_size_so_far + curr_le_size > basementnodesize) && (num_le_in_curr_bn != 0)) {
             // cap off the current basement node to end with the element before i
@@ -542,7 +542,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Need to figure out how to properly deal with seqinsert.
     // I am not happy with how this is being
     // handled with basement nodes
-    u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, num_orig_basements - 1);
+    uint32_t tmp_seqinsert = BLB_SEQINSERT(node, num_orig_basements - 1);
 
     // choose the max msn applied to any basement as the max msn applied to all new basements
     MSN max_msn = ZERO_MSN;
@@ -586,9 +586,9 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
         BLB_SEQINSERT(node, i) = tmp_seqinsert;
 
         // create start (inclusive) and end (exclusive) boundaries for data of basement node
-        u_int32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;               // index of first leaf in basement
-        u_int32_t curr_end = (i==num_pivots) ? num_le : new_pivots[i]+1;     // index of first leaf in next basement
-        u_int32_t num_in_bn = curr_end - curr_start;                         // number of leaves in this basement
+        uint32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;               // index of first leaf in basement
+        uint32_t curr_end = (i==num_pivots) ? num_le : new_pivots[i]+1;     // index of first leaf in next basement
+        uint32_t num_in_bn = curr_end - curr_start;                         // number of leaves in this basement
 
         // create indexes for new basement
         invariant(baseindex_this_bn == curr_start);
@@ -669,7 +669,7 @@ toku_create_compressed_partition_from_available(
     // to just the amount of the actual compressed data. So, we create a new buffer and copy
     // just the compressed data.
     //
-    u_int32_t compressed_size = toku_dtoh32(*(u_int32_t *)sb->compressed_ptr);
+    uint32_t compressed_size = toku_dtoh32(*(uint32_t *)sb->compressed_ptr);
     void* compressed_data = toku_xmalloc(compressed_size);
     memcpy(compressed_data, (char *)sb->compressed_ptr + 8, compressed_size);
     toku_free(sb->compressed_ptr);
@@ -760,8 +760,8 @@ toku_serialize_ftnode_to_memory (FTNODE node,
                                   FTNODE_DISK_DATA* ndd,
                                   unsigned int basementnodesize,
                                   enum toku_compression_method compression_method,
-                                  BOOL do_rebalancing,
-                                  BOOL in_parallel, // for loader is TRUE, for toku_ftnode_flush_callback, is false
+                                  bool do_rebalancing,
+                                  bool in_parallel, // for loader is true, for toku_ftnode_flush_callback, is false
                           /*out*/ size_t *n_bytes_to_write,
                           /*out*/ char  **bytes_to_write)
 {
@@ -805,12 +805,12 @@ toku_serialize_ftnode_to_memory (FTNODE node,
 
     // The total size of the node is:
     // size of header + disk size of the n+1 sub_block's created above
-    u_int32_t total_node_size = (serialize_node_header_size(node) // uncomrpessed header
+    uint32_t total_node_size = (serialize_node_header_size(node) // uncomrpessed header
                                  + sb_node_info.compressed_size   // compressed nodeinfo (without its checksum)
                                  + 4);                            // nodinefo's checksum
     // store the BP_SIZESs
     for (int i = 0; i < node->n_children; i++) {
-        u_int32_t len         = sb[i].compressed_size + 4; // data and checksum
+        uint32_t len         = sb[i].compressed_size + 4; // data and checksum
         BP_SIZE (*ndd,i) = len;
         BP_START(*ndd,i) = total_node_size;
         total_node_size += sb[i].compressed_size + 4;
@@ -831,14 +831,14 @@ toku_serialize_ftnode_to_memory (FTNODE node,
     memcpy(curr_ptr, sb_node_info.compressed_ptr, sb_node_info.compressed_size);
     curr_ptr += sb_node_info.compressed_size;
     // write the checksum
-    *(u_int32_t *)curr_ptr = toku_htod32(sb_node_info.xsum);
+    *(uint32_t *)curr_ptr = toku_htod32(sb_node_info.xsum);
     curr_ptr += sizeof(sb_node_info.xsum);
 
     for (int i = 0; i < npartitions; i++) {
         memcpy(curr_ptr, sb[i].compressed_ptr, sb[i].compressed_size);
         curr_ptr += sb[i].compressed_size;
         // write the checksum
-        *(u_int32_t *)curr_ptr = toku_htod32(sb[i].xsum);
+        *(uint32_t *)curr_ptr = toku_htod32(sb[i].xsum);
         curr_ptr += sizeof(sb[i].xsum);
     }
     assert(curr_ptr - data == total_node_size);
@@ -861,13 +861,13 @@ toku_serialize_ftnode_to_memory (FTNODE node,
 }
 
 int
-toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, BOOL for_checkpoint) {
+toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint) {
 
     size_t n_to_write;
     char *compressed_buf = NULL;
     {
         // because toku_serialize_ftnode_to is only called for 
-        // in toku_ftnode_flush_callback, we pass FALSE
+        // in toku_ftnode_flush_callback, we pass false
         // for in_parallel. The reasoning is that when we write
         // nodes to disk via toku_ftnode_flush_callback, we 
         // assume that it is being done on a non-critical
@@ -875,7 +875,7 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
         // should not hog CPU,
         //
         // Should the above facts change, we may want to revisit
-        // passing FALSE for in_parallel here
+        // passing false for in_parallel here
         //
         // alternatively, we could have made in_parallel a parameter
         // for toku_serialize_ftnode_to, but instead we did this.
@@ -885,7 +885,7 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
             h->h->basementnodesize,
             h->h->compression_method,
             do_rebalancing,
-            FALSE, // in_parallel
+            false, // in_parallel
             &n_to_write,
             &compressed_buf
             );
@@ -954,7 +954,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
                 dest = &broadcast_offsets[nbroadcast_offsets];
                 nbroadcast_offsets++;
             } else {
-                assert(FALSE);
+                assert(false);
             }
         } else {
             dest = NULL;
@@ -984,12 +984,12 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
 // dump a buffer to stderr
 // no locking around this for now
 static void
-dump_bad_block(unsigned char *vp, u_int64_t size) {
-    const u_int64_t linesize = 64;
-    u_int64_t n = size / linesize;
-    for (u_int64_t i = 0; i < n; i++) {
+dump_bad_block(unsigned char *vp, uint64_t size) {
+    const uint64_t linesize = 64;
+    uint64_t n = size / linesize;
+    for (uint64_t i = 0; i < n; i++) {
         fprintf(stderr, "%p: ", vp);
-        for (u_int64_t j = 0; j < linesize; j++) {
+        for (uint64_t j = 0; j < linesize; j++) {
             unsigned char c = vp[j];
             fprintf(stderr, "%2.2X", c);
         }
@@ -997,7 +997,7 @@ dump_bad_block(unsigned char *vp, u_int64_t size) {
         vp += linesize;
     }
     size = size % linesize;
-    for (u_int64_t i=0; i<size; i++) {
+    for (uint64_t i=0; i<size; i++) {
         if ((i % linesize) == 0)
             fprintf(stderr, "%p: ", vp+i);
         fprintf(stderr, "%2.2X", vp[i]);
@@ -1030,7 +1030,7 @@ struct mp_pair {
     OMT omt;
 };
 
-static int fix_mp_offset(OMTVALUE v, u_int32_t i, void* extra) {
+static int fix_mp_offset(OMTVALUE v, uint32_t i, void* extra) {
     struct mp_pair *CAST_FROM_VOIDP(p, extra);
     char* old_value = (char *) v;
     char *new_value = old_value - (char *)p->orig_base + (char *)p->new_base;
@@ -1125,7 +1125,7 @@ read_block_from_fd_into_rbuf(
     // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    u_int8_t *XMALLOC_N(size, raw_block);
+    uint8_t *XMALLOC_N(size, raw_block);
     rbuf_init(rb, raw_block, size);
     {
         // read the block
@@ -1147,7 +1147,7 @@ static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKN
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
     DISKOFF read_size = MIN(read_header_heuristic_max, size);
-    u_int8_t *XMALLOC_N(size, raw_block);
+    uint8_t *XMALLOC_N(size, raw_block);
     rbuf_init(rb, raw_block, read_size);
     {
         // read the block
@@ -1172,7 +1172,7 @@ read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb)
     rbuf_literal_bytes(rb, cp, sb->compressed_size);
     sb->xsum = rbuf_int(rb);
     // let's check the checksum
-    u_int32_t actual_xsum = x1764_memory((char *)sb->compressed_ptr-8, 8+sb->compressed_size);
+    uint32_t actual_xsum = x1764_memory((char *)sb->compressed_ptr-8, 8+sb->compressed_size);
     if (sb->xsum != actual_xsum) {
         r = TOKUDB_BAD_CHECKSUM;
     }
@@ -1224,9 +1224,9 @@ verify_ftnode_sub_block (struct sub_block *sb)
 {
     int r = 0;
     // first verify the checksum
-    u_int32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
-    u_int32_t stored_xsum = toku_dtoh32(*((u_int32_t *)((char *)sb->uncompressed_ptr + data_size)));
-    u_int32_t actual_xsum = x1764_memory(sb->uncompressed_ptr, data_size);
+    uint32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
+    uint32_t stored_xsum = toku_dtoh32(*((uint32_t *)((char *)sb->uncompressed_ptr + data_size)));
+    uint32_t actual_xsum = x1764_memory(sb->uncompressed_ptr, data_size);
     if (stored_xsum != actual_xsum) {
         dump_bad_block((Bytef *) sb->uncompressed_ptr, sb->uncompressed_size);
         r = TOKUDB_BAD_CHECKSUM;
@@ -1251,7 +1251,7 @@ deserialize_ftnode_info(
         goto exit;
     }
 
-    u_int32_t data_size;
+    uint32_t data_size;
     data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
 
     // now with the data verified, we can read the information into the node
@@ -1305,7 +1305,7 @@ deserialize_ftnode_info(
     // make sure that all the data was read
     if (data_size != rb.ndone) {
         dump_bad_block(rb.buf, rb.size);
-        assert(FALSE);
+        assert(false);
     }
 exit:
     return r;
@@ -1390,7 +1390,7 @@ setup_partitions_using_bfe(FTNODE node,
         case PT_INVALID:
             break;
         }
-        assert(FALSE);
+        assert(false);
     }
 }
 
@@ -1428,7 +1428,7 @@ deserialize_ftnode_partition(
     if (r != 0) {
         goto exit;
     }
-    u_int32_t data_size;
+    uint32_t data_size;
     data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
 
     // now with the data verified, we can read the information into the node
@@ -1457,14 +1457,14 @@ deserialize_ftnode_partition(
 	BASEMENTNODE bn = BLB(node, childnum);
 	toku_mempool_copy_construct(&bn->buffer_mempool, &rb.buf[rb.ndone], data_size);
 	uint8_t *CAST_FROM_VOIDP(le_base, toku_mempool_get_base(&bn->buffer_mempool));   // point to first le in mempool
-        for (u_int32_t i = 0; i < num_entries; i++) {                     // now set up the pointers in the omt
+        for (uint32_t i = 0; i < num_entries; i++) {                     // now set up the pointers in the omt
             LEAFENTRY le = reinterpret_cast<LEAFENTRY>(&le_base[rb.ndone - start_of_data]); // point to durable mempool, not to transient rbuf
             uint32_t disksize = leafentry_disksize(le);
             rb.ndone += disksize;
             invariant(rb.ndone<=rb.size);
             array[i] = le;
         }
-        u_int32_t end_of_data = rb.ndone;
+        uint32_t end_of_data = rb.ndone;
 
         BLB_NBYTESINBUF(node, childnum) += end_of_data-start_of_data;
 
@@ -1516,7 +1516,7 @@ static int
 deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
                                                       FTNODE_DISK_DATA* ndd, 
                                                       BLOCKNUM blocknum,
-                                                      u_int32_t fullhash,
+                                                      uint32_t fullhash,
                                                       struct ftnode_fetch_extra *bfe,
                                                       struct rbuf *rb,
                                                       int fd)
@@ -1587,9 +1587,9 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
         BP_SIZE (*ndd,i) = rbuf_int(rb);
     }
 
-    u_int32_t checksum;
+    uint32_t checksum;
     checksum = x1764_memory(rb->buf, rb->ndone);
-    u_int32_t stored_checksum;
+    uint32_t stored_checksum;
     stored_checksum = rbuf_int(rb);
     if (stored_checksum != checksum) {
         dump_bad_block(rb->buf, rb->size);
@@ -1615,7 +1615,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     rbuf_literal_bytes(rb, cp, sb_node_info.compressed_size);
     sb_node_info.xsum = rbuf_int(rb);
     // let's check the checksum
-    u_int32_t actual_xsum;
+    uint32_t actual_xsum;
     actual_xsum = x1764_memory((char *)sb_node_info.compressed_ptr-8, 8+sb_node_info.compressed_size);
     if (sb_node_info.xsum != actual_xsum) {
         r = TOKUDB_BAD_CHECKSUM;
@@ -1804,7 +1804,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         // Atomically decrement the header's MSN count by the number
         // of messages in the buffer.
         MSN lowest;
-        u_int64_t amount = n_in_this_buffer;
+        uint64_t amount = n_in_this_buffer;
         lowest.msn = __sync_sub_and_fetch(&bfe->h->h->highest_unused_msn_for_upgrade.msn, amount);
         if (highest_msn.msn == 0) {
             highest_msn.msn = lowest.msn + n_in_this_buffer;
@@ -1876,8 +1876,8 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     // Must compute the checksum now (rather than at the end, while we
     // still have the pointer to the buffer).
     if (version >= FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
-        u_int32_t expected_xsum = toku_dtoh32(*(u_int32_t*)(rb->buf+rb->size-4));
-        u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
+        uint32_t expected_xsum = toku_dtoh32(*(uint32_t*)(rb->buf+rb->size-4));
+        uint32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
                     __FUNCTION__,
@@ -2046,8 +2046,8 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // 14. Checksum (end to end) is only on version 14
     if (version >= FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
-        u_int32_t expected_xsum = rbuf_int(rb);
-        u_int32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
+        uint32_t expected_xsum = rbuf_int(rb);
+        uint32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
                     __FUNCTION__,
@@ -2167,7 +2167,7 @@ deserialize_ftnode_from_rbuf(
     FTNODE *ftnode,
     FTNODE_DISK_DATA* ndd,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     struct ftnode_fetch_extra* bfe,
     STAT64INFO info,
     struct rbuf *rb,
@@ -2233,9 +2233,9 @@ deserialize_ftnode_from_rbuf(
         BP_SIZE (*ndd,i) = rbuf_int(rb);
     }
     // verify checksum of header stored
-    u_int32_t checksum;
+    uint32_t checksum;
     checksum = x1764_memory(rb->buf, rb->ndone);
-    u_int32_t stored_checksum;
+    uint32_t stored_checksum;
     stored_checksum = rbuf_int(rb);
     if (stored_checksum != checksum) {
         dump_bad_block(rb->buf, rb->size);
@@ -2268,8 +2268,8 @@ deserialize_ftnode_from_rbuf(
     // Previously, this code was a for loop with spawns inside and a sync at the end.
     // But now the loop is parallelizeable since we don't have a dependency on the work done so far.
     cilk_for (int i = 0; i < node->n_children; i++) {
-        u_int32_t curr_offset = BP_START(*ndd,i);
-        u_int32_t curr_size   = BP_SIZE(*ndd,i);
+        uint32_t curr_offset = BP_START(*ndd,i);
+        uint32_t curr_size   = BP_SIZE(*ndd,i);
         // the compressed, serialized partitions start at where rb is currently pointing,
         // which would be rb->buf + rb->ndone
         // we need to intialize curr_rbuf to point to this place
@@ -2358,11 +2358,11 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
         &total_node_disk_size
         );
 
-    u_int32_t curr_offset = BP_START(ndd, childnum);
-    u_int32_t curr_size   = BP_SIZE (ndd, childnum);
+    uint32_t curr_offset = BP_START(ndd, childnum);
+    uint32_t curr_size   = BP_SIZE (ndd, childnum);
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
-    u_int8_t *XMALLOC_N(curr_size, raw_block);
+    uint8_t *XMALLOC_N(curr_size, raw_block);
     rbuf_init(&rb, raw_block, curr_size);
     {
         // read the block
@@ -2416,7 +2416,7 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum,
 static int
 deserialize_ftnode_from_fd(int fd,
                             BLOCKNUM blocknum,
-                            u_int32_t fullhash,
+                            uint32_t fullhash,
                             FTNODE *ftnode,
                             FTNODE_DISK_DATA *ndd,
                             struct ftnode_fetch_extra *bfe,
@@ -2442,7 +2442,7 @@ cleanup:
 int
 toku_deserialize_ftnode_from (int fd,
                                BLOCKNUM blocknum,
-                               u_int32_t fullhash,
+                               uint32_t fullhash,
                                FTNODE *ftnode,
                                FTNODE_DISK_DATA* ndd,
                                struct ftnode_fetch_extra* bfe
@@ -2620,7 +2620,7 @@ toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
 int
 toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
                                 FT h, 
-                                BOOL for_checkpoint) {
+                                bool for_checkpoint) {
     size_t n_to_write;
     char *compressed_buf;
     {
@@ -2641,7 +2641,7 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
 }
 
 static int
-deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *log_p,
+deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *log_p,
                                     FT h, struct rbuf *rb) {
     ROLLBACK_LOG_NODE MALLOC(result);
     int r;
@@ -2661,7 +2661,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
     result->layout_version_original = rbuf_int(rb);
     result->layout_version_read_from_disk = result->layout_version;
     result->build_id = rbuf_int(rb);
-    result->dirty = FALSE;
+    result->dirty = false;
     //TODO: Maybe add descriptor (or just descriptor version) here eventually?
     //TODO: This is hard.. everything is shared in a single dictionary.
     rbuf_TXNID(rb, &result->txnid);
@@ -2718,7 +2718,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
 }
 
 static int
-deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash,
+deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknum, uint32_t fullhash,
                                               ROLLBACK_LOG_NODE *log,
                                               FT h, struct rbuf *rb) {
     int r = 0;
@@ -2732,21 +2732,21 @@ deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blockn
 }
 
 int
-decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf(uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     toku_trace("decompress");
     int r = 0;
     // get the number of compressed sub blocks
     int n_sub_blocks;
-    n_sub_blocks = toku_dtoh32(*(u_int32_t*)(&raw_block[node_header_overhead]));
+    n_sub_blocks = toku_dtoh32(*(uint32_t*)(&raw_block[node_header_overhead]));
 
     // verify the number of sub blocks
     invariant(0 <= n_sub_blocks && n_sub_blocks <= max_sub_blocks);
 
     { // verify the header checksum
-        u_int32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
+        uint32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
         invariant(header_length <= raw_block_size);
-        u_int32_t xsum = x1764_memory(raw_block, header_length);
-        u_int32_t stored_xsum = toku_dtoh32(*(u_int32_t *)(raw_block + header_length));
+        uint32_t xsum = x1764_memory(raw_block, header_length);
+        uint32_t stored_xsum = toku_dtoh32(*(uint32_t *)(raw_block + header_length));
         if (xsum != stored_xsum) {
             r = TOKUDB_BAD_CHECKSUM;
         }
@@ -2754,7 +2754,7 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
 
     // deserialize the sub block header
     struct sub_block sub_block[n_sub_blocks];
-    u_int32_t *sub_block_header = (u_int32_t *) &raw_block[node_header_overhead+4];
+    uint32_t *sub_block_header = (uint32_t *) &raw_block[node_header_overhead+4];
     for (int i = 0; i < n_sub_blocks; i++) {
         sub_block_init(&sub_block[i]);
         sub_block[i].compressed_size = toku_dtoh32(sub_block_header[0]);
@@ -2771,13 +2771,13 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
 
     // verify sub block sizes
     for (int i = 0; i < n_sub_blocks; i++) {
-        u_int32_t compressed_size = sub_block[i].compressed_size;
+        uint32_t compressed_size = sub_block[i].compressed_size;
         if (compressed_size<=0   || compressed_size>(1<<30)) { 
             r = toku_db_badformat(); 
             goto exit;
         }
 
-        u_int32_t uncompressed_size = sub_block[i].uncompressed_size;
+        uint32_t uncompressed_size = sub_block[i].uncompressed_size;
         if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
         if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { 
             r = toku_db_badformat();
@@ -2802,7 +2802,7 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
 
     // point at the start of the compressed data (past the node header, the sub block header, and the header checksum)
     unsigned char *compressed_data;
-    compressed_data = raw_block + node_header_overhead + sub_block_header_size(n_sub_blocks) + sizeof (u_int32_t);
+    compressed_data = raw_block + node_header_overhead + sub_block_header_size(n_sub_blocks) + sizeof (uint32_t);
 
     // point at the start of the uncompressed data
     unsigned char *uncompressed_data;
@@ -2825,7 +2825,7 @@ exit:
 }
 
 static int
-decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf_versioned(uint32_t version, uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     // This function exists solely to accomodate future changes in compression.
     int r = 0;
     switch (version) {
@@ -2835,7 +2835,7 @@ decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_b
             r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
             break;
         default:
-            lazy_assert(FALSE);
+            lazy_assert(false);
     }
     return r;
 }
@@ -2854,7 +2854,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
     // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    u_int8_t *XMALLOC_N(size, raw_block);
+    uint8_t *XMALLOC_N(size, raw_block);
     {
         // read the (partially compressed) block
         ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
@@ -2863,14 +2863,14 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
     // get the layout_version
     int layout_version;
     {
-        u_int8_t *magic = raw_block + uncompressed_magic_offset;
+        uint8_t *magic = raw_block + uncompressed_magic_offset;
         if (memcmp(magic, "tokuleaf", 8)!=0 &&
             memcmp(magic, "tokunode", 8)!=0 &&
             memcmp(magic, "tokuroll", 8)!=0) {
             r = toku_db_badformat();
             goto cleanup;
         }
-        u_int8_t *version = raw_block + uncompressed_version_offset;
+        uint8_t *version = raw_block + uncompressed_version_offset;
         layout_version = toku_dtoh32(*(uint32_t*)version);
         if (layout_version < FT_LAYOUT_MIN_SUPPORTED_VERSION || layout_version > FT_LAYOUT_VERSION) {
             r = toku_db_badformat();
@@ -2907,7 +2907,7 @@ cleanup:
 
 // Read rollback log node from file into struct.  Perform version upgrade if necessary.
 int
-toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash,
+toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash,
                                     ROLLBACK_LOG_NODE *logp, FT h) {
     toku_trace("deserial start");
 
@@ -2919,7 +2919,7 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhas
     if (r!=0) goto cleanup;
 
     {
-        u_int8_t *magic = rb.buf + uncompressed_magic_offset;
+        uint8_t *magic = rb.buf + uncompressed_magic_offset;
         if (memcmp(magic, "tokuroll", 8)!=0) {
             r = toku_db_badformat();
             goto cleanup;

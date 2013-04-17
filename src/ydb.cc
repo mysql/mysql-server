@@ -99,7 +99,7 @@ typedef enum {
 } ydb_layer_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[YDB_LAYER_STATUS_NUM_ROWS];
 } YDB_LAYER_STATUS_S, *YDB_LAYER_STATUS;
 
@@ -184,7 +184,7 @@ single_process_unlock(int *lockfd) {
 }
 
 /** The default maximum number of persistent locks in a lock tree  */
-static const u_int32_t __toku_env_default_locks_limit = 0x7FFFFFFF;
+static const uint32_t __toku_env_default_locks_limit = 0x7FFFFFFF;
 static const uint64_t __toku_env_default_lock_memory_limit = 1000*1024;
 
 static inline DBT*
@@ -324,7 +324,7 @@ env_fs_init(DB_ENV *env) {
     env->i->fs_state = FS_GREEN;
     env->i->fs_poll_time = 5;  // seconds
     env->i->redzone = 5;       // percent of total space
-    env->i->fs_poller_is_init = FALSE;
+    env->i->fs_poller_is_init = false;
 }
 
 // Initialize the minicron that polls file system space
@@ -332,7 +332,7 @@ static int
 env_fs_init_minicron(DB_ENV *env) {
     int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time, env_fs_poller, env); 
     assert(r == 0);
-    env->i->fs_poller_is_init = TRUE;
+    env->i->fs_poller_is_init = true;
     return r;
 }
 
@@ -342,7 +342,7 @@ env_fs_destroy(DB_ENV *env) {
     if (env->i->fs_poller_is_init) {
         int r = toku_minicron_shutdown(&env->i->fs_poller);
         assert(r == 0);
-        env->i->fs_poller_is_init = FALSE;
+        env->i->fs_poller_is_init = false;
     }
 }
 
@@ -395,11 +395,11 @@ ydb_do_recovery (DB_ENV *env) {
 static int 
 needs_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
-    int recovery_needed = tokudb_needs_recovery(env->i->real_log_dir, TRUE);
+    int recovery_needed = tokudb_needs_recovery(env->i->real_log_dir, true);
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
 
-static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags);
+static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, uint32_t flags);
 
 static void finalize_file_removal(DICTIONARY_ID dict_id, void * extra);
 
@@ -414,14 +414,14 @@ db_use_builtin_key_cmp(DB *db) {
     else if (db->i->key_compare_was_set)
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
     else {
-        u_int32_t tflags;
+        uint32_t tflags;
         r = toku_ft_get_flags(db->i->ft_handle, &tflags);
         if (r!=0) return r;
 
         tflags |= TOKU_DB_KEYCMP_BUILTIN;
         r = toku_ft_set_flags(db->i->ft_handle, tflags);
         if (!r)
-            db->i->key_compare_was_set = TRUE;
+            db->i->key_compare_was_set = true;
     }
     return r;
 }
@@ -452,7 +452,7 @@ typedef enum {
 } persistent_upgrade_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[PERSISTENT_UPGRADE_STATUS_NUM_ROWS];
 } PERSISTENT_UPGRADE_STATUS_S, *PERSISTENT_UPGRADE_STATUS;
 
@@ -510,7 +510,7 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         const uint32_t curr_env_ver_d = toku_htod32(FT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
         toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, 0, FALSE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0, false);
         assert_zero(r);
 
         // although the variable name is last_lsn_of_v13, this key really represents
@@ -519,19 +519,19 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
         toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
         toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, 0, FALSE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0, false);
         assert_zero(r);
         
         time_t upgrade_v19_time_d = toku_htod64(time(NULL));
         toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
         toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, FALSE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, false);
         assert_zero(r);
 
         uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
         toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
         toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, FALSE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, false);
         assert_zero(r);
     }
     return r;
@@ -610,9 +610,9 @@ ydb_recover_log_exists(DB_ENV *env) {
 // Set *valid_newenv if creating a new environment (all files missing).
 // (Note, if special dictionaries exist, then they were created transactionally and log should exist.)
 static int 
-validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
+validate_env(DB_ENV * env, bool * valid_newenv, bool need_rollback_cachefile) {
     int r;
-    BOOL expect_newenv = FALSE;        // set true if we expect to create a new env
+    bool expect_newenv = false;        // set true if we expect to create a new env
     toku_struct_stat buf;
     char* path = NULL;
 
@@ -621,12 +621,12 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     assert(path);
     r = toku_stat(path, &buf);
     if (r == 0) {
-        expect_newenv = FALSE;  // persistent info exists
+        expect_newenv = false;  // persistent info exists
     }
     else {
         int stat_errno = get_error_errno();
         if (stat_errno == ENOENT) {
-            expect_newenv = TRUE;
+            expect_newenv = true;
             r = 0;
         }
         else {
@@ -701,7 +701,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     if (r == 0)
         *valid_newenv = expect_newenv;
     else 
-        *valid_newenv = FALSE;
+        *valid_newenv = false;
     return r;
 }
 
@@ -712,7 +712,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 // of the current version is how the upgrade is done.  
 // Note, the upgrade procedure takes a checkpoint, so we must release the ydb lock.
 static int
-ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, BOOL * upgrade_in_progress) {
+ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, bool * upgrade_in_progress) {
     int r = 0;
     if (env->i->open_flags & DB_INIT_TXN && env->i->open_flags & DB_INIT_LOG) {
         r = toku_maybe_upgrade_log(env->i->dir, env->i->real_log_dir, last_lsn_of_clean_shutdown_read_from_log, upgrade_in_progress);
@@ -740,11 +740,11 @@ static int toku_db_lt_panic(DB* db, int r);
 // Return 0 on success, ENOENT if any of the expected necessary files are missing.
 // (The set of necessary files is defined in the function validate_env() above.)
 static int 
-env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
+env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     HANDLE_PANICKED_ENV(env);
     int r;
-    BOOL newenv;  // true iff creating a new environment
-    u_int32_t unused_flags=flags;
+    bool newenv;  // true iff creating a new environment
+    uint32_t unused_flags=flags;
 
     if (env_opened(env)) {
         r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
@@ -780,7 +780,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     // Verify that the home exists.
     {
-        BOOL made_new_home = FALSE;
+        bool made_new_home = false;
         char* new_home = NULL;
         toku_struct_stat buf;
         if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
@@ -789,7 +789,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
             XMALLOC_N(strlen(home), new_home);
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
-            made_new_home = TRUE;
+            made_new_home = true;
         }
         r = toku_stat(made_new_home? new_home : home, &buf);
         int er;
@@ -837,18 +837,18 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (r!=0) goto cleanup;
 
 
-    BOOL need_rollback_cachefile;
-    need_rollback_cachefile = FALSE;
+    bool need_rollback_cachefile;
+    need_rollback_cachefile = false;
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
-        need_rollback_cachefile = TRUE;
+        need_rollback_cachefile = true;
     }
 
     ydb_layer_status_init();  // do this before possibly upgrading, so upgrade work is counted in status counters
 
     LSN last_lsn_of_clean_shutdown_read_from_log;
     last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
-    BOOL upgrade_in_progress;
-    upgrade_in_progress = FALSE;
+    bool upgrade_in_progress;
+    upgrade_in_progress = false;
     r = ydb_maybe_upgrade_env(env, &last_lsn_of_clean_shutdown_read_from_log, &upgrade_in_progress);
     if (r!=0) goto cleanup;
 
@@ -862,7 +862,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
             assert(get_error_errno() == ENOENT);
         }
         toku_free(rollback_filename);
-        need_rollback_cachefile = FALSE;  // we're not expecting it to exist now
+        need_rollback_cachefile = false;  // we're not expecting it to exist now
     }
     
     r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
@@ -890,7 +890,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         assert(env->i->logger);
-        toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
+        toku_logger_write_log_files(env->i->logger, (bool)((flags & DB_INIT_LOG) != 0));
         if (!toku_logger_is_open(env->i->logger)) {
             r = toku_logger_open(env->i->real_log_dir, env->i->logger);
             if (r!=0) {
@@ -941,7 +941,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
         toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
         if (!toku_logger_rollback_is_open(env->i->logger)) {
-            BOOL create_new_rollback_file = newenv | upgrade_in_progress;
+            bool create_new_rollback_file = newenv | upgrade_in_progress;
             r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
             assert(r==0);
         }
@@ -969,18 +969,18 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
             toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
             toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, false);
             assert_zero(r);
 
             toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
             toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, false);
             assert_zero(r);
 
             time_t creation_time_d = toku_htod64(time(NULL));
             toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
             toku_fill_dbt(&val, &creation_time_d, sizeof(creation_time_d));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, false);
             assert_zero(r);
         }
         else {
@@ -1023,7 +1023,7 @@ cleanup:
 
 
 static int 
-env_close(DB_ENV * env, u_int32_t flags) {
+env_close(DB_ENV * env, uint32_t flags) {
     int r = 0;
     const char * err_msg = NULL;
 
@@ -1071,7 +1071,7 @@ env_close(DB_ENV * env, u_int32_t flags) {
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
-            r = toku_logger_close_rollback(env->i->logger, FALSE);
+            r = toku_logger_close_rollback(env->i->logger, false);
             if (r) {
                 err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1161,7 +1161,7 @@ panic_and_quit_early:
 }
 
 static int 
-env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
+env_log_archive(DB_ENV * env, char **list[], uint32_t flags) {
     return toku_logger_log_archive(env->i->logger, list, flags);
 }
 
@@ -1173,11 +1173,11 @@ env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
 }
 
 static int 
-env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+env_set_cachesize(DB_ENV * env, uint32_t gbytes, uint32_t bytes, int ncache) {
     HANDLE_PANICKED_ENV(env);
     if (ncache != 1)
         return EINVAL;
-    u_int64_t cs64 = ((u_int64_t) gbytes << 30) + bytes;
+    uint64_t cs64 = ((uint64_t) gbytes << 30) + bytes;
     unsigned long cs = cs64;
     if (cs64 > cs)
         return EINVAL;
@@ -1186,7 +1186,7 @@ env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
 }
 
 static int
-locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
+locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
     int ret, r;
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
 
@@ -1215,7 +1215,7 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
 }
 
 static int
-locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
     int ret, r;
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
 
@@ -1247,7 +1247,7 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
 
 static int 
-env_get_cachesize(DB_ENV * env, u_int32_t *gbytes, u_int32_t *bytes, int *ncache) {
+env_get_cachesize(DB_ENV * env, uint32_t *gbytes, uint32_t *bytes, int *ncache) {
     HANDLE_PANICKED_ENV(env);
     *gbytes = env->i->cachetable_size >> 30;
     *bytes = env->i->cachetable_size & ((1<<30)-1);
@@ -1294,10 +1294,10 @@ env_set_errpfx(DB_ENV * env, const char *errpfx) {
 }
 
 static int 
-env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
+env_set_flags(DB_ENV * env, uint32_t flags, int onoff) {
     HANDLE_PANICKED_ENV(env);
 
-    u_int32_t change = 0;
+    uint32_t change = 0;
     if (flags & DB_AUTO_COMMIT) {
         change |=  DB_AUTO_COMMIT;
         flags  &= ~DB_AUTO_COMMIT;
@@ -1311,7 +1311,7 @@ env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
 }
 
 static int 
-env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
+env_set_lg_bsize(DB_ENV * env, uint32_t bsize) {
     HANDLE_PANICKED_ENV(env);
     return toku_logger_set_lg_bsize(env->i->logger, bsize);
 }
@@ -1335,25 +1335,25 @@ env_set_lg_dir(DB_ENV * env, const char *dir) {
 }
 
 static int 
-env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
+env_set_lg_max(DB_ENV * env, uint32_t lg_max) {
     HANDLE_PANICKED_ENV(env);
     return toku_logger_set_lg_max(env->i->logger, lg_max);
 }
 
 static int 
-env_get_lg_max(DB_ENV * env, u_int32_t *lg_maxp) {
+env_get_lg_max(DB_ENV * env, uint32_t *lg_maxp) {
     HANDLE_PANICKED_ENV(env);
     return toku_logger_get_lg_max(env->i->logger, lg_maxp);
 }
 
 static int 
-env_set_lk_detect(DB_ENV * env, u_int32_t UU(detect)) {
+env_set_lk_detect(DB_ENV * env, uint32_t UU(detect)) {
     HANDLE_PANICKED_ENV(env);
     return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
 }
 
 static int 
-env_set_lk_max_locks(DB_ENV *env, u_int32_t locks_limit) {
+env_set_lk_max_locks(DB_ENV *env, uint32_t locks_limit) {
     HANDLE_PANICKED_ENV(env);
     int r;
     if (env_opened(env)) {
@@ -1366,14 +1366,14 @@ env_set_lk_max_locks(DB_ENV *env, u_int32_t locks_limit) {
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
 static int 
-env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
+env_set_lk_max(DB_ENV * env, uint32_t lk_max) {
     return env_set_lk_max_locks(env, lk_max);
 }
 
 #endif
 
 static int 
-env_get_lk_max_locks(DB_ENV *env, u_int32_t *lk_maxp) {
+env_get_lk_max_locks(DB_ENV *env, uint32_t *lk_maxp) {
     HANDLE_PANICKED_ENV(env);
     int r;
     if (lk_maxp == NULL) 
@@ -1425,13 +1425,13 @@ env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
 }
 
 static int 
-env_set_verbose(DB_ENV * env, u_int32_t UU(which), int UU(onoff)) {
+env_set_verbose(DB_ENV * env, uint32_t UU(which), int UU(onoff)) {
     HANDLE_PANICKED_ENV(env);
     return 1;
 }
 
 static int 
-toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
+toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte __attribute__((__unused__)), uint32_t min __attribute__((__unused__)), uint32_t flags __attribute__((__unused__))) {
     int r = toku_checkpoint(env->i->cachetable, env->i->logger,
                             checkpoint_callback_f,  checkpoint_callback_extra,
                             checkpoint_callback2_f, checkpoint_callback2_extra,
@@ -1445,13 +1445,13 @@ toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)
 }
 
 static int 
-env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), u_int32_t UU(flags)) {
+env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), uint32_t UU(flags)) {
     HANDLE_PANICKED_ENV(env);
     return 1;
 }
 
 static int
-env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
     int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
     if (r==0) {
@@ -1465,7 +1465,7 @@ env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*
 }
 
 static int
-env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
     int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
     if (r==0) {
@@ -1486,7 +1486,7 @@ env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txn
 }
 
 static int
-env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
+env_checkpointing_set_period(DB_ENV * env, uint32_t seconds) {
     HANDLE_PANICKED_ENV(env);
     int r;
     if (!env_opened(env)) r = EINVAL;
@@ -1496,7 +1496,7 @@ env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
 }
 
 static int
-env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
+env_cleaner_set_period(DB_ENV * env, uint32_t seconds) {
     HANDLE_PANICKED_ENV(env);
     int r;
     if (!env_opened(env)) r = EINVAL;
@@ -1506,7 +1506,7 @@ env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
 }
 
 static int
-env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
+env_cleaner_set_iterations(DB_ENV * env, uint32_t iterations) {
     HANDLE_PANICKED_ENV(env);
     int r;
     if (!env_opened(env)) r = EINVAL;
@@ -1530,7 +1530,7 @@ env_create_loader(DB_ENV *env,
 }
 
 static int
-env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
+env_checkpointing_get_period(DB_ENV * env, uint32_t *seconds) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
@@ -1540,7 +1540,7 @@ env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
 }
 
 static int
-env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
+env_cleaner_get_period(DB_ENV * env, uint32_t *seconds) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
@@ -1550,7 +1550,7 @@ env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
 }
 
 static int
-env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
+env_cleaner_get_iterations(DB_ENV * env, uint32_t *iterations) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
@@ -1692,7 +1692,7 @@ typedef enum {
 } fs_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[FS_STATUS_NUM_ROWS];
 } FS_STATUS_S, *FS_STATUS;
 
@@ -1737,7 +1737,7 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
     FS_STATUS_VALUE(FS_ENOSPC_MOST_RECENT) = enospc_most_recent_timestamp;
     FS_STATUS_VALUE(FS_ENOSPC_COUNT) = enospc_total;
     
-    u_int64_t fsync_count, fsync_time;
+    uint64_t fsync_count, fsync_time;
     toku_get_fsync_times(&fsync_count, &fsync_time);
     FS_STATUS_VALUE(FS_FSYNC_COUNT) = fsync_count;
     FS_STATUS_VALUE(FS_FSYNC_TIME) = fsync_time;
@@ -1761,7 +1761,7 @@ typedef enum {
 } memory_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[MEMORY_STATUS_NUM_ROWS];
 } MEMORY_STATUS_S, *MEMORY_STATUS;
 
@@ -2149,7 +2149,7 @@ env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
 }
 
 static int 
-toku_env_create(DB_ENV ** envp, u_int32_t flags) {
+toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
     DB_ENV* result = NULL;
 
@@ -2276,7 +2276,7 @@ cleanup:
 }
 
 int 
-DB_ENV_CREATE_FUN (DB_ENV ** envp, u_int32_t flags) {
+DB_ENV_CREATE_FUN (DB_ENV ** envp, uint32_t flags) {
     int r = toku_env_create(envp, flags); 
     return r;
 }
@@ -2354,10 +2354,10 @@ find_open_db_by_dname (OMTVALUE v, void *dnamev) {
 }
 
 // return true if there is any db open with the given dname
-static BOOL
+static bool
 env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     int r;
-    BOOL rval;
+    bool rval;
     OMTVALUE dbv;
     uint32_t idx;
     toku_mutex_lock(&env->i->open_dbs_lock);
@@ -2365,11 +2365,11 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     if (r==0) {
         DB *db = (DB *) dbv;
         assert(strcmp(dname, db->i->dname) == 0);
-        rval = TRUE;
+        rval = true;
     }
     else {
         assert(r==DB_NOTFOUND);
-        rval = FALSE;
+        rval = false;
     }
     toku_mutex_unlock(&env->i->open_dbs_lock);
     return rval;
@@ -2430,7 +2430,7 @@ can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env) {
 }
 
 int
-toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
+toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
     if (!env_opened(env) || flags != 0) {
@@ -2466,7 +2466,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
         goto exit;
     }
     // remove (dname,iname) from directory
-    r = toku_db_del(env->i->directory, txn, &dname_dbt, DB_DELETE_ANY, TRUE);
+    r = toku_db_del(env->i->directory, txn, &dname_dbt, DB_DELETE_ANY, true);
     if (r != 0) {
         goto exit;
     }
@@ -2516,7 +2516,7 @@ exit:
 }
 
 static int
-env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
     int r;
     if (!fname || !dbname || !newname) r = EINVAL;
     else {
@@ -2538,7 +2538,7 @@ env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbna
 
 
 int
-toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
+toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
     if (!env_opened(env) || flags != 0) {
@@ -2581,9 +2581,9 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
         }
         else if (r == DB_NOTFOUND) {
             // remove old (dname,iname) and insert (newname,iname) in directory
-            r = toku_db_del(env->i->directory, txn, &old_dname_dbt, DB_DELETE_ANY, TRUE);
+            r = toku_db_del(env->i->directory, txn, &old_dname_dbt, DB_DELETE_ANY, true);
             if (r != 0) { goto exit; }
-            r = toku_db_put(env->i->directory, txn, &new_dname_dbt, &iname_dbt, 0, TRUE);
+            r = toku_db_put(env->i->directory, txn, &new_dname_dbt, &iname_dbt, 0, true);
             if (r != 0) { goto exit; }
 
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
@@ -2622,7 +2622,7 @@ exit:
 }
 
 int 
-DB_CREATE_FUN (DB ** db, DB_ENV * env, u_int32_t flags) {
+DB_CREATE_FUN (DB ** db, DB_ENV * env, uint32_t flags) {
     int r = toku_db_create(db, env, flags); 
     return r;
 }

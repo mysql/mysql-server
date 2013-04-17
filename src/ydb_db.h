@@ -20,7 +20,7 @@ typedef enum {
 } ydb_db_lock_layer_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[YDB_DB_LAYER_STATUS_NUM_ROWS];
 } YDB_DB_LAYER_STATUS_S, *YDB_DB_LAYER_STATUS;
 
@@ -38,36 +38,36 @@ toku_db_get_compare_fun(DB* db) {
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
-int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
+int db_open_iname(DB * db, DB_TXN * txn, const char *iname, uint32_t flags, int mode);
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
-int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
-int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags);
+int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags);
+int toku_db_create(DB ** db, DB_ENV * env, uint32_t flags);
 int toku_db_close(DB * db);
-int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, FT_HANDLE brt, bool is_open);
-int db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
-int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags);
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt, bool is_open);
+int db_getf_set(DB *db, DB_TXN *txn, uint32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
+int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, uint32_t flags);
 
 //TODO: DB_AUTO_COMMIT.
 //TODO: Nowait only conditionally?
 //TODO: NOSYNC change to SYNC if DB_ENV has something in set_flags
 static inline int 
-toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_commit) {
+toku_db_construct_autotxn(DB* db, DB_TXN **txn, bool* changed, bool force_auto_commit) {
     assert(db && txn && changed);
     DB_ENV* env = db->dbenv;
     if (*txn || !(env->i->open_flags & DB_INIT_TXN)) {
-        *changed = FALSE;
+        *changed = false;
         return 0;
     }
-    BOOL nosync = (BOOL)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
-    u_int32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
+    bool nosync = (bool)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
+    uint32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
     int r = toku_txn_begin(env, NULL, txn, txn_flags);
     if (r!=0) return r;
-    *changed = TRUE;
+    *changed = true;
     return 0;
 }
 
 static inline int 
-toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
+toku_db_destruct_autotxn(DB_TXN *txn, int r, bool changed) {
     if (!changed) return r;
     if (r==0) {
         r = locked_txn_commit(txn, 0);

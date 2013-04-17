@@ -97,7 +97,7 @@ finish (void) {
 }
 
 
-volatile int finished = FALSE;
+volatile int finished = false;
 
 // Thread A performs checkpoints
 static void*
@@ -127,7 +127,7 @@ start_b (void *arg __attribute__((__unused__))) {
 	}
 	r = txn->commit(txn, DB_TXN_NOSYNC);                                              CKERR(r);
     }
-    finished = TRUE;
+    finished = true;
     return NULL;
 }
 
@@ -153,7 +153,7 @@ run_test (void)
     setup();
     pthread_t t[3];
     pthread_fun funs[3] = {start_a, start_b, start_c};
-    finished = FALSE;
+    finished = false;
     for (int i=0; i<3; i++) {
 	int r = pthread_create(&t[i], NULL, funs[i], NULL);
 	assert(r==0);

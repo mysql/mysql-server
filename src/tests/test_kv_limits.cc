@@ -13,9 +13,9 @@
 #include <db.h>
 
 
-static u_int64_t lorange = 0;
-static u_int64_t hirange = 1<<24;
-static u_int32_t pagesize = 0;
+static uint64_t lorange = 0;
+static uint64_t hirange = 1<<24;
+static uint32_t pagesize = 0;
 
 static void test_key_size_limit (void) {
     if (verbose > 1) printf("%s\n", __FUNCTION__);
@@ -43,17 +43,17 @@ static void test_key_size_limit (void) {
 
     void *k = 0;
     void *v = 0;
-    u_int32_t lo = lorange, mi = 0, hi = hirange;
-    u_int32_t bigest = 0;
+    uint32_t lo = lorange, mi = 0, hi = hirange;
+    uint32_t bigest = 0;
     while (lo <= hi) {
         mi = lo + (hi - lo) / 2;
         assert(lo <= mi && mi <= hi);
-        u_int32_t ks = mi;
+        uint32_t ks = mi;
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
         k = toku_realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
-        u_int32_t vs = sizeof (u_int32_t);
+        uint32_t vs = sizeof (uint32_t);
         v = toku_realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
@@ -102,17 +102,17 @@ static void test_data_size_limit (void) {
 
     void *k = 0;
     void *v = 0;
-    u_int32_t lo = lorange, mi = 0, hi = hirange;
-    u_int32_t bigest = 0;
+    uint32_t lo = lorange, mi = 0, hi = hirange;
+    uint32_t bigest = 0;
     while (lo <= hi) {
         mi = lo + (hi - lo) / 2;
         assert(lo <= mi && mi <= hi);
-        u_int32_t ks = sizeof (u_int32_t);
+        uint32_t ks = sizeof (uint32_t);
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
         k = toku_realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
-        u_int32_t vs = mi;
+        uint32_t vs = mi;
         v = toku_realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);

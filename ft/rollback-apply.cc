@@ -25,7 +25,7 @@ int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     rolltype_dispatch_assign(item, toku_commit_, r, txn, lsn);
     txn->roll_info.num_rollentries_processed++;
     if (txn->roll_info.num_rollentries_processed % 1024 == 0) {
-        poll_txn_progress_function(txn, TRUE, FALSE);
+        poll_txn_progress_function(txn, true, false);
     }
     return r;
 }
@@ -35,13 +35,13 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     rolltype_dispatch_assign(item, toku_rollback_, r, txn, lsn);
     txn->roll_info.num_rollentries_processed++;
     if (txn->roll_info.num_rollentries_processed % 1024 == 0) {
-        poll_txn_progress_function(txn, FALSE, FALSE);
+        poll_txn_progress_function(txn, false, false);
     }
     return r;
 }
 
 static int
-note_ft_used_in_txns_parent(OMTVALUE ftv, u_int32_t UU(index), void *txnv) {
+note_ft_used_in_txns_parent(OMTVALUE ftv, uint32_t UU(index), void *txnv) {
     TOKUTXN CAST_FROM_VOIDP(child, txnv);
     TOKUTXN parent = child->parent;
     FT CAST_FROM_VOIDP(ft, ftv);
@@ -68,11 +68,11 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
     BLOCKNUM next_log      = ROLLBACK_NONE;
     uint32_t next_log_hash = 0;
 
-    BOOL is_current = FALSE;
+    bool is_current = false;
     if (txn_has_current_rollback_log(txn)) {
         next_log      = txn->roll_info.current_rollback;
         next_log_hash = txn->roll_info.current_rollback_hash;
-        is_current = TRUE;
+        is_current = true;
     }
     else if (txn_has_spilled_rollback_logs(txn)) {
         next_log      = txn->roll_info.spilled_rollback_tail;
@@ -80,7 +80,7 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
     }
 
     uint64_t last_sequence = txn->roll_info.num_rollback_nodes;
-    BOOL found_head = FALSE;
+    bool found_head = false;
     while (next_log.b != ROLLBACK_NONE.b) {
         ROLLBACK_LOG_NODE log;
         //pin log
@@ -99,7 +99,7 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
         }
         if (next_log.b == txn->roll_info.spilled_rollback_head.b) {
             assert(!found_head);
-            found_head = TRUE;
+            found_head = true;
             assert(log->sequence == 0);
         }
         next_log      = log->previous;
@@ -110,7 +110,7 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
             if (is_current) {
                 txn->roll_info.current_rollback      = ROLLBACK_NONE;
                 txn->roll_info.current_rollback_hash = 0;
-                is_current = FALSE;
+                is_current = false;
             }
             else {
                 txn->roll_info.spilled_rollback_tail      = next_log;
@@ -199,7 +199,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
 
         // Merge the list of headers that must be checkpointed before commit
         if (txn->checkpoint_needed_before_commit) {
-            txn->parent->checkpoint_needed_before_commit = TRUE;
+            txn->parent->checkpoint_needed_before_commit = true;
         }
 
         //If this transaction needs an fsync (if it commits)

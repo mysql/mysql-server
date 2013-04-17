@@ -60,7 +60,7 @@ static void *run_locker_a(void *arg) {
     struct test_seq *test_seq = locker_args->test_seq;
     int r;
 
-    u_int32_t locker_a;
+    uint32_t locker_a;
     r = db_env->lock_id(db_env, &locker_a); assert(r == 0);
 
     DBT object_l = { .data = (char *) "L", .size = 1 };
@@ -99,7 +99,7 @@ static void *run_locker_b(void *arg) {
     struct test_seq *test_seq = locker_args->test_seq;
     int r;
 
-    u_int32_t locker_b;
+    uint32_t locker_b;
     r = db_env->lock_id(db_env, &locker_b); assert(r == 0);
 
     DBT object_l = { .data = (char *) "L", .size = 1 };
@@ -186,7 +186,7 @@ int test_main(int argc, char * const argv[]) {
     DB_ENV *db_env = NULL;
     r = db_env_create(&db_env, 0); assert(r == 0);
     if (cachesize) {
-        const u_int64_t gig = 1 << 30;
+        const uint64_t gig = 1 << 30;
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     if (!do_txn)

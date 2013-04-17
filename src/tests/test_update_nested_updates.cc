@@ -81,7 +81,7 @@ static int do_updates(DB_TXN *txn, DB *db) {
     return r;
 }
 
-static int do_verify_results(DB_TXN *txn, DB *db, BOOL updated_twice) {
+static int do_verify_results(DB_TXN *txn, DB *db, bool updated_twice) {
     int r = 0;
     DBT key, val;
     unsigned int i, *vp;
@@ -119,18 +119,18 @@ int test_main (int argc, char * const argv[]) {
 
     IN_TXN_COMMIT(env, NULL, txn_2, 0, {
             { int chk_r = do_updates(txn_2, db); CKERR(chk_r); }
-            { int chk_r = do_verify_results(txn_2, db, FALSE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_2, db, false); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_2, txn_21, 0, {
                     { int chk_r = do_updates(txn_21, db); CKERR(chk_r); }
-                    { int chk_r = do_verify_results(txn_21, db, TRUE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_21, db, true); CKERR(chk_r); }
                 });
 
-            { int chk_r = do_verify_results(txn_2, db, TRUE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_2, db, true); CKERR(chk_r); }
         });
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            { int chk_r = do_verify_results(txn_3, db, TRUE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_3, db, true); CKERR(chk_r); }
         });
 
     { int chk_r = db->close(db, 0); CKERR(chk_r); }

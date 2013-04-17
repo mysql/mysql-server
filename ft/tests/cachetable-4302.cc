@@ -17,10 +17,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -30,7 +30,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value,
        void** UU(dd),
        PAIR_ATTR *sizep,
@@ -90,7 +90,7 @@ pe_callback (
 static void
 test_get_key_and_fullhash(
     CACHEKEY* cachekey,
-    u_int32_t* fullhash,
+    uint32_t* fullhash,
     void* UU(extra))
 {
     CACHEKEY name;
@@ -111,8 +111,8 @@ cachetable_test (void) {
 
   void* v1;
   long s1;
-  u_int64_t val1 = 0;
-  u_int64_t val2 = 0;
+  uint64_t val1 = 0;
+  uint64_t val2 = 0;
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
   wc.flush_callback = flush;
   wc.pe_est_callback = pe_est_callback;
@@ -126,12 +126,12 @@ cachetable_test (void) {
       wc, 
       fetch, 
       def_pf_req_callback, def_pf_callback, 
-      TRUE, 
+      true, 
       &val1
       );
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
   CACHEKEY key;
-  u_int32_t fullhash;
+  uint32_t fullhash;
   checkpoint_began = false;
   r = toku_cachetable_put_with_dep_pairs(
         f1,
@@ -160,7 +160,7 @@ cachetable_test (void) {
       );
 
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

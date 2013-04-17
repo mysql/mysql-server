@@ -35,7 +35,7 @@ test_setup(TOKULOGGER *loggerp, CACHETABLE *ctp) {
 
     toku_logger_set_cachetable(logger, ct);
 
-    r = toku_logger_open_rollback(logger, ct, TRUE);
+    r = toku_logger_open_rollback(logger, ct, true);
     CKERR(r);
 
     r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);

@@ -108,8 +108,8 @@ check_node_info_checksum(struct rbuf *rb)
 {
     int r = 0;
     // Verify checksum of header stored.
-    u_int32_t checksum = x1764_memory(rb->buf, rb->ndone);
-    u_int32_t stored_checksum = rbuf_int(rb);
+    uint32_t checksum = x1764_memory(rb->buf, rb->ndone);
+    uint32_t stored_checksum = rbuf_int(rb);
 
     if (stored_checksum != checksum) {
         // TODO: dump_bad_block(rb->buf, rb->size);
@@ -143,8 +143,8 @@ int
 check_legacy_end_checksum(struct rbuf *rb)
 {
     int r = 0;
-    u_int32_t expected_xsum = rbuf_int(rb);
-    u_int32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
+    uint32_t expected_xsum = rbuf_int(rb);
+    uint32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
     if (expected_xsum != actual_xsum) {
         r = TOKUDB_BAD_CHECKSUM;
     }

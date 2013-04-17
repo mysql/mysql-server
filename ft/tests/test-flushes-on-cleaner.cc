@@ -42,7 +42,7 @@ static int update_func(
 
 
 static void
-doit (BOOL keep_other_bn_in_memory) {
+doit (bool keep_other_bn_in_memory) {
     BLOCKNUM node_leaf;
     BLOCKNUM node_internal, node_root;
 
@@ -171,7 +171,7 @@ doit (BOOL keep_other_bn_in_memory) {
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -219,7 +219,7 @@ doit (BOOL keep_other_bn_in_memory) {
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -244,7 +244,7 @@ doit (BOOL keep_other_bn_in_memory) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -268,7 +268,7 @@ doit (BOOL keep_other_bn_in_memory) {
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -302,7 +302,7 @@ doit (BOOL keep_other_bn_in_memory) {
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     default_parse_args(argc, argv);
-    doit(FALSE);
-    doit(TRUE);
+    doit(false);
+    doit(true);
     return 0;
 }

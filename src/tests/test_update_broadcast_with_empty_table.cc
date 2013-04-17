@@ -33,16 +33,16 @@ static void cleanup (void) {
     { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
-static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
+static int do_updates(DB_TXN *txn, DB *db, uint32_t flags) {
     DBT extra;
     DBT *extrap = dbt_init(&extra, NULL, 0);
     int r = db->update_broadcast(db, txn, extrap, flags); CKERR(r);
     return r;
 }
 
-static void run_test(BOOL is_resetting, BOOL prelock) {
+static void run_test(bool is_resetting, bool prelock) {
     DB *db;
-    u_int32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
+    uint32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
             { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
@@ -64,10 +64,10 @@ static void run_test(BOOL is_resetting, BOOL prelock) {
 int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
     setup();
-    run_test(TRUE,TRUE);
-    run_test(FALSE,TRUE);
-    run_test(TRUE,FALSE);
-    run_test(FALSE,FALSE);
+    run_test(true,true);
+    run_test(false,true);
+    run_test(true,false);
+    run_test(false,false);
     cleanup();
 
     return 0;

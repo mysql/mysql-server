@@ -134,9 +134,9 @@ test_main(int argc, char * const argv[]) {
     const char *env_dir = "dir.shutdown.ca";
     int ndbs = 500;
     int do_txn = 1;
-    u_int32_t pagesize = 1024;
-    u_int64_t cachesize = 1000000000;
-    u_int64_t nrows = 50000;
+    uint32_t pagesize = 1024;
+    uint64_t cachesize = 1000000000;
+    uint64_t nrows = 50000;
 
     for (int i = 1; i < argc ; i++) {
         char * const arg = argv[i];
@@ -182,7 +182,7 @@ test_main(int argc, char * const argv[]) {
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0); assert_zero(r);
     if (cachesize) {
-        const u_int64_t gig = 1 << 30;
+        const uint64_t gig = 1 << 30;
         r = env->set_cachesize(env, cachesize / gig, cachesize % gig, 1); assert_zero(r);
     }
     int env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;

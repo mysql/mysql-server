@@ -28,7 +28,7 @@ static int generate_row_for_put(
 }
 
 
-static void do_1381_maybe_lock (int do_loader, u_int64_t *raw_count) {
+static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
     int r;
     DB_TXN * const null_txn = 0;
 
@@ -71,8 +71,8 @@ static void do_1381_maybe_lock (int do_loader, u_int64_t *raw_count) {
 
 	DB_TXN *txn;
 	r = env->txn_begin(env, 0, &txn, 0);                              CKERR(r);
-        u_int32_t mult_put_flags = 0;
-        u_int32_t mult_dbt_flags = 0;
+        uint32_t mult_put_flags = 0;
+        uint32_t mult_dbt_flags = 0;
         DB_LOADER* loader = NULL;
 	if (do_loader) {
 	    r = env->create_loader(
@@ -133,7 +133,7 @@ static void do_1381_maybe_lock (int do_loader, u_int64_t *raw_count) {
 static void
 do_1381 (void) {
     int do_table_lock;
-    u_int64_t raw_counts[2];
+    uint64_t raw_counts[2];
     for (do_table_lock = 0; do_table_lock < 2 ; do_table_lock++) {
 	do_1381_maybe_lock(do_table_lock, &raw_counts[do_table_lock]);
     }

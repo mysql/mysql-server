@@ -47,7 +47,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
     MSN msn = next_dummymsn();
     FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
 
-    u_int64_t workdone=0;
+    uint64_t workdone=0;
     toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, &cmd, &workdone, NULL);
     {
 	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair);

@@ -18,15 +18,7 @@
 #include <inttypes.h>
 
 
-#include <stdbool.h>
-#ifndef TRUE
-// In the future, use the stdbool bool and constants (true false), rather than BOOL, TRUE, and FALSE.
-#define TRUE true
-#define FALSE false
-typedef bool BOOL;
-#endif
-
-
+// Use the C++ bool and constants (true false), rather than BOOL, TRUE, and FALSE.
 
 typedef struct ft_handle *FT_HANDLE;
 typedef struct ftnode *FTNODE;
@@ -82,30 +74,30 @@ static inline PAIR_ATTR make_pair_attr(long size) {
         .leaf_size = 0, 
         .rollback_size = 0, 
         .cache_pressure_size = 0,
-        .is_valid = TRUE
+        .is_valid = true
     }; 
 #else
-    PAIR_ATTR result = {size, 0, 0, 0, 0, TRUE};
+    PAIR_ATTR result = {size, 0, 0, 0, 0, true};
 #endif
     return result; 
 }
 
 typedef struct {
-    u_int32_t len;
+    uint32_t len;
     char *data;
 } BYTESTRING;
 
 /* Log Sequence Number (LSN)
  * Make the LSN be a struct instead of an integer so that we get better type checking. */
-typedef struct __toku_lsn { u_int64_t lsn; } LSN;
+typedef struct __toku_lsn { uint64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
 #define MAX_LSN  ((LSN){UINT64_MAX})
 
 /* Message Sequence Number (MSN)
  * Make the MSN be a struct instead of an integer so that we get better type checking. */
-typedef struct __toku_msn { u_int64_t msn; } MSN;
+typedef struct __toku_msn { uint64_t msn; } MSN;
 #define ZERO_MSN ((MSN){0})                 // dummy used for message construction, to be filled in when msg is applied to tree
-#define MIN_MSN  ((MSN){(u_int64_t)1 << 62})  // first 2^62 values reserved for messages created before Dr. No (for upgrade)
+#define MIN_MSN  ((MSN){(uint64_t)1 << 62})  // first 2^62 values reserved for messages created before Dr. No (for upgrade)
 #define MAX_MSN  ((MSN){UINT64_MAX})
 
 typedef struct {
@@ -120,14 +112,14 @@ static const STAT64INFO_S ZEROSTATS = {0,0};
  * With the introduction of the loader (ticket 2216), it is possible for the file that holds
  * an open dictionary to change, so these are now separate and independent unique identifiers.
  */
-typedef struct {u_int32_t fileid;} FILENUM;
+typedef struct {uint32_t fileid;} FILENUM;
 #define FILENUM_NONE ((FILENUM){UINT32_MAX})
 
-typedef struct {u_int64_t dictid;} DICTIONARY_ID;
+typedef struct {uint64_t dictid;} DICTIONARY_ID;
 #define DICTIONARY_ID_NONE ((DICTIONARY_ID){0})
 
 typedef struct {
-    u_int32_t num;
+    uint32_t num;
     FILENUM  *filenums;
 } FILENUMS;
 
@@ -166,10 +158,10 @@ enum ft_msg_type {
     FT_UPDATE_BROADCAST_ALL = 15
 };
 
-static inline BOOL
+static inline bool
 ft_msg_type_applies_once(enum ft_msg_type type)
 {
-    BOOL ret_val;
+    bool ret_val;
     switch (type) {
     case FT_INSERT_NO_OVERWRITE:
     case FT_INSERT:
@@ -177,7 +169,7 @@ ft_msg_type_applies_once(enum ft_msg_type type)
     case FT_ABORT_ANY:
     case FT_COMMIT_ANY:
     case FT_UPDATE:
-        ret_val = TRUE;
+        ret_val = true;
         break;
     case FT_COMMIT_BROADCAST_ALL:
     case FT_COMMIT_BROADCAST_TXN:
@@ -186,18 +178,18 @@ ft_msg_type_applies_once(enum ft_msg_type type)
     case FT_OPTIMIZE_FOR_UPGRADE:
     case FT_UPDATE_BROADCAST_ALL:
     case FT_NONE:
-        ret_val = FALSE;
+        ret_val = false;
         break;
     default:
-        assert(FALSE);
+        assert(false);
     }
     return ret_val;
 }
 
-static inline BOOL
+static inline bool
 ft_msg_type_applies_all(enum ft_msg_type type)
 {
-    BOOL ret_val;
+    bool ret_val;
     switch (type) {
     case FT_NONE:
     case FT_INSERT_NO_OVERWRITE:
@@ -206,7 +198,7 @@ ft_msg_type_applies_all(enum ft_msg_type type)
     case FT_ABORT_ANY:
     case FT_COMMIT_ANY:
     case FT_UPDATE:
-        ret_val = FALSE;
+        ret_val = false;
         break;
     case FT_COMMIT_BROADCAST_ALL:
     case FT_COMMIT_BROADCAST_TXN:
@@ -214,15 +206,15 @@ ft_msg_type_applies_all(enum ft_msg_type type)
     case FT_OPTIMIZE:
     case FT_OPTIMIZE_FOR_UPGRADE:
     case FT_UPDATE_BROADCAST_ALL:
-        ret_val = TRUE;
+        ret_val = true;
         break;
     default:
-        assert(FALSE);
+        assert(false);
     }
     return ret_val;
 }
 
-static inline BOOL
+static inline bool
 ft_msg_type_does_nothing(enum ft_msg_type type)
 {
     return (type == FT_NONE);

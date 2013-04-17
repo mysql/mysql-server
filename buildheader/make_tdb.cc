@@ -12,7 +12,6 @@
 // Don't include toku_assert.h.   Just use assert.h
 #include <assert.h>
 #include <string.h>
-#include <stdbool.h>
 
 #define VISIBLE "__attribute__((__visibility__(\"default\")))"
 
@@ -281,18 +280,18 @@ static void print_db_env_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DB_ENV, api1_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
-    STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, uint32_t)");
     STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...) __attribute__ (( format (printf, 3, 4) ))");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
-    STRUCT_SETUP(DB_ENV, get_cachesize, "int  (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
-    STRUCT_SETUP(DB_ENV, get_flags, "int  (*%s) (DB_ENV *, u_int32_t *)");
-    STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t *)");    
-    STRUCT_SETUP(DB_ENV, get_lg_max, "int  (*%s) (DB_ENV *, u_int32_t*)");
+    STRUCT_SETUP(DB_ENV, get_cachesize, "int  (*%s) (DB_ENV *, uint32_t *, uint32_t *, int *)");
+    STRUCT_SETUP(DB_ENV, get_flags, "int  (*%s) (DB_ENV *, uint32_t *)");
+    STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, uint32_t *)");    
+    STRUCT_SETUP(DB_ENV, get_lg_max, "int  (*%s) (DB_ENV *, uint32_t*)");
 #endif
-    STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
+    STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], uint32_t)");
     STRUCT_SETUP(DB_ENV, log_flush, "int  (*%s) (DB_ENV *, const DB_LSN *)");
-    STRUCT_SETUP(DB_ENV, open, "int  (*%s) (DB_ENV *, const char *, u_int32_t, int)");
-    STRUCT_SETUP(DB_ENV, set_cachesize, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, int)");
+    STRUCT_SETUP(DB_ENV, open, "int  (*%s) (DB_ENV *, const char *, uint32_t, int)");
+    STRUCT_SETUP(DB_ENV, set_cachesize, "int  (*%s) (DB_ENV *, uint32_t, uint32_t, int)");
     STRUCT_SETUP(DB_ENV, set_data_dir, "int  (*%s) (DB_ENV *, const char *)");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
     STRUCT_SETUP(DB_ENV, set_errcall, "void (*%s) (DB_ENV *, void (*)(const char *, char *))");
@@ -302,32 +301,32 @@ static void print_db_env_struct (void) {
 #endif
     STRUCT_SETUP(DB_ENV, set_errfile, "void (*%s) (DB_ENV *, FILE*)");
     STRUCT_SETUP(DB_ENV, set_errpfx, "void (*%s) (DB_ENV *, const char *)");
-    STRUCT_SETUP(DB_ENV, set_flags, "int  (*%s) (DB_ENV *, u_int32_t, int)");
-    STRUCT_SETUP(DB_ENV, set_lg_bsize, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_flags, "int  (*%s) (DB_ENV *, uint32_t, int)");
+    STRUCT_SETUP(DB_ENV, set_lg_bsize, "int  (*%s) (DB_ENV *, uint32_t)");
     STRUCT_SETUP(DB_ENV, set_lg_dir, "int  (*%s) (DB_ENV *, const char *)");
-    STRUCT_SETUP(DB_ENV, set_lg_max, "int  (*%s) (DB_ENV *, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, set_lk_detect, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lg_max, "int  (*%s) (DB_ENV *, uint32_t)");
+    STRUCT_SETUP(DB_ENV, set_lk_detect, "int  (*%s) (DB_ENV *, uint32_t)");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
-    STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, uint32_t)");
 #endif
-    STRUCT_SETUP(DB_ENV, set_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lk_max_locks, "int  (*%s) (DB_ENV *, uint32_t)");
     //STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
     STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
-    STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
-    STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, txn_stat,    "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, txn_begin,   "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, txn_recover, "int  (*%s) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)");
-    STRUCT_SETUP(DB_ENV, dbremove,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, dbrename,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, uint32_t, int)");
+    STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, uint32_t, uint32_t, uint32_t)");
+    STRUCT_SETUP(DB_ENV, txn_stat,    "int  (*%s) (DB_ENV *, DB_TXN_STAT **, uint32_t)");
+    STRUCT_SETUP(DB_ENV, txn_begin,   "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, uint32_t)");
+    STRUCT_SETUP(DB_ENV, txn_recover, "int  (*%s) (DB_ENV *, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags)");
+    STRUCT_SETUP(DB_ENV, dbremove,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, uint32_t)");
+    STRUCT_SETUP(DB_ENV, dbrename,    "int  (*%s) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, uint32_t)");
 
         const char *extra[]={
-                             "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
-                             "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
-                             "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
-                             "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
-                             "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
-                             "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
+                             "int (*checkpointing_set_period)             (DB_ENV*, uint32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
+                             "int (*checkpointing_get_period)             (DB_ENV*, uint32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
+                             "int (*cleaner_set_period)                   (DB_ENV*, uint32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_get_period)                   (DB_ENV*, uint32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_set_iterations)               (DB_ENV*, uint32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
+                             "int (*cleaner_get_iterations)               (DB_ENV*, uint32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
                              "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
@@ -361,7 +360,7 @@ static void print_db_env_struct (void) {
                              "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
                              "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
-			     "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)",
+			     "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, uint32_t flags)",
 			     "int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **)",
 			     "int (*get_cursor_for_directory)            (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
                              NULL};
@@ -388,9 +387,9 @@ static void print_dbt_struct (void) {
     STRUCT_SETUP(DBT, app_private, "void*%s");
 #endif
     STRUCT_SETUP(DBT, data,        "void*%s");
-    STRUCT_SETUP(DBT, flags,       "u_int32_t %s");
-    STRUCT_SETUP(DBT, size,        "u_int32_t %s");
-    STRUCT_SETUP(DBT, ulen,        "u_int32_t %s");
+    STRUCT_SETUP(DBT, flags,       "uint32_t %s");
+    STRUCT_SETUP(DBT, size,        "uint32_t %s");
+    STRUCT_SETUP(DBT, ulen,        "uint32_t %s");
     sort_and_dump_fields("dbt", false, NULL);
 }
 
@@ -399,50 +398,50 @@ static void print_db_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DB, api_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB, app_private,    "void *%s");
-    STRUCT_SETUP(DB, close,          "int (*%s) (DB*, u_int32_t)");
-    STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
+    STRUCT_SETUP(DB, close,          "int (*%s) (DB*, uint32_t)");
+    STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, uint32_t)");
     STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
-    STRUCT_SETUP(DB, del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB, del,            "int (*%s) (DB *, DB_TXN *, DBT *, uint32_t)");
     STRUCT_SETUP(DB, fd,             "int (*%s) (DB *, int *)");
-    STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, uint32_t)");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
-    STRUCT_SETUP(DB, get_flags,      "int (*%s) (DB *, u_int32_t *)");
-    STRUCT_SETUP(DB, get_pagesize,   "int (*%s) (DB *, u_int32_t *)");
+    STRUCT_SETUP(DB, get_flags,      "int (*%s) (DB *, uint32_t *)");
+    STRUCT_SETUP(DB, get_pagesize,   "int (*%s) (DB *, uint32_t *)");
 #endif
-    STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
-    STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
-    STRUCT_SETUP(DB, put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, uint32_t)");
+    STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, uint32_t, int)");
+    STRUCT_SETUP(DB, put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, uint32_t)");
     STRUCT_SETUP(DB, set_errfile,    "void (*%s) (DB *, FILE*)");
-    STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
-    STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
-    STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
-    STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, u_int32_t)");
-    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
+    STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, uint32_t)");
+    STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, uint32_t)");
+    STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, uint32_t)");
+    STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, uint32_t)");
+    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, uint64_t *less, uint64_t *equal, uint64_t *greater, int *is_exact)",
 			 "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			 "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			 "int (*pre_acquire_fileops_lock)(DB*, DB_TXN*)",
 			 "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			 "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
-			 "void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size)",
+			 "void (*get_max_row_size) (DB*, uint32_t *max_key_size, uint32_t *max_row_size)",
 			 "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
 			 "DESCRIPTOR cmp_descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
-			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
-			 "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
+			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, uint32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
+			 "int (*getf_set)(DB*, DB_TXN*, uint32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			 "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
 			 "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
 			 "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
-			 "int (*change_pagesize)(DB*,u_int32_t)",
-			 "int (*change_readpagesize)(DB*,u_int32_t)",
-			 "int (*get_readpagesize)(DB*,u_int32_t*)",
-			 "int (*set_readpagesize)(DB*,u_int32_t)",
+			 "int (*change_pagesize)(DB*,uint32_t)",
+			 "int (*change_readpagesize)(DB*,uint32_t)",
+			 "int (*get_readpagesize)(DB*,uint32_t*)",
+			 "int (*set_readpagesize)(DB*,uint32_t)",
 			 "int (*change_compression_method)(DB*,TOKU_COMPRESSION_METHOD)",
 			 "int (*get_compression_method)(DB*,TOKU_COMPRESSION_METHOD*)",
 			 "int (*set_compression_method)(DB*,TOKU_COMPRESSION_METHOD)",
 			 "int (*set_indexer)(DB*, DB_INDEXER*)",
 			 "void (*get_indexer)(DB*, DB_INDEXER**)",
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
-			 "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags)",
-			 "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags)",
+			 "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, uint32_t flags)",
+			 "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, uint32_t flags)",
 			 NULL};
     sort_and_dump_fields("db", true, extra);
 }
@@ -450,7 +449,7 @@ static void print_db_struct (void) {
 static void print_db_txn_active_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN_ACTIVE, lsn, "DB_LSN %s");
-    STRUCT_SETUP(DB_TXN_ACTIVE, txnid, "u_int32_t %s");
+    STRUCT_SETUP(DB_TXN_ACTIVE, txnid, "uint32_t %s");
     sort_and_dump_fields("db_txn_active", false, NULL);
 }
 
@@ -458,9 +457,9 @@ static void print_db_txn_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
-    STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
-    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, u_int8_t gid[DB_GID_SIZE])");
-    STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
+    STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, uint32_t)");
+    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
+    STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     const char *extra[] = {
@@ -469,14 +468,14 @@ static void print_db_txn_struct (void) {
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
-    "u_int64_t (*id64) (DB_TXN*)",
+    "uint64_t (*id64) (DB_TXN*)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
 
 static void print_db_txn_stat_struct (void) {
     field_counter=0;
-    STRUCT_SETUP(DB_TXN_STAT, st_nactive, "u_int32_t %s");
+    STRUCT_SETUP(DB_TXN_STAT, st_nactive, "uint32_t %s");
     STRUCT_SETUP(DB_TXN_STAT, st_txnarray, "DB_TXN_ACTIVE *%s");
     sort_and_dump_fields("db_txn_stat", false, NULL);
 }
@@ -484,21 +483,21 @@ static void print_db_txn_stat_struct (void) {
 static void print_dbc_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
-    STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, u_int32_t)");
-    //STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");  // c_del was removed.  See #4576.
-    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, uint32_t)");
+    //STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, uint32_t)");  // c_del was removed.  See #4576.
+    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, uint32_t)");
     STRUCT_SETUP(DBC, dbp,     "DB *%s");
     const char *extra[]={
-	"int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_first)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_last)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_next)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_prev)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_current)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_current_binding)(DBC *, uint32_t, YDB_CALLBACK_FUNCTION, void *)",
 
-	"int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-	"int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_set)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_set_range)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*)",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);
@@ -555,21 +554,21 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("typedef struct __toku_dbc DBC;\n");
     printf("typedef struct __toku_dbt DBT;\n");
     printf("typedef struct __toku_db_preplist { DB_TXN *txn; uint8_t gid[DB_GID_SIZE]; } DB_PREPLIST;\n");
-    printf("typedef u_int32_t db_recno_t;\n");
+    printf("typedef uint32_t db_recno_t;\n");
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
 
     printf("#include <tdb-internal.h>\n");
     
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");
-    printf("  u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */\n");
-    printf("  u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */\n");
-    printf("  u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */\n");
-    printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
+    printf("  uint64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */\n");
+    printf("  uint64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */\n");
+    printf("  uint64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */\n");
+    printf("  uint64_t bt_fsize; /* how big is the underlying file                                                         */\n");
     // 4018
-    printf("  u_int64_t bt_create_time_sec; /* Creation time, in seconds */\n");
-    printf("  u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */\n");
-    printf("  u_int64_t bt_verify_time_sec; /* Time of last verification, in seconds */\n");
+    printf("  uint64_t bt_create_time_sec; /* Creation time, in seconds */\n");
+    printf("  uint64_t bt_modify_time_sec; /* Time of last serialization, in seconds */\n");
+    printf("  uint64_t bt_verify_time_sec; /* Time of last verification, in seconds */\n");
     printf("} DB_BTREE_STAT64;\n");
 
     // compression methods
@@ -676,14 +675,14 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("  uint8_t  stalled_on_checkpoint;\n");
     printf("} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;\n");
     printf("typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);\n");
-    printf("struct txn_stat {\n  u_int64_t rollback_raw_count;\n};\n");
+    printf("struct txn_stat {\n  uint64_t rollback_raw_count;\n};\n");
 
     print_db_txn_struct();
     print_db_txn_stat_struct();
     print_dbc_struct();
 
-    printf("int db_env_create(DB_ENV **, u_int32_t) %s;\n", VISIBLE);
-    printf("int db_create(DB **, DB_ENV *, u_int32_t) %s;\n", VISIBLE);
+    printf("int db_env_create(DB_ENV **, uint32_t) %s;\n", VISIBLE);
+    printf("int db_create(DB **, DB_ENV *, uint32_t) %s;\n", VISIBLE);
     printf("const char *db_strerror(int) %s;\n", VISIBLE);
     printf("const char *db_version(int*,int *,int *) %s;\n", VISIBLE);
     printf("int log_compare (const DB_LSN*, const DB_LSN *) %s;\n", VISIBLE);
@@ -708,8 +707,8 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("void db_env_set_recover_callback (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_recover_callback2 (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_loader_size_factor (uint32_t) %s;\n", VISIBLE);
-    printf("void db_env_set_mvcc_garbage_collection_verification(u_int32_t) %s;\n", VISIBLE);
-    printf("void db_env_enable_engine_status(u_int32_t) %s;\n", VISIBLE);
+    printf("void db_env_set_mvcc_garbage_collection_verification(uint32_t) %s;\n", VISIBLE);
+    printf("void db_env_enable_engine_status(uint32_t) %s;\n", VISIBLE);
     printf("void db_env_set_flusher_thread_callback (void (*)(int, void*), void*) %s;\n", VISIBLE);
 
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\n}\n#endif\n");

@@ -82,7 +82,7 @@ static void run_test(void) {
     
     struct timeval tend; 
     gettimeofday(&tend, NULL);
-    u_int64_t diff = tdelta_usec(&tend, &tstart);
+    uint64_t diff = tdelta_usec(&tend, &tstart);
     assert(diff < 5*1024*1024); 
 
 

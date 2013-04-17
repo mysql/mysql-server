@@ -16,7 +16,7 @@
 
 // ENVDIR is defined in the Makefile
 
-static void make_db (BOOL close_env) {
+static void make_db (bool close_env) {
     DB_ENV *env;
     DB *db;
     DB_TXN *tid;
@@ -40,10 +40,10 @@ static void make_db (BOOL close_env) {
 
 int
 test_main (int argc, char *const argv[]) {
-    BOOL close_env = TRUE;
+    bool close_env = true;
     for (int i=1; i<argc; i++) {
         if (strcmp(argv[i], "--no-shutdown") == 0)
-            close_env = FALSE;
+            close_env = false;
     }
     make_db(close_env);
     return 0;

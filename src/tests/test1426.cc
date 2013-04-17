@@ -51,18 +51,18 @@ do_insert_delete_fifo (void)
     r = db->set_pagesize(db, 4096);                                       CKERR(r);
     r = db->open(db, null_txn, "main", 0,     DB_BTREE, DB_CREATE, 0666); CKERR(r);
     {
-	u_int64_t i;
-	u_int64_t n_deleted = 0;
-	u_int64_t N=20000; // total number to insert
-	u_int64_t M= 5000; // size of rolling fifo
-	u_int64_t D=  200; // number to delete at once
+	uint64_t i;
+	uint64_t n_deleted = 0;
+	uint64_t N=20000; // total number to insert
+	uint64_t M= 5000; // size of rolling fifo
+	uint64_t D=  200; // number to delete at once
 	for (i=0; i<N; i++) {
 	    {
 		char k[100],v[100];
 		int keylen = snprintf(k, sizeof k, "%016" PRIu64 "key", i);
-                u_int32_t rand1 = myrandom();
-                u_int32_t rand2 = myrandom();
-                u_int32_t rand3 = myrandom();
+                uint32_t rand1 = myrandom();
+                uint32_t rand2 = myrandom();
+                uint32_t rand3 = myrandom();
 		int vallen = snprintf(v, sizeof v, "%016" PRIu64 "val%08x%08x%08x", i, rand1, rand2, rand3);
 		DBT kt, vt;
 		r = db->put(db, null_txn, dbt_init(&kt, k, keylen) , dbt_init(&vt, v, vallen), 0);    CKERR(r);
@@ -71,7 +71,7 @@ do_insert_delete_fifo (void)
 		// Once every D steps, delete everything until there are only M things left.
 		// Flush the data down the tree for all the values we will do
 		{
-		    u_int64_t peek_here = n_deleted;
+		    uint64_t peek_here = n_deleted;
 		    while (peek_here + M < i) {
 			char k[100];
 			int keylen = snprintf(k, sizeof k, "%016" PRIu64 "key", peek_here);

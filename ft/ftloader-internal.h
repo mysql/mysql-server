@@ -16,11 +16,11 @@
 
 /* These structures maintain a collection of all the open temporary files used by the loader. */
 struct file_info {
-    BOOL is_open;
-    BOOL is_extant; // if true, the file must be unlinked.
+    bool is_open;
+    bool is_extant; // if true, the file must be unlinked.
     char *fname;
     FILE *file;
-    u_int64_t n_rows; // how many rows were written into that file
+    uint64_t n_rows; // how many rows were written into that file
     size_t buffer_size;
     void *buffer;
 };
@@ -56,11 +56,11 @@ int init_rowset (struct rowset *rows, uint64_t memory_budget);
 void destroy_rowset (struct rowset *rows);
 int add_row (struct rowset *rows, DBT *key, DBT *val);
 
-int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, u_int64_t *dataoff, FTLOADER bl);
+int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, uint64_t *dataoff, FTLOADER bl);
 int loader_read_row (FILE *f, DBT *key, DBT *val);
 
 struct merge_fileset {
-    BOOL have_sorted_output;  // Is there an previous key?
+    bool have_sorted_output;  // Is there an previous key?
     FIDX sorted_output;       // this points to one of the data_fidxs.  If output_is_sorted then this is the file containing sorted data.  It's still open
     DBT  prev_key;            // What is it?  If it's here, its the last output in the merge fileset
 
@@ -93,7 +93,7 @@ struct error_callback_s {
     int which_db;
     DBT key;
     DBT val;
-    BOOL did_callback;
+    bool did_callback;
     toku_mutex_t mutex;
 };
 typedef struct error_callback_s *ft_loader_error_callback;
@@ -134,18 +134,18 @@ struct ft_loader_s {
 
     QUEUE primary_rowset_queue; // main thread enqueues rowsets in this queue (in maybe 64MB chunks).  The extractor thread removes them, sorts them, adn writes to file.
     toku_pthread_t     extractor_thread;     // the thread that takes primary rowset and does extraction and the first level sort and write to file.
-    BOOL extractor_live;
+    bool extractor_live;
 
     DBT  *last_key;         // for each rowset, remember the most recently output key.  The system may choose not to keep this up-to-date when a rowset is unsorted.  These keys are malloced and ulen maintains the size of the malloced block.
     
     struct rowset *rows; // secondary rows that have been put, but haven't been sorted and written to a file.
-    u_int64_t n_rows; // how many rows have been put?
+    uint64_t n_rows; // how many rows have been put?
     struct merge_fileset *fs;
 
     const char *temp_file_template;
 
     CACHETABLE cachetable;
-    BOOL did_reserve_memory;
+    bool did_reserve_memory;
     uint64_t   reserved_memory; // how much memory are we allowed to use?
 
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
@@ -162,19 +162,19 @@ struct ft_loader_s {
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
     toku_pthread_t *fractal_threads;
-    BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
+    bool *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
 
     unsigned fractal_workers; // number of fractal tree writer threads
 
     toku_mutex_t mutex;
-    BOOL mutex_init;
+    bool mutex_init;
 };
 
 // Set the number of rows in the loader.  Used for test.
-void toku_ft_loader_set_n_rows(FTLOADER bl, u_int64_t n_rows);
+void toku_ft_loader_set_n_rows(FTLOADER bl, uint64_t n_rows);
 
 // Get the number of rows in the loader.  Used for test.
-u_int64_t toku_ft_loader_get_n_rows(FTLOADER bl);
+uint64_t toku_ft_loader_get_n_rows(FTLOADER bl);
 
 // The data passed into a fractal_thread via pthread_create.
 struct fractal_thread_args {
@@ -191,8 +191,8 @@ struct fractal_thread_args {
     enum toku_compression_method target_compression_method;
 };
 
-void toku_ft_loader_set_n_rows(FTLOADER bl, u_int64_t n_rows);
-u_int64_t toku_ft_loader_get_n_rows(FTLOADER bl);
+void toku_ft_loader_set_n_rows(FTLOADER bl, uint64_t n_rows);
+uint64_t toku_ft_loader_get_n_rows(FTLOADER bl);
 
 int merge_row_arrays_base (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
                            int which_db, DB *dest_db, ft_compare_func,
@@ -206,7 +206,7 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, FTLOADER 
 int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, ft_compare_func, FTLOADER, struct rowset *);
 
 //int write_file_to_dbfile (int outfile, FIDX infile, FTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation);
-int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], FTLOADER bl, int which_db, DB *dest_db, ft_compare_func compare, int progress_allocation);
+int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], FTLOADER bl, int which_db, DB *dest_db, ft_compare_func compare, int progress_allocation);
 
 int ft_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, FTLOADER bl, int which_db, DB *dest_db, ft_compare_func);
 
@@ -227,8 +227,8 @@ int ft_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, 
 int ft_loader_write_file_to_dbfile (int outfile, FIDX infile, FTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation);
 
 int ft_loader_init_file_infos (struct file_infos *fi);
-void ft_loader_fi_destroy (struct file_infos *fi, BOOL is_error);
-int ft_loader_fi_close (struct file_infos *fi, FIDX idx, BOOL require_open);
+void ft_loader_fi_destroy (struct file_infos *fi, bool is_error);
+int ft_loader_fi_close (struct file_infos *fi, FIDX idx, bool require_open);
 int ft_loader_fi_close_all (struct file_infos *fi);
 int ft_loader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode);
 int ft_loader_fi_unlink (struct file_infos *fi, FIDX idx);
@@ -243,9 +243,9 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 				   const char *temp_file_template,
 				   LSN load_lsn,
                                    TOKUTXN txn,
-                                   BOOL reserve_memory);
+                                   bool reserve_memory);
 
-void toku_ft_loader_internal_destroy (FTLOADER bl, BOOL is_error);
+void toku_ft_loader_internal_destroy (FTLOADER bl, bool is_error);
 
 // For test purposes only.  (In production, the rowset size is determined by negotation with the cachetable for some memory.  See #2613.)
 uint64_t toku_ft_loader_get_rowset_budget_for_testing (void);

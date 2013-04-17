@@ -34,7 +34,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     CKERR(db_create(&db, *envp, 0));
     CKERR(db->open(db, NULL, "foo.db", 0, DB_BTREE, DB_CREATE | DB_AUTO_COMMIT, S_IRWXU+S_IRWXG+S_IRWXO));
     CKERR((*envp)->txn_begin(*envp, 0, &txn, 0));
-    u_int8_t gid[DB_GID_SIZE];
+    uint8_t gid[DB_GID_SIZE];
     memset(gid, 0, DB_GID_SIZE);
     gid[0]=42;
     CKERR(txn->prepare(txn, gid));

@@ -184,9 +184,9 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     struct scan_op_extra soe[4];
 
     // make the forward fast scanner
-    soe[0].fast = TRUE;
-    soe[0].fwd = TRUE;
-    soe[0].prefetch = FALSE;
+    soe[0].fast = true;
+    soe[0].fwd = true;
+    soe[0].prefetch = false;
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_some_dbs;
 

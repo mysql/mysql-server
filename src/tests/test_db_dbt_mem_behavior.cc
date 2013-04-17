@@ -21,7 +21,7 @@ typedef struct {
 DB* db;
 DB_TXN *const null_txn = 0;
 DB_ENV *dbenv;
-u_int32_t set_ulen;
+uint32_t set_ulen;
 int32_t key_1 = 1;
 
 static void
@@ -68,7 +68,7 @@ test_main(int argc, char *const argv[]) {
     
     parse_args(argc, argv);
 //Simple flags that require minimal setup.
-    u_int32_t flags[] = {
+    uint32_t flags[] = {
         0,
         DB_DBT_USERMEM,
         DB_DBT_MALLOC,
@@ -138,16 +138,16 @@ test_main(int argc, char *const argv[]) {
                 
             assert(!was_truncated);
 
-            BOOL ulen_should_change = FALSE;
+            bool ulen_should_change = false;
 #if defined(USE_TDB)
             if (flags[j] == DB_DBT_REALLOC) {
-                ulen_should_change = (BOOL)(old_ulen < sizeof(DATA));
+                ulen_should_change = (bool)(old_ulen < sizeof(DATA));
             }
             else if (flags[j] == DB_DBT_MALLOC) {
-                ulen_should_change = (BOOL)(old_ulen != sizeof(DATA)*2);
+                ulen_should_change = (bool)(old_ulen != sizeof(DATA)*2);
             }
 #endif
-            assert(ulen_should_change == (BOOL)ulen_changed);
+            assert(ulen_should_change == (bool)ulen_changed);
             assert(size_full);
             assert(doclone == !small_buffer);
         }

@@ -42,10 +42,10 @@ flush (
     void *UU(extraargs), 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
-    BOOL write_me, 
-    BOOL keep_me, 
-    BOOL UU(for_checkpoint),
-        BOOL UU(is_clone)
+    bool write_me, 
+    bool keep_me, 
+    bool UU(for_checkpoint),
+        bool UU(is_clone)
     )
 {
     // printf("f");
@@ -64,7 +64,7 @@ fetch (
     CACHEFILE UU(thiscf), 
     int UU(fd), 
     CACHEKEY UU(key), 
-    u_int32_t UU(fullhash), 
+    uint32_t UU(fullhash), 
     void **UU(value),
     void **UU(dd), 
     PAIR_ATTR *UU(sizep), 
@@ -84,12 +84,12 @@ do_update (void *UU(ignore))
     int i;
     for (i=0; i<N; i++) {
 	CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(cf, key);
+        uint32_t hi = toku_cachetable_hash(cf, key);
         void *vv;
 	long size;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, true, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
@@ -136,7 +136,7 @@ static void checkpoint_pending(void) {
     int i;
     for (i=0; i<N; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(cf, key);
+        uint32_t hi = toku_cachetable_hash(cf, key);
 	values[i] = 42;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
@@ -174,7 +174,7 @@ static void checkpoint_pending(void) {
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&cf, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

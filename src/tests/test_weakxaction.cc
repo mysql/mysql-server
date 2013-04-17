@@ -15,7 +15,7 @@
 #include <sys/stat.h>
 
 static void
-test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {
+test_autotxn (uint32_t env_flags, uint32_t db_flags) {
     DB_ENV *env;
     DB *db;
     int r;

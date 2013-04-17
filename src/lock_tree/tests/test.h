@@ -11,7 +11,6 @@
 #include <ft/fttypes.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <toku_assert.h>
 #include <errno.h>

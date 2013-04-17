@@ -28,19 +28,19 @@ typedef enum {
 } ydb_write_lock_layer_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[YDB_WRITE_LAYER_STATUS_NUM_ROWS];
 } YDB_WRITE_LAYER_STATUS_S, *YDB_WRITE_LAYER_STATUS;
 
 void ydb_write_layer_get_status(YDB_WRITE_LAYER_STATUS statp);
 
 
-int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_mo_lock);
-int toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_mo_lock);
-int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, u_int32_t flags);
-int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags);
-int autotxn_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, u_int32_t flags);
-int autotxn_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, u_int32_t flags);
+int toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock);
+int toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_mo_lock);
+int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, uint32_t flags);
+int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, uint32_t flags);
+int autotxn_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, uint32_t flags);
+int autotxn_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, uint32_t flags);
 int env_put_multiple(
     DB_ENV *env, 
     DB *src_db, 

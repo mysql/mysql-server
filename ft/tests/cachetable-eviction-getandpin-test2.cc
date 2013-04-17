@@ -50,7 +50,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     CACHEKEY key = make_blocknum(0);
-    u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
+    uint32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
 
     // let's get and pin this node a bunch of times to drive up the clock count
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
@@ -69,7 +69,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
             def_fetch,
             def_pf_req_callback,
             def_pf_callback,
-            TRUE, 
+            true, 
             0
             );
         assert(r==0);
@@ -92,7 +92,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch,
         def_pf_req_callback,
         def_pf_callback,
-        TRUE, 
+        true, 
         0
         );
     assert(r==0);
@@ -113,7 +113,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch, 
         def_pf_req_callback, 
         def_pf_callback, 
-        TRUE,
+        true,
         NULL, 
         NULL
         );
@@ -128,7 +128,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch, 
         def_pf_req_callback, 
         def_pf_callback, 
-        TRUE, 
+        true, 
         NULL
         );
     assert(r == 0 && v == 0 && size == 1);
@@ -144,7 +144,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     assert(r == 0);
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

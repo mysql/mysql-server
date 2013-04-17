@@ -84,10 +84,10 @@ fill_rand(int n, uint64_t * d) {
 #define INSERT_BIG 1500
 #define INSERT_SMALL 0
 static void
-insert_n (u_int32_t ah, int datasize) {
+insert_n (uint32_t ah, int datasize) {
     uint64_t vdata[datasize];
     fill_rand(datasize, vdata);
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     //    if (verbose) printf("insert an = %0X (ah = %0X)\n", an, ah);
     DBT key;
     dbt_init(&key, &an, 4);
@@ -99,9 +99,9 @@ insert_n (u_int32_t ah, int datasize) {
 }
 
 static void
-delete_n (u_int32_t ah)
+delete_n (uint32_t ah)
 {
-    u_int32_t an = htonl(ah);
+    uint32_t an = htonl(ah);
     //    if (verbose) printf("delete an = %0X (ah = %0X)\n", an, ah);
     DBT key;
     dbt_init(&key, &an, 4);

@@ -271,7 +271,7 @@ static void *consumer_thread (void *ctv) {
 }
 
 
-static void test (const char *directory, BOOL is_error) {
+static void test (const char *directory, bool is_error) {
 
     int *XMALLOC_N(N_SOURCES, fds);
 
@@ -327,7 +327,7 @@ static void test (const char *directory, BOOL is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               TXNID_NONE, TRUE);
+                                               TXNID_NONE, true);
 	assert(r==0);
     }
 
@@ -353,8 +353,8 @@ static void test (const char *directory, BOOL is_error) {
 	// all we really need is the number of records in the file.  The rest of the file_info is unused by the dbufio code.n
 	bl->file_infos.file_infos[i].n_rows = n_records_in_fd[i];
 	// However we need these for the destroy method to work right.
-	bl->file_infos.file_infos[i].is_extant = FALSE;
-	bl->file_infos.file_infos[i].is_open   = FALSE;
+	bl->file_infos.file_infos[i].is_extant = false;
+	bl->file_infos.file_infos[i].is_open   = false;
 	bl->file_infos.file_infos[i].buffer    = NULL;
 	src_fidxs[i].idx = i;
     }
@@ -378,7 +378,7 @@ static void test (const char *directory, BOOL is_error) {
 
     int result = 0;
     {
-	int r = toku_merge_some_files_using_dbufio(TRUE, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
+	int r = toku_merge_some_files_using_dbufio(true, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
 	if (is_error && r!=0) {
 	    result = r;
 	} else {
@@ -424,7 +424,7 @@ static void test (const char *directory, BOOL is_error) {
 	int r = queue_destroy(q);
 	assert(r==0);
     }
-    toku_ft_loader_internal_destroy(bl, FALSE);
+    toku_ft_loader_internal_destroy(bl, false);
     {
 	int r = toku_cachetable_close(&ct);
 	assert(r==0);
@@ -514,7 +514,7 @@ int test_main (int argc, const char *argv[]) {
     int r;
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
-    test(directory, FALSE);
+    test(directory, false);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
 
@@ -530,7 +530,7 @@ int test_main (int argc, const char *argv[]) {
 	    r = system(unlink_all); CKERR(r);
 	    r = toku_os_mkdir(directory, 0755); CKERR(r);
 	    if (verbose) printf("event=%d\n", i);
-	    test(directory, TRUE);
+	    test(directory, true);
 	}
 	r = system(unlink_all); CKERR(r);
     }

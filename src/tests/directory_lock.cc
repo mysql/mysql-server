@@ -33,7 +33,7 @@ static int update_fun(DB *UU(db),
 static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     int r;
     DB_TXN* txn = NULL;
-    u_int32_t flags = 0;
+    uint32_t flags = 0;
     DBT key,val;
     DBT in_key,in_val;
     uint32_t in_key_data, in_val_data = 0;
@@ -278,7 +278,7 @@ int test_main (int argc, char * const argv[]) {
     verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
 
-    u_int32_t flags = 0;
+    uint32_t flags = 0;
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);

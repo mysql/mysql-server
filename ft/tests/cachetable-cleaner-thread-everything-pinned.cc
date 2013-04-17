@@ -14,11 +14,11 @@ static int
 everything_pinned_cleaner_callback(
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
-    u_int32_t UU(fullhash),
+    uint32_t UU(fullhash),
     void* UU(extraargs)
     )
 {
-    assert(FALSE);  // everything is pinned so this should never be called
+    assert(false);  // everything is pinned so this should never be called
     return 0;
 }
 
@@ -49,7 +49,7 @@ run_test (void) {
                                         def_fetch,
                                         def_pf_req_callback,
                                         def_pf_callback,
-                                        TRUE, 
+                                        true, 
                                         NULL);
         assert_zero(r);
     }
@@ -62,7 +62,7 @@ run_test (void) {
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 

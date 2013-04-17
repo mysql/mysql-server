@@ -23,12 +23,12 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     int fd;
     {
 
-	static u_int64_t buf [BUFSIZE]; // make this static because it's too big to fit on the stack.
+	static uint64_t buf [BUFSIZE]; // make this static because it's too big to fit on the stack.
 
 	fd = open(FNAME, O_CREAT+O_RDWR+O_BINARY, 0777);
 	assert(fd>=0);
 	memset(buf, 0, sizeof(buf));
-	u_int64_t i;
+	uint64_t i;
 	for (i=0; i<(1LL<<32); i+=BUFSIZE) {
 	    toku_os_full_write(fd, buf, BUFSIZE);
 	}

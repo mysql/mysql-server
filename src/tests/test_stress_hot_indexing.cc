@@ -18,8 +18,8 @@
 DB* hot_db;
 toku_mutex_t fops_lock;
 toku_mutex_t hi_lock;
-u_int32_t gid_count;
-u_int8_t hi_gid[DB_GID_SIZE];
+uint32_t gid_count;
+uint8_t hi_gid[DB_GID_SIZE];
 
 
 static int
@@ -62,7 +62,7 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
     toku_mutex_lock(&fops_lock);
     DB_ENV* env = arg->env;
     DB* db = arg->dbp[0];
-    u_int32_t flags[2];
+    uint32_t flags[2];
     flags[0] = 0;
     flags[1] = 0;
     DBT dest_keys[2];
@@ -116,7 +116,7 @@ cleanup:
     }
     increment_counter(stats_extra, PUTS, i);
     gid_count++;
-    u_int32_t *hi_gid_count_p = cast_to_typeof(hi_gid_count_p) hi_gid;  // make gcc --happy about -Wstrict-aliasing
+    uint32_t *hi_gid_count_p = cast_to_typeof(hi_gid_count_p) hi_gid;  // make gcc --happy about -Wstrict-aliasing
     *hi_gid_count_p = gid_count;
     int rr = hi_txn->prepare(hi_txn, hi_gid);
     CKERR(rr);
@@ -152,8 +152,8 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
     CKERR(r);
     r = hot_db->open(hot_db, NULL, "hotindex_db", NULL, DB_BTREE, DB_CREATE | DB_IS_HOT_INDEX, 0666);
     CKERR(r);
-    u_int32_t db_flags = 0;
-    u_int32_t indexer_flags = 0;
+    uint32_t db_flags = 0;
+    uint32_t indexer_flags = 0;
     
     r = env->create_indexer(
         env,
@@ -270,7 +270,7 @@ test_main(int argc, char *const argv[]) {
     args.num_ptquery_threads = 0;
     parse_stress_test_args(argc, argv, &args);
     args.num_DBs = 1;
-    args.crash_on_operation_failure = FALSE;
+    args.crash_on_operation_failure = false;
     args.env_args.generate_del_callback = hi_del_callback;
     args.env_args.generate_put_callback = hi_put_callback;
     stress_test_main(&args);

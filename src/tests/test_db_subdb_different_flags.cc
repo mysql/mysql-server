@@ -44,7 +44,7 @@ test_main(int argc, char *const argv[]) {
     r = db->open(db, null_txn, fname, "subdb2", DB_BTREE, DB_CREATE, 0666);  CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
 
-    u_int32_t flags;
+    uint32_t flags;
 
     r = db_create(&db, env, 0);                                              CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);            CKERR(r);

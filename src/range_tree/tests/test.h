@@ -40,12 +40,12 @@ parse_args (int argc, const char *argv[]) {
 }
 
 // Simle LCG random number generator.  Not high quality, but good enough.
-static u_int32_t rstate=1;
+static uint32_t rstate=1;
 static inline void mysrandom (int s) {
     rstate=s;
 }
-static inline u_int32_t myrandom (void) {
-    rstate = (279470275ull*(u_int64_t)rstate)%4294967291ull;
+static inline uint32_t myrandom (void) {
+    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
     return rstate;
 }
 

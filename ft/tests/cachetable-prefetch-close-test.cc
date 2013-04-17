@@ -7,7 +7,7 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL expect_pf;
+bool expect_pf;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -18,12 +18,12 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
-    assert(w == FALSE);
+    assert(w == false);
 }
 
 static int fetch_calls = 0;
@@ -32,7 +32,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
@@ -50,9 +50,9 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return 0;
 }
 
-static void cachetable_prefetch_full_test (BOOL partial_fetch) {
+static void cachetable_prefetch_full_test (bool partial_fetch) {
     const int test_limit = 2;
-    expect_pf = FALSE;
+    expect_pf = false;
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
@@ -63,7 +63,7 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
 
     // prefetch block 0. this will take 2 seconds.
     CACHEKEY key = make_blocknum(0);
-    u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
+    uint32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
 
     // if we want to do a test of partial fetch,
     // we first put the key into the cachefile so that
@@ -71,7 +71,7 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     if (partial_fetch) {
-        expect_pf = TRUE;
+        expect_pf = true;
         void* value;
         long size;
         r = toku_cachetable_get_and_pin(
@@ -84,7 +84,7 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
             fetch,
             def_pf_req_callback,
             def_pf_callback,
-            TRUE, 
+            true, 
             0
             );
         assert(r==0);
@@ -96,14 +96,14 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
 
     // close with the prefetch in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
-    cachetable_prefetch_full_test(TRUE);
-    cachetable_prefetch_full_test(FALSE);
+    cachetable_prefetch_full_test(true);
+    cachetable_prefetch_full_test(false);
     return 0;
 }

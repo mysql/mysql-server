@@ -545,7 +545,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         insert_random_message_to_bn(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
-            u_int32_t keylen;
+            uint32_t keylen;
             char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
             DBT keydbt;
             if (childkeys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) > 0) {
@@ -556,7 +556,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     int num_child_messages = i;
 
     for (i = 0; i < num_child_messages; ++i) {
-        u_int32_t keylen;
+        uint32_t keylen;
         char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
         DBT keydbt;
         if (i % 8 < 7) {
@@ -615,7 +615,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
-        BOOL msgs_applied;
+        bool msgs_applied;
         maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied);
 
         FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
@@ -645,8 +645,8 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     memset(child_messages_present, 0, sizeof child_messages_present);
     for (int j = 0; j < 8; ++j) {
         OMT omt = BLB_BUFFER(child, j);
-        u_int32_t len = toku_omt_size(omt);
-        for (u_int32_t idx = 0; idx < len; ++idx) {
+        uint32_t len = toku_omt_size(omt);
+        for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le;
             DBT keydbt, valdbt;
             {
@@ -654,7 +654,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
                 r = toku_omt_fetch(omt, idx, &v);
                 assert_zero(r);
                 CAST_FROM_VOIDP(le, v);
-                u_int32_t keylen, vallen;
+                uint32_t keylen, vallen;
                 void *keyp = le_key_and_len(le, &keylen);
                 void *valp = le_latest_val_and_len(le, &vallen);
                 toku_fill_dbt(&keydbt, keyp, keylen);
@@ -676,7 +676,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
                 if (i >= num_child_messages) { continue; }
                 DBT childkeydbt, childvaldbt;
                 {
-                    u_int32_t keylen, vallen;
+                    uint32_t keylen, vallen;
                     void *keyp = le_key_and_len(child_messages[i], &keylen);
                     void *valp = le_latest_val_and_len(child_messages[i], &vallen);
                     toku_fill_dbt(&childkeydbt, keyp, keylen);
@@ -770,7 +770,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
         insert_random_message_to_bn(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
-        u_int32_t keylen;
+        uint32_t keylen;
         char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
         DBT keydbt;
         if (childkeys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) > 0) {
@@ -780,7 +780,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     int num_child_messages = i;
 
     for (i = 0; i < num_child_messages; ++i) {
-        u_int32_t keylen;
+        uint32_t keylen;
         char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
         DBT keydbt;
         assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) <= 0);
@@ -840,7 +840,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         .lower_bound_exclusive = toku_init_dbt(&lbe),
         .upper_bound_inclusive = toku_clone_dbt(&ubi, childkeys[7])
     };
-    BOOL msgs_applied;
+    bool msgs_applied;
     maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
@@ -957,7 +957,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
         insert_same_message_to_bns(t, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
-            u_int32_t keylen;
+            uint32_t keylen;
             char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
             DBT keydbt;
             if (child1keys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child1keys[i%8]) > 0) {
@@ -969,7 +969,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     int num_child_messages = i;
 
     for (i = 0; i < num_child_messages; ++i) {
-        u_int32_t keylen;
+        uint32_t keylen;
         char *CAST_FROM_VOIDP(key, le_key_and_len(child_messages[i], &keylen));
         DBT keydbt;
         if (i % 8 < 7) {
@@ -1023,7 +1023,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
     const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
-    BOOL msgs_applied;
+    bool msgs_applied;
     maybe_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied);
 
     FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
@@ -1039,9 +1039,9 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     for (int j = 0; j < 8; ++j) {
         OMT omt1 = BLB_BUFFER(child1, j);
         OMT omt2 = BLB_BUFFER(child2, j);
-        u_int32_t len = toku_omt_size(omt1);
+        uint32_t len = toku_omt_size(omt1);
         assert(len == toku_omt_size(omt2));
-        for (u_int32_t idx = 0; idx < len; ++idx) {
+        for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le1, le2;
             DBT key1dbt, val1dbt, key2dbt, val2dbt;
             {
@@ -1049,7 +1049,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
                 r = toku_omt_fetch(omt1, idx, &v);
                 assert_zero(r);
                 CAST_FROM_VOIDP(le1, v);
-                u_int32_t keylen, vallen;
+                uint32_t keylen, vallen;
                 void *keyp = le_key_and_len(le1, &keylen);
                 void *valp = le_latest_val_and_len(le1, &vallen);
                 toku_fill_dbt(&key1dbt, keyp, keylen);
@@ -1060,7 +1060,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
                 r = toku_omt_fetch(omt2, idx, &v);
                 assert_zero(r);
                 CAST_FROM_VOIDP(le2, v);
-                u_int32_t keylen, vallen;
+                uint32_t keylen, vallen;
                 void *keyp = le_key_and_len(le2, &keylen);
                 void *valp = le_latest_val_and_len(le2, &vallen);
                 toku_fill_dbt(&key2dbt, keyp, keylen);

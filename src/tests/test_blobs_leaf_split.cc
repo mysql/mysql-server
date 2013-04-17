@@ -35,8 +35,8 @@ int test_main(int argc, char * const argv[]) {
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     const char *db_filename = "blobs.db";
     int do_txn = 1;
-    u_int64_t cachesize = 0;
-    u_int32_t pagesize = 0;
+    uint64_t cachesize = 0;
+    uint32_t pagesize = 0;
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -76,7 +76,7 @@ int test_main(int argc, char * const argv[]) {
     DB_ENV *db_env = NULL;
     r = db_env_create(&db_env, 0); assert_zero(r);
     if (cachesize) {
-        const u_int64_t gig = 1 << 30;
+        const uint64_t gig = 1 << 30;
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert_zero(r);
     }
     if (!do_txn)

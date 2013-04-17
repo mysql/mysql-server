@@ -6,14 +6,14 @@
 #include "test.h"
 
 
-BOOL flush_completed;
-BOOL evict_called;
+bool flush_completed;
+bool evict_called;
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
 }
 
 static void
@@ -26,19 +26,19 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL UU(is_clone)
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool UU(is_clone)
     ) 
 {  
     if (is_clone) {
         usleep(2*1024*1024);
-        flush_completed = TRUE;
+        flush_completed = true;
     }
     else if (!keep && !is_clone) {
         assert(flush_completed);
-        evict_called = TRUE;
+        evict_called = true;
     }
 }
 
@@ -63,16 +63,16 @@ cachetable_test (void) {
     wc.clone_callback = clone_callback;
     wc.flush_callback = flush;
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
 
-    flush_completed = FALSE;
-    evict_called = FALSE;
+    flush_completed = false;
+    evict_called = false;
     r = toku_cachetable_begin_checkpoint(ct, NULL); assert_zero(r);
     assert_zero(r);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
     r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
     assert_zero(r);
@@ -88,7 +88,7 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

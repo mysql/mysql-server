@@ -55,7 +55,7 @@ do_x1_shutdown (void) {
 }
 
 static void
-do_x1_recover (BOOL UU(did_commit)) {
+do_x1_recover (bool UU(did_commit)) {
     int r;
     r=system("rm " ENVDIR "/*.tokudb"); CKERR(r);
 
@@ -77,7 +77,7 @@ do_x1_recover (BOOL UU(did_commit)) {
     r=env->close(env, 0);                                                      CKERR(r);
 }
 
-BOOL do_commit=FALSE, do_recover_committed=FALSE;
+bool do_commit=false, do_recover_committed=false;
 
 static void
 x1_parse_args (int argc, char * const argv[]) {
@@ -91,9 +91,9 @@ x1_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--test") == 0) {
-	    do_commit=TRUE;
+	    do_commit=true;
 	} else if (strcmp(argv[0], "--recover") == 0) {
-	    do_recover_committed=TRUE;
+	    do_recover_committed=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
@@ -133,7 +133,7 @@ test_main (int argc, char * const argv[])
     if (do_commit) {
 	do_x1_shutdown();
     } else if (do_recover_committed) {
-	do_x1_recover(TRUE);
+	do_x1_recover(true);
     } 
     for (i=0; i<N; i++) {
         toku_free(keys[i]);

@@ -27,15 +27,15 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     // first test that prefetching everything should work
     memset(&cursor->range_lock_left_key, 0 , sizeof(DBT));
     memset(&cursor->range_lock_right_key, 0 , sizeof(DBT));
-    cursor->left_is_neg_infty = TRUE;
-    cursor->right_is_pos_infty = TRUE;
-    cursor->disable_prefetching = FALSE;
+    cursor->left_is_neg_infty = true;
+    cursor->right_is_pos_infty = true;
+    cursor->disable_prefetching = false;
     
     struct ftnode_fetch_extra bfe;
 
     // quick test to see that we have the right behavior when we set
-    // disable_prefetching to TRUE
-    cursor->disable_prefetching = TRUE;
+    // disable_prefetching to true
+    cursor->disable_prefetching = true;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
     FTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
@@ -53,7 +53,7 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     toku_free(ndd);
 
     // now enable prefetching again
-    cursor->disable_prefetching = FALSE;
+    cursor->disable_prefetching = false;
     
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
@@ -74,9 +74,9 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     toku_ftnode_free(&dn);
     toku_free(ndd);
 
-    u_int64_t left_key = 150;
-    toku_fill_dbt(&cursor->range_lock_left_key, &left_key, sizeof(u_int64_t));
-    cursor->left_is_neg_infty = FALSE;
+    uint64_t left_key = 150;
+    toku_fill_dbt(&cursor->range_lock_left_key, &left_key, sizeof(uint64_t));
+    cursor->left_is_neg_infty = false;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
@@ -96,9 +96,9 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     toku_ftnode_free(&dn);
     toku_free(ndd);
 
-    u_int64_t right_key = 151;
-    toku_fill_dbt(&cursor->range_lock_right_key, &right_key, sizeof(u_int64_t));
-    cursor->right_is_pos_infty = FALSE;
+    uint64_t right_key = 151;
+    toku_fill_dbt(&cursor->range_lock_right_key, &right_key, sizeof(uint64_t));
+    cursor->right_is_pos_infty = false;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
@@ -175,13 +175,13 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     // first test that prefetching everything should work
     memset(&cursor->range_lock_left_key, 0 , sizeof(DBT));
     memset(&cursor->range_lock_right_key, 0 , sizeof(DBT));
-    cursor->left_is_neg_infty = TRUE;
-    cursor->right_is_pos_infty = TRUE;
+    cursor->left_is_neg_infty = true;
+    cursor->right_is_pos_infty = true;
     
     struct ftnode_fetch_extra bfe;
 
-    u_int64_t left_key = 150;
-    u_int64_t right_key = 151;
+    uint64_t left_key = 150;
+    uint64_t right_key = 151;
     DBT left, right;
     toku_fill_dbt(&left, &left_key, sizeof(left_key));
     toku_fill_dbt(&right, &right_key, sizeof(right_key));
@@ -191,15 +191,15 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
         NULL, 
         &left,
         &right,
-        FALSE,
-        FALSE,
-        FALSE
+        false,
+        false,
+        false
         );
     
     // fake the childnum to read
     // set disable_prefetching ON
     bfe.child_to_read = 2;
-    bfe.disable_prefetching = TRUE;
+    bfe.disable_prefetching = true;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
@@ -224,7 +224,7 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
 
     // fake the childnum to read
     bfe.child_to_read = 2;
-    bfe.disable_prefetching = FALSE;
+    bfe.disable_prefetching = false;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
@@ -296,8 +296,8 @@ test_prefetching(void) {
     sn.n_children = 3;
     sn.dirty = 1;
 
-    u_int64_t key1 = 100;
-    u_int64_t key2 = 200;
+    uint64_t key1 = 100;
+    uint64_t key2 = 200;
     
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
@@ -352,7 +352,7 @@ test_prefetching(void) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -360,7 +360,7 @@ test_prefetching(void) {
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
     assert(r==0);
 
     test_prefetch_read(fd, brt, brt_h);    

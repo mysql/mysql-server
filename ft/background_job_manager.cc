@@ -5,7 +5,6 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <config.h>
-#include <stdbool.h>
 #include <toku_pthread.h>
 #include "kibbutz.h"
 #include "background_job_manager.h"
@@ -13,7 +12,7 @@
 
 struct background_job_manager_struct {
     bool accepting_jobs;
-    u_int32_t num_jobs;
+    uint32_t num_jobs;
     toku_cond_t jobs_wait;
     toku_mutex_t jobs_lock;
 };

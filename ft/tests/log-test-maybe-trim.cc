@@ -27,11 +27,11 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_open(dname, logger); assert(r == 0);
     BYTESTRING hello = (BYTESTRING) { 5, (char *) "hello"};
     LSN comment_lsn;
-    r = toku_log_comment(logger, &comment_lsn, TRUE, 0, hello);
+    r = toku_log_comment(logger, &comment_lsn, true, 0, hello);
     LSN begin_lsn;
-    r = toku_log_begin_checkpoint(logger, &begin_lsn, TRUE, 0, 0); assert(r == 0);
+    r = toku_log_begin_checkpoint(logger, &begin_lsn, true, 0, 0); assert(r == 0);
     LSN end_lsn;
-    r = toku_log_end_checkpoint(logger, &end_lsn, TRUE, begin_lsn, 0, 0, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, &end_lsn, true, begin_lsn, 0, 0, 0); assert(r == 0);
     r = toku_logger_maybe_trim_log(logger, begin_lsn); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 

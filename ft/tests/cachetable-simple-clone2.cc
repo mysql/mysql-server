@@ -5,17 +5,17 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL clone_called;
-BOOL check_flush;
-BOOL flush_expected;
-BOOL flush_called;
+bool clone_called;
+bool check_flush;
+bool flush_expected;
+bool flush_called;
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
-    clone_called = TRUE;
+    new_attr->is_valid = false;
+    clone_called = true;
 }
 
 static void
@@ -28,15 +28,15 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL UU(is_clone)
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool UU(is_clone)
     ) 
 {  
     if (w && check_flush) {
         assert(flush_expected);
-        flush_called = TRUE;
+        flush_called = true;
     }
 }
 
@@ -46,7 +46,7 @@ flush (
 //     dirty or clean based on the second unpin
 //
 static void
-test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
+test_clean (enum cachetable_dirty dirty, bool cloneable) {
     const int test_limit = 200;
     int r;
     CACHETABLE ct;
@@ -55,21 +55,21 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    check_flush = FALSE;
+    check_flush = false;
     
     void* v1;
     long s1;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.clone_callback = cloneable ? clone_callback : NULL;
     wc.flush_callback = flush;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
     r = toku_cachetable_begin_checkpoint(ct, NULL);
     assert_zero(r);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     
     // at this point, there should be no more dirty writes
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
@@ -82,12 +82,12 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     );
     assert_zero(r);
     
-    check_flush = TRUE;
-    flush_expected = (dirty == CACHETABLE_DIRTY) ? TRUE : FALSE;
-    flush_called = FALSE;
+    check_flush = true;
+    flush_expected = (dirty == CACHETABLE_DIRTY) ? true : false;
+    flush_called = false;
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 );
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     if (flush_expected) assert(flush_called);
 }
@@ -95,9 +95,9 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
 int
 test_main(int argc, const char *argv[]) {
   default_parse_args(argc, argv);
-  test_clean(CACHETABLE_CLEAN, TRUE);
-  test_clean(CACHETABLE_DIRTY, TRUE);
-  test_clean(CACHETABLE_CLEAN, FALSE);
-  test_clean(CACHETABLE_DIRTY, FALSE);
+  test_clean(CACHETABLE_CLEAN, true);
+  test_clean(CACHETABLE_DIRTY, true);
+  test_clean(CACHETABLE_CLEAN, false);
+  test_clean(CACHETABLE_DIRTY, false);
   return 0;
 }

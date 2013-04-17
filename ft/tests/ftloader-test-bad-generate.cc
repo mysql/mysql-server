@@ -68,7 +68,7 @@ static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
     }
 }
 
-static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
+static void test_extractor(int nrows, int nrowsets, bool expect_fail) {
     if (verbose) printf("%s %d %d\n", __FUNCTION__, nrows, nrowsets);
 
     int r;
@@ -87,7 +87,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     }
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, TRUE);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE, true);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];
@@ -114,7 +114,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     assert(expect_fail ? loader_error != 0 : loader_error == 0);
 
     // abort the ft_loader.  this ends the test
-    r = toku_ft_loader_abort(loader, TRUE);
+    r = toku_ft_loader_abort(loader, true);
     assert(r == 0);
 }
 
@@ -155,7 +155,7 @@ int test_main (int argc, const char *argv[]) {
     }
 
     // callibrate
-    test_extractor(nrows, nrowsets, FALSE);
+    test_extractor(nrows, nrowsets, false);
 
     // run tests
     int event_limit = event_count;
@@ -164,7 +164,7 @@ int test_main (int argc, const char *argv[]) {
     for (int i = 1; i <= event_limit; i++) {
         reset_event_counts();
         event_count_trigger = i;
-        test_extractor(nrows, nrowsets, TRUE);
+        test_extractor(nrows, nrowsets, true);
     }
 
     return 0;

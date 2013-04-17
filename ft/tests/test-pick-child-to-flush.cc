@@ -39,7 +39,7 @@ static int child_to_flush(FT UU(h), FTNODE parent, void* UU(extra)) {
         return 0;
     }
     else {
-        assert(FALSE);
+        assert(false);
     }
     return curr_child_to_flush;
 }
@@ -63,11 +63,11 @@ static void merge_should_not_happen(struct flusher_advice* UU(fa),
                               FTNODE UU(child),
                               void* UU(extra))
 {
-    assert(FALSE);
+    assert(false);
 }
 
 static bool recursively_flush_should_not_happen(FTNODE UU(child), void* UU(extra)) {
-    assert(FALSE);
+    assert(false);
 }
 
 static bool always_flush(FTNODE UU(child), void* UU(extra)) {

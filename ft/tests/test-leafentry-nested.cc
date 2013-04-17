@@ -22,7 +22,7 @@ verify_ule_equal(ULE a, ULE b) {
     assert(memcmp(a->keyp, b->keyp, a->keylen) == 0);
     assert(a->num_cuxrs == b->num_cuxrs);
     assert(a->num_puxrs == b->num_puxrs);
-    u_int32_t i;
+    uint32_t i;
     for (i = 0; i < (a->num_cuxrs + a->num_puxrs); i++) {
         assert(a->uxrs[i].type == b->uxrs[i].type);
         assert(a->uxrs[i].xid  == b->uxrs[i].xid);
@@ -56,9 +56,9 @@ verify_le_equal(LEAFENTRY a, LEAFENTRY b) {
 }
 
 static void
-fillrandom(u_int8_t buf[MAX_SIZE], u_int32_t length) {
+fillrandom(uint8_t buf[MAX_SIZE], uint32_t length) {
     assert(length < MAX_SIZE);
-    u_int32_t i;
+    uint32_t i;
     for (i = 0; i < length; i++) {
         buf[i] = random() & 0xFF;
     } 
@@ -186,9 +186,9 @@ le_verify_accessors(LEAFENTRY le, ULE ule, size_t pre_calculated_memsize) {
     size_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
 
     void *key               = ule->keyp;
-    u_int32_t keylen        = ule->keylen;
+    uint32_t keylen        = ule->keylen;
     void *latest_val        = ule->uxrs[num_uxrs -1].type == XR_DELETE ? NULL : ule->uxrs[num_uxrs -1].valp;
-    u_int32_t latest_vallen = ule->uxrs[num_uxrs -1].type == XR_DELETE ? 0    : ule->uxrs[num_uxrs -1].vallen;
+    uint32_t latest_vallen = ule->uxrs[num_uxrs -1].type == XR_DELETE ? 0    : ule->uxrs[num_uxrs -1].vallen;
     {
         int i;
         for (i = num_uxrs - 1; i >= 0; i--) {
@@ -196,7 +196,7 @@ le_verify_accessors(LEAFENTRY le, ULE ule, size_t pre_calculated_memsize) {
                 goto found_insert;
             }
         }
-        assert(FALSE);
+        assert(false);
     }
 found_insert:;
     TXNID outermost_uncommitted_xid = ule->num_puxrs == 0 ? TXNID_NONE : ule->uxrs[ule->num_cuxrs].xid;
@@ -207,7 +207,7 @@ found_insert:;
     assert(memsize  == pre_calculated_memsize);
     assert(memsize  == leafentry_memsize(le));
     {
-        u_int32_t test_keylen;
+        uint32_t test_keylen;
         void*     test_keyp = le_key_and_len(le, &test_keylen);
         if (key != NULL) assert(test_keyp != key);
         assert(test_keylen == keylen);
@@ -216,7 +216,7 @@ found_insert:;
         assert(le_keylen(le) == test_keylen);
     }
     {
-        u_int32_t test_vallen;
+        uint32_t test_vallen;
         void*     test_valp = le_latest_val_and_len(le, &test_vallen);
         if (latest_val != NULL) assert(test_valp != latest_val);
         assert(test_vallen == latest_vallen);
@@ -239,10 +239,10 @@ test_le_pack_committed (void) {
     ULE_S ule;
     ule.uxrs = ule.uxrs_static;
 
-    u_int8_t key[MAX_SIZE];
-    u_int8_t val[MAX_SIZE];
-    u_int32_t keysize;
-    u_int32_t valsize;
+    uint8_t key[MAX_SIZE];
+    uint8_t val[MAX_SIZE];
+    uint32_t keysize;
+    uint32_t valsize;
     for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
         for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
             fillrandom(key, keysize);
@@ -281,17 +281,17 @@ test_le_pack_committed (void) {
 }
 
 static void
-test_le_pack_uncommitted (u_int8_t committed_type, u_int8_t prov_type, int num_placeholders) {
+test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_placeholders) {
     ULE_S ule;
     ule.uxrs = ule.uxrs_static;
     assert(num_placeholders >= 0);
 
-    u_int8_t key[MAX_SIZE];
-    u_int8_t cval[MAX_SIZE];
-    u_int8_t pval[MAX_SIZE];
-    u_int32_t keysize;
-    u_int32_t cvalsize;
-    u_int32_t pvalsize;
+    uint8_t key[MAX_SIZE];
+    uint8_t cval[MAX_SIZE];
+    uint8_t pval[MAX_SIZE];
+    uint32_t keysize;
+    uint32_t cvalsize;
+    uint32_t pvalsize;
     for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
         for (cvalsize = 0; cvalsize < MAX_SIZE; cvalsize += (random() % MAX_SIZE) + 1) {
             pvalsize = (cvalsize + random()) % MAX_SIZE;
@@ -479,7 +479,7 @@ generate_provpair_for(ULE ule, FT_MSG msg) {
 
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
-    u_int32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
+    uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->keylen   = msg->u.id.key->size;
     ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_DELETE;
@@ -507,10 +507,10 @@ test_le_empty_apply(void) {
 
     DBT key;
     DBT val;
-    u_int8_t keybuf[MAX_SIZE];
-    u_int8_t valbuf[MAX_SIZE];
-    u_int32_t keysize;
-    u_int32_t valsize;
+    uint8_t keybuf[MAX_SIZE];
+    uint8_t valbuf[MAX_SIZE];
+    uint32_t keysize;
+    uint32_t valsize;
     uint32_t  nesting_level;
     for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
         for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
@@ -569,7 +569,7 @@ generate_provdel_for(ULE ule, FT_MSG msg) {
 
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
-    u_int32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
+    uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->keylen   = msg->u.id.key->size;
     ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_INSERT;
@@ -595,7 +595,7 @@ generate_both_for(ULE ule, DBT *oldval, FT_MSG msg) {
 
     ule->num_cuxrs = 1;
     ule->num_puxrs = xids_get_num_xids(xids);
-    u_int32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
+    uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->keylen   = msg->u.id.key->size;
     ule->keyp     = msg->u.id.key->data;
     ule->uxrs[0].type   = XR_INSERT;
@@ -624,10 +624,10 @@ test_le_committed_apply(void) {
 
     DBT key;
     DBT val;
-    u_int8_t keybuf[MAX_SIZE];
-    u_int8_t valbuf[MAX_SIZE];
-    u_int32_t keysize;
-    u_int32_t valsize;
+    uint8_t keybuf[MAX_SIZE];
+    uint8_t valbuf[MAX_SIZE];
+    uint32_t keysize;
+    uint32_t valsize;
     uint32_t  nesting_level;
     for (keysize = 0; keysize < MAX_SIZE; keysize += (random() % MAX_SIZE) + 1) {
         for (valsize = 0; valsize < MAX_SIZE; valsize += (random() % MAX_SIZE) + 1) {
@@ -668,8 +668,8 @@ test_le_committed_apply(void) {
                 }
 
                 {
-                    u_int8_t valbuf2[MAX_SIZE];
-                    u_int32_t valsize2 = random() % MAX_SIZE;
+                    uint8_t valbuf2[MAX_SIZE];
+                    uint32_t valsize2 = random() % MAX_SIZE;
                     fillrandom(valbuf2, valsize2);
                     DBT val2;
                     toku_fill_dbt(&val2, valbuf2, valsize2);
@@ -682,8 +682,8 @@ test_le_committed_apply(void) {
                 {
                     //INSERT_NO_OVERWRITE will not change a committed insert
                     ULE_S ule_expected = ule_initial;
-                    u_int8_t valbuf2[MAX_SIZE];
-                    u_int32_t valsize2 = random() % MAX_SIZE;
+                    uint8_t valbuf2[MAX_SIZE];
+                    uint32_t valsize2 = random() % MAX_SIZE;
                     fillrandom(valbuf2, valsize2);
                     DBT val2;
                     toku_fill_dbt(&val2, valbuf2, valsize2);
@@ -708,10 +708,10 @@ static void test_le_optimize(void) {
     DBT val;
     ULE_S ule_initial;
     ULE_S ule_expected;
-    u_int8_t keybuf[MAX_SIZE];
-    u_int32_t keysize=8;
-    u_int8_t valbuf[MAX_SIZE];
-    u_int32_t valsize=8;
+    uint8_t keybuf[MAX_SIZE];
+    uint32_t keysize=8;
+    uint8_t valbuf[MAX_SIZE];
+    uint32_t valsize=8;
     ule_initial.uxrs = ule_initial.uxrs_static;
     ule_expected.uxrs = ule_expected.uxrs_static;
     TXNID optimize_txnid = 1000;

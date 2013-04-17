@@ -17,7 +17,7 @@
 //};
 
 struct simple_dbt {
-    u_int32_t len;
+    uint32_t len;
     void     *data;
 };
 

@@ -5,7 +5,7 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL foo;
+bool foo;
 
 //
 // This test verifies that flushing a cachefile will wait on kibbutzes to finish
@@ -14,7 +14,7 @@ static void kibbutz_work(void *fe_v)
 {
     CACHEFILE CAST_FROM_VOIDP(f1, fe_v);
     sleep(2);
-    foo = TRUE;
+    foo = true;
     // note that we make the size 16 to induce an eviction
     // once evictions are moved to their own thread, we need
     // to modify this test
@@ -40,17 +40,17 @@ run_test (void) {
     long s1;
     //long s2;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
-    foo = FALSE;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
+    foo = false;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     r = toku_cachefile_flush(f1); assert(r == 0);
     assert(foo);
     assert(f1);
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
-    foo = FALSE;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
+    foo = false;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     assert(foo);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     

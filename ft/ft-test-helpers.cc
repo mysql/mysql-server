@@ -32,7 +32,7 @@ next_dummymsn(void) {
 }
 
 
-BOOL ignore_if_was_already_open;
+bool ignore_if_was_already_open;
 int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens) {
     FTNODE node;
     assert(testsetup_initialized);
@@ -93,7 +93,7 @@ int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM diskoff) // Return the si
         toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
-        TRUE,
+        true,
         &bfe
         );
     assert(r==0);
@@ -121,7 +121,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
 	toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
-        TRUE,
+        true,
 	&bfe
 	);
     if (r!=0) return r;
@@ -169,7 +169,7 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
         b,
         toku_cachetable_hash(t->ft->cf, b),
         &bfe,
-        TRUE,
+        true,
         0,
         NULL,
         node
@@ -194,7 +194,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
 	toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
-        TRUE,
+        true,
 	&bfe
         );
     if (r!=0) return r;

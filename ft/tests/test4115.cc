@@ -38,9 +38,9 @@ static void open_ft_and_ct (bool unlink_old) {
 }
 
 static void test_4115 (void) {
-    u_int64_t limit=30000;
+    uint64_t limit=30000;
     open_ft_and_ct(true);
-    for (u_int64_t i=0; i<limit; i++) {
+    for (uint64_t i=0; i<limit; i++) {
 	char key[100],val[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	snprintf(val, 100, "%08llu", (unsigned long long)2*i+1);

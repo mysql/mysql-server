@@ -8,7 +8,7 @@
 #include "test.h"
 static void
 test0 (void) {
-    u_int32_t c = x1764_memory("", 0);
+    uint32_t c = x1764_memory("", 0);
     assert(c==~(0U));
     struct x1764 cs;
     x1764_init(&cs);
@@ -19,12 +19,12 @@ test0 (void) {
 
 static void
 test1 (void) {
-    u_int64_t v=0x123456789abcdef0ULL;
-    u_int32_t c;
+    uint64_t v=0x123456789abcdef0ULL;
+    uint32_t c;
     int i;
     for (i=0; i<=8; i++) {
-	u_int64_t expect64 = (i==8) ? v : v&((1LL<<(8*i))-1);
-	u_int32_t expect = expect64 ^ (expect64>>32);
+	uint64_t expect64 = (i==8) ? v : v&((1LL<<(8*i))-1);
+	uint32_t expect = expect64 ^ (expect64>>32);
 	c = x1764_memory(&v, i);
 	//printf("i=%d c=%08x expect=%08x\n", i, c, expect);
 	assert(c==~expect);
@@ -42,7 +42,7 @@ test2 (void) {
 	int j;
 	for (j=i; j<=N; j++) {
 	    // checksum from i (inclusive to j (exclusive)
-	    u_int32_t c = x1764_memory(&v[i], j-i);
+	    uint32_t c = x1764_memory(&v[i], j-i);
 	    // Now compute the checksum incrementally with various strides.
 	    int stride;
 	    for (stride=1; stride<=j-i; stride++) {
@@ -53,7 +53,7 @@ test2 (void) {
 		    x1764_add(&s, &v[k], stride);
 		}
 		x1764_add(&s, &v[k], j-k);
-		u_int32_t c2 = x1764_finish(&s);
+		uint32_t c2 = x1764_finish(&s);
 		assert(c2==c);
 	    }
 	    // Now use some random strides.
@@ -68,7 +68,7 @@ test2 (void) {
 		    k+=stride;
 		}
 		x1764_add(&s, &v[k], j-k);
-		u_int32_t c2 = x1764_finish(&s);
+		uint32_t c2 = x1764_finish(&s);
 		assert(c2==c);
 	    }
 	}
@@ -85,8 +85,8 @@ test3 (void)
     for (int off=0; off<32; off++) {
 	if (verbose) {printf("."); fflush(stdout);}
 	for (int len=0; len+off<datalen; len++) {
-	    u_int32_t reference_sum = x1764_memory_simple(data+off, len);
-	    u_int32_t fast_sum      = x1764_memory       (data+off, len);
+	    uint32_t reference_sum = x1764_memory_simple(data+off, len);
+	    uint32_t fast_sum      = x1764_memory       (data+off, len);
 	    assert(reference_sum==fast_sum);
 	}
     }

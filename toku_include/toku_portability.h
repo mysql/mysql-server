@@ -189,6 +189,13 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #    ifndef DONT_DEPRECATE_ERRNO
 //extern int errno __attribute__((__deprecated__));
 #    endif
+#pragma GCC poison u_int8_t
+#pragma GCC poison u_int16_t
+#pragma GCC poison u_int32_t
+#pragma GCC poison u_int64_t
+#pragma GCC poison BOOL
+#pragma GCC poison FALSE
+#pragma GCC poison TRUE
 #   endif
 #endif
 

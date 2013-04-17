@@ -9,7 +9,6 @@
 #include <toku_assert.h>
 #include <memory.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <db.h>

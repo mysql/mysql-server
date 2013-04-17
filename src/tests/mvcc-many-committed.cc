@@ -17,8 +17,8 @@ int test_main (int argc, char * const argv[]) {
     CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
-    u_int32_t i = 0;
-    u_int32_t num_read_txns = 1000;
+    uint32_t i = 0;
+    uint32_t num_read_txns = 1000;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     env->set_errfile(env, stderr);
     r = env->set_lk_max_locks(env, 0xffffffff);
@@ -42,7 +42,7 @@ int test_main (int argc, char * const argv[]) {
 
     for (i = 0; i < num_read_txns; i++) {
         DB_TXN* put_txn = NULL;
-        u_int32_t data = i;
+        uint32_t data = i;
         r = env->txn_begin(env, NULL, &put_txn, DB_TXN_SNAPSHOT);
         CKERR(r);
         r = db->put(
@@ -69,7 +69,7 @@ int test_main (int argc, char * const argv[]) {
         r = db->cursor(db, read_txns[i], &snapshot_cursor, 0); CKERR(r);        
         r = snapshot_cursor->c_get(snapshot_cursor, &curr_key, &curr_val, DB_NEXT); CKERR(r);
         assert(((char *)(curr_key.data))[0] == 'a');
-        assert((*(u_int32_t *)(curr_val.data)) == i);
+        assert((*(uint32_t *)(curr_val.data)) == i);
         assert(curr_key.size == 4);
         assert(curr_val.size == 4);
         snapshot_cursor->c_close(snapshot_cursor);
@@ -90,7 +90,7 @@ int test_main (int argc, char * const argv[]) {
             ); 
         CKERR(r);
         assert(((char *)(curr_key.data))[0] == 'a');
-        assert((*(u_int32_t *)(curr_val.data)) == (num_read_txns - 1));
+        assert((*(uint32_t *)(curr_val.data)) == (num_read_txns - 1));
         assert(curr_key.size == 4);
         assert(curr_val.size == 4);
         read_uncommitted_cursor->c_close(read_uncommitted_cursor);

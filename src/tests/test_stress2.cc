@@ -51,30 +51,30 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     struct scan_op_extra soe[4];
 
     // make the forward fast scanner
-    soe[0].fast = TRUE;
-    soe[0].fwd = TRUE;
-    soe[0].prefetch = FALSE;
+    soe[0].fast = true;
+    soe[0].fwd = true;
+    soe[0].prefetch = false;
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
     // make the forward slow scanner
-    soe[1].fast = FALSE;
-    soe[1].fwd = TRUE;
-    soe[1].prefetch = FALSE;
+    soe[1].fast = false;
+    soe[1].fwd = true;
+    soe[1].prefetch = false;
     myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op;
 
     // make the backward fast scanner
-    soe[2].fast = TRUE;
-    soe[2].fwd = FALSE;
-    soe[2].prefetch = FALSE;
+    soe[2].fast = true;
+    soe[2].fwd = false;
+    soe[2].prefetch = false;
     myargs[2].operation_extra = &soe[2];
     myargs[2].operation = scan_op;
 
     // make the backward slow scanner
-    soe[3].fast = FALSE;
-    soe[3].fwd = FALSE;
-    soe[3].prefetch = FALSE;
+    soe[3].fast = false;
+    soe[3].fwd = false;
+    soe[3].prefetch = false;
     myargs[3].operation_extra = &soe[3];
     myargs[3].operation = scan_op;
 

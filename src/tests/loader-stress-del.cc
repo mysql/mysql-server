@@ -28,9 +28,9 @@ int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
 char *datadir = NULL;
-BOOL check_est = TRUE; // do check the estimates by default
-BOOL footprint_print = FALSE; // print memory footprint info 
-BOOL upgrade_test = FALSE;   
+bool check_est = true; // do check the estimates by default
+bool footprint_print = false; // print memory footprint info 
+bool upgrade_test = false;   
 
 // Code for showing memory footprint information.
 pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -352,7 +352,7 @@ static int progress_infos_count=0;
 static int progress_infos_limit=0;
 
 // timing
-static BOOL did_start=FALSE;
+static bool did_start=false;
 static struct timeval start;
 
 static int poll_function (void *extra, float progress) {
@@ -433,7 +433,7 @@ static void test_loader(DB **dbs)
     int n = count_temp(env->i->real_data_dir);
     if (verbose) printf("Num temp files = %d\n", n);
 
-    did_start = TRUE;
+    did_start = true;
     gettimeofday(&start, 0);
 
     // close the loader
@@ -643,7 +643,7 @@ static void do_args(int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "-f")==0) {
-	    footprint_print = TRUE;
+	    footprint_print = true;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
@@ -672,9 +672,9 @@ static void do_args(int argc, char * const argv[]) {
             argc--; argv++;
             datadir = argv[0];
 	} else if (strcmp(argv[0], "--dont_check_est") == 0) {
-	    check_est = FALSE;
+	    check_est = false;
         } else if (strcmp(argv[0], "-u")==0) {
-            upgrade_test = TRUE;
+            upgrade_test = true;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

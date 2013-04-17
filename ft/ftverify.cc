@@ -14,7 +14,6 @@
 
 #include <fcntl.h>
 #include <math.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -40,9 +39,9 @@ static double pct = 0.5;
 struct verify_block_extra {
     BLOCKNUM b;
     int n_sub_blocks;
-    u_int32_t header_length;
-    u_int32_t calc_xsum;
-    u_int32_t stored_xsum;
+    uint32_t header_length;
+    uint32_t calc_xsum;
+    uint32_t stored_xsum;
     bool header_valid;
     bool sub_blocks_valid;
     struct sub_block_info *sub_block_results;
@@ -90,13 +89,13 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
 {
     struct rbuf rb_0;
     struct rbuf rb_1;
-    u_int64_t checkpoint_count_0;
-    u_int64_t checkpoint_count_1;
+    uint64_t checkpoint_count_0;
+    uint64_t checkpoint_count_1;
     LSN checkpoint_lsn_0;
     LSN checkpoint_lsn_1;
-    u_int32_t version_0, version_1;
-    BOOL h0_acceptable = FALSE;
-    BOOL h1_acceptable = FALSE;
+    uint32_t version_0, version_1;
+    bool h0_acceptable = false;
+    bool h1_acceptable = false;
     int r0, r1;
     int r;
 
@@ -111,7 +110,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
             &version_0
             );
         if ((r0==0) && (checkpoint_lsn_0.lsn <= MAX_LSN.lsn)) {
-            h0_acceptable = TRUE;
+            h0_acceptable = true;
         }
     }
     {
@@ -125,7 +124,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
             &version_1
             );
         if ((r1==0) && (checkpoint_lsn_1.lsn <= MAX_LSN.lsn)) {
-            h1_acceptable = TRUE;
+            h1_acceptable = true;
         }
     }
 
@@ -284,8 +283,8 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     // Using the node info, decompress all the keys and pivots to
     // detect any corruptions.
     for (int i = 0; i < node->n_children; ++i) {
-        u_int32_t curr_offset = BP_START(ndd,i);
-        u_int32_t curr_size   = BP_SIZE(ndd,i);
+        uint32_t curr_offset = BP_START(ndd,i);
+        uint32_t curr_size   = BP_SIZE(ndd,i);
         struct rbuf curr_rbuf = {.buf = NULL, .size = 0, .ndone = 0};
         rbuf_init(&curr_rbuf, rb.buf + curr_offset, curr_size);
         struct sub_block curr_sb;

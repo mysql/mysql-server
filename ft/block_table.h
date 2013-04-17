@@ -36,7 +36,7 @@ void toku_maybe_truncate_file_on_open(BLOCK_TABLE bt, int fd);
 //Blocknums
 void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, FT h);
 void toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, FT h);
-void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, FT h, BOOL for_checkpoint);
+void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, FT h, bool for_checkpoint);
 void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
@@ -45,7 +45,7 @@ void toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISK
 void toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size);
 
 //Blocks and Blocknums
-void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, int fd, BOOL for_checkpoint);
+void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, int fd, bool for_checkpoint);
 void toku_translate_blocknum_to_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
 
 //Serialization
@@ -57,8 +57,8 @@ void toku_block_table_swap_for_redirect(BLOCK_TABLE old_bt, BLOCK_TABLE new_bt);
 //DEBUG ONLY (ftdump included), tests included
 void toku_blocknum_dump_translation(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_dump_translation_table(FILE *f, BLOCK_TABLE bt);
-void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
-void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
+void toku_block_alloc(BLOCK_TABLE bt, uint64_t size, uint64_t *offset);
+void toku_block_free(BLOCK_TABLE bt, uint64_t offset);
 typedef int(*BLOCKTABLE_CALLBACK)(BLOCKNUM b, int64_t size, int64_t address, void *extra);
 enum translation_type {TRANSLATION_NONE=0,
                        TRANSLATION_CURRENT,
@@ -66,7 +66,7 @@ enum translation_type {TRANSLATION_NONE=0,
                        TRANSLATION_CHECKPOINTED,
                        TRANSLATION_DEBUG};
 
-int toku_blocktable_iterate(BLOCK_TABLE bt, enum translation_type type, BLOCKTABLE_CALLBACK f, void *extra, BOOL data_only, BOOL used_only); 
+int toku_blocktable_iterate(BLOCK_TABLE bt, enum translation_type type, BLOCKTABLE_CALLBACK f, void *extra, bool data_only, bool used_only); 
 void toku_blocktable_internal_fragmentation(BLOCK_TABLE bt, int64_t *total_sizep, int64_t *used_sizep);
 
 void toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATION report);

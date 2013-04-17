@@ -79,7 +79,7 @@ struct ftnode_fetch_extra {
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     ft_search_t* search;
     DBT *range_lock_left_key, *range_lock_right_key;
-    BOOL left_is_neg_infty, right_is_pos_infty;
+    bool left_is_neg_infty, right_is_pos_infty;
     // states if we should try to aggressively fetch basement nodes 
     // that are not specifically needed for current query, 
     // but may be needed for other cursor operations user is doing
@@ -87,7 +87,7 @@ struct ftnode_fetch_extra {
     // and the user is doing a dictionary wide scan, then
     // even though a query may only want one basement node,
     // we fetch all basement nodes in a leaf node.
-    BOOL disable_prefetching; 
+    bool disable_prefetching; 
     // this value will be set during the fetch_callback call by toku_ftnode_fetch_callback or toku_ftnode_pf_req_callback
     // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
     int child_to_read;
@@ -189,8 +189,8 @@ struct ftnode_disk_data {
     //  The SIZE is the size of the compressed partition.
     // Rationale:  We cannot store the size from the beginning of the node since we don't know how big the header will be.
     //  However, later when we are doing aligned writes, we won't be able to store the size from the end since we want things to align.
-    u_int32_t start;
-    u_int32_t size;
+    uint32_t start;
+    uint32_t size;
 };
 #define BP_START(node_dd,i) ((node_dd)[i].start)
 #define BP_SIZE(node_dd,i) ((node_dd)[i].size)
@@ -223,7 +223,7 @@ struct   __attribute__((__packed__)) ftnode_partition {
 
     // clock count used to for pe_callback to determine if a node should be evicted or not
     // for now, saturating the count at 1
-    u_int8_t clock_count;
+    uint8_t clock_count;
 
     // How many bytes worth of work was performed by messages in each buffer.
     uint64_t     workdone;
@@ -240,7 +240,7 @@ struct ftnode {
     uint32_t build_id;       // build_id (svn rev number) of software that wrote this node to disk
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
-    u_int32_t fullhash;
+    uint32_t fullhash;
     int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
@@ -333,7 +333,7 @@ enum {
     FT_PIVOT_FRONT_COMPRESS = 8,
 };
 
-u_int32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
+uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
 
 // The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
 
@@ -492,7 +492,7 @@ struct ft_handle {
     on_redirect_callback redirect_callback;
     void *redirect_callback_extra;
     struct toku_list live_ft_handle_link;
-    BOOL did_set_flags;
+    bool did_set_flags;
 
     struct ft_options options;
 };
@@ -515,22 +515,22 @@ int toku_serialize_ftnode_to_memory (FTNODE node,
                                       FTNODE_DISK_DATA* ndd,
                                       unsigned int basementnodesize,
                                       enum toku_compression_method compression_method,
-                                      BOOL do_rebalancing,
-                                      BOOL in_parallel,
+                                      bool do_rebalancing,
+                                      bool in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ char  **bytes_to_write);
-int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, BOOL for_checkpoint);
+int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
                                     FT h,
-                                    BOOL for_checkpoint);
-int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
+                                    bool for_checkpoint);
+int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
 int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
 int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, DESCRIPTOR desc, ft_compare_func cmp);
-int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
+int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, uint32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
 
 // <CER> For verifying old, non-upgraded nodes (versions 13 and 14).
 int
-decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum);
+decompress_from_raw_block_into_rbuf(uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum);
 // 
     
 //////////////// <CER> TODO: Move these function declarations
@@ -538,9 +538,9 @@ int
 deserialize_ft_from_fd_into_rbuf(int fd,
                                  toku_off_t offset_of_header,
                                  struct rbuf *rb,
-                                 u_int64_t *checkpoint_count,
+                                 uint64_t *checkpoint_count,
                                  LSN *checkpoint_lsn,
-                                 u_int32_t * version_p);
+                                 uint32_t * version_p);
 
 int
 deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
@@ -635,14 +635,14 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
-extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, BOOL for_checkpoint, void* write_extraargs);
-extern void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL is_clone);
-extern int toku_ftnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
+extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
+extern void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
+extern int toku_ftnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
 extern void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
 extern int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
-extern BOOL toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
+extern bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
-extern int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
+extern int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
 
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
     CACHETABLE_WRITE_CALLBACK wc;
@@ -659,7 +659,7 @@ static const FTNODE null_ftnode=0;
 
 // Values to be used to update ftcursor if a search is successful.
 struct ft_cursor_leaf_info_to_be {
-    u_int32_t index;
+    uint32_t index;
     OMT       omt;
 };
 
@@ -672,14 +672,14 @@ struct ft_cursor_leaf_info {
 struct ft_cursor {
     struct toku_list cursors_link;
     FT_HANDLE ft_handle;
-    BOOL prefetching;
+    bool prefetching;
     DBT key, val;             // The key-value pair that the cursor currently points to
     DBT range_lock_left_key, range_lock_right_key;
-    BOOL left_is_neg_infty, right_is_pos_infty;
-    BOOL is_snapshot_read; // true if query is read_committed, false otherwise
-    BOOL is_leaf_mode;
-    BOOL disable_prefetching;
-    BOOL is_temporary;
+    bool left_is_neg_infty, right_is_pos_infty;
+    bool is_snapshot_read; // true if query is read_committed, false otherwise
+    bool is_leaf_mode;
+    bool disable_prefetching;
+    bool is_temporary;
     TOKUTXN ttxn;
     struct ft_cursor_leaf_info  leaf_info;
 };
@@ -696,10 +696,10 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->search = NULL;
     bfe->range_lock_left_key = NULL;
     bfe->range_lock_right_key = NULL;
-    bfe->left_is_neg_infty = FALSE;
-    bfe->right_is_pos_infty = FALSE;
+    bfe->left_is_neg_infty = false;
+    bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
-    bfe->disable_prefetching = FALSE;
+    bfe->disable_prefetching = false;
 }
 
 //
@@ -714,9 +714,9 @@ static inline void fill_bfe_for_subset_read(
     ft_search_t* search,
     DBT *left,
     DBT *right,
-    BOOL left_is_neg_infty,
-    BOOL right_is_pos_infty,
-    BOOL disable_prefetching
+    bool left_is_neg_infty,
+    bool right_is_pos_infty,
+    bool disable_prefetching
     )
 {
     invariant(h->h->type == FT_CURRENT);
@@ -744,10 +744,10 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->search = NULL;
     bfe->range_lock_left_key = NULL;
     bfe->range_lock_right_key = NULL;
-    bfe->left_is_neg_infty = FALSE;
-    bfe->right_is_pos_infty = FALSE;
+    bfe->left_is_neg_infty = false;
+    bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
-    bfe->disable_prefetching = FALSE;
+    bfe->disable_prefetching = false;
 }
 
 static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
@@ -807,7 +807,7 @@ struct pivot_bounds {
 };
 
 // FIXME needs toku prefix
-void maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, BOOL* msgs_applied);
+void maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied);
 
 int
 toku_ft_search_which_child(
@@ -907,7 +907,7 @@ typedef enum {
 } ft_upgrade_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[FT_UPGRADE_STATUS_NUM_ROWS];
 } FT_UPGRADE_STATUS_S, *FT_UPGRADE_STATUS;
 
@@ -922,7 +922,7 @@ typedef enum {
 } le_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[LE_STATUS_NUM_ROWS];
 } LE_STATUS_S, *LE_STATUS;
 
@@ -987,7 +987,7 @@ void
 toku_ft_bn_apply_cmd_once (
     BASEMENTNODE bn,
     const FT_MSG cmd,
-    u_int32_t idx,
+    uint32_t idx,
     LEAFENTRY le,
     uint64_t *workdonep,
     STAT64INFO stats_to_update

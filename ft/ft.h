@@ -36,7 +36,7 @@ void toku_ft_release_reflock(FT ft);
 int toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT h);
 
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, BOOL* was_open);
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, bool* was_open);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
 bool toku_ft_needed_unlocked(FT ft);
@@ -44,12 +44,12 @@ bool toku_ft_has_one_reference_unlocked(FT ft);
 
 // evict a ft from memory by closing its cachefile. any future work
 // will have to read in the ft in a new cachefile and new FT object.
-int toku_ft_evict_from_memory(FT ft, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+int toku_ft_evict_from_memory(FT ft, char **error_string, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 
 void toku_ft_note_hot_begin(FT_HANDLE brt);
-void toku_ft_note_hot_complete(FT_HANDLE brt, BOOL success, MSN msn_at_start_of_hot);
+void toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot);
 
 void
 toku_ft_init(
@@ -71,7 +71,7 @@ void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
 void toku_ft_add_txn_ref(FT h);
 void toku_ft_remove_txn_ref(FT h);
 
-void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, u_int32_t *roothash);
+void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *roothash);
 void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key); 
 LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
 int toku_ft_set_panic(FT h, int panic, const char *panic_string) __attribute__ ((warn_unused_result));

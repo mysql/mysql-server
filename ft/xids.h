@@ -43,19 +43,19 @@ void xids_create_from_buffer(struct rbuf *rb, XIDS * xids_p);
 
 void xids_destroy(XIDS *xids_p);
 
-TXNID xids_get_xid(XIDS xids, u_int8_t index);
+TXNID xids_get_xid(XIDS xids, uint8_t index);
 
-u_int8_t xids_find_index_of_xid(XIDS xids, TXNID target_xid);
+uint8_t xids_find_index_of_xid(XIDS xids, TXNID target_xid);
 
-u_int8_t xids_get_num_xids(XIDS xids);
+uint8_t xids_get_num_xids(XIDS xids);
 
 TXNID xids_get_innermost_xid(XIDS xids);
 TXNID xids_get_outermost_xid(XIDS xids);
 
 // return size in bytes
-u_int32_t xids_get_size(XIDS xids);
+uint32_t xids_get_size(XIDS xids);
 
-u_int32_t xids_get_serialize_size(XIDS xids);
+uint32_t xids_get_serialize_size(XIDS xids);
 
 void toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids);
 

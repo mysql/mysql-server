@@ -146,8 +146,8 @@ void toku_rt_clear(toku_range_tree* tree);
     parameter to specify whether more elements exist in the tree that overlap 
     (in excess of the requested limit of k).
  */
-int toku_rt_find(toku_range_tree* tree,toku_interval* query, u_int32_t k,
-                 toku_range** buf, u_int32_t* buflen, u_int32_t* numfound);
+int toku_rt_find(toku_range_tree* tree,toku_interval* query, uint32_t k,
+                 toku_range** buf, uint32_t* buflen, uint32_t* numfound);
  
 
 /**

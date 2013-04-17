@@ -50,11 +50,11 @@ test_logmax (int logmax) {
     }
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     {
-	u_int32_t lmax;
+	uint32_t lmax;
 	r=env->get_lg_max(env, &lmax);
 	assert(r==0);
 	if (logmax>0) {
-	    assert(lmax==(u_int32_t)logmax);
+	    assert(lmax==(uint32_t)logmax);
 	} else {
 	    assert(lmax>0);
 	    

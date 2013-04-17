@@ -17,7 +17,7 @@ static int
 my_cleaner_callback(
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
-    u_int32_t UU(fullhash),
+    uint32_t UU(fullhash),
     void* UU(extraargs)
     )
 {
@@ -37,7 +37,7 @@ run_test (void) {
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
     r = toku_set_cleaner_period(ct, 1); assert(r == 0);
-    my_cleaner_callback_called = FALSE;
+    my_cleaner_callback_called = false;
 
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
@@ -54,7 +54,7 @@ run_test (void) {
                                     def_fetch,
                                     def_pf_req_callback,
                                     def_pf_callback,
-                                    TRUE, 
+                                    true, 
                                     NULL);
     PAIR_ATTR attr = make_pair_attr(8);
     attr.cache_pressure_size = 100;
@@ -66,7 +66,7 @@ run_test (void) {
                                         def_fetch,
                                         def_pf_req_callback,
                                         def_pf_callback,
-                                        TRUE, 
+                                        true, 
                                         NULL);
         assert_zero(r);
         // set cachepressure_size to 0
@@ -80,7 +80,7 @@ run_test (void) {
     assert(my_cleaner_callback_called);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 );
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 

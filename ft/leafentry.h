@@ -61,7 +61,7 @@ struct __attribute__ ((__packed__)) leafentry {
     struct __attribute__ ((__packed__)) leafentry_mvcc {
         uint32_t num_cxrs; // number of committed transaction records
         uint8_t  num_pxrs; // number of provisional transaction records
-        u_int8_t key_xrs[0]; //Actual key,
+        uint8_t key_xrs[0]; //Actual key,
                              //then TXNIDs of XRs relevant for reads:
                              //  if provisional XRs exist, store OUTERMOST TXNID
                              //  store committed TXNIDs, from most recently committed to least recently committed (newest first)
@@ -133,19 +133,19 @@ void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
-BOOL le_is_clean(LEAFENTRY le); //Return how many xids exist (0 does not count)
-BOOL le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
-u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
+bool le_is_clean(LEAFENTRY le); //Return how many xids exist (0 does not count)
+bool le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
+uint32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
-u_int32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
-void* le_latest_val_and_len (LEAFENTRY le, u_int32_t *len);
+uint32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
+void* le_latest_val_and_len (LEAFENTRY le, uint32_t *len);
 
  // Return any key or value (even if it's only provisional).
 void* le_key (LEAFENTRY le);
-u_int32_t le_keylen (LEAFENTRY le);
-void* le_key_and_len (LEAFENTRY le, u_int32_t *len);
+uint32_t le_keylen (LEAFENTRY le);
+void* le_key_and_len (LEAFENTRY le, uint32_t *len);
 
-u_int64_t le_outermost_uncommitted_xid (LEAFENTRY le);
+uint64_t le_outermost_uncommitted_xid (LEAFENTRY le);
 
 void
 le_committed_mvcc(uint8_t *key, uint32_t keylen,
@@ -168,9 +168,9 @@ le_clean(uint8_t *key, uint32_t keylen,
 //      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r, because something unexpected went wrong (error case)
 typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 
-int le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
+int le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, bool *is_empty, TOKUTXN context);
 
-int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
+int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *vallenp, TOKUTXN context);
 
 
 size_t

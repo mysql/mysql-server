@@ -75,7 +75,7 @@ hot_set_highest_key(struct hot_flusher_extra *flusher)
         // Otherwise, let's copy all the contents from one key to the other.
         void *source = flusher->max_current_key.data;
         void *destination = flusher->highest_pivot_key.data;
-        u_int32_t size = flusher->max_current_key.size;
+        uint32_t size = flusher->max_current_key.size;
 
         destination = toku_xrealloc(destination, size);
         memcpy(destination, source, size);
@@ -95,7 +95,7 @@ hot_set_key(DBT *key, FTNODE parent, int childnum)
     DBT *pivot = &parent->childkeys[childnum];
 
     void *data = key->data;
-    u_int32_t size = pivot->size;
+    uint32_t size = pivot->size;
 
     data = toku_xrealloc(data, size);
     memcpy(data, pivot->data, size);
@@ -263,7 +263,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
     do {
         FTNODE root;
         CACHEKEY root_key;
-        u_int32_t fullhash;
+        uint32_t fullhash;
 
         {
             toku_ft_grab_treelock(brt->ft);
@@ -277,7 +277,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
                                                (BLOCKNUM) root_key,
                                                fullhash,
                                                &bfe,
-                                               TRUE, 
+                                               true, 
                                                0,
                                                NULL,
                                                &root);
@@ -349,7 +349,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
 
     // More diagnostics.
     {
-        BOOL success = false;
+        bool success = false;
         if (r == 0) { success = true; }
 
         {

@@ -32,17 +32,17 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
 }
 static inline void toku_free_TXNID(TXNID txnid __attribute__((__unused__))) {}
 static inline void toku_free_LSN(LSN lsn __attribute__((__unused__))) {}
-static inline void toku_free_u_int64_t(u_int64_t u __attribute__((__unused__))) {}
-static inline void toku_free_u_int32_t(u_int32_t u __attribute__((__unused__))) {}
-static inline void toku_free_u_int8_t(u_int8_t u __attribute__((__unused__))) {}
+static inline void toku_free_uint64_t(uint64_t u __attribute__((__unused__))) {}
+static inline void toku_free_uint32_t(uint32_t u __attribute__((__unused__))) {}
+static inline void toku_free_uint8_t(uint8_t u __attribute__((__unused__))) {}
 static inline void toku_free_FILENUM(FILENUM u __attribute__((__unused__))) {}
 static inline void toku_free_BLOCKNUM(BLOCKNUM u __attribute__((__unused__))) {}
-static inline void toku_free_BOOL(BOOL u __attribute__((__unused__))) {}
+static inline void toku_free_bool(bool u __attribute__((__unused__))) {}
 static inline void toku_free_XIDP(XIDP xidp) { toku_free(xidp); }
 static inline void toku_free_BYTESTRING(BYTESTRING val) { toku_free(val.data); }
 static inline void toku_free_FILENUMS(FILENUMS val) { toku_free(val.filenums); }
 
-int toku_maybe_upgrade_log (const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, BOOL * upgrade_in_progress);
+int toku_maybe_upgrade_log (const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, bool * upgrade_in_progress);
 uint64_t toku_log_upgrade_get_footprint(void);
 
 

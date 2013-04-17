@@ -32,7 +32,7 @@ static int generate_row_for_del(
     )
 {
     dest_key->size=0;
-    assert(FALSE);
+    assert(false);
     return 0;
 }
 
@@ -73,10 +73,10 @@ static void run_test(void) {
     DB* db = NULL;
     DB_LOADER* loader = NULL;
     DBT key, val;
-    u_int32_t mult_db_flags = 0;
-    u_int32_t mult_dbt_flags = DB_DBT_REALLOC;
-    u_int8_t key_data = 0;
-    u_int8_t val_data = 0;
+    uint32_t mult_db_flags = 0;
+    uint32_t mult_dbt_flags = DB_DBT_REALLOC;
+    uint8_t key_data = 0;
+    uint8_t val_data = 0;
     
 
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
@@ -85,8 +85,8 @@ static void run_test(void) {
         });
 
 
-    dbt_init(&key,&key_data,sizeof(u_int8_t));
-    dbt_init(&val,&val_data,sizeof(u_int8_t));
+    dbt_init(&key,&key_data,sizeof(uint8_t));
+    dbt_init(&val,&val_data,sizeof(uint8_t));
 
     val_data = 100;
 
@@ -126,15 +126,15 @@ static void run_test(void) {
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
             { int chk_r = db->cursor(db, txn_3, &cursor, 0); CKERR(chk_r); }
             { int chk_r = cursor->c_get(cursor, &key, &val, DB_NEXT); CKERR(chk_r); }
-        assert(key.size == sizeof(u_int8_t));
-        assert(val.size == sizeof(u_int8_t));
-        assert(*(u_int8_t *)(key.data) == 0);
-        assert(*(u_int8_t *)(val.data) == 101);
+        assert(key.size == sizeof(uint8_t));
+        assert(val.size == sizeof(uint8_t));
+        assert(*(uint8_t *)(key.data) == 0);
+        assert(*(uint8_t *)(val.data) == 101);
         { int chk_r = cursor->c_get(cursor, &key, &val, DB_NEXT); CKERR(chk_r); }
-        assert(key.size == sizeof(u_int8_t));
-        assert(val.size == sizeof(u_int8_t));
-        assert(*(u_int8_t *)(key.data) == 11);
-        assert(*(u_int8_t *)(val.data) == 11);
+        assert(key.size == sizeof(uint8_t));
+        assert(val.size == sizeof(uint8_t));
+        assert(*(uint8_t *)(key.data) == 11);
+        assert(*(uint8_t *)(val.data) == 11);
         { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
     });
     

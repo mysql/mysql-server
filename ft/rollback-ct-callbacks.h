@@ -11,8 +11,8 @@
 #include "cachetable.h"
 #include "fttypes.h"
 
-void toku_rollback_flush_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, void *rollback_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL UU(is_clone));
-int toku_rollback_fetch_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash, void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs);
+void toku_rollback_flush_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, void *rollback_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool UU(is_clone));
+int toku_rollback_fetch_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, uint32_t fullhash, void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs);
 void toku_rollback_pe_est_callback(
     void* rollback_v, 
     void* UU(disk_data),
@@ -26,12 +26,12 @@ int toku_rollback_pe_callback (
     PAIR_ATTR* new_attr, 
     void* UU(extraargs)
     ) ;
-BOOL toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) ;
+bool toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) ;
 int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep));
 int toku_rollback_cleaner_callback (
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
-    u_int32_t UU(fullhash),
+    uint32_t UU(fullhash),
     void* UU(extraargs)
     );
 

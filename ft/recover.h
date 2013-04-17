@@ -35,8 +35,8 @@ int tokudb_recover (DB_ENV *env,
 // Effect: Check the tokudb logs to determine whether or not we need to run recovery.
 // If the log is empty or if there is a clean shutdown at the end of the log, then we
 // dont need to run recovery.
-// Returns: TRUE if we need recovery, otherwise FALSE.
-int tokudb_needs_recovery(const char *logdir, BOOL ignore_empty_log);
+// Returns: true if we need recovery, otherwise false.
+int tokudb_needs_recovery(const char *logdir, bool ignore_empty_log);
 
 // Return 0 if recovery log exists, ENOENT if log is missing
 int tokudb_recover_log_exists(const char * log_dir);
