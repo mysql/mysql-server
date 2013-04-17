@@ -354,6 +354,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("int db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
     printf("int toku_set_trace_file (char *fname) %s;\n", VISIBLE);
     printf("int toku_close_trace_file (void) %s;\n", VISIBLE);
+    printf("int db_env_set_func_malloc (void *(*)(size_t)) %s;\n", VISIBLE);
+    printf("int db_env_set_func_realloc (void *(*)(void*, size_t)) %s;\n", VISIBLE);
+    printf("int db_env_set_func_free (void *(*)(void*)) %s;\n", VISIBLE);
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
