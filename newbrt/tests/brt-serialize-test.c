@@ -63,7 +63,8 @@ static void test_serialize(void) {
 	assert(b==4096);
     }
     
-    toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1);  assert(r==0);
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1);  
+    assert(r==0);
     
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
     assert(r==0);
