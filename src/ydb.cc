@@ -92,6 +92,7 @@ typedef enum {
     YDB_LAYER_NUM_DB_CLOSE,
     YDB_LAYER_NUM_OPEN_DBS,
     YDB_LAYER_MAX_OPEN_DBS,
+    YDB_LAYER_FSYNC_LOG_PERIOD,
 #if 0
     YDB_LAYER_ORIGINAL_ENV_VERSION,         /* version of original environment, read from persistent environment */
     YDB_LAYER_STARTUP_ENV_VERSION,          /* version of environment at this startup, read from persistent environment (curr_env_ver_key) */
@@ -127,6 +128,7 @@ ydb_layer_status_init (void) {
     STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               UINT64,   "db closes");
     STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               UINT64,   "num open dbs now");
     STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               UINT64,   "max open dbs");
+    STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           UINT64,   "period, in ms, that recovery log is automatically fsynced");
 
     STATUS_VALUE(YDB_LAYER_TIME_STARTUP) = time(NULL);
     ydb_layer_status.initialized = true;
@@ -134,8 +136,9 @@ ydb_layer_status_init (void) {
 #undef STATUS_INIT
 
 static void
-ydb_layer_get_status(YDB_LAYER_STATUS statp) {
+ydb_layer_get_status(DB_ENV* env, YDB_LAYER_STATUS statp) {
     STATUS_VALUE(YDB_LAYER_TIME_NOW) = time(NULL);
+    STATUS_VALUE(YDB_LAYER_FSYNC_LOG_PERIOD) = toku_minicron_get_period_in_ms_unlocked(&env->i->fsync_log_cron);
     *statp = ydb_layer_status;
 }
 
@@ -314,7 +317,7 @@ env_fs_init(DB_ENV *env) {
 // Initialize the minicron that polls file system space
 static int
 env_fs_init_minicron(DB_ENV *env) {
-    int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time, env_fs_poller, env); 
+    int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time*1000, env_fs_poller, env); 
     assert(r == 0);
     env->i->fs_poller_is_init = true;
     return r;
@@ -327,6 +330,44 @@ env_fs_destroy(DB_ENV *env) {
         int r = toku_minicron_shutdown(&env->i->fs_poller);
         assert(r == 0);
         env->i->fs_poller_is_init = false;
+    }
+}
+
+static int
+env_fsync_log_on_minicron(void *arg) {
+    DB_ENV *env = (DB_ENV *) arg;
+    int r = env->log_flush(env, 0);
+    assert(r == 0);
+    return 0;
+}
+
+static void
+env_fsync_log_init(DB_ENV *env) {
+    env->i->fsync_log_period_ms = 0;
+    env->i->fsync_log_cron_is_init = false;
+}
+
+static void UU()
+env_change_fsync_log_period(DB_ENV* env, uint32_t period_ms) {
+    env->i->fsync_log_period_ms = period_ms;
+    if (env->i->fsync_log_cron_is_init) {
+        toku_minicron_change_period(&env->i->fsync_log_cron, period_ms);
+    }
+}
+
+static void
+env_fsync_log_cron_init(DB_ENV *env) {
+    int r = toku_minicron_setup(&env->i->fsync_log_cron, env->i->fsync_log_period_ms, env_fsync_log_on_minicron, env);
+    assert(r == 0);
+    env->i->fsync_log_cron_is_init = true;
+}
+
+static void
+env_fsync_log_cron_destroy(DB_ENV *env) {
+    if (env->i->fsync_log_cron_is_init) {
+        int r = toku_minicron_shutdown(&env->i->fsync_log_cron);
+        assert(r == 0);
+        env->i->fsync_log_cron_is_init = false;
     }
 }
 
@@ -985,7 +1026,8 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert_zero(r);
     env_fs_poller(env);          // get the file system state at startup
-    env_fs_init_minicron(env); 
+    env_fs_init_minicron(env);
+    env_fsync_log_cron_init(env);
 cleanup:
     if (r!=0) {
         if (env && env->i) {
@@ -1082,6 +1124,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
 
     env_fs_destroy(env);
+    env_fsync_log_cron_destroy(env);
     env->i->ltm.destroy();
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
@@ -1132,9 +1175,12 @@ env_log_archive(DB_ENV * env, char **list[], uint32_t flags) {
 static int 
 env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
     HANDLE_PANICKED_ENV(env);
-    // We just flush everything. MySQL uses lsn == 0 which means flush everything. 
-    // For anyone else using the log, it is correct to flush too much, so we are OK.
-    toku_logger_fsync(env->i->logger);
+    // do nothing if no logger
+    if (env->i->logger) {
+        // We just flush everything. MySQL uses lsn == 0 which means flush everything. 
+        // For anyone else using the log, it is correct to flush too much, so we are OK.
+        toku_logger_fsync(env->i->logger);
+    }
     return 0;
 }
 
@@ -1493,7 +1539,7 @@ env_checkpointing_get_period(DB_ENV * env, uint32_t *seconds) {
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
     else 
-        *seconds = toku_get_checkpoint_period(env->i->cachetable);
+        *seconds = toku_get_checkpoint_period_unlocked(env->i->cachetable);
     return r;
 }
 
@@ -1503,7 +1549,7 @@ env_cleaner_get_period(DB_ENV * env, uint32_t *seconds) {
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
     else 
-        *seconds = toku_get_cleaner_period(env->i->cachetable);
+        *seconds = toku_get_cleaner_period_unlocked(env->i->cachetable);
     return r;
 }
 
@@ -1830,7 +1876,7 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
 
         {
             YDB_LAYER_STATUS_S ydb_stat;
-            ydb_layer_get_status(&ydb_stat);
+            ydb_layer_get_status(env, &ydb_stat);
             for (int i = 0; i < YDB_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ydb_stat.status[i];
             }
@@ -2171,6 +2217,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(create_loader);
     USENV(get_cursor_for_persistent_environment);
     USENV(get_cursor_for_directory);
+    USENV(change_fsync_log_period);
 #undef USENV
     
     // unlocked methods
@@ -2194,6 +2241,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     result->i->logdir_lockfd  = -1;
     result->i->tmpdir_lockfd  = -1;
     env_fs_init(result);
+    env_fsync_log_init(result);
 
     result->i->bt_compare = toku_builtin_compare_fun;
 

@@ -27,7 +27,6 @@
 typedef BLOCKNUM CACHEKEY;
 
 void toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period);
-uint32_t toku_get_cleaner_period (CACHETABLE ct);
 uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct);
 void toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations);
 uint32_t toku_get_cleaner_iterations (CACHETABLE ct);

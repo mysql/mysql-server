@@ -494,7 +494,6 @@ public:
     void destroy(void);
     uint32_t get_iterations(void);
     void set_iterations(uint32_t new_iterations);
-    uint32_t get_period(void);
     uint32_t get_period_unlocked(void);
     void set_period(uint32_t new_period);
     int run_cleaner(void);

@@ -145,6 +145,7 @@ struct arg {
     struct cli_args *cli;
     bool do_prepare;
     bool prelock_updates;
+    bool track_thread_performance;
 };
 
 static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
@@ -158,6 +159,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->operation_extra = nullptr;
     arg->do_prepare = false;
     arg->prelock_updates = false;
+    arg->track_thread_performance = true;
 }
 
 enum operation_type {
@@ -518,7 +520,9 @@ static void *worker(void *arg_v) {
             }
         }
         unlock_worker_op(we);
-        we->counters[OPERATION]++;
+        if (arg->track_thread_performance) {
+            we->counters[OPERATION]++;
+        }
         if (arg->sleep_ms) {
             usleep(arg->sleep_ms * 1000);
         }
