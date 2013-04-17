@@ -203,8 +203,6 @@ toku_c_getf_first(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
-            if (r == TOKUDB_USER_CALLBACK_ERROR)
-                r = context.base.r_user_callback;
             break;
         }
     }
@@ -255,8 +253,6 @@ toku_c_getf_last(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
-            if (r == TOKUDB_USER_CALLBACK_ERROR)
-                r = context.base.r_user_callback;
             break;
         }
     }
@@ -311,8 +307,6 @@ toku_c_getf_next(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
             if (r == DB_LOCK_NOTGRANTED)
                 r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
             else {
-                if (r == TOKUDB_USER_CALLBACK_ERROR)
-                    r = context.base.r_user_callback;
                 break;
             }
         }
@@ -371,8 +365,6 @@ toku_c_getf_prev(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
             if (r == DB_LOCK_NOTGRANTED)
                 r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
             else {
-                if (r == TOKUDB_USER_CALLBACK_ERROR)
-                    r = context.base.r_user_callback;
                 break;
             }
         }
@@ -422,7 +414,6 @@ toku_c_getf_current(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra)
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_ft_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_ft_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     c_query_context_destroy(&context);
     return r;
 }
@@ -457,7 +448,6 @@ toku_c_getf_current_binding(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_ft_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_ft_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     c_query_context_destroy(&context);
     return r;
 }
@@ -478,8 +468,6 @@ toku_c_getf_set(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
-            if (r == TOKUDB_USER_CALLBACK_ERROR)
-                r = context.base.r_user_callback;
             break;
         }
     }
@@ -532,8 +520,6 @@ toku_c_getf_set_range(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, 
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
-            if (r == TOKUDB_USER_CALLBACK_ERROR)
-                r = context.base.r_user_callback;
             break;
         }
     }
@@ -589,8 +575,6 @@ toku_c_getf_set_range_reverse(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNC
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
-            if (r == TOKUDB_USER_CALLBACK_ERROR)
-                r = context.base.r_user_callback;
             break;
         }
     }
