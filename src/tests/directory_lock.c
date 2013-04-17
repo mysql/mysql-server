@@ -150,7 +150,8 @@ int test_main (int argc, char * const argv[]) {
     DBC* c1 = NULL;
     DBC* c2 = NULL;
     DBT in_key,in_val;
-    uint32_t in_key_data, in_val_data = 0;
+    uint32_t in_key_data = 123456;
+    uint32_t in_val_data = 654321;
     memset(&in_key, 0, sizeof(in_key));
     memset(&in_val, 0, sizeof(in_val));
     in_key.size = sizeof(in_key_data);
@@ -247,7 +248,6 @@ int test_main (int argc, char * const argv[]) {
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
-    /*
     u_int32_t flags = DB_YESOVERWRITE;
 
 
@@ -328,7 +328,7 @@ int test_main (int argc, char * const argv[]) {
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
-    */
+
     r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
     
