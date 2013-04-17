@@ -23,18 +23,21 @@
 #include <sys/file.h>
 #if defined(HAVE_SYSCALL_H)
 # include <syscall.h>
-#elif defined(HAVE_SYS_SYSCALL_H)
+#endif
+#if defined(HAVE_SYS_SYSCALL_H)
 # include <sys/syscall.h>
-# if !defined(__NR_gettid) && defined(SYS_gettid)
-#  define __NR_gettid SYS_gettid
-# endif
 #endif
 #if defined(HAVE_SYS_SYSCTL_H)
 # include <sys/sysctl.h>
 #endif
+#if defined(HAVE_PTHREAD_NP_H)
+# include <pthread_np.h>
+#endif
 #include <inttypes.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#if defined(HAVE_SYS_RESOURCE_H)
+# include <sys/resource.h>
+#endif
 #include <sys/statvfs.h>
 #include "toku_portability.h"
 #include "toku_os.h"
@@ -59,7 +62,15 @@ toku_os_getpid(void) {
 
 int
 toku_os_gettid(void) {
+#if defined(__NR_gettid)
     return syscall(__NR_gettid);
+#elif defined(SYS_gettid)
+    return syscall(SYS_gettid);
+#elif defined(HAVE_PTHREAD_GETTHREADID_NP)
+    return pthread_getthreadid_np();
+#else
+# error "no implementation of gettid available"
+#endif
 }
 
 int
@@ -325,21 +336,21 @@ toku_get_processor_frequency_cpuinfo(uint64_t *hzret) {
 }
 
 static int
-toku_get_processor_frequency_sysctl(uint64_t *hzret) {
+toku_get_processor_frequency_sysctl(const char * const cmd, uint64_t *hzret) {
     int r = 0;
-    static char cmd[] = "sysctl hw.cpufrequency";
     FILE *fp = popen(cmd, "r");
     if (!fp) {
         r = EINVAL;  // popen doesn't return anything useful in errno,
                      // gotta pick something
         goto exit;
     }
-    r = fscanf(fp, "hw.cpufrequency: %" SCNu64, hzret);
+    r = fscanf(fp, "%" SCNu64, hzret);
     if (r != 1) {
         r = get_maybe_error_errno();
     } else {
         r = 0;
     }
+    pclose(fp);
 
 exit:
     return r;
@@ -352,7 +363,9 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
     if (r != 0)
         r = toku_get_processor_frequency_cpuinfo(hzret);
     if (r != 0)
-        r = toku_get_processor_frequency_sysctl(hzret);
+        r = toku_get_processor_frequency_sysctl("sysctl -n hw.cpufrequency", hzret);
+    if (r != 0)
+        r = toku_get_processor_frequency_sysctl("sysctl -n machdep.tsc_freq", hzret);
     return r;
 }
 

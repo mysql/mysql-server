@@ -9,7 +9,14 @@
 
 int toku_pthread_yield(void) {
 #if defined(HAVE_PTHREAD_YIELD)
+# if defined(PTHREAD_YIELD_RETURNS_INT)
     return pthread_yield();
+# elif defined(PTHREAD_YIELD_RETURNS_VOID)
+    pthread_yield();
+    return 0;
+# else
+#  error "don't know what pthread_yield() returns"
+# endif
 #elif defined(HAVE_PTHREAD_YIELD_NP)
     pthread_yield_np();
     return 0;
