@@ -2,7 +2,6 @@
 #pragma implementation          // gcc: Class implementation
 #endif
 
-
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include "hatoku_cmp.h"
@@ -3530,6 +3529,13 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
 }
 
 
+int toku_dbt_up(DB*,
+                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
+                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val) {
+    assert(false);
+    return 0;
+}
+
 static int create_sub_table(const char *table_name, int flags , DBT* row_descriptor) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
@@ -3546,7 +3552,7 @@ static int create_sub_table(const char *table_name, int flags , DBT* row_descrip
         
     file->set_flags(file, flags);
 
-    error = file->set_descriptor(file, row_descriptor);
+    error = file->set_descriptor(file, 0, row_descriptor, toku_dbt_up);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;
@@ -3849,7 +3855,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             false,
             NULL
             );
-        error = status_block->set_descriptor(status_block, &row_descriptor);
+        error = status_block->set_descriptor(status_block, 0, &row_descriptor, toku_dbt_up);
         if (error) {
             goto cleanup;
         }
