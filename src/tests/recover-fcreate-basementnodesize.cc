@@ -28,7 +28,7 @@ static void do_remove(DB_ENV *env, const char *filename) {
     r = system(rmcmd); CKERR(r);
     toku_free(iname.data);
 #else
-    env = env;
+    (void) env;
     char rmcmd[32 + strlen(ENVDIR) + strlen(filename)];
     sprintf(rmcmd, "rm %s/%s", ENVDIR, filename);
     r = system(rmcmd); CKERR(r);
