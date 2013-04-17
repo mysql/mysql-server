@@ -32,7 +32,7 @@ enum {NUM_DBS=5};
 char *free_me = NULL;
 char *env_dir = ENVDIR; // the default env_dir.
 
-static void run_test(void) 
+static void run_cachetable_race_test(void) 
 {
     int r;
     {
@@ -71,11 +71,11 @@ static void run_test(void)
         dbs[i] = NULL;
 	
 	if (i==2) {
-	    extern int toku_checkpointing_user_data_status;
-	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, toku_checkpointing_user_data_status);
-	    while (toku_checkpointing_user_data_status==0)
+	    extern int get_toku_checkpointing_user_data_status(void);
+	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, get_toku_checkpointing_user_data_status());
+	    while (get_toku_checkpointing_user_data_status()==0)
 		sched_yield();
-	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, toku_checkpointing_user_data_status);
+	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, get_toku_checkpointing_user_data_status());
 	}
     }
     r = env->close(env, 0);                                                                                   CKERR(r);
@@ -87,7 +87,7 @@ static void do_args(int argc, char * const argv[]);
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    run_test();
+    run_cachetable_race_test();
     if (free_me) toku_free(free_me);
 
     return 0;

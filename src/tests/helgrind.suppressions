@@ -3,3 +3,13 @@
    Helgrind:Race
    fun:mythread_wrapper
 }
+{
+   ignore_race_on_toku_checkpointing_user_data_status
+   Helgrind:Race
+   fun:set_toku_checkpointing_user_data_status.*
+}
+{
+   ignore_race_on_toku_checkpointing_user_data_status
+   Helgrind:Race
+   fun:get_toku_checkpointing_user_data_status
+}
