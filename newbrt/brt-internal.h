@@ -863,11 +863,8 @@ typedef enum {
     BRT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
     BRT_MSN_DISCARDS,                           // how many messages were ignored by leaf because of msn
     BRT_MAX_WORKDONE,                           // max workdone value of any buffer
-    BRT_TOTAL_SEARCHES,                         // total number of searches
     BRT_TOTAL_RETRIES,                          // total number of search retries due to TRY_AGAIN
     BRT_MAX_SEARCH_EXCESS_RETRIES,              // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
-    BRT_MAX_SEARCH_ROOT_TRIES,                  // max number of times root node was fetched in a single search
-    BRT_SEARCH_ROOT_RETRIES,                    // number of searches that required the root node to be fetched more than once
     BRT_SEARCH_TRIES_GT_HEIGHT,                 // number of searches that required more tries than the height of the tree
     BRT_SEARCH_TRIES_GT_HEIGHTPLUS3,            // number of searches that required more tries than the height of the tree plus three
     BRT_DISK_FLUSH_LEAF,                        // number of leaf nodes flushed to disk,    not for checkpoint
