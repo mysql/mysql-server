@@ -1894,9 +1894,9 @@ static void fill_single_table(DB_ENV *env, DB *db, struct cli_args *args, bool f
     }
 
     if (loader) {
-        r = loader->close(loader);
+        r = loader->close(loader); CKERR(r);
     }
-    r = txn->commit(txn, DB_TXN_NOSYNC); CKERR(r);
+    r = txn->commit(txn, 0); CKERR(r);
 }
 
 struct fill_table_worker_info {
@@ -1912,7 +1912,7 @@ static void fill_table_worker(void *arg) {
     toku_free(info);
 }
 
-static int fill_tables(DB_ENV *env, DB **dbs, struct cli_args *args, bool fill_with_zeroes) {
+static int fill_tables_default(DB_ENV *env, DB **dbs, struct cli_args *args, bool fill_with_zeroes) {
     const int num_cores = toku_os_get_number_processors();
     // Use at most cores / 2 worker threads, since we want some other cores to
     // be used for internal engine work (ie: flushes, loader threads, etc).
@@ -1930,6 +1930,10 @@ static int fill_tables(DB_ENV *env, DB **dbs, struct cli_args *args, bool fill_w
     toku_kibbutz_destroy(kibbutz);
     return 0;
 }
+
+// fill_tables() is called when the tables are first created.
+// set this function if you want custom table contents.
+static int (*fill_tables)(DB_ENV *env, DB **dbs, struct cli_args *args, bool fill_with_zeroes) = fill_tables_default;
 
 static void do_xa_recovery(DB_ENV* env) {
     DB_PREPLIST preplist[1];

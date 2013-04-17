@@ -140,11 +140,10 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
 
     // The first index is unique with serial autoincrement keys.
     // The rest are have keys generated with this thread's random data.
-    mult_put_flags[0] = get_put_flags(arg->cli) | DB_NOOVERWRITE;
+    mult_put_flags[0] = get_put_flags(arg->cli) |
+        // If the table was already created, don't check for uniqueness.
+        (arg->cli->num_elements > 0 ? 0 : DB_NOOVERWRITE);
     for (int i = 1; i < iibench_num_dbs; i++) {
-        // Secondary keys have the primary key appended to them.
-        mult_key_dbt[i].size = iibench_secondary_key_size;
-        mult_key_dbt[i].data = toku_xmalloc(iibench_secondary_key_size);
         mult_key_dbt[i].flags = DB_DBT_REALLOC;
         mult_put_flags[i] = get_put_flags(arg->cli);
     }
@@ -157,6 +156,9 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
 
         // Get a random primary key, generate secondary key columns in valbuf
         uint64_t pk = toku_sync_fetch_and_add(&info->autoincrement, 1);
+        if (arg->bounded_element_range && arg->cli->num_elements > 0) {
+            pk = pk % arg->cli->num_elements;
+        }
         int64_t keybuf[1];
         int64_t valbuf[3];
         iibench_fill_key_buf(pk, keybuf);
@@ -195,10 +197,15 @@ cleanup:
 
 static int iibench_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *UU(src_key), const DBT *src_val) {
     invariant(src_db != dest_db);
+    // 8 byte primary key, REALLOC secondary key
     invariant_notnull(src_key->data);
     invariant(src_key->size == 8);
-    invariant(dest_key->size == iibench_secondary_key_size);
     invariant(dest_key->flags == DB_DBT_REALLOC);
+    // Expand the secondary key data buffer if necessary
+    if (dest_key->size != iibench_secondary_key_size) {
+        dest_key->data = toku_xrealloc(dest_key->data, iibench_secondary_key_size);
+        dest_key->size = iibench_secondary_key_size;
+    }
 
     // Get the db index from the descriptor. This is a secondary index
     // so it has to be greater than zero (which would be the pk). Then
@@ -313,6 +320,38 @@ static int iibench_rangequery_op(DB_TXN *txn, ARG arg, void *operation_extra, vo
     return 0;
 }
 
+static int iibench_fill_tables(DB_ENV *env, DB **dbs, struct cli_args *cli_args, bool UU(fill_with_zeroes)) {
+    int r = 0;
+
+    DB_TXN *txn;
+    r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
+
+    DB_LOADER *loader;
+    uint32_t db_flags[4];
+    uint32_t dbt_flags[4];
+    for (int i = 0; i < 4; i++) {
+        db_flags[i] = DB_PRELOCKED_WRITE;
+        dbt_flags[i] = DB_DBT_REALLOC;
+    }
+
+    r = env->create_loader(env, txn, &loader, dbs[0], 4, dbs, db_flags, dbt_flags, 0); CKERR(r);
+    for (int i = 0; i < cli_args->num_elements; i++) {
+        DBT key, val;
+        uint64_t pk = i;
+        int64_t keybuf[1];
+        int64_t valbuf[3];
+        iibench_fill_key_buf(pk, keybuf);
+        iibench_fill_val_buf(pk, valbuf);
+        dbt_init(&key, keybuf, sizeof keybuf);
+        dbt_init(&val, valbuf, sizeof valbuf);
+        r = loader->put(loader, &key, &val); CKERR(r);
+    }
+    r = loader->close(loader); CKERR(r);
+
+    r = txn->commit(txn, 0); CKERR(r);
+    return 0;
+}
+
 static void
 stress_table(DB_ENV* env, DB **dbs, struct cli_args *cli_args) {
     if (verbose) printf("starting creation of pthreads\n");
@@ -346,6 +385,9 @@ int test_main(int argc, char *const argv[]) {
     args.num_elements = 0;  // want to start with empty DBs
     // Puts per transaction is configurable. It defaults to 1k.
     args.txn_size = 1000;
+    // Default to one writer, no readers.
+    args.num_put_threads = 1;
+    args.num_ptquery_threads = 0;
     parse_stress_test_args(argc, argv, &args);
     // The index count and schema are not configurable. Silently ignore whatever was passed in.
     args.num_DBs = 4;
@@ -358,6 +400,7 @@ int test_main(int argc, char *const argv[]) {
     }
     args.env_args.generate_put_callback = iibench_generate_row_for_put;
     after_db_open_hook = iibench_set_descriptor_after_db_opens;
+    fill_tables = iibench_fill_tables;
     perf_test_main_with_cmp(&args, iibench_compare_keys);
     return 0;
 }
