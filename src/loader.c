@@ -105,28 +105,6 @@ static void free_loader(DB_LOADER *loader)
     toku_free(loader);
 }
 
-// excuse the convolution of error messages - in the end returns
-//             0 if empty
-//   DB_KEYEXIST if not empty
-//   DB_NOTFOUND if problem with DB
-static int verify_empty(DB *db, DB_TXN *txn) 
-{
-    int r, r2;
-    DBC *cursor;
-    DBT k, v;
-    toku_init_dbt(&k);
-    toku_init_dbt(&v);
-
-    r  = db->cursor(db, txn, &cursor, 0);
-    if ( r!=0 )  return DB_NOTFOUND;
-    r  = cursor->c_get(cursor, &k, &v, DB_NEXT);
-    r2 = cursor->c_close(cursor);
-    if ( r2!=0 ) return DB_NOTFOUND; 
-    if (r==DB_NOTFOUND) r = 0; // this is correct
-    else if (r==0)      r = DB_KEYEXIST;
-    return r;
-}
-
 static const char *loader_temp_prefix = "tokuld"; // #2536
 static const char *loader_temp_suffix = "XXXXXX";
 
@@ -185,7 +163,7 @@ int toku_loader_create_loader(DB_ENV *env,
             toku_ydb_unlock();
             if (r!=0) break;
         }
-        r = verify_empty(dbs[i], txn);
+        r = !toku_brt_is_empty_fast(dbs[i]->i->brt);
         if (r!=0) break;
     }
     if ( r!=0 ) {
