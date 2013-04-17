@@ -1540,7 +1540,9 @@ int toku_cachetable_get_and_pin (
 
             BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
             //
-            // in this case, a partial fetch is required so we must grab the PAIR's write lock
+            // Just because the PAIR exists does necessarily mean the all the data the caller requires
+            // is in memory. A partial fetch may be required, which is evaluated above
+            // if the variable is true, a partial fetch is required so we must grab the PAIR's write lock
             // and then call a callback to retrieve what we need
             //
             if (partial_fetch_required) {
@@ -1852,7 +1854,9 @@ int toku_cachetable_get_and_pin_nonblocking (
                     rwlock_read_lock(&p->rwlock, ct->mutex);
                     BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
                     //
-                    // in this case, a partial fetch is required so we must grab the PAIR's write lock
+                    // Just because the PAIR exists does necessarily mean the all the data the caller requires
+                    // is in memory. A partial fetch may be required, which is evaluated above
+                    // if the variable is true, a partial fetch is required so we must grab the PAIR's write lock
                     // and then call a callback to retrieve what we need
                     //
                     if (partial_fetch_required) {
