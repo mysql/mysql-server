@@ -407,7 +407,6 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
-        txn->state=TOKUTXN_LIVE;
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
     }
@@ -464,7 +463,6 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 // Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
-        txn->state=TOKUTXN_LIVE;
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
     }
