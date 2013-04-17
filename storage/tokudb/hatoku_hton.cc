@@ -732,14 +732,6 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-
-static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
-    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
-    int error;
-    char buf[1024] = {'\0'};
-
-    ENGINE_STATUS engstat;
-
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
                                           tokudb_hton_name_length, \
@@ -747,6 +739,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                                           strlen(legend), \
                                           val, \
                                           strlen(val))
+
+
+static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    int error;
+    char buf[1024] = {'\0'};
+
+    ENGINE_STATUS engstat;
 
     error = db_env->get_engine_status(db_env, &engstat);
     if (error == 0) {
@@ -816,7 +816,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 }
 
 
-int tokudb_checkpoint_lock(THD * thd) {
+int tokudb_checkpoint_lock(THD * thd, stat_print_fn * stat_print) {
     int error;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
@@ -831,6 +831,7 @@ int tokudb_checkpoint_lock(THD * thd) {
     }
     
     if (trx->checkpoint_lock_taken) {
+        STATPRINT("checkpoint lock", "Lock already taken");
         error = 0;
         goto cleanup;
     }
@@ -838,6 +839,7 @@ int tokudb_checkpoint_lock(THD * thd) {
     if (error) { goto cleanup; }
 
     trx->checkpoint_lock_taken = true;
+    STATPRINT("checkpoint lock", "Lock successfully taken");
     error = 0;
     
 cleanup:
@@ -845,16 +847,18 @@ cleanup:
     return error;
 }
 
-int tokudb_checkpoint_unlock(THD * thd) {
+int tokudb_checkpoint_unlock(THD * thd, stat_print_fn * stat_print) {
     int error;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         error = 0;
+        STATPRINT("checkpoint unlock", "Lock never taken");
         goto  cleanup;
     }
     if (!trx->checkpoint_lock_taken) {
         error = 0;
+        STATPRINT("checkpoint unlock", "Lock never taken");
         goto  cleanup;
     }
     //
@@ -864,6 +868,7 @@ int tokudb_checkpoint_unlock(THD * thd) {
     if (error) {goto cleanup;}
 
     trx->checkpoint_lock_taken = false;
+    STATPRINT("checkpoint unlock", "Successfully unlocked");
     
 cleanup:
     if (error) { my_errno = error; }
@@ -885,10 +890,10 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
         return tokudb_show_engine_status(thd, stat_print);
         break;
     case HA_ENGINE_CHECKPOINT_LOCK:
-        return tokudb_checkpoint_lock(thd);
+        return tokudb_checkpoint_lock(thd, stat_print);
         break;
     case HA_ENGINE_CHECKPOINT_UNLOCK:
-        return tokudb_checkpoint_unlock(thd);
+        return tokudb_checkpoint_unlock(thd, stat_print);
         break;
     default:
         break;
