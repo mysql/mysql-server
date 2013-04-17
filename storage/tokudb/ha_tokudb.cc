@@ -88,7 +88,7 @@ inline u_int32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* tabl
 }
 
 
-static int allocate_key_and_col_info ( struct st_table_share *table_share, KEY_AND_COL_INFO* kc_info) {
+static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info) {
     int error;
     //
     // initialize all of the bitmaps
@@ -135,7 +135,7 @@ exit:
     pass to each tokudb handler. Do you have to have one of these? Well, you have
     pieces that are used for locking, and they are needed to function.
 */
-static TOKUDB_SHARE *get_share(const char *table_name, struct st_table_share *table_share) {
+static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share) {
     TOKUDB_SHARE *share = NULL;
     int error = 0;
     uint length;
@@ -1319,7 +1319,7 @@ exit:
     return error;
 }
 
-int initialize_key_and_col_info(struct st_table_share *table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
+int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
     int error;
     u_int32_t curr_blob_field_index = 0;
     u_int32_t max_var_bytes = 0;
