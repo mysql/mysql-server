@@ -156,7 +156,7 @@ err_msg_type_str (enum test_type t) {
     case einval_fdo:     return "EINVAL";
     case einval_fo:      return "EINVAL";
     case einval_o:       return "EINVAL";
-    case enospc_fc:      return "EINVAL";
+    case enospc_fc:      return "ENOSPC";
     case abort_via_poll: return "non-zero";
     case commit:         assert(0);
     case abort_txn:      assert(0);
@@ -669,7 +669,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	r = loader->close(loader);
 	if (!USE_PUTS) {
 	    if (r == 0) {
-		printf("loader->close() reutrned 0 but should have failed due to injected error from %s on call %d\n",
+		printf("loader->close() returned 0 but should have failed due to injected error from %s on call %d\n",
 		       err_type_str(t), trigger);
 		fflush(stdout);
 	    }
