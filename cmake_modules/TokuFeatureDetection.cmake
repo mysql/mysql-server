@@ -54,6 +54,9 @@ check_symbol_exists(M_MMAP_THRESHOLD "malloc.h" HAVE_M_MMAP_THRESHOLD)
 ## check whether we have CLOCK_REALTIME
 check_symbol_exists(CLOCK_REALTIME "time.h" HAVE_CLOCK_REALTIME)
 ## check how to do direct I/O
+if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+endif ()
 check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
 check_symbol_exists(F_NOCACHE "fcntl.h" HAVE_F_NOCACHE)
 
