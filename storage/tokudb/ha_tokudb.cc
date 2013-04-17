@@ -3165,7 +3165,6 @@ int ha_tokudb::end_bulk_insert(bool abort) {
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     bool using_loader = (loader != NULL);
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
         error = update_max_auto_inc(share->status_block, share->last_auto_increment);
@@ -3613,7 +3612,7 @@ void ha_tokudb::set_main_dict_put_flags(
     u_int32_t* put_flags
     ) 
 {
-    u_int32_t old_prelock_flags = (*put_flags);
+    u_int32_t old_prelock_flags = 0;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
     bool using_ignore_flag_opt = do_ignore_flag_optimization(
