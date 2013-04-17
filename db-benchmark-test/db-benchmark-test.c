@@ -33,8 +33,8 @@ enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { DEFAULT_ITEMS_PER_TRANSACTION = 1<<14 };
 
 static void insert (long long v);
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
-#define CKERR2(r,rexpect) if (r!=rexpect) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==rexpect);
+#define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0); } while (0)
+#define CKERR2(r,rexpect) do { if (r!=rexpect) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==rexpect); } while (0)
 
 /* default test parameters */
 int keysize = sizeof (long long);
@@ -72,6 +72,7 @@ static int commitflags = 0;
 static int redzone = 0;
 static int redzone_set = 0;
 static int do_optimize = 0;
+static int unique_checks = 0;
 
 static int use_random = 0;
 enum { MAX_RANDOM_C = 16000057 }; // prime-numbers.org
@@ -394,7 +395,10 @@ static void insert (long long v) {
 #else
         r = EINVAL;
 #endif
-        CKERR(r);
+        if (unique_checks)
+            assert(r == 0 || r == DB_KEYEXIST);
+        else
+            CKERR(r);
     }
     else {
         for (which = 0; which < num_dbs; which++) {
@@ -402,7 +406,10 @@ static void insert (long long v) {
             trace("pstart", __LINE__);
             r = db->put(db, tid, &kt, &vt, put_flags);
             trace("pdone", __LINE__);
-            CKERR(r);
+            if (unique_checks)
+                assert(r == 0 || r == DB_KEYEXIST);
+            else
+                CKERR(r);
         }
     }
     if (do_transactions) {
@@ -661,7 +668,7 @@ static int test_main (int argc, char *const argv[]) {
             use_random = 1;
         } else if (strcmp(arg, "--unique_checks") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-            int unique_checks = atoi(argv[++i]);
+            unique_checks = atoi(argv[++i]);
             if (unique_checks)
                 put_flags = DB_NOOVERWRITE;
             else
