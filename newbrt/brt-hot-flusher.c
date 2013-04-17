@@ -7,7 +7,6 @@
 #include <brt-flusher-internal.h>
 #include <brt-cachetable-wrappers.h>
 #include <brt-internal.h>
-#include <valgrind/drd.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -370,11 +369,12 @@ toku_brt_hot_optimize(BRT brt,
     return r;
 }
 
-void __attribute__((__constructor__)) toku_hot_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((__constructor__)) toku_hot_helgrind_ignore(void);
 void
-toku_hot_drd_ignore(void) {
+toku_hot_helgrind_ignore(void) {
     // incremented only while lock is held, but read by engine status asynchronously.
-    DRD_IGNORE_VAR(hot_status);
+    VALGRIND_HG_DISABLE_CHECKING(&hot_status, sizeof hot_status);
 }
 
 

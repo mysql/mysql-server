@@ -2329,11 +2329,11 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     return rval;
 }
 
-#include <valgrind/drd.h>
-void __attribute__((__constructor__)) toku_ule_drd_ignore(void);
+#include <valgrind/helgrind.h>
+void __attribute__((__constructor__)) toku_ule_helgrind_ignore(void);
 void
-toku_ule_drd_ignore(void) {
-    DRD_IGNORE_VAR(le_status);
+toku_ule_helgrind_ignore(void) {
+    VALGRIND_HG_DISABLE_CHECKING(&le_status, sizeof le_status);
 }
 
 #undef STATUS_VALUE

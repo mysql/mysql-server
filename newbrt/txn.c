@@ -799,16 +799,7 @@ toku_txn_get_state(TOKUTXN txn) {
     return txn->state;
 }
 
-#include <valgrind/drd.h>
-
-void __attribute__((__constructor__)) toku_txn_status_drd_ignore(void);
-void
-toku_txn_status_drd_ignore(void) {
-    DRD_IGNORE_VAR(txn_status);
-}
-
 #include <valgrind/helgrind.h>
-
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);
 void
 toku_txn_status_helgrind_ignore(void) {
