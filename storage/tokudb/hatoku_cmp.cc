@@ -37,6 +37,14 @@ inline TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_BIT:
         ret_val = toku_type_bitstream;
         goto exit;
+    case MYSQL_TYPE_STRING:
+        if (field->binary()) {
+            ret_val = toku_type_fixbinary;
+        }
+        else {
+            ret_val = toku_type_fixstring;
+        }
+        goto exit;
     //
     // I believe these are old types that are no longer
     // in any 5.1 tables, so tokudb does not need
@@ -300,6 +308,28 @@ exit:
 }
 
 
+inline int cmp_toku_string(
+    uchar* a_buf,
+    u_int32_t a_num_bytes,
+    uchar* b_buf, 
+    u_int32_t b_num_bytes,
+    u_int32_t charset_number
+    ) 
+{
+    int ret_val = 0;
+    CHARSET_INFO* charset = NULL;
+    charset = get_charset(charset_number, MYF(MY_WME));
+    ret_val = charset->coll->strnncollsp(
+        charset,
+        a_buf, 
+        a_num_bytes,
+        b_buf, 
+        b_num_bytes, 
+        0
+        );
+    return ret_val;
+}
+
 int compare_field(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -331,9 +361,17 @@ int compare_field(
         goto exit;
     case (toku_type_decimal):
     case (toku_type_bitstream):
+    case (toku_type_fixbinary):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         ret_val = cmp_toku_binary(a_buf, num_bytes, b_buf,num_bytes);
+        *a_bytes_read = num_bytes;
+        *b_bytes_read = num_bytes;
+        goto exit;
+    case (toku_type_fixstring):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        ret_val = cmp_toku_string(a_buf, num_bytes, b_buf,num_bytes, field->charset()->number);
         *a_bytes_read = num_bytes;
         *b_bytes_read = num_bytes;
         goto exit;
@@ -386,6 +424,8 @@ uchar* pack_field(
         goto exit;
     case (toku_type_decimal):
     case (toku_type_bitstream):
+    case (toku_type_fixbinary):
+    case (toku_type_fixstring):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = pack_toku_binary(
@@ -424,6 +464,8 @@ uchar* pack_key_field(
     case (toku_type_float):
     case (toku_type_decimal):
     case (toku_type_bitstream):
+    case (toku_type_fixbinary):
+    case (toku_type_fixstring):
         new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     default:
@@ -473,6 +515,8 @@ uchar* unpack_field(
         goto exit;
     case (toku_type_decimal):
     case (toku_type_bitstream):
+    case (toku_type_fixbinary):
+    case (toku_type_fixstring):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
         new_pos = unpack_toku_binary(
