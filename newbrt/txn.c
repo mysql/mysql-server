@@ -154,6 +154,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
         int r = toku_cachetable_local_checkpoint_for_commit(ct, txn, num_cachefiles, cachefiles);
         assert(r==0);
+        toku_free(cachefiles);
         toku_poll_txn_progress_function(txn, TRUE, FALSE);
     }
 
