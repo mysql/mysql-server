@@ -1343,14 +1343,17 @@ int create_toku_descriptor(
     assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
 
     if (is_first_hpk) {
-        pos[0] = 0; //field cannot be NULL, stating it
-        pos[1] = toku_type_hpk;
-        pos += 2;
+        pos[0] = 0; //say there is NO infinity byte
+        pos[1] = 0; //field cannot be NULL, stating it
+        pos[2] = toku_type_hpk;
+        pos += 3;
     }
     else {
         //
         // first key is NOT a hidden primary key, so we now pack first_key
         //
+        pos[0] = 1; //say there is an infinity byte
+        pos++;
         num_bytes = create_toku_key_descriptor(first_key, pos);
         pos += num_bytes;
     }
@@ -1382,14 +1385,17 @@ int create_toku_descriptor(
     // write in the offset to this position in the first four bytes
     //
     if (is_second_hpk) {
-        pos[0] = 0; //field cannot be NULL, stating it
-        pos[1] = toku_type_hpk;
-        pos += 2;
+        pos[0] = 0; //say there is NO infinity byte
+        pos[1] = 0; //field cannot be NULL, stating it
+        pos[2] = toku_type_hpk;
+        pos += 3;
     }
     else {
         //
         // second key is NOT a hidden primary key, so we now pack second_key
         //
+        pos[0] = 1; //say there is an infinity byte
+        pos++;
         num_bytes = create_toku_key_descriptor(second_key, pos);
         pos += num_bytes;
     }

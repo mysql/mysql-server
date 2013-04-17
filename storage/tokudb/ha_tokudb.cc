@@ -498,7 +498,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     int error = ENOSYS;
     char part[MAX_ALIAS_NAME + 10];
     char name_buff[FN_REFLEN];
-    char error_msg[MAX_ALIAS_NAME + 50]; //50 is arbitrary upper bound of extra txt
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     char* newname = NULL;
     newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
@@ -531,10 +530,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     (*ptr)->api_internal = share->file->app_private;
 
     if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
-        if (error == TOKUDB_DIRTY_DICTIONARY) {
-            sprintf(error_msg, "File %s is dirty, not opening DB", name_buff);
-            sql_print_error(error_msg);
-        }
         my_errno = error;
         goto cleanup;
     }
@@ -564,7 +559,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_OPEN();
 
     char name_buff[FN_REFLEN];
-    char error_msg[MAX_ALIAS_NAME + 50]; //50 is arbitrary upper bound of extra txt
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     uint max_key_length;
     int error;
@@ -687,10 +681,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
         if ((error = share->file->open(share->file, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
-            if (error == TOKUDB_DIRTY_DICTIONARY) {
-                sprintf(error_msg, "File %s is dirty, not opening DB", name_buff);
-                sql_print_error(error_msg);
-            }
             free_share(share, 1);
             my_free((char *) rec_buff, MYF(0));
             rec_buff = NULL;
@@ -1522,7 +1512,6 @@ int ha_tokudb::get_status() {
     DBT key, value;
     HA_METADATA_KEY curr_key;
     int error;
-    char error_msg[MAX_ALIAS_NAME + 50]; //50 is arbitrary upper bound of extra txt
     char* newname = NULL;
     //
     // open status.tokudb
@@ -1546,10 +1535,6 @@ int ha_tokudb::get_status() {
 
         error = share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0);
         if (error) { 
-            if (error == TOKUDB_DIRTY_DICTIONARY) {
-                sprintf(error_msg, "File %s is dirty, not opening DB", name_buff);
-                sql_print_error(error_msg);
-            }
             goto cleanup; 
         }
     }
