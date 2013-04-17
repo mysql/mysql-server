@@ -97,7 +97,9 @@ int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
   int x = *(int *) a->data;
   int y = *(int *) b->data;
 
-  return x - y;
+    if (x<y) return -1;
+    if (x>y) return 1;
+    return 0;
 }
 
 #if !TOKU_WINDOWS

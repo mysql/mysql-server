@@ -23,7 +23,9 @@ static inline int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const
     int x = *(int*)a->data;
     int y = *(int*)b->data;
 
-    return x - y;
+    if (x<y) return -1;
+    if (x>y) return 1;
+    return 0;
 }
 
 

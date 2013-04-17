@@ -64,6 +64,7 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 }
 #else
 /* unroll that one four times */
+// when a and b are chars, return a-b is safe here because return type is int.  No over/underflow possible.
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;
@@ -83,6 +84,7 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 	    return (int)*k1-(int)*k2;
 	}
     }
+    //See #1576.  For very large keylengths this is a problem.  Our maximum keysize is << INT_MAX so this is not an issue.
     return key1len-key2len;
 }
 

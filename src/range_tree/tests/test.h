@@ -63,13 +63,16 @@ static inline int
 int_cmp (const toku_point* a, const toku_point*b) {
     int x = *(int*)a;
     int y = *(int*)b;
-    return x -y;
+    if (x<y) return -1;
+    if (x>y) return 1;
+    return 0;
 }
 
 static inline int
 char_cmp (const TXNID a, const TXNID b) {
     int x = (char)a;
     int y = (char)b;
+    //x-y is safe because no over/underflow is possible.  Range of values is 8bit
     return x -y;
 }
 
