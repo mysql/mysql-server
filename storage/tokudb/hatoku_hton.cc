@@ -640,7 +640,7 @@ mysql_declare_plugin(tokudb) {
     &storage_engine_structure, 
     "TokuDB", 
     "Tokutek Inc", 
-    "Fractal trees, transactions, row level locks",
+    "Tokutek TokuDB Storage Engine",
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
