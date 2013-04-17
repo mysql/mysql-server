@@ -688,7 +688,8 @@ ha_tokudb::alter_table_expand_varchar_columns(TABLE *altered_table, Alter_inplac
             uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
 
             // make the expand varchar offsets message
-            DBT expand = {};
+            DBT expand;
+	    memset(&expand, 0, sizeof(expand));
             expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
@@ -845,7 +846,8 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             uchar operation;
 
             // make the expand int field message
-            DBT expand = {};
+            DBT expand;
+	    memset(&expand, 0, sizeof(expand));
             expand.size = 1+4+4+4+4;
             switch (old_field_type) {
             case toku_type_int:
