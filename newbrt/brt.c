@@ -5226,6 +5226,7 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
         struct brt_header *h = toku_cachefile_get_userdata(cf);
         BRT brt;
         //Any arbitrary brt of that header is fine.
+        toku_brtheader_lock(h);
         if (!toku_list_empty(&h->live_brts)) {
             brt = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
         }
@@ -5234,6 +5235,7 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
             assert(!toku_list_empty(&h->zombie_brts));
             brt = toku_list_struct(toku_list_head(&h->zombie_brts), struct brt, zombie_brt_link);
         }
+        toku_brtheader_unlock(h);
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
     }
