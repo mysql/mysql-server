@@ -1555,6 +1555,10 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     }
     env_remove_open_txn(txn->mgrp, txn);
     //toku_ydb_notef("flags=%d\n", flags);
+    if (flags & DB_TXN_SYNC) {
+        toku_txn_force_fsync_on_commit(db_txn_struct_i(txn)->tokutxn);
+        flags &= ~DB_TXN_SYNC;
+    }
     int nosync = (flags & DB_TXN_NOSYNC)!=0 || (db_txn_struct_i(txn)->flags&DB_TXN_NOSYNC);
     flags &= ~DB_TXN_NOSYNC;
 
