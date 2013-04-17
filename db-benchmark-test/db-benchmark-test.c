@@ -46,7 +46,7 @@ int do_transactions = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = DB_YESOVERWRITE;
-int compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
+double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -272,7 +272,7 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
     fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
-    fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an integer.\n");
+    fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
@@ -318,7 +318,7 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--norandom") == 0) {
 	    norandom=1;
 	} else if (strcmp(arg, "--compressibility") == 0) {
-	    compressibility = atoi(argv[++i]);
+	    compressibility = atof(argv[++i]);
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
