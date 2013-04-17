@@ -53,11 +53,11 @@
 #include "checkpoint.h"
 
 // breadcrumbs for debugging
-static u_int64_t breadcrumb0 = 0;
-static u_int64_t breadcrumb1 = 0;
-static u_int64_t breadcrumb2 = 0;
-static u_int64_t breadcrumb3 = 0;
-static u_int64_t breadcrumb4 = 0;
+static u_int64_t checkpoint_breadcrumb0 = 0;
+static u_int64_t checkpoint_breadcrumb1 = 0;
+static u_int64_t checkpoint_breadcrumb2 = 0;
+static u_int64_t checkpoint_breadcrumb3 = 0;
+static u_int64_t checkpoint_breadcrumb4 = 0;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
@@ -171,28 +171,28 @@ int
 toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*callback_f)(void*), void * extra) {
     int r;
 
-    breadcrumb0++;
+    checkpoint_breadcrumb0++;
     assert(initialized);
     multi_operation_checkpoint_lock();
     checkpoint_safe_checkpoint_lock();
     ydb_lock();
     
-    breadcrumb1++;
+    checkpoint_breadcrumb1++;
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
-    breadcrumb2++;
+    checkpoint_breadcrumb2++;
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, error_string);
     }
 
-    breadcrumb3++;
+    checkpoint_breadcrumb3++;
     checkpoint_safe_checkpoint_unlock();
-    breadcrumb4++;
+    checkpoint_breadcrumb4++;
 
     return r;
 }

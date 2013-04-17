@@ -983,6 +983,14 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
     }
 }
 
+// for debugging
+// valid only if this function is called only by a single thread
+static u_int64_t get_and_pin_footprint = 0;
+
+static CACHEFILE get_and_pin_cachefile = NULL;
+static CACHEKEY  get_and_pin_key       = {0};
+static u_int32_t get_and_pin_fullhash  = 0;            
+
 
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
@@ -990,8 +998,18 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count=0;
+
+
+    get_and_pin_footprint = 1;
+
     cachetable_lock(ct);
+    get_and_pin_cachefile = cachefile;
+    get_and_pin_key       = key;
+    get_and_pin_fullhash  = fullhash;            
+    
+    get_and_pin_footprint = 2;
     cachetable_wait_write(ct);
+    get_and_pin_footprint = 3;
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
@@ -1010,7 +1028,9 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 #endif
             }
 	    if (p->checkpoint_pending) {
+		get_and_pin_footprint = 4;		
 		rwlock_write_lock(&p->rwlock, ct->mutex);
+		get_and_pin_footprint = 5;
 		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
 	    }
 	    // still have the cachetable lock
@@ -1023,11 +1043,16 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	    // lock.  The work-around is to have an unfair rwlock mechanism that favors the 
 	    // reader.
 #ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-	    if (STRADDLE_HACK_INSIDE_CALLBACK)
+	    if (STRADDLE_HACK_INSIDE_CALLBACK) {
+		get_and_pin_footprint = 6;
 		rwlock_prefer_read_lock(&p->rwlock, ct->mutex);
+	    }
 	    else
 #endif
-            rwlock_read_lock(&p->rwlock, ct->mutex);
+		{
+		    get_and_pin_footprint = 7;
+		    rwlock_read_lock(&p->rwlock, ct->mutex);
+		}
 #if TOKU_DO_WAIT_TIME
 	    if (do_wait_time) {
 		struct timeval tnow;
@@ -1035,11 +1060,14 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 		cachetable_wait_time += tdelta(&tnow, &t0);
 	    }
 #endif
+	    get_and_pin_footprint = 8;
             if (p->state == CTPAIR_INVALID) {
+		get_and_pin_footprint = 9;
                 rwlock_read_unlock(&p->rwlock);
                 if (rwlock_users(&p->rwlock) == 0)
                     ctpair_destroy(p);
                 cachetable_unlock(ct);
+		get_and_pin_footprint = 0;
                 return ENODEV;
             }
 	    lru_touch(ct,p);
@@ -1049,15 +1077,18 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	    note_hash_count(count);
             cachetable_unlock(ct);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
+	    get_and_pin_footprint = 0;
 	    return 0;
 	}
     }
+    get_and_pin_footprint = 9;
     note_hash_count(count);
     int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     {
 	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN, ZERO_LSN);
         assert(p);
+	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
 #if TOKU_DO_WAIT_TIME
 	struct timeval t0;
@@ -1066,6 +1097,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
         r = cachetable_fetch_pair(ct, cachefile, p);
         if (r) {
             cachetable_unlock(ct);
+	    get_and_pin_footprint = 0;
             return r;
         }
         cachetable_miss++;
@@ -1074,15 +1106,18 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	gettimeofday(&tnow, NULL);
 	cachetable_miss_time += tdelta(&tnow, &t0);
 #endif
+	get_and_pin_footprint = 11;
         rwlock_read_lock(&p->rwlock, ct->mutex);
         assert(p->state == CTPAIR_IDLE);
 
 	*value = p->value;
         if (sizep) *sizep = p->size;
     }
+    get_and_pin_footprint = 12;
     r = maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
+    get_and_pin_footprint = 0;
     return r;
 }
 
