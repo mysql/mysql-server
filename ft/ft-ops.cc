@@ -1038,6 +1038,14 @@ exit:
     return 0;
 }
 
+// We touch the clock while holding a read lock.
+// DRD reports a race but we want to ignore it.
+// Using a valgrind suppressions file is better than the DRD_IGNORE_VAR macro because it's more targeted.
+// We need a function to have something a drd suppression can reference
+// see src/tests/drd.suppressions (unsafe_touch_clock)
+static inline void unsafe_touch_clock(FTNODE node, int i) {
+    BP_TOUCH_CLOCK(node, i);
+}
 
 // Callback that states if a partial fetch of the node is necessary
 // Currently, this function is responsible for the following things:
@@ -1067,7 +1075,7 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
     else if (bfe->type == ftnode_fetch_all) {
         retval = false;
         for (int i = 0; i < node->n_children; i++) {
-            BP_TOUCH_CLOCK(node,i);
+            unsafe_touch_clock(node,i);
             // if we find a partition that is not available,
             // then a partial fetch is required because
             // the entire node must be made available
@@ -1090,7 +1098,7 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
             node,
             bfe->search
             );
-        BP_TOUCH_CLOCK(node,bfe->child_to_read);
+        unsafe_touch_clock(node,bfe->child_to_read);
         // child we want to read is not available, must set retval to true
         retval = (BP_STATE(node, bfe->child_to_read) != PT_AVAIL);
     }

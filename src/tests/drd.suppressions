@@ -77,3 +77,10 @@
    ...
    fun:random
 }
+
+{
+   unsafe_touch_clock
+   drd:ConflictingAccess
+   fun:_ZL18unsafe_touch_clockP6ftnodei
+   ...
+}
