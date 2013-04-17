@@ -344,18 +344,22 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	int r;
 	if ((r = cachetable_flush_cachefile(ct, cf))) {
             //This is not a graceful shutdown; do not set file as clean.
-            cachetable_unlock(ct);
-            return r;
-        }
-	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string))) {
-            //This is not a graceful shutdown; do not set file as clean.
+	not_graceful_shutdown:
+	    cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
+	    if (cf->fname) toku_free(cf->fname);
+	    int r2 = close(cf->fd);
+	    if (r2!=0) fprintf(stderr, "%s:%d During error handling, could not close file r=%d errno=%d\n", __FILE__, __LINE__, r2, errno);
+	    //assert(r == 0);
+	    toku_free(cf);
 	    cachetable_unlock(ct);
 	    return r;
+        }
+	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, error_string))) {
+	    goto not_graceful_shutdown;
 	}
         //Graceful shutdown.  'clean' the file.
 	if ((r = toku_graceful_close(cf))) {
-	    cachetable_unlock(ct);
-            return r;
+	    goto not_graceful_shutdown;
         }
 	cf->close_userdata = NULL;
 	cf->checkpoint_userdata = NULL;
