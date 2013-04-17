@@ -3986,7 +3986,30 @@ void ha_tokudb::track_progress(THD* thd) {
             (tokudb_read_status_frequency && (trx->stmt_progress.queried % tokudb_read_status_frequency) == 1) ||
             (tokudb_write_status_frequency && (num_written) % tokudb_write_status_frequency == 1);
         if (update_status) {
-            sprintf(
+            char *next_status = write_status_msg;
+            bool first = true;
+            int r;
+            if (trx->stmt_progress.queried) {
+                r = sprintf(next_status, "Queried about %llu rows", trx->stmt_progress.queried); assert(r >= 0);
+                next_status += r;
+                first = false;
+            }
+            if (trx->stmt_progress.inserted) {
+                r = sprintf(next_status, "%sInserted about %llu rows", first ? "" : ", ", trx->stmt_progress.inserted); assert(r >= 0);
+                next_status += r;
+                first = false;
+            }
+            if (trx->stmt_progress.updated) {
+                r = sprintf(next_status, "%sUpdated about %llu rows", first ? "" : ", ", trx->stmt_progress.updated); assert(r >= 0);
+                next_status += r;
+                first = false;
+            }
+            if (trx->stmt_progress.deleted) {
+                r = sprintf(next_status, "%sDeleted about %llu rows", first ? "" : ", ", trx->stmt_progress.deleted); assert(r >= 0);
+                next_status += r;
+                first = false;
+            }
+            if (first) sprintf(
                 write_status_msg, 
                 "Queried about %llu rows, inserted about %llu rows, updated about %llu rows, deleted about %llu rows", 
                 trx->stmt_progress.queried,
