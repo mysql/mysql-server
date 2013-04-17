@@ -536,6 +536,14 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
     printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
     printf("  u_int64_t        descriptor_set;          /* descriptor set operations              */ \n");
+
+
+    printf("  u_int64_t        partial_fetch_hit;        /* node partition is present         */ \n");
+    printf("  u_int64_t partial_fetch_miss;       /* node is present but partition is absent   */ \n");            
+    printf("  u_int64_t partial_fetch_compressed; /* node partition is present but compressed   */ \n");
+    printf("  u_int64_t msn_discards;             /* how many messages were ignored by leaf because of msn */ \n");
+    printf("  u_int64_t max_workdone;             /* max workdone value of any buffer                */ \n");      
+    printf("  u_int64_t dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
