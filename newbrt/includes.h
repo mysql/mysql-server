@@ -36,6 +36,7 @@
 
 #include "block_allocator.h"
 #include "brt.h"
+#include "brt_header.h"
 #include "brt-internal.h"
 #include "cachetable.h"
 #include "rwlock.h"

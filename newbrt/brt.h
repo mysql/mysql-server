@@ -114,9 +114,6 @@ toku_brt_open_with_dict_id(
     DICTIONARY_ID use_dictionary_id
     )  __attribute__ ((warn_unused_result));
 
-int 
-toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn);
-
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
 
 int toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
@@ -167,7 +164,6 @@ int toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_
 int toku_brt_close (BRT brt, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_close_brt_nolsn (BRT, char **error_string)  __attribute__ ((warn_unused_result));
-int toku_remove_brtheader (struct brt_header* h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_brt_set_panic(BRT brt, int panic, char *panic_string)  __attribute__ ((warn_unused_result));
 
@@ -272,17 +268,11 @@ void toku_brt_require_local_checkpoint (BRT brt, TOKUTXN txn);
 // Require that dictionary specified by brt is fully written to disk before
 // transaction txn is committed.
 
-
-void toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn);
-//Effect: suppresses rollback logs
-
 void toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn);
 // Effect: suppresses recovery logs
 // Requires: this is a (target) redirected brt
 //           implies: txnid_that_created_or_locked_when_empty matches txn 
 //           implies: toku_txn_note_brt(brt, txn) has been called
-
-int toku_brt_header_needed(struct brt_header* h);
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
 int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
