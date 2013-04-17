@@ -55,10 +55,23 @@ static toku_off_t lc_file_len(const char *name) {
    return buf.st_size;
 }
 
+static void catfile(const char *fname, void *buffer, size_t buffer_size) {
+    int fd = open(fname, O_RDONLY);
+    if (fd >= 0) {
+        while (1) {
+            ssize_t r = read(fd, buffer, buffer_size);
+            if ((int)r <= 0)
+                break;
+        }
+    }
+    close(fd);
+}
+
 static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
     assert( !lc->is_open );
     if( index == -1 || index >= lc->n_logfiles) return DB_NOTFOUND;
+    catfile(lc->logfiles[index], lc->buffer, lc->buffer_size);
     lc->cur_fp = fopen(lc->logfiles[index], "rb");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
