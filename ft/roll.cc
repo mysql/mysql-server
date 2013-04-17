@@ -43,7 +43,7 @@ toku_commit_fdelete (FILENUM    filenum,
     // is not an error, but a missing file outside of recovery is.
     r = toku_cachefile_of_filenum(ct, filenum, &cf);
     if (r == ENOENT) {
-        assert(txn->recovered_from_checkpoint);
+        assert(txn->for_recovery);
         r = 0;
         goto done;
     }
@@ -110,7 +110,7 @@ toku_rollback_fcreate (FILENUM    filenum,
     // is not an error, but a missing file outside of recovery is.
     r = toku_cachefile_of_filenum(ct, filenum, &cf);
     if (r == ENOENT) {
-        assert(txn->recovered_from_checkpoint);
+        assert(txn->for_recovery);
         r = 0;
         goto done;
     }
@@ -151,7 +151,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     h = NULL;
     r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &h, NULL);
     if (r == DB_NOTFOUND) {
-        assert(txn->recovered_from_checkpoint);
+        assert(txn->for_recovery);
         r = 0;
         goto done;
     }
@@ -177,7 +177,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                           ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                           : toku_init_dbt(&data_dbt) } } };
 
-        toku_ft_root_put_cmd(h, &ftcmd, txn->oldest_referenced_xid, make_gc_info(!txn->recovered_from_checkpoint));
+        toku_ft_root_put_cmd(h, &ftcmd, txn->oldest_referenced_xid, make_gc_info(!txn->for_recovery));
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(h, new_root_xid_that_created);
@@ -385,7 +385,7 @@ toku_commit_load (FILENUM    old_filenum,
     // is not an error, but a missing file outside of recovery is.
     r = toku_cachefile_of_filenum(ct, old_filenum, &old_cf);
     if (r == ENOENT) {
-        invariant(txn->recovered_from_checkpoint);
+        invariant(txn->for_recovery);
         r = 0;
         goto done;
     }
@@ -469,7 +469,7 @@ toku_commit_dictionary_redirect (FILENUM UU(old_filenum),
                                  LSN     UU(oplsn)) //oplsn is the lsn of the commit
 {
     //Redirect only has meaning during normal operation (NOT during recovery).
-    if (!txn->recovered_from_checkpoint) {
+    if (!txn->for_recovery) {
         //NO-OP
     }
     return 0;
@@ -483,7 +483,7 @@ toku_rollback_dictionary_redirect (FILENUM old_filenum,
 {
     int r = 0;
     //Redirect only has meaning during normal operation (NOT during recovery).
-    if (!txn->recovered_from_checkpoint) {
+    if (!txn->for_recovery) {
         CACHEFILE new_cf = NULL;
         r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
         assert(r == 0);
@@ -520,7 +520,7 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
     int r;
     r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     if (r == ENOENT) { //Missing file on recovered transaction is not an error
-        assert(txn->recovered_from_checkpoint);
+        assert(txn->for_recovery);
         r = 0;
         goto done;
     }

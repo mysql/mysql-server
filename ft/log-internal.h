@@ -143,7 +143,7 @@ struct tokutxn {
     const uint64_t ancestor_txnid64; // this is the lsn of root transaction
     const uint64_t snapshot_txnid64; // this is the lsn of the snapshot
     const TXN_SNAPSHOT_TYPE snapshot_type;
-    const bool recovered_from_checkpoint;
+    const bool for_recovery;
     const TOKULOGGER logger;
     const TOKUTXN parent;
     // These don't either but they're created in a way that's hard to make
