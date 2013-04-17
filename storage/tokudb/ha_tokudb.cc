@@ -981,7 +981,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
             record[key_part->null_offset] &= ~key_part->null_bit;
         }
         pos = (uchar *) key_part->field->unpack_key(record + key_part->field->offset(record), pos,
-#if MYSQL_VERSION_ID <= 60003
+#if MYSQL_VERSION_ID < 50123
                                                     key_part->length);
 #else
                                                     key_part->length, table->s->db_low_byte_first);
@@ -1022,7 +1022,7 @@ DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * re
             *buff++ = 1;        // Store NOT NULL marker
         }
         buff = key_part->field->pack_key(buff, (uchar *) (record + key_part->offset),
-#if MYSQL_VERSION_ID <= 60003
+#if MYSQL_VERSION_ID < 50123
                                          key_part->length);
 #else
                                          key_part->length, table->s->db_low_byte_first);
@@ -1066,7 +1066,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
             offset = 1;         // Data is at key_ptr+1
         }
         buff = key_part->field->pack_key_from_key_image(buff, (uchar *) key_ptr + offset,
-#if MYSQL_VERSION_ID <= 60003
+#if MYSQL_VERSION_ID < 50123
                                                         key_part->length);
 #else
                                                         key_part->length, table->s->db_low_byte_first);
@@ -2495,7 +2495,7 @@ mysql_declare_plugin(tokudb) {
     &storage_engine_structure, 
     "TokuDB", 
     "Tokutek Inc", 
-    "Supports transactions and row locking", 
+    "Fractal trees with transactions, row level locks",
     PLUGIN_LICENSE_BSD,        /* QQQ license? */
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
