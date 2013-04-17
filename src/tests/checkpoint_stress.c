@@ -1,9 +1,12 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
-#include "test.h"
+
 #include <db.h>
 #include <sys/stat.h>
+#include "toku_portability.h"
+#include "toku_pthread.h"
+#include "test.h"
 #include "checkpoint_test.h"
 
 /***
@@ -47,11 +50,13 @@ Each iteration does:
 
 ***/
 
-#define NUM_DICTIONARIES 5
+#define NUM_DICTIONARIES 4       // any more than 3 is overkill to exercise linked list logic
 
-const int oper_per_iter = 5001;  // nice odd number (not a multiple of a power of two)
+const int oper_per_iter = 5001;  // not-very-nice odd number (not a multiple of a power of two)
 
+static toku_pthread_t thread;
 
+// scribble over database to make sure that changes made after checkpoint are not saved
 static void UU()
 scribble(DB* db, int iter) {
     int64_t firstkey;     // first key to verify/insert
@@ -172,6 +177,17 @@ verify_and_insert (DB* db, int iter) {
     insert_n_fixed(db, NULL, NULL, firstkey, numkeys);
 }
 
+
+void *
+random_acts(void * d) {
+    void * intothevoid = NULL;
+    DICTIONARY dictionaries = (DICTIONARY) d;
+    printf("perform random acts, %s\n", dictionaries[0].filename);
+    fflush(stdout);
+    return intothevoid;
+}
+
+
 void
 run_test (int iter, int die) {
 
@@ -206,6 +222,9 @@ run_test (int iter, int die) {
         // in this thread:
         //    first scribble over correct data
         //    sleep a random amount of time and drop dead
+
+	int r = toku_pthread_create(&thread, 0, random_acts, (void *) dictionaries);
+            CKERR(r);
 	DB* db = dictionaries[0].db;
 	scribble(db, iter);
 	u_int32_t delay = myrandom();
