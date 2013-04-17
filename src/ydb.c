@@ -979,7 +979,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
         }
     }
     //toku_ydb_notef("flags=%d\n", flags);
-    int nosync = (flags & DB_TXN_NOSYNC)!=0;
+    int nosync = (flags & DB_TXN_NOSYNC)!=0 || (txn->i->flags&DB_TXN_NOSYNC);
     flags &= ~DB_TXN_NOSYNC;
 
     int r2 = toku_txn_release_locks(txn);
@@ -1056,7 +1056,22 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     HANDLE_PANICKED_ENV(env);
     if (!toku_logger_is_open(env->i->logger)) return toku_ydb_do_error(env, EINVAL, "Environment does not have logging enabled\n");
     if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
-    flags=flags;
+    u_int32_t txn_flags = 0;
+    txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks.
+    if (flags&DB_READ_UNCOMMITTED) {
+        txn_flags |=  DB_READ_UNCOMMITTED;
+        flags     &= ~DB_READ_UNCOMMITTED;
+    }
+    if (flags&DB_TXN_NOWAIT) {
+        txn_flags |=  DB_TXN_NOWAIT;
+        flags     &= ~DB_TXN_NOWAIT;
+    }
+    if (flags&DB_TXN_NOSYNC) {
+        txn_flags |=  DB_TXN_NOSYNC;
+        flags     &= ~DB_TXN_NOSYNC;
+    }
+    if (flags!=0) return toku_ydb_do_error(env, EINVAL, "Invalid flags passed to DB_ENV->txn_begin\n");
+
     DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
@@ -1073,6 +1088,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
+    result->i->flags = txn_flags;
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
@@ -1321,8 +1337,12 @@ typedef struct {
     BOOL        tmp_dat_malloced;
 } C_GET_VARS;
 
-static inline u_int32_t get_prelocked_flags(u_int32_t flags) {
-    return flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn) {
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+
+    //DB_READ_UNCOMMITTED transactions 'own' all read locks.
+    if (txn && txn->i->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
+    return lock_flags;
 }
 
 static void toku_c_get_fix_flags(C_GET_VARS* g) {
@@ -1351,7 +1371,7 @@ static void toku_c_get_fix_flags(C_GET_VARS* g) {
         default:
             break;
     }
-    g->lock_flags = get_prelocked_flags(g->flag);
+    g->lock_flags = get_prelocked_flags(g->flag, g->c->i->txn);
     g->flag &= ~g->lock_flags;
 }
 
@@ -1690,7 +1710,7 @@ static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     if (toku_c_uninitialized(c)) return EINVAL;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
     flags &= ~lock_flags;
 
     int r;
@@ -1843,7 +1863,7 @@ static int locked_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *ke
 
 static int toku_c_getf_first(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
-    u_int32_t lock_flags = get_prelocked_flags(flag);
+    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
@@ -1878,7 +1898,7 @@ cleanup:
 
 static int toku_c_getf_last(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
-    u_int32_t lock_flags = get_prelocked_flags(flag);
+    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
@@ -1914,7 +1934,7 @@ cleanup:
 static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     if (toku_c_uninitialized(c)) return toku_c_getf_first(c, flag, f, extra);
-    u_int32_t lock_flags = get_prelocked_flags(flag);
+    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
@@ -1959,7 +1979,7 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
 static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     if (toku_c_uninitialized(c)) return toku_c_getf_last(c, flag, f, extra);
-    u_int32_t lock_flags = get_prelocked_flags(flag);
+    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
@@ -2004,7 +2024,7 @@ static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
 static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     if (toku_c_uninitialized(c)) return EINVAL;
-    u_int32_t lock_flags = get_prelocked_flags(flag);
+    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
@@ -2057,7 +2077,7 @@ static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
     if (direction==0) return EINVAL;
     DBC *tmp_c = NULL;
     int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
     flags &= ~lock_flags;
     assert(flags==0);
     struct heavi_wrapper wrapper;
@@ -2221,7 +2241,7 @@ finish:
 
 static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
     if (flags!=0 && flags!=DB_GET_BOTH) return EINVAL;
 
@@ -2236,7 +2256,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
 
 static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     int r;
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
     if (flags!=0 && flags!=DB_DELETE_ANY) return EINVAL;
     //DB_DELETE_ANY supresses the BDB DB->del return value indicating that the key was not found prior to the delete
@@ -2592,7 +2612,7 @@ static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, 
     HANDLE_PANICKED_DB(db);
     int r;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
     u_int32_t delete_any = flags&DB_DELETE_ANY;
     flags &= ~DB_DELETE_ANY;
@@ -2645,7 +2665,7 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
     if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
     // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
@@ -2811,6 +2831,8 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
     int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
+    //We support READ_UNCOMMITTED whether or not the flag is provided.
+                                            flags&=~DB_READ_UNCOMMITTED;
     if (dbtype != DB_UNKNOWN && dbtype != DB_BTREE) return EINVAL;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
@@ -2935,7 +2957,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         if (key->size >= limit || data->size >= limit)
             return toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %d bytes", limit);
     }
-    u_int32_t lock_flags = get_prelocked_flags(flags);
+    u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
 
     if (flags == DB_YESOVERWRITE) {
@@ -3191,6 +3213,8 @@ cleanup:
 int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
+    //READ_UNCOMMITTED transactions do not need read locks.
+    if (txn->i->flags&DB_READ_UNCOMMITTED) return 0;
 
     DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;
