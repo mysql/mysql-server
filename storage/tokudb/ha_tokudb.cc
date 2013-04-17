@@ -7135,7 +7135,7 @@ cleanup:
 //
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
-    int error;
+    int error = 0;
     
     for (uint i = 0; i < num_of_keys; i++) {
         uint curr_index = key_num[i];
