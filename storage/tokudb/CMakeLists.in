@@ -18,7 +18,11 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+                    TOKUDB_DIR_REPLACE_ME/windows
+                    TOKUDB_DIR_REPLACE_ME/src
+                    TOKUDB_DIR_REPLACE_ME/include
+                    TOKUDB_DIR_REPLACE_ME/toku_include)
 
 SET(TOKUDB_SOURCES hatoku_hton.cc ha_tokudb.cc hatoku_cmptrace.cc)
 
