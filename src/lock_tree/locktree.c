@@ -1265,7 +1265,7 @@ cleanup:
             if (tmp_tree->mainread)       { toku_rt_close(tmp_tree->mainread); }
             if (tmp_tree->borderwrite)    { toku_rt_close(tmp_tree->borderwrite); }
             if (tmp_tree->rth)            { toku_rth_close(tmp_tree->rth); }
-            if (tmp_tree->txns_to_unlock) { toku_rth_close(tmp_tree->rth); }
+            if (tmp_tree->txns_to_unlock) { toku_rth_close(tmp_tree->txns_to_unlock); }
             if (tmp_tree->buf)            { user_free(tmp_tree->buf); }
             user_free(tmp_tree);
         }
