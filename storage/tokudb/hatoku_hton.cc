@@ -1177,6 +1177,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("txn aborts", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_close);
       STATPRINT("txn close (commit+abort)", buf);
+
+      //3988
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_num_open);
+      STATPRINT("number of open transactions (begin - close)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_max_open);
+      STATPRINT("max number of open transactions", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_oldest_live);
       STATPRINT("txn oldest live", buf);
       STATPRINT("txn oldest starttime", engstat.txn_oldest_live_starttime);
@@ -1235,6 +1242,29 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("search_tries_gt_height", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.search_tries_gt_heightplus3);
       STATPRINT("search_tries_gt_heightplus3", buf);
+
+      //3988 
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_total_nodes);
+      STATPRINT("cleaner_total_nodes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_h1_nodes);
+      STATPRINT("cleaner_h1_nodes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_hgt1_nodes);
+      STATPRINT("cleaner_hgt1_nodes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_empty_nodes);
+      STATPRINT("cleaner_empty_nodes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_nodes_dirtied);
+      STATPRINT("cleaner_nodes_dirtied", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_max_buffer_size);
+      STATPRINT("cleaner_max_buffer_size", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_min_buffer_size);
+      STATPRINT("cleaner_min_buffer_size", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_total_buffer_size);
+      STATPRINT("cleaner_total_buffer_size", buf);
+      // TODO: cleaner max/min/total buffer workdone
+      // TODO: flush*
+      // TODO: disk_flush*
+      // TODO: msg*
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
       STATPRINT("dictionary inserts multi", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
@@ -1359,6 +1389,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("range write locks unable to be acquired", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_out_of_write_locks);
       STATPRINT("range write locks exhausted", buf);
+
+      //3988
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lt_create);
+      STATPRINT("range_lt_create", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lt_create_fail);
+      STATPRINT("range_lt_create_fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lt_destroy);
+      STATPRINT("range_lt_destroy", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lt_num);
+      STATPRINT("range_lt_num", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lt_num_max);
+      STATPRINT("range_lt_num_max", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks);
       STATPRINT("directory_read_locks", buf);
