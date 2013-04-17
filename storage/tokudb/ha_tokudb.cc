@@ -2738,7 +2738,66 @@ int ha_tokudb::read_range_first(
     bool eq_range, 
     bool sorted) 
 {
-    return handler::read_range_first(start_key, end_key, eq_range, sorted);
+    TOKUDB_DBUG_ENTER("ha_tokudb::read_range_first");
+    int error;
+    DBT start_dbt_key;
+    const DBT* start_dbt_data = NULL;
+    DBT end_dbt_key;
+    const DBT* end_dbt_data = NULL;
+    uchar start_key_buff [table_share->max_key_length + MAX_REF_PARTS * 3];
+    uchar end_key_buff [table_share->max_key_length + MAX_REF_PARTS * 3];
+    bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
+    bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
+
+
+
+    if (start_key) {
+        pack_key(&start_dbt_key, active_index, start_key_buff, start_key->key, start_key->length);
+        switch (start_key->flag) {
+        case HA_READ_AFTER_KEY:
+            start_dbt_data = share->key_file[active_index]->dbt_pos_infty();
+            break;
+        default:
+            start_dbt_data = share->key_file[active_index]->dbt_neg_infty();
+            break;
+        }
+    }
+    else {
+        start_dbt_data = share->key_file[active_index]->dbt_neg_infty();
+    }
+
+    if (end_key) {
+        pack_key(&end_dbt_key, active_index, end_key_buff, end_key->key, end_key->length);
+        switch (end_key->flag) {
+        case HA_READ_BEFORE_KEY:
+            end_dbt_data = share->key_file[active_index]->dbt_neg_infty();
+            break;
+        default:
+            end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
+            break;
+        }
+        
+    }
+    else {
+        end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
+    }
+
+    
+
+    error = share->key_file[active_index]->pre_acquire_read_lock(
+        share->key_file[active_index], 
+        transaction, 
+        start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
+        start_dbt_data, 
+        end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty(), 
+        end_dbt_data
+        );
+    if (error){ goto cleanup; }
+
+    error = handler::read_range_first(start_key, end_key, eq_range, sorted);
+
+cleanup:
+    TOKUDB_DBUG_RETURN(error);
 }
 int ha_tokudb::read_range_next()
 {
