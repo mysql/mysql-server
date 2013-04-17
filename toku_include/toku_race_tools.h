@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#if defined(__linux__) && defined(USE_VALGRIND)
+#if defined(__linux__) && USE_VALGRIND
 
 # include <valgrind/helgrind.h>
 # include <valgrind/drd.h>
@@ -41,7 +41,7 @@
     VALGRIND_HG_MUTEX_INIT_POST(mutex, 0); \
     VALGRIND_HG_MUTEX_LOCK_POST(mutex);
 
-#else
+#else // !defined(__linux__) || !USE_VALGRIND
 
 # define NVALGRIND 1
 # define TOKU_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
