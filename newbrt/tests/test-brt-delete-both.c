@@ -19,7 +19,7 @@ doit (void) {
     DBT k,v;
     if (verbose) printf("%s\n", __FUNCTION__);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_brt_create(&t); assert(r==0);
     r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, (DB*)0); assert(r==0);
 

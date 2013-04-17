@@ -167,7 +167,7 @@ static void test0 (void) {
 
     r=toku_create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
 
@@ -321,7 +321,7 @@ static void test_nested_pin (void) {
     char fname[] = __FILE__ "test_ct.dat";
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     expect_f = f;
@@ -391,8 +391,8 @@ static void test_multi_filehandles (void) {
     char fname3[]= __FILE__ "test3_ct.dat";
     int r;
     void *v;
-    unlink(fname1);
-    unlink(fname2);
+    unlink_file_and_bit(fname1);
+    unlink_file_and_bit(fname2);
 
     r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);          assert(r==0);
     r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
@@ -462,7 +462,7 @@ static void test_dirty() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
@@ -586,7 +586,7 @@ static void test_size_resize() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
@@ -641,7 +641,7 @@ static void test_size_flush() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink(fname);
+    unlink_file_and_bit(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 

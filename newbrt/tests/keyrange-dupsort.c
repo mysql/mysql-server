@@ -13,7 +13,7 @@ static void test_flat (void) {
     char fname[]= __FILE__ ".brt";
     u_int64_t limit=100;
     u_int64_t ilimit=100;
-    unlink(fname);
+    unlink_file_and_bit(fname);
     CACHETABLE ct;
     int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
     BRT t;

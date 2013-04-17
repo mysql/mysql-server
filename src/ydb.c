@@ -3204,6 +3204,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
 	need_close = FALSE;
 	if (r!=0) { goto cleanup; }
         if (unlink(full_name) != 0) { r = errno; goto cleanup; }
+        if (toku_graceful_delete(full_name) !=0) { r = errno; goto cleanup; }
     } else {
 	r = toku_db_close(db, 0);
 	need_close = FALSE;
