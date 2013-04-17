@@ -2166,7 +2166,6 @@ toku_lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
         r = EINVAL; goto cleanup;
     }
     toku_mutex_lock(&tree->mutex);
-    printf("%s:%u %lu %d\n", __FUNCTION__, __LINE__, txn, toku_omt_size(tree->dbs));
     lt_unlock_txn(tree, txn);
     lt_retry_lock_requests(tree);
     toku_mutex_unlock(&tree->mutex);
