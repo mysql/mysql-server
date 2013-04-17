@@ -113,7 +113,7 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
         r = dba->close(dba, 0);                                                         CKERR(r);
         r = env->dbremove(env, txn, namea, NULL, 0);                                    CKERR(r);
-        r = dba->close(dbb, 0);                                                         CKERR(r);
+        r = dbb->close(dbb, 0);                                                         CKERR(r);
         r = env->dbremove(env, txn, nameb, NULL, 0);                                    CKERR(r);
         r = txn->commit(txn, 0);                                                        CKERR(r);
     }
