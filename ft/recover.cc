@@ -273,8 +273,7 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, bool must_create
     r = toku_ft_handle_create(&brt);
     assert(r == 0);
 
-    r = toku_ft_set_flags(brt, treeflags);
-    assert(r == 0);
+    toku_ft_set_flags(brt, treeflags);
 
     if (nodesize != 0) {
         toku_ft_handle_set_nodesize(brt, nodesize);

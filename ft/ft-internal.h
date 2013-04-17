@@ -467,6 +467,9 @@ struct ft {
     int panic;
     // A malloced string that can indicate what went wrong.
     char *panic_string;
+
+    // is this ft a blackhole? if so, all messages are dropped.
+    bool blackhole;
 };
 
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.

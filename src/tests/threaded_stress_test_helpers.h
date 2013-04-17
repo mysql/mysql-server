@@ -66,6 +66,7 @@ struct env_args {
     int checkpointing_period;
     int cleaner_period;
     int cleaner_iterations;
+    int64_t lk_max_memory;
     uint64_t cachetable_size;
     const char *envdir;
     test_update_callback_f update_function; // update callback function
@@ -112,6 +113,8 @@ struct cli_args {
     struct env_args env_args; // specifies environment variables
     bool single_txn;
     bool warm_cache; // warm caches before running stress_table
+    bool blackhole; // all message injects are no-ops. helps measure txn/logging/locktree overhead.
+    bool prelocked_write; // use prelocked_write flag for insertions, avoiding the locktree
 };
 
 struct arg {
@@ -701,7 +704,8 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
-        r = db->put(db, txn, &key, &val, 0);
+        int flags = arg->cli->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+        r = db->put(db, txn, &key, &val, flags);
         if (r != 0) {
             goto cleanup;
         }
@@ -814,7 +818,8 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
-        r = db->put(db, txn, &key, &val, 0);
+        int flags = arg->cli->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+        r = db->put(db, txn, &key, &val, flags);
         if (r != 0) {
             goto cleanup;
         }
@@ -1398,9 +1403,10 @@ static int run_workers(
 
 static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
                         int (*bt_compare)(DB *, const DBT *, const DBT *),
-                        struct env_args env_args
+                        struct cli_args *cli_args
 ) {
     int r;
+    struct env_args env_args = cli_args->env_args;
 
     char rmcmd[32 + strlen(env_args.envdir)]; sprintf(rmcmd, "rm -rf %s", env_args.envdir);
     r = system(rmcmd);
@@ -1411,6 +1417,7 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
     if (env_args.generate_put_callback) {
         r = env->set_generate_row_callback_for_put(env, env_args.generate_put_callback); 
@@ -1430,7 +1437,6 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = env->cleaner_set_iterations(env, env_args.cleaner_iterations); CKERR(r);
     *env_res = env;
 
-
     for (int i = 0; i < num_DBs; i++) {
         DB *db;
         char name[30];
@@ -1444,7 +1450,8 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         CKERR(r);
         r = db->set_readpagesize(db, env_args.basement_node_size);
         CKERR(r);
-        r = db->open(db, null_txn, name, NULL, DB_BTREE, DB_CREATE, 0666);
+        const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
+        r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666);
         CKERR(r);
         db_res[i] = db;
     }
@@ -1533,14 +1540,16 @@ static void do_xa_recovery(DB_ENV* env) {
 
 static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
                       int (*bt_compare)(DB *, const DBT *, const DBT *),
-                      struct env_args env_args) {
+                      struct cli_args *cli_args) {
     int r;
+    struct env_args env_args = cli_args->env_args;
 
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     env->set_update(env, env_args.update_function);
     // set the cache size to 10MB
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
@@ -1571,7 +1580,8 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         get_ith_table_name(name, sizeof(name), i);
         r = db_create(&db, env, 0);
         CKERR(r);
-        r = db->open(db, null_txn, name, NULL, DB_BTREE, 0, 0666);
+        const int flags = cli_args->blackhole ? DB_BLACKHOLE : 0;
+        r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666);
         CKERR(r);
         db_res[i] = db;
     }
@@ -1593,6 +1603,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .checkpointing_period = 10,
     .cleaner_period = 1,
     .cleaner_iterations = 1,
+    .lk_max_memory = 1 * 1024 * 1024,
     .cachetable_size = 300000,
     .envdir = ENVDIR,
     .update_function = update_op_callback,
@@ -1606,6 +1617,7 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .checkpointing_period = 60,
     .cleaner_period = 1,
     .cleaner_iterations = 5,
+    .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 1<<30,
     .envdir = ENVDIR,
     .update_function = NULL,
@@ -1645,6 +1657,8 @@ static struct cli_args UU() get_default_args(void) {
         .env_args = DEFAULT_ENV_ARGS,
         .single_txn = false,
         .warm_cache = false,
+        .blackhole = false,
+        .prelocked_write = false
         };
     return DEFAULT_ARGS;
 }
@@ -2016,6 +2030,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("only_stress", only_stress),
         BOOL_ARG("test",        do_test_and_crash),
         BOOL_ARG("recover",     do_recover),
+        BOOL_ARG("blackhole",     blackhole),
+        BOOL_ARG("prelocked_write",     prelocked_write),
 
         STRING_ARG("--envdir",    env_args.envdir),
         LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
@@ -2167,7 +2183,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
             dbs,
             args->num_DBs,
             bt_compare,
-            args->env_args
+            args
             );
         { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size); CKERR(chk_r); }
         { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
@@ -2177,7 +2193,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
                                   dbs,
                                   args->num_DBs,
                                   bt_compare,
-                                  args->env_args); CKERR(chk_r); }
+                                  args); CKERR(chk_r); }
         if (args->warm_cache) {
             do_warm_cache(env, dbs, args);
         }
@@ -2201,7 +2217,7 @@ UU() stress_recover(struct cli_args *args) {
                               dbs,
                               args->num_DBs,
                               stress_int_dbt_cmp,
-                              args->env_args); CKERR(chk_r); }
+                              args); CKERR(chk_r); }
 
     DB_TXN* txn = NULL;    
     struct arg recover_args;

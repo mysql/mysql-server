@@ -41,8 +41,8 @@ int toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT*
 uint32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 
 int toku_ft_handle_create(FT_HANDLE *)  __attribute__ ((warn_unused_result));
-int toku_ft_set_flags(FT_HANDLE, unsigned int flags)  __attribute__ ((warn_unused_result));
-int toku_ft_get_flags(FT_HANDLE, unsigned int *flags)  __attribute__ ((warn_unused_result));
+void toku_ft_set_flags(FT_HANDLE, unsigned int flags);
+void toku_ft_get_flags(FT_HANDLE, unsigned int *flags);
 void toku_ft_handle_set_nodesize(FT_HANDLE, unsigned int nodesize);
 void toku_ft_handle_get_nodesize(FT_HANDLE, unsigned int *nodesize);
 void toku_ft_get_maximum_advised_key_value_lengths(unsigned int *klimit, unsigned int *vlimit);
