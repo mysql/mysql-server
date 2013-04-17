@@ -1539,6 +1539,36 @@ locked_env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
 }
 
 static int
+env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
+    HANDLE_PANICKED_ENV(env);
+    int r;
+    if (!env_opened(env)) r = EINVAL;
+    else
+        r = toku_set_cleaner_period(env->i->cachetable, seconds);
+    return r;
+}
+
+static int
+locked_env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
+    toku_ydb_lock(); int r = env_cleaner_set_period(env, seconds); toku_ydb_unlock(); return r;
+}
+
+static int
+env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
+    HANDLE_PANICKED_ENV(env);
+    int r;
+    if (!env_opened(env)) r = EINVAL;
+    else
+        r = toku_set_cleaner_iterations(env->i->cachetable, iterations);
+    return r;
+}
+
+static int
+locked_env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
+    toku_ydb_lock(); int r = env_cleaner_set_iterations(env, iterations); toku_ydb_unlock(); return r;
+}
+
+static int
 locked_env_create_indexer(DB_ENV *env,
                           DB_TXN *txn,
                           DB_INDEXER **indexerp,
@@ -1584,6 +1614,36 @@ env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
 static int
 locked_env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
     toku_ydb_lock(); int r = env_checkpointing_get_period(env, seconds); toku_ydb_unlock(); return r;
+}
+
+static int
+env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else 
+        *seconds = toku_get_cleaner_period(env->i->cachetable);
+    return r;
+}
+
+static int
+locked_env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
+    toku_ydb_lock(); int r = env_cleaner_get_period(env, seconds); toku_ydb_unlock(); return r;
+}
+
+static int
+env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else 
+        *iterations = toku_get_cleaner_iterations(env->i->cachetable);
+    return r;
+}
+
+static int
+locked_env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
+    toku_ydb_lock(); int r = env_cleaner_get_iterations(env, iterations); toku_ydb_unlock(); return r;
 }
 
 static int
@@ -1867,6 +1927,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->checkpoint_count      = cpstat.checkpoint_count;
 	    engstat->checkpoint_count_fail = cpstat.checkpoint_count_fail;
 	}
+        engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
+        engstat->cleaner_iterations = toku_get_cleaner_iterations_unlocked(env->i->cachetable);
 	{
 	    TXN_STATUS_S txnstat;
 	    toku_txn_get_status(&txnstat);
@@ -1913,6 +1975,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->local_checkpoint_files   = ctstat.local_checkpoint_files;
 	    engstat->local_checkpoint_during_checkpoint = ctstat.local_checkpoint_during_checkpoint;
             engstat->cachetable_evictions     = ctstat.evictions;
+            engstat->cachetable_size_leaf     = ctstat.size_leaf;
+            engstat->cachetable_size_nonleaf  = ctstat.size_nonleaf;
+            engstat->cachetable_size_rollback = ctstat.size_rollback;
+            engstat->cachetable_size_cachepressure  = ctstat.size_cachepressure;
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
@@ -1976,8 +2042,6 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->search_root_retries = brt_stat.search_root_retries;
 	    engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
 	    engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;	    
-	    engstat->cachetable_size_leaf = brt_stat.bytes_leaf;
-	    engstat->cachetable_size_nonleaf = brt_stat.bytes_nonleaf;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2154,6 +2218,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_max              %"PRId64"\n", engstat.cachetable_size_max);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRIu64"\n", engstat.cachetable_size_leaf);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRIu64"\n", engstat.cachetable_size_nonleaf);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_rollback         %"PRIu64"\n", engstat.cachetable_size_rollback);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_cachepresure     %"PRIu64"\n", engstat.cachetable_size_cachepressure);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
 	n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
 	n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
@@ -2330,6 +2396,10 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(update_multiple);
     SENV(checkpointing_set_period);
     SENV(checkpointing_get_period);
+    SENV(cleaner_set_period);
+    SENV(cleaner_get_period);
+    SENV(cleaner_set_iterations);
+    SENV(cleaner_get_iterations);
     result->checkpointing_postpone = env_checkpointing_postpone;
     result->checkpointing_resume = env_checkpointing_resume;
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;

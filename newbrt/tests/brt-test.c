@@ -335,13 +335,13 @@ static void test_cursor_next (void) {
 
 static DB nonce_db;
 
-static int wrong_compare_fun(DB *db, const DBT *a, const DBT *b) {
+static int wrong_compare_fun(DB* UU(desc), const DBT *a, const DBT *b) {
     unsigned int i;
     unsigned char *ad=a->data;
     unsigned char *bd=b->data;
     unsigned int siz=a->size;
     assert(a->size==b->size);
-    assert(db==&nonce_db); // make sure the db was passed  down correctly
+    //assert(db==&nonce_db); // make sure the db was passed  down correctly
     for (i=0; i<siz; i++) {
 	if (ad[siz-1-i]<bd[siz-1-i]) return -1;
 	if (ad[siz-1-i]>bd[siz-1-i]) return +1;
@@ -363,8 +363,8 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	char a[4]={0,1,0,0};
 	char b[4]={1,0,0,0};
 	DBT at, bt;
-	assert(wrong_compare_fun(&nonce_db, toku_fill_dbt(&at, a, 4), toku_fill_dbt(&bt, b, 4))>0);
-	assert(wrong_compare_fun(&nonce_db, toku_fill_dbt(&at, b, 4), toku_fill_dbt(&bt, a, 4))<0);
+	assert(wrong_compare_fun(NULL, toku_fill_dbt(&at, a, 4), toku_fill_dbt(&bt, b, 4))>0);
+	assert(wrong_compare_fun(NULL, toku_fill_dbt(&at, b, 4), toku_fill_dbt(&bt, a, 4))<0);
     }
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
@@ -451,7 +451,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     
 }
 
-static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
+static int test_brt_cursor_keycompare(DB *desc __attribute__((unused)), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 

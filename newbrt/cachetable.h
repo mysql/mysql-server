@@ -29,6 +29,14 @@ extern "C" {
 
 typedef BLOCKNUM CACHEKEY;
 
+
+int toku_set_cleaner_period (CACHETABLE ct, u_int32_t new_period);
+u_int32_t toku_get_cleaner_period (CACHETABLE ct);
+u_int32_t toku_get_cleaner_period_unlocked (CACHETABLE ct);
+int toku_set_cleaner_iterations (CACHETABLE ct, u_int32_t new_iterations);
+u_int32_t toku_get_cleaner_iterations (CACHETABLE ct);
+u_int32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
+
 // cachetable operations
 
 int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_lsn, TOKULOGGER);
@@ -114,20 +122,26 @@ enum partial_eviction_cost {
     PE_EXPENSIVE=1, // running partial eviction is expensive, and should not be done on the client thread
 };
 
+// cachetable pair clean or dirty WRT external memory
+enum cachetable_dirty {
+    CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
+    CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
+};
+
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.
 // When keep_me is false, the value should be freed.
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
 // Can access fd (fd is protected by a readlock during call)
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, long size, long* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
 // Returns: 0 if success, otherwise an error number.  The address and size of the object
 // associated with the key are returned.
 // Can access fd (fd is protected by a readlock during call)
-typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *read_extraargs);
+typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, PAIR_ATTR *sizep, int *dirtyp, void *read_extraargs);
 
 // The partial eviction estimate callback is a cheap operation called by the cachetable on the client thread
 // to determine whether partial eviction is cheap and can be run on the client thread, or partial eviction
@@ -142,7 +156,7 @@ typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *brtnode_pv, long*
 // bytes_to_free is the number of bytes the cachetable wants freed.
 // bytes_freed is returned by the callback telling the cachetable how much space was freed
 // Requires a write lock to be held on the PAIR in the cachetable while this function is called
-typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *write_extraargs);
+typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *write_extraargs);
 
 // This callback is called by the cachetable to ask if a partial fetch is required of brtnode_pv. If a partial fetch
 // is required, then CACHETABLE_PARTIAL_FETCH_CALLBACK is called (possibly with ydb lock released). The reason
@@ -157,7 +171,11 @@ typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, voi
 // Requires a write lock to be held on the PAIR in the cachetable while this function is called
 // The new size of the PAIR is returned in sizep
 // Returns: 0 if success, otherwise an error number.  
-typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, long *sizep);
+typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, PAIR_ATTR *sizep);
+
+// TODO(leif) XXX TODO XXX
+typedef int (*CACHETABLE_CLEANER_CALLBACK)(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *write_extraargs);
+
 
 typedef void (*CACHETABLE_GET_KEY_AND_FULLHASH)(CACHEKEY* cachekey, u_int32_t* fullhash, void* extra);
 
@@ -181,13 +199,6 @@ void *toku_cachefile_get_userdata(CACHEFILE);
 CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 // Effect: Get the cachetable.
 
-// cachetable pair clean or dirty WRT external memory
-enum cachetable_dirty {
-    CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
-    CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
-};
-
-
 void toku_checkpoint_pairs(
     CACHEFILE cf,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
@@ -204,10 +215,11 @@ int toku_cachetable_put_with_dep_pairs(
     CACHEFILE cachefile, 
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
     void*value, 
-    long size,
+    PAIR_ATTR attr,
     CACHETABLE_FLUSH_CALLBACK flush_callback,
     CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void *write_extraargs,
     void *get_key_and_fullhash_extra,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
@@ -227,10 +239,11 @@ int toku_cachetable_put_with_dep_pairs(
 // Returns: 0 if the memory object is placed into the cachetable, otherwise an
 // error number.
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
-			void *value, long size,
+			void *value, PAIR_ATTR size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback,
 			CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
-                        CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+                        CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
+                        CACHETABLE_CLEANER_CALLBACK cleaner_callback,
                         void *write_extraargs
                         );
 
@@ -247,6 +260,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void* read_extraargs,
     void* write_extraargs,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
@@ -274,6 +288,7 @@ int toku_cachetable_get_and_pin (
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void* read_extraargs,
     void* write_extraargs
     );
@@ -301,6 +316,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    CACHETABLE_CLEANER_CALLBACK cleaner_callback,
     void *read_extraargs,
     void* write_extraargs,
     UNLOCKERS unlockers
@@ -318,14 +334,14 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash
 int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 // Effect: Like maybe get and pin, but may pin a clean pair.
 
-int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR size);
 // Effect: Unpin a memory object
 // Modifies: If the memory object is in the cachetable, then OR the dirty flag,
 // update the size, and release the read lock on the memory object.
 // Returns: 0 if success, otherwise returns an error number.
 // Requires: The ct is locked.
 
-int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR size);
 // Effect: The same as tokud_cachetable_unpin, except that the ct must not be locked.
 // Requires: The ct is NOT locked.
 
@@ -347,6 +363,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
                             CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+                            CACHETABLE_CLEANER_CALLBACK cleaner_callback,
                             void *read_extraargs, 
                             void *write_extraargs,
                             BOOL *doing_prefetch);
@@ -496,6 +513,10 @@ typedef struct cachetable_status {
     uint64_t  local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
     uint64_t  local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
     u_int64_t evictions;
+    int64_t size_nonleaf; // number of bytes in cachetable belonging to nonleaf nodes
+    int64_t size_leaf; // number of bytes in cachetable belonging to leaf nodes
+    int64_t size_rollback; // number of bytes in cachetable belonging to rollback nodes
+    int64_t size_cachepressure; // number of bytes that cachetable thinks is causing cache pressure (sum of buffers, basically) 
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
@@ -513,10 +534,14 @@ int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint
 #endif
 
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);
-// Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call notify_cachefile_that_kibbutz_job_finishing()
+// Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call remove_background_job()
 
-void notify_cachefile_that_kibbutz_job_finishing (CACHEFILE cf);
-// Effect: When a kibbutz job finishes in a cachefile, the cachetable must be notified.
+void add_background_job (CACHEFILE cf, bool already_locked);
+// Effect: When a kibbutz job or cleaner thread starts working, the
+// cachefile must be notified (so during a close it can wait);
+void remove_background_job (CACHEFILE cf, bool already_locked);
+// Effect: When a kibbutz job or cleaner thread finishes in a cachefile,
+// the cachetable must be notified.
 
 // test-only function
 extern int toku_cachetable_get_checkpointing_user_data_status(void);

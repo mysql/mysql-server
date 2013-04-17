@@ -18,8 +18,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        CACHEKEY k,
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w,
        BOOL keep,
        BOOL f_ckpt __attribute__((__unused__))
@@ -41,7 +41,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
-       long *sizep,
+       PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
        ) {
@@ -50,44 +50,11 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     if (verbose) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, k.b);
 
     *value = 0;
-    *sizep = 1;
+    *sizep = make_pair_attr(1);
     *dirtyp = 0;
 
     return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
-}
-
 
 // Note: cachetable_size_limit must be a power of 2
 static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
@@ -105,7 +72,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
     }
 
@@ -116,7 +83,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
 	// sleep(1);
     }

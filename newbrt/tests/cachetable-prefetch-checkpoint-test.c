@@ -15,55 +15,45 @@ const int item_size = 1;
 
 int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, long size, long* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
+static void flush(
+    CACHEFILE cf, 
+    int UU(fd), 
+    CACHEKEY key, 
+    void *value, 
+    void *extraargs, 
+    PAIR_ATTR size, 
+    PAIR_ATTR* UU(new_size), 
+    BOOL write_me, 
+    BOOL keep_me, 
+    BOOL UU(for_checkpoint)
+    ) 
+{
     cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
-    assert(size == item_size);
+    assert(size.size == item_size);
     n_flush++;
     if (write_me) n_write_me++;
     if (keep_me) n_keep_me++;
 }
 
-static int fetch(CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs) {
+static int fetch(
+    CACHEFILE cf, 
+    int UU(fd), 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void **value, 
+    PAIR_ATTR *sizep, 
+    int *dirtyp, 
+    void *extraargs
+    ) 
+{
     cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
     n_fetch++;
     sleep(10);
     *value = 0;
-    *sizep = item_size;
+    *sizep = make_pair_attr(item_size);
     *dirtyp = 0;
     return 0;
-}
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
 }
 
 static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
@@ -88,7 +78,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     {
         CACHEKEY key = make_blocknum(n+1);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
     }
 
@@ -97,10 +87,10 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_est_callback, pe_callback, 0);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
         assert(r == 0);
 
-        r = toku_cachetable_unpin(f1, key, hi, dirty, item_size);
+        r = toku_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));
         assert(r == 0);
 
         void *v;
@@ -131,7 +121,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
         r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
         if (r != 0) 
             continue;
-        r = toku_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, item_size);
+        r = toku_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, make_pair_attr(item_size));
         assert(r == 0);
         
         int its_dirty;

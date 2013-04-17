@@ -98,8 +98,8 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
 			    CACHEKEY  key,
 			    void     *value,
 			    void     *extra        __attribute__((__unused__)),
-			    long      size         __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+			    PAIR_ATTR      size         __attribute__((__unused__)),
+        PAIR_ATTR* new_size      __attribute__((__unused__)),
 			    BOOL      write_me     __attribute__((__unused__)),
 			    BOOL      keep_me      __attribute__((__unused__)),
 			    BOOL      for_checkpoint     __attribute__((__unused__))) {
@@ -112,46 +112,13 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
+static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void**value, PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     assert(toku_cachetable_hash(f, key)==fullhash);
     assert((long)extraargs==(long)key.b);
     *value = (void*)(long)key.b;
     *dirtyp = 0;
     return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
-}
-
 
 static void verify_cachetable_against_present (void) {
     int i;
@@ -173,7 +140,7 @@ again:
 						&v);
         if (r == -1) goto again;
 	assert(r==0);
-	r = toku_cachetable_unpin(my_present_items[i].cf, my_present_items[i].key, fullhash, CACHETABLE_CLEAN, test_object_size);
+	r = toku_cachetable_unpin(my_present_items[i].cf, my_present_items[i].key, fullhash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     }
 }
 
@@ -196,10 +163,10 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_est_callback, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), flush_forchain, def_pe_est_callback, def_pe_callback, def_cleaner_callback, (void*)i);
 	assert(r==0);
 	item_becomes_present(ct, f[fnum], make_blocknum(i));
-	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
+	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
 	assert(r==0);
 	//print_ints();
     }
@@ -224,10 +191,11 @@ static void test_chaining (void) {
 					    NULL,
 					    flush_forchain,
 					    fetch_forchain,
-					    pe_est_callback,
-					    pe_callback,
-					    pf_req_callback,
-					    pf_callback,
+					    def_pe_est_callback,
+					    def_pe_callback,
+					    def_pf_req_callback,
+					    def_pf_callback,
+					    def_cleaner_callback,
 					    (void*)(long)whichkey.b,
                                             (void*)(long)whichkey.b
 					    );
@@ -235,7 +203,7 @@ static void test_chaining (void) {
 	    r = toku_cachetable_unpin(whichcf,
 				      whichkey,
 				      fhash,
-				      CACHETABLE_CLEAN, test_object_size);
+				      CACHETABLE_CLEAN, make_pair_attr(test_object_size));
 	    assert(r==0);
 	}
 
@@ -245,13 +213,13 @@ static void test_chaining (void) {
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_est_callback, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, make_pair_attr(test_object_size), flush_forchain, def_pe_est_callback, def_pe_callback, def_cleaner_callback, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));
             //print_ints();
             //cachetable_print_state(ct);
-            r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
+            r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
             assert(r==0);
         }
 

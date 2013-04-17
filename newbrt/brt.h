@@ -28,7 +28,7 @@ C_BEGIN
 //-infinity depending on direction)
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
-int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
+int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 
@@ -89,10 +89,7 @@ brt_compare_func toku_brt_get_bt_compare (BRT brt);
 
 // Question: Why does the update_function need a DB_TXN?						    
 
-int toku_brt_set_update(BRT brt, int (*update_fun)(DB *,
-						   const DBT *key, const DBT *old_val, const DBT *extra,
-						   void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))
-     __attribute__ ((warn_unused_result));
+int toku_brt_set_update(BRT brt, brt_update_func update_fun) __attribute__ ((warn_unused_result));
 int toku_brt_update(BRT brt, TOKUTXN txn, const DBT *key, const DBT *extra) __attribute__ ((warn_unused_result));
 int toku_brt_broadcast_update(BRT brt, TOKUTXN txn, const DBT *extra) __attribute__ ((warn_unused_result));
 

@@ -445,15 +445,27 @@ int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     return r;
 }
                          
+static inline PAIR_ATTR make_rollback_pair_attr(long size) { 
+    PAIR_ATTR result={
+     .size = size, 
+     .nonleaf_size = 0, 
+     .leaf_size = 0, 
+     .rollback_size = size, 
+     .cache_pressure_size = 0 
+    }; 
+    return result; 
+}
+
+
 // Write something out.  Keep trying even if partial writes occur.
 // On error: Return negative with errno set.
 // On success return nbytes.
 
-static size_t
+static PAIR_ATTR
 rollback_memory_size(ROLLBACK_LOG_NODE log) {
     size_t size = sizeof(*log);
     size += memarena_total_memory_size(log->rollentry_arena);
-    return size;
+    return make_rollback_pair_attr(size);
 }
 
 static void
@@ -467,7 +479,7 @@ toku_rollback_log_free(ROLLBACK_LOG_NODE *log_p) {
 }
 
 static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
-                                          void *rollback_v, void *extraargs, long size, long* new_size,
+                                          void *rollback_v, void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
                                           BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
     int r;
     ROLLBACK_LOG_NODE  log = rollback_v;
@@ -499,7 +511,7 @@ static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM 
 }
 
 static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
-					 void **rollback_pv, long *sizep, int * UU(dirtyp), void *extraargs) {
+					 void **rollback_pv, PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     struct brt_header *h = extraargs;
     assert(h->cf == cachefile);
@@ -527,25 +539,35 @@ static void toku_rollback_pe_est_callback(
 // callback for partially evicting a cachetable entry
 static int toku_rollback_pe_callback (
     void *rollback_v, 
-    long UU(bytes_to_free), 
-    long* bytes_freed, 
+    PAIR_ATTR UU(old_attr), 
+    PAIR_ATTR* new_attr, 
     void* UU(extraargs)
     ) 
 {
     assert(rollback_v != NULL);
-    *bytes_freed = 0;
+    *new_attr = old_attr;
     return 0;
 }
 static BOOL toku_rollback_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
     return FALSE;
 }
 
-static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
+static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
     // should never be called, given that toku_rollback_pf_req_callback always returns false
     assert(FALSE);
     return 0;
 }
 
+static int toku_rollback_cleaner_callback (
+    void* UU(brtnode_pv),
+    BLOCKNUM UU(blocknum),
+    u_int32_t UU(fullhash),
+    void* UU(extraargs)
+    )
+{
+    assert(FALSE);
+    return 0;
+}
 
 
 static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t older_hash, ROLLBACK_LOG_NODE *result) {
@@ -577,6 +599,7 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
                           toku_rollback_flush_callback, 
                           toku_rollback_pe_est_callback,
                           toku_rollback_pe_callback,
+                          toku_rollback_cleaner_callback,
                           h);
     assert(r==0);
     txn->current_rollback      = log->thislogname;
@@ -807,6 +830,7 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
                                     toku_rollback_pe_callback,
                                     toku_brtnode_pf_req_callback,
                                     toku_brtnode_pf_callback,
+                                    toku_rollback_cleaner_callback,
                                     h,
                                     h,
                                     &doing_prefetch);
@@ -838,6 +862,7 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
                                         toku_rollback_pe_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
+                                        toku_rollback_cleaner_callback,
                                         h,
                                         h
                                         );

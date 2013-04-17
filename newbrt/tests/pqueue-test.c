@@ -11,9 +11,8 @@
 int found_dup = -1;
 
 // simple compare func
-static int test_compare(DB *db, const DBT *dbta, const DBT *dbtb)
+static int test_compare(DB * UU(db), const DBT *dbta, const DBT *dbtb)
 {
-    db = db;
     int a = *((int*)dbta->data);
     int b = *((int*)dbtb->data);
     if ( a<b ) return -1;

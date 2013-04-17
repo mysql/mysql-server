@@ -12,8 +12,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static int 
-test_brt_cursor_keycompare(DB *UU(db), const DBT *a, const DBT *b) {
+static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 

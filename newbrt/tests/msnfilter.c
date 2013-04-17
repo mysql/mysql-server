@@ -47,7 +47,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
 
     bool made_change;
     u_int64_t workdone=0;
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->descriptor, leafnode, &cmd, &made_change, &workdone, NULL, NULL);
     {
 	int r = toku_brt_lookup(brt, &thekey, lookup_checkf, &pair);
 	assert(r==0);
@@ -55,7 +55,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     }
 
     BRT_MSG_S badcmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &badcmd, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->descriptor, leafnode, &badcmd, &made_change, &workdone, NULL, NULL);
 
     
     // message should be rejected for duplicate msn, row should still have original val
@@ -68,7 +68,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with proper msn gets through
     msn = next_dummymsn();
     BRT_MSG_S cmd2 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &val2 } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd2, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->descriptor, leafnode, &cmd2, &made_change, &workdone, NULL, NULL);
     
     // message should be accepted, val should have new value
     {
@@ -80,7 +80,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
     BRT_MSG_S cmd3 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd3, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->descriptor, leafnode, &cmd3, &made_change, &workdone, NULL, NULL);
     
     // message should be rejected, val should still have value in pair2
     {

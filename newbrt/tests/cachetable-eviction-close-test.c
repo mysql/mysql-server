@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 // verify that closing the cachetable with prefetches in progress works
-#ident "$Id: cachetable-prefetch-close-test.c 34904 2011-09-20 14:46:20Z zardosht $"
+#ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
@@ -16,8 +16,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
@@ -25,22 +25,6 @@ flush (CACHEFILE f __attribute__((__unused__)),
     assert(expect_full_flush);
     sleep(2);
 }
-
-static void
-other_flush (CACHEFILE f __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k  __attribute__((__unused__)),
-       void *v     __attribute__((__unused__)),
-       void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
-       ) {
-}
-
-
 
 static int fetch_calls = 0;
 
@@ -50,7 +34,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
+       PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp       __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
        ) {
@@ -58,7 +42,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     fetch_calls++;
 
     *value = 0;
-    *sizep = 8;
+    *sizep = make_pair_attr(8);
     *dirtyp = 0;
 
     return 0;
@@ -75,28 +59,6 @@ pe_est_callback(
     *bytes_freed_estimate = 0;
     *cost = PE_EXPENSIVE;
 }
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
-    return 0;
-}
-
 
 static void cachetable_eviction_full_test (void) {
     const int test_limit = 12;
@@ -129,14 +91,15 @@ static void cachetable_eviction_full_test (void) {
             flush, 
             fetch,
             pe_est_callback, 
-            pe_callback, 
-            pf_req_callback,
-            pf_callback,
+            def_pe_callback, 
+            def_pf_req_callback,
+            def_pf_callback,
+            def_cleaner_callback,
             0,
             0
             );
         assert(r==0);
-        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, 1);
+        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(1));
         assert(r == 0);
     }
     expect_full_flush = TRUE;
@@ -147,17 +110,18 @@ static void cachetable_eviction_full_test (void) {
         1, 
         &value2, 
         &size2, 
-        other_flush, 
+        def_flush, 
         fetch,
         pe_est_callback, 
-        pe_callback, 
-        pf_req_callback,
-        pf_callback,
+        def_pe_callback, 
+        def_pf_req_callback,
+        def_pf_callback,
+        def_cleaner_callback,
         0,
         0
         );
     assert(r==0);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 1);
+    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(1));
     assert(r == 0);
     toku_cachetable_verify(ct);
 

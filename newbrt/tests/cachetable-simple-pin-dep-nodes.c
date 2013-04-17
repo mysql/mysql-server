@@ -1,4 +1,4 @@
-#ident "$Id: cachetable-simple-verify.c 34757 2011-09-14 19:12:42Z leifwalsh $"
+#ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
@@ -19,8 +19,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
@@ -50,54 +50,15 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
+       PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
        ) {
   *dirtyp = 0;
   *value = extraargs;
-  *sizep = 8;
+  *sizep = make_pair_attr(8);
   return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-  return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-  assert(FALSE);
-}
-
-static void fake_ydb_lock(void) {
-}
-
-static void fake_ydb_unlock(void) {
-}
-
 
 static void
 cachetable_test (BOOL write_first, BOOL write_second) {
@@ -116,8 +77,8 @@ cachetable_test (BOOL write_first, BOOL write_second) {
     long s1;
     long s2;
     long s3;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, &val1, NULL);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, &val2, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val1, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, &val2, NULL);
 
     CACHEFILE dependent_cfs[2];
     dependent_cfs[0] = f1;
@@ -148,7 +109,7 @@ cachetable_test (BOOL write_first, BOOL write_second) {
         3,
         &v3,
         &s3,
-        flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback,
+        flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
         &val3,
         NULL,
         2, //num_dependent_pairs
@@ -161,9 +122,9 @@ cachetable_test (BOOL write_first, BOOL write_second) {
     assert(v2_written == write_second);
         
     check_me = FALSE;
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 8);
-    r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, 8);
-    r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, 8);
+    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
 
     r = toku_cachetable_end_checkpoint(
         ct, 

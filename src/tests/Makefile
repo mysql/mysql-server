@@ -266,6 +266,7 @@ BDB_DONTRUN_TESTS = \
         test_dupsort_set_range_reverse \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
+	test_redirect_func \
 	test_stress1 \
 	test_stress2 \
 	test_stress3 \

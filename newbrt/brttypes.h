@@ -38,10 +38,29 @@ typedef u_int64_t TXNID;
 #define TXNID_NONE_LIVING ((TXNID)0)
 #define TXNID_NONE        ((TXNID)0)
 
-typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
+typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 #define ROLLBACK_NONE     ((BLOCKNUM){0})
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
+
+typedef struct pair_attr_s {
+    long size;
+    long nonleaf_size;
+    long leaf_size;
+    long rollback_size;
+    long cache_pressure_size;
+} PAIR_ATTR;
+
+static inline PAIR_ATTR make_pair_attr(long size) { 
+    PAIR_ATTR result={
+        .size = size, 
+        .nonleaf_size = 0, 
+        .leaf_size = 0, 
+        .rollback_size = 0, 
+        .cache_pressure_size = 0 
+    }; 
+    return result; 
+}
 
 typedef struct {
     u_int32_t len;

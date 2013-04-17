@@ -478,8 +478,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ \n");
     printf("  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ \n");
     printf("  u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ \n");
-    printf("  u_int32_t        checkpoint_count;         /* number of checkpoints taken        */ \n");
-    printf("  u_int32_t        checkpoint_count_fail;    /* number of checkpoints failed        */ \n");
+    printf("  u_int32_t        checkpoint_count;        /* number of checkpoints taken        */ \n");
+    printf("  u_int32_t        checkpoint_count_fail;   /* number of checkpoints failed        */ \n");
+    printf("  u_int32_t        cleaner_period;          /* delay between automatic checkpoints  */ \n");
+    printf("  u_int32_t        cleaner_iterations;      /* delay between automatic checkpoints  */ \n");
     printf("  u_int64_t        txn_begin;               /* number of transactions ever begun             */ \n");
     printf("  u_int64_t        txn_commit;              /* txn commit operations                         */ \n");
     printf("  u_int64_t        txn_abort;               /* txn abort operations                          */ \n");
@@ -507,6 +509,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  int64_t          cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ \n");
     printf("  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ \n");
     printf("  uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ \n");
+    printf("  uint64_t         cachetable_size_rollback; /* the number of bytes of nonleaf nodes */ \n");
+    printf("  uint64_t         cachetable_size_cachepressure; /* the number of bytes of nonleaf nodes */ \n");
     printf("  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
     printf("  int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ \n");
     printf("  int64_t          local_checkpoint;        /* number of times a local checkpoint is taken for commit */ \n");
@@ -634,6 +638,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 	const char *extra[]={
                              "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
                              "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
+                             "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
+                             "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
                              "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",

@@ -46,17 +46,6 @@ populate_leaf(BRTNODE leafnode, int seq, int n, int *minkey, int *maxkey) {
     *maxkey = htonl(seq + n - 1);
 }
 
-static UU() void
-insert_into_child_buffer(BRT brt, BRTNODE node, int childnum, int minkey, int maxkey) {
-    for (unsigned int val = htonl(minkey); val <= htonl(maxkey); val++) {
-        unsigned int key = htonl(val);
-        DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
-        DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-	MSN msn = next_dummymsn();
-        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
-    }
-}
-
 static BRTNODE
 make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, int *maxkey) {
     BRTNODE node;

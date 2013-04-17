@@ -14,12 +14,12 @@ static void f_flush (CACHEFILE f,
 		     CACHEKEY key,
 		     void *value,
 		     void *extra       __attribute__((__unused__)),
-		     long size,
-        long* new_size      __attribute__((__unused__)),
+		     PAIR_ATTR size,
+        PAIR_ATTR* new_size      __attribute__((__unused__)),
 		     BOOL write_me,
 		     BOOL keep_me,
 		     BOOL for_checkpoint     __attribute__((__unused__))) {
-    assert(size==BLOCKSIZE);
+    assert(size.size==BLOCKSIZE);
     if (write_me) {
 	toku_os_full_pwrite(toku_cachefile_get_and_pin_fd(f), value, BLOCKSIZE, key.b);
         toku_cachefile_unpin_fd(f);
@@ -34,7 +34,7 @@ static int f_fetch (CACHEFILE f,
 		    CACHEKEY key,
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value,
-		    long *sizep,
+		    PAIR_ATTR *sizep,
 		    int  *dirtyp,
 		    void*extraargs     __attribute__((__unused__))) {
     void *buf = toku_malloc(BLOCKSIZE);
@@ -42,43 +42,10 @@ static int f_fetch (CACHEFILE f,
     toku_cachefile_unpin_fd(f);
     assert(r==BLOCKSIZE);
     *value = buf;
-    *sizep = BLOCKSIZE;
+    *sizep = make_pair_attr(BLOCKSIZE);
     *dirtyp = 0;
     return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-  return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-  assert(FALSE);
-}
-
-
 
 const char fname[] = __FILE__ ".dat";
 
@@ -101,8 +68,8 @@ static void writeit (void) {
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	int j;
 	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(char)((i+j)%256);
-	r = toku_cachetable_put(f, key, fullhash, buf, BLOCKSIZE, f_flush, pe_est_callback, pe_callback, 0);	assert(r==0);
-	r = toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE); assert(r==0);
+	r = toku_cachetable_put(f, key, fullhash, buf, make_pair_attr(BLOCKSIZE), f_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);	assert(r==0);
+	r = toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE)); assert(r==0);
     }
     gettimeofday(&end, 0);
     double diff = toku_tdiff(&end, &start);
@@ -122,8 +89,8 @@ static void readit (void) {
     for (i=0; i<N; i++) {
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
-	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0); assert(r==0);
-	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE);                                      assert(r==0);
+	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0); assert(r==0);
+	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE));                                      assert(r==0);
     }
     r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);

@@ -112,6 +112,86 @@ brt_lookup_and_fail_nodup (BRT t, char *keystring)
     assert(pair.call_count==0);
 }
 
+static UU() void fake_ydb_lock(void) {
+}
+
+static UU() void fake_ydb_unlock(void) {
+}
+
+static UU() void
+def_flush (CACHEFILE f __attribute__((__unused__)),
+       int UU(fd),
+       CACHEKEY k  __attribute__((__unused__)),
+       void *v     __attribute__((__unused__)),
+       void *e     __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
+       BOOL w      __attribute__((__unused__)),
+       BOOL keep   __attribute__((__unused__)),
+       BOOL c      __attribute__((__unused__))
+       ) {
+}
+
+static UU() void 
+def_pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
+static UU() int 
+def_pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
+    PAIR_ATTR* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = bytes_to_free;
+    return 0;
+}
+
+static UU() BOOL def_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+  return FALSE;
+}
+
+static UU() int def_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
+  assert(FALSE);
+}
+
+static UU() int
+def_fetch (CACHEFILE f        __attribute__((__unused__)),
+       int UU(fd),
+       CACHEKEY k         __attribute__((__unused__)),
+       u_int32_t fullhash __attribute__((__unused__)),
+       void **value       __attribute__((__unused__)),
+       PAIR_ATTR *sizep        __attribute__((__unused__)),
+       int  *dirtyp,
+       void *extraargs    __attribute__((__unused__))
+       ) {
+    *dirtyp = 0;
+    *value = NULL;
+    *sizep = make_pair_attr(8);
+    return 0;
+}
+
+
+static UU() int
+def_cleaner_callback(
+    void* UU(brtnode_pv),
+    BLOCKNUM UU(blocknum),
+    u_int32_t UU(fullhash),
+    void* UU(extraargs)
+    )
+{
+    assert(FALSE);
+    return 0;
+}
 
 int verbose=0;
 

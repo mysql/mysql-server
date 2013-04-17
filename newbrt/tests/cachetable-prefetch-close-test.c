@@ -14,8 +14,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
@@ -31,7 +31,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
+       PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp       __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
        ) {
@@ -40,48 +40,11 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     sleep(2);
 
     *value = 0;
-    *sizep = 1;
+    *sizep = make_pair_attr(1);
     *dirtyp = 0;
 
     return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    assert(expect_pf);
-    return TRUE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(expect_pf);
-    sleep(2);
-    *sizep = 2;
-    return 0;
-}
-
 
 static void cachetable_prefetch_full_test (BOOL partial_fetch) {
     const int test_limit = 2;
@@ -113,18 +76,19 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
             &size, 
             flush, 
             fetch,
-            pe_est_callback, 
-            pe_callback, 
-            pf_req_callback,
-            pf_callback,
+            def_pe_est_callback, 
+            def_pe_callback, 
+            def_pf_req_callback,
+            def_pf_callback,
+            def_cleaner_callback,
             0,
             0
             );
         assert(r==0);
-        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));
     }
     
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0, NULL);
     toku_cachetable_verify(ct);
 
     // close with the prefetch in progress. the close should block until
