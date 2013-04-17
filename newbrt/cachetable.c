@@ -49,12 +49,14 @@ static void cachetable_reader(WORKITEM);
 
 static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
-static u_int64_t cachetable_wait_reading;
-static u_int64_t cachetable_wait;
+static u_int64_t cachetable_wait_reading;  // how many times does get_and_pin() wait for a node to be read?
+static u_int64_t cachetable_wait_writing;  // how many times does get_and_pin() wait for a node to be written?
 #if TOKU_DO_WAIT_TIME
 static u_int64_t cachetable_miss_time;
 static u_int64_t cachetable_wait_time;
 #endif
+
+static u_int32_t cachetable_lock_ctr = 0;
 
 enum ctpair_state {
     CTPAIR_INVALID = 0, // invalid
@@ -135,9 +137,9 @@ struct cachetable {
     PAIR  head,tail;              // of LRU list. head is the most recently used. tail is least recently used.
     CACHEFILE cachefiles;         // list of cachefiles that use this cachetable
     CACHEFILE cachefiles_in_checkpoint; //list of cachefiles included in checkpoint in progress
-    long size_current;            // the sum of the sizes of the pairs in the cachetable
-    long size_limit;              // the limit to the sum of the pair sizes
-    long size_writing;            // the sum of the sizes of the pairs being written
+    int64_t size_current;            // the sum of the sizes of the pairs in the cachetable
+    int64_t size_limit;              // the limit to the sum of the pair sizes
+    int64_t size_writing;            // the sum of the sizes of the pairs being written
     TOKULOGGER logger;
     toku_pthread_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
     struct workqueue wq;          // async work queue 
@@ -149,16 +151,19 @@ struct cachetable {
     toku_pthread_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
 };
 
+
 // Lock the cachetable
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
     int r = toku_pthread_mutex_lock(ct->mutex); assert(r == 0);
+    cachetable_lock_ctr++;
 #endif
 }
 
 // Unlock the cachetable
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
+    cachetable_lock_ctr++;
     int r = toku_pthread_mutex_unlock(ct->mutex); assert(r == 0);
 #endif
 }
@@ -924,7 +929,7 @@ void toku_cachetable_print_hash_histogram (void) {
 	if (hash_histogram[i]) printf("%d:%llu ", i, hash_histogram[i]);
     printf("\n");
     printf("miss=%"PRIu64" hit=%"PRIu64" wait_reading=%"PRIu64" wait=%"PRIu64"\n", 
-           cachetable_miss, cachetable_hit, cachetable_wait_reading, cachetable_wait);
+           cachetable_miss, cachetable_hit, cachetable_wait_reading, cachetable_wait_writing);
 }
 
 static void
@@ -1047,7 +1052,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
                 if (p->state == CTPAIR_READING)
                     cachetable_wait_reading++;
                 else
-                    cachetable_wait++;
+                    cachetable_wait_writing++;
 #if TOKU_DO_WAIT_TIME
 		do_wait_time = 1;
 		gettimeofday(&t0, NULL);
@@ -1931,3 +1936,13 @@ toku_cachefile_size_in_memory(CACHEFILE cf)
     return result;
 }
 
+void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
+    s->lock_ctr     = cachetable_lock_ctr;
+    s->hit          = cachetable_hit;
+    s->miss         = cachetable_miss;
+    s->wait_reading = cachetable_wait_reading;
+    s->wait_writing = cachetable_wait_writing;
+    s->size_current = ct->size_current;          
+    s->size_limit   = ct->size_limit;            
+    s->size_writing = ct->size_writing;          
+}

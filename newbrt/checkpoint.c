@@ -55,7 +55,7 @@
 #include "checkpoint.h"
 
 // footprint for debugging and status reporting only
-static u_int64_t checkpoint_footprint = 0;
+static u_int32_t checkpoint_footprint = 0;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
@@ -154,7 +154,7 @@ toku_checkpoint_safe_client_unlock(void) {
 }
 
 
-u_int64_t 
+u_int32_t 
 toku_checkpoint_get_footprint(void) {
     return checkpoint_footprint;
 }
