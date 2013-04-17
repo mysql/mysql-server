@@ -25,10 +25,11 @@ static void reset_event_counts(void) {
 static void event_hit(void) {
 }
 
+static int do_write_errors = 0;
+
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    event_count++;
     size_t r;
-    if (event_count_trigger == event_count) {
+    if (do_write_errors && event_count_trigger == ++event_count) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -43,8 +44,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 
 static ssize_t bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
-    event_count++;
-    if (event_count_trigger == event_count) {
+    if (do_write_errors && event_count_trigger == ++event_count) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -56,8 +56,7 @@ static ssize_t bad_write(int fd, const void * bp, size_t len) {
 
 static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     ssize_t r;
-    event_count++;
-    if (event_count_trigger == event_count) {
+    if (do_write_errors && event_count_trigger == ++event_count) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -67,11 +66,13 @@ static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     return r;
 }
 
-static int my_malloc_event = 0;
+static int do_malloc_errors = 0;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
-
+static int my_realloc_count = 0, my_big_realloc_count = 0;
+   
 static void reset_my_malloc_counts(void) {
     my_malloc_count = my_big_malloc_count = 0;
+    my_realloc_count = my_big_realloc_count = 0;
 }
 
 static void *my_malloc(size_t n) {
@@ -81,7 +82,7 @@ static void *my_malloc(size_t n) {
     my_malloc_count++;
     if (n >= 64*1024) {
         my_big_malloc_count++;
-        if (my_malloc_event) {
+        if (do_malloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
                 goto skip;
@@ -95,6 +96,29 @@ static void *my_malloc(size_t n) {
     }
  skip:
     return malloc(n);
+}
+
+static void *my_realloc(void *p, size_t n) {
+    void *caller = __builtin_return_address(0);
+    if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
+        goto skip;
+    my_realloc_count++;
+    if (n >= 64*1024) {
+        my_big_realloc_count++;
+        if (do_malloc_errors) {
+            caller = __builtin_return_address(1);
+            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
+                goto skip;
+            event_count++;
+            if (event_count == event_count_trigger) {
+                event_hit();
+                errno = ENOMEM;
+                return NULL;
+            }
+        }
+    }
+ skip:
+    return realloc(p, n);
 }
 
 static void copy_dbt(DBT *dest, const DBT *src) {
@@ -170,6 +194,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
 
     // setup error injection
     toku_set_func_malloc(my_malloc);
+    toku_set_func_realloc(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
@@ -184,6 +209,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     assert(r == 0);
 
     toku_set_func_malloc(NULL);
+    toku_set_func_realloc(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);
@@ -206,7 +232,15 @@ static int nrows = 1;
 static int nrowsets = 2;
 
 static int usage(const char *progname) {
-    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-s] [-r %d] [--rowsets %d]\n", progname, nrows, nrowsets);
+    fprintf(stderr, "Usage: %s [options] directory\n", progname);
+    fprintf(stderr, "[-v] turn on verbose\n");
+    fprintf(stderr, "[-q] turn off verbose\n");
+    fprintf(stderr, "[-r %d] set the number of rows\n", nrows);
+    fprintf(stderr, "[--rowsets %d] set the number of rowsets\n", nrowsets);
+    fprintf(stderr, "[-s] set the small loader size factor\n");
+    fprintf(stderr, "[-m] inject big malloc and realloc errors\n");
+    fprintf(stderr, "[-f] inject write errors\n");
+    fprintf(stderr, "[-u] inject user errors\n");
     return 1;
 }
 
@@ -229,8 +263,10 @@ int test_main (int argc, const char *argv[]) {
             nrowsets = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
+        } else if (strcmp(argv[0],"-f") == 0) {
+            do_write_errors = 1;
         } else if (strcmp(argv[0],"-m") == 0) {
-            my_malloc_event = 1;
+            do_malloc_errors = 1;
         } else if (strcmp(argv[0],"--max_error_limit") == 0 && argc >= 1) {
             argc--; argv++;
             max_error_limit = atoi(argv[0]);

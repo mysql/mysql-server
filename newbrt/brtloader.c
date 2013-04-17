@@ -753,12 +753,21 @@ static int row_wont_fit (struct rowset *rows, size_t size)
     return (rows->memory_budget <  memory_in_use + size);
 }
 
-void add_row (struct rowset *rows, DBT *key, DBT *val)
+int add_row (struct rowset *rows, DBT *key, DBT *val)
 /* Effect: add a row to a collection. */
 {
+    int result = 0;
     if (rows->n_rows >= rows->n_rows_limit) {
+        struct row *old_rows = rows->rows;
+        size_t old_n_rows_limit = rows->n_rows_limit;
 	rows->n_rows_limit *= 2;
 	REALLOC_N(rows->n_rows_limit, rows->rows);
+        if (rows->rows == NULL) {
+            result = errno;
+            rows->rows = old_rows;
+            rows->n_rows_limit = old_n_rows_limit;
+            return result;
+        }
     }
     size_t off      = rows->n_bytes;
     size_t next_off = off + key->size + val->size;
@@ -768,15 +777,24 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
 
     rows->rows[rows->n_rows++] = newrow;
     if (next_off > rows->n_bytes_limit) {
+        size_t old_n_bytes_limit = rows->n_bytes_limit;
 	while (next_off > rows->n_bytes_limit) {
 	    rows->n_bytes_limit = rows->n_bytes_limit*2; 
 	}
 	invariant(next_off <= rows->n_bytes_limit);
+        char *old_data = rows->data;
 	REALLOC_N(rows->n_bytes_limit, rows->data);
+        if (rows->data == NULL) {
+            result = errno;
+            rows->data = old_data;
+            rows->n_bytes_limit =- old_n_bytes_limit;
+            return result;
+        }
     }
     memcpy(rows->data+off,           key->data, key->size);
     memcpy(rows->data+off+key->size, val->data, val->size);
     rows->n_bytes = next_off;
+    return result;
 }
 
 static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset);
@@ -866,8 +884,9 @@ static int loader_do_put(BRTLOADER bl,
                          DBT *pkey,
                          DBT *pval)
 {
-    add_row(&bl->primary_rowset, pkey, pval);
-    if (row_wont_fit(&bl->primary_rowset, 0)) {
+    int result;
+    result = add_row(&bl->primary_rowset, pkey, pval);
+    if (result == 0 && row_wont_fit(&bl->primary_rowset, 0)) {
 	// queue the rows for further processing by the extractor thread.
 	//printf("%s:%d please extract %ld\n", __FILE__, __LINE__, bl->primary_rowset.n_rows);
 	BL_TRACE(blt_do_put);
@@ -876,10 +895,11 @@ static int loader_do_put(BRTLOADER bl,
 	{
             int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
             // bl->primary_rowset will get destroyed by toku_brt_loader_abort
-            if ( r != 0 ) return r;
+            if (r != 0) 
+                result = r;
         }
     }
-    return 0;
+    return result;
 }
 
 static int finish_extractor (BRTLOADER bl) {
@@ -920,6 +940,13 @@ static DBT make_dbt (void *data, u_int32_t size) {
     result.size = size;
     return result;
 }
+
+// gcc 4.1 does not like f&a
+#if defined(__cilkplusplus)
+#define inc_error_count __sync_fetch_and_add(&error_count, 1)
+#else
+#define inc_error_count error_count++
+#endif
 
 CILK_BEGIN
 
@@ -963,11 +990,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
 		if (r != 0) {
                     error_codes[i] = r;
-#if defined(__cilkplusplus)
-		    __sync_fetch_and_add(&error_count, 1);
-#else
-                    error_count++;
-#endif
+                    inc_error_count;
                     break;
                 }
 	    }
@@ -980,17 +1003,18 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 		// If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
 		BL_TRACE(blt_sort_and_write_rows);
 		init_rowset(rows, memory_per_rowset(bl)); // we passed the contents of rows to sort_and_write_rows.
-		if (r!=0) {
+		if (r != 0) {
 		    error_codes[i] = r;
-#if defined(__cilkplusplus)
-		    __sync_fetch_and_add(&error_count, 1);
-#else
-                    error_count++;
-#endif
+                    inc_error_count;
 		    break;
 		}
 	    }
-	    add_row(rows, &skey, &sval);
+	    int r = add_row(rows, &skey, &sval);
+            if (r != 0) {
+                error_codes[i] = r;
+                inc_error_count;
+                break;
+            }
 
 	    //flags==0 means generate_row_for_put callback changed it
 	    //(and freed any memory necessary to do so) so that values are now stored
@@ -1504,13 +1528,14 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		BL_TRACE(blt_do_i);
 		r = queue_enq(q, (void*)output_rowset, 1, NULL);
 		BL_TRACE(blt_fractal_enq);
-		assert(r==0);
+		lazy_assert(r==0);
 		MALLOC(output_rowset);
 		assert(output_rowset);
 		r = init_rowset(output_rowset, memory_per_rowset(bl));
-		assert(r==0);
+		lazy_assert(r==0);
 	    }
-	    add_row(output_rowset, &keys[mini], &vals[mini]);
+	    r = add_row(output_rowset, &keys[mini], &vals[mini]);
+            lazy_assert(r == 0);
 	} else {
             // write it to the dest file
 	    r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], bl);
