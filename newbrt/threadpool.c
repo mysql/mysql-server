@@ -5,9 +5,9 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
 
 #include <toku_portability.h>
+#include <string.h>
 #include "toku_pthread.h"
 #include "toku_assert.h"
 #include "memory.h"

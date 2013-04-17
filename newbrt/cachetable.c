@@ -183,6 +183,7 @@ struct cachefile {
 			 * because then we'd have to figure out if the transaction was already counted.  If we simply use a count for
 			 * every record in the transaction, we'll be ok.  Hence we use a 64-bit counter to make sure we don't run out.
 			 */
+    BOOL is_closing;    /* TRUE if a cachefile is being close/has been closed. */
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;
@@ -299,7 +300,7 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
             //File is already open (and in cachetable as extant)
             cachefile_refup(extant);
-	    if (extant->refcount==1) {
+	    if (extant->is_closing) {
 		// if another thread is closing this file, wait until the close is fully complete
 		r = toku_pthread_cond_wait(&extant->openfd_wait, ct->mutex);
 		assert(r == 0);
@@ -430,6 +431,8 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
         //Checkpoint holds a reference, close should be impossible if still in use by a checkpoint.
         assert(!cf->next_in_checkpoint);
         assert(!cf->for_checkpoint);
+        assert(!cf->is_closing);
+        cf->is_closing = TRUE; //Mark this cachefile so that no one will re-use it.
 	int r;
 	// cachetable_flush_cachefile() may release and retake cachetable_lock,
 	// allowing another thread to get into toku_cachetable_openfd()
@@ -438,7 +441,9 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	    cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
 	    if (cf->refcount > 0) {
                 int rs;
-		assert(cf->refcount == 1);   // toku_cachetable_openfd() is single-threaded
+		assert(cf->refcount == 1);       // toku_cachetable_openfd() is single-threaded
+                assert(!cf->next_in_checkpoint); //checkpoint cannot run on a closing file
+                assert(!cf->for_checkpoint);     //checkpoint cannot run on a closing file
 		rs = toku_pthread_cond_signal(&cf->openfd_wait); assert(rs == 0);
 	    }
 	    // we can destroy the condition variable because if there was another thread waiting, it was already signalled
@@ -1556,14 +1561,14 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             CACHEFILE cf;
             assert(ct->cachefiles_in_checkpoint==NULL);
             for (cf = ct->cachefiles; cf; cf=cf->next) {
-                if (cf->refcount>0) {
-                    //Incremement reference count of cachefile because we're using it for the checkpoint.
-                    //This will prevent closing during the checkpoint.
-                    cachefile_refup(cf);
-                    cf->next_in_checkpoint       = ct->cachefiles_in_checkpoint;
-                    ct->cachefiles_in_checkpoint = cf;
-                    cf->for_checkpoint           = TRUE;
-                }
+                assert(!cf->is_closing); //Closing requires ydb lock (or in checkpoint).  Cannot happen.
+                assert(cf->refcount>0);  //Must have a reference if not closing.
+                //Incremement reference count of cachefile because we're using it for the checkpoint.
+                //This will prevent closing during the checkpoint.
+                cachefile_refup(cf);
+                cf->next_in_checkpoint       = ct->cachefiles_in_checkpoint;
+                ct->cachefiles_in_checkpoint = cf;
+                cf->for_checkpoint           = TRUE;
             }
         }
 

@@ -289,8 +289,12 @@ toku_rollback_rollinclude (BYTESTRING bs,
 }
 
 int
-toku_rollback_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v))
+toku_rollback_tablelock_on_empty_table (FILENUM filenum,
+                                        TOKUTXN txn,
+                                        YIELDF yield,
+                                        void* yield_v)
 {
+    yield(toku_checkpoint_safe_client_lock, yield_v);
     // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
 
     CACHEFILE cf;
@@ -307,6 +311,7 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(
 	r = toku_brt_truncate(brt);
 	assert(r==0);
     }
+    toku_checkpoint_safe_client_unlock();
 
     return r; 
 }

@@ -98,6 +98,7 @@ BDB_DONTRUN_TESTS = \
 	root_fifo_41 \
 	checkpoint_1 \
 	checkpoint_stress \
+	checkpoint_truncate_1 \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
