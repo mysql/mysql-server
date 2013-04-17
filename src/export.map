@@ -52,6 +52,9 @@
    toku_fstat;
    toku_dup2;
 
+   toku_os_full_write;
+   toku_os_full_pwrite;
+
  local: *;
 };
 

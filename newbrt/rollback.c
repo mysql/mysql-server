@@ -206,15 +206,8 @@ int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
 
 // NOTE : duplicated from logger.c - FIX THIS!!!
 static int write_it (int fd, const void *bufv, int nbytes) {
-    int org_nbytes=nbytes;
-    const char *buf=bufv;
-    while (nbytes>0) {
-	int r = write(fd, buf, nbytes);
-	if (r<0 || errno!=EAGAIN) return r;
-	buf+=r;
-	nbytes-=r;
-    }
-    return org_nbytes;
+    toku_os_full_write(fd, bufv, nbytes);
+    return nbytes;
 }
 
 int toku_maybe_spill_rollbacks (TOKUTXN txn) {

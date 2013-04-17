@@ -151,15 +151,8 @@ int toku_logger_shutdown(TOKULOGGER logger) {
 // On error: Return negative with errno set.
 // On success return nbytes.
 static int write_it (int fd, const void *bufv, int nbytes) {
-    int org_nbytes=nbytes;
-    const char *buf=bufv;
-    while (nbytes>0) {
-	int r = write(fd, buf, nbytes);
-	if (r<0 || errno!=EAGAIN) return r;
-	buf+=r;
-	nbytes-=r;
-    }
-    return org_nbytes;
+    toku_os_full_write(fd, bufv, nbytes);
+    return nbytes;
 }
 
 // close the current file, and open the next one.

@@ -14,8 +14,8 @@ static void mkfile (const char *fname) {
     int fd = open(fname, O_WRONLY | O_CREAT | O_BINARY, mode); 
     if (fd<0) perror("opening");
     assert(fd>=0);
-    int r  = write(fd, "hello\n", 6);                                     assert(r==6);
-    r = close(fd);                                                        assert(r==0);
+    toku_os_full_write(fd, "hello\n", 6);
+    int r = close(fd);                                                        assert(r==0);
 }
 
 static void

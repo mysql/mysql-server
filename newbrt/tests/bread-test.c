@@ -45,10 +45,10 @@ test (int seed) {
 	    Bytef compressed_buf[compressed_size];
 	    { int r = compress2(compressed_buf, &compressed_size, (Bytef*)(buf[i]), sizes[i], 1); assert(r==Z_OK); }
 	    u_int32_t compressed_size_n = toku_htod32(compressed_size);
-	    { int r = write(fd, &compressed_size_n, 4); assert(r==4); }
-	    { int r = write(fd, compressed_buf, compressed_size);    assert(r==(int)compressed_size); }
-	    { int r = write(fd, &sizesn[i], 4);         assert(r==4); } // the uncompressed size
-	    { int r = write(fd, &compressed_size_n, 4); assert(r==4); }
+	    { toku_os_full_write(fd, &compressed_size_n, 4); }
+	    { toku_os_full_write(fd, compressed_buf, compressed_size); }
+	    { toku_os_full_write(fd, &sizesn[i], 4); } // the uncompressed size
+	    { toku_os_full_write(fd, &compressed_size_n, 4); }
 	}
 	{ int r=close(fd); assert(r==0); }
     }

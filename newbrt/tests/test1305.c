@@ -52,22 +52,18 @@ assert(sizeof(buf) == N_BIGINTS * BIGINT_SIZE);
 	    }
 	    {
 		u_int32_t v = toku_htod32(compressed_len);
-		ssize_t r = write(fd, &v, sizeof(v));
-		assert(r==sizeof(v));
+		toku_os_full_write(fd, &v, sizeof(v));
 	    }
 	    {
-		ssize_t r = write(fd, compressed_buf, compressed_len);
-		assert(r==(ssize_t)compressed_len);
+		toku_os_full_write(fd, compressed_buf, compressed_len);
 	    }
 	    {
 		u_int32_t v = toku_htod32(sizeof(buf));
-		ssize_t r = write(fd, &v, sizeof(v));
-		assert(r==sizeof(v));
+		toku_os_full_write(fd, &v, sizeof(v));
 	    }
 	    {
 		u_int32_t v = toku_htod32(compressed_len);
-		ssize_t r = write(fd, &v, sizeof(v));
-		assert(r==sizeof(v));
+		toku_os_full_write(fd, &v, sizeof(v));
 	    }
 	}
 	{ int r = close(fd); assert(r==0); }
