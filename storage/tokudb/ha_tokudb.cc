@@ -20,6 +20,8 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
     thd->ha_data[slot].ha_ptr = data;
 }
 
+static inline uint get_key_parts(const KEY *key);
+
 #undef PACKAGE
 #undef VERSION
 #undef HAVE_DTRACE
@@ -31,6 +33,9 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 #else
 #endif
 
+#include "tokudb_buffer.h"
+#include "tokudb_status.h"
+#include "tokudb_card.h"
 #include "ha_tokudb.h"
 #include "hatoku_hton.h"
 #include <mysql/plugin.h>
@@ -213,10 +218,8 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
 
         free_key_and_col_info(&share->kc_info);
 
-        if (share->status_block && (error = share->status_block->close(share->status_block, 0))) {
-            assert(error == 0);
-            result = error;
-        }
+        error = tokudb::close_status(&share->status_block);
+        assert(error == 0);
         
         my_hash_delete(&tokudb_open_tables, (uchar *) share);
         thr_lock_delete(&share->lock);
@@ -1285,17 +1288,12 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
     return ai_found;
 }
 
-#define status_dict_pagesize 1024
-
 static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
-    uint open_mode = DB_THREAD;
-    uint32_t pagesize = 0;
     newname = (char *)my_malloc(
         get_max_dict_name_path_length(name), 
-        MYF(MY_WME)
-        );
+        MYF(MY_WME));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -1304,32 +1302,9 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("open:%s\n", newname);
     }
-    error = db_create(ptr, db_env, 0);
-    if (error) { goto cleanup; }
-    
-    error = (*ptr)->open((*ptr), txn, newname, NULL, DB_BTREE, open_mode, 0);
-    if (error) { 
-        goto cleanup; 
-    }
 
-    error = (*ptr)->get_pagesize(*ptr, &pagesize);
-    if (error) { 
-        goto cleanup; 
-    }
-
-    if (pagesize > status_dict_pagesize) {
-        error = (*ptr)->change_pagesize(*ptr, status_dict_pagesize);
-        if (error) { goto cleanup; }
-    }
-    
+    error = tokudb::open_status(db_env, ptr, newname, txn);
 cleanup:
-    if (error) {
-        if (*ptr) {
-            int r = (*ptr)->close(*ptr, 0);
-            assert(r==0);
-            *ptr = NULL;
-        }
-    }
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     return error;
 }
@@ -5937,13 +5912,13 @@ int ha_tokudb::info(uint flag) {
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
         uint64_t rec_per_key[table_share->key_parts];
-        error = share->get_card_from_status(txn, table_share->key_parts, rec_per_key);
+        error = tokudb::get_card_from_status(share->status_block, txn, table_share->key_parts, rec_per_key);
         if (error == 0) {
-            share->set_card_in_key_info(table, table_share->key_parts, rec_per_key);
+            tokudb::set_card_in_key_info(table, table_share->key_parts, rec_per_key);
         } else {
             for (uint i = 0; i < table_share->key_parts; i++)
                 rec_per_key[i] = 0;
-            share->set_card_in_key_info(table, table_share->key_parts, rec_per_key);
+            tokudb::set_card_in_key_info(table, table_share->key_parts, rec_per_key);
         }
     }
     /* Don't return key if we got an error for the internal primary key */
@@ -6911,21 +6886,14 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     /* Create status.tokudb and save relevant metadata */
     make_name(newname, name, "status");
 
-    error = db_create(&status_block, db_env, 0);
+    error = tokudb::create_status(db_env, &status_block, newname, txn);
     if (error) { goto cleanup; }
 
-    error = status_block->set_pagesize(status_block, status_dict_pagesize);
-    if (error) { goto cleanup; }
-
-    error = status_block->open(status_block, txn, newname, NULL, DB_BTREE, DB_CREATE | DB_EXCL, 0);
-    if (error) { goto cleanup; }
-
-    version = HA_TOKU_VERSION;
-    capabilities = HA_TOKU_CAP;
-    
+    version = HA_TOKU_VERSION;    
     error = write_to_status(status_block, hatoku_new_version,&version,sizeof(version), txn);
     if (error) { goto cleanup; }
 
+    capabilities = HA_TOKU_CAP;
     error = write_to_status(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities), txn);
     if (error) { goto cleanup; }
 
@@ -6978,7 +6946,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = 0;
 cleanup:
     if (status_block != NULL) {
-        int r = status_block->close(status_block, 0);
+        int r = tokudb::close_status(&status_block); 
         assert(r==0);
     }
     free_key_and_col_info(&kc_info);
@@ -8281,7 +8249,6 @@ Item* ha_tokudb::idx_cond_push(uint keyno_arg, Item* idx_cond_arg) {
 }
 
 // table admin 
-#include "tokudb_card.cc"
 #include "ha_tokudb_admin.cc"
 
 // update functions

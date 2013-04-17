@@ -11,21 +11,6 @@
 //
 #define HA_TOKU_CAP 0
 
-//
-// These are keys that will be used for retrieving metadata in status.tokudb
-// To get the version, one looks up the value associated with key hatoku_version
-// in status.tokudb
-//
-typedef ulonglong HA_METADATA_KEY;
-#define hatoku_old_version 0
-#define hatoku_capabilities 1
-#define hatoku_max_ai 2 //maximum auto increment value found so far
-#define hatoku_ai_create_value 3
-#define hatoku_key_name 4
-#define hatoku_frm_data 5
-#define hatoku_new_version 6
-#define hatoku_cardinality 7
-
 class ha_tokudb;
 
 typedef struct loader_context {
@@ -105,29 +90,6 @@ public:
     bool replace_into_fast;
     rw_lock_t num_DBs_lock;
     uint32_t num_DBs;
-
-    // Set the key_info cardinality counters for the table.
-    void set_card_in_key_info(TABLE *table, uint rec_per_keys, uint64_t rec_per_key[]);
-
-    // Put the cardinality counters into the status dictionary.
-    void set_card_in_status(DB_TXN *txn, uint rec_per_keys, uint64_t rec_per_key[]);
-
-    // Get the cardinality counters from the status dictionary.
-    int get_card_from_status(DB_TXN *txn, uint rec_per_keys, uint64_t rec_per_key[]);
-
-    // Delete the cardinality counters from the status dictionary.
-    void delete_card_from_status(DB_TXN *txn);
-
-    // Get the val for a given key in the status dictionary.
-    // Returns 0 if successful.
-    int get_status(DB_TXN *txn, HA_METADATA_KEY k, DBT *val);
-    int get_status(DB_TXN *txn, HA_METADATA_KEY k, void *p, size_t s);
-
-    // Put a val for a given key into the status dictionary.
-    int put_status(DB_TXN *txn, HA_METADATA_KEY k, void *p, size_t s);
-
-    // Delete a key from the status dictionary.
-    int delete_status(DB_TXN *txn, HA_METADATA_KEY k);
 };
 
 typedef struct st_filter_key_part_info {
@@ -495,7 +457,6 @@ public:
     int rename_table(const char *from, const char *to);
     int optimize(THD * thd, HA_CHECK_OPT * check_opt);
     int analyze(THD * thd, HA_CHECK_OPT * check_opt);
-    int analyze_key(THD *thd, DB_TXN *txn, uint key_i, KEY *key_info, uint64_t num_key_parts, uint64_t *rec_per_key_part);
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
