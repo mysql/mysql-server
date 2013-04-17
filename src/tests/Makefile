@@ -978,11 +978,15 @@ MID_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
 LARGE_STRESS_TESTS = $(patsubst %,large_%.drdrun,$(STRESS_TESTS))
 
 stress_tests.drdrun: $(TINY_STRESS_TESTS) \
-	mid_test_stress1.drdrun mid_test_stress3.drdrun \
-	large_test_stress1.drdrun large_test_stress3.drdrun
+	$(MID_STRESS_TESTS) \
+	large_test_stress1.drdrun large_test_stress3.drdrun \
+	test_4015.drdrun
 	true
 
 tiny_stress_tests.drdrun: $(TINY_STRESS_TESTS)
+	true
+
+mid_stress_tests.drdrun: $(MID_STRESS_TESTS)
 	true
 
 tiny_%.drdrun: %.tdb
@@ -1000,7 +1004,8 @@ large_%.drdrun: %.tdb
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 test_4015.drdrun: test_4015.tdb
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< --envdir dir.tdb.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< --envdir dir.tdb.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # upgrade tests
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
