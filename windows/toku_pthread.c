@@ -1,3 +1,4 @@
+#include <toku_portability.h>
 #include <windows.h>
 #include <assert.h>
 #include <errno.h>
@@ -7,46 +8,55 @@ int
 toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr) {
     assert(attr == NULL);
     // assert(!rwlock->initialized);
-    InitializeSRWLock(&rwlock->rwlock);
-    rwlock->initialized = TRUE;
-    return 0;
+    int r = toku_pthread_mutex_init(&rwlock->mutex, NULL);
+    if (r==0) {
+        rwlock_init(&rwlock->rwlock);
+        rwlock->initialized = TRUE;
+    }
+    return r;
 }
 
 int
 toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    rwlock->initialized = FALSE;
-    //Windows does not have a cleanup function for SRWLocks.
-    //You just stop using them.
-    return 0;
+    int r = toku_pthread_mutex_destroy(&rwlock->mutex);
+    if (r==0) {
+        rwlock_destroy(&rwlock->rwlock);
+        rwlock->initialized = FALSE;
+    }
+    return r;
 }
 
 int
 toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    AcquireSRWLockShared(&rwlock->rwlock);
-    return 0;
+    int r = toku_pthread_mutex_lock(&rwlock->mutex);
+    if (r==0) rwlock_read_lock(&rwlock->rwlock, &rwlock->mutex);
+    return r;
 }
 
 int
 toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    ReleaseSRWLockShared(&rwlock->rwlock);
-    return 0;
+    int r = toku_pthread_mutex_lock(&rwlock->mutex);
+    if (r==0) rwlock_read_unlock(&rwlock->rwlock);
+    return r;
 }
 
 int
 toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    AcquireSRWLockExclusive(&rwlock->rwlock);
-    return 0;
+    int r = toku_pthread_mutex_lock(&rwlock->mutex);
+    if (r==0) rwlock_write_lock(&rwlock->rwlock, &rwlock->mutex);
+    return r;
 }
 
 int
 toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    ReleaseSRWLockExclusive(&rwlock->rwlock);
-    return 0;
+    int r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    if (r==0) rwlock_write_unlock(&rwlock->rwlock);
+    return r;
 }
 
 int
