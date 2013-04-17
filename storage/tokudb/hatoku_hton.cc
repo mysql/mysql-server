@@ -162,7 +162,6 @@ char *tokudb_version = (char*) TOKUDB_VERSION;
  char *tokudb_version;
 #endif
 static int tokudb_fs_reserve_percent;  // file system reserve as a percentage of total disk space
-struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 #if defined(_WIN32)
 extern "C" {
@@ -724,8 +723,7 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 }
 
 
-static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
-    TOKUDB_DBUG_ENTER("tokudb_show_data_size");
+static int tokudb_get_user_data_size(THD *thd, bool exact, u_int64_t *data_size_ret) {
     int error;
     u_int64_t num_bytes_in_db = 0;
     DB* curr_db = NULL;
@@ -735,7 +733,6 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
     DBT curr_key;
     DBT curr_val;
     DB_TXN* tmp_txn = NULL;
-    char data_amount_msg[50] = {0};
     memset(&curr_key, 0, sizeof curr_key); 
     memset(&curr_val, 0, sizeof curr_val);
     pthread_mutex_lock(&tokudb_meta_mutex);
@@ -863,16 +860,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
         }
     }
 
-    sprintf(data_amount_msg, "Number of bytes in database: %" PRIu64, num_bytes_in_db);
-    stat_print(
-        thd, 
-        tokudb_hton_name, 
-        tokudb_hton_name_length, 
-        "Data in tables", 
-        strlen("Data in tables"), 
-        data_amount_msg,
-        strlen(data_amount_msg)
-        );
+    *data_size_ret = num_bytes_in_db;
 
     error = 0;
 
@@ -899,10 +887,28 @@ cleanup:
         sql_print_error("got an error %d in show_data_size\n", error);
     }
     pthread_mutex_unlock(&tokudb_meta_mutex);
+    return error;
+}
+
+static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
+    TOKUDB_DBUG_ENTER("tokudb_show_data_size");
+    uint64_t data_size = 0;
+    int error = tokudb_get_user_data_size(thd, exact, &data_size);
+    if (error == 0) {
+        char data_amount_msg[50] = {0};
+        sprintf(data_amount_msg, "Number of bytes in database: %" PRIu64, data_size);
+        stat_print(thd, 
+                   tokudb_hton_name, 
+                   tokudb_hton_name_length, 
+                   "Data in tables", 
+                   strlen("Data in tables"), 
+                   data_amount_msg,
+                   strlen(data_amount_msg)
+                   );
+    }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
-
 
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
@@ -1366,18 +1372,109 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     NULL
 };
 
-mysql_declare_plugin(tokudb) {
+struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERFACE_VERSION };
+
+static ST_FIELD_INFO tokudb_user_data_field_info[] = {
+    {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, NULL, NULL, NULL, NULL}
+};
+
+static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+    TABLE *table = tables->table;
+    uint64_t data_size;
+    int error = tokudb_get_user_data_size(thd, false, &data_size);
+    if (error == 0) {
+        table->field[0]->store(data_size, false);
+        error = schema_table_store_record(thd, table);
+    }
+    return error;
+}
+
+static int tokudb_user_data_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_user_data_field_info;
+    schema->fill_table = tokudb_user_data_fill_table;
+    return 0;
+}
+
+static int tokudb_user_data_done(void *p) {
+    return 0;
+}
+
+struct st_mysql_information_schema tokudb_user_data_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
+    {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, NULL, NULL, NULL, NULL}
+};
+
+static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+    TABLE *table = tables->table;
+    uint64_t data_size;
+    int error = tokudb_get_user_data_size(thd, true, &data_size);
+    if (error == 0) {
+        table->field[0]->store(data_size, false);
+        error = schema_table_store_record(thd, table);
+    }
+    return error;
+}
+
+static int tokudb_user_data_exact_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_user_data_exact_field_info;
+    schema->fill_table = tokudb_user_data_exact_fill_table;
+    return 0;
+}
+
+static int tokudb_user_data_exact_done(void *p) {
+    return 0;
+}
+
+struct st_mysql_information_schema tokudb_user_data_exact_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
+
+mysql_declare_plugin(tokudb) 
+{
     MYSQL_STORAGE_ENGINE_PLUGIN, 
-    &storage_engine_structure, 
+    &tokudb_storage_engine, 
     "TokuDB", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    0x0400,                    /* 4.0.0 */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     tokudb_system_variables,   /* system variables */
+    NULL                       /* config options */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_information_schema, 
+    "TokuDB_user_data", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_user_data_init,     /* plugin init */
+    tokudb_user_data_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL                       /* config options */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_exact_information_schema, 
+    "TokuDB_user_data_exact", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    tokudb_user_data_exact_init,     /* plugin init */
+    tokudb_user_data_exact_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
     NULL                       /* config options */
 }
 mysql_declare_plugin_end;
