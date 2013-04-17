@@ -835,8 +835,9 @@ exit:
 }
 
 static inline void
-brt_status_update_partial_fetch(u_int8_t state)
+brt_status_update_partial_fetch(u_int8_t UU(state))
 {
+#if 0
     if (state == PT_AVAIL) {
         STATUS_VALUE(BRT_PARTIAL_FETCH_HIT)++;
     }
@@ -849,6 +850,7 @@ brt_status_update_partial_fetch(u_int8_t state)
     else {
         invariant(FALSE);
     }
+#endif
 }
 
 // Callback that states if a partial fetch of the node is necessary
@@ -930,12 +932,13 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
 
 static void
 brt_status_update_partial_fetch_reason(
-    struct brtnode_fetch_extra *bfe,
-    int i,
-    int state,
-    BOOL is_leaf
+    struct brtnode_fetch_extra* UU(bfe),
+    int UU(i),
+    int UU(state),
+    BOOL UU(is_leaf)
     )
 {
+#if 0
     invariant(state == PT_COMPRESSED || state == PT_ON_DISK);
     if (is_leaf) {
         if (bfe->type == brtnode_fetch_prefetch) {
@@ -991,6 +994,7 @@ brt_status_update_partial_fetch_reason(
             }
         }
     }
+#endif
 }
 
 // callback for partially reading a node
@@ -5283,7 +5287,7 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 {
     int r;
     uint trycount = 0;     // How many tries did it take to get the result?
-    uint root_tries = 0;   // How many times did we fetch the root node from disk?
+    //uint root_tries = 0;   // How many times did we fetch the root node from disk?
     uint tree_height;      // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
 
 try_again:
@@ -5395,7 +5399,7 @@ try_again:
         int r2 = getf(0,NULL, 0,NULL, getf_v, false);
         if (r2!=0) r = r2;
     }
-
+#if 0
     {   // accounting (to detect and measure thrashing)
         uint retrycount = trycount - 1;         // how many retries were needed?
         STATUS_VALUE(BRT_TOTAL_SEARCHES)++;
@@ -5414,7 +5418,7 @@ try_again:
                 STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHTPLUS3)++;
         }
     }
-
+#endif
     return r;
 }
 
