@@ -101,7 +101,7 @@ static void readit (void) {
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, wc, f_fetch, def_pf_req_callback, def_pf_callback, true, 0); assert(r==0);
 	r=toku_test_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE));                                      assert(r==0);
     }
-    r = toku_cachefile_close(&f, false, ZERO_LSN);    assert(r == 0);
+    toku_cachefile_close(&f, false, ZERO_LSN);
     toku_cachetable_close(&t);
     gettimeofday(&end, 0);
     toku_os_get_process_times(&end_usertime, &end_systime);

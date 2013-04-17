@@ -54,7 +54,7 @@ cachetable_test (void) {
         r = toku_test_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(4));
     }
     
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

@@ -153,7 +153,7 @@ static void checkpoint_pending(void) {
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&cf, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&cf, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

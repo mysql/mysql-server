@@ -44,7 +44,7 @@ cachetable_fd_test (void) {
     r = toku_cachefile_of_filenum(ct, fn, &newcf);
     assert(r == ENOENT);
 
-    r = toku_cachefile_close(&cf, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&cf, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

@@ -74,7 +74,7 @@ cachetable_unpin_and_remove_test (int n) {
     toku_cachetable_get_state(ct, &nentries, NULL, NULL, NULL);
     assert(nentries == 0);
 
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 
@@ -114,7 +114,7 @@ cachetable_put_evict_remove_test (int n) {
     r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(0), NULL, NULL);
     assert(r == 0);
 
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

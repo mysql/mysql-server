@@ -467,11 +467,9 @@ toku_ft_has_one_reference_unlocked(FT ft) {
 
 // evict a ft from memory by closing its cachefile. any future work
 // will have to read in the ft in a new cachefile and new FT object.
-int toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn) {
-    int r = 0;
+void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn) {
     assert(ft->cf);
-    r = toku_cachefile_close(&ft->cf, oplsn_valid, oplsn);
-    return r;
+    toku_cachefile_close(&ft->cf, oplsn_valid, oplsn);
 }
 
 // Verifies there exists exactly one ft handle and returns it.
@@ -876,8 +874,7 @@ toku_ft_remove_reference(FT ft, bool oplsn_valid, LSN oplsn, remove_ft_ref_callb
         }
         if (!needed) {
             // close header
-            int r = toku_ft_evict_from_memory(ft, oplsn_valid, oplsn);
-            assert_zero(r);
+            toku_ft_evict_from_memory(ft, oplsn_valid, oplsn);
         }
     
         toku_ft_open_close_unlock();

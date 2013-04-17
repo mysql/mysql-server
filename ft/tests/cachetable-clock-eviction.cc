@@ -100,7 +100,7 @@ cachetable_test (void) {
     usleep(1*1024*1024);
 
     check_flush = false;
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

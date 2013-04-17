@@ -39,7 +39,7 @@ bool toku_ft_has_one_reference_unlocked(FT ft);
 
 // evict a ft from memory by closing its cachefile. any future work
 // will have to read in the ft in a new cachefile and new FT object.
-int toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn);
 
 FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 

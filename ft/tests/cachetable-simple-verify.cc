@@ -24,7 +24,7 @@ cachetable_test (void) {
   r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
   r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+  toku_cachefile_close(&f1, false, ZERO_LSN);
   toku_cachetable_close(&ct);
 
 

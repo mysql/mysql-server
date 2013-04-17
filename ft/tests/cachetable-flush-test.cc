@@ -72,8 +72,8 @@ test_cachetable_def_flush (int n) {
         assert(r == 0);
     }
 
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachefile_close(&f2, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
+    toku_cachefile_close(&f2, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

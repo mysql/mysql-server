@@ -80,7 +80,7 @@ run_test (void) {
     assert(my_cleaner_callback_called);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 
