@@ -472,6 +472,11 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
 }
 
 // There must still be at least one child
+// Requires that all messages in buffers above have been applied.
+// Because all messages above have been applied, setting msn of all new basements 
+// to max msn of existing basements is correct.  (There cannot be any messages in
+// buffers above that still need to be applied.)
+// TODO: assert that all basement DSNs are the same.
 static void
 rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 {

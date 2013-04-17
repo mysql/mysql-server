@@ -1034,7 +1034,12 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 	invariant(msna.msn == msnb.msn);
 	newroot->max_msn_applied_to_node_on_disk = msna;
     }
-    newroot->dsn = (nodea->dsn.dsn > nodeb->dsn.dsn) ? nodea->dsn : nodeb->dsn;
+    {
+	DSN dsna = nodea->dsn;
+	DSN dsnb = nodeb->dsn;
+	invariant(dsna.dsn == dsnb.dsn);
+	newroot->dsn = dsna;
+    }
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
     newroot->dirty = 1;
@@ -2428,7 +2433,7 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 	    invariant(msn_max.msn <= parent->max_msn_applied_to_node_on_disk.msn);  // parent msn must be >= children's msn
 	}
     }
-    dsn_max = (a->dsn.dsn > b->dsn.dsn) ? a->dsn : b->dsn; 
+    dsn_max = (a->dsn.dsn > b->dsn.dsn) ? a->dsn : b->dsn; // this value is ignored for leafnodes, only basement dsn is use for leafnodes
     if (a->height == 0) {
 	maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
@@ -2857,16 +2862,18 @@ brtnode_nonleaf_put_cmd_at_root (BRT t, BRTNODE node, BRT_MSG cmd)
 }
 
 static BOOL 
-partition_requires_msg_application(BRTNODE node, int childnum, ANCESTORS ancestors) {
+partition_requires_msg_application(BRTNODE leaf, int childnum, ANCESTORS ancestors) {
+    invariant(leaf->height == 0);
     BOOL requires_msg_application = FALSE;
-    if (BP_STATE(node,childnum) != PT_AVAIL) return FALSE;
+    if (BP_STATE(leaf,childnum) != PT_AVAIL) return FALSE;
     for (
         ANCESTORS curr_ancestors = ancestors; 
         curr_ancestors; 
         curr_ancestors = curr_ancestors->next
         ) 
     {
-        if (curr_ancestors->node->dsn.dsn > BLB_MAX_DSN_APPLIED(node,childnum).dsn) {
+	// Note, we compare DSN of each nonleaf ancestor to DSN of relevant basement.
+        if (curr_ancestors->node->dsn.dsn > BLB_MAX_DSN_APPLIED(leaf,childnum).dsn) {
             requires_msg_application = TRUE;
 	    brt_status.dsn_gap++;
             break;
