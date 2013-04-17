@@ -19,6 +19,7 @@ void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
 void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
 DISKOFF toku_block_get_offset(BLOCK_TABLE bt, BLOCKNUM b);
 DISKOFF toku_block_get_size(BLOCK_TABLE bt, BLOCKNUM b);
+void toku_block_get_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
 int toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty, TOKULOGGER logger);
 int toku_free_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *b, int *dirty, TOKULOGGER logger);
 void toku_verify_diskblocknumber_allocated(BLOCK_TABLE bt, BLOCKNUM b);
