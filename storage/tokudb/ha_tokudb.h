@@ -79,6 +79,8 @@ typedef struct st_tokudb_share {
 
     bool has_unique_keys;
     bool replace_into_fast;
+    rw_lock_t num_DBs_lock;
+    u_int32_t num_DBs;
 } TOKUDB_SHARE;
 
 #define HA_TOKU_VERSION 3
@@ -309,7 +311,6 @@ private:
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
-    int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
     int key_cmp(uint keynr, const uchar * old_row, const uchar * new_row);
     int handle_cursor_error(int error, int err_to_return, uint keynr);
     DBT *get_pos(DBT * to, uchar * pos);

@@ -98,6 +98,13 @@ static MYSQL_THDVAR_BOOL(load_save_space,
   NULL, 
   FALSE
   );
+static MYSQL_THDVAR_BOOL(create_index_online,
+  0,
+  "if on, create index done online",
+  NULL, 
+  NULL, 
+  FALSE
+  );
 static MYSQL_THDVAR_BOOL(prelock_empty,
   0,
   "Tokudb Prelock Empty Table",
@@ -543,6 +550,10 @@ uint get_pk_insert_mode(THD* thd) {
 
 bool get_load_save_space(THD* thd) {
     return (THDVAR(thd, load_save_space) != 0);
+}
+
+bool get_create_index_online(THD* thd) {
+    return (THDVAR(thd, create_index_online) != 0);
 }
 
 bool get_prelock_empty(THD* thd) {
@@ -1423,6 +1434,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_lock_wait),
     MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(load_save_space),
+    MYSQL_SYSVAR(create_index_online),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
