@@ -6,6 +6,7 @@ extern "C" {
 #if defined(_WIN32)
 #include "misc.h"
 #endif
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "toku_os.h"
 }
@@ -603,7 +604,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
         }
     }
 
-    sprintf(data_amount_msg, "Number of bytes in database: %"PRIu64, num_bytes_in_db);
+    sprintf(data_amount_msg, "Number of bytes in database: %" PRIu64, num_bytes_in_db);
     stat_print(
         thd, 
         tokudb_hton_name, 
