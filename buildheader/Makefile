@@ -10,6 +10,10 @@ endif
 CFLAGS = $(GCC_VERSION_SPECIFIC_WARNINGS) -Wall -W -Werror -g $(OPTFLAGS)
 CPPFLAGS = -I. -I../toku_include
 
+ifeq ($(CC),icc)
+ CFLAGS += -diag-disable 188
+endif
+
 default: ../include/db.h
 
 ../include/db.h: make_tdb
