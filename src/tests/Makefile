@@ -704,7 +704,7 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
-loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
+loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 	true
 
 loader-stress-test0.tdbrun: loader-stress-test.tdb$(BINSUF)
@@ -715,6 +715,9 @@ loader-stress-test1.tdbrun: loader-stress-test.tdb$(BINSUF)
 
 loader-stress-test2.tdbrun: loader-stress-test.tdb$(BINSUF) 
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 2 -r 5000 -s $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
+
+loader-stress-test3.tdbrun: loader-stress-test.tdb$(BINSUF)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 3 -u -c $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.

@@ -2,6 +2,16 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+
+/**************
+ *
+ * NOTE: This test is used for upgrade testing as well as for exercising the loader.
+ *       Changes should not be made gratuitously.
+ *       The 4.1.1 version of this test was used to create many of the preloaded
+ *       environments in the <svn-top>/tokudb/tokudb.data directory.
+ */
+
+
 // Need to use malloc for the malloc instrumentation tests
 #define TOKU_ALLOW_DEPRECATED
 
@@ -26,7 +36,7 @@ enum {MAGIC=311};
 char *datadir = NULL;
 BOOL check_est = TRUE; // do check the estimates by default
 BOOL footprint_print = FALSE; // print memory footprint info 
-
+BOOL upgrade_test = FALSE;   
 
 // Code for showing memory footprint information.
 pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -433,9 +443,33 @@ char *free_me = NULL;
 char *env_dir = ENVDIR; // the default env_dir.
 char *tmp_subdir = "tmp.subdir";
 
+#define OLDDATADIR "../../../../tokudb.data/"
+char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.emptydictionaries.cleanshutdown";
+
+static void setup(void) {
+    int r;
+    int len = 256;
+    char syscmd[len];
+    char * src_db_dir;
+
+    src_db_dir = db_v4_dir;
+
+    r = snprintf(syscmd, len, "cp -r %s %s", src_db_dir, env_dir);
+    assert(r<len);
+    r = system(syscmd);                                                                                 
+    CKERR(r);
+}
+
 static void run_test(void) 
 {
     int r;
+    
+    int cmdlen = strlen(env_dir) + strlen(tmp_subdir) + 10;
+    char tmpdir[cmdlen];
+    r = snprintf(tmpdir, cmdlen, "%s/%s", env_dir, tmp_subdir);
+    assert(r<cmdlen);
+    
+    // first delete anything left from previous run of this test
     {
 	int len = strlen(env_dir) + 20;
 	char syscmd[len];
@@ -443,16 +477,17 @@ static void run_test(void)
 	assert(r<len);
 	r = system(syscmd);                                                                                   CKERR(r);
     }
-    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
-    {
-	char len = strlen(env_dir) + strlen(tmp_subdir) + 10;
-	char tmpdir[len];
-	r = snprintf(tmpdir, len, "%s/%s", env_dir, tmp_subdir);
-	assert(r<len);
-	r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
-	r = db_env_create(&env, 0);                                                                           CKERR(r);
-	r = env->set_tmp_dir(env, tmp_subdir);                                                                CKERR(r);
+    if (upgrade_test) {
+	setup();
     }
+    else {
+	r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
+	r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
+    }
+
+    r = db_env_create(&env, 0);                                                                           CKERR(r);
+    r = env->set_tmp_dir(env, tmp_subdir);                                                                CKERR(r);
+    
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
     if ( verbose ) printf("CACHESIZE = %d MB\n", CACHESIZE);
     r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
@@ -614,6 +649,8 @@ static void do_args(int argc, char * const argv[]) {
             datadir = argv[0];
 	} else if (strcmp(argv[0], "--dont_check_est") == 0) {
 	    check_est = FALSE;
+        } else if (strcmp(argv[0], "-u")==0) {
+            upgrade_test = TRUE;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
