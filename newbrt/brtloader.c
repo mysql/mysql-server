@@ -1890,7 +1890,6 @@ static int loader_do_i (BRTLOADER bl,
     return r;
 }
 
-CILK_BEGIN
 static int toku_brt_loader_close_internal (BRTLOADER bl)
 /* Effect: Close the bulk loader.
  * Return all the file descriptors in the array fds. */
@@ -1926,7 +1925,6 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
     BL_TRACE_END;
     return result;
 }
-CILK_END
 
 int toku_brt_loader_close (BRTLOADER bl,
                            brt_loader_error_func error_function, void *error_extra,
@@ -1951,11 +1949,7 @@ int toku_brt_loader_close (BRTLOADER bl,
         return r;
     }
 
-#if defined(__cilkplusplus)
-    r = cilk::run(toku_brt_loader_close_internal, bl);
-#else
     r = toku_brt_loader_close_internal(bl);
-#endif
 
     return r;
 }
