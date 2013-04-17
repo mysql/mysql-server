@@ -701,7 +701,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_OPEN();
 
     char name_buff[FN_REFLEN];
-    uint open_mode = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
+    uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     uint max_key_length;
     int error;
 
@@ -762,11 +762,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         char newname[strlen(name) + 32];
         sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
         fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-        if ((error = db_env->txn_begin(db_env, NULL, (DB_TXN **) & transaction, 0)) ||
-            (error = (file->open(file, transaction, name_buff, "main", DB_BTREE, open_mode, 0))) || 
-            (error = transaction->commit(transaction, 0))) {
-         
-            // QQQ what happens to the transaction if the open fails?
+        if ((error = file->open(file, 0, name_buff, "main", DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
             my_free(alloc_ptr, MYF(0));
@@ -797,11 +793,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
                 }
-                if ((error = db_env->txn_begin(db_env, NULL, (DB_TXN **) & transaction, 0)) || 
-                    (error = ((*ptr)->open(*ptr, transaction, name_buff, part, DB_BTREE, open_mode, 0))) || 
-                    (error = transaction->commit(transaction, 0))) {
-                    
-                    // QQQ what happens to the transaction if the open fails?
+                if ((error = (*ptr)->open(*ptr, 0, name_buff, part, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
                     __close(1);
                     my_errno = error;
                     DBUG_RETURN(1);
