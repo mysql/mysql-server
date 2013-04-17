@@ -2950,7 +2950,7 @@ int toku_brt_alloc_init_header(BRT t) {
     return r;
 }
 
-int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header)
+int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header, BOOL* was_open)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 {
@@ -2958,9 +2958,11 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
         struct brt_header *h;
         if ((h=toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
+            *was_open = TRUE;
             return 0;
         }
     }
+    *was_open = FALSE;
     struct brt_header *h;
     int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cf), &h);
     if (r!=0) return r;
@@ -3082,7 +3084,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     if (r!=0) {
         died_after_open: 
-        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0, FALSE, ZERO_LSN);
+        toku_cachefile_close(&t->cf, 0, FALSE, ZERO_LSN);
         goto died1;
     }
     assert(t->nodesize>0);
@@ -3091,8 +3093,9 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     died_after_read_and_pin:
         goto died_after_open;
     }
+    BOOL was_already_open;
     if (is_create) {
-        r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h);
+        r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
             r = toku_brt_alloc_init_header(t);
             if (r != 0) goto died_after_read_and_pin;
@@ -3107,7 +3110,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         }
         else goto found_it;
     } else {
-        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h))!=0) goto died_after_open;
+        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h, &was_already_open))!=0) goto died_after_open;
         found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (!t->did_set_flags) {
@@ -3121,7 +3124,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
             }
         }
     }
-    if (log_fopen) {
+    if (log_fopen && !was_already_open) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
         r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
         if (r!=0) goto died_after_read_and_pin;
     }
@@ -3404,7 +3407,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
     return r;
 }
 
-int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     assert(toku_omt_size(brt->txns)==0);
     int r;
     while (!toku_list_empty(&brt->cursors)) {
@@ -3425,7 +3428,7 @@ int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL op
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         // printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
 	if (error_string) assert(*error_string == 0);
-        r = toku_cachefile_close(&brt->cf, logger, error_string, oplsn_valid, oplsn);
+        r = toku_cachefile_close(&brt->cf, error_string, oplsn_valid, oplsn);
 	if (r==0 && error_string) assert(*error_string == 0);
     }
     if (brt->temp_descriptor.dbt.data) toku_free(brt->temp_descriptor.dbt.data);
@@ -3433,8 +3436,8 @@ int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL op
     return r;
 }
 
-int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
-    return toku_close_brt_lsn(brt, logger, error_string, FALSE, ZERO_LSN);
+int toku_close_brt (BRT brt, char **error_string) {
+    return toku_close_brt_lsn(brt, error_string, FALSE, ZERO_LSN);
 }
 
 int toku_brt_create(BRT *brt_ptr) {
@@ -5138,7 +5141,7 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_d
 	char *error_string = NULL;
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
-	r = toku_cachefile_close(&cf, toku_cachefile_logger(cf), &error_string, FALSE, ZERO_LSN);
+	r = toku_cachefile_close(&cf, &error_string, FALSE, ZERO_LSN);
 	assert(r==0);
     }
     else

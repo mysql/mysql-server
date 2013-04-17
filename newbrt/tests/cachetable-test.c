@@ -287,7 +287,7 @@ static void test0 (void) {
     expectN(7);
     expectN(6);
     expectN(1);
-    r=toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN);
+    r=toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);
     assert(r==0);
     r=toku_cachetable_close(&t);
     assert(r==0);
@@ -352,7 +352,7 @@ static void test_nested_pin (void) {
     r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
     //    toku_os_usleep(1*1000000);
-    r = toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
@@ -415,14 +415,14 @@ static void test_multi_filehandles (void) {
 
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(2), toku_cachetable_hash(f1, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
-    r = toku_cachefile_close(&f1, 0, 0, FALSE, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r==0);
 
     r = toku_cachetable_unpin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachetable_unpin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
-    r = toku_cachefile_close(&f2, 0, 0, FALSE, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f2, 0, FALSE, ZERO_LSN); assert(r==0);
 
     r = toku_cachetable_unpin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
-    r = toku_cachefile_close(&f3, 0, 0, FALSE, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f3, 0, FALSE, ZERO_LSN); assert(r==0);
 
     r = toku_cachetable_close(&t); assert(r==0);
 }
@@ -543,7 +543,7 @@ static void test_dirty(void) {
     assert(dirty == 1);
     assert(pinned == 0);
      
-    r = toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN);
+    r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);
@@ -620,7 +620,7 @@ static void test_size_resize(void) {
     r = toku_cachetable_unpin(f, key, hkey, CACHETABLE_CLEAN, new_size);
     assert(r == 0);
 
-    r = toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN);
+    r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);
@@ -688,7 +688,7 @@ static void test_size_flush(void) {
         assert(r == 0);
     }
     
-    r = toku_cachefile_close(&f, 0, 0, FALSE, ZERO_LSN);
+    r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);

@@ -53,7 +53,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     }
 
     r = toku_brt_cursor_close(cursor);                                                           assert(r==0);
-    r = toku_close_brt(brt, 0, 0);                                                               assert(r==0);
+    r = toku_close_brt(brt, 0);                                                               assert(r==0);
     r = toku_cachetable_close(&ct);                                                              assert(r==0);
     return 0;
 }

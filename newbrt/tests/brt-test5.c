@@ -49,7 +49,7 @@ static void test5 (void) {
     }
     if (verbose) printf("\n");
     toku_free(values);
-    r = toku_close_brt(t, 0, 0);    assert(r==0);
+    r = toku_close_brt(t, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     toku_memory_check_all_free();
 }

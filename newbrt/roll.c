@@ -36,7 +36,7 @@ toku_commit_fdelete (u_int8_t   file_was_open,
 	r = toku_cachefile_redirect_nullfd(cf);
 	assert(r==0);
         char *error_string = NULL;
-        r = toku_cachefile_close(&cf, txn->logger, &error_string, TRUE, oplsn);
+        r = toku_cachefile_close(&cf, &error_string, TRUE, oplsn);
         assert(r==0);
     }
     r = unlink(fname);  // pathname relative to cwd
@@ -64,7 +64,7 @@ toku_rollback_fdelete (u_int8_t   UU(file_was_open),
 	assert(r == 0);
         char *error_string = NULL;
 	// decrement refcount that was incremented in toku_brt_remove_on_commit()
-        r = toku_cachefile_close(&cf, txn->logger, &error_string, TRUE, oplsn);
+        r = toku_cachefile_close(&cf, &error_string, TRUE, oplsn);
         assert(r==0);
     }
     return r;

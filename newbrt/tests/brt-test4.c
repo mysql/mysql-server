@@ -31,7 +31,7 @@ static void test4 (int nodesize, int count, int memcheck) {
 	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
     }
     r = toku_verify_brt(t); assert(r==0);
-    r = toku_close_brt(t, 0, 0);        assert(r==0);
+    r = toku_close_brt(t, 0);        assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     toku_memory_check_all_free();
     gettimeofday(&t1, 0);
