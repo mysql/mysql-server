@@ -21,6 +21,12 @@ typedef struct {
 } DICTIONARY_S, *DICTIONARY;
 
 
+static inline int64_t UU()
+generate_val(int64_t key) {
+    int64_t val = key + 314;
+    return val;
+}
+
 // return 0 if same
 static int
 verify_identical_dbts(const DBT *dbt1, const DBT *dbt2) {
@@ -260,11 +266,48 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
     }
 }
 
-static inline int64_t UU()
-generate_val(int64_t key) {
-    int64_t val = key + 314;
-    return val;
+static void UU()
+delete_both_random(DB *db1, DB *db2, DB_TXN *txn, u_int32_t flags) {
+    int64_t k = random64();
+    int64_t v = random64();
+    int r;
+    DBT key;
+    DBT val;
+    dbt_init(&key, &k, sizeof(k));
+    dbt_init(&val, &v, sizeof(v));
+
+    if (db1) {
+        r = db1->delboth(db1, txn, &key, &val, flags);
+	CKERR2s(r, 0, DB_NOTFOUND);
+    }
+    if (db2) {
+        r = db2->delboth(db2, txn, &key, &val, flags);
+	CKERR2s(r, 0, DB_NOTFOUND);
+    }
 }
+
+
+
+static void UU()
+delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, u_int32_t flags) {
+    int r;
+    DBT key;
+    DBT val;
+    int64_t v = generate_val(k);
+
+    dbt_init(&key, &k, sizeof(k));
+    dbt_init(&val, &v, sizeof(v));
+
+    if (db1) {
+        r = db1->delboth(db1, txn, &key, &val, flags);
+	CKERR2s(r, 0, DB_NOTFOUND);
+    }
+    if (db2) {
+        r = db2->delboth(db2, txn, &key, &val, flags);
+	CKERR2s(r, 0, DB_NOTFOUND);
+    }
+}
+
 
 
 static void
