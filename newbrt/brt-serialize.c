@@ -1062,19 +1062,38 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return rr;
 }
 
+u_int32_t
+toku_serialize_descriptor_size(struct descriptor *desc) {
+    //Checksum NOT included in this.  Checksum only exists in header's version.
+    u_int32_t size = 4+ //version
+                     4; //size
+    size += desc->dbt.size;
+    return size;
+}
+
+static void
+serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc) {
+    if (desc->version==0) assert(desc->dbt.size==0);
+    wbuf_int(wb, desc->version);
+    wbuf_bytes(wb, desc->dbt.data, desc->dbt.size);
+}
+
 //Descriptor is written to disk during toku_brt_open iff we have a new (or changed)
 //descriptor.
 //Descriptors are NOT written during the header checkpoint process.
 int
-toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset) {
+toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOFF offset) {
     int r;
     // make the checksum
-    int64_t size = desc->size+4; //4 for checksum
+    int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
     struct wbuf w;
     wbuf_init(&w, toku_xmalloc(size), size);
-    wbuf_literal_bytes(&w, desc->data, desc->size);
-    u_int32_t checksum = x1764_finish(&w.checksum);
-    wbuf_int(&w, checksum);
+    serialize_descriptor_contents_to_wbuf(&w, desc);
+    {
+        //Add checksum
+        u_int32_t checksum = x1764_finish(&w.checksum);
+        wbuf_int(&w, checksum);
+    }
     assert(w.ndone==w.size);
     {
         lock_for_pwrite();
@@ -1089,7 +1108,25 @@ toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset) {
 }
 
 static void
-deserialize_descriptor_from(int fd, struct brt_header *h, DBT *desc) {
+deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc) {
+    desc->version  = rbuf_int(rb);
+    u_int32_t size;
+    bytevec   data;
+    rbuf_bytes(rb, &data, &size);
+    bytevec   data_copy;
+    if (size>0)
+        data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
+    else {
+        assert(size==0);
+        data_copy = NULL;
+    }
+    assert(data_copy);
+    toku_fill_dbt(&desc->dbt, data_copy, size);
+    if (desc->version==0) assert(desc->dbt.size==0);
+}
+
+static void
+deserialize_descriptor_from(int fd, struct brt_header *h, struct descriptor *desc) {
     DISKOFF offset;
     DISKOFF size;
     toku_get_descriptor_offset_size(h->blocktable, &offset, &size);
@@ -1111,8 +1148,12 @@ deserialize_descriptor_from(int fd, struct brt_header *h, DBT *desc) {
                 u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 assert(x1764 == stored_x1764);
             }
-            desc->size = size-4;
-            desc->data = dbuf; //Uses 4 extra bytes, but fast.
+            {
+                struct rbuf rb = {.buf = dbuf, .size = size, .ndone = 0};
+                deserialize_descriptor_from_rbuf(&rb, desc);
+            }
+            assert(toku_serialize_descriptor_size(desc)+4 == size);
+            toku_free(dbuf);
         }
     }
 }

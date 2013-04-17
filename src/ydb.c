@@ -3282,13 +3282,13 @@ static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *,
     return r;
 }
 
-static int toku_db_set_descriptor(DB *db, const DBT *descriptor) {
+static int toku_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
     HANDLE_PANICKED_DB(db);
     int r;
     if (db_opened(db)) return EINVAL;
     else if (!descriptor) r = EINVAL;
     else if (descriptor->size>0 && !descriptor->data) r = EINVAL;
-    else r = toku_brt_set_descriptor(db->i->brt, descriptor);
+    else r = toku_brt_set_descriptor(db->i->brt, version, descriptor, dbt_userformat_upgrade);
     return r;
 }
 
@@ -3573,8 +3573,11 @@ static int locked_db_set_dup_compare(DB * db, int (*dup_compare) (DB *, const DB
     toku_ydb_lock(); int r = toku_db_set_dup_compare(db, dup_compare); toku_ydb_unlock(); return r;
 }
 
-static int locked_db_set_descriptor(DB *db, const DBT *descriptor) {
-    toku_ydb_lock(); int r = toku_db_set_descriptor(db, descriptor); toku_ydb_unlock(); return r;
+static int locked_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
+    toku_ydb_lock();
+    int r = toku_db_set_descriptor(db, version, descriptor, dbt_userformat_upgrade);
+    toku_ydb_unlock();
+    return r;
 }
 
 static void locked_db_set_errfile (DB *db, FILE *errfile) {

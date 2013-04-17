@@ -58,6 +58,13 @@ verify_int_cmp (DB *dbp, const DBT *a, const DBT *b) {
     return r;
 }
 
+static int abort_on_upgrade(DB* UU(pdb),                                                                                                                                                       
+                            u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
+                            u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
+    assert(FALSE); //Must not upgrade.
+    return ENOSYS;
+}
+
 static void
 open_db(int descriptor) {
     /* create the dup database file */
@@ -74,7 +81,8 @@ open_db(int descriptor) {
     }
     if (descriptor >= 0) {
         assert(descriptor < NUM);
-        r = db->set_descriptor(db, &descriptors[descriptor]);
+        u_int32_t descriptor_version = 1;
+        r = db->set_descriptor(db, descriptor_version, &descriptors[descriptor], abort_on_upgrade);
         CKERR(r);
         last_open_descriptor = descriptor;
     }
@@ -101,6 +109,7 @@ delete_db(void) {
         CKERR2(r, ENOENT); //Abort deleted it
     }
     else CKERR(r);
+    last_open_descriptor = -1;
 }
 
 static void
@@ -185,12 +194,19 @@ runtest(void) {
         open_db(-1);
         test_insert(i);
         close_db();
+        open_db(-1);
+        test_insert(i);
+        close_db();
+        delete_db();
 
         open_db(order[i]);
         test_insert(i);
         close_db();
+        open_db(order[i]);
+        test_insert(i);
+        close_db();
+        delete_db();
     }
-    delete_db();
     env->close(env, 0);
 }
 

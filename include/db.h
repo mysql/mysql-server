@@ -177,6 +177,9 @@ struct __toku_dbt {
   u_int32_t ulen;
   u_int32_t flags;
 };
+typedef int (*toku_dbt_upgradef)(DB*,
+                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
+                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val);
 struct __toku_db {
   struct __toku_db_internal *i;
 #define db_struct_i(x) ((x)->i)
@@ -191,7 +194,7 @@ struct __toku_db {
   int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
   const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
-  int (*set_descriptor) (DB*, const DBT*) /* set row/dictionary descriptor for a db.  Available only while db is open */;
+  int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   void *api_internal;
   int (*close) (DB*, u_int32_t);
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t);

@@ -168,7 +168,7 @@ struct brt_header {
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
-    DBT descriptor;
+    struct descriptor descriptor;
 
     u_int64_t root_put_counter; // the generation number of the brt
 
@@ -187,7 +187,8 @@ struct brt {
     unsigned int flags;
     unsigned int did_set_flags;
     unsigned int did_set_descriptor;
-    DBT          temp_descriptor;
+    struct descriptor temp_descriptor;
+    toku_dbt_upgradef dbt_userformat_upgrade;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun, and close once transactions are done.
@@ -215,7 +216,7 @@ int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
 int toku_deserialize_brtheader_from (int fd, struct brt_header **brth);
-int toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset);
+int toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOFF offset);
 
 void toku_brtnode_free (BRTNODE *node);
 
