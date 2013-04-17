@@ -9,7 +9,7 @@
 
 #define USE_RDTSC 1
 
-static inline unsigned long long rdtsc() {
+static inline unsigned long long rdtsc(void) {
     unsigned long hi, lo;
     __asm__ __volatile__ ("rdtsc\n"
                           "movl %%edx,%0\n"
@@ -21,7 +21,7 @@ static inline unsigned long long rdtsc() {
 
 #define USE_RDTSC 1
 
-static inline unsigned long long rdtsc() {
+static inline unsigned long long rdtsc(void) {
     unsigned long long r;
     __asm__ __volatile__ ("rdtsc\n"
                           "shl $32,%%rdx\n"

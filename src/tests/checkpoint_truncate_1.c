@@ -66,7 +66,7 @@ checkpoint_truncate_test(u_int32_t flags, u_int32_t n) {
 
 // Purpose is to truncate test db while checkpoint is 
 // in progress.
-void *
+static void *
 truncate_thread(void * extra) {
     DICTIONARY d = *(DICTIONARY*) extra;
     char name[MAX_NAME*2];
@@ -86,7 +86,7 @@ truncate_thread(void * extra) {
 } 
 
 
-void checkpoint_callback_1(void * extra) {
+static void checkpoint_callback_1(void * extra) {
     int r = toku_pthread_create(&thread, 0, truncate_thread, extra);
     CKERR(r);
 }

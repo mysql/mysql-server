@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <memory.h>
 
-void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
+static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
     int r;
     DB_TXN * const null_txn = 0;
 
@@ -78,7 +78,7 @@ void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
     }
 }
 
-void
+static void
 do_1381 (void) {
     int do_table_lock;
     u_int64_t raw_counts[2];

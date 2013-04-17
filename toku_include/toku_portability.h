@@ -95,14 +95,14 @@ typedef int64_t toku_off_t;
 #       pragma deprecated (malloc, free, realloc)
 #    endif
 #   else
-int      creat()                        __attribute__((__deprecated__));
-int      fstat()                        __attribute__((__deprecated__));
-int      stat()                         __attribute__((__deprecated__));
-int      getpid(void)                   __attribute__((__deprecated__));
-long int syscall(long int __sysno, ...) __attribute__((__deprecated__));
+int      creat(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
+int      fstat(int fd, struct stat *buf)            __attribute__((__deprecated__));
+int      stat(const char *path, struct stat *buf)   __attribute__((__deprecated__));
+int      getpid(void)                               __attribute__((__deprecated__));
+long int syscall(long int __sysno, ...)             __attribute__((__deprecated__));
 // Sadly, dlmalloc needs sysconf, and on linux this causes trouble with -combine.  So let the warnings show up under windows only.
 // long int sysconf(int)                   __attribute__((__deprecated__));
-int      mkdir()                        __attribute__((__deprecated__));
+int      mkdir(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
 // strdup is a macro in some libraries.
 #undef strdup
 char*    strdup(const char *)           __attribute__((__deprecated__));

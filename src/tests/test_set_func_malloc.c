@@ -37,7 +37,7 @@ brealloc (void*p, size_t s)
     return realloc(p,s);
 }
 
-void
+static void
 test1 (void)
 {
     DB_ENV *env=0;

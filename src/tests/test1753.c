@@ -7,7 +7,7 @@
 
 DB_TXN *null_txn=0;
 
-void do_test1753 (int do_create_on_reopen) {
+static void do_test1753 (int do_create_on_reopen) {
 
     if (IS_TDB==0 && DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<7 && do_create_on_reopen==0) {
 	return; // do_create_on_reopen==0 segfaults in 4.6

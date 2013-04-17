@@ -80,11 +80,11 @@ ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
 /* the ydb reference is used to cleanup the library when there are no more references to it */
 static int toku_ydb_refs = 0;
 
-static inline void ydb_add_ref() {
+static inline void ydb_add_ref(void) {
     ++toku_ydb_refs;
 }
 
-static inline void ydb_unref() {
+static inline void ydb_unref(void) {
     assert(toku_ydb_refs > 0);
     if (--toku_ydb_refs == 0) {
         /* call global destructors */

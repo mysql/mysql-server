@@ -14,7 +14,7 @@
 #define NUM_LOGGERS 10
 TOKULOGGER logger[NUM_LOGGERS];
 
-void setup_logger(int which) {
+static void setup_logger(int which) {
     char dnamewhich[200];
     int r;
     sprintf(dnamewhich, "%s_%d", dname, which);
@@ -31,7 +31,7 @@ void setup_logger(int which) {
     assert(r == 0);
 }
 
-void play_with_logger(int which) {
+static void play_with_logger(int which) {
     int r;
     {
 	r = ml_lock(&logger[which]->input_lock);
@@ -59,7 +59,7 @@ void play_with_logger(int which) {
     }
 }
 
-void tear_down_logger(int which) {
+static void tear_down_logger(int which) {
     int r;
     r = toku_logger_close(&logger[which]);
     assert(r == 0);
