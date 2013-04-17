@@ -3528,6 +3528,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
         int r = toku_omt_iterate(txn->open_brts, set_filenum_in_array, array);
         assert(r==0);
     }
+    // Zardosht claims that COMMITTING, ABORTING and RETIRED can never happen because of the multi-operation lock.
     switch (toku_txn_get_state(txn)) {
     case TOKUTXN_LIVE:
     case TOKUTXN_COMMITTING:
