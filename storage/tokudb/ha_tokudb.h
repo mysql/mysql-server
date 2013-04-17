@@ -199,6 +199,14 @@ private:
 
     PRIM_KEY_PART_INFO* primary_key_offsets;
 
+    //
+    // buffer for updating the status of long insert, delete, and update
+    // statements. Right now, the the messages are 
+    // "[inserted|updated|deleted] about %llu rows",
+    // so a buffer of 200 is good enough.
+    //
+    char write_status_msg[200]; //buffer of 200 should be a good upper bound.
+
     bool fix_rec_buff_for_blob(ulong length);
 #define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 5 // QQQ why 5?
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
