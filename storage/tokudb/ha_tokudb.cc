@@ -4167,8 +4167,24 @@ int ha_tokudb::info(uint flag) {
                 &dict_stats
                 );
             if (error) { goto cleanup; }
-
+            
             stats.data_file_length = dict_stats.bt_dsize;
+            if (hidden_primary_key) {
+                //
+                // in this case, we have a hidden primary key, do not
+                // want to report space taken up by the hidden primary key to the user
+                //
+                u_int64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
+                stats.data_file_length = (hpk_space > stats.data_file_length) ? 0 : stats.data_file_length - hpk_space;
+            }
+            else {
+                //
+                // one infinity byte per key needs to be subtracted
+                //
+                u_int64_t inf_byte_space = dict_stats.bt_ndata;
+                stats.data_file_length = (inf_byte_space > stats.data_file_length) ? 0 : stats.data_file_length - inf_byte_space;
+            }
+
             stats.mean_rec_length = stats.records ? (ulong)(stats.data_file_length/stats.records) : 0;
             stats.index_file_length = 0;
             for (uint i = 0; i < curr_num_DBs; i++) {
