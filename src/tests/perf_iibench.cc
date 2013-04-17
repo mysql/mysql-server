@@ -49,9 +49,7 @@ static void iibench_generate_secondary_keys(int64_t pk, struct iibench_row *row)
     row->c = hash(pk * 3);
 }
 
-static void iibench_verify_row(struct iibench_row *row) {
-    (void) iibench_verify_row;
-    
+static void UU() iibench_verify_row(struct iibench_row *row) {
     struct iibench_row expected_row;
     iibench_generate_secondary_keys(row->pk, &expected_row);
     invariant(row->a == expected_row.a);
