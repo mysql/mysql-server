@@ -124,14 +124,14 @@ run_test() {
         then
             rm -f $tmplog
             t2="$(date)"
-            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" > "$mylog"
+            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" >> "$mylog"
         else
             save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update recover
-            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" > "$mylog"
+            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
         fi
     else
         save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update test
-        echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" > "$mylog"
+        echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
     fi
     cd ..
     rm -rf $rundir
