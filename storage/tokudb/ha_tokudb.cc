@@ -2903,6 +2903,7 @@ int ha_tokudb::end_bulk_insert() {
     TOKUDB_DBUG_ENTER("ha_tokudb::end_bulk_insert");
     int error = 0;
     THD* thd = ha_thd();
+    bool using_loader = (loader != NULL);
     if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
         error = update_max_auto_inc(share->status_block, share->last_auto_increment);
@@ -2960,6 +2961,9 @@ cleanup:
     bzero(&lc,sizeof(lc));
     if (error || loader_error) {
         my_errno = error ? error : loader_error;
+        if (using_loader) {
+            share->try_table_lock = true;
+        }
     }
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
