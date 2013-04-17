@@ -491,6 +491,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
     printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
     printf("  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ \n");
+    printf("  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ \n");
     printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
     printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
     printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");

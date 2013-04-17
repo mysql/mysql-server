@@ -66,9 +66,6 @@ void toku_cachetable_minicron_shutdown(CACHETABLE ct);
 // Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.
 int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
 
-// Get the number of cachetable misses (in misscount) and the accumulated time waiting for reads (in misstime, units of microseconds)
-void toku_cachetable_get_miss_times(CACHETABLE ct, uint64_t *misscount, uint64_t *misstime);
-
 // Open a file and bind the file to a new cachefile object. (For use by test programs only.)
 int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, int flags, mode_t mode);
 
@@ -414,6 +411,7 @@ typedef struct cachetable_status {
     uint64_t  local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
     uint64_t  local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
     uint64_t  local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
+    u_int64_t evictions;
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);

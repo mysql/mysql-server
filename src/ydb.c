@@ -1880,6 +1880,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->local_checkpoint         = ctstat.local_checkpoint;
 	    engstat->local_checkpoint_files   = ctstat.local_checkpoint_files;
 	    engstat->local_checkpoint_during_checkpoint = ctstat.local_checkpoint_during_checkpoint;
+            engstat->cachetable_evictions     = ctstat.evictions;
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
@@ -2089,6 +2090,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_evictions             %"PRIu64"\n", engstat.cachetable_evictions);
 	n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
 	n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
 	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
