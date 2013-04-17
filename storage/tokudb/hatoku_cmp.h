@@ -11,6 +11,24 @@ extern "C" {
 #include <db.h>
 
 
+
+
+typedef enum {
+    toku_type_int = 0,
+    toku_type_double,
+    toku_type_float,
+    toku_type_unknown
+} TOKU_TYPE;
+
+
+inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type);
+
+
+uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, int num_bytes);
+uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, int num_bytes);
+int cmp_toku_int (uchar* a, uchar* b, bool is_signed, int num_bytes);
+
+
 //
 // for storing NULL byte in keys
 //

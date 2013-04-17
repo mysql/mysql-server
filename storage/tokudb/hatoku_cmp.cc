@@ -6,6 +6,163 @@ extern "C" {
 #include "hatoku_cmp.h"
 
 
+inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
+    TOKU_TYPE ret_val = toku_type_unknown;
+    switch (mysql_type) {
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_TIMESTAMP:
+        ret_val = toku_type_int;
+        break;
+    default:
+        ret_val = toku_type_unknown;
+    }
+    return ret_val;
+}
+
+
+
+//
+// assuming MySQL in little endian, and we are storing in little endian
+//
+uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, int num_bytes) {
+    switch (num_bytes) {
+    case (1):
+    case (2):
+    case (3):
+    case (4):
+    case (8):
+        memcpy(to_tokudb, from_mysql, num_bytes);
+    default:
+        assert(false);
+    }
+    return to_tokudb+num_bytes;
+}
+
+//
+// assuming MySQL in little endian, and we are unpacking to little endian
+//
+uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, int num_bytes) {
+    switch (num_bytes) {
+    case (1):
+    case (2):
+    case (3):
+    case (4):
+    case (8):
+        memcpy(to_mysql, from_tokudb, num_bytes);
+    default:
+        assert(false);
+    }
+    return from_tokudb+num_bytes;
+}
+
+int cmp_toku_int (uchar* a, uchar* b, bool is_signed, int num_bytes) {
+    int ret_val = 0;
+    //
+    // case for unsigned integers
+    //
+    if (!is_signed) {
+        u_int32_t a_num, b_num = 0;
+        u_int64_t a_big_num, b_big_num = 0;
+        switch (num_bytes) {
+        case (1):
+            a_num = *a;
+            b_num = *b;
+        case (2):
+            a_num = uint2korr(a);
+            b_num = uint2korr(b);
+        case (3):
+            a_num = uint3korr(a);
+            b_num = uint3korr(b);
+            ret_val = a-b;
+            goto exit;
+        case (4):
+            a_num = uint4korr(a);
+            b_num = uint4korr(b);
+            if (a < b) {
+                ret_val = -1; goto exit;
+            }
+            if (a > b) {
+                ret_val = 1; goto exit;
+            }
+            ret_val = 0;
+            goto exit;
+        case (8):
+            a_big_num = uint8korr(a);
+            b_big_num = uint8korr(b);
+            if (a_big_num < b_big_num) {
+                ret_val = -1; goto exit;
+            }
+            else if (a_big_num > b_big_num) {
+                ret_val = 1; goto exit;
+            }
+            ret_val = 0;
+            goto exit;
+        default:
+            assert(false);
+        }
+    }
+    //
+    // case for signed integers
+    //
+    else {
+        int32_t a_num, b_num = 0;
+        int64_t a_big_num, b_big_num = 0;
+        switch (num_bytes) {
+        case (1):
+            a_num = *(signed char *)a;
+            b_num = *(signed char *)b;
+        case (2):
+            a_num = sint2korr(a);
+            b_num = sint2korr(b);
+        case (3):
+            a_num = sint3korr(a);
+            b_num = sint3korr(b);
+            ret_val = a-b;
+            goto exit;
+        case (4):
+            a_num = sint4korr(a);
+            b_num = sint4korr(b);
+            if (a_num < b_num) {
+                ret_val = -1; goto exit;
+            }
+            if (a_num > b_num) {
+                ret_val = 1; goto exit;
+            }
+            ret_val = 0;
+            goto exit;
+        case (8):
+            a_big_num = sint8korr(a);
+            b_big_num = sint8korr(b);
+            if (a_big_num < b_big_num) {
+                ret_val = -1; goto exit;
+            }
+            else if (a_big_num > b_big_num) {
+                ret_val = 1; goto exit;
+            }
+            ret_val = 0;
+            goto exit;
+        default:
+            assert(false);
+        }
+    }
+    //
+    // if this is hit, indicates bug in writing of this function
+    //
+    assert(false);
+exit:
+    return ret_val;    
+}
+
+
 inline int tokudb_compare_two_hidden_keys(
     const void* new_key_data, 
     const u_int32_t new_key_size, 
