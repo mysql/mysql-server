@@ -508,7 +508,8 @@ generate_log_reader (void) {
     fprintf(hf, ";\n");
     fprintf(cf, "{\n");
     fprintf(cf, "  memset(le, 0, sizeof(*le));\n");
-    fprintf(cf, "  {\n    long pos = ftell(infile);\n    if (pos<=12) return -1;\n  }\n");
+    fprintf(cf, "  long pos = ftell(infile);\n");
+    fprintf(cf, "  if (pos<=12) return -1;\n");
     fprintf(cf, "  int r = fseek(infile, -4, SEEK_CUR); \n");//              assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  uint32_t len;\n");
@@ -518,6 +519,8 @@ generate_log_reader (void) {
     fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  r = toku_log_fread(infile, le); \n");//                   assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return 1;\n");
+    fprintf(cf, "  long afterpos = ftell(infile);\n");
+    fprintf(cf, "  if (afterpos != pos) return 1;\n");
     fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR); \n");//           assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  return 0;\n");
