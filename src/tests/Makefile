@@ -200,6 +200,8 @@ BDB_DONTRUN_TESTS = \
 	recover-ft6 \
 	recover-ft7 \
 	recover-ft8 \
+	recover-ft9 \
+	recover-ft10 \
         recover-loader-test \
         recover-lsn-filter-multiple \
 	recover-put-multiple \
@@ -592,12 +594,6 @@ ABORTCODE=137
 	fi \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-.PHONY: %.loader
-# Generally these subtests cannot run in parallel unless they support an environment arg
-%.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
 
@@ -906,54 +902,48 @@ test3039.tdbrun: test3039.tdb
 	( ($(VGRIND) ./$< -v -n 1000 ) && ./$< -v ) $(SUMMARIZE_CMD)
 
 # loader tests
+.PHONY: %.loader
+%.loader: %.nop.loader %.p.loader
+	true
+%.nop.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+%.p.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
 # re-enable loader-stress-test3 when upgrade is complete
 #loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
-	true
-
+	true 
 loader-stress-test0.tdbrun: loader-stress-test.tdb$(BINSUF)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 0 -c $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -c -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 loader-stress-test1.tdbrun: loader-stress-test.tdb$(BINSUF)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 1 -c -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -c -p -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 loader-stress-test2.tdbrun: loader-stress-test.tdb$(BINSUF) 
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 2 -r 5000 -s $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
-
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -r 5000 -s -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD) # to manifest #2717.
 loader-stress-test3.tdbrun: loader-stress-test.tdb$(BINSUF)
-	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -e 3 -u -c $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -u -c -e dir.$@ $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
-
 loader-dup-test0.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -e 0 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./loader-dup-test.tdb -e dir.$@ $(SUMMARIZE_CMD)
 loader-dup-test1.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 500000 -e 1 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 500000 -e dir.$@ $(SUMMARIZE_CMD)
 loader-dup-test2.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 1000000 -e 2 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 1000000 -e dir.$@ $(SUMMARIZE_CMD)
 loader-dup-test3.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 100 -e 3 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 100 -e dir.$@ $(SUMMARIZE_CMD)
 loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -e 4 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -e dir.$@ $(SUMMARIZE_CMD)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e 5 $(SUMMARIZE_CMD)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.$@ $(SUMMARIZE_CMD)
 
 loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 1)
 	true
-
 loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./$< -s -r 8000 -e 0 $(SUMMARIZE_CMD)
-
+	$(VGRIND) ./$< -s -r 8000 -e dir.$@ $(SUMMARIZE_CMD)
 loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./$< -s -r 8000 -p -e 1 $(SUMMARIZE_CMD)
-
-LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stress-test tpch-load
+	$(VGRIND) ./$< -s -r 8000 -p -e dir.$@ $(SUMMARIZE_CMD)
 
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
@@ -964,7 +954,6 @@ CHECK_HOTINDEXER_UNDO_TESTS = $(patsubst %.test,%.run,$(HOTINDEXER_UNDO_TESTS))
 
 hotindexer-undo-do-test.tdbrun: $(CHECK_HOTINDEXER_UNDO_TESTS)
 	true
-
 $(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF) 
 	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
@@ -998,35 +987,26 @@ stress_tests.drdrun: $(TINY_STRESS_TESTS) \
 	large_test_stress1.drdrun large_test_stress3.drdrun \
 	test_4015.drdrun
 	true
-
 tiny_stress_tests.drdrun: $(TINY_STRESS_TESTS)
 	true
-
 mid_stress_tests.drdrun: $(MID_STRESS_TESTS)
 	true
-
 large_stress_tests.drdrun: $(LARGE_STRESS_TESTS)
 	true
-
 tiny_%.drdrun: %.tdb
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 mid_%.drdrun: %.tdb
 	./$< --only_create --envdir dir.$@ --num_elements 10000 && \
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 large_%.drdrun: %.tdb
 	./$< --only_create --envdir dir.$@ && \
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 test_4015.drdrun: test_4015.tdb
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< --envdir dir.tdb.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-
 
 # upgrade tests
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
@@ -1036,7 +1016,6 @@ UPGRADE_TESTS_VALGRIND = $(patsubst upgrade-test-%,upgrade-test-%.valgrind,$(UPG
 upgrade-tests.tdbrun: $(UPGRADE_TESTS_VALGRIND)
 	echo $(UPGRADE_TESTS_VALGRIND)
 	true
-
 upgrade-test-%.valgrind: upgrade-test-%.tdb
 	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
@@ -1045,22 +1024,16 @@ keyrange.tdbrun: keyrange-get0.tdbrun keyrange-get1.tdbrun \
 	keyrange-random-get0.tdbrun keyrange-random-get1.tdbrun \
 	keyrange-loader-get0.tdbrun keyrange-loader-get1.tdbrun
 	true
-
 keyrange-get0.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 keyrange-get1.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 keyrange-random-get0.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --random_keys 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 keyrange-random-get1.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --random_keys 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 keyrange-loader-get0.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --loader 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
 keyrange-loader-get1.tdbrun: keyrange.tdb
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --loader 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
