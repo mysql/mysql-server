@@ -1,9 +1,9 @@
 install(
   FILES
-    db-insert.cc
-    db-insert-multiple.cc
-    db-scan.cc
-    db-update.cc
+    db-insert.c
+    db-insert-multiple.c
+    db-scan.c
+    db-update.c
     Makefile
     README.examples
   DESTINATION
