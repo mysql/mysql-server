@@ -711,6 +711,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-dup-test0.tdb
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
+    ydb/loader-stress-del.comp.loader
     ydb/loader-stress-test4.tdb
     ydb/test3039.tdb
     )
