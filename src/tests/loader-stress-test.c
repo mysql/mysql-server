@@ -231,9 +231,15 @@ static int uint_cmp(const void *ap, const void *bp) {
     return 0;
 }
 
-static void check_results(DB **dbs)
-{
-    for(int j=0;j<NUM_DBS;j++){
+static void check_results(DB **dbs) {
+    // verify trees
+    for (int j = 0;j < NUM_DBS; j++) {
+        int r = dbs[j]->verify_with_progress(dbs[j], NULL, NULL, 0, 0);
+        assert(r == 0);
+    }
+
+    // verify rows
+    for (int j = 0;j < NUM_DBS; j++) {
         unsigned int prev_k = 0, prev_v = 0;
 
         DBT key, val;
