@@ -1533,11 +1533,15 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *loggerv) {
     return 0;
 }
 
+static u_int64_t get_timestamp(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL);
+    assert(r == 0);
+    return (tv.tv_sec * 1000000ULL) + tv.tv_usec;
+}
 
 // TODO: #1510 locking of cachetable is suspect
 //             verify correct algorithm overall
-
-
 
 int 
 toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
@@ -1571,7 +1575,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	    // The checkpoint must be performed after the lock is acquired.
 	    {
 		LSN begin_lsn; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
-		int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0);
+		int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, get_timestamp());
 		ct->lsn_of_checkpoint_in_progress = begin_lsn;
 		assert(r==0);
 	    }
@@ -1706,7 +1710,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
     if (logger) {
 	int r = toku_log_end_checkpoint(logger, NULL,
 					1, // want the end_checkpoint to be fsync'd
-					ct->lsn_of_checkpoint_in_progress.lsn);
+					ct->lsn_of_checkpoint_in_progress.lsn, get_timestamp());
 	assert(r==0);
 	toku_logger_note_checkpoint(logger, ct->lsn_of_checkpoint_in_progress);
     }
