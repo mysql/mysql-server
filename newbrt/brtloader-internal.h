@@ -58,7 +58,7 @@ void destroy_rowset (struct rowset *rows);
 void add_row (struct rowset *rows, DBT *key, DBT *val);
 
 int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, u_int64_t *dataoff, BRTLOADER bl);
-int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl);
+int loader_read_row (FILE *f, DBT *key, DBT *val, BRTLOADER bl);
 
 struct merge_fileset {
     int n_temp_files, n_temp_files_limit;
