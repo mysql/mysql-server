@@ -3636,7 +3636,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
             return r;
         r = toku_env_open(env, ".", DB_PRIVATE + DB_INIT_MPOOL, 0);
         if (r != 0) {
-            toku_env_close(env, 0);
+            env_unref(env);
             return r;
         }
         assert(env_opened(env));
@@ -3695,7 +3695,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         toku_free(result->i);
         toku_free(result);
         env_unref(env);
-        return ENOMEM;
+        return r;
     }
     r = toku_brt_set_bt_compare(result->i->brt, env->i->bt_compare);
     assert(r==0);
