@@ -37,19 +37,7 @@ fsync(int fd) {
 
 int 
 ftruncate(int fd, int64_t offset) {
-    HANDLE h;
-    BOOL b;
-    int r;
-
-    h = (HANDLE) _get_osfhandle(fd);
-    if (h == INVALID_HANDLE_VALUE)
-        return -1;
-    r = _lseeki64(fd, 0, SEEK_SET);
-    if (r != 0)
-        return -2;
-    b = SetEndOfFile(h);
-    if (!b)
-        return -3;
-    return 0;
+    int r = _chsize_s(fd, offset);
+    return r;
 }
 
