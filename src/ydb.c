@@ -1435,13 +1435,13 @@ toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)
 }
 
 static int 
-toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), u_int32_t UU(flags)) {
+env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), u_int32_t UU(flags)) {
     HANDLE_PANICKED_ENV(env);
     return 1;
 }
 
 static int
-toku_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
     int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
     if (r==0) {
@@ -1455,7 +1455,7 @@ toku_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /
 }
 
 static int
-toku_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
     int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
     if (r==0) {
@@ -1471,31 +1471,8 @@ toku_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, 
 
 
 static int
-locked_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
-    toku_ydb_lock();
-    int r = toku_env_txn_recover(env, preplist, count, retp, flags);
-    toku_ydb_unlock();
-    return r;
-}
-static int
-locked_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
-    toku_ydb_lock();
-    int r = toku_env_txn_xa_recover(env, xids, count, retp, flags);
-    toku_ydb_unlock();
-    return r;
-}
-
-static int
-toku_env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
+env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
     return toku_txn_manager_get_txn_from_xid(toku_logger_get_txn_manager(env->i->logger), xid, txnp);
-}
-
-static int
-locked_env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
-    toku_ydb_lock();
-    int r = toku_env_get_txn_from_xid(env, xid, txnp);
-    toku_ydb_unlock();
-    return r;
 }
 
 static int 
@@ -1513,11 +1490,6 @@ locked_env_set_cachesize(DB_ENV *env, u_int32_t gbytes, u_int32_t bytes, int nca
     toku_ydb_lock(); int r = toku_env_set_cachesize(env, gbytes, bytes, ncache); toku_ydb_unlock(); return r;
 }
 
-
-static int 
-locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_txn_stat(env, statp, flags); toku_ydb_unlock(); return r;
-}
 
 static int
 env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
@@ -1687,26 +1659,10 @@ env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const DBT *, c
     return r;
 }
 
-static int
-locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
-    toku_ydb_lock();
-    int r = env_set_default_bt_compare(env, bt_compare);
-    toku_ydb_unlock();
-    return r;
-}
-
 static void
 env_set_update (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
     env->i->update_function = update_function;
 }
-
-static void
-locked_env_set_update (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
-    toku_ydb_lock();
-    env_set_update (env, update_function);
-    toku_ydb_unlock();
-}
-
 
 
 static int
@@ -1730,23 +1686,6 @@ env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_func gen
     }
     return r;
 }
-
-static int
-locked_env_set_generate_row_callback_for_put(DB_ENV *env, generate_row_for_put_func generate_row_for_put) {
-    toku_ydb_lock();
-    int r = env_set_generate_row_callback_for_put(env, generate_row_for_put);
-    toku_ydb_unlock();
-    return r;
-}
-
-static int
-locked_env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_func generate_row_for_del) {
-    toku_ydb_lock();
-    int r = env_set_generate_row_callback_for_del(env, generate_row_for_del);
-    toku_ydb_unlock();
-    return r;
-}
-
 static int
 env_set_redzone(DB_ENV *env, int redzone) {
     HANDLE_PANICKED_ENV(env);
@@ -1760,14 +1699,6 @@ env_set_redzone(DB_ENV *env, int redzone) {
     return r;
 }
 
-static int 
-locked_env_set_redzone(DB_ENV *env, int redzone) {
-    toku_ydb_lock();
-    int r= env_set_redzone(env, redzone);
-    toku_ydb_unlock();
-    return r;
-}
-
 static int
 env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
     toku_ltm_get_lock_wait_time(env->i->ltm, lock_timeout_msec);
@@ -1775,25 +1706,9 @@ env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
 }
 
 static int
-locked_env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
-    toku_ydb_lock();
-    int r = env_get_lock_timeout(env, lock_timeout_msec);
-    toku_ydb_unlock();
-    return r;
-}
-
-static int
 env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
     toku_ltm_set_lock_wait_time(env->i->ltm, lock_timeout_msec);
     return 0;
-}
-
-static int
-locked_env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
-    toku_ydb_lock();
-    int r = env_set_lock_timeout(env, lock_timeout_msec);
-    toku_ydb_unlock();
-    return r;
 }
 
 static void
@@ -2307,32 +2222,21 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     memset(result, 0, sizeof *result);
 
     // locked methods
-    result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
+    result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_env_err;
 #define SENV(name) result->name = locked_env_ ## name
     SENV(dbremove);
     SENV(dbrename);
-    SENV(set_default_bt_compare);
-    SENV(set_update);
-    SENV(set_generate_row_callback_for_put);
-    SENV(set_generate_row_callback_for_del);
     SENV(checkpointing_set_period);
     SENV(checkpointing_get_period);
     SENV(cleaner_set_period);
     SENV(cleaner_get_period);
     SENV(cleaner_set_iterations);
     SENV(cleaner_get_iterations);
-    SENV(txn_recover);
-    SENV(txn_xa_recover);
-    SENV(get_txn_from_xid);
     SENV(log_flush);
     //SENV(set_noticecall);
     SENV(set_cachesize);
     SENV(log_archive);
-    SENV(txn_stat);
-    SENV(set_redzone);
     SENV(create_indexer);
-    SENV(get_lock_timeout);
-    SENV(set_lock_timeout);
 #undef SENV
 #define USENV(name) result->name = env_ ## name
     // methods with locking done internally
@@ -2342,6 +2246,10 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     // unlocked methods
     USENV(open);
     USENV(close);
+    USENV(set_default_bt_compare);
+    USENV(set_update);
+    USENV(set_generate_row_callback_for_put);
+    USENV(set_generate_row_callback_for_del);
     USENV(set_lg_bsize);
     USENV(set_lg_dir);
     USENV(set_lg_max);
@@ -2365,6 +2273,13 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(set_flags);
     USENV(set_tmp_dir);
     USENV(set_verbose);
+    USENV(txn_recover);
+    USENV(txn_xa_recover);
+    USENV(get_txn_from_xid);
+    USENV(txn_stat);
+    USENV(get_lock_timeout);
+    USENV(set_lock_timeout);
+    USENV(set_redzone);
     
 #undef USENV
 

@@ -99,18 +99,16 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
     return error;
 }
 
-/** Handle errors on an environment, guarded by the ydb lock 
+/** Handle errors on an environment, 
     \param dbenv  The environment that is subject to errors
     \param error  The error code
     \param fmt    The format string for additional variable arguments to
                   be printed   */
-void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
-    toku_ydb_lock();
+void toku_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     toku_ydb_error_all_cases(env, error, FALSE, TRUE, fmt, ap);
     va_end(ap);
-    toku_ydb_unlock();
 }
 
 
