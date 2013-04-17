@@ -50,6 +50,14 @@ test_main (int argc, const char *argv[]) {
     // change the LSN and corrupt the checksum
     corrupt_the_checksum();
 
+    if (!verbose) {
+        // redirect stderr
+        int devnul = open(DEV_NULL_FILE, O_WRONLY);
+        assert(devnul >= 0);
+        r = toku_dup2(devnul, fileno(stderr)); assert(r == fileno(stderr));
+        r = close(devnul); assert(r == 0);
+    }
+
     // walk forwards
     TOKULOGCURSOR lc = NULL;
     struct log_entry *le;
