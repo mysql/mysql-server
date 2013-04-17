@@ -1,6 +1,10 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <stdlib.h>
@@ -98,5 +102,9 @@ extern int toku_malloc_counter; // so you can reset it
 extern int toku_realloc_counter;
 extern int toku_calloc_counter;
 extern int toku_free_counter;
+
+#if defined __cplusplus
+};
+#endif
 
 #endif

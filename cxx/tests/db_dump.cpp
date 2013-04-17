@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <db_cxx.h>
+#include <memory.h>
 
 static void hexdump(Dbt *d) {
     unsigned char *cp = (unsigned char *) d->get_data();
@@ -55,8 +56,8 @@ static int dbdump(char *dbfile, char *dbname) {
         // printf("%.*s\n", val.get_size(), (char *)val.get_data());
         hexdump(&val);
     }
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
 
     r = cursor->close(); assert(r == 0);
     r = db.close(0); assert(r == 0);

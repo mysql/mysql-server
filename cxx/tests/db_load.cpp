@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <db_cxx.h>
+#include <memory.h>
 
 static inline void hexdump(Dbt *d) {
     unsigned char *cp = (unsigned char *) d->get_data();
@@ -17,7 +18,7 @@ static void hexput(Dbt *d, int c) {
     int ulen = d->get_ulen();
     if (n+1 >= ulen) {
         int newulen = ulen == 0 ? 1 : ulen*2;
-        cp = (unsigned char *) realloc(cp, newulen); assert(cp);
+        cp = (unsigned char *) toku_realloc(cp, newulen); assert(cp);
         d->set_data(cp);
         d->set_ulen(newulen);
     }
@@ -77,8 +78,8 @@ static int dbload(char *dbfile, char *dbname) {
         r = db.put(0, &key, &val, 0);
         assert(r == 0);
     }
-    if (key.get_data()) free(key.get_data());
-    if (val.get_data()) free(val.get_data());
+    if (key.get_data()) toku_free(key.get_data());
+    if (val.get_data()) toku_free(val.get_data());
 
     r = db.close(0); assert(r == 0);
 #if defined(USE_ENV) && USE_ENV
