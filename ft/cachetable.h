@@ -103,8 +103,6 @@ void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 
 // cachefile operations
 
-void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threads);
-
 // Does an fsync of a cachefile.
 // Handles the case where cf points to /dev/null
 int toku_cachefile_fsync(CACHEFILE cf);

@@ -360,7 +360,7 @@ test_prefetching(void) {
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, 1, 1, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, FALSE);
     assert(r==0);
 
     test_prefetch_read(fd, brt, brt_h);    

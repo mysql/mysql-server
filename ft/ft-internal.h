@@ -515,9 +515,9 @@ int toku_serialize_ftnode_to_memory (FTNODE node,
                                       BOOL in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ char  **bytes_to_write);
-int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, int n_workitems, int n_threads, BOOL for_checkpoint);
+int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, BOOL for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
-                                    FT h, int n_workitems, int n_threads,
+                                    FT h,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
 int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);

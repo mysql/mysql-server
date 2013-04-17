@@ -583,11 +583,6 @@ int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in
     return r;
 }
 
-void toku_cachefile_get_workqueue_load (CACHEFILE UU(cf), int *n_in_queue, int *n_threads) {
-    *n_in_queue = 0;
-    *n_threads  = 0;
-}
-
 //Test-only function
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     int r;

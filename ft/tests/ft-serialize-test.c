@@ -191,12 +191,12 @@ static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA*
         PAIR_ATTR attr;
         toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->ft);
         FTNODE cloned_node = cast_to_typeof(cloned_node) cloned_node_v;
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->ft, 1, 1, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->ft, FALSE);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
     }
     else {
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->ft, 1, 1, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->ft, FALSE);
         assert(r==0);
     }
 }

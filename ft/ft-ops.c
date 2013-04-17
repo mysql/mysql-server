@@ -698,7 +698,7 @@ void toku_ftnode_clone_callback(
 
 
 void toku_ftnode_flush_callback (
-    CACHEFILE cachefile,
+    CACHEFILE UU(cachefile),
     int fd,
     BLOCKNUM nodename,
     void *ftnode_v,
@@ -723,9 +723,7 @@ void toku_ftnode_flush_callback (
         }
         if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
             toku_assert_entire_node_in_memory(ftnode);
-            int n_workitems, n_threads;
-            toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
-            int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, n_workitems, n_threads, for_checkpoint);
+            int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
             assert_zero(r);
             ftnode->layout_version_read_from_disk = FT_LAYOUT_VERSION;
         }
