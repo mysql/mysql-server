@@ -666,6 +666,9 @@ private:
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
     void invalidate_bulk_fetch();
     int delete_all_rows_internal();
+#if TOKU_INCLUDE_WRITE_FRM_DATA
+    int write_frm_data(const uchar *frm_data, size_t frm_len);
+#endif
 };
 
 #if MYSQL_VERSION_ID >= 50506
