@@ -581,6 +581,18 @@ inline int cmp_toku_varstring(
     return ret_val;
 }
 
+inline int tokudb_compare_two_hidden_keys(
+    const void* new_key_data, 
+    const u_int32_t new_key_size, 
+    const void*  saved_key_data,
+    const u_int32_t saved_key_size
+    ) {
+    assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
+    ulonglong a = hpk_char_to_num((uchar *) new_key_data);
+    ulonglong b = hpk_char_to_num((uchar *) saved_key_data);
+    return a < b ? -1 : (a > b ? 1 : 0);
+}
+
 inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -891,18 +903,6 @@ exit:
     return new_pos;
 }
 
-
-inline int tokudb_compare_two_hidden_keys(
-    const void* new_key_data, 
-    const u_int32_t new_key_size, 
-    const void*  saved_key_data,
-    const u_int32_t saved_key_size
-    ) {
-    assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
-    ulonglong a = hpk_char_to_num((uchar *) new_key_data);
-    ulonglong b = hpk_char_to_num((uchar *) saved_key_data);
-    return a < b ? -1 : (a > b ? 1 : 0);
-}
 
 int tokudb_compare_two_keys(
     const void* new_key_data, 

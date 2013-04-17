@@ -82,15 +82,6 @@ inline ulonglong hpk_char_to_num(uchar* val) {
     return uint8korr(val);
 }
 
-
-
-inline int tokudb_compare_two_hidden_keys(
-    const void* new_key_data, 
-    const u_int32_t new_key_size, 
-    const void*  saved_key_data,
-    const u_int32_t saved_key_size
-    );
-
 int tokudb_compare_two_keys(
     const void* new_key_data, 
     const u_int32_t new_key_size, 
