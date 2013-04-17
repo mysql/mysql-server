@@ -39,7 +39,8 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 /* Make the FILEID a struct for the same reason. */
 typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
 
-#if !TOKU_WINDOWS
+#if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
+#define BOOL_DEFINED
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #endif
 

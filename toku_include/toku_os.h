@@ -64,9 +64,9 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
 // Portable linux 'stat'
-int toku_stat(const char *name, toku_struct_stat *statbuf);
+int toku_stat(const char *name, toku_struct_stat *statbuf) __attribute__((__visibility__("default")));
 // Portable linux 'fstat'
-int toku_fstat(int fd, toku_struct_stat *statbuf);
+int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__("default")));
 
 #if defined __cplusplus
 };
