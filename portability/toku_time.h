@@ -26,6 +26,10 @@ static inline int
 toku_clock_gettime(clockid_t clk_id, struct timespec *ts)
 {
 #if !defined(HAVE_CLOCK_REALTIME)
+    if (clk_id != CLOCK_REALTIME) {
+        // dunno how to fake any of the other ones on osx
+        return EINVAL;
+    }
     clock_serv_t cclock;
     mach_timespec_t mts;
     host_get_clock_service(mach_host_self(), REALTIME_CLOCK, &cclock);
