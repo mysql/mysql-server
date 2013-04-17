@@ -327,7 +327,9 @@ public:
     int delete_table(const char *name);
     int rename_table(const char *from, const char *to);
     int optimize(THD * thd, HA_CHECK_OPT * check_opt);
+#if 0
     int analyze(THD * thd, HA_CHECK_OPT * check_opt);
+#endif
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
