@@ -102,7 +102,7 @@ void memarena_close(MEMARENA *map) {
     *map = 0;
 }
 
-#if defined(_WIN32)
+#if TOKU_WINDOWS_32
 #include <windows.h>
 #include <crtdbg.h>
 #endif
@@ -113,7 +113,7 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     static int move_counter = 0;
     move_counter++;
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
-#if defined(_WIN32)
+#if TOKU_WINDOWS_32
     if (other_bufs == 0) {
 	char **new_other_bufs;
         printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
