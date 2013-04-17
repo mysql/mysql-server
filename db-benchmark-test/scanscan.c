@@ -44,6 +44,9 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
     fprintf(stderr, "  --log_dir LOGDIR    put the logs in LOGDIR\n");
+    fprintf(stderr, "  --range <low> <high> set the low and high key boundaries in which random range queries are made\n");
+    fprintf(stderr, "  --experiments <n>   run n experiments (default:%d)\n", n_experiments);
+    fprintf(stderr, "  --recover           run recovery\n");
     fprintf(stderr, "  --verbose           print verbose information\n");
     return 1;
 }
