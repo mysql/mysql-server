@@ -34,6 +34,7 @@ static void
 test_cachetable_create(void) {
     CACHETABLE ct = NULL;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_close(&ct);
 }
 
 static const int test_object_size = 1;
@@ -324,8 +325,10 @@ static void test_dirty(void) {
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
-     
+
     toku_cachefile_close(&f, false, ZERO_LSN);
+
+    toku_cachetable_close(&t);
 }
 
 static int test_size_debug;
@@ -405,6 +408,7 @@ static void test_size_resize(void) {
     assert(r == 0);
 
     toku_cachefile_close(&f, false, ZERO_LSN);
+    toku_cachetable_close(&t);
 }
 
 static int min2(int a, int b) { return a < b ? a : b; }
