@@ -730,28 +730,22 @@ toku_db_hot_optimize(DB *db,
 
 static int 
 locked_db_optimize(DB *db) {
-    toku_ydb_lock();
+    // need to protect from checkpointing because
+    // toku_db_optimize does a message injection
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
     int r = toku_db_optimize(db);
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock();
     return r;
 }
 
 static int
-db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
+toku_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
     HANDLE_PANICKED_DB(db);
     int r;
     if (!db_opened(db))
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Fragmentation report available only on open DBs.\n");
     else
         r = toku_ft_get_fragmentation(db->i->ft_handle, report);
-    return r;
-}
-
-static int
-locked_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
-    toku_ydb_lock();
-    int r = db_get_fragmentation(db, report);
-    toku_ydb_unlock();
     return r;
 }
 
@@ -852,7 +846,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(open);
     SDB(change_descriptor);
     SDB(optimize);
-    SDB(get_fragmentation);
 #undef SDB
     // methods that do not take the ydb lock
 #define USDB(name) result->name = toku_db_ ## name
@@ -877,6 +870,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     USDB(cursor);
     USDB(dbt_pos_infty);
     USDB(dbt_neg_infty);
+    USDB(get_fragmentation);
 #undef USDB
     result->get_indexer = db_get_indexer;
     result->del = autotxn_db_del;
