@@ -53,6 +53,11 @@ int DbEnv::set_cachesize(u_int32_t gbytes, u_int32_t bytes, int ncache) {
     return maybe_throw_error(ret);
 }
 
+int DbEnv::set_redzone(u_int32_t percent) {
+    int ret = the_env->set_redzone(the_env, percent);
+    return maybe_throw_error(ret);
+}
+
 int DbEnv::set_flags(u_int32_t flags, int onoff) {
     int ret = the_env->set_flags(the_env, flags, onoff);
     return maybe_throw_error(ret);

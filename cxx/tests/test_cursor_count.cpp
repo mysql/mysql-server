@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <db_cxx.h>
 #include <memory.h>
+#include <sys/stat.h>
 
 int verbose;
 
@@ -325,6 +326,8 @@ void test_next_dup(Db *db, int n) {
     r = cursor->close(); assert(r == 0);
 }
 
+#define DIR "test_cursor_count.dir"
+
 int main(int argc, char *argv[]) {
     for (int i=1; i<argc; i++) {
         char *arg = argv[i];
@@ -334,9 +337,13 @@ int main(int argc, char *argv[]) {
 
     int r;
 
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
+
 #if defined(USE_ENV) && USE_ENV
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env.set_redzone(0); assert(r==0);
+    r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     Db db(&env, DB_CXX_NO_EXCEPTIONS);
 #else
     Db db(0, DB_CXX_NO_EXCEPTIONS);

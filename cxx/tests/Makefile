@@ -88,18 +88,19 @@ check_test_error_stream: test_error_stream
 	$(VGRIND) ./test_error_stream 2> $@.out $(SUMMARIZE_CMD)
 
 check_test1e: test1e
-	$(VGRIND) ./test1e > test1eactual.out 
+	$(VGRIND) ./test1e > test1eactual.out && \
 	 (echo "Prefix: Hello Name!";echo -n ": Success") > test1expect.out 
 	 diff test1eactual.out test1expect.out \
 	  $(SUMMARIZE_CMD)
 
 check_create_dump_diff: db_create db_dump db_dump_e
-	rm -f cdd.tdb cdd.tdb.dirty cdd.tdb.clean
-	$(VGRIND) ./db_create cdd.tdb a b c d && \
-	 $(VGRIND) ./db_dump cdd.tdb > cdd.out && \
+	rm -rf $@.dir
+	mkdir $@.dir
+	$(VGRIND) ./db_create --env_dir $@.dir cdd.tdb a b c d && \
+	 $(VGRIND) ./db_dump --env_dir $@.dir cdd.tdb > cdd.out && \
 	 (echo " 61";echo " 62";echo " 63";echo " 64")>cddexpect.out && \
 	 diff cdd.out cddexpect.out && \
-	 $(VGRIND) ./db_dump_e cdd.tdb > cdd.out && \
+	 $(VGRIND) ./db_dump_e --env_dir $@.dir cdd.tdb > cdd.out && \
 	 diff cdd.out cddexpect.out \
 	 $(SUMMARIZE_CMD)
 
@@ -133,12 +134,15 @@ check_exceptions: exceptions
 	$(VGRIND) ./exceptions  $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 check_db_create: db_create
-	rm -rf $@.tdb
-	$(VGRIND) ./db_create -s main $@.tdb  $(SUMMARIZE_CMD)
+	rm -rf $@.dir
+	mkdir $@.dir
+	$(VGRIND) ./db_create --env_dir $@.dir -s main $@.tdb  $(SUMMARIZE_CMD)
 check_db_create_DSM: db_create
-	rm -rf $@.tdb
-	$(VGRIND) ./db_create -D -S -s main $@.tdb  $(SUMMARIZE_CMD)
+	rm -rf $@.dir
+	mkdir $@.dir
+	$(VGRIND) ./db_create --env_dir $@.dir -D -S -s main $@.tdb  $(SUMMARIZE_CMD)
 
+# These don't need to set the env dir
 check_db_create_1: db_create
 	$(VGRIND) ./db_create &> $@.out ; test $$? -ne 0  $(SUMMARIZE_CMD)
 check_db_create_2: db_create
@@ -148,9 +152,9 @@ check_db_create_3: db_create
 check_db_create_4: db_create
 	$(VGRIND) ./db_create -s &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
-check_permissions:
-	rm -f permissions_tdb_*.tokudb && \
-	./db_create permissions.tdb 1 1 && \
-	chmod -w permissions_tdb_*.tokudb && \
-	(./db_create permissions.tdb 2 2 &> check_permissions.out 2>&1 ; test $$? -ne 0) \
+check_permissions: db_create
+	rm -rf $@.dir && mkdir $@.dir && \
+	./db_create --env_dir $@.dir permissions.tdb 1 1 && \
+	chmod -w $@.dir/*.tokudb && \
+	(./db_create --env_dir $@.dir permissions.tdb 2 2 &> check_permissions.out 2>&1 ; test $$? -ne 0) \
 	$(SUMMARIZE_CMD)

@@ -42,7 +42,8 @@ void reset_env (void) {
     toku_os_mkdir(DIR, 0777);
     if (env) delete env;
     env = new DbEnv(DB_CXX_NO_EXCEPTIONS);
-    int r = env->open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777);
+    { int r = env->set_redzone(0); assert(r==0); }
+    int r = env->open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); 
     assert(r == 0);
 }
 

@@ -12,12 +12,13 @@ static void hexdump(Dbt *d) {
     printf("\n");
 }
 
-static int dbdump(char *dbfile, char *dbname) {
+static int dbdump(const char *env_dir, const char *dbfile, const char *dbname) {
     int r;
 
 #if defined(USE_ENV) && USE_ENV
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env.set_redzone(0); assert(r==0);
+    r = env.open(env_dir, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     Db db(&env, DB_CXX_NO_EXCEPTIONS);
 #else
     Db db(0, DB_CXX_NO_EXCEPTIONS);
@@ -72,12 +73,13 @@ static int usage() {
     return 1;
 }
 
-int main(int argc, char *argv[]) {
-    char *dbname = 0;
+int main(int argc, const char *argv[]) {
+    const char *dbname = 0;
+    const char *env_dir = ".";
 
     int i;
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (0 == strcmp(arg, "-h") || 0 == strcmp(arg, "--help")) 
             return usage();
         if (0 == strcmp(arg, "-s")) {
@@ -86,11 +88,17 @@ int main(int argc, char *argv[]) {
             dbname = argv[++i];
             continue;
         }
+	if (0 == strcmp(arg, "--env_dir")) {
+            if (i+1 >= argc)
+                return usage();
+	    env_dir = argv[++i];
+	    continue;
+	}
         break;
     }
     if (i >= argc)
         return usage();
 
-    return dbdump(argv[i], dbname);
+    return dbdump(env_dir, argv[i], dbname);
 }
 

@@ -50,12 +50,12 @@ static int hexload(Dbt *d) {
     return 1;
 }
 
-static int dbload(char *dbfile, char *dbname) {
+static int dbload(const char *envdir, const char *dbfile, const char *dbname) {
     int r;
 
 #if defined(USE_ENV) && USE_ENV
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env.open(envdir, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     Db db(&env, DB_CXX_NO_EXCEPTIONS);
 #else
     Db db(0, DB_CXX_NO_EXCEPTIONS);
@@ -93,12 +93,13 @@ static int usage() {
     return 1;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, const char *argv[]) {
     int i;
 
-    char *dbname = 0;
+    const char *dbname = 0;
+    const char *env_dir = ".";
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (0 == strcmp(arg, "-h") || 0 == strcmp(arg, "--help")) 
             return usage();
         if (0 == strcmp(arg, "-s")) {
@@ -108,11 +109,17 @@ int main(int argc, char *argv[]) {
             dbname = argv[i];
             continue;
         }
+	if (0 == strcmp(arg, "--env_dir")) {
+            if (i+1 >= argc)
+                return usage();
+	    env_dir = argv[++i];
+	    continue;
+	}
         break;
     }
 
     if (i >= argc)
         return usage();
-    return dbload(argv[i], dbname);
+    return dbload(env_dir, argv[i], dbname);
 }
 

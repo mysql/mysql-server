@@ -160,6 +160,7 @@ class DbEnv {
     int close(u_int32_t);
     int open(const char *, u_int32_t, int);
     int set_cachesize(u_int32_t, u_int32_t, int);
+    int set_redzone(u_int32_t);
     int set_flags(u_int32_t, int);
     int txn_begin(DbTxn *, DbTxn **, u_int32_t);
     int set_data_dir(const char *dir);
