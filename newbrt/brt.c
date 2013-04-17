@@ -2070,26 +2070,34 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
     return 0;
 }
 
-/* put a cmd into a node at childnum */
+// Split or merge the child, if the child too large or too small.
+// Return the new fanout of node.
+static int
+brt_nonleaf_maybe_split_or_merge (BRTNODE node, int childnum, BOOL must_split, BOOL must_merge, u_int32_t *new_fanout) {
+    assert(!(must_split && must_merge));
+    if (must_split) do_split(node, childnum);
+    if (must_merge) do_merge(node, childnum);
+    *new_fanout = node->u.n.n_children;
+    return 0;
+}
+
+/* Put a cmd into a node at childnum */
+/* May result in the data being pushed to a child.
+ * Which may cause that child to split, which may cause the fanout to become larger.
+ * Return the new fanout. */
 static int
 brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BRT_CMD cmd, TOKULOGGER logger, u_int32_t *new_fanout) {
     //verify_local_fingerprint_nonleaf(node);
-    BOOL must_split MAYBE_INIT(FALSE);
-    BOOL must_merge MAYBE_INIT(FALSE);
 
     /* Push the cmd to the subtree if the buffer is empty */
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
+	BOOL must_split MAYBE_INIT(FALSE);
+	BOOL must_merge MAYBE_INIT(FALSE);
         int r = brt_nonleaf_put_cmd_child_node_simple(t, node, childnum, TRUE, cmd, logger, &must_split, &must_merge);
 	if (r==0) {
-	maybe_split_or_merge:
-	    assert(!(must_split && must_merge));
-	    if (must_split) do_split(node, childnum);
-	    if (must_merge) do_merge(node, childnum);
-	    new_fanout = node->fanout:
-	    return 0;
-	} else {
-	    // Fall out and append it to the child buffer.
+	    return brt_nonleaf_maybe_split_or_merge(node, childnum, must_split, must_merge, new_fanout);
 	}
+	// Otherwise fall out and append it to the child buffer.
     }
     //verify_local_fingerprint_nonleaf(node);
 
@@ -2109,8 +2117,11 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
         node->dirty = 1;
     }
     if (too_big()) {
-	push_biggest_child(&must_split, &must_merge);
-	goto maybe_split_or_merge;
+	int biggest_child = find_biggest_child();
+	BOOL must_split MAYBE_INIT(FALSE);
+	BOOL must_merge MAYBE_INIT(FALSE);
+	push_biggest_child(node, biggest_child, &must_split, &must_merge);
+	return brt_nonleaf_maybe_split_or_merge(node, biggest_child, must_split, must_merge, new_fanout);
     }
     new_fanout = node->fanout;
     return 0;
@@ -2171,6 +2182,63 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 }
 
 /* delete in all subtrees starting from the left most one which contains the key */
+static int
+brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, u_int32_t *new_fanout) {
+
+    /* find all children that need a copy of the command */
+    int sendchild[TREE_FANOUT], delidx = 0;
+#define sendchild_append(i) \
+        if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
+    int i;
+    for (i = 0; i < node->u.n.n_children-1; i++) {
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
+        if (cmp > 0) {
+            continue;
+        } else if (cmp < 0) {
+            sendchild_append(i);
+            break;
+        } else if (t->flags & TOKU_DB_DUPSORT) {
+            sendchild_append(i);
+            sendchild_append(i+1);
+        } else {
+            sendchild_append(i);
+            break;
+        }
+    }
+
+    if (delidx == 0)
+        sendchild_append(node->u.n.n_children-1);
+#undef sendchild_append
+
+    /* issue the cmd to all of the children found previously */
+    for (i=0; i<delidx; i++) {
+	/* Append the cmd to the appropriate child buffer. */
+	int childnum = sendchild[i];
+	int type = cmd->type;
+        DBT *k = cmd->u.id.key;
+        DBT *v = cmd->u.id.val;
+
+	int r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
+	if (r!=0) return r;
+	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+        r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	assert(r==0);
+	node->u.n.n_bytes_in_buffers += diff;
+	BNC_NBYTESINBUF(node, childnum) += diff;
+        node->dirty = 1;
+    }
+    if (too_big()) {
+	int biggest_child = find_biggest_child();
+	BOOL must_split MAYBE_INIT(FALSE);
+	BOOL must_merge MAYBE_INIT(FALSE);
+	push_biggest_child(node, biggest_child, &must_split, &must_merge);
+	return brt_nonleaf_maybe_split_or_merge(node, biggest_child, must_split, must_merge, new_fanout);
+    }
+    *new_fanout = node->u.n.n_children;
+    return 0;
+}
+
+/* delete in all subtrees starting from the left most one which contains the key */
 static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 				 int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 				 TOKULOGGER logger) {
@@ -2199,6 +2267,7 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 
     if (delidx == 0)
         sendchild_append(node->u.n.n_children-1);
+#undef sendchild_append
 
     /* issue the to all of the children found previously */
     int do_push_down = 0;
