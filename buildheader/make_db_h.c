@@ -522,6 +522,21 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
     {
+        //file fragmentation info
+        //a block is just a contiguous region in a file.
+        printf("//One header is included in 'data'\n");
+        printf("//One header is included in 'additional for checkpoint'\n");
+        printf("typedef struct __toku_db_fragmentation {\n");
+        printf("  uint64_t file_size_bytes;               //Total file size in bytes\n");
+        printf("  uint64_t data_bytes;                    //Compressed User Data in bytes\n");
+        printf("  uint64_t data_blocks;                   //Number of blocks of compressed User Data\n");
+        printf("  uint64_t checkpoint_bytes_additional;   //Additional bytes used for checkpoint system\n");
+        printf("  uint64_t checkpoint_blocks_additional;  //Additional blocks used for checkpoint system \n");
+        printf("  uint64_t unused_bytes;                  //Unused space in file\n");
+        printf("  uint64_t unused_blocks;                 //Number of contiguous regions of unused space\n");
+        printf("  uint64_t largest_unused_block;          //Size of largest contiguous unused space\n");
+        printf("} *TOKU_DB_FRAGMENTATION, TOKU_DB_FRAGMENTATION_S;\n");
+
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
 			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
 			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*)",
@@ -535,6 +550,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			     "int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */",
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
+                             "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }

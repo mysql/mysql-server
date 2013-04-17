@@ -132,6 +132,7 @@ BDB_DONTRUN_TESTS = \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \
 	recover-split-checkpoint \
+	progress \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 

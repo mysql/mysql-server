@@ -245,3 +245,80 @@ block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, u_int64_t b, 
 	return 0;
     }
 }
+
+void
+block_allocator_get_unused_statistics(BLOCK_ALLOCATOR ba, TOKU_DB_FRAGMENTATION report) {
+    //Requires: report->file_size_bytes is filled in
+    //Requires: report->data_bytes is filled in
+    //Requires: report->checkpoint_bytes_additional is filled in
+
+    assert(ba->n_bytes_in_use == report->data_bytes + report->checkpoint_bytes_additional);
+
+    report->unused_bytes         = 0;
+    report->unused_blocks        = 0;
+    report->largest_unused_block = 0;
+    if (ba->n_blocks > 0) {
+        //Deal with space before block 0 and after reserve:
+        {
+            struct blockpair *bp = &ba->blocks_array[0];
+            assert(bp->offset >= align(ba->reserve_at_beginning, ba));
+            uint64_t free_space = bp->offset - align(ba->reserve_at_beginning, ba);
+            if (free_space > 0) {
+                report->unused_bytes += free_space;
+                report->unused_blocks++;
+                if (free_space > report->largest_unused_block) {
+                    report->largest_unused_block = free_space;
+                }
+            }
+        }
+
+        //Deal with space between blocks:
+        for (u_int64_t blocknum = 0; blocknum +1 < ba->n_blocks; blocknum ++) {
+            // Consider the space after blocknum
+            struct blockpair *bp = &ba->blocks_array[blocknum];
+            uint64_t this_offset = bp[0].offset;
+            uint64_t this_size   = bp[0].size;
+            uint64_t end_of_this_block = align(this_offset+this_size, ba);
+            uint64_t next_offset = bp[1].offset;
+            uint64_t free_space  = next_offset - end_of_this_block;
+            if (free_space > 0) {
+                report->unused_bytes += free_space;
+                report->unused_blocks++;
+                if (free_space > report->largest_unused_block) {
+                    report->largest_unused_block = free_space;
+                }
+            }
+        }
+
+        //Deal with space after last block
+        {
+            struct blockpair *bp = &ba->blocks_array[ba->n_blocks-1];
+            uint64_t this_offset = bp[0].offset;
+            uint64_t this_size   = bp[0].size;
+            uint64_t end_of_this_block = align(this_offset+this_size, ba);
+            if (end_of_this_block < report->file_size_bytes) {
+                uint64_t free_space  = report->file_size_bytes - end_of_this_block;
+                assert(free_space > 0);
+                report->unused_bytes += free_space;
+                report->unused_blocks++;
+                if (free_space > report->largest_unused_block) {
+                    report->largest_unused_block = free_space;
+                }
+            }
+        }
+    }
+    else {
+        //No blocks.  Just the reserve.
+        uint64_t end_of_this_block = align(ba->reserve_at_beginning, ba);
+        if (end_of_this_block < report->file_size_bytes) {
+            uint64_t free_space  = report->file_size_bytes - end_of_this_block;
+            assert(free_space > 0);
+            report->unused_bytes += free_space;
+            report->unused_blocks++;
+            if (free_space > report->largest_unused_block) {
+                report->largest_unused_block = free_space;
+            }
+        }
+    }
+}
+

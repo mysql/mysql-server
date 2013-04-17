@@ -306,6 +306,18 @@ struct __toku_dbt {
 typedef int (*toku_dbt_upgradef)(DB*,
                                  u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
                                  u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val);
+//One header is included in 'data'
+//One header is included in 'additional for checkpoint'
+typedef struct __toku_db_fragmentation {
+  uint64_t file_size_bytes;               //Total file size in bytes
+  uint64_t data_bytes;                    //Compressed User Data in bytes
+  uint64_t data_blocks;                   //Number of blocks of compressed User Data
+  uint64_t checkpoint_bytes_additional;   //Additional bytes used for checkpoint system
+  uint64_t checkpoint_blocks_additional;  //Additional blocks used for checkpoint system 
+  uint64_t unused_bytes;                  //Unused space in file
+  uint64_t unused_blocks;                 //Number of contiguous regions of unused space
+  uint64_t largest_unused_block;          //Size of largest contiguous unused space
+} *TOKU_DB_FRAGMENTATION, TOKU_DB_FRAGMENTATION_S;
 struct __toku_db {
   struct __toku_db_internal *i;
 #define db_struct_i(x) ((x)->i)
@@ -325,7 +337,8 @@ struct __toku_db {
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
-  void* __toku_dummy1[31];
+  int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
+  void* __toku_dummy1[30];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[5];

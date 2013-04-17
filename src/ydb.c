@@ -5091,6 +5091,25 @@ static int locked_db_flatten(DB *db, DB_TXN *txn) {
     toku_ydb_lock(); int r = autotxn_db_flatten(db, txn); toku_ydb_unlock(); return r;
 }
 
+static int
+db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (!db_opened(db))
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Fragmentation report available only on open DBs.\n");
+    else
+        r = toku_brt_get_fragmentation(db->i->brt, report);
+    return r;
+}
+
+static int
+locked_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
+    toku_ydb_lock();
+    int r = db_get_fragmentation(db, report);
+    toku_ydb_unlock();
+    return r;
+}
+
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
@@ -5134,6 +5153,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(getf_set);
     SDB(getf_get_both);
     SDB(flatten);
+    SDB(get_fragmentation);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
@@ -5339,6 +5359,4 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 
     return rval;
 }
-
-
 
