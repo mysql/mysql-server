@@ -3646,10 +3646,15 @@ static int create_sub_table(const char *table_name, int flags) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-static int mkdirpath(char *name, mode_t mode) {
+static int mkdirpath(char *name, mode_t mode) {    
+    char* parent = NULL;
     int r = mkdir(name, mode);
     if (r == -1 && errno == ENOENT) {
-        char parent[strlen(name)+1];
+        parent = (char *)my_malloc(strlen(name)+1,MYF(MY_WME));
+        if (parent == NULL) {
+            r = ENOMEM;
+            goto cleanup;
+        }
         strcpy(parent, name);
         char *cp = strrchr(parent, '/');
         if (cp) {
@@ -3657,22 +3662,26 @@ static int mkdirpath(char *name, mode_t mode) {
             r = mkdir(parent, 0755);
             if (r == 0)
                 r = mkdir(name, mode);
+            }    
         }
-    }
+cleanup:    
+    my_free(parent, MYF(MY_ALLOW_ZERO_PTR));    
     return r;
 }
+
 
 #include <dirent.h>
 
 static int rmall(const char *dname) {
     int error = 0;
     DIR *d = opendir(dname);
+    char* fname = NULL;
     if (d) {
         struct dirent *dirent;
         while ((dirent = readdir(d)) != 0) {
             if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
                 continue;
-            char fname[strlen(dname) + 1 + strlen(dirent->d_name) + 1];
+            fname = (char *)my_malloc(strlen(dname) + 1 + strlen(dirent->d_name) + 1, MYF(MY_WME));
             sprintf(fname, "%s/%s", dname, dirent->d_name);
             if (dirent->d_type == DT_DIR) {
                 error = rmall(fname);
@@ -3713,6 +3722,8 @@ static int rmall(const char *dname) {
                         break;
                     }
                 }
+                my_free(fname, MYF(MY_ALLOW_ZERO_PTR));
+                fname = NULL;
             }
         }
         closedir(d);
