@@ -103,6 +103,7 @@ BDB_DONTRUN_TESTS = \
 	checkpoint_truncate_1 \
 	checkpoint_callback \
 	recovery_stress \
+	recovery_fileops_stress \
 	test_txn_nested1 \
 	test_txn_nested2 \
 	test_txn_nested3 \
