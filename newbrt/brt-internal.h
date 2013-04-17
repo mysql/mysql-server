@@ -244,7 +244,6 @@ int toku_bnc_flush_to_child(BRT t, NONLEAF_CHILDINFO bnc, BRTNODE child);
 
 // data of an available partition of a leaf brtnode
 struct brtnode_leaf_basement_node {
-    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
     OMT buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
