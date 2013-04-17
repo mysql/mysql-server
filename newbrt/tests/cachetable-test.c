@@ -78,14 +78,24 @@ struct item {
 static volatile int expect_n_flushes=0;
 static volatile CACHEKEY flushes[100];
 
+static void expect_init(void) {
+    test_mutex_lock();
+    expect_n_flushes = 0;
+    test_mutex_unlock();
+}
+
 static void expect1(int64_t blocknum_n) {
+    test_mutex_lock();
     expect_n_flushes=1;
     flushes[0].b=blocknum_n;
     //if (verbose) printf("%s:%d %lld\n", __FUNCTION__, 0, key.b);
+    test_mutex_unlock();
 }
 static void expectN(int64_t blocknum_n) {
+    test_mutex_lock();
     //if (verbose) printf("%s:%d %lld\n", __FUNCTION__, expect_n_flushes, key);
     flushes[expect_n_flushes++].b=blocknum_n;
+    test_mutex_unlock();
 }
 
 static CACHEFILE expect_f;
@@ -106,6 +116,7 @@ static void flush (CACHEFILE f,
 
     if (verbose) printf("Flushing %" PRId64 " (it=>key=%" PRId64 ")\n", key.b, it->key.b);
 
+    test_mutex_lock();
     assert(expect_f==f);
     assert(strcmp(it->something,"something")==0);
     assert(it->key.b==key.b);
@@ -121,6 +132,7 @@ static void flush (CACHEFILE f,
     fprintf(stderr, "%" PRId64 " was flushed, but I didn't expect it\n", key.b);
     abort();
  found_flush:
+    test_mutex_unlock();
     toku_free(value);
 }
 
@@ -151,6 +163,7 @@ static void test0 (void) {
     CACHEFILE f;
     int r;
     char fname[] = __FILE__ "test.dat";
+
     r=toku_create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -174,23 +187,23 @@ static void test0 (void) {
     assert(r==0);
     assert(expect_n_flushes==0);
 
-    expect_n_flushes=0;
+    expect_init();
     r=toku_cachetable_put(f, make_blocknum(2), h2, make_item(2), test_object_size, flush, fetch, t3);
     assert(r==0);
     r=toku_cachetable_unpin(f, make_blocknum(2), h2, CACHETABLE_DIRTY, 1);           /* 2U 1P */
     assert(expect_n_flushes==0);
 
-    expect_n_flushes=0;
+    expect_init(); 
     r=toku_cachetable_put(f, make_blocknum(3), h3, make_item(3), test_object_size, flush, fetch, t3);
     assert(r==0);
     assert(expect_n_flushes==0);            /* 3P 2U 1P */   /* 3 is most recently used (pinned), 2 is next (unpinned), 1 is least recent (pinned) */
 
-    expect_n_flushes=0;
+    expect_init(); 
     r=toku_cachetable_put(f, make_blocknum(4), h4, make_item(4), test_object_size, flush, fetch, t3);
     assert(r==0);
     assert(expect_n_flushes==0);            /* 4P 3P 2U 1P */
 
-    expect_n_flushes=0;
+    expect_init();
     r=toku_cachetable_put(f, make_blocknum(5), h5, make_item(5), test_object_size, flush, fetch, t3);
     assert(r==0);
     r=toku_cachetable_unpin(f, make_blocknum(5), h5, CACHETABLE_DIRTY, test_object_size);
@@ -202,26 +215,35 @@ static void test0 (void) {
     expect1(2); /* 2 is the oldest unpinned item. */
     r=toku_cachetable_put(f, make_blocknum(6), h6, make_item(6), test_object_size, flush, fetch, t3);   /* 6P 5U 4P 3U 1P */
     assert(r==0);
-    while (expect_n_flushes != 0) toku_pthread_yield();
+    test_mutex_lock();
+    while (expect_n_flushes != 0) {
+        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+    }
     assert(expect_n_flushes==0);
-
+    test_mutex_unlock();
 
     expect1(3);
     r=toku_cachetable_put(f, make_blocknum(7), h7, make_item(7), test_object_size, flush, fetch, t3);
     assert(r==0);
-    while (expect_n_flushes != 0) toku_pthread_yield();
+    test_mutex_lock();
+    while (expect_n_flushes != 0) {
+        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+    }
     assert(expect_n_flushes==0);
+    test_mutex_unlock();
     r=toku_cachetable_unpin(f, make_blocknum(7), h7, CACHETABLE_DIRTY, test_object_size);           /* 7U 6P 5U 4P 1P */
     assert(r==0);
 
     {
 	void *item_v=0;
-	expect_n_flushes=0;
+	expect_init(); 
 	r=toku_cachetable_get_and_pin(f, make_blocknum(5), toku_cachetable_hash(f, make_blocknum(5)), &item_v, NULL, flush, fetch, t3);  /* 5P 7U 6P 4P 1P */
 	assert(r==0);
 	assert(((struct item *)item_v)->key.b==5);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
+        test_mutex_lock();
 	assert(expect_n_flushes==0);
+        test_mutex_unlock();
     }
 
     {
@@ -235,8 +257,12 @@ static void test0 (void) {
 	assert(did_fetch.b==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key.b==2);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
-        while (expect_n_flushes != 0) toku_pthread_yield();
+        test_mutex_lock();
+        while (expect_n_flushes != 0) {
+            test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+        }
         assert(expect_n_flushes==0);
+        test_mutex_unlock();
     }
 	
     r=toku_cachetable_unpin(f, make_blocknum(2), h2, CACHETABLE_DIRTY, test_object_size);
