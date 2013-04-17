@@ -1356,9 +1356,12 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         assert(ct->size_writing>=0);
         p->write_me = TRUE;
         p->remove_me = FALSE;
+        workitem_init(&p->asyncwork, NULL, p);
         cachetable_write_pair(ct, p);    // releases the write lock on the pair
     }
     else if (p->cq) {
+        assert(ct->size_writing>=0);
+        ct->size_writing += p->size; //cachetable_complete_write_pair will reduce by p->size
         workitem_init(&p->asyncwork, NULL, p);
         workqueue_enq(p->cq, &p->asyncwork, 1);
     }
