@@ -392,29 +392,6 @@ smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *context) {
 }
 
 //
-// Smart DBT callback function in c_getf_heaviside, in case where we have a covering index, 
-//
-static int
-smart_dbt_callback_keyread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
-    SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->heavi_ret_val = r_h;
-    smart_dbt_callback_keyread(key,row,context);
-    return 0;
-}
-
-//
-// Smart DBT callback function in c_getf_heaviside, in case where we do NOT have a covering index
-//
-static int
-smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
-    SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->heavi_ret_val = r_h;
-    smart_dbt_callback_rowread(key,row,context);
-    return 0;
-}
-
-
-//
 // macro for Smart DBT callback function, 
 // so we do not need to put this long line of code in multiple places
 //
@@ -3351,105 +3328,6 @@ int ha_tokudb::read_full_row(uchar * buf) {
 }
 
 
-//
-// context information for the heaviside functions.
-// Context information includes data necessary
-// to perform comparisons
-//
-typedef struct heavi_info {
-    DB        *db;
-    const DBT *key;
-} *HEAVI_INFO;
-
-//
-// effect:
-//  heaviside function used for HA_READ_AFTER_KEY.
-//  to use this heaviside function in ha_read_after_key, use direction>0
-//  the stored key (in heavi_info) contains a prefix of the columns in the candidate
-//  keys. only the columns in the stored key will be used for comparison.
-//
-// parameters:
-//  [in]    key - candidate key in db that is being compared
-//  [in]    value - candidate value, unused
-//  [in]    extra_h - a heavi_info that contains information necessary for
-//              the comparison
-// returns:
-//  >0 : candidate key > stored key
-//  <0 : otherwise
-// examples:
-//  columns: (a,b,c,d)
-//  stored key = (3,4) (only a,b)
-//  candidate keys have (a,b,c,d)
-//  (3,2,1,1) < (3,4)
-//  (3,4,1,1) == (3,4)
-//  (3,5,1,1) > (3,4)
-//
-static int after_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
-    HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
-    return cmp>0 ? 1 : -1;
-}
-
-//
-// effect:
-//  heaviside function used for HA_READ_PREFIX_LAST_OR_PREV.
-//  to use this heaviside function in HA_READ_PREFIX_LAST_OR_PREV, use direction<0
-//  the stored key (in heavi_info) contains a prefix of the columns in the candidate
-//  keys. only the columns in the stored key will be used for comparison.
-//
-// parameters:
-//  [in]    key - candidate key in db that is being compared
-//  [in]    value - candidate value, unused
-//  [in]    extra_h - a heavi_info that contains information necessary for
-//              the comparison
-// returns:
-//  >0 : candidate key > stored key
-//  0  : candidate key == stored key
-//  <0 : candidate key < stored key
-// examples:
-//  columns: (a,b,c,d)
-//  stored key = (3,4) (only a,b)
-//  candidate keys have (a,b,c,d)
-//  (3,2,1,1) < (3,4)
-//  (3,4,1,1) == (3,4)
-//  (3,5,1,1) > (3,4)
-//
-static int prefix_last_or_prev_heavi(const DBT *key, const DBT *value, void *extra_h) {
-    HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
-    return cmp;
-}
-
-//
-// effect:
-//  heaviside function used for HA_READ_BEFORE_KEY.
-//  to use this heaviside function in HA_READ_BEFORE_KEY, use direction<0
-//  the stored key (in heavi_info) contains a prefix of the columns in the candidate
-//  keys. only the columns in the stored key will be used for comparison.
-//
-// parameters:
-//  [in]    key - candidate key in db that is being compared
-//  [in]    value - candidate value, unused
-//  [in]    extra_h - a heavi_info that contains information necessary for
-//              the comparison
-// returns:
-//  <0 : candidate key < stored key
-//  >0 : otherwise
-// examples:
-//  columns: (a,b,c,d)
-//  stored key = (3,4) (only a,b)
-//  candidate keys have (a,b,c,d)
-//  (3,2,1,1) < (3,4)
-//  (3,4,1,1) == (3,4)
-//  (3,5,1,1) > (3,4)
-//
-static int before_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
-    HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
-    return (cmp<0) ? -1 : 1;
-}
-
-
 // 
 // Reads the next row matching to the key, on success, advances cursor 
 // Parameters: 
@@ -3525,60 +3403,55 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     TOKUDB_DBUG_ENTER("ha_tokudb::index_read %p find %d", this, find_flag);
     // TOKUDB_DBUG_DUMP("key=", key, key_len);
     DBT row;
+    DBT lookup_key;
     int error;    
     u_int32_t flags = 0;
     struct smart_dbt_info info;
-    struct heavi_info heavi_info;
 
     HANDLE_INVALID_CURSOR();
 
     table->in_use->status_var.ha_read_key_count++;
     bzero((void *) &row, sizeof(row));
-    pack_key(&last_key, active_index, key_buff, key, key_len, COL_NEG_INF);
 
     info.ha = this;
     info.buf = buf;
     info.keynr = active_index;
 
-    heavi_info.db = share->key_file[active_index];
-    heavi_info.key = &last_key;
     flags = SET_READ_FLAG(0);
     switch (find_flag) {
     case HA_READ_KEY_EXACT: /* Find first record else error */
-        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &last_key)) {
+            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key)) {
                 error = DB_NOTFOUND;
             }
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
-        error = cursor->c_getf_heaviside(
-            cursor, flags, 
-            key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
-            after_key_heavi, &heavi_info, 
-            1
-            );
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
-        error = cursor->c_getf_heaviside(
-            cursor, flags, 
-            key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
-            before_key_heavi, &heavi_info, 
-            -1
-            );
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
-        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
+    //
+    // This case does not seem to ever be used, it is ok for it to be slow
+    //
     case HA_READ_KEY_OR_PREV: /* Record or previous */
-        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &last_key) != 0) {
+            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key) != 0) {
                 error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
             }
         }
@@ -3587,22 +3460,18 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
-        error = cursor->c_getf_heaviside(
-            cursor, flags, 
-            key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
-            prefix_last_or_prev_heavi, &heavi_info, 
-            -1
-            );
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_PREFIX_LAST:
-        error = cursor->c_getf_heaviside(
-            cursor, flags, 
-            key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
-            prefix_last_or_prev_heavi, &heavi_info, 
-            -1
-            );
-        if (!error && heavi_ret_val != 0) {
-            error = DB_NOTFOUND;
+        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
+        if (error == 0) {
+            DBT orig_key;
+            pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
+            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key)) {
+                error = DB_NOTFOUND;
+            }
         }
         break;
     default:
