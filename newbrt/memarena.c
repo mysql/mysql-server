@@ -42,7 +42,7 @@ round_to_page (size_t size) {
     const size_t result = PAGE_SIZE+((size-1)&~(PAGE_SIZE-1));
     assert(0==(result&(PAGE_SIZE-1))); // make sure it's aligned
     assert(result>=size);              // make sure it's not too small
-    assert(size<result+PAGE_SIZE);     // make sure we didn't grow by more than a page.
+    assert(result<size+PAGE_SIZE);     // make sure we didn't grow by more than a page.
     return result;
 }
 
