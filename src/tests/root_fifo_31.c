@@ -48,13 +48,13 @@ static void root_fifo_verify(DB_ENV *env, int n) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
 
     int r;
-    DB *db = null_db;
-    r = db_create(&db, env, 0); assert(r == 0); assert(db != NULL);
-    r = db->open(db, null_txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
-    assert(r == 0);
 
     DB_TXN *txn = null_txn;
     r = env->txn_begin(env, null_txn, &txn, 0); assert(r == 0); assert(txn != NULL);
+    DB *db = null_db;
+    r = db_create(&db, env, 0); assert(r == 0); assert(db != NULL);
+    r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+    assert(r == 0);
 
     DBC *cursor = null_cursor;
     r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
