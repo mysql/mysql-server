@@ -3982,7 +3982,7 @@ int ha_tokudb::info(uint flag) {
         }
     }
     if ((flag & HA_STATUS_CONST)) {
-        stats.max_data_file_length=  9223372036854775807;
+        stats.max_data_file_length=  9223372036854775807ULL;
         for (uint i = 0; i < table_share->keys; i++) {
             table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 0;
         }
