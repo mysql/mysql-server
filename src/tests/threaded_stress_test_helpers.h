@@ -2629,7 +2629,7 @@ UU() stress_recover(struct cli_args *args) {
 }
 
 static void
-close_and_reopen_tables(DB_ENV *env, DB **dbs, struct cli_args *args) {
+UU() close_and_reopen_tables(DB_ENV *env, DB **dbs, struct cli_args *args) {
     { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     { int chk_r = open_tables(&env,
                               dbs,
