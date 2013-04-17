@@ -23,8 +23,8 @@ put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **UU(dbs_in), DBT *keys,
     int32_t keysize = *(int32_t*)row->data;
     assert((int)row->size >= 4+keysize);
     int32_t valsize = row->size - 4 - keysize;
-    void *key = row->data+4;
-    void *val = row->data+4 + keysize;
+    void *key = ((uint8_t*)row->data)+4;
+    void *val = ((uint8_t*)row->data)+4 + keysize;
     uint32_t which;
     for (which = 0; which < num_dbs_in; which++) {
         keys[which].size = keysize;
