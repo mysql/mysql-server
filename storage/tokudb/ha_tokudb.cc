@@ -2291,17 +2291,14 @@ int ha_tokudb::pack_row_in_buff(
 
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
     
-
-    /* Copy null bits */
+    // Copy null bytes
     memcpy(row_buff, record, table_share->null_bytes);
     fixed_field_ptr = row_buff + table_share->null_bytes;
     var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[index].fixed_field_size;
     start_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[index].len_of_offsets;
     var_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[index].len_of_offsets;
 
-    //
     // assert that when the hidden primary key exists, primary_key_offsets is NULL
-    //
     for (uint i = 0; i < table_share->fields; i++) {
         Field* field = table->field[i];
         uint curr_field_offset = field_offset(field, table);
