@@ -469,10 +469,12 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
         // abort the transaction NOW so that any alters are rolled back. this allows the following restores to work.
         THD *thd = ha_thd();
         tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-        assert(trx && transaction == trx->stmt);
+        assert(trx && transaction == trx->stmt && transaction == trx->sub_sp_level);
         abort_txn(transaction);
         transaction = NULL;
         trx->stmt = NULL;
+        trx->sub_sp_level = NULL;
+        trx->should_abort = false;
 
         tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
