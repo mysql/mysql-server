@@ -23,13 +23,15 @@ if(BUILD_TESTING)
   add_test(logcursor-fw echo "logcursor-fw must be run manually (needs logs to iterate over).")
   add_test(logcursor-bw echo "logcursor-bw must be run manually (needs logs to iterate over).")
 
+  get_filename_component(toku_svn_root "${TokuDB_SOURCE_DIR}/../.." REALPATH)
+
   foreach(src ${srcs})
     if(NOT "${src}" MATCHES "dir[.].*[.]c")  ## annoying
       get_filename_component(base ${src} NAME_WE)
       add_executable(${base} ${src})
       target_link_libraries(${base} ft ${LIBTOKUPORTABILITY})
       set_property(TARGET ${base} APPEND PROPERTY
-        COMPILE_DEFINITIONS "__SRCFILE__=\"${src}\"")
+        COMPILE_DEFINITIONS "__SRCFILE__=\"${src}\";TOKUSVNROOT=\"${toku_svn_root}\"")
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${src}.ft_handle")
     endif()
   endforeach(src)
