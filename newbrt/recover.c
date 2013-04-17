@@ -105,7 +105,7 @@ struct recover_env {
 };
 typedef struct recover_env *RECOVER_ENV;
 
-int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_func dup_compare) {
+static int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_func dup_compare) {
     int r;
 
     r = toku_create_cachetable(&env->ct, 1<<25, (LSN){0}, 0);
@@ -123,7 +123,7 @@ int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_
     return r;
 }
 
-void recover_env_cleanup (RECOVER_ENV env) {
+static void recover_env_cleanup (RECOVER_ENV env) {
     int r;
 
     file_map_close_dictionaries(&env->fmap);
