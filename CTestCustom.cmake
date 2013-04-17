@@ -158,7 +158,8 @@ if(NOT @RUN_LONG_TESTS@)
   list(APPEND CTEST_CUSTOM_TESTS_IGNORE ${long_running_tests})
 endif()
 
-## don't complain about warnings in xz source
+
 list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
-  "xz-4.999.9beta/src/liblzma"
+  "xz-4.999.9beta/src/liblzma"              # don't complain about warnings in xz source
+  "tokudb/portability/tests/test-rwlock.c"  # non-static functions seem to be on purpose
   )
