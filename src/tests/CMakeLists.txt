@@ -461,8 +461,9 @@ if(BUILD_TESTING)
           if (NOT (${src} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
             foreach(size 2000 200000 50000000)
               add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${src})
-              add_test(ydb/${test}/upgrade/${oldver}/${p_or_s}
-                ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.c.tdb ${size} 600)
+              add_test(
+                NAME ydb/${test}/upgrade/${oldver}/${p_or_s}
+                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.c.tdb ${size} 600)
             endforeach(size)
           endif ()
         endforeach(p_or_s)
