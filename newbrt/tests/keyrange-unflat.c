@@ -25,6 +25,7 @@ static void test_flat (void) {
     for (i=1; i<limit; i++) {
 	permute[i]=i;
 	int ra = random()%(i+1);
+	if (i==1) printf("ra=%d\n", ra);
 	permute[i]=permute[ra];
 	permute[ra]=i;
     }

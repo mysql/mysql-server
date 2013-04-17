@@ -173,17 +173,17 @@ enum { compression_header_len = (4   // compressed_len
 				 ) };
 
 void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
-    //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size(node) - 8; // don't include the compressed or uncompressed sizes
+    //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, calculated_size);
     //assert(calculated_size<=size);
     //char buf[size];
     char *MALLOC_N(calculated_size, buf);
     //toku_verify_counts(node);
     //assert(size>0);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
-    wbuf_init(&w, buf, node->nodesize);
+    wbuf_init(&w, buf, calculated_size);
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
@@ -337,7 +337,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
     }
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
-    assert(w.ndone<=node->nodesize);
+    assert(w.ndone==calculated_size);
     toku_free(buf);
     toku_free(compressed_buf);
 }
@@ -374,6 +374,8 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (0) printf("Compressed size = %u, uncompressed size=%u\n", compressed_size, uncompressed_size);
     }
     
+    //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, uncompressed_size);
+
     unsigned char *MALLOC_N(compressed_size, compressed_data);
     assert(compressed_data);
 
