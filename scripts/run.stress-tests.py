@@ -689,7 +689,7 @@ if __name__ == '__main__':
                       default='/tmp/run.stress-tests.failures',
                       help='where to save environments and extra data for failed tests')
     parser.add_option('--email', action='append', type='string', dest='email', default=[], help='where to send emails')
-    parser.add_option('--no-email', action'store_false', dest='send_emails', default=True, help='suppress emails on failure')
+    parser.add_option('--no-email', action='store_false', dest='send_emails', default=True, help='suppress emails on failure')
     default_toplevel = os.path.dirname(os.path.dirname(a0))
     parser.add_option('--tokudb', type='string', dest='tokudb',
                       default=default_toplevel,
