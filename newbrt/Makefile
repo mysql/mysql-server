@@ -28,7 +28,7 @@ endif
 
 #CFLAG default options
 WERROR    = -Werror
-WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast
 FORMAT    = -Wmissing-format-attribute
 VISIBILITY= -fvisibility=hidden
 FPICFLAGS = -fPIC

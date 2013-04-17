@@ -214,19 +214,6 @@ int toku_brtheader_close (CACHEFILE cachefile, void *header_v) {
     return 0;
 }
 
-#if 0
-static int toku_brtheader_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__)), LSN *written_lsn) {
-    int r;
-    struct brt_header **h = (struct brt_header **)headerp_v;
-    assert(nodename.b==0);
-    if ((r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, fullhash, h))) return r;
-    //printf("%s:%d fifo=%p\nn", __FILE__, __LINE__, (*h)->fifo);
-    written_lsn->lsn = 0; // !!! WRONG.  This should be stored or kept redundantly or something.
-    assert((*h)->free_blocks.b==-1);
-    return 0;
-}
-#endif
-
 int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
@@ -424,53 +411,9 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
     u_int32_t break_at = 0;
-    unsigned int seqinsert = node->u.l.seqinsert;
     node->u.l.seqinsert = 0;
-    if (seqinsert >= n_leafentries/2) {
-        u_int32_t node_size = toku_serialize_brtnode_size(node);
-        break_at = n_leafentries - 1;
-        OMTVALUE v = 0;
-        while (1) {
-            r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
-            assert(r == 0);
-            LEAFENTRY le = v;
-            node_size -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-            if (node_size <= node->nodesize && (n_leafentries - break_at) >= 2)
-                break;
-            break_at -= 1;
-        }
-
-        u_int32_t i;
-        for (i=0; break_at < toku_omt_size(node->u.l.buffer); i++) {
-            // fetch the max from the node and delete it
-            if (i > 0) {
-                r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
-                assert(r == 0);
-            }
-            LEAFENTRY oldle = v;
-            u_int32_t diff_fp = toku_le_crc(oldle);
-            u_int32_t diff_size = OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
-
-            r = toku_omt_delete_at(node->u.l.buffer, break_at);
-            assert(r == 0);
-
-            LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
-            assert(newle!=0); // it's a fresh mpool, so this should always work.
-            memcpy(newle, oldle, leafentry_memsize(oldle));
-            toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
-            node->local_fingerprint -= node->rand4fingerprint * diff_fp;
-            B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
-            node->u.l.n_bytes_in_buffer -= diff_size;
-            B   ->u.l.n_bytes_in_buffer += diff_size;
-
-            // insert into B
-            r = toku_omt_insert_at(B->u.l.buffer, newle, i);
-            assert(r == 0);
-
-            toku_verify_all_in_mempool(node);
-            toku_verify_all_in_mempool(B);
-        }
-    } else {
+    // Don't mess around with splitting specially for sequential insertions any more.
+    {
         OMTVALUE *MALLOC_N(n_leafentries, leafentries);
         assert(leafentries);
         toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
@@ -2186,16 +2129,21 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
 
 static int
 merge (void) {
-    abort();
+    static int printcount=0;
+    printcount++;
+    if (0==(printcount & (printcount-1))) {// is printcount a power of two?
+	printf("%s:%d %s not ready (%d invocations)\n", __FILE__, __LINE__, __func__, printcount);
+    }
+    return 0;
 }
 
 // Split or merge the child, if the child too large or too small.
 // Return the new fanout of node.
 static int
-brt_nonleaf_maybe_split_or_merge (BRT t, BRTNODE node, int childnum, BOOL must_split, BOOL must_merge, TOKULOGGER logger, u_int32_t *new_fanout) {
-    assert(!(must_split && must_merge));
-    if (must_split) { int r = brt_split_child(t, node, childnum, logger); if (r!=0) return r; }
-    if (must_merge) { int r = merge(); if (r!=0) return r; }
+brt_nonleaf_maybe_split_or_merge (BRT t, BRTNODE node, int childnum, BOOL should_split, BOOL should_merge, TOKULOGGER logger, u_int32_t *new_fanout) {
+    assert(!(should_split && should_merge));
+    if (should_split) { int r = brt_split_child(t, node, childnum, logger); if (r!=0) return r; }
+    if (should_merge) { int r = merge(); if (r!=0) return r; }
     *new_fanout = node->u.n.n_children;
     return 0;
 }
@@ -2209,10 +2157,12 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
     //verify_local_fingerprint_nonleaf(node);
 
     /* Push the cmd to the subtree if the buffer is empty */
+    //printf("%s:%d %s\n",__FILE__,__LINE__,__func__);
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
         int r = brt_nonleaf_put_cmd_child_node_simple(t, node, childnum, TRUE, cmd, logger, &must_split, &must_merge);
+	//printf("%s:%d Put in child, must_split=%d must_merge=%d\n", __FILE__, __LINE__, must_split, must_merge);
 	if (r==0) {
 	    return brt_nonleaf_maybe_split_or_merge(t, node, childnum, must_split, must_merge, logger, new_fanout);
 	}
@@ -2488,6 +2438,7 @@ brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	if (r!=0) return r;
 	*should_split = new_size > node->nodesize;
 	*should_merge = (new_size*4) < node->nodesize;
+	//printf("%s:%d new_size=%" PRId64 " nodesize=%d should_merge=%d\n", __FILE__, __LINE__, new_size, node->nodesize, *should_merge);
     } else {
 	int r;
 	u_int32_t new_fanout;
@@ -2495,6 +2446,7 @@ brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	if (r!=0) return 0;
 	*should_split = new_fanout > TREE_FANOUT;
 	*should_merge = new_fanout*4 < TREE_FANOUT;
+	//printf("%s:%d should_merge=%d\n", __FILE__, __LINE__, *should_merge);
     }
     return 0;
 }
@@ -3110,14 +3062,42 @@ int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger) {
     return 0;
 }
 
+static int push_something_simple(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger) {
+    BRTNODE node = *nodep;
+    BOOL should_split =-1;
+    BOOL should_merge =-1;
+    {
+	int r = brtnode_put_cmd_simple(brt, node, cmd, logger, &should_split, &should_merge);
+	if (r!=0) return r;
+    }
+    assert(should_split!=(BOOL)-1 && should_merge!=(BOOL)-1);
+    assert(!(should_split && should_merge));
+    if (should_split) {
+	BRTNODE nodea,nodeb;
+	DBT splitk;
+	if (node->height==0) {
+	    int r = brtleaf_split(logger, toku_cachefile_filenum(brt->cf), brt, node, &nodea, &nodeb, &splitk);
+	    if (r!=0) return r;
+	} else {
+	    int r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk, logger);
+	    if (r!=0) return r;
+	}
+	return brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, nodep);
+    } else if (should_merge) {
+	return 0; // Cannot merge anything at the root, so return happy.
+    } else {
+	return 0;
+    }
+}
 
+#if 0
 static int push_something(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger) {
     int did_split = 0;
     BRTNODE nodea=0, nodeb=0;
     DBT splitk;
     int result = brtnode_put_cmd(brt, *nodep, cmd,
-			     &did_split, &nodea, &nodeb, &splitk,
-			     logger);
+				 &did_split, &nodea, &nodeb, &splitk,
+				 logger);
     int r;
     if (did_split) {
 	// node is unpinned, so now we have to proceed to update the root with a new node.
@@ -3135,6 +3115,7 @@ static int push_something(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd,
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     return result;
 }
+#endif
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
     void *node_v;
@@ -3161,13 +3142,13 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
 	DBT okey,odata;
 	BRT_CMD_S ocmd;
 	while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
-	    if ((r = push_something(brt, &node, rootp, &ocmd, logger))) return r;
+	    if ((r = push_something_simple(brt, &node, rootp, &ocmd, logger))) return r;
 	    r = toku_fifo_deq(brt->h->fifo);
 	    assert(r==0);
 	}
     }
 
-    if ((r = push_something(brt, &node, rootp, cmd, logger))) return r;
+    if ((r = push_something_simple(brt, &node, rootp, cmd, logger))) return r;
     r = toku_unpin_brtnode(brt, node);
     assert(r == 0);
     return 0;
@@ -3586,7 +3567,7 @@ toku_brt_search (BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULO
 	DBT okey,odata;
 	BRT_CMD_S ocmd;
 	while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
-	    if ((r = push_something(brt, &node, rootp, &ocmd, logger))) return r;
+	    if ((r = push_something_simple(brt, &node, rootp, &ocmd, logger))) return r;
 	    r = toku_fifo_deq(brt->h->fifo);
 	    assert(r==0);
 	}
