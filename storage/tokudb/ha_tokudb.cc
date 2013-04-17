@@ -281,8 +281,8 @@ static inline bool is_replace_into(THD* thd) {
 static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
     uint pk_insert_mode = get_pk_insert_mode(thd);
     return ( 
-        (is_replace_into(thd) || is_insert_ignore(thd)) && 
         opt_eligible && 
+        is_insert_ignore(thd) && 
         ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0)
         );
 }
@@ -1131,6 +1131,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     deleted_rows = 0;
     last_dup_key = UINT_MAX;
     using_ignore = 0;
+    write_can_replace = 0;
     last_cursor_error = 0;
     range_lock_grabbed = false;
     blob_buff = NULL;
@@ -3311,15 +3312,11 @@ void ha_tokudb::set_main_dict_put_flags(THD* thd, u_int32_t* put_flags) {
     {
         *put_flags = DB_YESOVERWRITE;
     }
-    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_replace_into(thd)
-        ) 
+    else if (share->replace_into_fast && write_can_replace) 
     {
         *put_flags = DB_YESOVERWRITE;
     }
-    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_insert_ignore(thd)
-        ) 
+    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast)) 
     {
         *put_flags = DB_NOOVERWRITE_NO_ERROR;
     }
@@ -3362,7 +3359,6 @@ cleanup:
 
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
-    bool is_replace = is_replace_into(thd);
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
     u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
@@ -3477,7 +3473,11 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)));
+    create_sub_trans = (
+        using_ignore && 
+        !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)) &&
+        !(share->replace_into_fast && write_can_replace)
+        );
     if (create_sub_trans) {
         error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
@@ -5090,6 +5090,12 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
     case HA_EXTRA_NO_IGNORE_DUP_KEY:
         using_ignore = 0;
         break;
+    case HA_EXTRA_WRITE_CAN_REPLACE:
+        write_can_replace = 1;
+        break;
+    case HA_EXTRA_WRITE_CANNOT_REPLACE:
+        write_can_replace = 0;
+        break;
     default:
         break;
     }
@@ -5100,6 +5106,7 @@ int ha_tokudb::reset(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::reset");
     key_read = 0;
     using_ignore = 0;
+    write_can_replace = 0;
     TOKUDB_DBUG_RETURN(0);
 }
 
