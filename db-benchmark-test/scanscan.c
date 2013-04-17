@@ -17,7 +17,7 @@
 #endif
 
 const char *pname;
-enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE, RUN_FLATTEN} run_mode = RUN_HWC;
+enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE, RUN_FLATTEN, RUN_PT} run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
@@ -25,6 +25,7 @@ u_int32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
+static long pt_row_cnt = 1;
 
 static int verbose = 0;
 static const char *log_dir = NULL;
@@ -48,6 +49,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --experiments N     run N experiments (default:%d)\n", n_experiments);
     fprintf(stderr, "  --srandom N         srandom(N)\n");
     fprintf(stderr, "  --recover           run recovery\n");
+    fprintf(stderr, "  --ptquery           run point query test\n");
     fprintf(stderr, "  --verbose           print verbose information\n");
     return 1;
 }
@@ -89,6 +91,9 @@ static void parse_args (int argc, char *const argv[]) {
 	} else if (strcmp(*argv, "--hwc")==0)  {
 	    if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
 	    run_mode = RUN_HWC;
+	} else if (strcmp(*argv, "--ptquery")==0)  {
+	    if (specified_run_mode && run_mode!=RUN_PT) goto two_modes;
+	    run_mode = RUN_PT;
 	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
 #ifdef TOKUDB
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
@@ -144,6 +149,23 @@ static void parse_args (int argc, char *const argv[]) {
     }
 }
 
+/* From db-benchmark-test.c */
+static void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
+    int i;
+    for (i=0; i<8 && i<array_size; i++)
+	a[i] = (l>>(56-8*i))&0xff;
+}
+
+static void array_to_long_long (unsigned long long *l, unsigned char *a, int array_size) {
+    int i;
+    *l = 0;
+    unsigned long long tmp;
+    for(i=0; i<8 && i<array_size; i++) {
+        tmp =  a[i] & 0xff;
+        *l += tmp << (56-8*i);
+    }
+}
+
 
 static inline uint64_t mysql_get_bigint(unsigned char *d) {
     uint64_t r = 0;
@@ -164,6 +186,8 @@ static int mysql_key_compare(DB *mydb __attribute__((unused)),
     if (a > b) return +1;
     return 0;
 }
+
+
 
 static void scanscan_setup (void) {
     int r;
@@ -261,6 +285,7 @@ static void scanscan_hwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
+        pt_row_cnt=rowcounter;
 	print_engine_status();
     }
 }
@@ -324,6 +349,67 @@ static void scanscan_flatten (void) {
     }
 }
 #endif
+
+//  To measure point query performance
+//    $ ./db-benchmark-test-tokudb -x --norandom 32
+//    $ ./scanscan-tokudb --prelock --prelockflag --ptquery
+
+static void scanscan_ptquery (void) {
+    int r;
+    // read in the whole database to warm up the cache
+    printf("Warm-up\n");
+    {
+        int tmp_experiments = n_experiments;
+        n_experiments = 1;
+        scanscan_hwc();
+        n_experiments = tmp_experiments;
+    }
+    // perform n_experiments point queries    
+    
+    DBT key, val;
+    DBC *dbc;
+    r = db->cursor(db, tid, &dbc, 0); assert(r==0);
+
+    int const ptqpertxn = 1<<20;
+//    int const ptqpertxn = 1<<8;
+    int counter = 0;
+    unsigned long long k, max_key;
+    unsigned char kv[8];
+    // figure out max index
+    memset(&key, 0, sizeof key); 
+    memset(&val, 0, sizeof val);
+    dbc->c_get(dbc, &key, &val, DB_LAST);
+    array_to_long_long(&max_key, key.data, key.size);
+    
+    // assume stride of 16 (SERIAL_SPACING from db-benchmark-test)
+    int const idx_stride=16;
+
+    printf("Random point queries of %d per batch (with transactions)\n", ptqpertxn);
+    int ex;
+    for (ex=0;ex<n_experiments;ex++) {
+        double tstart = gettime();
+        for (counter = 0; counter < ptqpertxn; counter++) {
+            // set the cursor to the random key
+            k = ( random() + ( random() << 31 ) ) % max_key;
+            k = (k / idx_stride) * idx_stride; // put on even stride
+//        printf("k=%llu\n", k); 
+            long_long_to_array(kv, 8, k);
+
+            memset(&key, 0, sizeof key); key.data=kv; key.size=8;
+            memset(&val, 0, sizeof val);
+            r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE);
+            if ( r != 0 ) {
+                array_to_long_long(&k, key.data, key.size);
+                printf("error k = %llu\n", k);
+                assert(0);
+            }
+        }
+        double tdiff = gettime() - tstart;
+        printf("%d point queries in %fs at %.0f ptq/s\n", counter, tdiff, counter / tdiff); fflush(stdout);
+    }
+    r = dbc->c_close(dbc);                                      
+    assert(r==0);
+}
 
 static void scanscan_range (void) {
     int r;
@@ -462,6 +548,7 @@ static int test_main (int argc, char *const argv[]) {
     case RUN_VERIFY: scanscan_verify(); break;
 #endif
     case RUN_RANGE:  scanscan_range();  break;
+    case RUN_PT:     scanscan_ptquery(); break;
     default:         assert(0);         break;
     }
     scanscan_shutdown();
