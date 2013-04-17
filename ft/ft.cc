@@ -168,7 +168,6 @@ static int
 ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     FT ft = (FT) header_v;
     FT_HEADER ch = ft->checkpoint_header;
-    int r = 0;
     //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
     //             block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     assert(ch);
@@ -176,8 +175,7 @@ ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     if (ch->dirty) {            // this is only place this bit is tested (in checkpoint_header)
         TOKULOGGER logger = toku_cachefile_logger(cf);
         if (logger) {
-            r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
-            if (r!=0) goto handle_error;
+            toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
         }
         uint64_t now = (uint64_t) time(NULL);
         ft->h->time_of_last_modification = now;
@@ -197,12 +195,8 @@ ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     else {
         toku_block_translation_note_skipped_checkpoint(ft->blocktable);
     }
-    if (0) {
-handle_error:
-        toku_block_translation_note_failed_checkpoint(ft->blocktable);
-    }
-    return r;
-
+    // TODO can't fail
+    return 0;
 }
 
 // maps to cf->end_checkpoint_userdata
@@ -228,7 +222,6 @@ ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN opls
     // We already have exclusive access to this field already, so skip the locking.
     // This should already never fail.
     invariant(!toku_ft_needed_unlocked(ft));
-    int r = 0;
     assert(ft->cf == cachefile);
     TOKULOGGER logger = toku_cachefile_logger(cachefile);
     LSN lsn = ZERO_LSN;
@@ -237,8 +230,9 @@ ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN opls
         //Use recovery-specified lsn
         lsn = oplsn;
         //Recovery cannot reduce lsn of a header.
-        if (lsn.lsn < ft->h->checkpoint_lsn.lsn)
+        if (lsn.lsn < ft->h->checkpoint_lsn.lsn) {
             lsn = ft->h->checkpoint_lsn;
+        }
     }
     else {
         //Get LSN from logger
@@ -256,12 +250,15 @@ ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_valid, LSN opls
             assert(logger->rollback_cachefile != cachefile);
         }
         ft_begin_checkpoint(lsn, header_v);
-        r = ft_checkpoint(cachefile, fd, ft);
+        // TODO: can't fail
+        int r = ft_checkpoint(cachefile, fd, ft);
+        invariant(r == 0);
         ft_end_checkpoint(cachefile, fd, header_v);
         assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
     }
     toku_ft_free(ft);
-    return r;
+    // TODO: can't fail
+    return 0;
 }
 
 // maps to cf->note_pin_by_checkpoint
@@ -277,10 +274,8 @@ static void ft_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v) 
     toku_ft_release_reflock(ft);
 }
 
-static void
-unpin_by_checkpoint_callback(FT ft, void *extra) 
 // Requires: the reflock is held.
-{
+static void unpin_by_checkpoint_callback(FT ft, void *extra) {
     invariant(extra == NULL);
     invariant(ft->pinned_by_checkpoint);
     ft->pinned_by_checkpoint = false;
@@ -303,9 +298,8 @@ void toku_node_save_ct_pair(void *value_data, PAIR p) {
     node->ct_pair = p;
 }
 
-// TODO: can't fail
-static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
-    FTNODE XMALLOC(node);
+static void setup_initial_ft_root_node(FT ft, BLOCKNUM blocknum) {
+    FTNODE XCALLOC(node);
     toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->flags);
     BP_STATE(node,0) = PT_AVAIL;
 
@@ -316,13 +310,12 @@ static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
                         get_write_callbacks_for_node(ft),
                         toku_node_save_ct_pair);
     toku_unpin_ftnode(ft, node);
-    return 0;
 }
 
-static int
-ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
+static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
+    // fake, prevent unnecessary upgrade logic
+    ft->layout_version_read_from_disk = FT_LAYOUT_VERSION;
     ft->checkpoint_header = NULL;
-    ft->layout_version_read_from_disk = FT_LAYOUT_VERSION;             // fake, prevent unnecessary upgrade logic
 
     toku_list_init(&ft->live_ft_handles);
 
@@ -335,12 +328,7 @@ ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
     ft->cf = cf;
     ft->in_memory_stats = ZEROSTATS;
 
-    int r;
-    r = setup_initial_ft_root_node(ft, ft->h->root_blocknum);
-    if (r != 0) {
-        goto exit;
-    }
-    //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, ft, 0);
+    setup_initial_ft_root_node(ft, ft->h->root_blocknum);
     toku_cachefile_set_userdata(ft->cf,
                                 ft,
                                 ft_log_fassociate_during_checkpoint,
@@ -353,14 +341,11 @@ ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
                                 ft_note_unpin_by_checkpoint);
 
     toku_block_verify_no_free_blocknums(ft->blocktable);
-    r = 0;
-exit:
-    return r;
 }
 
 
 static FT_HEADER
-ft_header_new(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that_created)
+ft_header_create(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that_created)
 {
     uint64_t now = (uint64_t) time(NULL);
     struct ft_header h = {
@@ -393,40 +378,24 @@ ft_header_new(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that_cr
 }
 
 // allocate and initialize a fractal tree.
-// t->ft->cf is not set to anything. TODO(leif): I don't think that's true
-int
-toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
-    int r;
+void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     invariant(ftp);
 
     FT XCALLOC(ft);
-
     memset(&ft->descriptor, 0, sizeof(ft->descriptor));
     memset(&ft->cmp_descriptor, 0, sizeof(ft->cmp_descriptor));
 
-    ft->h = ft_header_new(options, make_blocknum(0), (txn ? txn->ancestor_txnid64 : TXNID_NONE));
+    ft->h = ft_header_create(options, make_blocknum(0), (txn ? txn->ancestor_txnid64 : TXNID_NONE));
 
     toku_ft_init_reflock(ft);
+
+    // Assign blocknum for root block, also dirty the header
     toku_blocktable_create_new(&ft->blocktable);
-    //Assign blocknum for root block, also dirty the header
     toku_allocate_blocknum(ft->blocktable, &ft->h->root_blocknum, ft);
 
-    r = ft_init(ft, options, cf);
-    if (r != 0) {
-        goto exit;
-    }
+    ft_init(ft, options, cf);
 
     *ftp = ft;
-    r = 0;
-exit:
-    if (r != 0) {
-        if (ft) {
-            toku_free(ft);
-            ft = NULL;
-        }
-        return r;
-    }
-    return r;
 }
 
 // TODO: (Zardosht) get rid of brt parameter
@@ -584,7 +553,7 @@ toku_ft_init(FT ft,
         .compare_fun = NULL,
         .update_fun = NULL
     };
-    ft->h = ft_header_new(&options, root_blocknum_on_disk, root_xid_that_created);
+    ft->h = ft_header_create(&options, root_blocknum_on_disk, root_xid_that_created);
     ft->h->checkpoint_count = 1;
     ft->h->checkpoint_lsn   = checkpoint_lsn;
 }

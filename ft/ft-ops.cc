@@ -3113,8 +3113,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
     if (is_create) {
         r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
-            r = toku_create_new_ft(&ft, &ft_h->options, cf, txn);
-            if (r) { goto exit; }
+            toku_ft_create(&ft, &ft_h->options, cf, txn);
         }
         else if (r!=0) {
             goto exit;

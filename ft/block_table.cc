@@ -226,17 +226,7 @@ toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
 //Debugging function
 #define PRNTF(str, b, siz, ad, bt) 
 
-void
-toku_block_translation_note_failed_checkpoint (BLOCK_TABLE bt) {
-    lock_for_blocktable(bt);
-    assert(bt->inprogress.block_translation);
-    bt->checkpoint_failed = true;
-    unlock_for_blocktable(bt);
-}
-
-
-void
-toku_block_translation_note_skipped_checkpoint (BLOCK_TABLE bt) {
+void toku_block_translation_note_skipped_checkpoint (BLOCK_TABLE bt) {
     //Purpose, alert block translation that the checkpoint was skipped, e.x. for a non-dirty header
     lock_for_blocktable(bt);
     assert(bt->inprogress.block_translation);

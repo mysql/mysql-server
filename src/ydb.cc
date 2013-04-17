@@ -1000,7 +1000,9 @@ env_close(DB_ENV * env, uint32_t flags) {
 
     // if panicked, or if any open transactions, or any open dbs, then do nothing.
 
-    if (toku_env_is_panicked(env)) goto panic_and_quit_early;
+    if (toku_env_is_panicked(env)) {
+        goto panic_and_quit_early;
+    }
     if (env->i->open_txns != 0) {
         err_msg = "Cannot close environment due to open transactions\n";
         r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
@@ -1013,22 +1015,20 @@ env_close(DB_ENV * env, uint32_t flags) {
             goto panic_and_quit_early;
         }
     }
-    {
-        if (env->i->persistent_environment) {
-            r = toku_db_close(env->i->persistent_environment);
-            if (r) {
-                err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
-            }
+    if (env->i->persistent_environment) {
+        r = toku_db_close(env->i->persistent_environment);
+        if (r) {
+            err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
+            toku_ydb_do_error(env, r, "%s", err_msg);
+            goto panic_and_quit_early;
         }
-        if (env->i->directory) {
-            r = toku_db_close(env->i->directory);
-            if (r) {
-                err_msg = "Cannot close Directory dictionary (DB->close error)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
-            }
+    }
+    if (env->i->directory) {
+        r = toku_db_close(env->i->directory);
+        if (r) {
+            err_msg = "Cannot close Directory dictionary (DB->close error)\n";
+            toku_ydb_do_error(env, r, "%s", err_msg);
+            goto panic_and_quit_early;
         }
     }
     if (env->i->cachetable) {
@@ -1059,7 +1059,7 @@ env_close(DB_ENV * env, uint32_t flags) {
         toku_cachetable_close(&env->i->cachetable);
     }
     if (env->i->logger) {
-        r=toku_logger_close(&env->i->logger);
+        r = toku_logger_close(&env->i->logger);
         if (r) {
             err_msg = "Cannot close environment (logger close error)\n";
             env->i->logger = NULL;
@@ -1069,10 +1069,11 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
     // Even if nothing else went wrong, but we were panicked, then raise an error.
     // But if something else went wrong then raise that error (above)
-    if (toku_env_is_panicked(env))
+    if (toku_env_is_panicked(env)) {
         goto panic_and_quit_early;
-    else
-        assert(env->i->panic_string==0);
+    } else {
+        assert(env->i->panic_string == 0);
+    }
 
     env_fs_destroy(env);
     if (env->i->ltm) {
@@ -1093,17 +1094,17 @@ env_close(DB_ENV * env, uint32_t flags) {
         toku_free(env->i->real_tmp_dir);
     if (env->i->open_dbs)
         toku_omt_destroy(&env->i->open_dbs);
-    toku_mutex_destroy(&env->i->open_dbs_lock);
     if (env->i->dir)
         toku_free(env->i->dir);
-    //Immediately before freeing internal environment unlock the directories
+    toku_mutex_destroy(&env->i->open_dbs_lock);
+
+    // Immediately before freeing internal environment unlock the directories
     unlock_single_process(env);
     toku_free(env->i);
-    env->i = NULL;
     toku_free(env);
-    env = NULL;
-    if (flags!=0)
+    if (flags != 0) {
         r = EINVAL;
+    }
     return r;
 
 panic_and_quit_early:
@@ -1128,19 +1129,23 @@ env_log_archive(DB_ENV * env, char **list[], uint32_t flags) {
 static int 
 env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
     HANDLE_PANICKED_ENV(env);
-    // We just flush everything.  MySQL uses lsn==0 which means flush everything.  For anyone else using the log, it is correct to flush too much, so we are OK.
-    return toku_logger_fsync(env->i->logger);
+    // We just flush everything. MySQL uses lsn == 0 which means flush everything. 
+    // For anyone else using the log, it is correct to flush too much, so we are OK.
+    toku_logger_fsync(env->i->logger);
+    return 0;
 }
 
 static int 
 env_set_cachesize(DB_ENV * env, uint32_t gbytes, uint32_t bytes, int ncache) {
     HANDLE_PANICKED_ENV(env);
-    if (ncache != 1)
+    if (ncache != 1) {
         return EINVAL;
+    }
     uint64_t cs64 = ((uint64_t) gbytes << 30) + bytes;
     unsigned long cs = cs64;
-    if (cs64 > cs)
+    if (cs64 > cs) {
         return EINVAL;
+    }
     env->i->cachetable_size = cs;
     return 0;
 }
@@ -1163,7 +1168,7 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
     toku_multi_operation_client_unlock();
 
     if (using_txns) {
-        if (r == 0) {  // commit
+        if (r == 0) {
             ret = locked_txn_commit(child_txn, 0);
             lazy_assert_zero(ret);
         } else {

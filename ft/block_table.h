@@ -29,7 +29,6 @@ void toku_ft_unlock(FT h);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
 void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, int fd);
-void toku_block_translation_note_failed_checkpoint(BLOCK_TABLE bt);
 void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
 void toku_maybe_truncate_file_on_open(BLOCK_TABLE bt, int fd);
 

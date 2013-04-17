@@ -360,12 +360,10 @@ int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist prepl
         );
 }
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync) {
-    int r = 0;
+void toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync) {
     if (logger && do_fsync) {
-        r = toku_logger_fsync_if_lsn_not_fsynced(logger, do_fsync_lsn);
+        toku_logger_fsync_if_lsn_not_fsynced(logger, do_fsync_lsn);
     }
-    return r;
 }
 
 void toku_txn_get_fsync_info(TOKUTXN ttxn, bool* do_fsync, LSN* do_fsync_lsn) {

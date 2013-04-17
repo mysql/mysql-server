@@ -29,8 +29,8 @@ int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool cre
 int toku_logger_close_rollback(TOKULOGGER logger);
 bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.
 
-int toku_logger_fsync (TOKULOGGER logger);
-int toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
+void toku_logger_fsync (TOKULOGGER logger);
+void toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
 int toku_logger_is_open(TOKULOGGER logger);
 void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct);
 int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max);
