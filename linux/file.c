@@ -148,7 +148,6 @@ toku_os_full_write (int fd, const void *buf, size_t len) {
     assert(len == 0);
 }
 
-#if 0
 int
 toku_os_write (int fd, const void *buf, size_t len) {
     while (len > 0) {
@@ -165,7 +164,6 @@ toku_os_write (int fd, const void *buf, size_t len) {
     }
     return 0;
 }
-#endif
 
 // t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
