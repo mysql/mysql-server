@@ -512,6 +512,8 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("#include <sys/types.h>\n");
     printf("/*stdio is needed for the FILE* in db->verify*/\n");
     printf("#include <stdio.h>\n");
+    printf("/*stdbool is needed for the bool in db_env_enable_engine_status*/\n");
+    printf("#include <stdbool.h>\n");
     printf("#include <stdint.h>\n");
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\nextern \"C\" {\n#endif\n");
