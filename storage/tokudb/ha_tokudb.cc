@@ -1171,26 +1171,25 @@ int ha_tokudb::read_last() {
     and the max used value for the hidden primary key.
 */
 void ha_tokudb::get_status() {
-    int error;
 
     if (!test_all_bits(share->status, (STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT))) {
         pthread_mutex_lock(&share->mutex);
-
-        (void) extra(HA_EXTRA_KEYREAD);
-        error = read_last();
-        (void) extra(HA_EXTRA_NO_KEYREAD);
-
-        if (error == 0) {
-            if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
+        if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
+            (void) extra(HA_EXTRA_KEYREAD);
+            int error = read_last();
+            (void) extra(HA_EXTRA_NO_KEYREAD);
+            if (error == 0) {
                 share->auto_ident = uint5korr(current_ident);
-            }
 
-            // mysql may not initialize the next_number_field here
-            // so we do this in the get_auto_increment method
-            if (table->next_number_field) {
-                share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
-                if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
-                    printf("%d:%s:%d:init auto increment:%lld\n", my_tid(), __FILE__, __LINE__, share->last_auto_increment);
+                // mysql may not initialize the next_number_field here
+                // so we do this in the get_auto_increment method
+                // index_last uses record[1]
+                assert(table->next_number_field == 0);
+                if (table->next_number_field) {
+                    share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
+                    if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
+                        printf("%d:%s:%d:init auto increment:%lld\n", my_tid(), __FILE__, __LINE__, share->last_auto_increment);
+                }
             }
         }
 
