@@ -292,7 +292,10 @@ sub_block_deserialize(struct sub_block *sb, unsigned char *sub_block_header) {
 static void
 verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
     // verify the header checksum
-    const size_t node_header = 8 + sizeof (u_int32_t) + sizeof (u_int32_t);
+    const size_t node_header = 8 + sizeof (u_int32_t) + sizeof (u_int32_t) + sizeof (u_int32_t);
+    
+    printf("%.8s layout_version=%u %u build=%d\n", cp, get_unaligned_uint32(cp+8), get_unaligned_uint32(cp+12), get_unaligned_uint32(cp+16));
+
     unsigned char *sub_block_header = &cp[node_header];
     u_int32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
     u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct sub_block);
@@ -339,7 +342,6 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     unsigned char *vp = toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
     if (r == (u_int64_t)size) {
-        printf("%.8s layout_version=%u %u\n", (char*)vp, get_unaligned_uint32(vp+8), get_unaligned_uint32(vp+12));
         verify_block(vp, offset, size);
     }
     toku_free(vp);
