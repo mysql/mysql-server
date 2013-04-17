@@ -1023,6 +1023,15 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("log suppress (success) ", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppressfail);
       STATPRINT("log suppress fail", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
+      STATPRINT("upgrade env status", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_header);
+      STATPRINT("upgrade header", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_nonleaf);
+      STATPRINT("upgrade nonleaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_leaf);
+      STATPRINT("upgrade leaf", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
