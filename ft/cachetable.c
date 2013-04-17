@@ -274,7 +274,6 @@ struct cachefile {
     int (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
     int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     int (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
-    LSN most_recent_global_checkpoint_that_finished_early;
     enum cachefile_checkpoint_state checkpoint_state;
     BACKGROUND_JOB_MANAGER bjm;
 };
@@ -543,7 +542,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         newcf->next = ct->cachefiles;
         ct->cachefiles = newcf;
 
-        newcf->most_recent_global_checkpoint_that_finished_early = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
 
         bjm_init(&newcf->bjm);
@@ -2778,7 +2776,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         }
 
         if (logger) {
-            // The checkpoint must be performed after the lock is acquired.
             {
                 LSN begin_lsn={ .lsn = (uint64_t) -1 }; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
                 TXN_MANAGER mgr = toku_logger_get_txn_manager(logger);
@@ -2956,20 +2953,14 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         CACHEFILE cf;
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->checkpoint_userdata) {
-                if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
-                    assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
-                    cachetable_unlock(ct);
-                    assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
-                    toku_cachetable_set_checkpointing_user_data_status(1);
-                    int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
-                    toku_cachetable_set_checkpointing_user_data_status(0);
-                    assert(r==0);
-                    cf->checkpoint_state = CS_CALLED_CHECKPOINT;
-                    cachetable_lock(ct);
-                }
-                else {
-                    assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
-                }
+                cachetable_unlock(ct);
+                assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
+                toku_cachetable_set_checkpointing_user_data_status(1);
+                int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
+                toku_cachetable_set_checkpointing_user_data_status(0);
+                assert(r==0);
+                cf->checkpoint_state = CS_CALLED_CHECKPOINT;
+                cachetable_lock(ct);
             }
         }
     }
@@ -2999,15 +2990,12 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->end_checkpoint_userdata) {
-                if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
-                    assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
-                    cachetable_unlock(ct);
-                    assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
-                    int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
-                    assert(r==0);
-                    cf->checkpoint_state = CS_NOT_IN_PROGRESS;
-                    cachetable_lock(ct);
-                }
+                cachetable_unlock(ct);
+                assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
+                int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
+                assert(r==0);
+                cf->checkpoint_state = CS_NOT_IN_PROGRESS;
+                cachetable_lock(ct);
                 assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
             }
         }
