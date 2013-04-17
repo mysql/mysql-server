@@ -42,7 +42,6 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 #include "hatoku_defines.h"
 #include "ha_tokudb.h"
 #include "hatoku_hton.h"
-#include "hatoku_cmptrace.h"
 #include <mysql/plugin.h>
 
 
@@ -96,7 +95,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
     return NULL;
 }
 
-static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_key, bool mutex_is_locked) {
+static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
     int error, result = 0;
 
     pthread_mutex_lock(&tokudb_mutex);
@@ -630,7 +629,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             );
         
         if (!primary_key_offsets) {
-            free_share(share, table, hidden_primary_key, 1);
+            free_share(share, 1);
             my_free((char *) rec_buff, MYF(0));
             rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
@@ -663,7 +662,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
         if ((error = db_create(&share->file, db_env, 0))) {
-            free_share(share, table, hidden_primary_key, 1);
+            free_share(share, 1);
             my_free((char *) rec_buff, MYF(0));
             rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
@@ -692,7 +691,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 sprintf(error_msg, "File %s is dirty, not opening DB", name_buff);
                 sql_print_error(error_msg);
             }
-            free_share(share, table, hidden_primary_key, 1);
+            free_share(share, 1);
             my_free((char *) rec_buff, MYF(0));
             rec_buff = NULL;
             my_free(alloc_ptr, MYF(0));
@@ -966,7 +965,7 @@ int ha_tokudb::__close(int mutex_is_locked) {
     alloc_ptr = NULL;
     primary_key_offsets = NULL;
     ha_tokudb::reset();         // current_row buffer
-    TOKUDB_DBUG_RETURN(free_share(share, table, hidden_primary_key, mutex_is_locked));
+    TOKUDB_DBUG_RETURN(free_share(share, mutex_is_locked));
 }
 
 //
