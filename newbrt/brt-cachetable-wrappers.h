@@ -75,26 +75,9 @@ toku_pin_brtnode(
     );
 
 /**
- * see comments for toku_pin_brtnode
- */
-void
-toku_pin_brtnode_holding_lock(
-    BRT brt,
-    BLOCKNUM blocknum,
-    u_int32_t fullhash,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS pbounds,
-    BRTNODE_FETCH_EXTRA bfe,
-    BOOL apply_ancestor_messages,
-    BOOL may_modify_node,
-    BRTNODE *node_p
-    );
-
-/**
  * Pin a brtnode off the client thread, which means
  * it is pinned without the ydb lock being held.
- * As a result, unlike toku_pin_brtnode and 
- * toku_pin_brtnode_holding_lock, we cannot apply ancestor
+ * As a result, unlike toku_pin_brtnode, we cannot apply ancestor
  * messages.
  */
 void

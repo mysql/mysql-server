@@ -2720,15 +2720,14 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
         // get the root node
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt->h);
-        toku_pin_brtnode_holding_lock(
-            brt, 
+        toku_pin_brtnode_off_client_thread(
+            brt->h, 
             *rootp, 
             fullhash,
-            (ANCESTORS)NULL, 
-            &infinite_bounds, 
             &bfe, 
-            TRUE,
             TRUE, // may_modify_node
+            0,
+            NULL,
             &node
             );
         toku_assert_entire_node_in_memory(node);
