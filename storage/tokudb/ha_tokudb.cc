@@ -5175,7 +5175,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
         error = read_data_from_range_query_buff(buf, need_val);
     }
     else if (icp_went_out_of_range) {
-      icp_went_out_of_range = false;
+        icp_went_out_of_range = false;
         error = HA_ERR_END_OF_FILE;
     }
     else {
