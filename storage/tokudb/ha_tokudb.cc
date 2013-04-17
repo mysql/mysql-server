@@ -4000,8 +4000,8 @@ int ha_tokudb::prepare_index_scan() {
         error = db->pre_acquire_read_lock(
             db, 
             transaction, 
-            db->dbt_neg_infty(), db->dbt_neg_infty(), 
-            db->dbt_pos_infty(), db->dbt_pos_infty()
+            db->dbt_neg_infty(), 
+            db->dbt_pos_infty()
             );
         lockretry_wait;
     }
@@ -4032,9 +4032,7 @@ int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
             share->key_file[active_index], 
             transaction, 
             &start_key, 
-            share->key_file[active_index]->dbt_neg_infty(), 
             &end_key, 
-            share->key_file[active_index]->dbt_pos_infty()
             );
         lockretry_wait;            
     }
@@ -4689,7 +4687,7 @@ int ha_tokudb::rnd_init(bool scan) {
     if (scan) {
         DB* db = share->key_file[primary_key];
         lockretryN(read_lock_wait_time){
-            error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
+            error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), db->dbt_pos_infty());
             lockretry_wait;
         }
         if (error) { last_cursor_error = error; goto cleanup; }
@@ -4862,9 +4860,7 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
 
     int error = 0;
     DBT start_dbt_key;
-    const DBT* start_dbt_data = NULL;
     DBT end_dbt_key;
-    const DBT* end_dbt_data = NULL;
     uchar* start_key_buff  = key_buff2;
     uchar* end_key_buff = key_buff3;
 
@@ -4875,33 +4871,22 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         switch (start_key->flag) {
         case HA_READ_AFTER_KEY:
             pack_key(&start_dbt_key, active_index, start_key_buff, start_key->key, start_key->length, COL_POS_INF);
-            start_dbt_data = share->key_file[active_index]->dbt_pos_infty();
             break;
         default:
             pack_key(&start_dbt_key, active_index, start_key_buff, start_key->key, start_key->length, COL_NEG_INF);
-            start_dbt_data = share->key_file[active_index]->dbt_neg_infty();
             break;
         }
     }
-    else {
-        start_dbt_data = share->key_file[active_index]->dbt_neg_infty();
-    }
-
     if (end_key) {
         switch (end_key->flag) {
         case HA_READ_BEFORE_KEY:
             pack_key(&end_dbt_key, active_index, end_key_buff, end_key->key, end_key->length, COL_NEG_INF);
-            end_dbt_data = share->key_file[active_index]->dbt_neg_infty();
             break;
         default:
             pack_key(&end_dbt_key, active_index, end_key_buff, end_key->key, end_key->length, COL_POS_INF);
-            end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
             break;
         }
         
-    }
-    else {
-        end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
     }
 
     lockretryN(read_lock_wait_time){
@@ -4909,9 +4894,7 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
             share->key_file[active_index], 
             transaction, 
             start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
-            start_dbt_data, 
-            end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty(), 
-            end_dbt_data
+            end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty()
             );
         lockretry_wait;
     }
@@ -5180,8 +5163,8 @@ int ha_tokudb::acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt) {
             error = db->pre_acquire_read_lock(
                 db, 
                 trans, 
-                db->dbt_neg_infty(), db->dbt_neg_infty(), 
-                db->dbt_pos_infty(), db->dbt_pos_infty()
+                db->dbt_neg_infty(), 
+                db->dbt_pos_infty()
                 );
             if (error) break;
         }
@@ -6459,9 +6442,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             share->file,
             txn,
             share->file->dbt_neg_infty(),
-            NULL,
-            share->file->dbt_pos_infty(),
-            NULL
+            share->file->dbt_pos_infty()
             );
         lockretry_wait;
     }
