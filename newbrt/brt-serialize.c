@@ -2005,8 +2005,7 @@ static void
 deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version) {
     if (layout_version == BRT_LAYOUT_VERSION_13) {
 	// in older versions of TokuDB the Descriptor had a 4 byte version, which we must skip over
-	u_int32_t dummy_version;
-	dummy_version = rbuf_int(rb);
+	u_int32_t dummy_version __attribute__((__unused__)) = rbuf_int(rb);
     }
     u_int32_t size;
     bytevec   data;
@@ -2264,7 +2263,6 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
             }
         }
         u_int32_t version = 0;
-        u_int32_t build_id = 0;
         if (r==0) {
             //Version MUST be in network order regardless of disk order.
             version = rbuf_network_int(rb);
@@ -2272,7 +2270,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
             if (version < BRT_LAYOUT_MIN_SUPPORTED_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
             if (version > BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
             //build_id MUST be in network order regardless of disk order.
-            build_id = rbuf_network_int(rb);
+	    u_int32_t build_id __attribute__((__unused__)) = rbuf_network_int(rb);
         }
         u_int32_t size;
         if (r==0) {

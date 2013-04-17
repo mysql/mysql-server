@@ -562,8 +562,6 @@ struct __toku_db_txn {
   int (*abort) (DB_TXN *);
   int (*commit) (DB_TXN*, u_int32_t);
   u_int32_t (*id) (DB_TXN *);
-  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
-#define db_txn_struct_i(x) ((struct __toku_db_txn_internal *)(&(x)->iic))
 };
 struct __toku_db_txn_stat {
   u_int32_t st_nactive;
@@ -585,8 +583,6 @@ struct __toku_dbc {
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t);
-  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
-#define dbc_struct_i(x) ((struct __toku_dbc_internal *)(&(x)->iic))
 };
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb

@@ -60,6 +60,7 @@ typedef struct pair_attr_s {
 } PAIR_ATTR;
 
 static inline PAIR_ATTR make_pair_attr(long size) { 
+#if !defined(__cplusplus)
     PAIR_ATTR result={
         .size = size, 
         .nonleaf_size = 0, 
@@ -67,6 +68,9 @@ static inline PAIR_ATTR make_pair_attr(long size) {
         .rollback_size = 0, 
         .cache_pressure_size = 0 
     }; 
+#else
+    PAIR_ATTR result = {size, 0, 0, 0, 0};
+#endif
     return result; 
 }
 

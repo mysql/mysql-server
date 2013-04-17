@@ -100,17 +100,20 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
-    char key[keylen+(sizeof pfx)];
+    struct of_pair {
+	int32_t pfx;
+	char    key[keylen];
+    } keyp;
     char val[vallen];
-    *(int *) key = pfx;
-    rand_bytes_limited((char *) key + (sizeof pfx), keylen);
+    keyp.pfx = pfx;
+    rand_bytes_limited(&keyp.key, keylen);
     rand_bytes(val, vallen);
     MSN msn = next_dummymsn();
 
     DBT keydbt_s, *keydbt, valdbt_s, *valdbt;
     keydbt = &keydbt_s;
     valdbt = &valdbt_s;
-    toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
+    toku_fill_dbt(keydbt, &keyp, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
     msg.type = BRT_INSERT;
@@ -138,17 +141,20 @@ insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFE
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
-    char key[keylen+(sizeof pfx)];
+    struct of_pair {
+	int32_t pfx;
+	char    key[keylen];
+    } keyp;
     char val[vallen];
-    *(int *) key = pfx;
-    rand_bytes_limited((char *) key + (sizeof pfx), keylen);
+    keyp.pfx = pfx;
+    rand_bytes_limited(&keyp.key, keylen);
     rand_bytes(val, vallen);
     MSN msn = next_dummymsn();
 
     DBT keydbt_s, *keydbt, valdbt_s, *valdbt;
     keydbt = &keydbt_s;
     valdbt = &valdbt_s;
-    toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
+    toku_fill_dbt(keydbt, &keyp, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
     msg.type = BRT_INSERT;

@@ -297,7 +297,7 @@ static int
 toku_apply_rollinclude (TXNID      xid,
                         uint64_t   num_nodes,
                         BLOCKNUM   spilled_head,
-                        uint32_t   spilled_head_hash,
+                        uint32_t   spilled_head_hash __attribute__((__unused__)),
                         BLOCKNUM   spilled_tail,
                         uint32_t   spilled_tail_hash,
                         TOKUTXN    txn,

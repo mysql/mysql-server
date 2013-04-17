@@ -212,6 +212,11 @@ struct __toku_db_txn_internal {
     DB_TXN *child;
     struct toku_list dbs_that_must_close_before_abort;
 };
+struct __toku_db_txn_external {
+    struct __toku_db_txn           external_part;
+    struct __toku_db_txn_internal  internal_part;
+};
+#define db_txn_struct_i(x) (&((struct __toku_db_txn_external *)x)->internal_part)
 
 struct __toku_dbc_internal {
     struct brt_cursor *c;
@@ -224,6 +229,14 @@ struct __toku_dbc_internal {
     // the rmw flag is set when the cursor is created with the DB_RMW flag set
     BOOL rmw;
 };
+
+struct __toku_dbc_external {
+    struct __toku_dbc          external_part;
+    struct __toku_dbc_internal internal_part;
+};
+	
+#define dbc_struct_i(x) (&((struct __toku_dbc_external *)x)->internal_part)
+
 
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
 

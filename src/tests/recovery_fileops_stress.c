@@ -226,14 +226,14 @@ static int do_random_fileop(int i, int state) {
 
 static void do_random_fileops(void) 
 {
-    int r, i, state, next_state;
+    int i, state, next_state;
     DB_TXN *txn;
     for (i=0;i<NUM_DICTIONARIES;i++) {
-        r = env->txn_begin(env, NULL, &txn, 0);
+        CHK(env->txn_begin(env, NULL, &txn, 0));
         state = get_state(i);
         next_state = do_random_fileop(i, state);
         put_state(i, next_state);
-        r = txn->commit(txn, 0);
+        CHK(txn->commit(txn, 0));
         update_crash_timer();
     }
 }

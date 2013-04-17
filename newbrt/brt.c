@@ -4435,7 +4435,6 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
 //   If workdone for any nonleaf nodes exceeds threshold then flush them, but don't do any merges or splits.
 {
     VERIFY_NODE(t, node);
-    BOOL update_stats = FALSE;
     if (node->height > 0) { goto exit; }
     // know we are a leaf node
     // need to apply messages to each basement node
@@ -4459,21 +4458,9 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
                 // we don't want to check this node again if the next time
                 // we query it, the msn hasn't changed.
                 curr_bn->max_msn_applied = curr_ancestors->node->max_msn_applied_to_node_on_disk;
-                update_stats = TRUE;
             }
         }
         curr_bn->stale_ancestor_messages_applied = true;
-    }
-    // Must update the leaf estimates.	Might as well use the estimates from the soft copy (even if they make it out to disk), since they are
-    // the best estimates we have.
-    if (update_stats) {
-        ANCESTORS curr_ancestors = ancestors;
-        BRTNODE prev_node = node;
-        while (curr_ancestors) {
-            BRTNODE next_node = curr_ancestors->node;
-            prev_node = next_node;
-            curr_ancestors = curr_ancestors->next;
-        }
     }
 exit:
     VERIFY_NODE(t, node);

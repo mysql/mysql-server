@@ -22,10 +22,8 @@ void test_db(void) {
     env.open(DIR, DB_CREATE|DB_PRIVATE, 0666);
     Db db(&env, 0);
     
-    int r;
-    
     try {
-	r = db.remove("DoesNotExist.db", NULL, 0);
+	db.remove("DoesNotExist.db", NULL, 0);
 	abort(); // must not make it here.
     } catch (DbException e) {
 	assert(e.get_errno() == ENOENT);

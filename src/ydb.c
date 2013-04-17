@@ -2988,11 +2988,10 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int i
     }
     if (flags!=0) return toku_ydb_do_error(env, EINVAL, "Invalid flags passed to DB_ENV->txn_begin\n");
 
-    size_t result_size = sizeof(DB_TXN)+sizeof(struct __toku_db_txn_internal); // the internal stuff is stuck on the end.
-    DB_TXN *result = toku_malloc(result_size);
-    if (result == 0)
-        return ENOMEM;
-    memset(result, 0, result_size);
+    struct __toku_db_txn_external *XMALLOC(eresult); // so the internal stuff is stuck on the end.
+    memset(eresult, 0, sizeof(*eresult));
+    DB_TXN *result = &eresult->external_part;
+
     //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
     result->mgrp = env;
 #define STXN(name) result->name = locked_txn_ ## name
@@ -4501,7 +4500,7 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DB_ENV* env = db->dbenv;
     int r;
-    size_t result_size = sizeof(DBC)+sizeof(struct __toku_dbc_internal); // internal stuff stuck on the end
+
     if (flags & ~(DB_SERIALIZABLE | DB_INHERIT_ISOLATION | DB_RMW | DBC_DISABLE_PREFETCHING)) {
         return toku_ydb_do_error(
             env, 
@@ -4509,14 +4508,15 @@ toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporar
             "Invalid flags set for toku_db_cursor\n"
             );
     }
+
     r = toku_grab_read_lock_on_directory(db, txn);
     if (r != 0) 
         return r;
     
-    DBC *result = toku_malloc(result_size);
-    if (result == 0)
-        return ENOMEM;
-    memset(result, 0, result_size);
+    struct __toku_dbc_external *XMALLOC(eresult); // so the internal stuff is stuck on the end
+    memset(eresult, 0, sizeof(*eresult));
+    DBC *result = &eresult->external_part;
+
 #define SCRS(name) result->name = locked_ ## name
     SCRS(c_get);
     SCRS(c_close);
