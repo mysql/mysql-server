@@ -705,22 +705,12 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, RECOVER_ENV r
     abort();
 }
 
-static int toku_recover_timestamp (struct logtype_timestamp *UU(l), RECOVER_ENV UU(renv)) {
+static int toku_recover_comment (struct logtype_comment *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }
 
-static int toku_recover_backward_timestamp (struct logtype_timestamp *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
-static int toku_recover_shutdown (struct logtype_shutdown *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
-static int toku_recover_backward_shutdown (struct logtype_shutdown *UU(l), RECOVER_ENV UU(renv)) {
+static int toku_recover_backward_comment (struct logtype_comment *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }
@@ -775,7 +765,7 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     if (r != 0) {
         needs_recovery = TRUE; goto exit;
     }
-    if (le->cmd == LT_shutdown || le->cmd == LT_timestamp) {
+    if (le->cmd == LT_comment) {
         r = toku_logcursor_prev(logcursor, &le);
         if (r != 0) {
             needs_recovery = TRUE; goto exit;
@@ -986,7 +976,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
     // write a recovery log entry
     BYTESTRING recover_comment = { strlen("recover"), "recover" };
-    r = toku_log_timestamp(renv->logger, NULL, TRUE, 0, recover_comment);
+    r = toku_log_comment(renv->logger, NULL, TRUE, 0, recover_comment);
     assert(r == 0);
 
     // checkpoint 

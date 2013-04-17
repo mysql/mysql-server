@@ -150,8 +150,7 @@ const struct logtype logtypes[] = {
                                {"TXNID",      "xid", 0},
                                {"BYTESTRING", "key", 0},
                                NULLFIELD}},
-    {"shutdown", 'S', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
-    {"timestamp", 'T', FA{{"u_int64_t", "timestamp", 0},
+    {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                           {"BYTESTRING", "comment", 0},
                           NULLFIELD}},
     {0,0,FA{NULLFIELD}}

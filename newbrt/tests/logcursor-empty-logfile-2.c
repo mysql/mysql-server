@@ -45,7 +45,7 @@ test_main (int argc, const char *argv[]) {
         char str[32];
         sprintf(str, "hello%d", helloseq++);
         BYTESTRING bs0 = { .data = str, .len = strlen(str) };
-        r = toku_log_timestamp(logger, &lsn, 0, 0, bs0);
+        r = toku_log_comment(logger, &lsn, 0, 0, bs0);
         assert(r == 0);
 
         r = toku_logger_close(&logger);
@@ -75,10 +75,10 @@ test_main (int argc, const char *argv[]) {
     for (int i=0; i<N; i++) {
 
         r = toku_logcursor_next(lc, &le);
-        assert(r == 0 && le->cmd == LT_timestamp);
+        assert(r == 0 && le->cmd == LT_comment);
         char expect[32];
         sprintf(expect, "hello%d", helloseq++);
-        assert(le->u.timestamp.comment.len == strlen(expect) && memcmp(le->u.timestamp.comment.data, expect, le->u.timestamp.comment.len) == 0);
+        assert(le->u.comment.comment.len == strlen(expect) && memcmp(le->u.comment.comment.data, expect, le->u.comment.comment.len) == 0);
     }
 
     r = toku_logcursor_next(lc, &le);
@@ -95,10 +95,10 @@ test_main (int argc, const char *argv[]) {
     for (int i=0; i<N; i++) {
 
         r = toku_logcursor_prev(lc, &le);
-        assert(r == 0 && le->cmd == LT_timestamp);
+        assert(r == 0 && le->cmd == LT_comment);
         char expect[32];
         sprintf(expect, "hello%d", --helloseq);
-        assert(le->u.timestamp.comment.len == strlen(expect) && memcmp(le->u.timestamp.comment.data, expect, le->u.timestamp.comment.len) == 0);
+        assert(le->u.comment.comment.len == strlen(expect) && memcmp(le->u.comment.comment.data, expect, le->u.comment.comment.len) == 0);
     }
 
     r = toku_logcursor_prev(lc, &le);

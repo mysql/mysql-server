@@ -138,8 +138,10 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
     if (logger->is_open) {
-        if (toku_omt_size(logger->live_txns) == 0)
-            r = toku_log_shutdown(logger, NULL, TRUE, 0);
+        if (toku_omt_size(logger->live_txns) == 0) {
+            BYTESTRING comment = { strlen("shutdown"), "shutdown" };
+            r = toku_log_comment(logger, NULL, TRUE, 0, comment);
+        }
     }
     return r;
 }
