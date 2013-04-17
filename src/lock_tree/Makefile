@@ -17,6 +17,7 @@ CFLAGS += -g
 CFLAGS += -Werror
 CFLAGS += -diag-disable 177
 CFLAGS += -diag-disable 589
+CFLAGS += -diag-disable 869
 CFLAGS += -diag-disable 981
 CFLAGS += -diag-disable 1324
 else
