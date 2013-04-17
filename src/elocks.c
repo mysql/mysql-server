@@ -151,7 +151,7 @@ toku_ydb_lock(void) {
         memset(ydbtime, 0, sizeof (struct ydbtime));
         r = toku_pthread_setspecific(ydb_big_lock.time_key, ydbtime);
         assert(r == 0);
-	(void) toku_sync_fetch_and_add_uint64(&status.total_clients, 1);
+	(void) toku_sync_fetch_and_increment_uint64(&status.total_clients);
     }
     if (ydbtime->tacquire) { // delay the thread if the lock acquire time is set and is less than the current time
 	if (0) printf("%"PRIu64"\n", ydbtime->tacquire);
@@ -162,21 +162,23 @@ toku_ydb_lock(void) {
             // put an upper bound on the sleep time since the timestamps may be crazy due to thread movement between cpu's or cpu frequency changes
             if (t > MAX_SLEEP) {
                 t = MAX_SLEEP;
-		(void) toku_sync_fetch_and_add_uint64(&status.times_max_sleep_used, 1);
+		(void) toku_sync_fetch_and_increment_uint64(&status.times_max_sleep_used);
 	    }
+#if !TOKU_WINDOWS || TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
 	    (void) toku_sync_fetch_and_add_uint64(&status.total_sleep_time, t);
-	    (void) toku_sync_fetch_and_add_uint64(&status.total_sleepers, 1);
+#endif
+	    (void) toku_sync_fetch_and_increment_uint64(&status.total_sleepers);
             usleep(t);	    
         }
     }
     r = toku_pthread_mutex_trylock(&ydb_big_lock.lock);
     if (r != 0) {           // if we can not get the lock, bump the count of the lock waits, and block on the lock
         assert(r == EBUSY);
-        (void) toku_sync_fetch_and_add_int32(&ydb_big_lock.waiters, 1);
-        (void) toku_sync_fetch_and_add_uint64(&status.total_waiters, 1);
+        (void) toku_sync_fetch_and_increment_int32(&ydb_big_lock.waiters);
+        (void) toku_sync_fetch_and_increment_uint64(&status.total_waiters);
         r = toku_pthread_mutex_lock(&ydb_big_lock.lock);
         assert(r == 0);
-        (void) toku_sync_fetch_and_add_int32(&ydb_big_lock.waiters, -1);
+        (void) toku_sync_fetch_and_decrement_int32(&ydb_big_lock.waiters);
     }
     status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
     toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_miss_count, &ydb_big_lock.start_miss_time);
