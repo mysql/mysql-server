@@ -422,6 +422,24 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     return r;
 }
 
+static void redirect_loader_to_empty_dictionaries(DB_LOADER *loader) {
+    DB_LOADER* tmp_loader = NULL;
+    int r = create_loader(
+        loader->i->env,
+        loader->i->txn,
+        &tmp_loader,
+        loader->i->src_db,
+        loader->i->N,
+        loader->i->dbs,
+        loader->i->db_flags,
+        loader->i->dbt_flags,
+        0,
+        false
+        );
+    lazy_assert_zero(r);
+    r = toku_loader_close(tmp_loader);
+}
+
 int toku_loader_close(DB_LOADER *loader) 
 {
     (void) __sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
@@ -432,6 +450,7 @@ int toku_loader_close(DB_LOADER *loader)
         }
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
             r = toku_ft_loader_abort(loader->i->ft_loader, true);
+            redirect_loader_to_empty_dictionaries(loader);
         }
         else {
             r = loader->i->err_errno;
@@ -440,6 +459,9 @@ int toku_loader_close(DB_LOADER *loader)
     else { // no error outstanding 
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
             r = ft_loader_close_and_redirect(loader);
+            if (r) {
+                redirect_loader_to_empty_dictionaries(loader);
+            }
         }
     }
     free_loader(loader);
@@ -466,22 +488,7 @@ int toku_loader_abort(DB_LOADER *loader)
         lazy_assert_zero(r);
     }
 
-    DB_LOADER* tmp_loader = NULL;
-    r = create_loader(
-        loader->i->env,
-        loader->i->txn,
-        &tmp_loader,
-        loader->i->src_db,
-        loader->i->N,
-        loader->i->dbs,
-        loader->i->db_flags,
-        loader->i->dbt_flags,
-        0,
-        false
-        );
-    lazy_assert_zero(r);
-    r = toku_loader_close(tmp_loader);
-    
+    redirect_loader_to_empty_dictionaries(loader);
     free_loader(loader);
     return r;
 }
