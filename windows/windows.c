@@ -87,9 +87,6 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     id->st_ino     = info.nFileIndexHigh;
     id->st_ino   <<= 32;
     id->st_ino    |= info.nFileIndexLow;
-    id->st_creat   = info.ftCreationTime.dwHighDateTime;
-    id->st_creat <<= 32;
-    id->st_creat  |= info.ftCreationTime.dwLowDateTime;
     r = 0;
 cleanup:
     if (r!=0) errno = r;
