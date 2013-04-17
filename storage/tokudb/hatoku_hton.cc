@@ -518,7 +518,7 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 
 
 static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
-    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    TOKUDB_DBUG_ENTER("tokudb_show_data_size");
     int error;
     u_int64_t num_bytes_in_db = 0;
     DB* curr_db = NULL;
@@ -721,6 +721,58 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+
+static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    int error;
+    char * legend_ydb_lock = "ydb lock held";
+    char * legend_cp_period = "Checkpoint period";
+    char * legend_cp_status = "Checkpoint status code (0 = idle)";
+    char buf[4096] = {0};
+
+    ENGINE_STATUS engstat;
+
+    error = db_env->get_engine_status(db_env, &engstat);
+    if (error == 0) {
+      
+      const char * lockstat = engstat.ydb_lock_held ? "Locked" : "Unlocked";
+      stat_print(
+		 thd, 
+		 tokudb_hton_name, 
+		 tokudb_hton_name_length, 
+		 legend_ydb_lock, 
+		 strlen(legend_ydb_lock), 
+		 lockstat,
+		 strlen(lockstat)
+		 );
+      
+
+
+      sprintf(buf, "%" PRIu32, (unsigned int) engstat.checkpoint_period);
+      stat_print(
+		 thd, 
+		 tokudb_hton_name, 
+		 tokudb_hton_name_length, 
+		 legend_cp_period, 
+		 strlen(legend_cp_period), 
+		 buf,
+		 strlen(buf)
+		 );
+      
+      sprintf(buf, "%" PRIu64, (long unsigned int) engstat.checkpoint_footprint);
+      stat_print(
+		 thd, 
+		 tokudb_hton_name, 
+		 tokudb_hton_name_length, 
+		 legend_cp_status, 
+		 strlen(legend_cp_status), 
+		 buf,
+		 strlen(buf)
+		 );
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
     case HA_ENGINE_DATA_AMOUNT:
@@ -731,6 +783,9 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
         break;
     case HA_ENGINE_LOGS:
         return tokudb_show_logs(thd, stat_print);
+        break;
+    case HA_ENGINE_STATUS:
+        return tokudb_show_engine_status(thd, stat_print);
         break;
     default:
         break;
