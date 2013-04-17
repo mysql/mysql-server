@@ -107,8 +107,15 @@ toku_ydb_lock_destroy(void) {
     int r;
     r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
 #if YDB_LOCK_MISS_TIME
+    // If main thread calls here, free memory allocated to main thread
+    // because destructor would not be called on thread exit.
     void * last_ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
     if (last_ydbtime) toku_free(last_ydbtime);
+
+    // If some other thread (not main thread) calls here
+    // set the value to NULL so destructor is not called twice
+    r = toku_pthread_setspecific(ydb_big_lock.time_key, NULL); assert(r==0);
+
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
 #endif
     return r;
