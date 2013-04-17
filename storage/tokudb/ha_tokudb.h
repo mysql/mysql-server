@@ -273,7 +273,7 @@ private:
     int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, bool is_read_only, DB_TXN* txn);
     int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
-    int estimate_num_rows(DB* db, u_int64_t* num_rows);
+    int estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
     int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn );
     int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn );

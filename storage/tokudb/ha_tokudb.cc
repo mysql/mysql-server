@@ -1539,7 +1539,7 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
 
-    error = estimate_num_rows(share->file,&num_rows);
+    error = estimate_num_rows(share->file,&num_rows, NULL);
     //
     // estimate_num_rows should not fail under normal conditions
     //
@@ -1713,7 +1713,7 @@ exit:
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
+int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn) {
     DBT key;
     DBT data;
     int error = ENOSYS;
@@ -1721,17 +1721,21 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
     u_int64_t less, equal, greater;
     int is_exact;
     bool do_commit = false;
+    DB_TXN* txn_to_use = NULL;
 
     bzero((void *)&key, sizeof(key));
     bzero((void *)&data, sizeof(data));
 
-    if (transaction == NULL) {
-        error = db_env->txn_begin(db_env, 0, &transaction, DB_READ_UNCOMMITTED);
+    if (txn == NULL) {
+        error = db_env->txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED);
         if (error) goto cleanup;
         do_commit = true;
     }
+    else {
+        txn_to_use = txn;
+    }
     
-    error = db->cursor(db, transaction, &crsr, 0);
+    error = db->cursor(db, txn_to_use, &crsr, 0);
     if (error) { goto cleanup; }
 
     //
@@ -1748,7 +1752,7 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
 
     error = db->key_range64(
         db, 
-        transaction, 
+        txn_to_use, 
         &key, 
         &less,
         &equal,
@@ -1769,8 +1773,8 @@ cleanup:
         crsr = NULL;
     }
     if (do_commit) {
-        commit_txn(transaction, 0);
-        transaction = NULL;
+        commit_txn(txn_to_use, 0);
+        txn_to_use = NULL;
     }
     return error;
 }
@@ -4703,8 +4707,18 @@ int ha_tokudb::info(uint flag) {
         stats.records = share->rows + share->rows_from_locked_table;
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
+            u_int64_t num_rows = 0;
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
+
+            error = estimate_num_rows(share->file,&num_rows, txn);
+            if (error == 0) {
+                share->rows = num_rows;
+                stats.records = num_rows;
+            }
+            else {
+                goto cleanup;
+            }
 
             error = share->file->stat64(
                 share->file, 
