@@ -37,6 +37,7 @@ typedef struct fidx { int idx; } FIDX;
 static const FIDX FIDX_NULL __attribute__((__unused__)) = {-1};
 static int fidx_is_null (const FIDX f) __attribute__((__unused__));
 static int fidx_is_null (const FIDX f) { return f.idx==-1; }
+FILE *toku_bl_fidx2file (BRTLOADER bl, FIDX i);
 
 int brtloader_open_temp_file (BRTLOADER bl, FIDX*file_idx);
 
@@ -56,7 +57,7 @@ int init_rowset (struct rowset *rows);
 void destroy_rowset (struct rowset *rows);
 void add_row (struct rowset *rows, DBT *key, DBT *val);
 
-int loader_write_row(DBT *key, DBT *val, FIDX data, u_int64_t *dataoff, BRTLOADER bl);
+int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, u_int64_t *dataoff, BRTLOADER bl);
 int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl);
 
 struct merge_fileset {
@@ -183,7 +184,7 @@ int merge_files (struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_
 #if defined(__cilkplusplus)
 extern "Cilk++" {
 #endif
-int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func,
+int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func,
 			 int progress_allocation);
 
 int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);

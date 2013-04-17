@@ -185,7 +185,7 @@ static void test_read_write_rows (char *template) {
     for (int i=0; i<3; i++) {
 	DBT key = {.size=strlen(keystrings[i]), .data=keystrings[i]};
 	DBT val = {.size=strlen(valstrings[i]), .data=valstrings[i]};
-	r = loader_write_row(&key, &val, file, &dataoff, &bl);
+	r = loader_write_row(&key, &val, file, toku_bl_fidx2file(&bl, file), &dataoff, &bl);
 	CKERR(r);
 	actual_size+=key.size + val.size + 8;
     }
