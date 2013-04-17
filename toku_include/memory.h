@@ -122,16 +122,6 @@ void toku_memory_get_status(LOCAL_MEMORY_STATUS s);
 
 size_t toku_memory_footprint(void * p, size_t touched);
 
-void toku_memory_dontneed_after_but_i_touched(void *malloced_object, size_t malloced_size, size_t just_touched_start, size_t just_touched_length);
-// Effect: Tell the memory system that we just touched just_touched_length bytes starting at malloced_object[just_touched_start].
-//   And that we don't care about anything after that.  The memory system may call madvise(MADV_DONTNEED) on anything after that point.
-//   The memory system should avoid calling madvise() unless it will do some good.
-// Implementation note:  Whenever we cross a 2MB boundary (that is just_touched_start-1 is in a different 2MB page from just_touched_start+just_touched_length-1)
-//   we should call madvise().  Call madvise all the way to the end of malloc_usable_size_fun if that's known.
-// Rationale: In RHEL 6, huge pages get malloced for large objects.  When we have only touched a few pages at the beginning we want to madvise the rest to be dontneed
-//   so that the kernel will deaggregate space.
-//  
-
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
 #endif
