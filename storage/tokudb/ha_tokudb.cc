@@ -2922,6 +2922,9 @@ int ha_tokudb::end_bulk_insert() {
             for (uint i = 0; i < table_share->keys; i++) {
                 if (table_share->key_info[i].flags & HA_NOSAME) {
                     bool is_unique;
+                    if (i == primary_key) {
+                        continue;
+                    }
                     error = is_index_unique(
                         &is_unique, 
                         transaction, 
