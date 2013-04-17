@@ -3,7 +3,7 @@ add_custom_target(generate_config_h DEPENDS
   "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 
 install(
-  FILES toku_list.h toku_os.h partitioned_counter.h
+  FILES toku_list.h toku_os.h
   DESTINATION include
   )
 install(

@@ -4,8 +4,8 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#ifndef THREAD_LOCAL_COUNTER_H
-#define THREAD_LOCAL_COUNTER_H
+#ifndef PARTITIONED_COUNTER_H
+#define PARTITIONED_COUNTER_H
 
 // Overview: A partitioned_counter provides a counter that can be incremented and the running sum can be read at any time.
 //  We assume that increments are frequent, whereas reading is infrequent.
@@ -95,4 +95,4 @@ private:
 };
 #endif
 
-#endif
+#endif // PARTITIONED_COUNTER_H

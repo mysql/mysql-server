@@ -4,6 +4,7 @@ set(tokuportability_srcs
   file
   memory
   os_malloc
+  partitioned_counter
   portability
   toku_assert
   toku_pthread
@@ -26,7 +27,7 @@ set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock AP
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
 
 install(
-  FILES toku_os_types.h toku_time.h
+  FILES toku_os_types.h toku_time.h partitioned_counter.h
   DESTINATION include
   )
 install(
