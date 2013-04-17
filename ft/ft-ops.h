@@ -87,12 +87,7 @@ void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb,
 // Implementation note: Acquires a write lock on the entire database.
 //  This function works by sending an BROADCAST-UPDATE message containing
 //   the key and the extra.
-
-// Question: Why does the update_function need a DB_TXN?						    
-
 int toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun) __attribute__ ((warn_unused_result));
-int toku_ft_update(FT_HANDLE brt, TOKUTXN txn, const DBT *key, const DBT *extra) __attribute__ ((warn_unused_result));
-int toku_ft_broadcast_update(FT_HANDLE brt, TOKUTXN txn, const DBT *extra) __attribute__ ((warn_unused_result));
 
 int toku_ft_handle_open(FT_HANDLE, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn)  __attribute__ ((warn_unused_result));
