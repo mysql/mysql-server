@@ -370,6 +370,10 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
         char *tmp_name;
         uint num_keys = table->s->keys;
 
+        //
+        // create share and fill it with all zeroes
+        // hence, all pointers are initialized to NULL
+        //
         if (!(share = (TOKUDB_SHARE *) 
             my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
                             &share, sizeof(*share),
@@ -405,7 +409,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
 
 static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_key, bool mutex_is_locked) {
     int error, result = 0;
-    uint num_keys = table->s->keys + test(hidden_primary_key);
 
     pthread_mutex_lock(&tokudb_mutex);
 
@@ -413,20 +416,32 @@ static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_k
         pthread_mutex_unlock(&share->mutex);
     if (!--share->use_count) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
-        DB **key_file = share->key_file;
 
         /* this does share->file->close() implicitly */
         update_status(share, table);
 
-        for (uint i = 0; i < num_keys; i++) {
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-                TOKUDB_TRACE("dbclose:%p\n", key_file[i]);
-            if (key_file[i] && (error = key_file[i]->close(key_file[i], 0)))
-                result = error;
+        //
+        // number of open DB's may not be equal to number of keys we have because add_index
+        // may have added some. So, we loop through entire array and close any non-NULL value
+        // It is imperative that we reset a DB to NULL once we are done with it.
+        //
+        for (uint i = 0; i < sizeof(share->key_file)/sizeof(share->key_file[0]); i++) {
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+                TOKUDB_TRACE("dbclose:%p\n", share->key_file[i]);
+            }
+            if (share->key_file[i]) { 
+                error = share->key_file[i]->close(share->key_file[i], 0);
+                if (error) {
+                    result = error;
+                }
+                share->key_file[i] = NULL;
+            }
         }
 
-        if (share->status_block && (error = share->status_block->close(share->status_block, 0)))
+        if (share->status_block && (error = share->status_block->close(share->status_block, 0))) {
             result = error;
+        }
+        
 
         hash_delete(&tokudb_open_tables, (uchar *) share);
         thr_lock_delete(&share->lock);
@@ -449,7 +464,7 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
         error = db_env->close(db_env, 0);       // Error is logged
-        db_env = 0;
+        db_env = NULL;
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -1679,7 +1694,7 @@ void ha_tokudb::get_status() {
             if (!db_create(&share->status_block, db_env, 0)) {
                 if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
                     share->status_block->close(share->status_block, 0);
-                    share->status_block = 0;
+                    share->status_block = NULL;
                 }
             }
         }
