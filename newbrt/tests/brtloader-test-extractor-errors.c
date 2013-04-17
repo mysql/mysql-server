@@ -16,42 +16,20 @@
 extern "C" {
 #endif
 
-#if 0
+static int event_count, event_count_trigger;
 
-static int my_malloc_count = 0;
-static int my_malloc_trigger = 0;
-
-static void set_my_malloc_trigger(int n) {
-    my_malloc_count = 0;
-    my_malloc_trigger = n;
+static void reset_event_counts(void) {
+    event_count = event_count_trigger = 0;
 }
 
-static void *my_malloc(size_t n) {
-    my_malloc_count++;
-    if (my_malloc_count == my_malloc_trigger) {
-        errno = ENOSPC;
-        return NULL;
-    } else
-        return malloc(n);
-}
-
-#endif
-
-static int write_count, write_count_trigger, write_enospc;
-
-static void reset_write_counts(void) {
-    write_count = write_count_trigger = write_enospc = 0;
-}
-
-static void count_enospc(void) {
-    write_enospc++;
+static void event_hit(void) {
 }
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    write_count++;
+    event_count++;
     size_t r;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -65,9 +43,9 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 
 static ssize_t bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -78,15 +56,41 @@ static ssize_t bad_write(int fd, const void * bp, size_t len) {
 
 static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
 	r = pwrite(fd, bp, len, off);
     }
     return r;
+}
+
+static int my_malloc_event = 0;
+static int my_malloc_count = 0, my_big_malloc_count = 0;
+
+static void reset_my_malloc_counts(void) {
+    my_malloc_count = my_big_malloc_count = 0;
+}
+
+static void *my_malloc(size_t n) {
+    void *caller = __builtin_return_address(0);
+    if ((void*)toku_malloc <= caller && caller <= (void*)toku_xcalloc) {
+        my_malloc_count++;
+        if (n >= 64*1024) {
+            my_big_malloc_count++;
+            if (my_malloc_event) {
+                event_count++;
+                if (event_count == event_count_trigger) {
+                    event_hit();
+                    errno = ENOMEM;
+                    return NULL;
+                }
+            }
+        }
+    }
+    return malloc(n);
 }
 
 static void copy_dbt(DBT *dest, const DBT *src) {
@@ -161,6 +165,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     }
 
     // setup error injection
+    toku_set_func_malloc(my_malloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
@@ -174,6 +179,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     r = toku_brt_loader_finish_extractor(loader);
     assert(r == 0);
 
+    toku_set_func_malloc(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);
@@ -218,6 +224,8 @@ int test_main (int argc, const char *argv[]) {
             nrowsets = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
+        } else if (strcmp(argv[0],"-m") == 0) {
+            my_malloc_event = 1;
 	} else if (argc!=1) {
             return usage(progname);
 	    exit(1);
@@ -232,12 +240,13 @@ int test_main (int argc, const char *argv[]) {
     test_extractor(nrows, nrowsets, FALSE);
 
     // run tests
-    int write_error_limit = write_count;
+    int write_error_limit = event_count;
     if (verbose) printf("write_error_limit=%d\n", write_error_limit);
 
     for (int i = 1; i <= write_error_limit; i++) {
-        reset_write_counts();
-        write_count_trigger = i;
+        reset_event_counts();
+        reset_my_malloc_counts();
+        event_count_trigger = i;
         test_extractor(nrows, nrowsets, TRUE);
     }
 
