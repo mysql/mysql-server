@@ -274,6 +274,7 @@ BDB_DONTRUN_TESTS = \
         test_dbremove_old \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
+		test_get_max_row_size \
 	test_large_update_broadcast_small_cachetable \
         test_logflush \
         test_multiple_checkpoints_block_commit \
