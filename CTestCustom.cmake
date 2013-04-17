@@ -48,6 +48,12 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/upgrade-test-4.tdb
   )
 
+## osx's pthreads prefer writers, so this test will deadlock
+if (@CMAKE_SYSTEM_NAME@ STREQUAL Darwin)
+  list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE portability/test-pthread-rwlock-rwr)
+  list(APPEND CTEST_CUSTOM_TESTS_IGNORE portability/test-pthread-rwlock-rwr)
+endif ()
+
 ## tests that are supposed to crash will generate memcheck failures
 set(tests_that_should_fail
   ft/test-assertA
@@ -71,6 +77,7 @@ set(stress_tests
   test_stress6.tdb
   test_stress7.tdb
   test_stress_hot_indexing.tdb
+  test_stress_openclose.tdb
   test_stress_with_verify.tdb
   )
 foreach(test ${stress_tests})
@@ -93,13 +100,8 @@ foreach(test ${stress_tests})
 endforeach(test)
 
 set(tdb_tests_that_should_fail "ydb/${stress_tests}")
-## osx's pthreads prefer writers, so this test will deadlock
-if (@CMAKE_SYSTEM_NAME@ STREQUAL Darwin)
-  list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE portability/test-pthread-rwlock-rwr)
-  list(APPEND CTEST_CUSTOM_TESTS_IGNORE portability/test-pthread-rwlock-rwr)
-endif ()
-
 string(REGEX REPLACE ";" ";ydb/" stress_tests "${stress_tests}")
+
 set(recover_stress_tests
   ydb/recover-test_stress1.abortrecover
   ydb/recover-test_stress2.abortrecover
