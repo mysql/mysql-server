@@ -5129,7 +5129,7 @@ void ha_tokudb::init_auto_increment() {
             );
         
         if (error == 0 && value.size == sizeof(share->last_auto_increment)) {
-            share->last_auto_increment = *(uint *)value.data;
+            share->last_auto_increment = *(ulonglong *)value.data;
             free(value.data);
             value.data = NULL;
         }
@@ -5170,7 +5170,7 @@ void ha_tokudb::init_auto_increment() {
             );
         
         if (error == 0 && value.size == sizeof(share->auto_inc_create_value)) {
-            share->auto_inc_create_value = *(uint *)value.data;
+            share->auto_inc_create_value = *(ulonglong *)value.data;
             free(value.data);
             value.data = NULL;
         }
