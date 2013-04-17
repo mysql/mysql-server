@@ -9,7 +9,7 @@
 
 // this is the basic information we need to keep per logfile
 struct toku_logfile_info {
-    long long index;
+    int64_t index;
     LSN maxlsn;
 };
 typedef struct toku_logfile_info *TOKULOGFILEINFO;

@@ -165,7 +165,7 @@ void toku_logfilemgr_print(TOKULOGFILEMGR lfm) {
     int i;
     struct lfm_entry *entry = lfm->first;
     for (i=0;i<lfm->n_entries;i++) {
-        printf("  entry %d : index = %lld, maxlsn = %lu\n", i, entry->lf_info->index, entry->lf_info->maxlsn.lsn);
+        printf("  entry %d : index = %"PRId64", maxlsn = %"PRIu64"\n", i, entry->lf_info->index, entry->lf_info->maxlsn.lsn);
         entry = entry->next;
     }
 }
