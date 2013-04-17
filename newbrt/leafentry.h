@@ -45,11 +45,13 @@ extern "C" {
 
 //
 // enum of possible values for LEAFENTRY->type field
+// LE_CLEAN means that there is a single committed value in a format that saves disk space
+// LE_MVCC means that there may be multiple committed values or there are provisional values
 //
-enum { LE_CLEAN = 0, LE_MVCC = 1 };
+enum { LE_CLEAN = 0, LE_MVCC = 1 };  
 
 struct __attribute__ ((__packed__)) leafentry {
-    uint8_t  type;
+    uint8_t  type;    // type is LE_CLEAN or LE_MVCC
     uint32_t keylen;
     union {
         struct __attribute__ ((__packed__)) leafentry_clean {
@@ -62,25 +64,26 @@ struct __attribute__ ((__packed__)) leafentry {
             u_int8_t key_xrs[0]; //Actual key,
                                  //then TXNIDs of XRs relevant for reads:
                                  //  if provisional XRs exist, store OUTERMOST TXNID
-                                 //  store committed TXNIDs, from most recently committed to least recently committed
-                                 //then lengths of XRs relevant for reads (length is at most 1<<31, MSB is used to store the type bit):
-                                 //  if provisional XRs exist, store length and type associated with INNERMOST TXNID
-                                 //  store length and type associated with committed TXNIDs, in same order as above
+                                 //  store committed TXNIDs, from most recently committed to least recently committed (newest first)
+                                 //then lengths of XRs relevant for reads (length is at most 1<<31, MSB is 1 for insert, 0 for delete):
+                                 //  if provisional XRs exist (num_pxrs>0), store length and insert/delete flag associated with INNERMOST TXNID
+                                 //  store length and insert/delete flag associated with each committed TXNID, in same order as above (newest first)
                                  //then data of XRs relevant for reads
-                                 //  if provisional XRs exist, store data associated with INNERMOST TXNID
-                                 //  store data associated with committed TXNIDs
+                                 //  if provisional XRs exist (num_pxrs>0), store data associated with INNERMOST provisional TXNID
+                                 //  store data associated with committed TXNIDs (all committed data, newest committed values first)
                                  //if provisional XRs still exist (that is, num_puxrs > 1, so INNERMOST provisional TXNID != OUTERMOST provisional TXNID):
                                  //  for OUTERMOST provisional XR:
-                                 //    1 byte: store type
-                                 //    4 bytes: length (if type is INSERT)
+                                 //    1 byte: store type (insert/delete/placeholder)
+                                 //    4 bytes: length (if type is INSERT, no length stored if placeholder or delete)
                                  //    data
-                                 //  for rest of provisional stack, from outermost to innermost, but NOT including innermost:
+                                 //  for rest of provisional stack (if num_pxrs > 2), from second-outermost to second-innermost (outermost is stored above, innermost is stored separately):
                                  //   8 bytes: TXNID
-                                 //   1 byte: store type
+                                 //   1 byte: store type (insert/delete/placeholder)
                                  //   4 bytes: length (if type is INSERT)
                                  //   data
                                  //  for INNERMOST provisional XR:
                                  //   8 bytes: TXNID
+                                 //   (innermost data and length with insert/delete flag are stored above, cannot be a placeholder)
         } mvcc; // For the case where LEAFENTRY->type is LE_MVCC
     } u;
 };
