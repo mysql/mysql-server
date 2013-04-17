@@ -290,12 +290,12 @@ static void *reader_test_fun (void *ta_v) {
     while (ta->unfinished_count>0) {
 	uint64_t thisval = read_partitioned_counter(ta->pc);
 	assert(lastval <= thisval);
-	assert(thisval <= ta->limit);
+	assert(thisval <= ta->limit+2);
 	lastval = thisval;
 	if (verboseness_cmdarg && (0==(thisval & (thisval-1)))) printf("ufc=%ld Thisval=%ld\n", ta->unfinished_count,thisval);
     }
     uint64_t thisval = read_partitioned_counter(ta->pc);
-    assert(thisval==ta->limit);
+    assert(thisval==ta->limit+2); // we incremented two extra times in the test
     return ta_v;
 }
 
@@ -333,7 +333,7 @@ static void do_testit (void) {
 	for (uint64_t j=0; j<n_writers[i] ; j++) {
 	    pt_create(&writer_threads[i][j], writer_test_fun, &tas[i]);
 	}
-        increment_partitioned_counter(tas[i].pc, -1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.
+        increment_partitioned_counter(tas[i].pc, 1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.
     }
     for (int i=0; i<NGROUPS; i++) {
 	pt_join(reader_threads[i], &tas[i]);
