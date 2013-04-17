@@ -68,7 +68,6 @@ void tear_down_logger(int which) {
 int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
-    int r;
     int i;
     int loop;
     const int numloops = 100;
