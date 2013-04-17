@@ -39,30 +39,11 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
 	int r = create_dbufio_fileset(&bfs, N, fds, M);
 	assert(r==0);
     }
-#if 0
-    while (n_live>0) {
-	int indirectnum = random()%n_live;
-	int filenum = still_live[indirectnum];
-	char buf[bytes_per_read];
-	size_t n_read_here=0;
-	int r = dbufio_fileset_read(bfs, filenum, buf, bytes_per_read, &n_read_here);
-	//printf("read(%d) -> %d (%ld) (old n_read=%ld)\n", filenum, r, n_read_here, n_read[filenum]);
-	if (r==0) {
-	    // did read something
-	    assert(n_read_here==bytes_per_read);
-	    n_read[filenum]+=n_read_here;
-	    //printf(" new n_read=%ld\n", n_read[filenum]);
-	    assert(n_read[filenum]<=chars_per_file);
-	} else {
-	    assert(r==EOF);
-	    assert(n_read[filenum]==chars_per_file);
-	    still_live[indirectnum] = still_live[n_live-1];
-	    n_live--;
-	}
-    }
-#else
+
     n_live = n_live; bytes_per_read = bytes_per_read;
-#endif
+
+    { int r = panic_dbufio_fileset(bfs, EIO); assert(r == 0); }
+
     {
 	int r = destroy_dbufio_fileset(bfs);
 	assert(r==0);
@@ -76,7 +57,7 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
 	    int r = close(fds[i]);
 	    assert(r==0);
 	}
-	assert(n_read[i]==chars_per_file);
+	assert(n_read[i]==0);
     }
 }
 

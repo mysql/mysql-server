@@ -149,7 +149,10 @@ static void* io_thread (void *v)
 		{
 		    int r = toku_pthread_mutex_lock(&bfs->mutex);
 		    if (r!=0) { panic(bfs, r); return 0; }
-		    if (paniced(bfs)) return 0;
+		    if (paniced(bfs)) {
+                        toku_pthread_mutex_unlock(&bfs->mutex); // ignore any error
+                        return 0;
+                    }
 		}
 		// Now that we have the mutex, we can decrement n_not_done (if applicable) and set second_buf_ready
 		if (readcode<=0) {
@@ -267,6 +270,14 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
     return result;
 }
 
+int panic_dbufio_fileset(DBUFIO_FILESET bfs, int error) {
+    int r;
+    r = toku_pthread_mutex_lock(&bfs->mutex); assert(r==0);
+    panic(bfs, error);
+    r = toku_pthread_cond_broadcast(&bfs->cond); assert(r==0);
+    r = toku_pthread_mutex_unlock(&bfs->mutex); assert(r==0);
+    return 0;
+}
 
 int destroy_dbufio_fileset (DBUFIO_FILESET bfs) {
     int result = 0;

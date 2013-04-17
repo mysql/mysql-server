@@ -22,6 +22,8 @@ int destroy_dbufio_fileset(DBUFIO_FILESET);
 
 int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t count, size_t *n_read);
 
+int panic_dbufio_fileset(DBUFIO_FILESET, int error);
+
 C_END
 
 #endif
