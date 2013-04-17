@@ -70,6 +70,11 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
 #define XCALLOC(v) XCALLOC_N(1,(v))
 #define XREALLOC_N(n,v) v = cast_to_typeof(v) toku_xrealloc(v, (n)*sizeof(*v))
 
+// ZERO_ARRAY writes zeroes to a stack-allocated array
+#define ZERO_ARRAY(o) do { memset((o), 0, sizeof (o)); } while (0)
+// ZERO_STRUCT writes zeroes to a stack-allocated struct
+#define ZERO_STRUCT(o) do { memset(&(o), 0, sizeof (o)); } while (0)
+
 /* Copy memory.  Analogous to strdup() */
 void *toku_memdup (const void *v, size_t len);
 /* Toku-version of strdup.  Use this so that it calls toku_malloc() */
