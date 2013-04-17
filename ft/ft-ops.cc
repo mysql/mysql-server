@@ -2287,9 +2287,9 @@ ft_leaf_run_gc(FTNODE node, FT ft) {
         xid_omt_t live_root_txns;
         toku_txn_manager_clone_state_for_gc(
             logger->txn_manager,
-            snapshot_txnids,
-            referenced_xids,
-            live_root_txns
+            &snapshot_txnids,
+            &referenced_xids,
+            &live_root_txns
             );
         
         // Perform garbage collection. Provide a full snapshot of the transaction
@@ -2303,8 +2303,8 @@ ft_leaf_run_gc(FTNODE node, FT ft) {
         
         // Free the OMT's we used for garbage collecting.
         snapshot_txnids.destroy();
-        live_root_txns.destroy();
         referenced_xids.destroy();
+        live_root_txns.destroy();
     }
 }
 
@@ -3044,7 +3044,7 @@ void toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_in
     BYTESTRING new_iname_bs = {.len=(uint32_t) strlen(new_iname), .data=(char*)new_iname};
     toku_logger_save_rollback_load(txn, old_filenum, &new_iname_bs);
     if (do_log && logger) {
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         toku_log_load(logger, load_lsn, do_fsync, txn, xid, old_filenum, new_iname_bs);
     }
 }
@@ -3061,7 +3061,7 @@ void toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, in
     // write to the rollback log
     toku_logger_save_rollback_hot_index(txn, &filenums);
     if (do_log && logger) {
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         // write to the recovery log
         toku_log_hot_index(logger, hot_index_lsn, do_fsync, txn, xid, filenums);
     }
@@ -3111,7 +3111,7 @@ toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
     if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         toku_log_enq_insert(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
     }
 }
@@ -3130,7 +3130,7 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
         FILENUMS filenums = {.num = num_fts, .filenums = fnums};
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
         toku_log_enq_insert_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
     }
@@ -3139,7 +3139,7 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
 void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, enum ft_msg_type type) {
     paranoid_invariant(type==FT_INSERT || type==FT_INSERT_NO_OVERWRITE);
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
-    TXNID xid = toku_txn_get_txnid(txn);
+    TXNID_PAIR xid = toku_txn_get_txnid(txn);
     if (txn) {
         BYTESTRING keybs = {key->size, (char *) key->data};
         toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
@@ -3180,7 +3180,7 @@ ft_send_update_msg(FT_HANDLE brt, FT_MSG_S *msg, TOKUTXN txn) {
 void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_extra,
                       TOKUTXN txn, bool oplsn_valid, LSN oplsn,
                       bool do_logging) {
-    TXNID xid = toku_txn_get_txnid(txn);
+    TXNID_PAIR xid = toku_txn_get_txnid(txn);
     if (txn) {
         BYTESTRING keybs = { key->size, (char *) key->data };
         toku_logger_save_rollback_cmdupdate(
@@ -3212,7 +3212,7 @@ void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_func
 void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_extra,
                                 TOKUTXN txn, bool oplsn_valid, LSN oplsn,
                                 bool do_logging, bool is_resetting_op) {
-    TXNID xid = toku_txn_get_txnid(txn);
+    TXNID_PAIR xid = toku_txn_get_txnid(txn);
     uint8_t  resetting = is_resetting_op ? 1 : 0;
     if (txn) {
         toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(ft_h->ft->cf), resetting);
@@ -3263,7 +3263,7 @@ toku_ft_log_del(TOKUTXN txn, FT_HANDLE brt, const DBT *key) {
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
     }
 }
@@ -3282,7 +3282,7 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
         FILENUMS filenums = {.num = num_fts, .filenums = fnums};
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
-        TXNID xid = toku_txn_get_txnid(txn);
+        TXNID_PAIR xid = toku_txn_get_txnid(txn);
         FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
         toku_log_enq_delete_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
     }
@@ -3290,7 +3290,7 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
 
 void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging) {
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
-    TXNID xid = toku_txn_get_txnid(txn);
+    TXNID_PAIR xid = toku_txn_get_txnid(txn);
     if (txn) {
         BYTESTRING keybs = {key->size, (char *) key->data};
         toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
@@ -3492,7 +3492,7 @@ void toku_ft_change_descriptor(
 
         if (do_log) {
             TOKULOGGER logger = toku_txn_logger(txn);
-            TXNID xid = toku_txn_get_txnid(txn);
+            TXNID_PAIR xid = toku_txn_get_txnid(txn);
             toku_log_change_fdescriptor(
                 logger, NULL, 0,
                 txn,
@@ -3905,7 +3905,7 @@ static int
 does_txn_read_entry(TXNID id, TOKUTXN context) {
     int rval;
     TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(context);
-    if (id < oldest_live_in_snapshot || id == context->ancestor_txnid64) {
+    if (id < oldest_live_in_snapshot || id == context->txnid.parent_id64) {
         rval = TOKUDB_ACCEPT;
     }
     else if (id > context->snapshot_txnid64 || toku_is_txn_in_live_root_txn_list(*context->live_root_txn_list, id)) {
@@ -5811,6 +5811,7 @@ int toku_ft_layer_init(void) {
 
     partitioned_counters_init();
     status_init();
+    txn_status_init();
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
@@ -5823,6 +5824,7 @@ void toku_ft_layer_destroy(void) {
     toku_ft_serialize_layer_destroy();
     toku_checkpoint_destroy();
     status_destroy();
+    txn_status_destroy();
     partitioned_counters_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();

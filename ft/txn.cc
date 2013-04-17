@@ -12,6 +12,8 @@
 #include "ule.h"
 #include "rollback-apply.h"
 #include "txn_manager.h"
+#include "txn_child_manager.h"
+#include <util/partitioned_counter.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -21,33 +23,39 @@
 
 static TXN_STATUS_S txn_status;
 
-#define STATUS_INIT(k,t,l) { \
-    txn_status.status[k].keyname = #k; \
-    txn_status.status[k].type    = t;  \
-    txn_status.status[k].legend  = "txn: " l; \
-    }
+#define STATUS_INIT(k,t,l) do {                                         \
+        txn_status.status[k].keyname = #k;                               \
+        txn_status.status[k].type    = t;                                \
+        txn_status.status[k].legend  = "txn: " l;                        \
+        if (t == PARCOUNT) {                                            \
+            txn_status.status[k].value.parcount = create_partitioned_counter(); \
+        }                                                               \
+    } while (0)
 
-static void
-status_init(void) {
+void
+txn_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(TXN_BEGIN,            UINT64,   "begin");
-    STATUS_INIT(TXN_COMMIT,           UINT64,   "successful commits");
-    STATUS_INIT(TXN_ABORT,            UINT64,   "aborts");
-    STATUS_INIT(TXN_CLOSE,            UINT64,   "close (should be sum of aborts and commits)");
-    STATUS_INIT(TXN_NUM_OPEN,         UINT64,   "number currently open (should be begin - close)");
-    STATUS_INIT(TXN_MAX_OPEN,         UINT64,   "max number open simultaneously");
+    STATUS_INIT(TXN_BEGIN,            PARCOUNT,   "begin");
+    STATUS_INIT(TXN_COMMIT,           PARCOUNT,   "successful commits");
+    STATUS_INIT(TXN_ABORT,            PARCOUNT,   "aborts");
     txn_status.initialized = true;
 }
+
+void txn_status_destroy(void) {
+    for (int i = 0; i < TXN_STATUS_NUM_ROWS; ++i) {
+        if (txn_status.status[i].type == PARCOUNT) {
+            destroy_partitioned_counter(txn_status.status[i].value.parcount);
+        }
+    }
+}
+
 #undef STATUS_INIT
 
-#define STATUS_VALUE(x) txn_status.status[x].value.num
+#define STATUS_INC(x, d) increment_partitioned_counter(txn_status.status[x].value.parcount, d)
 
 void 
 toku_txn_get_status(TXN_STATUS s) {
-    if (!txn_status.initialized) {
-        status_init();
-    }
     *s = txn_status;
 }
 
@@ -64,9 +72,9 @@ toku_txn_unlock(TOKUTXN txn)
 }
 
 uint64_t
-toku_txn_get_id(TOKUTXN txn)
+toku_txn_get_root_id(TOKUTXN txn)
 {
-    return txn->txnid64;
+    return txn->txnid.parent_id64;
 }
 
 int 
@@ -78,22 +86,77 @@ toku_txn_begin_txn (
     TXN_SNAPSHOT_TYPE snapshot_type
     ) 
 {
-    int r = toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, TXNID_NONE, snapshot_type, container_db_txn, false);
+    int r = toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, TXNID_PAIR_NONE, snapshot_type, container_db_txn, false);
     return r;
 }
 
 int 
 toku_txn_begin_with_xid (
-    TOKUTXN parent_tokutxn, 
-    TOKUTXN *tokutxn, 
+    TOKUTXN parent, 
+    TOKUTXN *txnp, 
     TOKULOGGER logger, 
-    TXNID xid, 
+    TXNID_PAIR xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
     bool for_recovery
     ) 
-{
-    return toku_txn_manager_start_txn(tokutxn, logger->txn_manager, parent_tokutxn, logger, xid, snapshot_type, container_db_txn, for_recovery);
+{   
+    int r = 0;
+    TOKUTXN txn;    
+    XIDS xids;
+    // Do as much (safe) work as possible before serializing on the txn_manager lock.
+    XIDS parent_xids;
+    if (parent == NULL) {
+        parent_xids = xids_get_root_xids();
+    } else {
+        parent_xids = parent->xids;
+    }
+    r = xids_create_unknown_child(parent_xids, &xids);
+    if (r != 0) {
+        return r;
+    }
+    toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, xids, for_recovery);
+    // txnid64, snapshot_txnid64 
+    // will be set in here.
+    if (for_recovery) {
+        if (parent == NULL) {
+            invariant(xid.child_id64 == TXNID_NONE);
+            toku_txn_manager_start_txn_for_recovery(
+                txn,
+                logger->txn_manager,
+                xid.parent_id64
+                );
+        }
+        else {
+            parent->child_manager->start_child_txn_for_recovery(txn, parent, xid);
+            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
+        }
+    }
+    else {
+        assert(xid.parent_id64 == TXNID_NONE);
+        assert(xid.child_id64 == TXNID_NONE);
+        if (parent == NULL) {
+            toku_txn_manager_start_txn(
+                txn, 
+                logger->txn_manager, 
+                snapshot_type
+                );
+        }
+        else {
+            parent->child_manager->start_child_txn(txn, parent);
+            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
+            toku_txn_manager_handle_snapshot_create_for_child_txn(
+                txn, 
+                logger->txn_manager, 
+                snapshot_type
+                );
+        }
+    }
+    TXNID finalized_xid = (parent == NULL) ? txn->txnid.parent_id64 : txn->txnid.child_id64;
+    xids_finalize_with_child(txn->xids, finalized_xid);
+    *txnp = txn;
+
+    return r;
 }
 
 DB_TXN *
@@ -124,8 +187,8 @@ void toku_txn_create_txn (
     assert(logger->rollback_cachefile);
 
     omt<FT> open_fts;
-    open_fts.create();
-
+    open_fts.create_no_array();
+        
     struct txn_roll_info roll_info = {
         .num_rollback_nodes = 0,
         .num_rollentries = 0,
@@ -139,14 +202,18 @@ void toku_txn_create_txn (
         .current_rollback_hash = 0,
     };
 
+static txn_child_manager tcm;
+
     struct tokutxn new_txn = {
-        .txnid64 = TXNID_NONE,
-        .ancestor_txnid64 = TXNID_NONE,
+        .txnid = {.parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE },
         .snapshot_txnid64 = TXNID_NONE,
-        .snapshot_type = snapshot_type,
+        .snapshot_type = for_recovery ? TXN_SNAPSHOT_NONE : snapshot_type,
         .for_recovery = for_recovery,
         .logger = logger,
         .parent = parent_tokutxn,
+        .child = NULL,
+        .child_manager_s = tcm,
+        .child_manager = NULL,
         .container_db_txn = container_db_txn,
         .live_root_txn_list = nullptr,
         .xids = xids,
@@ -161,52 +228,46 @@ void toku_txn_create_txn (
         .txn_lock = ZERO_MUTEX_INITIALIZER,
         .open_fts = open_fts,
         .roll_info = roll_info,
+        .state_lock = ZERO_MUTEX_INITIALIZER,
+        .state_cond = ZERO_COND_INITIALIZER,
         .state = TOKUTXN_LIVE,
-        .prepared_txns_link = {0},
         .num_pin = 0
     };
 
-
-    TOKUTXN XMEMDUP(result, &new_txn);
-    toku_mutex_init(&result->txn_lock, NULL);
+    TOKUTXN result = NULL;
+    XMEMDUP(result, &new_txn);
     invalidate_xa_xid(&result->xa_xid);
+    if (parent_tokutxn == NULL) {
+        result->child_manager = &result->child_manager_s;
+        result->child_manager->init(result);
+    }
+    else {
+        result->child_manager = parent_tokutxn->child_manager;
+    }
+
+    toku_mutex_init(&result->txn_lock, nullptr);
+
+    toku_pthread_mutexattr_t attr;
+    toku_mutexattr_init(&attr);
+    toku_mutexattr_settype(&attr, TOKU_MUTEX_ADAPTIVE);
+    toku_mutex_init(&result->state_lock, &attr);
+    toku_mutexattr_destroy(&attr);
+
+    toku_cond_init(&result->state_cond, nullptr);
+
     *tokutxn = result;
 
-    STATUS_VALUE(TXN_BEGIN)++;
-    STATUS_VALUE(TXN_NUM_OPEN)++;
-    if (STATUS_VALUE(TXN_NUM_OPEN) > STATUS_VALUE(TXN_MAX_OPEN))
-        STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
+    STATUS_INC(TXN_BEGIN, 1);
 }
 
 void
 toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid)
 {
     // these should not have been set yet
-    invariant(txn->txnid64 == TXNID_NONE);
-    invariant(txn->ancestor_txnid64 == TXNID_NONE);
-    invariant(txn->snapshot_txnid64 == TXNID_NONE);
-
-    TXNID snapshot_txnid64;
-    if (txn->snapshot_type == TXN_SNAPSHOT_NONE) {
-        snapshot_txnid64 = TXNID_NONE;
-    } else if (txn->parent == NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD) {
-        snapshot_txnid64 = xid;
-    } else if (txn->snapshot_type == TXN_SNAPSHOT_ROOT) {
-        snapshot_txnid64 = txn->parent->snapshot_txnid64;
-    } else {
-        assert(false);
-    }
-
-#define UNCONST(t, x) *((t *) &(x))
-
-    // we need to cast around const here in order to move
-    // toku_txn_create_txn outside of the txn_manager_lock in
-    // toku_txn_manager_start_txn
-    UNCONST(TXNID, txn->txnid64) = xid;
-    UNCONST(TXNID, txn->snapshot_txnid64) = snapshot_txnid64;
-    UNCONST(TXNID, txn->ancestor_txnid64) = (txn->parent ? txn->parent->ancestor_txnid64 : xid);
-
-#undef UNCONST
+    invariant(txn->txnid.parent_id64 == TXNID_NONE);
+    invariant(txn->txnid.child_id64 == TXNID_NONE);
+    txn->txnid.parent_id64 = xid;
+    txn->txnid.child_id64 = TXNID_NONE;
 }
 
 //Used on recovery to recover a transaction.
@@ -250,10 +311,45 @@ struct xcommit_info {
     TOKUTXN txn;
 };
 
+static void txn_note_commit(TOKUTXN txn) {
+    // Purpose:
+    //  Delay until any indexer is done pinning this transaction.
+    //  Update status of a transaction from live->committing (or prepared->committing)
+    //  Do so in a thread-safe manner that does not conflict with hot indexing or
+    //  begin checkpoint.
+    if (toku_txn_is_read_only(txn)) {
+        // Neither hot indexing nor checkpoint do any work with readonly txns,
+        // so we can skip taking the txn_manager lock here.
+        invariant(txn->state==TOKUTXN_LIVE);
+        txn->state = TOKUTXN_COMMITTING;
+        goto done;
+    }
+    if (txn->state==TOKUTXN_PREPARING) {
+        invalidate_xa_xid(&txn->xa_xid);
+    }
+    // for hot indexing, if hot index is processing
+    // this transaction in some leafentry, then we cannot change
+    // the state to commit or abort until
+    // hot index is done with that leafentry
+    toku_txn_lock_state(txn);
+    while (txn->num_pin > 0) {
+        toku_cond_wait(
+            &txn->state_cond,
+            &txn->state_lock
+            );
+    }
+    txn->state = TOKUTXN_COMMITTING;
+    toku_txn_unlock_state(txn);
+done:
+    return;
+}
+
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
 {
-    toku_txn_manager_note_commit_txn(txn->logger->txn_manager, txn);
+    // there should be no child when we commit or abort a TOKUTXN
+    invariant(txn->child == NULL);
+    txn_note_commit(txn);
 
     // Child transactions do not actually 'commit'.  They promote their 
     // changes to parent, so no need to fsync if this txn has a parent. The
@@ -270,14 +366,14 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun_extra = poll_extra;
 
     if (!toku_txn_is_read_only(txn)) {
-        toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
+        toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_commit
     // but it's cheap (only a number of function calls that return immediately)
     // since there were no writes.  Skipping it would mean we would need to be careful
     // in case we added any additional required cleanup into those functions in the future.
     int r = toku_rollback_commit(txn, oplsn);
-    STATUS_VALUE(TXN_COMMIT)++;
+    STATUS_INC(TXN_COMMIT, 1);
     return r;
 }
 
@@ -289,25 +385,59 @@ int toku_txn_abort_txn(TOKUTXN txn,
     return toku_txn_abort_with_lsn(txn, ZERO_LSN, poll, poll_extra);
 }
 
+static void txn_note_abort(TOKUTXN txn) {
+    // Purpose:
+    //  Delay until any indexer is done pinning this transaction.
+    //  Update status of a transaction from live->aborting (or prepared->aborting)
+    //  Do so in a thread-safe manner that does not conflict with hot indexing or
+    //  begin checkpoint.
+    if (toku_txn_is_read_only(txn)) {
+        // Neither hot indexing nor checkpoint do any work with readonly txns,
+        // so we can skip taking the state lock here.
+        invariant(txn->state==TOKUTXN_LIVE);
+        txn->state = TOKUTXN_ABORTING;
+        goto done;
+    }
+    if (txn->state==TOKUTXN_PREPARING) {
+        invalidate_xa_xid(&txn->xa_xid);
+    }
+    // for hot indexing, if hot index is processing
+    // this transaction in some leafentry, then we cannot change
+    // the state to commit or abort until
+    // hot index is done with that leafentry
+    toku_txn_lock_state(txn);
+    while (txn->num_pin > 0) {
+        toku_cond_wait(
+            &txn->state_cond,
+            &txn->state_lock
+            );
+    }
+    txn->state = TOKUTXN_ABORTING;
+    toku_txn_unlock_state(txn);
+done:
+    return;
+}
+
 int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
-// Effect: Among other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
-    toku_txn_manager_note_abort_txn(txn->logger->txn_manager, txn);
+    // there should be no child when we commit or abort a TOKUTXN
+    invariant(txn->child == NULL);
+    txn_note_abort(txn);
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
     txn->do_fsync = false;
 
     if (!toku_txn_is_read_only(txn)) {
-        toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
+        toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_abort
     // but it's cheap (only a number of function calls that return immediately)
     // since there were no writes.  Skipping it would mean we would need to be careful
     // in case we added any additional required cleanup into those functions in the future.
     int r = toku_rollback_abort(txn, oplsn);
-    STATUS_VALUE(TXN_ABORT)++;
+    STATUS_INC(TXN_ABORT, 1);
     return r;
 }
 
@@ -327,12 +457,17 @@ void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
         // XA guarantees are free.  No need to pay for overhead of prepare.
         return;
     }
-    toku_txn_manager_add_prepared_txn(txn->logger->txn_manager, txn);
+    assert(txn->state==TOKUTXN_LIVE);
+    // This state transition must be protected against begin_checkpoint
+    // Therefore, the caller must have the mo lock held
+    toku_txn_lock_state(txn);
+    txn->state = TOKUTXN_PREPARING; 
+    toku_txn_unlock_state(txn);
     // Do we need to do an fsync?
     txn->do_fsync = (txn->force_fsync_on_commit || txn->roll_info.num_rollentries>0);
     copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
-    toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64, xa_xid);
+    toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid, xa_xid);
 }
 
 void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
@@ -340,7 +475,7 @@ void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
 }
 
 int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
-    return toku_txn_manager_recover_txn(
+    return toku_txn_manager_recover_root_txn(
         logger->txn_manager,
         preplist,
         count,
@@ -386,7 +521,18 @@ void toku_txn_complete_txn(TOKUTXN txn) {
     assert(txn->roll_info.current_rollback.b == ROLLBACK_NONE.b);
     assert(txn->num_pin == 0);
     assert(txn->state == TOKUTXN_COMMITTING || txn->state == TOKUTXN_ABORTING);
-    toku_txn_manager_finish_txn(txn->logger->txn_manager, txn);
+    if (txn->parent) {
+        toku_txn_manager_handle_snapshot_destroy_for_child_txn(
+            txn,
+            txn->logger->txn_manager,
+            txn->snapshot_type
+            );
+        txn->parent->child_manager->finish_child_txn(txn);
+    }
+    else {
+        toku_txn_manager_finish_txn(txn->logger->txn_manager, txn);
+        txn->child_manager->destroy();
+    }
     // note that here is another place we depend on
     // this function being called with the multi operation lock
     note_txn_closing(txn);
@@ -396,10 +542,9 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
     txn->open_fts.destroy();
     xids_destroy(&txn->xids);
     toku_mutex_destroy(&txn->txn_lock);
+    toku_mutex_destroy(&txn->state_lock);
+    toku_cond_destroy(&txn->state_cond);
     toku_free(txn);
-
-    STATUS_VALUE(TXN_CLOSE)++;
-    STATUS_VALUE(TXN_NUM_OPEN)--;
 }
 
 XIDS toku_txn_get_xids (TOKUTXN txn) {
@@ -446,16 +591,16 @@ maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
     }
     TOKUTXN parent;
     parent = txn->parent;
-    TXNID xid;
-    xid = txn->txnid64;
-    TXNID pxid;
-    pxid = 0;
+    TXNID_PAIR xid;
+    xid = txn->txnid;
+    TXNID_PAIR pxid;
+    pxid = TXNID_PAIR_NONE;
     if (parent) {
         // Recursively log parent first if necessary.
         // Transactions cannot do work if they have children,
         // so the lowest level child's lock is sufficient for ancestors.
         maybe_log_begin_txn_for_write_operation_unlocked(parent);
-        pxid = parent->txnid64;
+        pxid = parent->txnid;
     }
 
     toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
@@ -483,6 +628,39 @@ toku_txn_is_read_only(TOKUTXN txn) {
     }
     return false;
 }
+
+// needed for hot indexing
+void toku_txn_lock_state(TOKUTXN txn) {
+    toku_mutex_lock(&txn->state_lock);
+}
+void toku_txn_unlock_state(TOKUTXN txn){
+    toku_mutex_unlock(&txn->state_lock);
+}
+
+
+// prevents a client thread from transitioning txn from LIVE|PREPARING -> COMMITTING|ABORTING
+// hot indexing may need a transactions to stay in the LIVE|PREPARING state while it processes
+// a leafentry.
+void toku_txn_pin_live_txn_unlocked(TOKUTXN txn) {
+    assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
+    assert(!toku_txn_is_read_only(txn));
+    txn->num_pin++;
+}
+
+// allows a client thread to go back to being able to transition txn
+// from LIVE|PREPARING -> COMMITTING|ABORTING
+void toku_txn_unpin_live_txn(TOKUTXN txn) {
+    assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
+    assert(txn->num_pin > 0);
+    toku_txn_lock_state(txn);
+    txn->num_pin--;
+    if (txn->num_pin == 0) {
+        toku_cond_broadcast(&txn->state_cond);
+    }
+    toku_txn_unlock_state(txn);
+}
+
+
 
 #include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);

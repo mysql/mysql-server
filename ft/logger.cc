@@ -289,7 +289,7 @@ is_closed:
 void toku_logger_shutdown(TOKULOGGER logger) {
     if (logger->is_open) {
         TXN_MANAGER mgr = logger->txn_manager;
-        if (toku_txn_manager_num_live_txns(mgr) == 0) {
+        if (toku_txn_manager_num_live_root_txns(mgr) == 0) {
             TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
             toku_log_shutdown(logger, NULL, true, 0, last_xid);
         }
@@ -718,6 +718,13 @@ void toku_logger_trim_log_files (TOKULOGGER logger, bool trim_log_files)
     logger->trim_log_files = trim_log_files;
 }
 
+bool toku_logger_txns_exist(TOKULOGGER logger)
+// Called during close of environment to ensure that transactions don't exist
+{
+    return toku_txn_manager_txns_exist(logger->txn_manager);
+}
+
+
 void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync)
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
 // Entry: Holds input lock.  The log entry has already been written to the input buffer.
@@ -918,6 +925,17 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, uint32_t 
     return toku_fread_uint64_t (f, txnid, checksum, len);
 }
 
+int toku_fread_TXNID_PAIR   (FILE *f, TXNID_PAIR *txnid, struct x1764 *checksum, uint32_t *len) {
+    TXNID parent;
+    TXNID child;
+    toku_fread_TXNID(f, &parent, checksum, len);
+    toku_fread_TXNID(f, &child, checksum, len);
+    txnid->parent_id64 = parent;
+    txnid->child_id64 = child;
+    return 0;
+}
+
+
 int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, uint32_t *len) {
     // These reads are verbose because XA defined the fields as "long", but we use 4 bytes, 1 byte and 1 byte respectively.
     TOKU_XA_XID *XMALLOC(xid);
@@ -996,6 +1014,14 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1
     int r = toku_fread_TXNID(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%" PRIu64, fieldname, v);
+    return 0;
+}
+
+int toku_logprint_TXNID_PAIR (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
+    TXNID_PAIR v;
+    int r = toku_fread_TXNID_PAIR(inf, &v, checksum, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%" PRIu64 "%" PRIu64, fieldname, v.parent_id64, v.child_id64);
     return 0;
 }
 
@@ -1145,9 +1171,10 @@ int toku_read_logmagic (FILE *f, uint32_t *versionp) {
     return 0;
 }
 
-TXNID toku_txn_get_txnid (TOKUTXN txn) {
-    if (txn==0) return 0;
-    else return txn->txnid64;
+TXNID_PAIR toku_txn_get_txnid (TOKUTXN txn) {
+    TXNID_PAIR tp = { .parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE};
+    if (txn==0) return tp;
+    else return txn->txnid;
 }
 
 LSN toku_logger_last_lsn(TOKULOGGER logger) {
@@ -1158,8 +1185,19 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
-void toku_txnid2txn(TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
-    toku_txn_manager_id2txn(logger->txn_manager, txnid, result);
+void toku_txnid2txn(TOKULOGGER logger, TXNID_PAIR txnid, TOKUTXN *result) {
+    TOKUTXN root_txn = NULL;
+    toku_txn_manager_suspend(logger->txn_manager);
+    toku_txn_manager_id2txn_unlocked(logger->txn_manager, txnid, &root_txn);
+    if (root_txn == NULL || root_txn->txnid.child_id64 == txnid.child_id64) {
+        *result = root_txn;
+    }
+    else if (root_txn != NULL) {
+        root_txn->child_manager->suspend();
+        root_txn->child_manager->find_tokutxn_by_xid_unlocked(txnid, result);
+        root_txn->child_manager->resume();
+    }
+    toku_txn_manager_resume(logger->txn_manager);
 }
 
 // Find the earliest LSN in a log.  No locks are needed.

@@ -360,7 +360,7 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     memset(&ft->descriptor, 0, sizeof(ft->descriptor));
     memset(&ft->cmp_descriptor, 0, sizeof(ft->cmp_descriptor));
 
-    ft->h = ft_header_create(options, make_blocknum(0), (txn ? txn->ancestor_txnid64 : TXNID_NONE));
+    ft->h = ft_header_create(options, make_blocknum(0), (txn ? txn->txnid.parent_id64: TXNID_NONE));
 
     toku_ft_init_reflock(ft);
 

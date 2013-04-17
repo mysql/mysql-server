@@ -65,6 +65,7 @@ set(FT_SOURCES
   roll
   sub_block
   txn
+  txn_child_manager
   txn_manager
   ule
   x1764

@@ -18,7 +18,7 @@
 static void do_txn(TOKULOGGER logger, bool readonly) {
     int r;
     TOKUTXN txn;
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);
+    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_NONE);
     CKERR(r);
 
     if (!readonly) {
@@ -40,7 +40,7 @@ static void test_xid_lsn_independent(int N) {
     int r;
 
     TOKUTXN txn;
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);
+    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_NONE);
     CKERR(r);
 
     r = toku_open_ft_handle(FILENAME, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
@@ -50,25 +50,25 @@ static void test_xid_lsn_independent(int N) {
     CKERR(r);
     toku_txn_close_txn(txn);
 
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_ROOT);
+    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_NONE);
     CKERR(r);
-    TXNID xid_first = txn->txnid64;
+    TXNID xid_first = txn->txnid.parent_id64;
     unsigned int rands[N];
     for (int i=0; i<N; i++) {
-	char key[100],val[300];
-	DBT k, v;
-	rands[i] = random();
-	snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
-	memset(val, 'v', sizeof(val));
-	val[sizeof(val)-1]=0;
-	toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
+        char key[100],val[300];
+        DBT k, v;
+        rands[i] = random();
+        snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
+        memset(val, 'v', sizeof(val));
+        val[sizeof(val)-1]=0;
+        toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
     }
     {
         TOKUTXN txn2;
-        r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn2, logger, TXN_SNAPSHOT_ROOT);
+        r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn2, logger, TXN_SNAPSHOT_NONE);
     CKERR(r);
         // Verify the txnid has gone up only by one (even though many log entries were done)
-        invariant(txn2->txnid64 == xid_first + 1);
+        invariant(txn2->txnid.parent_id64 == xid_first + 1);
         r = toku_txn_commit_txn(txn2, false, NULL, NULL);
     CKERR(r);
         toku_txn_close_txn(txn2);
@@ -80,9 +80,9 @@ static void test_xid_lsn_independent(int N) {
         //TODO(yoni) #5067 will break this portion of the test. (End ids are also assigned, so it would increase by 4 instead of 2.)
         // Verify the txnid has gone up only by two (even though many log entries were done)
         TOKUTXN txn3;
-        r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn3, logger, TXN_SNAPSHOT_ROOT);
+        r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn3, logger, TXN_SNAPSHOT_NONE);
     CKERR(r);
-        invariant(txn3->txnid64 == xid_first + 2);
+        invariant(txn3->txnid.parent_id64 == xid_first + 2);
         r = toku_txn_commit_txn(txn3, false, NULL, NULL);
     CKERR(r);
         toku_txn_close_txn(txn3);
@@ -176,7 +176,7 @@ static void test_xid_lsn_independent_parents(int N) {
         ZERO_ARRAY(txns_hack);
 
         for (int i = 0; i < N; i++) {
-            r = toku_txn_begin_txn((DB_TXN*)NULL, txns[i-1], &txns[i], logger, TXN_SNAPSHOT_ROOT);
+            r = toku_txn_begin_txn((DB_TXN*)NULL, txns[i-1], &txns[i], logger, TXN_SNAPSHOT_NONE);
             CKERR(r);
 
             if (i < num_non_cascade) {

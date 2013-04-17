@@ -91,6 +91,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       multiprocess
       mvcc-create-table
       mvcc-many-committed
+      mvcc-read-committed
       perf_checkpoint_var
       perf_child_txn
       perf_cursor_nop

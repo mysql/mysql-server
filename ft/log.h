@@ -31,6 +31,7 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     return 0;
 }
 static inline void toku_free_TXNID(TXNID txnid __attribute__((__unused__))) {}
+static inline void toku_free_TXNID_PAIR(TXNID_PAIR txnid __attribute__((__unused__))) {}
 static inline void toku_free_LSN(LSN lsn __attribute__((__unused__))) {}
 static inline void toku_free_uint64_t(uint64_t u __attribute__((__unused__))) {}
 static inline void toku_free_uint32_t(uint32_t u __attribute__((__unused__))) {}

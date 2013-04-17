@@ -2623,9 +2623,9 @@ int set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const arra
     return 0;
 }
 
-int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), checkpointer * const cp);
-int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), checkpointer * const cp) {
+static int log_open_txn (TOKUTXN txn, void* extra) {
     int r;
+    checkpointer* cp = (checkpointer *)extra;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
     uint32_t num_filenums = txn->open_fts.size();
@@ -4241,9 +4241,11 @@ void checkpointer::log_begin_checkpoint() {
     }
 
     // Write open transactions to the log.
-    r = toku_txn_manager_iter_over_live_txns<checkpointer, log_open_txn> (
+    r = toku_txn_manager_iter_over_live_txns(
         m_logger->txn_manager,
-        this);
+        log_open_txn,
+        this
+        );
     assert(r == 0);
 }
 

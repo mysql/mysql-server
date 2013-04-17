@@ -79,7 +79,8 @@ static void toku_rollback_node_save_ct_pair(CACHEKEY UU(key), void *value_data, 
 void rollback_empty_log_init(ROLLBACK_LOG_NODE log) {
     // Having a txnid set to TXNID_NONE is how we determine if the 
     // rollback log node is empty or in use.
-    log->txnid = TXNID_NONE;
+    log->txnid.parent_id64 = TXNID_NONE;
+    log->txnid.child_id64 = TXNID_NONE;
     
     log->layout_version                = FT_LAYOUT_VERSION;
     log->layout_version_original       = FT_LAYOUT_VERSION;
@@ -103,7 +104,7 @@ static void rollback_initialize_for_txn(
     uint32_t previous_hash
     )
 {
-    log->txnid = txn->txnid64;
+    log->txnid = txn->txnid;
     log->sequence = txn->roll_info.num_rollback_nodes++;
     log->previous = previous;
     log->previous_hash = previous_hash;
@@ -241,9 +242,10 @@ void toku_maybe_prefetch_previous_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE lo
 }
 
 void toku_rollback_verify_contents(ROLLBACK_LOG_NODE log, 
-        TXNID txnid, uint64_t sequence)
+        TXNID_PAIR txnid, uint64_t sequence)
 {
-    assert(log->txnid == txnid);
+    assert(log->txnid.parent_id64 == txnid.parent_id64);
+    assert(log->txnid.child_id64 == txnid.child_id64);
     assert(log->sequence == sequence);
 }
 
@@ -273,7 +275,7 @@ void toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE
     invariant(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING); // hot indexing may call this function for prepared transactions
     if (txn_has_current_rollback_log(txn)) {
         toku_get_and_pin_rollback_log(txn, txn->roll_info.current_rollback, txn->roll_info.current_rollback_hash, &pinned_log);
-        toku_rollback_verify_contents(pinned_log, txn->txnid64, txn->roll_info.num_rollback_nodes - 1);
+        toku_rollback_verify_contents(pinned_log, txn->txnid, txn->roll_info.num_rollback_nodes - 1);
     } else {
         // For each transaction, we try to acquire the first rollback log
         // from the rollback log node cache, so that we avoid
@@ -302,7 +304,8 @@ void toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE
             rollback_log_create(txn, txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash, &pinned_log);
         }
     }
-    assert(pinned_log->txnid == txn->txnid64);
+    assert(pinned_log->txnid.parent_id64 == txn->txnid.parent_id64);
+    assert(pinned_log->txnid.child_id64 == txn->txnid.child_id64);
     assert(pinned_log->blocknum.b != ROLLBACK_NONE.b);
     *log = pinned_log;
 }

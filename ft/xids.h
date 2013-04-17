@@ -45,8 +45,6 @@ void xids_destroy(XIDS *xids_p);
 
 TXNID xids_get_xid(XIDS xids, uint8_t index);
 
-uint8_t xids_find_index_of_xid(XIDS xids, TXNID target_xid);
-
 uint8_t xids_get_num_xids(XIDS xids);
 
 TXNID xids_get_innermost_xid(XIDS xids);

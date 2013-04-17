@@ -460,14 +460,17 @@ static int toku_recover_backward_fassociate (struct logtype_fassociate *UU(l), R
 }
 
 static int
-recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger) {
+recover_transaction(TOKUTXN *txnp, TXNID_PAIR xid, TXNID_PAIR parentxid, TOKULOGGER logger) {
     int r;
 
     // lookup the parent
     TOKUTXN parent = NULL;
-    if (parentxid != TXNID_NONE) {
+    if (!txn_pair_is_none(parentxid)) {
         toku_txnid2txn(logger, parentxid, &parent);
         assert(parent!=NULL);
+    }
+    else {
+        invariant(xid.child_id64 == TXNID_NONE);
     }
 
     // create a transaction and bind it to the transaction id
@@ -488,8 +491,8 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
 
 static int recover_xstillopen_internal (TOKUTXN         *txnp,
                                         LSN           UU(lsn),
-                                        TXNID            xid,
-                                        TXNID            parentxid,
+                                        TXNID_PAIR       xid,
+                                        TXNID_PAIR       parentxid,
                                         uint64_t        rollentry_raw_count,
                                         FILENUMS         open_filenums,
                                         bool             force_fsync_on_commit,
@@ -507,7 +510,7 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
     case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END: {
         renv->ss.checkpoint_num_xstillopen++;
         invariant(renv->ss.last_xid != TXNID_NONE);
-        invariant(xid <= renv->ss.last_xid);
+        invariant(xid.parent_id64 <= renv->ss.last_xid);
         TOKUTXN txn = NULL;
         { //Create the transaction.
             r = recover_transaction(&txn, xid, parentxid, renv->logger);
@@ -588,7 +591,7 @@ static int toku_recover_xstillopenprepared (struct logtype_xstillopenprepared *l
     int r = recover_xstillopen_internal (&txn,
                                          l->lsn,
                                          l->xid,
-                                         (TXNID)0,
+                                         TXNID_PAIR_NONE,
                                          l->rollentry_raw_count,
                                          l->open_filenums,
                                          l->force_fsync_on_commit,
@@ -1171,15 +1174,13 @@ int tokudb_needs_recovery(const char *log_dir, bool ignore_log_empty) {
 }
 
 static uint32_t recover_get_num_live_txns(RECOVER_ENV renv) {
-    return toku_txn_manager_num_live_txns(renv->logger->txn_manager);
+    return toku_txn_manager_num_live_root_txns(renv->logger->txn_manager);
 }
 
-// template-only function, but must be extern
-int is_txn_unprepared(const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN *const extra)
-    __attribute__((nonnull(3)));
-int is_txn_unprepared(const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN *const extra) {
+static int is_txn_unprepared(TOKUTXN txn, void* extra) {
+    TOKUTXN* ptxn = (TOKUTXN *)extra;
     if (txn->state != TOKUTXN_PREPARING) {
-        *extra = txn;
+        *ptxn = txn;
         return -1; // return -1 to get iterator to return
     }
     return 0;
@@ -1188,8 +1189,9 @@ int is_txn_unprepared(const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN *con
 
 static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
     TOKUTXN txn = nullptr;
-    int r = toku_txn_manager_iter_over_live_txns<TOKUTXN, is_txn_unprepared>(
+    int r = toku_txn_manager_iter_over_live_root_txns(
         renv->logger->txn_manager,
+        is_txn_unprepared,
         &txn
         );
     assert(r == 0 || r == -1);
@@ -1200,26 +1202,36 @@ static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
     return DB_NOTFOUND;
 }
 
-// template-only function, but must be extern
-int call_prepare_txn_callback_iter(const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV *const renv)
-    __attribute__((nonnull(3)));
-int call_prepare_txn_callback_iter(const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV *const renv) {
+static int call_prepare_txn_callback_iter(TOKUTXN txn, void* extra) {
+    RECOVER_ENV* renv = (RECOVER_ENV *)extra;
+    invariant(txn->state == TOKUTXN_PREPARING);
+    invariant(txn->child == NULL);
     (*renv)->prepared_txn_callback((*renv)->env, txn);
     return 0;
 }
 
+static void recover_abort_live_txn(TOKUTXN txn) {
+    // recursively abort all children first
+    if (txn->child != NULL) {
+        recover_abort_live_txn(txn->child);
+    }
+    // sanity check that the recursive call successfully NULLs out txn->child
+    invariant(txn->child == NULL);
+    // abort the transaction
+    int r = toku_txn_abort_txn(txn, NULL, NULL);
+    assert(r == 0);
+    
+    // close the transaction
+    toku_txn_close_txn(txn);
+}
+
 // abort all of the remaining live transactions in descending transaction id order
-static void recover_abort_live_txns(RECOVER_ENV renv) {
+static void recover_abort_all_live_txns(RECOVER_ENV renv) {
     while (1) {
         TOKUTXN txn;
         int r = find_an_unprepared_txn(renv, &txn);
         if (r==0) {
-            // abort the transaction
-            r = toku_txn_abort_txn(txn, NULL, NULL);
-            assert(r == 0);
-
-            // close the transaction
-            toku_txn_close_txn(txn);
+            recover_abort_live_txn(txn);
         } else if (r==DB_NOTFOUND) {
             break;
         } else {
@@ -1228,8 +1240,9 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
     }
 
     // Now we have only prepared txns.  These prepared txns don't have full DB_TXNs in them, so we need to make some.
-    int r = toku_txn_manager_iter_over_live_txns<RECOVER_ENV, call_prepare_txn_callback_iter>(
+    int r = toku_txn_manager_iter_over_live_root_txns(
         renv->logger->txn_manager,
+        call_prepare_txn_callback_iter,
         &renv
         );
     assert_zero(r);
@@ -1415,7 +1428,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
             fprintf(stderr, "%.24s Tokudb recovery has %" PRIu32 " live transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
         }
     }
-    recover_abort_live_txns(renv);
+    recover_abort_all_live_txns(renv);
     {
         uint32_t n = recover_get_num_live_txns(renv);
         if (n > 0) {

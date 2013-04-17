@@ -184,27 +184,13 @@ static void release_txns(
     )
 {
     uint32_t num_provisional = ule_get_num_provisional(ule);
-    DB_ENV *env = indexer->i->env;
-    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
-    bool some_txn_pinned = false;
     if (indexer->i->test_xid_state) {
         goto exit;
     }
-    // see if any txn pinned before bothering to grab txn_manager lock
     for (uint32_t i = 0; i < num_provisional; i++) {
         if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
-            assert(prov_txns[i]);
-            some_txn_pinned = true;
+            toku_txn_unpin_live_txn(prov_txns[i]);
         }
-    }
-    if (some_txn_pinned) {
-        toku_txn_manager_suspend(txn_manager);
-        for (uint32_t i = 0; i < num_provisional; i++) {
-            if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
-                toku_txn_manager_unpin_live_txn_unlocked(txn_manager, prov_txns[i]);
-            }
-        }
-        toku_txn_manager_resume(txn_manager);
     }
 exit:
     return;

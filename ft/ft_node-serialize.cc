@@ -2579,7 +2579,7 @@ toku_db_badformat(void) {
 static size_t
 serialize_rollback_log_size(ROLLBACK_LOG_NODE log) {
     size_t size = node_header_overhead //8 "tokuroll", 4 version, 4 version_original, 4 build_id
-                 +8 //TXNID
+                 +16 //TXNID_PAIR
                  +8 //sequence
                  +8 //blocknum
                  +8 //previous (blocknum)
@@ -2599,7 +2599,7 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
         wbuf_nocrc_int(&wb, log->layout_version);
         wbuf_nocrc_int(&wb, log->layout_version_original);
         wbuf_nocrc_uint(&wb, BUILD_ID);
-        wbuf_nocrc_TXNID(&wb, log->txnid);
+        wbuf_nocrc_TXNID_PAIR(&wb, log->txnid);
         wbuf_nocrc_ulonglong(&wb, log->sequence);
         wbuf_nocrc_BLOCKNUM(&wb, log->blocknum);
         wbuf_nocrc_BLOCKNUM(&wb, log->previous);
@@ -2752,7 +2752,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBA
     result->dirty = false;
     //TODO: Maybe add descriptor (or just descriptor version) here eventually?
     //TODO: This is hard.. everything is shared in a single dictionary.
-    rbuf_TXNID(rb, &result->txnid);
+    rbuf_TXNID_PAIR(rb, &result->txnid);
     result->sequence = rbuf_ulonglong(rb);
     result->blocknum = rbuf_blocknum(rb);
     if (result->blocknum.b != blocknum.b) {

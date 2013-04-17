@@ -40,6 +40,7 @@ int toku_logger_set_lg_bsize(TOKULOGGER logger, uint32_t bsize);
 
 void toku_logger_write_log_files (TOKULOGGER logger, bool write_log_files);
 void toku_logger_trim_log_files(TOKULOGGER logger, bool trim_log_files);
+bool toku_logger_txns_exist(TOKULOGGER logger);
 
 // Restart the logger.  This function is used by recovery to really start
 // logging.
@@ -66,12 +67,14 @@ int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, uint32_t *len
 int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *lsn, struct x1764 *checksum, uint32_t *len);
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, uint32_t *len);
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, uint32_t *len);
+int toku_fread_TXNID_PAIR   (FILE *f, TXNID_PAIR *txnid, struct x1764 *checksum, uint32_t *len);
 int toku_fread_XIDP    (FILE *f, XIDP  *xidp,  struct x1764 *checksum, uint32_t *len);
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, uint32_t *len);
 int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, uint32_t *len);
 
 int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__)));
+int toku_logprint_TXNID_PAIR (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_uint8_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format);
 int toku_logprint_uint32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format);
@@ -85,11 +88,11 @@ int toku_logprint_FILENUMS (FILE *outf, FILE *inf, const char *fieldname, struct
 int toku_read_and_print_logmagic (FILE *f, uint32_t *versionp);
 int toku_read_logmagic (FILE *f, uint32_t *versionp);
 
-TXNID toku_txn_get_txnid (TOKUTXN txn);
+TXNID_PAIR toku_txn_get_txnid (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
-void toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
+void toku_txnid2txn (TOKULOGGER logger, TXNID_PAIR txnid, TOKUTXN *result);
 
 int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 
