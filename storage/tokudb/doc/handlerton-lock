@@ -39,6 +39,7 @@ it is being brought offline.
 
 == Implementation ==
 
+{{{
 tokudb_hton_init_func 
 {
     grab_hton_init_writelock();
@@ -80,5 +81,4 @@ tokudb_user_data_done_func
     ...
     release_hton_init_readlock();
 }
-
-
+}}}
