@@ -52,12 +52,6 @@ def setlimits():
     setrlimit(RLIMIT_CORE, (-1, -1))
     os.nice(7)
 
-def timestr(timeval):
-    if timeval == 0:
-        return 'None'
-    else:
-        return time.ctime(timeval)
-
 class TestFailure(Exception):
     pass
 
@@ -98,11 +92,17 @@ class TestRunnerBase(object):
     def __str__(self):
         return 'TestRunner<%s, %d, %d>' % (self.execf, self.tsize, self.csize)
 
-    def infostr(self):
-        return '%(execf)s\t%(rev)s\t%(tsize)d\t%(csize)d\t%(num_ptquery)d\t%(num_update)d\t%(time)d' % self
-
     def __getitem__(self, k):
         return self.__getattribute__(k)
+
+    def infostr(self):
+        return '\t'.join(['%(execf)s',
+                          '%(rev)s',
+                          '%(tsize)d',
+                          '%(csize)d',
+                          '%(num_ptquery)d',
+                          '%(num_update)d',
+                          '%(time)d']) % self
 
     @property
     def time(self):
@@ -126,6 +126,10 @@ class TestRunnerBase(object):
             return randrange(16)
 
     @property
+    def envdir(self):
+        return os.path.join(self.rundir, 'envdir')
+
+    @property
     def prepareloc(self):
         preparename = 'dir.%(execf)s-%(tsize)d-%(csize)d' % self
         return os.path.join(self.tokudb, 'src', 'tests', preparename)
@@ -133,21 +137,16 @@ class TestRunnerBase(object):
     def prepare(self):
         if os.path.isdir(self.prepareloc):
             debug('%s found existing environment.', self)
-            copytree(self.prepareloc, os.path.join(self.rundir, self.envdir))
+            copytree(self.prepareloc, self.envdir)
         else:
             debug('%s preparing an environment.', self)
             self.run_prepare()
             debug('%s copying environment to %s.', self, self.prepareloc)
-            copytree(os.path.join(self.rundir, self.envdir), self.prepareloc)
-
-    def delete_prepared_env(self):
-        if os.path.isdir(self.prepareloc):
-            rmtree(self.prepareloc)
+            copytree(self.envdir, self.prepareloc)
 
     def run(self):
         srctests = os.path.join(self.tokudb, 'src', 'tests')
         self.rundir = mkdtemp(dir=srctests)
-        self.envdir = '%(execf)s-%(tsize)d-%(csize)d-%(num_ptquery)d-%(num_update)d' % self
 
         try:
             outname = os.path.join(self.rundir, 'output.txt')
@@ -209,7 +208,7 @@ class TestRunnerBase(object):
 
     def prepareargs(self):
         return ['-v',
-                '--envdir', self.envdir,
+                '--envdir', 'envdir',
                 '--num_elements', str(self.tsize),
                 '--cachetable_size', str(self.csize)]
 
@@ -424,8 +423,6 @@ def main(opts):
             if scheduler.error is not None:
                 error('Scheduler reported an error.')
                 raise scheduler.error
-            for runner in runners:
-                runner.delete_prepared_env()
             rebuild(opts.tokudb, opts.cc)
             rev = revfor(opts.tokudb)
             for runner in runners:
