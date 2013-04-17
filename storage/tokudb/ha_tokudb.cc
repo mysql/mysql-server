@@ -1483,9 +1483,19 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
         /* tokutek change to make pack_key and unpack_key work for
            decimals */
         uint unpack_length = key_part->length;
+        //
+        // The following is considered a HACK until ticket 981 is resolved
+        // The function unpack_key seems to take as arguments 
+        // dest, src, and length. At least that is what the signature looks like.
+        // However, Field::unpack_key forwards to Field::unpack, which
+        // seems to interpret the third param as a "param_data", whose schema
+        // can be retrieved with the function save_field_metadata.
+        // So, in the case of Field_new_decimal that does NOT take a length
+        // param, we do this. We need to get the spec resolved by MySQL
+        //
         if (key_part->field->type() == MYSQL_TYPE_NEWDECIMAL) {
-            Field_new_decimal *field_nd = (Field_new_decimal *) key_part->field;
-            unpack_length += field_nd->precision << 8;
+            unpack_length = 0;
+            key_part->field->save_field_metadata((uchar *)(&unpack_length));
         }
         pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field), pos,
 #if MYSQL_VERSION_ID < 50123
