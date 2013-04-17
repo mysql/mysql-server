@@ -36,7 +36,9 @@ list(APPEND all_hdrs
   )
 
 option(USE_CTAGS "Build the ctags database." ON)
-if (USE_CTAGS)
+if (USE_CTAGS AND
+    # Macs by default are not case-sensitive, so tags and TAGS clobber each other.  Do etags and not ctags in that case, because Emacs is superior. :P
+    (NOT APPLE OR NOT USE_ETAGS))
   find_program(CTAGS "ctags")
   if (NOT CTAGS MATCHES NOTFOUND)
     add_custom_command(
