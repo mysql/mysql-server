@@ -207,7 +207,7 @@ get_nonleaf_reactivity (BRTNODE node) {
 
 static BOOL
 nonleaf_node_is_gorged (BRTNODE node) {
-    return toku_serialize_brtnode_size(node) > node->nodesize;
+    return (BOOL)(toku_serialize_brtnode_size(node) > node->nodesize);
 }
 
 static int
@@ -249,7 +249,7 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
 	    return child_fullhash;
 	}
     }
-    abort();
+    abort(); return 0;
 }
 
 static void
@@ -847,9 +847,9 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     MALLOC_N(n_children_in_b, B->u.n.childkeys);
     B->u.n.n_children   =n_children_in_b;
     if (0) {
-	printf("%s:%d %p (%" PRIu64 ") splits, old estimates:", __FILE__, __LINE__, node, node->thisnodename.b);
+	printf("%s:%d %p (%" PRId64 ") splits, old estimates:", __FILE__, __LINE__, node, node->thisnodename.b);
 	int i;
-	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
 	printf("\n");
     }
 
@@ -1090,9 +1090,9 @@ static int
 brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger, BOOL *did_react)
 {
     if (0) {
-	printf("%s:%d Node %" PRIu64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
+	printf("%s:%d Node %" PRId64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
 	int i;
-	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
 	printf("\n");
     }
     assert(node->height>0);
@@ -1141,9 +1141,9 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger, BOOL *did
     {
 	int r = handle_split_of_child (t, node, childnum, nodea, nodeb, &splitk, logger);
 	if (0) {
-	    printf("%s:%d Node %" PRIu64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
+	    printf("%s:%d Node %" PRId64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
 	    int i;
-	    for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	    for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
 	    printf("\n");
 	}
 	return r;
@@ -1168,7 +1168,7 @@ should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
     case BRT_NONE:
 	break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
@@ -1199,7 +1199,7 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static int apply_cmd_to_le_both (TXNID xid,
@@ -1247,7 +1247,7 @@ static int apply_cmd_to_le_both (TXNID xid,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static int apply_cmd_to_le_provdel (TXNID xid,
@@ -1299,7 +1299,7 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 	return 0;
     case BRT_NONE: break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static int apply_cmd_to_le_provpair (TXNID xid,
@@ -1350,7 +1350,7 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static int
@@ -1386,7 +1386,7 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 	LESWITCHCALL(stored_data, apply_cmd_to, cmd,
 		     newlen, disksize, new_data);
     }
-    abort();
+    abort(); return 0;
 }
 
 static int
@@ -1782,7 +1782,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     case BRT_NONE:
 	break;
     }
-    abort();
+    abort(); return 0;
 }
 
 static LEAFENTRY
@@ -1829,7 +1829,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 //  If b is bigger then move stuff from b to a until b is the smaller.
 //  If a is bigger then move stuff from a to b until a is the smaller.
 {
-    BOOL move_from_right = (toku_serialize_brtnode_size(a) < toku_serialize_brtnode_size(b));
+    BOOL move_from_right = (BOOL)(toku_serialize_brtnode_size(a) < toku_serialize_brtnode_size(b));
     BRTNODE from = move_from_right ? b : a;
     BRTNODE to   = move_from_right ? a : b;
     OMT  omtfrom = from->u.l.buffer;
@@ -1879,6 +1879,7 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
 {
     unsigned int sizea = toku_serialize_brtnode_size(a);
     unsigned int sizeb = toku_serialize_brtnode_size(b);
+    t=t; logger=logger;
     if ((sizea + sizeb)*4 > (a->nodesize*3)) {
 	// the combined size is more than 3/4 of a node, so don't merge them.
 	*did_merge = FALSE;
@@ -1890,7 +1891,6 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
 	*did_merge = TRUE;
 	return merge_leaf_nodes(a, b);
     }
-    t=t; logger=logger;
 }
 
 static int
@@ -2106,7 +2106,7 @@ brt_handle_maybe_reactive_child(BRT t, BRTNODE node, int childnum, enum reactivi
     case RE_FUSIBLE:
 	return brt_merge_child(t, node, childnum, did_io, logger, did_react);
     }
-    abort(); // this cannot happen
+    abort(); return 0; // this cannot happen
 }
 
 static int
@@ -2132,7 +2132,7 @@ brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *node
     case RE_FUSIBLE:
 	return 0; // Cannot merge anything at the root, so return happy.
     }
-    abort();
+    abort(); return 0;
 
 }
 
@@ -2358,7 +2358,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
 	    }
 	}
     }
-    abort();
+    abort(); return 0;
 }
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
@@ -3111,7 +3111,7 @@ pair_leafval_heaviside_le_committed (u_int32_t klen, void *kval,
     case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
     case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
     }
-    abort();
+    abort(); return 0;
 }
 
 

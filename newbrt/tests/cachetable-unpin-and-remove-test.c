@@ -56,21 +56,22 @@ cachetable_unpin_and_remove_test (int n) {
     }
     
     // unpin and remove
-    CACHEKEY oldkeys[n];
+    CACHEKEY testkeys[n];
+    for (i=0; i<n; i++) testkeys[i] = keys[i];
     while (nkeys > 0) {
         i = random() % nkeys;
-        u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(keys[i].b));
-        r = toku_cachetable_unpin_and_remove(f1, keys[i]);
+        u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(testkeys[i].b));
+        r = toku_cachetable_unpin_and_remove(f1, testkeys[i]);
         assert(r == 0);
 
         toku_cachefile_verify(f1);
 
         // verify that k is removed
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(keys[i].b), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(testkeys[i].b), hi, &v);
         assert(r != 0);
 
-        oldkeys[i] = keys[i]; keys[i] = keys[nkeys-1]; nkeys -= 1;
+        testkeys[i] = testkeys[nkeys-1]; nkeys -= 1;
     }
 
     // verify that all are really removed

@@ -167,7 +167,7 @@ static void
 dump_block_translation(struct brt_header *h, u_int64_t offset) {
     if (offset < h->translated_blocknum_limit) {
         struct block_translation_pair *bx = &h->block_translation[offset];
-        printf("%"PRIu64": %"PRIu64" %"PRIu64"\n", offset, bx->diskoff, bx->size);
+        printf("%"PRIu64": %"PRId64" %"PRId64"\n", offset, bx->diskoff, bx->size);
     }
 }
 
