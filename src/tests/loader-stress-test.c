@@ -16,8 +16,8 @@ int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
-enum { default_cachesize=1024 }; // MB
-int CACHESIZE=default_cachesize; // MB
+enum { old_default_cachesize=1024 }; // MB
+int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
 
@@ -326,6 +326,7 @@ static void run_test(void)
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
+    if ( verbose ) printf("CACHESIZE = %d MB\n", CACHESIZE);
     r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
@@ -380,6 +381,9 @@ static void do_args(int argc, char * const argv[]) {
     int resultcode;
     char *cmd = argv[0];
     argc--; argv++;
+    
+    CACHESIZE = (toku_os_get_phys_memory_size() / (1024*1024))/2; //MB
+
     while (argc>0) {
 	if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
@@ -392,8 +396,8 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ] [-m <megabytes>] [-M]\n%s\n", cmd);
 	    fprintf(stderr, "  where -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
 	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
-	    fprintf(stderr, "        -m <m>           use m MB of memeory for the cachetable (defualt is %d MB)\n", default_cachesize);
-	    fprintf(stderr, "        -M               use half of physical memory for the cachetable\n");
+	    fprintf(stderr, "        -m <m>           use m MB of memory for the cachetable (default is %d MB)\n", CACHESIZE);
+            fprintf(stderr, "        -M               use %d MB of memory for the cachetable\n", old_default_cachesize);
 	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
@@ -428,7 +432,7 @@ static void do_args(int argc, char * const argv[]) {
             argc--; argv++;
             CACHESIZE = atoi(argv[0]);
         } else if (strcmp(argv[0], "-M")==0) {
-	    CACHESIZE = (toku_os_get_phys_memory_size()/(1024*1024))/2;
+	    CACHESIZE = old_default_cachesize;
         } else if (strcmp(argv[0], "-y")==0) {
             ALLOW_DUPS = 1;
         } else if (strcmp(argv[0], "-s")==0) {
