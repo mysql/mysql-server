@@ -94,6 +94,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       perf_checkpoint_var
       perf_child_txn
       perf_cursor_nop
+      perf_iibench
       perf_insert
       perf_insert_multiple
       perf_malloc_free
