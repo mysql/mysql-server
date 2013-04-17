@@ -25,7 +25,7 @@ static void blocking_range_lock(DB_ENV *db_env, DB *db, uint64_t nrows, long sle
 
         r = txn->commit(txn, 0); assert(r == 0);
         if (verbose)
-            printf("%lu %"PRIu64"\n", (unsigned long)(void *) toku_pthread_self(), i);
+            printf("%lu %"PRIu64"\n", (unsigned long) toku_pthread_self(), i);
     }
 }
 
