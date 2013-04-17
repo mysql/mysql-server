@@ -6,7 +6,6 @@
 #include <brt-flusher.h>
 #include <brt-cachetable-wrappers.h>
 #include <brt-internal.h>
-#include <valgrind/drd.h>
 
 #define ft_flush_before_applying_inbox 1
 #define ft_flush_before_child_pin 2
