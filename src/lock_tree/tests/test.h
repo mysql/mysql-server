@@ -102,3 +102,79 @@ static inline void init_point(toku_point* point, toku_lock_tree* tree) {
     point->lt = tree;
 }
 
+#define READ_REQUEST(TXN, KEY) \
+    toku_lock_request TXN ## _r_ ## KEY; \
+    toku_lock_request_init(&TXN ## _r_ ## KEY, txn_ ## TXN, &key_ ## KEY, &key_ ## KEY, LOCK_REQUEST_READ);
+#define WRITE_REQUEST(TXN, KEY) \
+    toku_lock_request TXN ## _w_ ## KEY; \
+    toku_lock_request_init(&TXN ## _w_ ## KEY, txn_ ## TXN, &key_ ## KEY, &key_ ## KEY, LOCK_REQUEST_WRITE)
+
+static inline void
+verify_txnid_set_sorted(txnid_set *txns) {
+    size_t n = txnid_set_size(txns);
+    for (size_t i = 1; i < n; i++)
+        assert(txnid_set_get(txns, i) > txnid_set_get(txns, i-1));
+}
+
+static inline void
+verify_and_clean_finished_request(toku_lock_tree *lt, toku_lock_request *request) {
+    int r;
+    txnid_set conflicts; 
+
+    assert(request->state == LOCK_REQUEST_COMPLETE);
+    assert(request->complete_r == 0);
+
+    txnid_set_init(&conflicts);
+    r = toku_lt_get_lock_request_conflicts(lt, request, &conflicts);
+    assert(r == 0);
+    assert(txnid_set_size(&conflicts) == 0);
+    txnid_set_destroy(&conflicts);
+
+    toku_lock_request_destroy(request);
+}
+
+static inline void
+do_request_and_succeed(toku_lock_tree *lt, toku_lock_request *request) {
+    int r;
+    r = toku_lock_request_start(request, lt, false);
+    CKERR(r);
+    verify_and_clean_finished_request(lt, request);
+}
+
+static inline void
+request_still_blocked(
+        toku_lock_tree *lt,
+        toku_lock_request *request,
+        size_t num_conflicts,
+        TXNID conflicting_txns[num_conflicts]) {
+    int r;
+    txnid_set conflicts; 
+
+    assert(request->state == LOCK_REQUEST_PENDING);
+
+    txnid_set_init(&conflicts);
+    r = toku_lt_get_lock_request_conflicts(lt, request, &conflicts);
+    CKERR(r);
+    assert(txnid_set_size(&conflicts) == num_conflicts);
+    verify_txnid_set_sorted(&conflicts);
+
+    size_t i;
+    for (i = 0; i < num_conflicts; i++) {
+        assert(txnid_set_get(&conflicts, i) == conflicting_txns[i]);
+    }
+    txnid_set_destroy(&conflicts);
+}
+
+static inline void
+do_request_that_blocks(
+        toku_lock_tree *lt,
+        toku_lock_request *request,
+        int num_conflicts,
+        TXNID conflicting_txns[num_conflicts]) {
+    int r;
+
+    r = toku_lock_request_start(request, lt, false);
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    request_still_blocked(lt, request, num_conflicts, conflicting_txns);
+}
+
