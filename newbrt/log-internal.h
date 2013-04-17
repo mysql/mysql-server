@@ -28,6 +28,7 @@ struct mylock {
 
 static inline int ml_init(struct mylock *l) {
     l->is_locked=0;
+    memset(&l->lock, 0, sizeof(l->lock));
     return toku_pthread_mutex_init(&l->lock, 0);
 }
 static inline int ml_lock(struct mylock *l) {

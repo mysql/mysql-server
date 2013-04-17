@@ -59,6 +59,7 @@ REGRESSION_TESTS_RAW = \
 	log-test4 \
 	log-test5 \
 	log-test6 \
+	log-test7 \
 	memtest \
 	omt-cursor-test \
 	omt-test \
