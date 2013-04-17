@@ -764,10 +764,10 @@ cleanup:
 int 
 autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, u_int32_t flags) {
     BOOL changed; int r;
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;
     r = toku_db_del(db, txn, key, flags, FALSE);
-    return toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 int 
@@ -776,12 +776,12 @@ autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags) {
     BOOL changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) {
         goto cleanup;
     }
     r = toku_db_put(db, txn, key, data, flags, FALSE);
-    r = toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    r = toku_db_destruct_autotxn(txn, r, changed);
 cleanup:
     return r;
 }
@@ -794,10 +794,10 @@ autotxn_db_update(DB *db, DB_TXN *txn,
     BOOL changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r != 0) { return r; }
     r = toku_db_update(db, txn, key, update_function_extra, flags);
-    r = toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    r = toku_db_destruct_autotxn(txn, r, changed);
 cleanup:
     return r;
 }
@@ -809,10 +809,10 @@ autotxn_db_update_broadcast(DB *db, DB_TXN *txn,
     BOOL changed; int r;
     r = env_check_avail_fs_space(db->dbenv);
     if (r != 0) { goto cleanup; }
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r != 0) { return r; }
     r = toku_db_update_broadcast(db, txn, update_function_extra, flags);
-    r = toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    r = toku_db_destruct_autotxn(txn, r, changed);
 cleanup:
     return r;
 }

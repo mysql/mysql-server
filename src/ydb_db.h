@@ -51,7 +51,7 @@ int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags);
 //TODO: Nowait only conditionally?
 //TODO: NOSYNC change to SYNC if DB_ENV has something in set_flags
 static inline int 
-toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_commit, BOOL holds_ydb_lock) {
+toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_commit) {
     assert(db && txn && changed);
     DB_ENV* env = db->dbenv;
     if (*txn || !(env->i->open_flags & DB_INIT_TXN)) {
@@ -60,23 +60,23 @@ toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_c
     }
     BOOL nosync = (BOOL)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
     u_int32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
-    int r = toku_txn_begin(env, NULL, txn, txn_flags, 1, holds_ydb_lock);
+    int r = toku_txn_begin(env, NULL, txn, txn_flags, 1, FALSE);
     if (r!=0) return r;
     *changed = TRUE;
     return 0;
 }
 
 static inline int 
-toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed, BOOL holds_ydb_lock) {
+toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
     if (!changed) return r;
-    if (!holds_ydb_lock) toku_ydb_lock();
+    toku_ydb_lock();
     if (r==0) {
         r = toku_txn_commit(txn, 0, NULL, NULL, false);
     }
     else {
         toku_txn_abort(txn, NULL, NULL, false);
     }
-    if (!holds_ydb_lock) toku_ydb_unlock();    
+    toku_ydb_unlock();    
     return r; 
 }
 
