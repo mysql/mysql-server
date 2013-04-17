@@ -18,7 +18,6 @@
    MIT Press and McGraw-Hill, 2001. ISBN 0-262-03293-7
 */
 
-//Defines BOOL data type.
 #include <toku_portability.h>
 #include <brttypes.h>
 #include <db.h>
@@ -67,7 +66,7 @@ struct __toku_range_tree;
     \return
     - 0:            Success.
     - EINVAL:       If any pointer argument is NULL. */
-int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
+int toku_rt_get_allow_overlaps(toku_range_tree* tree, bool* allowed);
 
 /**
     Creates a range tree.
@@ -87,16 +86,16 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
     \return
     - 0:                    Success.
     - EINVAL:               If any pointer argument is NULL.
-    - EINVAL:               If allow_overlaps = TRUE and the implementation does
+    - EINVAL:               If allow_overlaps = true and the implementation does
                             not support overlaps.
     - Other exit codes may be forwarded from underlying system calls. */
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*), 
                    int (*data_cmp)(const TXNID,const TXNID),
-                   BOOL allow_overlaps,
-                   void* (*user_malloc) (size_t),
-                   void  (*user_free)   (void*),
-                   void* (*user_realloc)(void*, size_t)); 
+                   bool allow_overlaps,
+                   void (*incr_memory_size)(void *extra_memory_size, size_t s),
+                   void (*decr_memory_size)(void *extra_memory_size, size_t s),
+                   void *extra_memory_size);
 
 /**
     Destroys and frees a range tree.
@@ -164,7 +163,7 @@ int toku_rt_find(toku_range_tree* tree,toku_interval* query, u_int32_t k,
     - EDOM:         If an equivalent range (left, right, and data according to
                     end_cmp and data_cmp) already exists in the tree.
                     If an overlapping range exists in the tree and
-                    allow_overlaps == FALSE.
+                    allow_overlaps == false.
     - Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_insert(toku_range_tree* tree, toku_range* range);
@@ -186,7 +185,7 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range);
 /**
     Finds the strict predecessor range of a point i.e. the rightmost range
     completely to the left of the query point according to end_cmp.
-    This operation is only defined if allow_overlaps == FALSE.
+    This operation is only defined if allow_overlaps == false.
 
     \param tree         The range tree to search in.
     \param point        The point to query.  Must be a valid argument to
@@ -203,12 +202,12 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range);
     - Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_predecessor(toku_range_tree* tree, toku_point* point,
-                        toku_range* pred, BOOL* wasfound);
+                        toku_range* pred, bool* wasfound);
 
 /**
     Finds the strict successor range of a point i.e. the leftmost range
     completely to the right of the query point according to end_cmp.
-    This operation is only defined if allow_overlaps == FALSE.
+    This operation is only defined if allow_overlaps == false.
 
     \param tree         The range tree to search in.
     \param point        The point to query.  Must be a valid argument to
@@ -225,23 +224,20 @@ int toku_rt_predecessor(toku_range_tree* tree, toku_point* point,
     - Other exit codes may be forwarded from underlying system calls. 
  */
 int toku_rt_successor(toku_range_tree* tree, toku_point* point,
-                      toku_range* succ, BOOL* wasfound);
+                      toku_range* succ, bool* wasfound);
 
 /**
    Finds the number of elements in the range tree.
    \param tree          The range tree.
-   \param size          A buffer to return the the number of elements
-                        in the range tree.
-
-   \return              
-    - 0:                Success.
-    - EINVAL:           If any pointer argument is NULL.
+   \return              The number of ranges in the range tree
  */
-int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
+size_t toku_rt_get_size(toku_range_tree* tree);
 
 int toku_rt_iterate(toku_range_tree* tree, int (*f)(toku_range*,void*), void* extra);
 
 void toku_rt_verify(toku_range_tree *tree);
+
+size_t toku_rt_memory_size(toku_range_tree *tree);
 
 #if defined(__cplusplus)
 }

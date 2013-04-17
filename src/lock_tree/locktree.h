@@ -97,7 +97,7 @@ struct __toku_lock_tree {
     toku_range*         bw_buf;
     uint32_t            bw_buflen;
     /** Whether lock escalation is allowed. */
-    BOOL                lock_escalation_allowed;
+    bool                lock_escalation_allowed;
     /** Lock tree manager */
     toku_ltm* mgr;
     /** Function to retrieve the key compare function from the database. */
@@ -106,12 +106,6 @@ struct __toku_lock_tree {
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The panic function */
     int               (*panic)(DB*, int);
-    /** The user malloc function */
-    void*             (*malloc) (size_t);
-    /** The user free function */
-    void              (*free)   (void*);
-    /** The user realloc function */
-    void*             (*realloc)(void*, size_t);
     /** The number of references held by DB instances and transactions to this lock tree*/
     uint32_t          ref_count;
     /** DICTIONARY_ID associated with the lock tree */
@@ -158,12 +152,6 @@ struct __toku_ltm {
     toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
     /** The panic function */
     int               (*panic)(DB*, int);
-    /** The user malloc function */
-    void*             (*malloc) (size_t);
-    /** The user free function */
-    void              (*free)   (void*);
-    /** The user realloc function */
-    void*             (*realloc)(void*, size_t);
 
     toku_pthread_mutex_t lock;
     toku_pthread_mutex_t *use_lock;
@@ -205,9 +193,6 @@ typedef struct __toku_point toku_point;
    \param panic          The function to cause the db to panic.  
                          i.e., godzilla_rampage()
    \param payload_capacity The maximum amount of memory to use for dbt payloads.
-   \param user_malloc    A user provided malloc(3) function.
-   \param user_free      A user provided free(3) function.
-   \param user_realloc   A user provided realloc(3) function.
    
    \return
    - 0       Success
@@ -225,10 +210,7 @@ typedef struct __toku_point toku_point;
 int toku_lt_create(toku_lock_tree** ptree,
                    int   (*panic)(DB*, int), 
                    toku_ltm* mgr,
-                   toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                   void* (*user_malloc) (size_t),
-                   void  (*user_free)   (void*),
-                   void* (*user_realloc)(void*, size_t));
+                   toku_dbt_cmp (*get_compare_fun_from_db)(DB*));
 
 /**
     Gets a lock tree for a given DB with id dict_id
@@ -410,9 +392,6 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
     
     \param pmgr      A buffer for the new lock tree manager.
     \param max_locks    The maximum number of locks.
-    \param user_malloc  A user provided malloc(3) function.
-    \param user_free    A user provided free(3) function.
-    \param user_realloc A user provided realloc(3) function.
 
     \return
     - 0 on success.
@@ -423,10 +402,7 @@ int toku_ltm_create(toku_ltm** pmgr,
                     uint32_t max_locks,
                     uint64_t max_lock_memory,
                     int   (*panic)(DB*, int), 
-                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                    void* (*user_malloc) (size_t),
-                    void  (*user_free)   (void*),
-                    void* (*user_realloc)(void*, size_t));
+                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*));
 
 /**
     Closes and frees a lock tree manager..
@@ -463,6 +439,9 @@ void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_lo
 			 LTM_STATUS s);
 
 int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks);
+
+void toku_ltm_incr_lock_memory(void *extra, size_t s);
+void toku_ltm_decr_lock_memory(void *extra, size_t s);
 
 void toku_lt_add_ref(toku_lock_tree* tree);
 

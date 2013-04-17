@@ -30,7 +30,7 @@ int main(int argc, const char *argv[]) {
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db, toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     assert(r == 0 && ltm);
 
     uint64_t target_wait_time, the_wait_time;

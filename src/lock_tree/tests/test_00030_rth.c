@@ -8,27 +8,11 @@ int main(int argc, const char *argv[]) {
     int r;
     parse_args(argc, argv);
     
-    /* ********************************************************************** */
-
-    rth = NULL;
-    for (failon = 1; failon <= 2; failon++) {
-        mallocced = 0;
-        r = toku_rth_create(&rth, fail_malloc, toku_free, toku_realloc);
-        CKERR2(r, ENOMEM);
-        assert(rth==NULL);
-    }
-    r = toku_rth_create(&rth, toku_malloc, toku_free, toku_realloc);
-    CKERR(r);
-    assert(rth);
-    toku_rth_close(rth);
-    rth = NULL;
-
-    /* ********************************************************************** */
 
     size_t i;
     size_t iterations = 512 << 2;
     
-    r = toku_rth_create(&rth, toku_malloc, toku_free, toku_realloc);
+    r = toku_rth_create(&rth);
     CKERR(r);
     assert(rth);
     for (i = 1; i < iterations; i++) {
@@ -50,7 +34,7 @@ int main(int argc, const char *argv[]) {
 
     /* ********************************************************************** */
 
-    r = toku_rth_create(&rth, toku_malloc, toku_free, toku_realloc);
+    r = toku_rth_create(&rth);
     CKERR(r);
     assert(rth);
     for (i = 1; i < iterations; i++) {
@@ -65,7 +49,7 @@ int main(int argc, const char *argv[]) {
 
     /* ********************************************************************** */
 
-    r = toku_rth_create(&rth, toku_malloc, toku_free, toku_realloc);
+    r = toku_rth_create(&rth);
     CKERR(r);
     assert(rth);
     for (i = iterations - 1; i >= 1; i--) {
@@ -75,19 +59,9 @@ int main(int argc, const char *argv[]) {
     toku_rth_close(rth);
     rth = NULL;
 
-    failon = 3;
-    mallocced = 0;
-    r = toku_rth_create(&rth, fail_malloc, toku_free, toku_realloc);
-    CKERR(r);
-    assert(rth);
-    r = toku_rth_insert(rth, (TXNID)1);
-    CKERR2(r, ENOMEM);
-    toku_rth_close(rth);
-    rth = NULL;
-
     /* ********************************************************************** */
 
-    r = toku_rth_create(&rth, toku_malloc, toku_free, toku_realloc);
+    r = toku_rth_create(&rth);
     CKERR(r);
     assert(rth);
     for (i = iterations - 1; i >= 1; i--) {

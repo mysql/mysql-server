@@ -10,7 +10,7 @@ TXNID           txn = (TXNID)1;
 enum { MAX_LT_LOCKS = 1000 };
 uint32_t max_locks = MAX_LT_LOCKS;
 uint64_t max_lock_memory = MAX_LT_LOCKS*64;
-BOOL duplicates = FALSE;
+bool duplicates = false;
 int  nums[100];
 
 DBT _keys_left[2];
@@ -42,25 +42,20 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     CKERR(r);
     assert(lt);
     init_query();
 }
 
 static void close_tree(void) {
+    r = toku_lt_unlock(lt, txn); CKERR(r);
     assert(lt && ltm);
-    r = toku_lt_close(lt);
-        CKERR(r);
-    r = toku_ltm_close(ltm);
-        CKERR(r);
+    r = toku_lt_close(lt); CKERR(r);
+    r = toku_ltm_close(ltm); CKERR(r);
     lt = NULL;
     ltm = NULL;
 }
@@ -139,7 +134,7 @@ temporarily_fake_comparison_functions();
             toku_lt_point_cmp(buf[i].ends.right, &right) == 0 &&
             buf[i].data == find_txn) { goto cleanup; }
     }
-    assert(FALSE);  //Crash since we didn't find it.
+    assert(false);  //Crash since we didn't find it.
 cleanup:
     stop_fake_comparison_functions();
 }
@@ -159,13 +154,11 @@ static void insert_1(int key_l, int key_r,
     
 
     setup_tree();
-    r = toku_lt_acquire_range_read_lock(lt, db, txn, key_left, key_right);
-    CKERR(r);
+    r = toku_lt_acquire_range_read_lock(lt, db, txn, key_left, key_right); CKERR(r);
     close_tree();
 
     setup_tree();
-    r = toku_lt_acquire_read_lock(lt, db, txn, key_left);
-    CKERR(r);
+    r = toku_lt_acquire_read_lock(lt, db, txn, key_left); CKERR(r);
     close_tree();
 }
 

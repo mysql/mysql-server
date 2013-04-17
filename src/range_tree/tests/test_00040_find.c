@@ -40,7 +40,7 @@ int main(int argc, const char *argv[]) {
                 |-------A-------|
             |-------B-------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, toku_malloc, toku_free, toku_realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, true, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -190,7 +190,7 @@ int main(int argc, const char *argv[]) {
     find_range.left  = (toku_point*)&nums[3];
     find_range.right = (toku_point*)&nums[4];
         
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, toku_malloc, toku_free, toku_realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, false, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);

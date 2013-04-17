@@ -501,7 +501,6 @@ test_split_at_end(void)
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    toku_memory_check = 1;
 
     test_split_on_boundary();
     test_split_with_everything_on_the_left();

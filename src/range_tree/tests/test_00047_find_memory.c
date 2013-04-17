@@ -20,11 +20,11 @@ rundelete (int rexpect, toku_range* todelete) {
 }
 
 static void
-tests (BOOL allow_overlaps) {
+tests (bool allow_overlaps) {
     toku_range insert;
     int i;
     /* Force buf to increase. */
-    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
+    setup_tree(allow_overlaps, false, 0, 0, 0);
     for (i = 0; i < (int)numlen / 2; i++) {
     	runinsert(0, init_range(&insert, i, i, 0));
         int j = numlen /2 + i;
@@ -48,9 +48,9 @@ int main(int argc, const char *argv[]) {
     for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) nums[i] = i; 
     buflen = 2;
     buf = (toku_range*)toku_malloc(2 * sizeof(toku_range));
-    tests(FALSE);
+    tests(false);
 #ifndef TOKU_RT_NOOVERLAPS
-    tests(TRUE);
+    tests(true);
 #endif
 
     tree = NULL;

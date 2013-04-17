@@ -22,9 +22,8 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
     DBT* key_l  = &_key_l;
     DBT* key_r  = &_key_r;
     {
-        r = toku_lt_create(&lt, dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+
         CKERR(r);
         assert(lt);
 
@@ -65,9 +64,7 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
     /* Point read tests. */
     key  = &_key;
     {
-        r = toku_lt_create(&lt, dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
         CKERR(r);
         assert(lt);
 
@@ -94,113 +91,69 @@ int main(int argc, const char *argv[]) {
     int r;
     toku_lock_tree* lt  = NULL;
 
-    r = toku_ltm_create(NULL, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
-    r = toku_ltm_create(&ltm, 0,         max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
-    r = toku_ltm_create(&ltm, max_locks, 0,               dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        NULL,        toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, NULL,      toku_realloc);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, NULL);
-        CKERR2(r, EINVAL);
-        assert(ltm == NULL);
+    r = toku_ltm_create(NULL, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, 0,         max_lock_memory, dbpanic, get_compare_fun_from_db);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, max_locks, 0,               dbpanic, get_compare_fun_from_db);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
 
     /* Actually create it. */
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
 
     r = toku_ltm_set_max_locks(NULL, max_locks);
-        CKERR2(r, EINVAL);
+    CKERR2(r, EINVAL);
     r = toku_ltm_set_max_locks(ltm,  0);
-        CKERR2(r, EINVAL);
+    CKERR2(r, EINVAL);
     r = toku_ltm_set_max_locks(ltm,  max_locks);
-        CKERR(r);
+    CKERR(r);
 
     uint32_t get_max = 73; //Some random number that isn't 0.
     r = toku_ltm_get_max_locks(NULL, &get_max);
-        CKERR2(r, EINVAL);
-        assert(get_max == 73);
+    CKERR2(r, EINVAL);
+    assert(get_max == 73);
     r = toku_ltm_get_max_locks(ltm,  NULL);
-        CKERR2(r, EINVAL);
-        assert(get_max == 73);
+    CKERR2(r, EINVAL);
+    assert(get_max == 73);
     r = toku_ltm_get_max_locks(ltm,  &get_max);
-        CKERR(r);
-        assert(get_max == max_locks);
+    CKERR(r);
+    assert(get_max == max_locks);
 
     r = toku_ltm_set_max_lock_memory(NULL, max_lock_memory);
-        CKERR2(r, EINVAL);
+    CKERR2(r, EINVAL);
     r = toku_ltm_set_max_lock_memory(ltm,  0);
-        CKERR2(r, EINVAL);
+    CKERR2(r, EINVAL);
     r = toku_ltm_set_max_lock_memory(ltm,  max_lock_memory);
-        CKERR(r);
+    CKERR(r);
 
     uint64_t get_max_memory = 73; //Some random number that isn't 0.
     r = toku_ltm_get_max_lock_memory(NULL, &get_max_memory);
-        CKERR2(r, EINVAL);
-        assert(get_max_memory == 73);
+    CKERR2(r, EINVAL);
+    assert(get_max_memory == 73);
     r = toku_ltm_get_max_lock_memory(ltm,  NULL);
-        CKERR2(r, EINVAL);
-        assert(get_max_memory == 73);
+    CKERR2(r, EINVAL);
+    assert(get_max_memory == 73);
     r = toku_ltm_get_max_lock_memory(ltm,  &get_max_memory);
-        CKERR(r);
-        assert(get_max_memory == max_lock_memory);
+    CKERR(r);
+    assert(get_max_memory == max_lock_memory);
 
     /* create tests. */
     {
-        r = toku_lt_create(NULL, dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(NULL, dbpanic, ltm, get_compare_fun_from_db);
         CKERR2(r, EINVAL);
 
-        r = toku_lt_create(&lt,  NULL,    ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt,  NULL,    ltm, get_compare_fun_from_db);
         CKERR2(r, EINVAL);
 
-        r = toku_lt_create(&lt,  dbpanic, NULL,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt,  dbpanic, NULL, get_compare_fun_from_db);
         CKERR2(r, EINVAL);
 
-        r = toku_lt_create(&lt,  dbpanic, ltm,
-                           NULL,
-                           toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-
-        r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           NULL,        toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, NULL,      toku_realloc);
-        CKERR2(r, EINVAL);
-        r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
-                           toku_malloc, toku_free, NULL);
+        r = toku_lt_create(&lt,  dbpanic, ltm, NULL);
         CKERR2(r, EINVAL);
     }
 

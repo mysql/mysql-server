@@ -33,10 +33,10 @@ runsearch (int rexpect, toku_interval* query, toku_range* expect) {
 
 typedef enum {PRED=0, SUCC=1} predsucc;
 static void
-runtest (predsucc testtype, toku_point* query, BOOL findexpect,
+runtest (predsucc testtype, toku_point* query, bool findexpect,
 	 unsigned left, unsigned right, unsigned data) {
     int r;
-    BOOL found;
+    bool found;
     toku_range out;
     assert(data < sizeof(letters) / sizeof(letters[0]));
     assert(left < sizeof(nums) / sizeof(nums[0]));
@@ -60,7 +60,7 @@ runtest (predsucc testtype, toku_point* query, BOOL findexpect,
 
 
 static void
-tests (BOOL allow_overlaps) {
+tests (bool allow_overlaps) {
     toku_range insert;
 
     /*
@@ -84,25 +84,25 @@ tests (BOOL allow_overlaps) {
     */
 
     /* Empty tree. */
-    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
-    runtest(PRED, init_point(5), FALSE, 0, 0, 0);
-    runtest(SUCC, init_point(5), FALSE, 0, 0, 0);
+    setup_tree(allow_overlaps, false, 0, 0, 0);
+    runtest(PRED, init_point(5), false, 0, 0, 0);
+    runtest(SUCC, init_point(5), false, 0, 0, 0);
     close_tree();
 
     /* Single element tree.  Before left, left end point, middle,
        right end point, after right. */
-    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
+    setup_tree(allow_overlaps, false, 0, 0, 0);
     runinsert(0, init_range(&insert, 10, 20, 0)); 
-    runtest(PRED, init_point(5),  FALSE, 0, 0, 0);
-    runtest(PRED, init_point(10), FALSE, 0, 0, 0);
-    runtest(PRED, init_point(15), FALSE, 0, 0, 0);
-    runtest(PRED, init_point(20), FALSE, 0, 0, 0);
-    runtest(PRED, init_point(25), TRUE, 10, 20, 0);
-    runtest(SUCC, init_point(5),  TRUE, 10, 20, 0);
-    runtest(SUCC, init_point(10), FALSE, 0, 0, 0);
-    runtest(SUCC, init_point(15), FALSE, 0, 0, 0);
-    runtest(SUCC, init_point(20), FALSE, 0, 0, 0);
-    runtest(SUCC, init_point(25), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(5),  false, 0, 0, 0);
+    runtest(PRED, init_point(10), false, 0, 0, 0);
+    runtest(PRED, init_point(15), false, 0, 0, 0);
+    runtest(PRED, init_point(20), false, 0, 0, 0);
+    runtest(PRED, init_point(25), true, 10, 20, 0);
+    runtest(SUCC, init_point(5),  true, 10, 20, 0);
+    runtest(SUCC, init_point(10), false, 0, 0, 0);
+    runtest(SUCC, init_point(15), false, 0, 0, 0);
+    runtest(SUCC, init_point(20), false, 0, 0, 0);
+    runtest(SUCC, init_point(25), false, 0, 0, 0);
     close_tree();
 
     /*
@@ -124,7 +124,7 @@ tests (BOOL allow_overlaps) {
           * Something on left.
           * Nothing on left.
     */
-    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
+    setup_tree(allow_overlaps, false, 0, 0, 0);
     runinsert(0, init_range(&insert, 10, 20, 0)); 
     runinsert(0, init_range(&insert, 30, 40, 0)); 
 
@@ -133,64 +133,64 @@ tests (BOOL allow_overlaps) {
       * Something on left.
       * Nothing on left.
     */
-    runtest(PRED, init_point(25), TRUE, 10, 20, 0);
-    runtest(PRED, init_point(5), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(25), true, 10, 20, 0);
+    runtest(PRED, init_point(5), false, 0, 0, 0);
 
     /*
      * At a left end point.
       * Something on left.
       * Nothing on left.
     */
-    runtest(PRED, init_point(30), TRUE, 10, 20, 0);
-    runtest(PRED, init_point(10), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(30), true, 10, 20, 0);
+    runtest(PRED, init_point(10), false, 0, 0, 0);
 
     /*
      * Inside a range.
       * Something on left.
       * Nothing on left.
      */
-    runtest(PRED, init_point(35), TRUE, 10, 20, 0);
-    runtest(PRED, init_point(15), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(35), true, 10, 20, 0);
+    runtest(PRED, init_point(15), false, 0, 0, 0);
 
     /*
      * At a right end point.
       * Something on left.
       * Nothing on left.
     */
-    runtest(PRED, init_point(40), TRUE, 10, 20, 0);
-    runtest(PRED, init_point(20), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(40), true, 10, 20, 0);
+    runtest(PRED, init_point(20), false, 0, 0, 0);
 
     /*
      * In empty space.
       * Something on right.
       * Nothing on right.
     */
-    runtest(SUCC, init_point(25), TRUE, 30, 40, 0);
-    runtest(SUCC, init_point(45), FALSE, 0, 0, 0);
+    runtest(SUCC, init_point(25), true, 30, 40, 0);
+    runtest(SUCC, init_point(45), false, 0, 0, 0);
 
     /*
      * At a right end point.
       * Something on right.
       * Nothing on right.
     */
-    runtest(SUCC, init_point(20), TRUE, 30, 40, 0);
-    runtest(SUCC, init_point(40), FALSE, 0, 0, 0);
+    runtest(SUCC, init_point(20), true, 30, 40, 0);
+    runtest(SUCC, init_point(40), false, 0, 0, 0);
 
     /*
      * Inside a range.
       * Something on right.
       * Nothing on right.
      */
-    runtest(SUCC, init_point(15), TRUE, 30, 40, 0);
-    runtest(SUCC, init_point(35), FALSE, 0, 0, 0);
+    runtest(SUCC, init_point(15), true, 30, 40, 0);
+    runtest(SUCC, init_point(35), false, 0, 0, 0);
 
     /*
      * At a right end point.
       * Something on right.
       * Nothing on right.
     */
-    runtest(SUCC, init_point(20), TRUE, 30, 40, 0);
-    runtest(SUCC, init_point(40), FALSE, 0, 0, 0);
+    runtest(SUCC, init_point(20), true, 30, 40, 0);
+    runtest(SUCC, init_point(40), false, 0, 0, 0);
 
     close_tree();
 
@@ -199,7 +199,7 @@ tests (BOOL allow_overlaps) {
         With other interval that cannot be the predecessor
         or the successor, but that need to be looked at.  */
 
-    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
+    setup_tree(allow_overlaps, false, 0, 0, 0);
     runinsert(0, init_range(&insert,  5, 7, 0)); 
     runinsert(0, init_range(&insert, 50, 60, 0)); 
     runinsert(0, init_range(&insert, 10, 20, 0)); 
@@ -207,10 +207,10 @@ tests (BOOL allow_overlaps) {
     runinsert(0, init_range(&insert,  2, 4, 0)); 
     runinsert(0, init_range(&insert, 70, 80, 0)); 
 
-    runtest(PRED, init_point(25), TRUE, 10, 20, 0);
-    runtest(PRED, init_point(4), FALSE, 0, 0, 0);
-    runtest(SUCC, init_point(25), TRUE, 30, 40, 0);
-    runtest(SUCC, init_point(95), FALSE, 0, 0, 0);
+    runtest(PRED, init_point(25), true, 10, 20, 0);
+    runtest(PRED, init_point(4), false, 0, 0, 0);
+    runtest(SUCC, init_point(25), true, 30, 40, 0);
+    runtest(SUCC, init_point(95), false, 0, 0, 0);
     
     close_tree();
 }
@@ -223,7 +223,7 @@ int main(int argc, const char *argv[]) {
     for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) nums[i] = i; 
     buflen = 2;
     buf = (toku_range*)toku_malloc(2 * sizeof(toku_range));
-    tests(FALSE);
+    tests(false);
 
     tree = NULL;
     toku_free(buf);

@@ -12,6 +12,7 @@
 //Currently this is a stub implementation just so we can write and compile tests
 //before actually implementing the range tree.
 
+#include "memory.h"
 #include <rangetree.h>
 #include <errno.h>
 #include <toku_assert.h>
@@ -31,39 +32,42 @@ int
 toku_rt_create(toku_range_tree** ptree,
                int (*end_cmp)(const toku_point*,const toku_point*),
                int (*data_cmp)(const TXNID,const TXNID),
-               BOOL allow_overlaps,
-               void* (*user_malloc) (size_t),
-               void  (*user_free)   (void*),
-               void* (*user_realloc)(void*, size_t)) {
+               bool allow_overlaps,
+               void (*incr_memory_size)(void *extra_memory_size, size_t s),
+               void (*decr_memory_size)(void *extra_memory_size, size_t s),
+               void *extra_memory_size) {
+
     int r = ENOSYS;
-    toku_range_tree* temptree = NULL;
+    toku_range_tree* tmptree = NULL;
 
     if (allow_overlaps) 
         return EINVAL;
-    r = toku_rt_super_create(ptree, &temptree, end_cmp, data_cmp, allow_overlaps,
-                             user_malloc, user_free, user_realloc);
+    r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps, incr_memory_size, decr_memory_size, extra_memory_size);
     if (r != 0)
         goto cleanup;
     
     //Any local initializers go here.
-    r = toku_omt_create(&temptree->i.omt);
+    r = toku_omt_create(&tmptree->i.omt);
     if (r != 0)
         goto cleanup;
 
-    *ptree = temptree;
+    tmptree->incr_memory_size(tmptree->extra_memory_size, toku_rt_memory_size(tmptree));
+    *ptree = tmptree;
     r = 0;
 cleanup:
     if (r != 0) {
-        if (temptree) 
-            user_free(temptree);
+        if (tmptree) 
+            toku_free(tmptree);
     }
     return r;
 }
 
 static int 
 rt_clear_helper(OMTVALUE value, u_int32_t UU(index), void* extra) {
-    void  (*user_free)(void*) = (void(*)(void*))extra;
-    user_free(value);
+    toku_range_tree *tree = (toku_range_tree *) extra;
+    size_t s = toku_malloc_usable_size(value);
+    tree->decr_memory_size(tree->extra_memory_size, s);
+    toku_free(value);
     return 0;
 }
 
@@ -71,20 +75,24 @@ int
 toku_rt_close(toku_range_tree* tree) {
     if (!tree)
         return EINVAL;
-    int r = toku_omt_iterate(tree->i.omt, rt_clear_helper, tree->free);
+    int r = toku_omt_iterate(tree->i.omt, rt_clear_helper, tree);
     assert_zero(r);
+    tree->decr_memory_size(tree->extra_memory_size, toku_rt_memory_size(tree));
     toku_omt_destroy(&tree->i.omt);
-    tree->free(tree);
+    toku_free(tree);
     return 0;
 }
 
 void 
 toku_rt_clear(toku_range_tree* tree) {
     assert(tree);
-    int r = toku_omt_iterate(tree->i.omt, rt_clear_helper, tree->free);
+    int r = toku_omt_iterate(tree->i.omt, rt_clear_helper, tree);
     assert_zero(r);
+    size_t start_size = toku_omt_memory_size(tree->i.omt);;
     toku_omt_clear(tree->i.omt);
-    tree->numelements = 0;
+    size_t end_size = toku_omt_memory_size(tree->i.omt);
+    assert(start_size >= end_size);
+    tree->decr_memory_size(tree->extra_memory_size, start_size - end_size);
 }
 
 typedef struct {
@@ -204,17 +212,24 @@ toku_rt_insert(toku_range_tree* tree, toku_range* range) {
         r = EDOM; goto cleanup;
     }
     assert(r == DB_NOTFOUND);
-    insert_range = tree->malloc(sizeof(*insert_range));
+    insert_range = toku_xmalloc(sizeof *insert_range);
     *insert_range = *range;
+    size_t start_omt_size = toku_omt_memory_size(tree->i.omt);
+    static int count = 0;
+    count++;
     r = toku_omt_insert_at(tree->i.omt, insert_range, index);
     assert_zero(r);
-
-    tree->numelements++;
+    size_t end_omt_size = toku_omt_memory_size(tree->i.omt);
+    if (end_omt_size >= start_omt_size)
+        tree->incr_memory_size(tree->extra_memory_size, end_omt_size - start_omt_size);
+    else
+        tree->decr_memory_size(tree->extra_memory_size, start_omt_size - end_omt_size);
+    tree->incr_memory_size(tree->extra_memory_size, toku_malloc_usable_size(insert_range));
     r = 0;
 cleanup:
     if (r != 0) {
         if (insert_range) 
-            tree->free(insert_range);
+            toku_free(insert_range);
     }
     return r;
 }
@@ -245,11 +260,16 @@ toku_rt_delete(toku_range_tree* tree, toku_range* range) {
         r = EDOM;
         goto cleanup;
     }
+    size_t start_omt_size = toku_omt_memory_size(tree->i.omt);
     r = toku_omt_delete_at(tree->i.omt, index);
     assert_zero(r);
-
-    tree->free(data);
-    tree->numelements--;
+    size_t end_omt_size = toku_omt_memory_size(tree->i.omt);
+    if (start_omt_size >= end_omt_size) 
+        tree->decr_memory_size(tree->extra_memory_size, start_omt_size - end_omt_size);
+    else
+        tree->incr_memory_size(tree->extra_memory_size, end_omt_size - start_omt_size);
+    tree->decr_memory_size(tree->extra_memory_size, toku_malloc_usable_size(data));
+    toku_free(data);
     r = 0;
 cleanup:
     return r;
@@ -257,7 +277,7 @@ cleanup:
 
 static inline int 
 rt_neightbor(toku_range_tree* tree, toku_point* point,
-             toku_range* neighbor, BOOL* wasfound, int direction) {
+             toku_range* neighbor, bool* wasfound, int direction) {
     int r = ENOSYS;
     if (!tree || !point || !neighbor || !wasfound || tree->allow_overlaps) {
         r = EINVAL; goto cleanup;
@@ -272,14 +292,14 @@ rt_neightbor(toku_range_tree* tree, toku_point* point,
     assert(direction==1 || direction==-1);
     r = toku_omt_find(tree->i.omt, rt_heaviside, &extra, direction, &value, &index);
     if (r == DB_NOTFOUND) {
-        *wasfound = FALSE;
+        *wasfound = false;
         r = 0;
         goto cleanup;
     }
     assert_zero(r);
     assert(value);
     toku_range* data = value;
-    *wasfound = TRUE;
+    *wasfound = true;
     *neighbor = *data;
     r = 0;
 cleanup:    
@@ -287,17 +307,17 @@ cleanup:
 }
 
 int 
-toku_rt_predecessor (toku_range_tree* tree, toku_point* point, toku_range* pred, BOOL* wasfound) {
+toku_rt_predecessor (toku_range_tree* tree, toku_point* point, toku_range* pred, bool* wasfound) {
     return rt_neightbor(tree, point, pred, wasfound, -1);
 }
 
 int 
-toku_rt_successor (toku_range_tree* tree, toku_point* point, toku_range* succ, BOOL* wasfound) {
+toku_rt_successor (toku_range_tree* tree, toku_point* point, toku_range* succ, bool* wasfound) {
     return rt_neightbor(tree, point, succ, wasfound, 1);
 }
 
 int 
-toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
+toku_rt_get_allow_overlaps(toku_range_tree* tree, bool* allowed) {
     if (!tree || !allowed) 
         return EINVAL;
     assert(!tree->allow_overlaps);
@@ -305,12 +325,9 @@ toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
     return 0;
 }
 
-int 
-toku_rt_get_size(toku_range_tree* tree, u_int32_t* size) {
-    if (!tree || !size) 
-        return EINVAL;
-    *size = tree->numelements;
-    return 0;
+size_t
+toku_rt_get_size(toku_range_tree* tree) {
+    return toku_omt_size(tree->i.omt);
 }
 
 typedef struct {
@@ -332,21 +349,22 @@ toku_rt_iterate(toku_range_tree* tree, int (*f)(toku_range*,void*), void* extra)
     return toku_omt_iterate(tree->i.omt, rt_iterate_helper, &info);
 }
 
-static inline BOOL 
+static inline bool 
 toku__rt_overlap(toku_range_tree* tree, toku_interval* a, toku_interval* b) {
     assert(tree);
     assert(a);
     assert(b);
     //a->left <= b->right && b->left <= a->right
-    return (BOOL)((tree->end_cmp(a->left, b->right) <= 0) &&
-		  (tree->end_cmp(b->left, a->right) <= 0));
+    return ((tree->end_cmp(a->left, b->right) <= 0) &&
+            (tree->end_cmp(b->left, a->right) <= 0));
 }
 
 void 
 toku_rt_verify(toku_range_tree *tree) {
     int r;
     if (!tree->allow_overlaps) {
-        for (u_int32_t i = 0; i < tree->numelements; i++) {
+        u_int32_t numelements = toku_omt_size(tree->i.omt);
+        for (u_int32_t i = 0; i < numelements; i++) {
             // assert left <= right
 	    OMTVALUE omtv;
             r = toku_omt_fetch(tree->i.omt, i, &omtv);
@@ -354,7 +372,7 @@ toku_rt_verify(toku_range_tree *tree) {
 	    toku_range *v = (toku_range *) omtv;
             assert(tree->end_cmp(v->ends.left, v->ends.right) <= 0);
             // assert ranges are sorted
-            if (i < tree->numelements-1) {
+            if (i < numelements-1) {
 		OMTVALUE omtvnext;
                 r = toku_omt_fetch(tree->i.omt, i+1, &omtvnext);
                 assert_zero(r);
@@ -363,7 +381,7 @@ toku_rt_verify(toku_range_tree *tree) {
             }
         }
         // verify no overlaps
-        for (u_int32_t i = 1; i < tree->numelements; i++) {
+        for (u_int32_t i = 1; i < numelements; i++) {
 	    OMTVALUE omtvprev;
             r = toku_omt_fetch(tree->i.omt, i-1, &omtvprev);
             assert_zero(r);
@@ -375,4 +393,9 @@ toku_rt_verify(toku_range_tree *tree) {
             assert(!toku__rt_overlap(tree, &vprev->ends, &v->ends));
         }
     }
+}
+
+size_t 
+toku_rt_memory_size(toku_range_tree *tree) {
+    return sizeof (toku_range_tree) + toku_omt_memory_size(tree->i.omt);
 }

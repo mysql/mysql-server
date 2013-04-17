@@ -10,6 +10,7 @@
 */
 
 #include <toku_portability.h>
+#include "memory.h"
 #include <idlth.h>
 #include <toku_assert.h>
 #include <errno.h>
@@ -28,23 +29,17 @@ static inline void toku__invalidate_scan(toku_idlth* idlth) {
     idlth->iter_is_valid = FALSE;
 }
 
-int toku_idlth_create(toku_idlth** pidlth,
-                      void* (*user_malloc) (size_t),
-                      void  (*user_free)   (void*),
-                      void* (*user_realloc)(void*, size_t)) {
+int toku_idlth_create(toku_idlth** pidlth) {
     int r = ENOSYS;
-    assert(pidlth && user_malloc && user_free && user_realloc);
+    assert(pidlth);
     toku_idlth* tmp = NULL;
-    tmp = (toku_idlth*)user_malloc(sizeof(*tmp));
+    tmp = (toku_idlth*) toku_malloc(sizeof(*tmp));
     if (!tmp) { r = ENOMEM; goto cleanup; }
 
     memset(tmp, 0, sizeof(*tmp));
-    tmp->malloc      = user_malloc;
-    tmp->free        = user_free;
-    tmp->realloc     = user_realloc;
     tmp->num_buckets = __toku_idlth_init_size;
     tmp->buckets     = (toku_idlth_elt*)
-                          tmp->malloc(tmp->num_buckets * sizeof(*tmp->buckets));
+                          toku_malloc(tmp->num_buckets * sizeof(*tmp->buckets));
     if (!tmp->buckets) { r = ENOMEM; goto cleanup; }
     memset(tmp->buckets, 0, tmp->num_buckets * sizeof(*tmp->buckets));
     toku__invalidate_scan(tmp);
@@ -56,8 +51,8 @@ int toku_idlth_create(toku_idlth** pidlth,
 cleanup:
     if (r != 0) {
         if (tmp) {
-            if (tmp->buckets) { user_free(tmp->buckets); }
-            user_free(tmp);
+            if (tmp->buckets) { toku_free(tmp->buckets); }
+            toku_free(tmp);
         }
     }
     return r;
@@ -87,7 +82,7 @@ static inline toku_idlth_elt* toku__idlth_next(toku_idlth* idlth) {
     assert(idlth->iter_is_valid);
 
     idlth->iter_curr     = idlth->iter_curr->next_in_iteration;
-    idlth->iter_is_valid = (BOOL)(idlth->iter_curr != &idlth->iter_head);
+    idlth->iter_is_valid = (idlth->iter_curr != &idlth->iter_head);
     return idlth->iter_curr;
 }
 
@@ -120,7 +115,7 @@ void toku_idlth_delete(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
-    idlth->free(current);
+    toku_free(current);
     idlth->num_keys--;
     return;
 }
@@ -134,7 +129,7 @@ int toku_idlth_insert(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     uint32_t index = toku__idlth_hash(idlth, dict_id);
 
     /* Allocate a new one. */
-    toku_idlth_elt* element = (toku_idlth_elt*)idlth->malloc(sizeof(*element));
+    toku_idlth_elt* element = (toku_idlth_elt*) toku_malloc(sizeof(*element));
     if (!element) { r = ENOMEM; goto cleanup; }
     memset(element, 0, sizeof(*element));
     element->value.dict_id = dict_id;
@@ -153,7 +148,7 @@ cleanup:
     return r;    
 }
 
-static inline void toku__idlth_clear(toku_idlth* idlth, BOOL clean) {
+static inline void toku__idlth_clear(toku_idlth* idlth, bool clean) {
     assert(idlth);
 
     toku_idlth_elt* element;
@@ -164,7 +159,7 @@ static inline void toku__idlth_clear(toku_idlth* idlth, BOOL clean) {
     while (next != head) {
         element = next;
         next    = toku__idlth_next(idlth);
-        idlth->free(element);
+        toku_free(element);
     }
     /* If clean is true, then we want to restore it to 'just created' status.
        If we are closing the tree, we don't need to do that restoration. */
@@ -184,16 +179,16 @@ void toku_idlth_close(toku_idlth* idlth) {
     assert(idlth);
 
     toku__idlth_clear(idlth, FALSE);
-    idlth->free(idlth->buckets);
-    idlth->free(idlth);
+    toku_free(idlth->buckets);
+    toku_free(idlth);
 }
 
-BOOL toku_idlth_is_empty(toku_idlth* idlth) {
+bool toku_idlth_is_empty(toku_idlth* idlth) {
     assert(idlth);
     /* Verify consistency. */
     assert((idlth->num_keys == 0) ==
            (idlth->iter_head.next_in_iteration == &idlth->iter_head));
     assert((idlth->num_keys == 0) ==
            (idlth->iter_head.prev_in_iteration == &idlth->iter_head));
-    return (BOOL)(idlth->num_keys == 0);
+    return (idlth->num_keys == 0);
 }
