@@ -40,7 +40,7 @@ check: $(CHECKS)
 
 clean: $(patsubst %,%.dir.clean,$(SRCDIRS)) cleanlib
 cleanlib:
-	$(MAYBEATSIGN)rm -rf lib/*.$(SOEXT) lib/*.$(AEXT) lib/*.bundle
+	rm -rf lib/*.$(SOEXT) lib/*.$(AEXT) lib/*.bundle
 
 install:
 	./install.bash

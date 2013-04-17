@@ -48,26 +48,26 @@ check.log:  $(RUN_LOG_TESTS)
 %.run: %.linrun %.tlogrun #%.logrun
 
 %.linrun: %.lin$(BINSUF)
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tlogrun: %.tlog$(BINSUF)
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.logrun: %.log$(BINSUF)
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 A_LINEAR=$(LOCKTREE_LINEAR) $(RANGETREE_LINEAR)
 A_TLOG  =$(LOCKTREE_TLOG)   $(RANGETREE_TLOG)
 A_LOG   =$(LOCKTREE_LOG)    $(RANGETREE_LOG)
 
 %.lin$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LINEAR)
-	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.lin\"  $< $(A_LINEAR) $(BIN_FROM_C_FLAGS)
+	$(CC) -DTESTDIR=\"dir.$<.lin\"  $< $(A_LINEAR) $(BIN_FROM_C_FLAGS)
 
 %.tlog$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_TLOG)
-	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.tlog\" $< $(A_TLOG) $(BIN_FROM_C_FLAGS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DTESTDIR=\"dir.$<.tlog\" $< $(A_TLOG) $(BIN_FROM_C_FLAGS) -DTOKU_RT_NOOVERLAPS
 
 %.log$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LOG)
-	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.log\"  $< $(A_LOG) $(BIN_FROM_C_FLAGS)
+	$(CC) -DTESTDIR=\"dir.$<.log\"  $< $(A_LOG) $(BIN_FROM_C_FLAGS)
 
 clean:
-	$(MAYBEATSIGN)rm -f $(ALL_TESTS)
-	$(MAYBEATSIGN)rm -rf dir.*.lin dir.*.tlog dir.*.log
+	rm -f $(ALL_TESTS)
+	rm -rf dir.*.lin dir.*.tlog dir.*.log
 

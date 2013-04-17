@@ -99,41 +99,41 @@ build: $(BINS)
 check: $(patsubst %,check_%,$(CHECKS))
 
 check_fail:
-	$(MAYBEATSIGN)test 0 = 1 $(SUMMARIZE_CMD)
+	test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
-	$(MAYBEATSIGN)test 0 = 0 $(SUMMARIZE_CMD)
+	test 0 = 0 $(SUMMARIZE_CMD)
 
 # Don't run 1305 under valgrind.  It takes way too long.
 check_test1305: VGRIND=
 check_test1305:
 
 check_benchmarktest_256: benchmark-test$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
 
 check_test-assertA: test-assert$(BINSUF)
 	@# no arguments, should err
-	$(MAYBEATSIGN)$(VGRIND) ./$< > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
 check_test-assertB: test-assert$(BINSUF)
 	@# one argument, not "ok" should err
 	@rm -f test-assert.out
-	$(MAYBEATSIGN)($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = 1 && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
+	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = 1 && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
 check_test-assertC: test-assert$(BINSUF)
 
 check_test-assert$(BINSUF): test-assert$(BINSUF)
 	@# one argument, "ok" should not error
-	$(MAYBEATSIGN)$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
-check_%$(BINSUF): %$(BINSUF)
-	$(MAYBEATSIGN)$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+check_%: %
+	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
 LINK_FILES += ../newbrt.$(AEXT)
 
 clean:
-	$(MAYBEATSIGN)rm -rf *.dir 
-	$(MAYBEATSIGN)rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
-	$(MAYBEATSIGN)rm -f *.brt *.tdb *.dat *.data *.out
+	rm -rf log-test7.c.dir_*
+	rm -rf *.dir 
+	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
+	rm -f *.brt *.tdb *.dat *.data *.out
 
-foo: ../cachetable.$(OEXT) ../fifo.$(OEXT) ../fingerprint.$(OEXT) ../key.$(OEXT) ../memory.$(OEXT) ../memarena.$(OEXT) ../mempool.$(OEXT) ../omt.$(OEXT) ../toku_assert.$(OEXT) ../ybt.$(OEXT) ../x1764.$(OEXT) ../trace_mem.$(OEXT) ../threadpool.$(OEXT)
-
+$(BINS):

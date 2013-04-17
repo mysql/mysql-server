@@ -32,7 +32,7 @@ BINS_O = $(patsubst %,%.$(OEXT),$(BINS_RAW))
 .PHONY: build default bins libs
 
 build default: bins libs $(TEST_NEWBRT)
-	$(MAYBEATSIGN)cd tests;$(MAKE) build
+	cd tests;$(MAKE) build
 
 BRT_SOURCES = \
   block_allocator \
@@ -65,7 +65,7 @@ BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 BRT_O_FILES = $(patsubst %,%.$(OEXT),$(BRT_SOURCES))
 
 newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
-	$(MAYBEATSIGN)$(CC) $(BRT_C_FILES) $(COMBINE_C) $(O_FROM_C_FLAGS)
+	$(CC) $(BRT_C_FILES) $(COMBINE_C) $(O_FROM_C_FLAGS)
 
 
 ifneq ($(CYGWIN),)
@@ -81,13 +81,11 @@ endif
 $(NEWBRT): $(NEWBRT_O_FILES)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
-log_header.h: log_code.c
-	@echo generated log_code.c so log_header.c was also generated
-log_code.c: logformat$(BINSUF)
-	$(MAYBEATSIGN)./logformat
+log_header.h log_code.c: logformat$(BINSUF)
+	./logformat
 #Needs to be done manually since it does not include newbrt.
 logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
-	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY)
+	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY)
 
 
 libs: $(NEWBRT) $(NEWBRT_BUNDLE)
@@ -97,7 +95,7 @@ bins: $(BINS)
 
 # Put check_benchmarktest_256 first because it is long-running (and therefore on the critical path, so get it started)
 check: bins
-	$(MAYBEATSIGN)cd tests;$(MAKE) check
+	cd tests;$(MAKE) check
 
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
@@ -110,13 +108,13 @@ checko2:
 
 clean: clean-local clean-tests
 clean-tests:
-	$(MAYBEATSIGN)cd tests;$(MAKE) clean
+	cd tests;$(MAKE) clean
 clean-local:
-	$(MAYBEATSIGN)rm -rf $(NEWBRT)
-	$(MAYBEATSIGN)rm -rf test_oexcl.c.tmp *.brt
-	$(MAYBEATSIGN)rm -rf log_code.c log_header.h logformat
+	rm -rf $(NEWBRT)
+	rm -rf test_oexcl.c.tmp *.brt
+	rm -rf log_code.c log_header.h logformat
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)
-	$(MAYBEATSIGN)./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
+	./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
 

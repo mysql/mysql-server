@@ -28,11 +28,11 @@ $(RANGETREE_LINEAR): linear.$(OEXT)
 $(RANGETREE_LOG):    log.$(OEXT)
 
 $(RANGETREE): $(RANGETREE_TLOG)
-	$(MAYBEATSIGN)cp $< $@
+	cp $< $@
 
 .PHONY: build check
 build: $(LIBRARIES)
 
 build check clean:
-	$(MAYBEATSIGN)cd tests;$(MAKE) $@
+	cd tests;$(MAKE) $@
 
