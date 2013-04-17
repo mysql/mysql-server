@@ -98,8 +98,9 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" time_of_creation=         %ld    %s\n", h->time_of_creation, timestr);
     format_time(h->time_of_last_modification, timestr);
     printf(" time_of_last_modification=%ld    %s\n", h->time_of_last_modification, timestr);
-
     printf(" dirty=%d\n", h->dirty);
+    printf(" checkpoint_count=%" PRId64 "\n", h->checkpoint_count);
+    printf(" checkpoint_lsn=%" PRId64 "\n", h->checkpoint_lsn.lsn);
     printf(" nodesize=%u\n", h->nodesize);
     printf(" basementnodesize=%u\n", h->basementnodesize);
     printf(" unnamed_root=%" PRId64 "\n", h->root_blocknum.b);
