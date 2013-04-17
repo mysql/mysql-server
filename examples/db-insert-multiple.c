@@ -12,6 +12,7 @@
 // a is auto increment
 // b, c and d are random
 
+#include "config.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -19,7 +20,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <byteswap.h>
+#if defined(HAVE_BYTESWAP_H)
+# include <byteswap.h>
+#elif defined(HAVE_LIBKERN_OSBYTEORDER_H)
+# include <libkern/OSByteOrder.h>
+# define bswap_64 OSSwapInt64
+#endif
 #include <arpa/inet.h>
 #include "db.h"
 
