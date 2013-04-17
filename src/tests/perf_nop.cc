@@ -18,10 +18,6 @@
 // The intent of this test is to measure the throughput of the test infrastructure executing a nop
 // on multiple threads.
 
-static int UU() nop(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
-    return 0;
-}
-
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     if (verbose) printf("starting creation of pthreads\n");
@@ -38,6 +34,6 @@ int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
     parse_stress_test_args(argc, argv, &args);
-    perf_test_main(&args);
+    stress_test_main(&args);
     return 0;
 }

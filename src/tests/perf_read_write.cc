@@ -78,6 +78,6 @@ test_main(int argc, char *const argv[]) {
     args.num_update_threads = 1;
     args.crash_on_operation_failure = false;
     parse_stress_test_args(argc, argv, &args);
-    perf_test_main(&args);
+    stress_test_main(&args);
     return 0;
 }

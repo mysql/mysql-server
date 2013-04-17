@@ -71,6 +71,6 @@ test_main(int argc, char *const argv[]) {
     // this test is all about transactions, make the DB small
     args.num_elements = 1;
     args.num_DBs= 1;    
-    perf_test_main(&args);
+    stress_test_main(&args);
     return 0;
 }

@@ -51,6 +51,6 @@ test_main(int argc, char *const argv[]) {
     if (args.num_put_threads > 1) {
         args.crash_on_operation_failure = false;
     }
-    perf_test_main(&args);
+    stress_test_main_with_cmp(&args, stress_uint64_dbt_cmp);
     return 0;
 }
