@@ -4394,6 +4394,7 @@ brt_cursor_update(BRT_CURSOR brtcursor) {
 //
 static inline int 
 is_le_val_del(LEAFENTRY le, BRT_CURSOR brtcursor) {
+    int rval;
     if (brtcursor->is_snapshot_read) {
         BOOL is_del;
         le_iterate_is_del(
@@ -4402,11 +4403,12 @@ is_le_val_del(LEAFENTRY le, BRT_CURSOR brtcursor) {
             &is_del, 
             brtcursor->ttxn
             );
-        return is_del;
+        rval = is_del;
     }
     else {
-        return le_latest_is_del(le);
+        rval = le_latest_is_del(le);
     }
+    return rval;
 }
 
 // This is a bottom layer of the search functions.
