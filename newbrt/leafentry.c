@@ -162,7 +162,6 @@ u_int32_t toku_logsizeof_LEAFENTRY (LEAFENTRY le) {
 }
 
 int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *checksum, u_int32_t *len) {
-    assert(0);
     u_int8_t state;
     int r = toku_fread_u_int8_t (f, &state, checksum, len); if (r!=0) return r;
     TXNID xid;

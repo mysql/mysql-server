@@ -76,7 +76,7 @@ toku_realloc(void *p, size_t size)
 void
 toku_free(void* p)
 {
-    toku_free_counter++;
+    (void)__sync_fetch_and_add(&toku_free_counter, 1);
     if (t_free)
 	t_free(p);
     else

@@ -43,7 +43,7 @@ int toku_logger_commit (TOKUTXN txn, int no_sync);
 
 int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TOKULOGGER /*logger*/);
 
-int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, FILENUM /*filenum*/, int /*mode*/);
+int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
 
 int toku_logger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM);
 

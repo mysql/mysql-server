@@ -12,14 +12,12 @@
 #define TOKU_DO_COMMIT_CMD_DELETE_BOTH 1
 
 int toku_commit_fcreate (TXNID UU(xid),
-                         FILENUM UU(filenum),
 			 BYTESTRING UU(bs_fname),
 			 TOKUTXN    UU(txn)) {
     return 0;
 }
 
 int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
-                           FILENUM filenum,
 			   BYTESTRING bs_fname,
 			   TOKUTXN    txn       __attribute__((__unused__))) {
     char *fname = fixup_fname(&bs_fname);
@@ -28,6 +26,8 @@ int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
     char full_fname[full_len];
     int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
     assert(l<=full_len);
+#if 0
+    // I don't think this is right.  fcreate simply creates the file, and doesn't put it in the cache table.
     //Remove reference to the fd in the cachetable
     CACHEFILE cf;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
@@ -35,7 +35,8 @@ int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
-    r = unlink(full_fname);
+#endif
+    int r = unlink(full_fname);
     assert(r==0);
     toku_free(fname);
     return 0;
