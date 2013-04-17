@@ -2759,12 +2759,21 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
 	r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY, TRUE);
 	if (r == 0) {
             if (using_txns) {
+                // this writes an fdelete to the transaction's rollback log.
+                // it is removed if the child txn aborts after any error case below
                 r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
 		assert_zero(r);
                 //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
                 if (r==0 && env_is_db_with_dname_open(env, dname))
                     r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
                 if (r==0) {
+                    // we know a live db handle does not exist.
+                    //
+                    // if there exists a zombie, make sure that it is due to
+                    // checkpoint by trying to get a table lock. we can't
+                    // remove a db that live txns reference, but it's okay
+                    // to deal with the fact that its pinned for checkpoint
+                    // further down the stack.
                     DB* zombie = env_get_zombie_db_with_dname(env, dname);
                     if (zombie)
                         r = toku_db_pre_acquire_table_lock(zombie, child, TRUE);

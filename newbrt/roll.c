@@ -44,7 +44,10 @@ toku_commit_fdelete (u_int8_t   file_was_open,
             r = 0;
             goto done;
         }
-        assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
+        // file must be open now if it was open when the fdelete was logged,
+        // because the txn that created it opened it and noted it.
+        // XXX this does not look true "must still be open  (toku_brt_remove_on_commit() incremented refcount)"
+        assert(r == 0); 
         {
             (void)toku_cachefile_get_and_pin_fd(cf);
             assert(!toku_cachefile_is_dev_null_unlocked(cf));
@@ -111,6 +114,9 @@ toku_rollback_fcreate (FILENUM    filenum,
         r = 0;
         goto done;
     }
+    // file must be open, because the txn that created it opened it and
+    // noted it, so another client trying to close it would force it
+    // to become a zombie.
     assert(r == 0);
     {
         (void)toku_cachefile_get_and_pin_fd(cf);
@@ -571,6 +577,9 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
         r = 0;
         goto done;
     }
+    // file must be open, because the txn that created it opened it and
+    // noted it, so another client trying to close it would force it
+    // to become a zombie.
     assert(r==0);
 
     fd = toku_cachefile_get_and_pin_fd(cf);
