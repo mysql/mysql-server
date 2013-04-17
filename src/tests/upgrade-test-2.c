@@ -29,7 +29,7 @@ char *env_dir = ENVDIR; // the default env_dir.
 int SRC_VERSION = 4;
 
 static void upgrade_test_2(DB **dbs) {
-    int r;
+    int r = 0;
     // open the DBS
     {
         DBT desc;
