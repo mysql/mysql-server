@@ -128,7 +128,7 @@ static YDB_LAYER_STATUS_S ydb_layer_status;
 	ydb_layer_status.status[k].legend  = l; \
     }
 static void
-status_init (void) {
+ydb_layer_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
@@ -964,7 +964,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         need_rollback_cachefile = TRUE;
     }
 
-    status_init();  // do this before possibly upgrading, so upgrade work is counted in status counters
+    ydb_layer_status_init();  // do this before possibly upgrading, so upgrade work is counted in status counters
 
     LSN last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
     BOOL upgrade_in_progress = FALSE;
@@ -1977,7 +1977,11 @@ format_time(const time_t *timer, char *buf) {
     }
 }
 
-// local status struct, used to concentrate file system information collected from various places
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Local definition of status information from portability layer, which should not include db.h.
+// Local status structs are used to concentrate file system information collected from various places
+// and memory information collected from memory.c.
+//
 typedef enum {
     FS_ENOSPC_REDZONE_STATE = 0,  // possible values are enumerated by fs_redzone_state
     FS_ENOSPC_THREADS_BLOCKED,    // how many threads currently blocked on ENOSPC
@@ -2041,6 +2045,76 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
     FS_STATUS_VALUE(FS_FSYNC_TIME) = fsync_time;
 }
 #undef FS_STATUS_VALUE
+
+// Local status struct used to get information from memory.c
+typedef enum {
+    MEMORY_MALLOC_COUNT = 0,
+    MEMORY_FREE_COUNT,  
+    MEMORY_REALLOC_COUNT,
+    MEMORY_MALLOC_FAIL,  
+    MEMORY_REALLOC_FAIL, 
+    MEMORY_REQUESTED,    
+    MEMORY_USED,         
+    MEMORY_FREED,        
+    MEMORY_MAX_IN_USE,
+    MEMORY_MALLOCATOR_VERSION,
+    MEMORY_MMAP_THRESHOLD,
+    MEMORY_STATUS_NUM_ROWS
+} memory_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[MEMORY_STATUS_NUM_ROWS];
+} MEMORY_STATUS_S, *MEMORY_STATUS;
+
+static MEMORY_STATUS_S memory_status;
+
+#define STATUS_INIT(k,t,l) { \
+	memory_status.status[k].keyname = #k; \
+	memory_status.status[k].type    = t;  \
+	memory_status.status[k].legend  = "memory: " l; \
+    }
+
+static void
+memory_status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(MEMORY_MALLOC_COUNT,       UINT64,  "number of malloc operations");
+    STATUS_INIT(MEMORY_FREE_COUNT,         UINT64,  "number of free operations");
+    STATUS_INIT(MEMORY_REALLOC_COUNT,      UINT64,  "number of realloc operations");
+    STATUS_INIT(MEMORY_MALLOC_FAIL,        UINT64,  "number of malloc operations that failed");
+    STATUS_INIT(MEMORY_REALLOC_FAIL,       UINT64,  "number of realloc operations that failed" );
+    STATUS_INIT(MEMORY_REQUESTED,          UINT64,  "number of bytes requested");
+    STATUS_INIT(MEMORY_USED,               UINT64,  "number of bytes used (requested + overhead)");
+    STATUS_INIT(MEMORY_FREED,              UINT64,  "number of bytes freed");
+    STATUS_INIT(MEMORY_MAX_IN_USE,         UINT64,  "estimated maximum memory footprint");
+    STATUS_INIT(MEMORY_MALLOCATOR_VERSION, CHARSTR, "mallocator version");
+    STATUS_INIT(MEMORY_MMAP_THRESHOLD,     UINT64,  "mmap threshold");
+    memory_status.initialized = true;  
+}
+#undef STATUS_INIT
+
+#define MEMORY_STATUS_VALUE(x) memory_status.status[x].value.num
+
+static void
+memory_get_status(void) {
+    if (!memory_status.initialized)
+	memory_status_init();
+    LOCAL_MEMORY_STATUS_S local_memstat;
+    MEMORY_STATUS_VALUE(MEMORY_MALLOC_COUNT) = local_memstat.malloc_count;
+    MEMORY_STATUS_VALUE(MEMORY_FREE_COUNT) = local_memstat.free_count;  
+    MEMORY_STATUS_VALUE(MEMORY_REALLOC_COUNT) = local_memstat.realloc_count;
+    MEMORY_STATUS_VALUE(MEMORY_MALLOC_FAIL) = local_memstat.malloc_fail;
+    MEMORY_STATUS_VALUE(MEMORY_REALLOC_FAIL) = local_memstat.realloc_fail;
+    MEMORY_STATUS_VALUE(MEMORY_REQUESTED) = local_memstat.requested; 
+    MEMORY_STATUS_VALUE(MEMORY_USED) = local_memstat.used;
+    MEMORY_STATUS_VALUE(MEMORY_FREED) = local_memstat.freed;
+    MEMORY_STATUS_VALUE(MEMORY_MAX_IN_USE) = local_memstat.max_in_use;
+    MEMORY_STATUS_VALUE(MEMORY_MMAP_THRESHOLD) = local_memstat.mmap_threshold;
+    memory_status.status[MEMORY_MALLOCATOR_VERSION].value.str = local_memstat.mallocator_version;
+}
+#undef MEMORY_STATUS_VALUE
+
 
 // how many rows are in engine status?
 static int
@@ -2193,10 +2267,10 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
         }
 
 	{
-	    MEMORY_STATUS_S memorystat;
-	    toku_memory_get_status(&memorystat);
+            // memory_status is local to this file
+	    memory_get_status();
             for (int i = 0; i < MEMORY_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = memorystat.status[i];
+                engstat[row++] = memory_status.status[i];
             }
 	}
 	{

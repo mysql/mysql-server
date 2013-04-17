@@ -5,7 +5,6 @@
 
 #include <stdlib.h>
 #include <toku_portability.h>
-#include <db.h>
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -98,28 +97,21 @@ void toku_set_func_xrealloc_only(realloc_fun_t f);
 void toku_set_func_realloc_only(realloc_fun_t f);
 void toku_set_func_free(free_fun_t f);
 
-typedef enum {
-    MEMORY_MALLOC_COUNT = 0,
-    MEMORY_FREE_COUNT,  
-    MEMORY_REALLOC_COUNT,
-    MEMORY_MALLOC_FAIL,  
-    MEMORY_REALLOC_FAIL, 
-    MEMORY_REQUESTED,    
-    MEMORY_USED,         
-    MEMORY_FREED,        
-    MEMORY_MAX_IN_USE,
-    MEMORY_MALLOCATOR_VERSION,
-    MEMORY_MMAP_THRESHOLD,
-    MEMORY_STATUS_NUM_ROWS
-} memory_status_entry;
+typedef struct memory_status {
+    uint64_t malloc_count;    // number of malloc operations
+    uint64_t free_count;      // number of free operations
+    uint64_t realloc_count;   // number of realloc operations
+    uint64_t malloc_fail;     // number of malloc operations that failed 
+    uint64_t realloc_fail;    // number of realloc operations that failed 
+    uint64_t requested;       // number of bytes requested
+    uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
+    uint64_t freed;           // number of bytes freed;
+    volatile uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
+    char *mallocator_version;
+    uint64_t mmap_threshold;
+} LOCAL_MEMORY_STATUS_S, *LOCAL_MEMORY_STATUS;
 
-typedef struct {
-    int initialized; // TODO 2949 make this a bool
-    TOKU_ENGINE_STATUS_ROW_S status[MEMORY_STATUS_NUM_ROWS];
-} MEMORY_STATUS_S, *MEMORY_STATUS;
-
-
-void toku_memory_get_status(MEMORY_STATUS s);
+void toku_memory_get_status(LOCAL_MEMORY_STATUS s);
 
 size_t toku_memory_footprint(void * p, size_t touched);
 
