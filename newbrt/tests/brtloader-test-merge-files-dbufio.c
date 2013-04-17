@@ -420,6 +420,7 @@ static int usage(const char *progname, int n) {
 }
 
 int test_main (int argc, const char *argv[]) {
+    int tstart = 0;
     int tend = -1;
     const char *progname=argv[0];
     argc--; argv++;
@@ -440,6 +441,9 @@ int test_main (int argc, const char *argv[]) {
 	} else if (strcmp(argv[0],"-tend") == 0) {
             argc--; argv++;
 	    tend = atoi(argv[0]);
+	} else if (strcmp(argv[0],"-tstart") == 0) {
+            argc--; argv++;
+	    tstart = atoi(argv[0]);
 	} else if (argc!=1) {
             return usage(progname, N_RECORDS);
 	}
@@ -472,10 +476,10 @@ int test_main (int argc, const char *argv[]) {
 
     {
 	int event_limit = event_count;
-	if (tend>0 && tend<event_limit) event_limit=tend;
+	if (tend>=0 && tend<event_limit) event_limit=tend;
 	if (verbose) printf("event_limit=%d\n", event_limit);
 
-    for (int i = 1; i <= event_limit; i++) {
+    for (int i = tstart+1; i <= event_limit; i++) {
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;

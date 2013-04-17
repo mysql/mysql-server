@@ -140,6 +140,7 @@ err_type_str (enum test_type t) {
     }
     // I know that Barry prefers the single-return case, but writing the code this way means that the compiler will complain if I forget something in the enum. -Bradley
     assert(0);
+    return NULL;
 }
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
@@ -209,7 +210,7 @@ bad_fopen(const char *filename, const char *mode) {
     fopen_count++;
     event_count++;
     if (fopen_count_trigger == fopen_count || event_count == event_count_trigger) {
-	printf("Doing fopen_count=%d event_count=%" PRId64 "\n", fopen_count, event_count);
+	//printf("Doing fopen_count=%d event_count=%" PRId64 "\n", fopen_count, event_count);
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -850,7 +851,6 @@ static void run_all_tests(void) {
 	    enum test_type t = et[j];
 	    const char * write_type = err_type_str(t);
 	    int nominal = *(nomp[j]);
-	    printf("Test %s %d\n", write_type, nominal);
 	    if (verbose)
 		printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
 	    int i;

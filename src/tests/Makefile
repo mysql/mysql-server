@@ -380,11 +380,11 @@ ABORTCODE=137
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 .PHONY: %.loader
+# Generally these subtests cannot run in parallel until we fix #2645.
 %.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
-	echo doing ./$< fastloader && \
-	$(TDBVGRIND) ./$< $(VERBVERBOSE) && \
-	echo doing ./$< putloader && \
-	$(TDBVGRIND) ./$< -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+loader-cleanup-test.loader: EXTRA_ARGS = -s -r 8000
 
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
@@ -652,8 +652,8 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
 
-loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
-	true $(SUMMARIZE_CMD) #State that this has passed.
+loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
+	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
 
 loader-dup-test0.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -e 0 $(SUMMARIZE_CMD)
@@ -673,12 +673,11 @@ loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e 5 $(SUMMARIZE_CMD)
 
-loader-cleanup-test.tdbrun: $(patsubst %,loader-cleanup-test%.tdbrun, 1)
-	true $(SUMMARIZE_CMD) #State that this has passed.
+LOADER_USE_DEFAULT_TESTS = cleanup-test create-abort create-close no-puts reference-test stress-test tpch-load
 
 ## Cannot run loader-cleanup-test parallel till we fix #2645.
 #loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
 #	./loader-cleanup-test.tdb $(SUMMARIZE_CMD)
 
-loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-cleanup-test.tdb -r 4000 -s $(SUMMARIZE_CMD)
+loader-tests: $(LOADER_TESTS)
+	echo $(LOADER_TESTS)

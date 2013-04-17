@@ -1512,7 +1512,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     if (result==0 && to_q) {
 	XMALLOC(output_rowset); // freed in cleanup
 	int r = init_rowset(output_rowset, memory_per_rowset(bl));
-	lazy_assert(r==0);
         if (r!=0) result = r;
     }
     
@@ -1526,7 +1525,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
             r = pqueue_pop(pq, &node);
             if (r!=0) {
 		result = r;
-		printf("%s:%d returning\n", __FILE__, __LINE__); // comment this line out when we get a test that tests this code path.
+		lazy_assert(0);
 		break;
             }
             mini = node->i;
@@ -1536,10 +1535,12 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		BL_TRACE(blt_do_i);
 		r = queue_enq(q, (void*)output_rowset, 1, NULL);
 		BL_TRACE(blt_fractal_enq);
-		lazy_assert(r==0);
+		if (r!=0) {
+		    result = r;
+		    break;
+		}
                 XMALLOC(output_rowset); // freed in cleanup
 		r = init_rowset(output_rowset, memory_per_rowset(bl));
-		lazy_assert(r==0);
                 if (r!=0) {        
                     result = r;
                     break;
@@ -1554,7 +1555,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	} else {
             // write it to the dest file
 	    r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], bl);
-	    lazy_assert(r==0);
             if (r!=0) {
                 result = r;
                 break;
@@ -1572,7 +1572,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		    toku_free(keys[mini].data);  keys[mini].data = NULL;
 		    toku_free(vals[mini].data);  vals[mini].data = NULL;
 		} else {
-		    printf("%s:%d returning\n", __FILE__, __LINE__);
                     lazy_assert(0);
                     result = r;
                     break;
@@ -1612,7 +1611,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	BL_TRACE(blt_do_i);
 	int r = queue_enq(q, (void*)output_rowset, 1, NULL);
 	BL_TRACE(blt_fractal_enq);
-	lazy_assert(r==0); // 	
         if (r!=0) 
             result = r;
         else 
@@ -1794,6 +1792,7 @@ int merge_files (struct merge_fileset *fs,
 	if (result!=0) break;
     }
     if (result) brt_loader_set_panic(bl, result, TRUE);
+
     {
 	int r = queue_eof(output_q);
 	if (r!=0 && result==0) result = r;
