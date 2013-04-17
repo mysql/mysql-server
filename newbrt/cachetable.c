@@ -1975,10 +1975,14 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
 	for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 	    if (cf->end_checkpoint_userdata) {
+                cachetable_lock(ct);
                 rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
+                cachetable_unlock(ct);
                 //end_checkpoint fsyncs the fd, which needs the fdlock
 		int r = cf->end_checkpoint_userdata(cf, cf->userdata);
+                cachetable_lock(ct);
                 rwlock_read_unlock(&cf->fdlock);
+                cachetable_unlock(ct);
 		assert(r==0);
 	    }
 	}
