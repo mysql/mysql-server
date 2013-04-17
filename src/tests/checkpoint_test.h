@@ -120,7 +120,7 @@ static void UU()
 env_shutdown(void) {
     int r;
     r = env->close(env, 0);
-        CKERR(r);
+    CKERR(r);
 }
 
 static void UU()
@@ -318,7 +318,13 @@ delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, u_int32_t flags) {
     }
 }
 
-
+static void UU()
+delete_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, u_int32_t flags) {
+    int i;
+    for (i=0;i<n;i++) {
+        delete_fixed(db1, db2, txn, firstkey+i, flags);
+    }
+}
 
 static void
 insert_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, int offset) {
@@ -405,7 +411,7 @@ verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
 	k = i + firstkey;
 	v = generate_val(k);
         r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
-	assert(r1==0);
+        assert(r1==0);
 	rval = verify_identical_dbts(&key1, &key2) |
 	    verify_identical_dbts(&val1, &val2);
 	assert(rval == 0);
