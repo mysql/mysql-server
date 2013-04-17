@@ -1728,9 +1728,9 @@ int ha_tokudb::read_last() {
 */
 void ha_tokudb::get_status() {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
+    pthread_mutex_lock(&share->mutex);
 
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
-        pthread_mutex_lock(&share->mutex);
         (void) extra(HA_EXTRA_KEYREAD);
         int error = read_last();
         (void) extra(HA_EXTRA_NO_KEYREAD);
@@ -1748,32 +1748,41 @@ void ha_tokudb::get_status() {
             }
         }
 
-        if (!share->status_block) {
-            char name_buff[FN_REFLEN];
-            char newname[get_name_length(share->table_name) + 32];
-            make_name(newname, share->table_name, "status");
-            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
-                              | DB_THREAD);
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-                TOKUDB_TRACE("open:%s\n", newname);
-            }
-            if (!db_create(&share->status_block, db_env, 0)) {
-                if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
-                    share->status_block->close(share->status_block, 0);
-                    share->status_block = NULL;
-                }
+        share->status |= STATUS_PRIMARY_KEY_INIT;
+    }
+
+    //
+    // retrieve metadata from status_block
+    //
+
+    //
+    // open status.tokudb
+    //
+    if (!share->status_block) {
+        char name_buff[FN_REFLEN];
+        char newname[get_name_length(share->table_name) + 32];
+        make_name(newname, share->table_name, "status");
+        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
+                          | DB_THREAD);
+        if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+            TOKUDB_TRACE("open:%s\n", newname);
+        }
+        if (!db_create(&share->status_block, db_env, 0)) {
+            if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
+                share->status_block->close(share->status_block, 0);
+                share->status_block = NULL;
             }
         }
-
-        //
-        // do nothing for now
-        // previously added info from status.tokudb
-        // as of now, that info is not needed so removed dead code
-        //
-        share->status |= STATUS_PRIMARY_KEY_INIT;
-        pthread_mutex_unlock(&share->mutex);
     }
+    
+    //
+    // do nothing for now
+    // previously added info from status.tokudb
+    // as of now, that info is not needed so removed dead code
+    //
+
+    pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
 
