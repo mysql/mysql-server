@@ -1449,6 +1449,13 @@ env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), uint32_t UU(flags)) {
     return 1;
 }
 
+//
+// We can assume the client calls this function right after recovery 
+// to return a list of prepared transactions to the user. When called,
+// we can assume that no other work is being done in the system, 
+// as we are in the state of being after recovery, 
+// but before client operations should commence
+//
 static int
 env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
@@ -1463,6 +1470,13 @@ env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*
     return r;
 }
 
+//
+// We can assume the client calls this function right after recovery 
+// to return a list of prepared transactions to the user. When called,
+// we can assume that no other work is being done in the system, 
+// as we are in the state of being after recovery, 
+// but before client operations should commence
+//
 static int
 env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);

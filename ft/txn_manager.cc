@@ -690,6 +690,17 @@ done:
     return;
 }
 
+//
+// This function is called only via env_txn_xa_recover and env_txn_recover.
+// See comments for those functions to understand assumptions that 
+// can be made when calling this function. Namely, that the system is 
+// quiescant, in that we are right after recovery and before user operations
+// commence.
+//
+// I (Zardosht), don't think we take advantage of this fact, as we are holding
+// the txn_manager_lock in this function, but in the future we might want
+// to take these assumptions into account.
+//
 int toku_txn_manager_recover_txn (
     TXN_MANAGER txn_manager, 
     struct tokulogger_preplist preplist[/*count*/], 
