@@ -274,7 +274,7 @@ typedef enum {
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);
-typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val);
+typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_val);
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
