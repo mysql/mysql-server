@@ -37,6 +37,7 @@ set(FT_SOURCES
   ftloader-callback.c
   ft_msg.c
   ft_node-serialize.c
+  ft-node-deserialize.c
   ft-ops.c
   ft-pwrite.c
   ft-serialize.c
@@ -111,6 +112,7 @@ set(bins
   ftdump
   tdb_logprint
   tdb-recover
+  ftverify
   )
 foreach(bin ${bins})
   add_executable(${bin} ${bin}.c)
@@ -121,6 +123,10 @@ foreach(bin ${bins})
   add_dependencies(${bin} install_tdb_h)
   target_link_libraries(${bin}_static ft_static ${LIBTOKUPORTABILITY_STATIC})
 endforeach(bin)
+
+# link in math.h library just for this tool.
+target_link_libraries(ftverify m)
+target_link_libraries(ftverify_static m)
 
 install(
   TARGETS ftdump_static
