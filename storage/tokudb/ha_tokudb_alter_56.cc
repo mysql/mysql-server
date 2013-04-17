@@ -790,6 +790,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
             operation = UPDATE_OP_EXPAND_UINT;
         else
             operation = UPDATE_OP_EXPAND_INT;
+        pad_char = 0;
         break;
     case toku_type_fixstring:
         operation = UPDATE_OP_EXPAND_CHAR;
