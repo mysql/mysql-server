@@ -6,6 +6,8 @@
 
 #include <memory.h>
 #include <ctype.h>
+#include <limits.h>
+#include <unistd.h>
 
 #include "ft.h"
 #include "log-internal.h"
@@ -116,16 +118,15 @@ static int open_logdir(TOKULOGGER logger, const char *directory) {
     if (toku_os_is_absolute_name(directory)) {
         logger->directory = toku_strdup(directory);
     } else {
-        char *cwd = getcwd(NULL, 0);
+        char cwdbuf[PATH_MAX];
+        char *cwd = getcwd(cwdbuf, PATH_MAX);
         if (cwd == NULL)
             return -1;
         char *MALLOC_N(strlen(cwd) + strlen(directory) + 2, new_log_dir);
         if (new_log_dir == NULL) {
-            toku_free(cwd);
             return -2;
         }
         sprintf(new_log_dir, "%s/%s", cwd, directory);
-        toku_free(cwd);
         logger->directory = new_log_dir;
     }
     if (logger->directory==0) return get_error_errno();
