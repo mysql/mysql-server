@@ -6,7 +6,8 @@ static DB_ENV *env;
 static DB *db;
 DB_TXN *txn;
 
-void setup (void) {
+static void
+setup (void) {
     system("rm -rf " ENVDIR);
     int r;
     r=mkdir(ENVDIR, 0777);       CKERR(r);
@@ -21,13 +22,15 @@ void setup (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 }
 
-void shutdown (void) {
+static void
+shutdown (void) {
     int r;
     r= db->close(db, 0); CKERR(r);
     r= env->close(env, 0); CKERR(r);
 }
 
-void doit (void) {
+static void
+doit (void) {
     DBT key,data;
     int r;
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);

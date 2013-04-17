@@ -15,7 +15,8 @@ static void* malloc_fail(size_t size) {
         return malloc(size);
 }
 
-void RunTest (BOOL f_overlaps_allowed) {
+static void
+RunTest (BOOL f_overlaps_allowed) {
     int i, j;
     int r;
     toku_range_tree *tree;

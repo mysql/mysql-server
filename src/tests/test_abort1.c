@@ -15,7 +15,8 @@
 
 // ENVDIR is defined in the Makefile
 
-void test_db_open_aborts (void) {
+static void
+test_db_open_aborts (void) {
     DB_ENV *env;
     DB *db;
 
@@ -55,7 +56,8 @@ void test_db_open_aborts (void) {
 }
 
 // Do two transactions, one commits, and one aborts.  Do them concurrently.
-void test_db_put_aborts (void) {
+static void
+test_db_put_aborts (void) {
     DB_ENV *env;
     DB *db;
 

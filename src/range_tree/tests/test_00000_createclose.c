@@ -10,7 +10,7 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
 
-    for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+    for (allow_overlaps = FALSE; allow_overlaps <= TRUE; allow_overlaps++) {
 #ifdef TOKU_RT_NOOVERLAPS
     if (allow_overlaps) continue;
 #endif
@@ -28,7 +28,7 @@ int main(int argc, const char *argv[]) {
     	tree = NULL;
     }
     
-    for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+    for (allow_overlaps = FALSE; allow_overlaps <= TRUE; allow_overlaps++) {
 #ifdef TOKU_RT_NOOVERLAPS
     if (allow_overlaps) continue;
 #endif

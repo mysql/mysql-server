@@ -10,9 +10,11 @@ VISIBILITY = -fvisibility=hidden
 # PROF_FLAGS=-pg
 OPTFLAGS = -O3 -finline-functions
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -W -Wall -Wextra -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS = -W -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 ifneq ($(CC),icc)
-CFLAGS += -Werror
+CFLAGS += -Werror -Wall -Wextra -g3 -ggdb3
+else
+CFLAGS += -g
 endif
 CFLAGS += -Wbad-function-cast -Wcast-align
 CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/

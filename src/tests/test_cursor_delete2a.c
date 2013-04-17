@@ -18,7 +18,8 @@ static DB *db;
 static DB_TXN * txn;
 static DBC *cursor;
 
-void test_cursor_delete2 () {
+static void
+test_cursor_delete2 (void) {
     int r;
     DBT key,val;
 

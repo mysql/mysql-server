@@ -57,7 +57,7 @@ cleanup:
 }
 
 static int rt_clear_helper(OMTVALUE value, u_int32_t UU(index), void* extra) {
-    void  (*user_free)(void*) = extra;
+    void  (*user_free)(void*) = (void(*)(void*))extra;
     user_free(value);
     return 0;
 }

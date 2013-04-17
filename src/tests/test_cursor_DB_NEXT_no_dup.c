@@ -119,10 +119,10 @@ static void test_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_next) {
     int forward = is_next ? 1 : -1;
 
     insert(key, data);
-    insert(key + forward, data);
+    insert((char)(key + forward), data);
     c_get(flag, key, data);
-    insert(key, data + forward);
-    c_get(flag, key + forward, data);
+    insert(key, (char)(data + forward));
+    c_get(flag, (char)(key + forward), data);
 
     /* ********************************************************************** */
     close_cursor();
@@ -135,15 +135,15 @@ static void test_do_not_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_ne
     setup_db(dup_flags);
     setup_cursor();
 
-    char key           = 'g';
-    char data          = 'g';
+    char key    = 'g';
+    char data   = 'g';
     int forward = is_next ? 1 : -1;
 
     insert(key, data);
-    insert(key + forward, data);
+    insert((char)(key + forward), data);
     c_get(flag, key, data);
-    insert(key, data + forward);
-    c_get(flag, key, data + forward);
+    insert(key, (char)(data + forward));
+    c_get(flag, key, (char)(data + forward));
 
     close_cursor();
     close_db();
@@ -151,7 +151,7 @@ static void test_do_not_skip_key(u_int32_t dup_flags, u_int32_t flag, BOOL is_ne
 }
 
 static void run_test(u_int32_t dup_flags) {
-    dups = dup_flags != 0;
+    dups = (BOOL)(dup_flags != 0);
     /* ********************************************************************** */
     /* Test DB_NEXT works properly. */
     if (dups) {

@@ -2,7 +2,8 @@
 
 #include "test.h"
 
-void run_test (BOOL overlap_allowed) {
+static void
+run_test (BOOL overlap_allowed) {
     int r;
     toku_range_tree *tree;
     toku_range range;

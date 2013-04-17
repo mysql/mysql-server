@@ -15,7 +15,8 @@
 
 #include "test.h"
 
-void verify_distinct_pointers (void **ptrs, int n) {
+static void
+verify_distinct_pointers (void **ptrs, int n) {
     int i,j;
     for (i=0; i<n; i++) {
 	for (j=i+1; j<n; j++) {
@@ -31,7 +32,8 @@ DB_TXN * const null_txn = 0;
 enum { ncursors = 2 };
 DBC *cursor[ncursors];
 
-void testit (u_int32_t cop)  {
+static void
+testit (u_int32_t cop)  {
     void *kptrs[ncursors];
     void *vptrs[ncursors];
     int i;
@@ -47,7 +49,8 @@ void testit (u_int32_t cop)  {
     verify_distinct_pointers(vptrs, ncursors);
 }
 
-void test(void) {
+static void
+test (void) {
     if (verbose) printf("test_cursor\n");
 
     const char * const fname = "test.cursor.brt";

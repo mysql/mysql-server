@@ -4,12 +4,15 @@
 #include "test.h"
 
 unsigned char N=8;
-int fact(int n) {
+
+static int
+fact (int n) {
     if (n<=2) return n;
     else return n*fact(n-1);
 }
 
-void swapc (unsigned char *a, unsigned char *b) {
+static void
+swapc (unsigned char *a, unsigned char *b) {
     unsigned char tmp=*a;
     *a=*b;
     *b=tmp;
@@ -18,12 +21,13 @@ void swapc (unsigned char *a, unsigned char *b) {
 DB_ENV *env;
 DB *db;
 
-void run (int choice) {
+static void
+run (int choice) {
     unsigned char v[N];
     int i;
     int r;
     for (i=0; i<N; i++) {
-	v[i]=i;
+	v[i]=(char)i;
     }
     for (i=0; i<N; i++) {
 	int nchoices=N-i;

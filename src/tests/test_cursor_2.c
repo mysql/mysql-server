@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-void test_cursor(void) {
+static void
+test_cursor (void) {
     if (verbose) printf("test_cursor\n");
 
     DB_ENV * env;
@@ -49,22 +50,22 @@ void test_cursor(void) {
     DBT v0; memset(&v0, 0, sizeof v0);
     r = cursor[0]->c_get(cursor[0], &k0, &v0, DB_FIRST); assert(r == 0);
     if (verbose) {
-	printf("k0:%p:%d\n", k0.data, k0.size);
-	printf("v0:%p:%d\n", v0.data, v0.size);
+	printf("k0:%p:%u\n", k0.data, k0.size);
+	printf("v0:%p:%u\n", v0.data, v0.size);
     }
 
     DBT k1; memset(&k1, 0, sizeof k1);
     DBT v1; memset(&v1, 0, sizeof v1);
     r = cursor[1]->c_get(cursor[1], &k1, &v1, DB_FIRST); assert(r == 0);
     if (verbose) {
-	printf("k1:%p:%d\n", k1.data, k1.size);
-	printf("v1:%p:%d\n", v1.data, v1.size);
+	printf("k1:%p:%u\n", k1.data, k1.size);
+	printf("v1:%p:%u\n", v1.data, v1.size);
     }
 
     r = cursor[0]->c_get(cursor[0], &k0, &v0, DB_NEXT); assert(r == 0);
     if (verbose) {
-	printf("k0:%p:%d\n", k0.data, k0.size);
-	printf("v0:%p:%d\n", v0.data, v0.size);
+	printf("k0:%p:%u\n", k0.data, k0.size);
+	printf("v0:%p:%u\n", v0.data, v0.size);
     }
 
     assert(k0.data != k1.data);

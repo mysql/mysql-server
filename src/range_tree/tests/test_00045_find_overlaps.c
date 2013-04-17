@@ -9,53 +9,9 @@ toku_range_tree *tree;
 toku_range* buf;
 unsigned buflen;
 
-toku_interval* init_query(toku_interval* range, int left, int right) {
-    range->left = (toku_point*)&nums[left];
-    range->right = (toku_point*)&nums[right];
-    return range;
-}
+#include "run.h"
 
-toku_range* init_range(toku_range* range, int left, int right, int data) {
-    init_query(&range->ends, left, right);
-    if (data < 0)   range->data = 0;
-    else            range->data = (TXNID)letters[data];
-    return range;
-}
-
-void setup_tree(BOOL allow_overlaps, int left, int right, int data) {
-    int r;
-    toku_range range;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, malloc, free, realloc);
-    CKERR(r);
-
-    r = toku_rt_insert(tree, init_range(&range, left, right, data));CKERR(r);
-}
-void close_tree(void) {
-    int r;
-    r = toku_rt_close(tree);    CKERR(r);
-}
-
-void runsearch(int rexpect, toku_interval* query, toku_range* expect) {
-    int r;
-    unsigned found;
-    r = toku_rt_find(tree, query, 0, &buf, &buflen, &found);
-    CKERR2(r, rexpect);
-    
-    if (rexpect != 0) return;
-    assert(found == 1);
-    assert(int_cmp(buf[0].ends.left, expect->ends.left) == 0 &&
-           int_cmp(buf[0].ends.right, expect->ends.right) == 0 &&
-           char_cmp(buf[0].data, expect->data) == 0);
-}
-
-void runinsert(int rexpect, toku_range* toinsert) {
-    int r;
-    r = toku_rt_insert(tree, toinsert);
-    CKERR2(r, rexpect);
-}
-
-
-void verify_overlap(BOOL allow_overlaps) {
+static void verify_overlap(BOOL allow_overlaps) {
     int r;
     BOOL allowed;
 
@@ -64,7 +20,7 @@ void verify_overlap(BOOL allow_overlaps) {
     assert(allowed == allow_overlaps);
 }
 
-void tests(BOOL allow_overlaps) {
+static void tests(BOOL allow_overlaps) {
     toku_range expect;
     toku_interval query;
     toku_range toinsert;
@@ -81,23 +37,23 @@ void tests(BOOL allow_overlaps) {
     /* Tree: {|0-1|}, query of |1-2| returns |0-1| 
        In this test, I am also going to verify that the allow_overlaps bit
        is set appropriately. */
-    setup_tree(allow_overlaps, 0, 1, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 1, 0);
     verify_overlap(allow_overlaps);
     runsearch(0, init_query(&query, 1, 2), init_range(&expect, 0, 1, 0));
     close_tree();
 
     /* Tree: {|1-2|}, query of |0-1| returns |1-2| */
-    setup_tree(allow_overlaps, 1, 2, 0);
+    setup_tree(allow_overlaps, TRUE, 1, 2, 0);
     runsearch(0, init_query(&query, 0, 1), init_range(&expect, 1, 2, 0));
     close_tree();
 
     /* Tree: {|1-2|}, insert of of |0-1| success == allow_overlaps */
-    setup_tree(allow_overlaps, 1, 2, 0);
+    setup_tree(allow_overlaps, TRUE, 1, 2, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 0, 1, 0));
     close_tree();
 
     /* Tree: {|0-1|}, insert of of |1-2| success == allow_overlaps */
-    setup_tree(allow_overlaps, 0, 1, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 1, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 1, 2, 0));
     close_tree();
 
@@ -111,22 +67,22 @@ void tests(BOOL allow_overlaps) {
     */
 
     /* Tree: {|0-3|}, query of |1-2| returns |0-3| */
-    setup_tree(allow_overlaps, 0, 3, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 3, 0);
     runsearch(0, init_query(&query, 1, 2), init_range(&expect, 0, 3, 0));
     close_tree();
 
     /* Tree: {|1-2|}, query of |0-3| returns |1-2| */
-    setup_tree(allow_overlaps, 1, 2, 0);
+    setup_tree(allow_overlaps, TRUE, 1, 2, 0);
     runsearch(0, init_query(&query, 0, 3), init_range(&expect, 1, 2, 0));
     close_tree();
 
     /* Tree: {|1-2|}, insert of of |0-3| success == allow_overlaps */
-    setup_tree(allow_overlaps, 1, 2, 0);
+    setup_tree(allow_overlaps, TRUE, 1, 2, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 0, 3, 0));
     close_tree();
 
     /* Tree: {|0-3|}, insert of of |1-2| success == allow_overlaps */
-    setup_tree(allow_overlaps, 0, 3, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 3, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 1, 2, 0));
     close_tree();
 
@@ -138,12 +94,12 @@ void tests(BOOL allow_overlaps) {
     */
 
     /* Tree: {|0-3|}, query of |0-3| returns |0-3| */
-    setup_tree(allow_overlaps, 0, 3, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 3, 0);
     runsearch(0, init_query(&query, 0, 3), init_range(&expect, 0, 3, 0));
     close_tree();
 
     /* Tree: {(|0-3|,0)}, insert of of (|0-3|,1) success == allow_overlaps */
-    setup_tree(allow_overlaps, 0, 3, 0);
+    setup_tree(allow_overlaps, TRUE, 0, 3, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 0, 3, 1));
     close_tree();
 }

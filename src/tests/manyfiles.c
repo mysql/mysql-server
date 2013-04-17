@@ -12,7 +12,8 @@ static DB_ENV *env;
 static DB *dbs[NFILES];
 DB_TXN *txn;
 
-void setup (void) {
+static void
+setup (void) {
     system("rm -rf " ENVDIR);
     int r;
     r=mkdir(ENVDIR, 0777);       CKERR(r);
@@ -35,7 +36,8 @@ void setup (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 }
 
-void shutdown (void) {
+static void
+shutdown (void) {
     int i;
     int r;
     for (i=0; i<NFILES; i++) {
@@ -44,7 +46,8 @@ void shutdown (void) {
     r= env->close(env, 0); CKERR(r);
 }
 
-void doit (void) {
+static void
+doit (void) {
     int j;
     int r;
     struct timeval startt, endt;

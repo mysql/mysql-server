@@ -8,14 +8,15 @@ DB_TXN *txn;
 
 const int num_insert = 25000;
 
-void setup (void) {
+static void
+setup (void) {
     system("rm -rf " ENVDIR);
     int r;
     r=mkdir(ENVDIR, 0777);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);
     env->set_errfile(env, stderr);
-#if USE_BDB
+#ifdef USE_BDB
     r=env->set_lk_max_objects(env, 2*num_insert); CKERR(r);
 #endif
     r=env->set_lk_max_locks(env, 2*num_insert); CKERR(r);
@@ -29,13 +30,15 @@ void setup (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 }
 
-void shutdown (void) {
+static void
+shutdown (void) {
     int r;
     r= db->close(db, 0); CKERR(r);
     r= env->close(env, 0); CKERR(r);
 }
 
-void doit (BOOL committed_provdels) {
+static void
+doit (BOOL committed_provdels) {
     DBT key,data;
     DBC *dbc;
     int r;

@@ -13,14 +13,16 @@
 
 #include "test.h"
 
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     assert(r == 0);
 }
 
-void test_cursor_current() {
+static void
+test_cursor_current (void) {
     if (verbose) printf("test_cursor_current\n");
 
     DB_ENV * const null_env = 0;
@@ -88,13 +90,15 @@ void test_cursor_current() {
     r = db->close(db, 0); assert(r == 0);
 }
 
-void db_get(DB *db, int k, int UU(v), int expectr) {
+static void
+db_get (DB *db, int k, int UU(v), int expectr) {
     DBT key, val;
     int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
     assert(r == expectr);
 }
 
-void test_reopen() {
+static void
+test_reopen (void) {
     if (verbose) printf("test_reopen\n");
 
     DB_ENV * const null_env = 0;

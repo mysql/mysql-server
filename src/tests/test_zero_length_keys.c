@@ -15,7 +15,8 @@
 #define ENVDIR "./test.dir"
 #endif
 
-void walk(DB *db) {
+static void
+walk (DB *db) {
     int r;
     DB_TXN * const null_txn = 0;
 
@@ -29,7 +30,7 @@ void walk(DB *db) {
         r = cursor->c_get(cursor, &key, &val, DB_NEXT);
         if (r != 0) 
             break;
-        if (verbose) printf("%d %d %d\n", i, key.size, val.size);
+        if (verbose) printf("%d %u %u\n", i, key.size, val.size);
         if (i == 0) assert(key.size == 0);
     }
     assert(i != 0);
@@ -39,7 +40,8 @@ void walk(DB *db) {
     if (val.data) free(val.data);
 }
 
-void test_insert_zero_length(int n, int dup_mode, const char *dbname) {
+static void
+test_insert_zero_length (int n, int dup_mode, const char *dbname) {
     if (verbose) printf("test_insert_zero_length:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -95,7 +97,8 @@ void test_insert_zero_length(int n, int dup_mode, const char *dbname) {
     r = db->close(db, 0); assert(r == 0);
 }
 
-void test_insert_zero_length_keys(int n, int dup_mode, const char *dbname) {
+static void
+test_insert_zero_length_keys (int n, int dup_mode, const char *dbname) {
     if (verbose) printf("test_insert_zero_length_keys:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;

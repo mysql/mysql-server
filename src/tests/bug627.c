@@ -3,7 +3,8 @@
 #include "test.h"
 #include <sys/stat.h>
 
-void do_627 (void) {
+static void
+do_627 (void) {
     int r;
     DB_ENV *env;
     DB *db;
