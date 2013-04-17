@@ -974,6 +974,17 @@ static void smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *contex
 }
 
 //
+// smart DBT callback function for optimize
+// in optimize, we want to flatten DB by doing
+// a full table scan. Therefore, we don't
+// want to actually do anything with the data, hence
+// callback does nothing
+//
+static void smart_dbt_opt_callback (DBT const *key, DBT  const *row, void *context) {
+}
+
+
+//
 // Smart DBT callback function in case where we have a covering index
 //
 static void smart_dbt_callback_keyread(DBT const *key, DBT  const *row, void *context) {
@@ -4441,19 +4452,52 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 }
 #endif
 
-#if 0 // QQQ use default
+//
+// flatten all DB's in this table, to do so, just do a full scan on every DB
+//
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
-    return ha_tokudb::analyze(thd, check_opt);
-}
-#endif
+    int error;
+    DB_TXN* txn = NULL;
+    DBC* tmp_cursor = NULL;
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
 
-#if 0 // QQQ use default
-int ha_tokudb::check(THD * thd, HA_CHECK_OPT * check_opt) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::check");
-    TOKUDB_DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-    // look in old_ha_tokudb.cc for a start of an implementation
+    //
+    // prelock so each scan goes faster
+    //
+    error = acquire_table_lock(txn,lock_read);
+    if (error) {
+        goto cleanup;
+    }
+
+    //
+    // for each DB, scan through entire table and do nothing
+    //
+    for (uint i = 0; i < curr_num_DBs; i++) {
+        error = 0;
+        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
+            tmp_cursor = NULL;
+            goto cleanup;
+        }
+        while (error != DB_NOTFOUND) {
+            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
+            if (error && error != DB_NOTFOUND) {
+                goto cleanup;
+            }
+        }
+        tmp_cursor->c_close(tmp_cursor);
+    }
+
+    error = 0;
+cleanup:
+    if (txn) {
+        txn->commit(txn, 0);
+    }
+    return error;
 }
-#endif
 
 ulong ha_tokudb::field_offset(Field *field) {
     if (table->record[0] <= field->ptr && field->ptr < table->record[1])
