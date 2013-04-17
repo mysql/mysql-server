@@ -1,8 +1,21 @@
+# -*- Mode: Makefile -*-
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 # standard build: make
 # build with Berkeley DB 4.1: make BDBDIR=/usr/local/BerkeleyDB.4.1
 # build with TokuDB: make BDBDIR=~/svn/tokudb
+# build with g++: make CC=g++
+
+.DEFAULT_GOAL= build
+TOKUROOT=../
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I../range_tree -I../lock_tree
+DEPEND_COMPILE += \
+	./*.h \
+#end
+
+SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
+HERE = db-benchmark-test-cxx
+include $(TOKUROOT)include/Makefile.include
 
 BENCHDBS = bench.bdb/ bench.tokudb
 
@@ -11,7 +24,7 @@ CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
 # CFLAGS += -pg
 
 ifdef BDBDIR
-BDB_CPPFLAGS = -I$(BDBDIR)/include
+BDB_CPPFLAGS = -I$(BDBDIR)/include -DHAVE_CXX_STDHEADERS
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib -lpthread
 else
 BDB_CPPFLAGS =
@@ -43,7 +56,7 @@ check-x: $(TARGET_TDB)
 	$(VALGRIND) ./$(TARGET_TDB) -x  $(QUIET) $(SUMMARIZE_CMD)
 
 clean:
-	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
+	$(MAYBEATSIGN)rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
 
 db-benchmark-test-tokudb: ../lib/libtokudb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp

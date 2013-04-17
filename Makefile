@@ -38,8 +38,7 @@ summarize: check
 
 check: $(CHECKS)
 
-clean: 
-	$(MAYBEATSIGN)for d in $(SRCDIRS); do (cd $$d && $(MAKE) -k clean); done
+clean: $(patsubst %,%.dir.clean,$(SRCDIRS))
 	$(MAYBEATSIGN)rm -rf lib/*.$(SOEXT) lib/*.$(AEXT)
 
 install:

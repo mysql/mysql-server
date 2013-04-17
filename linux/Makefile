@@ -21,4 +21,5 @@ $(TARGET): $(OBJS)
 clean:
 	$(MAYBEATSIGN)rm -rf $(TARGET) $(LIBPORTABILITY)
 
-build: $(OBJS)
+# For build, do nothing
+build:

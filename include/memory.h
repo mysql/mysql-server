@@ -29,6 +29,7 @@ void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
 
 // xmalloc aborts instead of return NULL if we run out of memory
 void *toku_xmalloc(size_t size);
+void *toku_xrealloc(void*, size_t size);
 
 /* toku_tagmalloc() performs a malloc(size), but fills in the first 4 bytes with typ.
  * This "tag" is useful if you are debugging and run across a void* that is
@@ -63,8 +64,8 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
 #define XMALLOC(v) v = toku_xmalloc(sizeof(*v))
-#define XMALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
-#define XREALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
+#define XMALLOC_N(n,v) v = toku_xmalloc((n)*sizeof(*v))
+#define XREALLOC_N(n,v) v = toku_xrealloc(v, (n)*sizeof(*v))
 
 /* If you have a type such as 
  *    struct pma *PMA;
