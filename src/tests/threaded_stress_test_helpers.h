@@ -295,12 +295,14 @@ static int UU() xmalloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation
     return 0;
 }
 
+#if DONT_DEPRECATE_MALLOC
 static int UU() malloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra)) {
     size_t s = 256;
     void *p = malloc(s);
     free(p);
     return 0;
 }
+#endif
 
 static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra)) {
     DB_ENV* env = arg->env;
@@ -355,12 +357,12 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
 }
 
 static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra)) {
-    int r;
+    int r = 0;
     for (int i = 0; i < arg->num_DBs; i++) {
         DB* db = arg->dbp[i];
         r = db->verify_with_progress(db, NULL, NULL, 0, 0);
+        CKERR(r);
     }
-    CKERR(r);
     return r;
 }
 
