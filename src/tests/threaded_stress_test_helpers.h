@@ -1763,7 +1763,7 @@ static void report_overall_fill_table_progress(int num_rows) {
     static uint64_t last_report;
     static double last_progress;
     if (t0 == 0) {
-        t0 = toku_current_time_usec();
+        t0 = toku_current_time_microsec();
         last_report = t0;
     }
 
@@ -1771,7 +1771,7 @@ static void report_overall_fill_table_progress(int num_rows) {
     double progress = rows_so_far /
         (rows_per_table * num_tables_to_fill * 1.0);
     if (progress > (last_progress + .01)) {
-        uint64_t t1 = toku_current_time_usec();
+        uint64_t t1 = toku_current_time_microsec();
         // report no more often than once every 5 seconds, for less output.
         // there is a race condition. it is probably harmless.
         const uint64_t minimum_report_period = 5 * 1000000;

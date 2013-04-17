@@ -336,7 +336,7 @@ void toku_set_func_fsync(int (*fsync_function)(int)) {
 
 // keep trying if fsync fails because of EINTR
 static void file_fsync_internal (int fd, uint64_t *duration_p) {
-    uint64_t tstart = toku_current_time_usec();
+    uint64_t tstart = toku_current_time_microsec();
     int r = -1;
     while (r != 0) {
 	if (t_fsync) {
@@ -349,7 +349,7 @@ static void file_fsync_internal (int fd, uint64_t *duration_p) {
 	}
     }
     toku_sync_fetch_and_add(&toku_fsync_count, 1);
-    uint64_t duration = toku_current_time_usec() - tstart;
+    uint64_t duration = toku_current_time_microsec() - tstart;
     toku_sync_fetch_and_add(&toku_fsync_time, duration);
     if (duration_p) {
         *duration_p = duration;

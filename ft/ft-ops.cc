@@ -1042,10 +1042,10 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
 
 static void
 ft_status_update_partial_fetch_reason(
-    struct ftnode_fetch_extra* UU(bfe),
-    int UU(i),
-    int UU(state),
-    bool UU(is_leaf)
+    struct ftnode_fetch_extra* bfe,
+    int childnum,
+    enum pt_state state,
+    bool is_leaf
     )
 {
     invariant(state == PT_COMPRESSED || state == PT_ON_DISK);
@@ -1062,7 +1062,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_WRITE, 1);
             }
-        } else if (i == bfe->child_to_read) {
+        } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL, 1);
             } else {
@@ -1089,7 +1089,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_WRITE, 1);
             }
-        } else if (i == bfe->child_to_read) {
+        } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL, 1);
             } else {
