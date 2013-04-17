@@ -48,7 +48,11 @@ test_main (int UU(argc), char UU(*const argv[])) {
     assert(r==0);
     r=env->close(env, 0);
 #ifdef USE_BDB
+#if DB_VERSION_MAJOR >= 5
+    assert(r==0);
+#else
     assert(r==ENOENT);
+#endif
 #else
     assert(r==0);
 #endif
