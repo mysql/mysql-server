@@ -7,6 +7,8 @@ scriptdir=$PWD
 popd &>/dev/null
 tokudbdir=$(dirname $scriptdir)
 
+cd $tokudbdir
+
 if [ ! -d build ] ; then
     mkdir build
     pushd build
@@ -25,7 +27,7 @@ if [ ! -d build ] ; then
         -D TOKUDB_DATA=$tokudbdir/../tokudb.data \
         ..
     ninja build_jemalloc build_lzma
-    popd build
+    popd
 fi
 
 cd build
