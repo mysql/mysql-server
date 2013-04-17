@@ -579,16 +579,21 @@ next_dict_id(void) {
     return d;
 }
 
-u_int8_t 
-toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum)
+//
+// Given a bfe and a childnum, returns whether the query that constructed the bfe 
+// wants the child available.
+// Requires: bfe->child_to_read to have been set
+//
+bool 
+toku_bfe_wants_child_available (struct brtnode_fetch_extra* bfe, int childnum)
 {
     if (bfe->type == brtnode_fetch_all || 
         (bfe->type == brtnode_fetch_subset && bfe->child_to_read == childnum))
     {
-        return PT_AVAIL;
+        return true;
     }
     else {
-        return PT_COMPRESSED;
+        return false;
     }
 }
 
@@ -633,6 +638,8 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     assert(*brtnode_pv == NULL);
     struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
+    // deserialize the node, must pass the bfe in because we cannot evaluate what piece of the 
+    // the node is necessary until we get it at least partially into memory
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, bfe);
     if (r == 0) {
 	*sizep = brtnode_memory_size(*result);
@@ -658,7 +665,6 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
     // partial eviction strategy for basement nodes:
     //  if the bn is compressed, evict it
     //  else: check if it requires eviction, if it does, evict it, if not, sweep the clock count
-    //
     //
     else {
         for (int i = 0; i < node->n_children; i++) {
@@ -699,6 +705,14 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
 
 // callback that states if partially reading a node is necessary
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
+// Currently, this function is responsible for the following things:
+//  - reporting to the cachetable whether a partial fetch is required (as required by the contract of the callback)
+//  - A couple of things that are NOT required by the callback, but we do for efficiency and simplicity reasons:
+//   - for queries, set the value of bfe->child_to_read so that the query that called this can proceed with the query
+//      as opposed to having to evaluate toku_brt_search_which_child again. This is done to make the in-memory query faster
+//   - touch the necessary partition's clock. The reason we do it here is so that there is one central place it is done, and not done
+//      by all the various callers
+//
 BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     // placeholder for now
     BOOL retval = FALSE;
@@ -759,7 +773,7 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, lon
         if (BP_STATE(node,i) == PT_AVAIL) {
             continue;
         }
-        if (toku_brtnode_partition_state(bfe, i) == PT_AVAIL) {
+        if (toku_bfe_wants_child_available(bfe, i)) {
             if (BP_STATE(node,i) == PT_COMPRESSED) {
                 //
                 // decompress the subblock
