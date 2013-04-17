@@ -577,6 +577,13 @@ int compare_field(
         *a_bytes_read = sizeof(double);
         *b_bytes_read = sizeof(double);
         goto exit;
+    case (toku_type_float):
+        assert(field->pack_length() == sizeof(float));
+        assert(key_part_length == sizeof(float));
+        ret_val = cmp_toku_float(a_buf, b_buf);
+        *a_bytes_read = sizeof(float);
+        *b_bytes_read = sizeof(float);
+        goto exit;
     case (toku_type_fixbinary):
         num_bytes = field->pack_length();
         set_if_smaller(num_bytes, key_part_length);
