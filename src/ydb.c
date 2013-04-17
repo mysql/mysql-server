@@ -140,6 +140,146 @@ static void env_remove_open_txn(DB_ENV *UU(env), DB_TXN *txn) {
 
 static int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION, void*);
 
+static void
+env_fs_report_in_yellow(DB_ENV *UU(env)) {
+    char tbuf[26];
+    time_t tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb file system space is low\n", ctime_r(&tnow, tbuf)); fflush(stderr);
+}
+
+static void
+env_fs_report_in_red(DB_ENV *UU(env)) {
+    char tbuf[26];
+    time_t tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb file system space is really low and access is restricted\n", ctime_r(&tnow, tbuf)); fflush(stderr);
+}
+
+static inline uint64_t
+env_fs_redzone(DB_ENV *env, uint64_t total) {
+    return total * env->i->redzone / 100;
+}
+
+#define ZONEREPORTLIMIT 12
+// Check the available space in the file systems used by tokudb and erect barriers when available space gets low.
+static int
+env_fs_poller(void *arg) {
+    if (0) printf("%s:%d %p\n", __FUNCTION__, __LINE__, arg);
+ 
+    DB_ENV *env = (DB_ENV *) arg;
+    int r;
+#if 0
+    // get the cachetable size limit (not yet needed)
+    uint64_t cs = toku_cachetable_get_size_limit(env->i->cachetable);
+#endif
+
+    int in_yellow; // set true to issue warning to user
+    int in_red;    // set true to seal off certain operations (returning ENOSPC)
+
+    // get the fs sizes for the home dir
+    uint64_t avail_size, total_size;
+    r = toku_get_filesystem_sizes(env->i->dir, &avail_size, NULL, &total_size);
+    assert(r == 0);
+    if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->dir, avail_size, total_size);
+    in_yellow = (avail_size < 2 * env_fs_redzone(env, total_size));
+    in_red = (avail_size < env_fs_redzone(env, total_size));
+    
+    // get the fs sizes for the data dir if different than the home dir
+    if (strcmp(env->i->dir, env->i->real_data_dir) != 0) {
+        r = toku_get_filesystem_sizes(env->i->real_data_dir, &avail_size, NULL, &total_size);
+        assert(r == 0);
+        if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->real_data_dir, avail_size, total_size);
+        in_yellow += (avail_size < 2 * env_fs_redzone(env, total_size));
+        in_red += (avail_size < env_fs_redzone(env, total_size));
+    }
+
+    // get the fs sizes for the log dir if different than the home dir and data dir
+    if (strcmp(env->i->dir, env->i->real_log_dir) != 0 && strcmp(env->i->real_data_dir, env->i->real_log_dir) != 0) {
+        r = toku_get_filesystem_sizes(env->i->real_log_dir, &avail_size, NULL, &total_size);
+        assert(r == 0);
+        if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->real_log_dir, avail_size, total_size);
+        in_yellow += (avail_size < 2 * env_fs_redzone(env, total_size));
+        in_red += (avail_size < env_fs_redzone(env, total_size));
+    }
+
+    
+    env->i->fs_seq++;                    // how many times through this polling loop?
+    uint64_t now = env->i->fs_seq;
+
+    // Don't issue report if we have not been out of this fs_state for a while, unless we're at system startup
+    switch (env->i->fs_state) {
+    case FS_RED:
+	if (!in_red) {
+	    if (in_yellow) {
+		env->i->fs_state = FS_YELLOW;
+	    } else {
+		env->i->fs_state = FS_GREEN;
+	    }
+	}
+        break;
+    case FS_YELLOW:
+        if (in_red) {
+	    if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+		env_fs_report_in_red(env);
+            env->i->fs_state = FS_RED;
+	    env->i->last_seq_entered_red = now;
+        } else if (!in_yellow) {
+            env->i->fs_state = FS_GREEN;
+        }
+        break;
+    case FS_GREEN:
+        if (in_red) {
+	    if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+		env_fs_report_in_red(env);
+            env->i->fs_state = FS_RED;
+	    env->i->last_seq_entered_red = now;
+        } else if (in_yellow) {
+	    if ((now - env->i->last_seq_entered_yellow > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+		env_fs_report_in_yellow(env);
+            env->i->fs_state = FS_YELLOW;
+	    env->i->last_seq_entered_yellow = now;
+        }
+        break;
+    }
+    return 0;
+}
+#undef ZONEREPORTLIMIT
+
+static void
+env_fs_init(DB_ENV *env) {
+    env->i->fs_state = FS_GREEN;
+    env->i->fs_poll_time = 5;  // seconds
+    env->i->redzone = 5;       // percent of total space
+    env->i->fs_poller_is_init = FALSE;
+}
+
+// Initialize the minicron that polls file system space
+static int
+env_fs_init_minicron(DB_ENV *env) {
+    int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time, env_fs_poller, env); 
+    assert(r == 0);
+    env->i->fs_poller_is_init = TRUE;
+    return r;
+}
+
+// Destroy the file system space minicron
+static void
+env_fs_destroy(DB_ENV *env) {
+    if (env->i->fs_poller_is_init) {
+        int r = toku_minicron_shutdown(&env->i->fs_poller);
+        assert(r == 0);
+        env->i->fs_poller_is_init = FALSE;
+    }
+}
+
+// Check if the available file system space is less than the reserve
+// Returns ENOSPC if not enough space, othersize 0
+static inline int 
+env_check_avail_fs_space(DB_ENV *env) {
+    int r = env->i->fs_state == FS_RED ? ENOSPC : 0; 
+    if (r) env->i->enospc_seal_ctr++;
+    return r;
+}
+
 /* db methods */
 static inline int db_opened(DB *db) {
     return db->i->opened != 0;
@@ -318,46 +458,53 @@ static int toku_c_del(DBC *c, u_int32_t flags);
 static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
 static int toku_c_close(DBC * c);
 
-static int delete_rolltmp_files(DB_ENV *env) {
-    const char *datadir=env->i->dir;
-    char *logdir;
+static void
+env_setup_real_data_dir(DB_ENV *env) {
+    toku_free(env->i->real_data_dir);
+    env->i->real_data_dir = NULL;
+
+    assert(env->i->dir);
+    if (env->i->data_dir) 
+        env->i->real_data_dir = toku_construct_full_name(2, env->i->dir, env->i->data_dir);
+    else
+        env->i->real_data_dir = toku_strdup(env->i->dir);
+}
+
+static void
+env_setup_real_log_dir(DB_ENV *env) {
+    toku_free(env->i->real_log_dir);
+    env->i->real_log_dir = NULL;
+
     if (env->i->lg_dir) {
-	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
+        assert(env->i->dir);
+        env->i->real_log_dir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
-	logdir = toku_strdup(env->i->dir);
+        assert(env->i->dir);
+        env->i->real_log_dir = toku_strdup(env->i->dir);
     }
-    int r = tokudb_recover_delete_rolltmp_files(datadir, logdir);
-    toku_free(logdir);
+}
+
+static int delete_rolltmp_files(DB_ENV *env) {
+    assert(env->i->real_data_dir);
+    assert(env->i->real_log_dir);
+    int r = tokudb_recover_delete_rolltmp_files(env->i->real_data_dir, env->i->real_log_dir);
     return r;
 }
     
 static int 
 ydb_do_recovery (DB_ENV *env) {
-    const char *envdir=env->i->dir;
-    char *logdir;
-    if (env->i->lg_dir) {
-	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
-    } else {
-	logdir = toku_strdup(env->i->dir);
-    }
+    assert(env->i->real_log_dir);
     toku_ydb_unlock();
-    int r = tokudb_recover(envdir, logdir, env->i->bt_compare, env->i->dup_compare,
+    int r = tokudb_recover(env->i->dir, env->i->real_log_dir, env->i->bt_compare, env->i->dup_compare,
                            env->i->generate_row_for_put, env->i->generate_row_for_del,
                            env->i->cachetable_size);
     toku_ydb_lock();
-    toku_free(logdir);
     return r;
 }
 
 static int needs_recovery (DB_ENV *env) {
-    char *logdir;
-    if (env->i->lg_dir) {
-	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
-    } else {
-	logdir = toku_strdup(env->i->dir);
-    }
-    int recovery_needed = tokudb_needs_recovery(logdir, TRUE);
-    toku_free(logdir);
+    assert(env->i->real_log_dir);
+    int recovery_needed = tokudb_needs_recovery(env->i->real_log_dir, TRUE);
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
 
@@ -442,14 +589,7 @@ upgrade_env(DB_ENV * env, DB_TXN * txn) {
 // return 0 if log exists or ENOENT if log does not exist
 static int
 ydb_recover_log_exists(DB_ENV *env) {
-    char *logdir;
-    if (env->i->lg_dir) {
-	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
-    } else {
-	logdir = toku_strdup(env->i->dir);
-    }
-    int r = tokudb_recover_log_exists(logdir);
-    toku_free(logdir);
+    int r = tokudb_recover_log_exists(env->i->real_log_dir);
     return r;
 }
 
@@ -596,6 +736,9 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
+    env_setup_real_data_dir(env);
+    env_setup_real_log_dir(env);
+
     r = validate_env(env, &newenv);  // make sure that environment is either new or complete
     if (r != 0) return r;
 
@@ -623,15 +766,9 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     }
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
-        char* full_dir = NULL;
-        if (env->i->lg_dir) {
-            full_dir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
-            assert(full_dir);
-        }
 	assert(env->i->logger);
         toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
-        r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
-        if (full_dir) toku_free(full_dir);
+        r = toku_logger_open(env->i->real_log_dir, env->i->logger);
 	if (r!=0) {
 	    toku_ydb_do_error(env, r, "Could not open logger\n");
 	died2:
@@ -721,6 +858,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
     assert(r==0);
     toku_ydb_lock();
+    env_fs_poller(env);          // get the file system state at startup
+    env_fs_init_minicron(env); 
     return 0;
 }
 
@@ -796,15 +935,21 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     else
 	assert(env->i->panic_string==0);
 
+    env_fs_destroy(env);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->lg_dir)
         toku_free(env->i->lg_dir);
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
+    if (env->i->real_data_dir)
+	toku_free(env->i->real_data_dir);
+    if (env->i->real_log_dir)
+	toku_free(env->i->real_log_dir);
     if (env->i->open_dbs)
         toku_omt_destroy(&env->i->open_dbs);
-    toku_free(env->i->dir);
+    if (env->i->dir)
+	toku_free(env->i->dir);
     toku_ltm_close(env->i->ltm);
     toku_free(env->i);
     env->i = NULL;
@@ -1290,6 +1435,27 @@ locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, co
 }
 
 
+static int
+env_set_redzone(DB_ENV *env, int redzone) {
+    HANDLE_PANICKED_ENV(env);
+    int r;
+    if (env_opened(env))
+        r = EINVAL;
+    else {
+        env->i->redzone = redzone;
+        r = 0;
+    }
+    return r;
+}
+
+static int 
+locked_env_set_redzone(DB_ENV *env, int redzone) {
+    toku_ydb_lock();
+    int r= env_set_redzone(env, redzone);
+    toku_ydb_unlock();
+    return r;
+}
+
 static void
 format_time(const time_t *timer, char *buf) {
     ctime_r(timer, buf);
@@ -1359,6 +1525,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->cachetable_waittime      = ctstat.waittime;
 	    engstat->cachetable_wait_reading  = ctstat.wait_reading;
 	    engstat->cachetable_wait_writing  = ctstat.wait_writing;
+	    engstat->cachetable_wait_checkpoint = ctstat.wait_checkpoint;
 	    engstat->puts                     = ctstat.puts;
 	    engstat->prefetches               = ctstat.prefetches;
 	    engstat->maybe_get_and_pins       = ctstat.maybe_get_and_pins;
@@ -1370,9 +1537,9 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
-	    r = toku_ltm_get_max_locks(ltm, &(engstat->range_locks_max));     assert(r==0);
-	    r = toku_ltm_get_max_locks_per_db(ltm, &(engstat->range_locks_max_per_db));  assert(r==0);
-	    r = toku_ltm_get_curr_locks(ltm, &(engstat->range_locks_curr));   assert(r==0);
+	    r = toku_ltm_get_max_locks(ltm, &(engstat->range_locks_max));                   assert(r==0);
+	    r = toku_ltm_get_max_locks_per_db(ltm, &(engstat->range_locks_max_per_index));  assert(r==0);
+	    r = toku_ltm_get_curr_locks(ltm, &(engstat->range_locks_curr));                 assert(r==0);
 	}
 	{
 	    engstat->inserts            = num_inserts;
@@ -1403,6 +1570,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    format_time(&enospc_most_recent_timestamp, engstat->enospc_most_recent);	    
 	    engstat->enospc_threads_blocked = enospc_threads_blocked;
 	    engstat->enospc_total = enospc_total;
+	}
+	{
+	    engstat->enospc_seal_ctr   = env->i->enospc_seal_ctr;             // number of operations rejected by enospc seal (red zone)
+	    engstat->enospc_seal_state = env->i->fs_state;
 	}
     }
     return r;
@@ -1452,7 +1623,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
     n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
     n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_db           %"PRIu32"\n", engstat.range_locks_max_per_db);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_index        %"PRIu32"\n", engstat.range_locks_max_per_index);
     n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
     n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
     n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
@@ -1468,6 +1639,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
     n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
     n += snprintf(buff + n, bufsiz - n, "enospc total                     %"PRIu64"\n", engstat.enospc_total);
+    n += snprintf(buff + n, bufsiz - n, "enospc seal ctr                  %"PRIu64"\n", engstat.enospc_seal_ctr);
+    n += snprintf(buff + n, bufsiz - n, "enospc seal state                %"PRIu64"\n", engstat.enospc_seal_state);
 
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
@@ -1542,6 +1715,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(log_archive);
     SENV(txn_stat);
     result->txn_begin = locked_txn_begin;
+    SENV(set_redzone);
 #undef SENV
     result->create_loader = toku_loader_create_loader;
 
@@ -1549,6 +1723,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
     env_init_open_txn(result);
+    env_fs_init(result);
 
     r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
                          toku_db_lt_panic, 
@@ -4981,7 +5156,13 @@ static inline int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
 }
 
 static int locked_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    toku_ydb_lock(); int r = autotxn_db_put(db, txn, key, data, flags); toku_ydb_unlock(); return r;
+    int r = env_check_avail_fs_space(db->dbenv);
+    if (r == 0) {
+	toku_ydb_lock(); 
+	r = autotxn_db_put(db, txn, key, data, flags); 
+	toku_ydb_unlock(); 
+    }
+    return r;
 }
 
 static int locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {

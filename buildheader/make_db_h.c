@@ -440,6 +440,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        cachetable_waittime;     /* how many usec spent waiting for another thread to release cache line */ \n");
     printf("  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ \n");
     printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
+    printf("  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ \n");
     printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
     printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
     printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");
@@ -449,7 +450,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
     printf("  int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ \n");
     printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
-    printf("  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ \n");
+    printf("  u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ \n");
     printf("  u_int32_t        range_locks_curr;        /* total range locks currently in use */ \n");
     printf("  u_int64_t        inserts;                 /* ydb row insert operations            */ \n");
     printf("  u_int64_t        deletes;                 /* ydb row delete operations            */ \n");
@@ -465,7 +466,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ \n");
     printf("  u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ \n");
     printf("  u_int64_t        enospc_total;            /* how many times has ENOSPC been returned by disk write */ \n");
-    
+    printf("  u_int64_t        enospc_seal_ctr;         /* how many times has ENOSPC been returned to user (red zone) */ \n");
+    printf("  u_int64_t        enospc_seal_state;       /* state of ydb-level seal (0 = green, 1 = yellow, 2 = red) */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();
@@ -510,6 +512,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "                                                                         DBT *dest_key,\n"
                              "                                                                         const DBT *src_key, const DBT *src_val,\n"
                              "                                                                         void *extra))",
+                             "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
+                             "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

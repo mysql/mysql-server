@@ -66,6 +66,8 @@ int do_checkpoint_period = 0;
 u_int32_t checkpoint_period = 0;
 static const char *log_dir = NULL;
 static int commitflags = 0;
+static int redzone = 0;
+static int redzone_set = 0;
 
 static int use_random = 0;
 enum { MAX_RANDOM_C = 16000057 }; // prime-numbers.org
@@ -189,6 +191,13 @@ static void benchmark_setup (void) {
     if (insert_multiple) {
         r = dbenv->set_generate_row_callback_for_put(dbenv, put_multiple_generate);
         CKERR(r);
+    }
+#endif
+
+#if defined(TOKUDB)
+    if (redzone_set) {
+	r = dbenv->set_redzone(dbenv, redzone);
+	assert(r == 0);
     }
 #endif
 
@@ -486,15 +495,13 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --log_dir LOGDIR      Put the logs in LOGDIR\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
-    // fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
-    // fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
-    // fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --userandom           use random()\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "    --numdbs N            Insert same items into N dbs (1 to %d)\n", MAX_DBS); 
     fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
+    fprintf(stderr, "    --redzone N           redzone in percent\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -641,22 +648,10 @@ int main (int argc, const char *const argv[]) {
         } else if (strcmp(arg, "--log_dir") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             log_dir = argv[++i];
-        } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
-            if (i+1 >= argc) return print_usage(argv[0]);
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_TXN;
-            else
-                env_open_flags &= ~DB_INIT_TXN;
-        } else if (strcmp(arg, "--DB_INIT_LOG") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOG;
-            else
-                env_open_flags &= ~DB_INIT_LOG;
-        } else if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOCK;
-            else
-                env_open_flags &= ~DB_INIT_LOCK;
+	} else if (strcmp(arg, "--redzone") == 0) {
+	    if (i+1 >= argc) return print_usage(argv[0]);
+	    redzone_set = 1;
+	    redzone = atoi(argv[++i]);
         } else {
 	    return print_usage(argv[0]);
 	}

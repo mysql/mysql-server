@@ -6,15 +6,16 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <toku_assert.h>
+#include <malloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <syscall.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/statvfs.h>
 #include "toku_portability.h"
 #include "toku_os.h"
-#include <malloc.h>
 
 static int
 toku_mallopt_init(void) {
@@ -282,6 +283,27 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
 }
 
 int
+toku_get_filesystem_sizes(const char *path, uint64_t *avail_size, uint64_t *free_size, uint64_t *total_size) {
+    struct statvfs s;
+    int r = statvfs(path, &s);
+    if (r == -1) 
+        r = errno;
+    else {
+        // get the block size in bytes
+        uint64_t bsize = s.f_frsize ? s.f_frsize : s.f_bsize;
+        // convert blocks to bytes
+        if (avail_size)
+            *avail_size = (uint64_t) s.f_bavail * bsize;
+        if (free_size) 
+            *free_size = (uint64_t) s.f_bfree * bsize;
+        if (total_size) 
+            *total_size = (uint64_t) s.f_blocks * bsize;
+    }
+    return r;
+}
+
+
+int
 toku_dup2(int fd, int fd2) {
     int r;
     r = dup2(fd, fd2);
@@ -298,3 +320,5 @@ uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
 }
 
 #endif
+
+
