@@ -40,7 +40,7 @@ change_descriptor(DB* db, int which, DB_ENV* env) {
     size_t len = strlen(descriptor_contents[which])+1;
     dbt_init(&descriptor, descriptor_contents[which], len);
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-        CHK(db->change_descriptor(db, txn_desc, &descriptor, 0));
+        CHK(db->change_descriptor(db, txn_desc, &descriptor, DB_UPDATE_CMP_DESCRIPTOR));
     });
 #endif
 }
