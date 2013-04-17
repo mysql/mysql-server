@@ -26,7 +26,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        ) {
     /* Do nothing */
     if (check_flush && !keep) {
-        if (verbose) { printf("FLUSH: %d write_me %d\n", (int)k.b, w); }
+        if (verbose) { printf("FLUSH: %d write_me %d expected %d\n", (int)k.b, w, expected_flushed_key); }
         assert(flush_may_occur);
         assert(!w);
         assert(expected_flushed_key == (int)k.b);
@@ -89,13 +89,12 @@ cachetable_test (void) {
     }
     flush_may_occur = true;
     expected_flushed_key = 4;
-    toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
+    toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(1), wc, put_callback_nop);
     ct->ev.signal_eviction_thread();
     usleep(1*1024*1024);
     
     flush_may_occur = true;
-    expected_flushed_key = 5;
-    r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(4));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(2));
     ct->ev.signal_eviction_thread();
     usleep(1*1024*1024);
 
