@@ -2881,54 +2881,69 @@ bool fields_are_same_type(
         retval = false;
         goto cleanup;
     }
-
     // make sure that either both are nullable, or both not nullable
     if ((a->null_bit && !b->null_bit) || (!a->null_bit && b->null_bit)) {
         retval = false;
         goto cleanup;
     }
-
     switch (a_mysql_type) {
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+        // length, unsigned, auto increment
+        if (a->pack_length() != b->pack_length() ||
+            (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
+            (a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:
+        // length, unsigned, auto increment
+        if (a->pack_length() != b->pack_length() ||
+            (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG) ||
+            (a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    case MYSQL_TYPE_NEWDECIMAL:
+        // length, unsigned
+        if (a->pack_length() != b->pack_length() ||
+            (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_BIT:
+        // length
+        if (a->pack_length() != b->pack_length()) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_BIT:
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
 #endif
-    {
-        TOKU_TYPE toku_type = mysql_to_toku_type(a);
-        if ((toku_type == toku_type_int || toku_type == toku_type_float) &&
-            (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG)) {
-            retval = false;
-            goto cleanup;
-        }
-        if (toku_type == toku_type_int && 
-            (a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
-            retval = false;
-            goto cleanup;
-        }
+        // length
         if (a->pack_length() != b->pack_length()) {
             retval = false;
             goto cleanup;
         }
         break;
-    }
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_BLOB:
