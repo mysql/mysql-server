@@ -2629,6 +2629,19 @@ UU() stress_recover(struct cli_args *args) {
 }
 
 static void
+close_and_reopen_tables(DB_ENV *env, DB **dbs, struct cli_args *args) {
+    { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
+    { int chk_r = open_tables(&env,
+                              dbs,
+                              args->num_DBs,
+                              stress_cmp,
+                              args); CKERR(chk_r); }
+    if (args->warm_cache) {
+        do_warm_cache(env, dbs, args);
+    }
+}
+
+static void
 test_main(struct cli_args *args, bool fill_with_zeroes)
 {
     if ((args->key_size < 8 && args->key_size != 4) ||
