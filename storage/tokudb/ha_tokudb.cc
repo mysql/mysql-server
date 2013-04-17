@@ -1265,7 +1265,7 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
     return ai_found;
 }
 
-int ha_tokudb::open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
+int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
     uint open_mode = DB_THREAD;
@@ -1608,7 +1608,26 @@ int ha_tokudb::initialize_share(
         error = HA_ADMIN_FAILED;
         goto exit;
     }
-    
+
+    error = get_status();
+    if (error) {
+        goto exit;
+    }
+    if (share->version < HA_TOKU_VERSION) {
+        error = ENOSYS;
+        goto exit;
+    }
+
+    //
+    // verify frm file is what we expect it to be
+    // only for tables that are not partitioned
+    //
+    if (table->part_info == NULL) {
+        error = verify_frm_data(table->s->path.str);
+        if (error) {
+            goto exit;
+        }
+    }
     error = initialize_key_and_col_info(
         table_share,
         table, 
@@ -1660,15 +1679,6 @@ int ha_tokudb::initialize_share(
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
     share->ref_length = ref_length;
-
-    error = get_status();
-    if (error) {
-        goto exit;
-    }
-    if (share->version < HA_TOKU_VERSION) {
-        error = ENOSYS;
-        goto exit;
-    }
 
     error = estimate_num_rows(share->file,&num_rows, NULL);
     //
@@ -2016,7 +2026,86 @@ cleanup:
     return error;
 }
 
+int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
+    uchar* frm_data = NULL;
+    size_t frm_len = 0;
+    int error = 0;
+    TOKUDB_DBUG_ENTER("ha_tokudb::write_frm_data, %s", frm_name);
 
+    error = readfrm(frm_name,&frm_data,&frm_len);
+    if (error) { goto cleanup; }
+    
+    error = write_to_status(db,hatoku_frm_data,frm_data,(uint)frm_len, txn);
+    if (error) { goto cleanup; }
+
+    error = 0;
+cleanup:
+    my_free(frm_data, MYF(MY_ALLOW_ZERO_PTR));
+    TOKUDB_DBUG_RETURN(error);
+}
+
+int ha_tokudb::verify_frm_data(const char* frm_name) {
+    uchar* mysql_frm_data = NULL;
+    size_t mysql_frm_len = 0;
+    uchar* stored_frm_data = NULL;
+    size_t stored_frm_len = 0;
+    DBT key, value;
+    int error = 0;
+    DB_TXN* txn = NULL;
+    HA_METADATA_KEY curr_key = hatoku_frm_data;
+    
+    TOKUDB_DBUG_ENTER("ha_tokudb::verify_frm_data %s", frm_name);
+
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
+
+    bzero(&key, sizeof(key));
+    bzero(&value, sizeof(value));
+    // get the frm data from MySQL
+    error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
+    if (error) { goto cleanup; }
+
+    // TODO: get the frm data that we have stored
+    key.data = &curr_key;
+    key.size = sizeof(curr_key);
+    value.flags = DB_DBT_MALLOC;
+    error = share->status_block->get(
+        share->status_block, 
+        txn, 
+        &key, 
+        &value, 
+        0
+        );
+    if (error == DB_NOTFOUND) {
+        // if not found, write it
+        error = write_frm_data(
+            share->status_block,
+            txn,
+            frm_name
+            );
+        goto cleanup;
+    }
+    else if (error) {
+        goto cleanup;
+    }
+    stored_frm_len = value.size;
+    stored_frm_data = (uchar *)value.data;
+
+    if (stored_frm_len != mysql_frm_len || 
+        memcmp(stored_frm_data, mysql_frm_data, stored_frm_len))
+    {
+        error = HA_ERR_TABLE_DEF_CHANGED;
+        goto cleanup;
+    }
+
+    error = 0;
+cleanup:
+    if (txn) {
+        commit_txn(txn, 0);
+    }
+    my_free(mysql_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+    TOKUDB_DBUG_RETURN(error);
+}
 
 //
 // Updates status.tokudb with a new max value used for the auto increment column
@@ -6005,9 +6094,17 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     DB_TXN* txn = NULL;
     char* newname = NULL;
     KEY_AND_COL_INFO kc_info;
+    bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     bzero(&kc_info, sizeof(kc_info));
 
     pthread_mutex_lock(&tokudb_meta_mutex);
+
+    if (create_from_engine) {
+        // table already exists, nothing to do
+        error = 0;
+        goto cleanup;
+    }
+    
 
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
@@ -6045,6 +6142,11 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = write_auto_inc_create(status_block, create_info->auto_increment_value, txn);
     if (error) { goto cleanup; }
 
+    // only for tables that are not partitioned
+    if (form->part_info == NULL) {
+        error = write_frm_data(status_block, txn, form->s->path.str);
+        if (error) { goto cleanup; }
+    }
     error = allocate_key_and_col_info(form->s, &kc_info);
     if (error) { goto cleanup; }
 
@@ -8580,7 +8682,13 @@ int ha_tokudb::alter_table_phase2(
             }
         }
     }
-    
+
+    // update frm file    
+    // only for tables that are not partitioned
+    if (altered_table->part_info == NULL) {
+        error = write_frm_data(share->status_block, txn, altered_table->s->path.str);
+        if (error) { goto cleanup; }
+    }    
     if (thd->killed) {
         error = ER_ABORTING_CONNECTION;
         goto cleanup;
