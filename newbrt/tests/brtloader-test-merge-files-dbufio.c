@@ -122,8 +122,15 @@ static int compare_ints (DB *dest_db, const DBT *akey, const DBT *bkey) {
     return qsort_compare_ints(akey->data, bkey->data);
 }
 
-static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
-    fprintf(stderr, "error in test");
+static char *errorstr_static (int err) {
+    static char errorstr[100];
+    toku_brt_strerror_r(err, errorstr, sizeof(errorstr));
+    return errorstr;
+}
+		       
+
+static void err_cb(DB *db UU(), int dbn, int err, DBT *key UU(), DBT *val UU(), void *extra UU()) {
+    fprintf(stderr, "error in test dbn=%d err=%d (%s)\n", dbn, err, errorstr_static(err));
     abort();
 }
 
@@ -132,7 +139,7 @@ enum { N_SOURCES = 2, N_RECORDS=10, N_DEST_DBS=1 };
 static char *make_fname(const char *directory, const char *fname, int idx) {
     int len = strlen(directory)+strlen(fname)+20;
     char *XMALLOC_N(len, result);
-    int r = snprintf(result, len, "%s%s%d", directory, fname, idx);
+    int r = snprintf(result, len, "%s/%s%d", directory, fname, idx);
     assert(r<len);
     return result; // don't care that it's a little too long.
 }
@@ -146,7 +153,7 @@ static void test (const char *directory) {
     char **XMALLOC_N(N_SOURCES, fnames);
     for (int i=0; i<N_SOURCES; i++) {
 	fnames[i] = make_fname(directory, "temp", i);
-	fds[i] = open(fnames[0], O_CREAT|O_RDWR, S_IRWXU);
+	fds[i] = open(fnames[i], O_CREAT|O_RDWR, S_IRWXU);
 	assert(fds[i]>=0);
     }
     for (int i=0; i<N_RECORDS; i++) {
@@ -172,6 +179,12 @@ static void test (const char *directory) {
     DB **XMALLOC_N(N_DEST_DBS, dbs);
     const struct descriptor **XMALLOC_N(N_DEST_DBS, descriptors);
     const char **XMALLOC_N(N_DEST_DBS, new_fnames_in_env);
+    for (int i=0; i<N_DEST_DBS; i++) {
+	char s[100];
+	snprintf(s, sizeof(s), "db%d.db", i);
+	new_fnames_in_env[i] = toku_strdup(s);
+	assert(new_fnames_in_env[i]);
+    }
     brt_compare_func *XMALLOC_N(N_DEST_DBS, bt_compare_functions);
     bt_compare_functions[0] = compare_ints;
     CACHETABLE ct;
@@ -190,7 +203,7 @@ static void test (const char *directory) {
 					       descriptors,
 					       new_fnames_in_env,
 					       bt_compare_functions,
-					       (const char *)NULL, // temp_filetemplate
+					       "tempxxxxxx",
 					       *lsnp);
 	assert(r==0);
     }
@@ -207,8 +220,34 @@ static void test (const char *directory) {
     const int MERGE_BUF_SIZE = 100000; // bigger than 64K so that we will trigger malloc issues.
     { int r = create_dbufio_fileset(&bfs, N_SOURCES, fds, MERGE_BUF_SIZE);  assert(r==0); }
     FIDX *XMALLOC_N(N_SOURCES, src_fidxs);
+    assert(bl->file_infos.n_files==0);
+    bl->file_infos.n_files = N_SOURCES;
+    bl->file_infos.n_files_limit = N_SOURCES;
+    bl->file_infos.n_files_open  = 0;
+    bl->file_infos.n_files_extant = N_SOURCES;
+    XREALLOC_N(bl->file_infos.n_files_limit, bl->file_infos.file_infos);
+    const int BUFFER_SIZE = 100;
+    for (int i=0; i<N_SOURCES; i++) {
+	bl->file_infos.file_infos[i] = (struct file_info){ .is_open   = FALSE,
+							   .is_extant = TRUE,
+							   .fname     = toku_strdup(fnames[i]),
+							   .file      = (FILE*)NULL,
+							   .n_rows    = N_RECORDS,
+							   .buffer_size = BUFFER_SIZE,
+							   .buffer      = toku_xmalloc(BUFFER_SIZE)}; 
+	src_fidxs[i].idx = i;
+    }
     {
 	int r = toku_merge_some_files_using_dbufio(TRUE, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
+	if (r!=0) printf("%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, errorstr_static(r));
+	assert(r==0);
+    }
+    {
+	int r = toku_brtloader_destroy(bl);
+	assert(r==0);
+    }
+    {
+	int r = toku_cachetable_close(&ct);
 	assert(r==0);
     }
 }
@@ -272,6 +311,7 @@ int test_main (int argc, const char *argv[]) {
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
 
+    if (0) {
     int event_limit = event_count;
     if (verbose) printf("event_limit=%d\n", event_limit);
 
@@ -283,6 +323,7 @@ int test_main (int argc, const char *argv[]) {
         r = toku_os_mkdir(directory, 0755); CKERR(r);
 
 	test(directory);
+    }
     }
 
     return 0;
