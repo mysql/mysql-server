@@ -45,7 +45,10 @@ endif
 
 LIBNAME=libdb.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS += -Wall -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS += -Wall $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+ifneq ($(CC),icc)
+CFLAGS += -Werror
+endif
 TDB_CPPFLAGS = -I../../include
 
 SRCS = $(sort $(wildcard *.c))
