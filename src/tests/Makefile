@@ -666,6 +666,12 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
+# Need an extra test for the loader (-r 5000 -s) to manifest #2717.
+loader-stress-test.loader: loader-stress-test.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -r 5000 -s $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
 
