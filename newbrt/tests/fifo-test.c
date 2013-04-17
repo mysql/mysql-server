@@ -29,17 +29,18 @@ void test_fifo_enq(int n) {
 
     char *thekey = 0; int thekeylen;
     char *theval = 0; int thevallen;
-    
-    void buildkey(int len) {
-        thekeylen = len;
-        thekey = realloc(thekey, thekeylen);
-        memset(thekey, len, thekeylen);
+
+    // this was a function but icc cant handle it    
+#define buildkey(len) { \
+        thekeylen = len; \
+        thekey = realloc(thekey, thekeylen); \
+        memset(thekey, len, thekeylen); \
     }
 
-    void buildval(int len) {
-        thevallen = len+1;
-        theval = realloc(theval, thevallen);
-        memset(theval, ~len, thevallen);
+#define buildval(len) { \
+        thevallen = len+1; \
+        theval = realloc(theval, thevallen); \
+        memset(theval, ~len, thevallen); \
     }
 
     int i;
@@ -49,21 +50,17 @@ void test_fifo_enq(int n) {
         r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, (TXNID)i); assert(r == 0);
     }
 
-    void checkit(bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen, int type, TXNID xid, void *arg) {
+    i = 0;
+    FIFO_ITERATE(f, key, keylen, val, vallen, type, xid, ({
         if (verbose) printf("checkit %d %d\n", i, type);
-        assert(arg == 0);
         buildkey(i);
         buildval(i);
         assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
         assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
         assert(i % 256 == type);
 	assert((TXNID)i==xid);
-        
         i += 1;
-    }
-
-    i = 0;
-    toku_fifo_iterate(f, checkit, 0);
+    }));
     assert(i == n);
 
     if (thekey) free(thekey);
