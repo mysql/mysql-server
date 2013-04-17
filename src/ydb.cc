@@ -777,36 +777,18 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     if (!home) home = ".";
 
     // Verify that the home exists.
-    {
-        bool made_new_home = false;
-        char* new_home = NULL;
-        toku_struct_stat buf;
-        if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
-            // This chops the last character ('\') off of home.  The
-            // fencepost error is (seems?) intentional.
-            XMALLOC_N(strlen(home), new_home);
-            memcpy(new_home, home, strlen(home));
-            new_home[strlen(home) - 1] = 0;
-            made_new_home = true;
-        }
-        r = toku_stat(made_new_home? new_home : home, &buf);
-        int er;
-        if (r!=0) {
-            er = get_error_errno();
-            r = toku_ydb_do_error(env, er, "Error from toku_stat(\"%s\",...)\n", home);
-            if (made_new_home) {
-                toku_free(new_home);
-            }
-            goto cleanup;
-        }
-        if (made_new_home) {
-            toku_free(new_home);
-        }
+    toku_struct_stat buf;
+    r = toku_stat(home, &buf);
+    if (r != 0) {
+        int e = get_error_errno();
+        r = toku_ydb_do_error(env, e, "Error from toku_stat(\"%s\",...)\n", home);
+        goto cleanup;
     }
     unused_flags &= ~DB_PRIVATE;
 
-    if (env->i->dir)
+    if (env->i->dir) {
         toku_free(env->i->dir);
+    }
     env->i->dir = toku_strdup(home);
     if (env->i->dir == 0) {
         r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
