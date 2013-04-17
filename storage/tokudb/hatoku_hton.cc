@@ -1269,6 +1269,12 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable size_current", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_limit);  
       STATPRINT("cachetable size_limit", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_max);  
+      STATPRINT("cachetable size_max", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_leaf);  
+      STATPRINT("cachetable size_leaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_nonleaf);  
+      STATPRINT("cachetable size_nonleaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
       STATPRINT("cachetable size_writing", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
