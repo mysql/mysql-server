@@ -1448,12 +1448,15 @@ static void brt_blackbox_test (void) {
 
     test_brt_delete();
 
+// This test doesn't make much sense any more.  We'll have to do revised tests for this functionality.
+#if 0
     int old_brt_do_push_cmd = toku_brt_do_push_cmd;
     toku_brt_do_push_cmd = 0;
 
     test_brt_delete();
 
     toku_brt_do_push_cmd = old_brt_do_push_cmd;
+#endif
 
 }
 
