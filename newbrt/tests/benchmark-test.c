@@ -51,7 +51,8 @@ static void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    toku_brt_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
+    int r = toku_brt_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
+    CKERR(r);
     if (do_verify) toku_cachetable_verify(ct);
 }
 
@@ -97,12 +98,14 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 	gettimeofday(&t2,0);
 	if (verbose && do_random) {
 	    printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    fflush(stdout);
         }
         if (verbose && (do_serial || do_random)) {
             double f = 0;
             if (do_serial) f += 1.0;
             if (do_random) f += 1.0;
 	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*f/tdiff(&t2, starttime))*(iteration+1));
+	    fflush(stdout);
 	}
     }
 }
@@ -177,6 +180,7 @@ test_main (int argc, const char *argv[]) {
 	printf("keysize=%d\n", keysize);
 	printf("valsize=%d\n", valsize);
 	printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
+        fflush(stdout);
     }
     setup();
     gettimeofday(&t1,0);
@@ -190,6 +194,7 @@ test_main (int argc, const char *argv[]) {
         if (do_random) f += 1;
 	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), f*total_n_items, f*total_n_items/tdiff(&t3, &t1));
+        fflush(stdout);
     }
     if (verbose>1) {
 	toku_malloc_report();
