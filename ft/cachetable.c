@@ -3126,7 +3126,7 @@ cleanup:
     return 0;
 }
 
-int 
+int
 toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
     // Requires:   All three checkpoint-relevant locks must be held (see checkpoint.c).
     // Algorithm:  Write a checkpoint record to the log, noting the LSN of that record.
@@ -3330,9 +3330,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     int retval = 0;
     cachetable_lock(ct);
     {
-        // 
-        // #TODO: #1424 Long-lived get and pin (held by cursor) will cause a deadlock here.
-        //        Need some solution (possibly modify requirement for write lock or something else).
         PAIR p;
         while ((p = ct->pending_head)!=0) {
             ct->pending_head = ct->pending_head->pending_next;

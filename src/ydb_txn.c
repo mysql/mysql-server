@@ -108,7 +108,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     // get called first, otherwise we have bugs, such as #4145 and #4153
     toku_txn_complete_txn(ttxn);
     r = toku_txn_release_locks(txn);
-    // this lock must be released after toku_txn_complete_txn because
+    // this lock must be released after toku_txn_complete_txn and toku_txn_release_locks because
     // this lock must be held until the references to the open FTs is released
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
