@@ -577,6 +577,7 @@ struct brt_cursor {
     BOOL is_snapshot_read; // true if query is read_committed, false otherwise
     BOOL is_leaf_mode;
     BOOL disable_prefetching;
+    BOOL is_temporary;
     TOKUTXN ttxn;
     struct brt_cursor_leaf_info  leaf_info;
 };

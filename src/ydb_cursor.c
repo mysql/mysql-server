@@ -878,6 +878,13 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
         );
     assert(r == 0 || r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     if (r == 0) {
+        // Set the is_temporary_cursor boolean inside the brt node so
+        // that a query only needing one cursor will not perform
+        // unecessary malloc calls.
+        if (is_temporary_cursor) {
+            toku_brt_cursor_set_temporary(dbc_struct_i(result)->c);
+        }
+
         *c = result;
     }
     else {
