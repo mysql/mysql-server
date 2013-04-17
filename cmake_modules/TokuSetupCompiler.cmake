@@ -36,6 +36,18 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
 ## adds a compiler flag if the compiler supports it
+macro(set_cflags_if_supported_named flag flagname)
+  check_c_compiler_flag("${flag}" HAVE_C_${flagname})
+  if (HAVE_C_${flagname})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+  endif ()
+  check_cxx_compiler_flag("${flag}" HAVE_CXX_${flagname})
+  if (HAVE_CXX_${flagname})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+  endif ()
+endmacro(set_cflags_if_supported_named)
+
+## adds a compiler flag if the compiler supports it
 macro(set_cflags_if_supported)
   foreach(flag ${ARGN})
     check_c_compiler_flag(${flag} HAVE_C_${flag})
@@ -64,7 +76,16 @@ endmacro(set_ldflags_if_supported)
 set_cflags_if_supported(
   -Wno-missing-field-initializers
   -Wno-error=strict-overflow
+  -Wstrict-null-sentinel
+  -Winit-self
+  -Wswitch
+  -Wtrampolines
+  -Wlogical-op
+  -Wmissing-format-attribute
+  -Wno-error=missing-format-attribute
+  -Wpacked
   )
+set_cflags_if_supported_named("-Weffc++" -Weffcpp)
 set_ldflags_if_supported(
   -Wno-error=strict-overflow
   )

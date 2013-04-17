@@ -2152,23 +2152,33 @@ le_committed_mvcc(uint8_t *key, uint32_t keylen,
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif
+// This is an on-disk format.  static_asserts verify everything is packed and aligned correctly.
 struct __attribute__ ((__packed__)) leafentry_13 {
+    struct leafentry_committed_13 {
+        u_int8_t key_val[0];     //Actual key, then actual val
+    };
+    static_assert(0 == sizeof(leafentry_committed_13), "wrong size");
+    static_assert(0 == __builtin_offsetof(leafentry_committed_13, key_val), "wrong offset");
+    struct __attribute__ ((__packed__)) leafentry_provisional_13 {
+        u_int8_t innermost_type;
+        TXNID    xid_outermost_uncommitted;
+        u_int8_t key_val_xrs[0];  //Actual key,
+        //then actual innermost inserted val,
+        //then transaction records.
+    };
+    static_assert(9 == sizeof(leafentry_provisional_13), "wrong size");
+    static_assert(9 == __builtin_offsetof(leafentry_provisional_13, key_val_xrs), "wrong offset");
+
     u_int8_t  num_xrs;
     u_int32_t keylen;
     u_int32_t innermost_inserted_vallen;
-    union {
-        struct __attribute__ ((__packed__)) leafentry_committed_13 {
-            u_int8_t key_val[0];     //Actual key, then actual val
-        } comm;
-        struct __attribute__ ((__packed__)) leafentry_provisional_13 {
-            u_int8_t innermost_type;
-            TXNID    xid_outermost_uncommitted;
-            u_int8_t key_val_xrs[];  //Actual key,
-                                     //then actual innermost inserted val,
-                                     //then transaction records.
-        } prov;
+    union __attribute__ ((__packed__)) {
+        struct leafentry_committed_13 comm;
+        struct leafentry_provisional_13 prov;
     } u;
 };
+static_assert(18 == sizeof(leafentry_13), "wrong size");
+static_assert(9 == __builtin_offsetof(leafentry_13, u), "wrong offset");
 #if TOKU_WINDOWS
 #pragma pack(pop)
 #endif
