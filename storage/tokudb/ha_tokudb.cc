@@ -5512,8 +5512,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     if (tokudb_debug & TOKUDB_DEBUG_LOCK) {
         TOKUDB_TRACE("%s lock_type=%d cmd=%d\n", __FUNCTION__, lock_type, thd_sql_command(thd));
     }
-    if (lock_type == TL_WRITE_ALLOW_READ && 
-        get_create_index_online(thd) && 
+    if (get_create_index_online(thd) && 
         thd_sql_command(thd)== SQLCOM_CREATE_INDEX
         ) 
     {
