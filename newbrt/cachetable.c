@@ -119,6 +119,7 @@ struct ctpair {
 static void * const zero_value = 0;
 static int const zero_size = 0;
 
+static int maybe_flush_some (CACHETABLE ct, long size);
 
 static inline void
 ctpair_add_ref(PAIR p) {
@@ -294,6 +295,29 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->env_dir = toku_xstrdup(".");
     *result = ct;
     return 0;
+}
+
+uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
+    cachetable_lock(ct);
+    cachetable_wait_write(ct);
+    uint64_t reserved_memory = fraction*ct->size_limit;
+    {
+	int r = maybe_flush_some(ct, reserved_memory);
+	if (r) {
+	    cachetable_unlock(ct);
+	    return r;
+	}
+    }
+    ct->size_current += reserved_memory;
+    cachetable_unlock(ct);
+    return reserved_memory;
+}
+
+void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_memory) {
+    cachetable_lock(ct);
+    ct->size_current -= reserved_memory;
+    assert(ct->size_current >= 0);
+    cachetable_unlock(ct);
 }
 
 void

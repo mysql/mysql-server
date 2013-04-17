@@ -82,7 +82,6 @@ int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/,
 // Returns the limit on the cachetable size
 uint64_t toku_cachetable_get_size_limit(CACHETABLE ct);
 
-
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, 
 			    const char *fname_relative_to_env); /*(used for logging)*/
@@ -97,6 +96,12 @@ int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, B
 
 void toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum);
 
+// Effect: Reserve a fraction of the cachetable memory.
+// Returns the amount reserved.
+// To return the memory to the cachetable, call toku_cachetable_release_reserved_memory
+// Requires 0<fraction<1.
+uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction);
+void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 
 // Get access to the asynchronous work queue
 // Returns: a pointer to the work queue
