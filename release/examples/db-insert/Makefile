@@ -1,0 +1,1 @@
+default: db-insert
