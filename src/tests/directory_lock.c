@@ -255,6 +255,7 @@ int test_main (int argc, char * const argv[]) {
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
+    /*
     u_int32_t flags = DB_YESOVERWRITE;
 
 
@@ -335,7 +336,7 @@ int test_main (int argc, char * const argv[]) {
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
-
+    */
     r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
     
