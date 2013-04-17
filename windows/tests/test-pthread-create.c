@@ -2,20 +2,20 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-#include <windows.h>
-#include "toku_pthread.h"
+#include <unistd.h>
+#include <toku_pthread.h>
 
 static void *myfunc1(void *arg) {
     printf("%s %p %lu\n", __FUNCTION__, arg, GetCurrentThreadId());
     fflush(stdout);
-    Sleep(10*1000);
+    sleep(10);
     return arg;
 }
 
 static void *myfunc2(void *arg) {
     printf("%s %p %lu\n", __FUNCTION__, arg, GetCurrentThreadId());
     fflush(stdout);
-    Sleep(10*1000);
+    sleep(10);
     return arg;
 }
 

@@ -8,8 +8,10 @@ extern "C" {
 #endif
 
 long int random(void);
-
 void srandom(unsigned int seed);
+
+int unsetenv(const char *name);
+int setenv(const char *name, const char *value, int overwrite);
 
 #if defined(__cplusplus)
 };

@@ -19,19 +19,6 @@ struct fileid {
     uint64_t st_creat;
 };
 
-enum {
-    DT_UNKNOWN = 0,
-    DT_DIR     = 4,
-    DT_REG     = 8
-};
-
-struct dirent {
-    char          d_name[_MAX_PATH];
-    unsigned char d_type;
-};
-
-struct __toku_windir;
-typedef struct __toku_windir DIR;
 
 #if defined(__cplusplus)
 };
