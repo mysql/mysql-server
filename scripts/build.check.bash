@@ -186,32 +186,42 @@ function build() {
 	eval runcmd 0 $productbuilddir/$system/tests make check -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/utils make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 
+	let n=makejobs; if [ $parallel != 0 ] ; then let n=n/2; fi
 	range_trace=$(my_mktemp range)
-	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$range_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$range_trace 2>&1 $BG
 	lock_trace=$(my_mktemp lock)
-	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$lock_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$n -s SUMMARIZE=1 CC=$ftcc DEBUG=1 HAVE_CILK=$have_cilk VGRIND= >>$lock_trace 2>&1 $BG
 	wait
 	cat $range_trace >>$tracefile; rm $range_trace
 	cat $lock_trace >>$tracefile; rm $lock_trace
 
+	let n=makejobs; if [ $parallel != 0 ] ; then let n=n/2; fi
 	newbrt_trace=$(my_mktemp newbrt)
-	eval runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$newbrt_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/newbrt make check -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$newbrt_trace 2>&1 $BG
 	ydb_trace=$(my_mktemp ydb)
-	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$ydb_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$ydb_trace 2>&1 $BG
 	wait
 	cat $newbrt_trace >>$tracefile; rm $newbrt_trace
 	cat $ydb_trace >>$tracefile; rm $ydb_trace
 
         # benchmark tests
 	eval runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
-	eval runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
+
+	let n=makejobs; if [ $parallel != 0 ] ; then let n=n/3; fi
+	bench_trace=$(my_mktemp bench)
+	eval runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$bench_trace 2>&1 $BG
 
 	# stress tests
 	stress_trace=$(my_mktemp stress)
-	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$stress_trace 2>&1 $BG
+	if [ $stresstests != 0 ] ; then
+	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$stress_trace 2>&1 $BG
+	fi
 	drd_trace=$(my_mktemp drd)
-	eval runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$drd_trace 2>&1 $BG
+	if [ $drdtests != 0 ] ; then
+	eval runcmd 0 $productbuilddir/src/tests make tiny_stress_tests.drdrun -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$drd_trace 2>&1 $BG
+	fi
 	wait
+	cat $bench_trace >>$tracefile; rm $bench_trace
 	cat $stress_trace >>$tracefile; rm $stress_trace
 	cat $drd_trace >>$tracefile; rm $drd_trace
 
@@ -219,8 +229,6 @@ function build() {
 	if [ $upgradetests != 0 ] ; then
 	    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 	fi
-
-	# drd tests
     fi
 
     if [ $releasetests != 0 ] ; then
@@ -233,13 +241,8 @@ function build() {
         # release tests
 	eval runcmd 0 $productbuilddir/$system/tests make check -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/utils make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
-	range_trace=$(my_mktemp range)
-	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$range_trace 2>&1 $BG
-	lock_trace=$(my_mktemp lock)
-	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$lock_trace 2>&1 $BG
-	wait
-	cat $range_trace >>$tracefile; rm $range_trace
-	cat $lock_trace >>$tracefile; rm $lock_trace
+	eval runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
+	eval runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/newbrt/tests make check -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
@@ -337,6 +340,8 @@ have_poly=1
 debugtests=1
 releasetests=1
 upgradetests=0
+stresstests=1
+drdtests=1
 cilktests=0
 cxxtests=0
 parallel=0
