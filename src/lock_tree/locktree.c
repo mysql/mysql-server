@@ -1455,7 +1455,13 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
     *ptree = tree;
     r = 0;
 cleanup:
-    if (r != 0) {
+    if (r == 0) {
+	mgr->status.lt_create++;
+	mgr->status.lt_num++;
+	if (mgr->status.lt_num > mgr->status.lt_num_max)
+	    mgr->status.lt_num_max = mgr->status.lt_num;
+    }
+    else {
         if (tree != NULL) {
             if (added_to_ltm)
                 toku_ltm_remove_lt(mgr, tree);
@@ -1465,6 +1471,7 @@ cleanup:
                 lt_remove_db(tree, db);
             toku_lt_close(tree); 
         }
+	mgr->status.lt_create_fail++;
     }
     return r;
 }
@@ -1476,6 +1483,8 @@ toku_lt_close(toku_lock_tree* tree) {
     if (!tree) { 
         r = EINVAL; goto cleanup; 
     }
+    tree->mgr->status.lt_destroy++;
+    tree->mgr->status.lt_num--;
     toku_lock_request_tree_destroy(tree);
     r = toku_rt_close(tree->borderwrite);
     if (!first_error && r != 0)

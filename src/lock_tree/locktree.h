@@ -128,6 +128,11 @@ typedef struct ltm_status {
     uint64_t   write_lock;                 // number of times write lock taken successfully
     uint64_t   write_lock_fail;            // number of times write lock denied
     uint64_t   out_of_write_locks;         // number of times write lock denied for out_of_locks
+    uint64_t   lt_create;                  // number of locktrees created
+    uint64_t   lt_create_fail;             // number of locktrees unable to be created
+    uint64_t   lt_destroy;                 // number of locktrees destroyed
+    uint64_t   lt_num;                     // number of locktrees (should be created - destroyed)
+    uint64_t   lt_num_max;                 // max number of locktrees that have existed simultaneously
 } LTM_STATUS_S, *LTM_STATUS;
 
 

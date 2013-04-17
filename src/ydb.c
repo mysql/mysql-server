@@ -79,6 +79,10 @@ static u_int64_t num_multi_updates;
 static u_int64_t num_multi_updates_fail;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
+static u_int64_t num_db_open;
+static u_int64_t num_db_close;
+static u_int64_t max_db_open;               
+static u_int64_t num_open_dbs;
 
 static u_int64_t directory_read_locks;        /* total directory read locks taken */ 
 static u_int64_t directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
@@ -2992,6 +2996,10 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs++;
+    num_open_dbs = env->i->num_open_dbs;
+    num_db_open++;
+    if (num_open_dbs > max_db_open)
+	max_db_open = num_open_dbs;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -3007,6 +3015,8 @@ env_note_db_closed(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs--;
+    num_open_dbs = env->i->num_open_dbs;
+    num_db_close++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);

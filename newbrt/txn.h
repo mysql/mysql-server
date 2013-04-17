@@ -64,6 +64,8 @@ typedef struct txn_status {
     u_int64_t   commit;      // successful commits
     u_int64_t   abort;
     u_int64_t   close;       // should be sum of aborts and commits
+    u_int64_t   num_open;    // should be begin - close
+    u_int64_t   max_open;    // max value of num_open
 } TXN_STATUS_S, *TXN_STATUS;
 
 void toku_txn_get_status(TXN_STATUS s);
