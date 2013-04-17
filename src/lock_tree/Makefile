@@ -11,9 +11,18 @@ endif
 
 VISIBILITY = -fvisibility=hidden
 
-CFLAGS = -W -Wall -Wextra -fPIC $(OPTFLAGS)  -g3 -ggdb3 $(GCOV_FLAGS)
-CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
+CFLAGS = -Wall -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+ifeq ($(CC),icc)
+CFLAGS += -g
+CFLAGS += -diag-disable 177
+CFLAGS += -diag-disable 589
+CFLAGS += -diag-disable 981
+CFLAGS += -diag-disable 1324
+else
+CFLAGS += -g3 -ggdb3
+CFLAGS += -Werror -Wextra -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+endif
 CFLAGS += $(VISIBILITY) $(PROF_FLAGS)
 CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt -L../range_tree
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE

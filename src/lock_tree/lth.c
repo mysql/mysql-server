@@ -85,7 +85,7 @@ static inline toku_lth_elt* toku__lth_next(toku_lth* lth) {
     assert(lth->iter_is_valid);
 
     lth->iter_curr     = lth->iter_curr->next_in_iteration;
-    lth->iter_is_valid = lth->iter_curr != &lth->iter_head;
+    lth->iter_is_valid = (BOOL)(lth->iter_curr != &lth->iter_head);
     return lth->iter_curr;
 }
 

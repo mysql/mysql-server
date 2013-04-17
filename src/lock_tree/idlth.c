@@ -86,7 +86,7 @@ static inline toku_idlth_elt* toku__idlth_next(toku_idlth* idlth) {
     assert(idlth->iter_is_valid);
 
     idlth->iter_curr     = idlth->iter_curr->next_in_iteration;
-    idlth->iter_is_valid = idlth->iter_curr != &idlth->iter_head;
+    idlth->iter_is_valid = (BOOL)(idlth->iter_curr != &idlth->iter_head);
     return idlth->iter_curr;
 }
 
@@ -197,5 +197,5 @@ BOOL toku_idlth_is_empty(toku_idlth* idlth) {
            (idlth->iter_head.next_in_iteration == &idlth->iter_head));
     assert((idlth->num_keys == 0) ==
            (idlth->iter_head.prev_in_iteration == &idlth->iter_head));
-    return idlth->num_keys == 0;
+    return (BOOL)(idlth->num_keys == 0);
 }
