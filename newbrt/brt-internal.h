@@ -879,9 +879,6 @@ typedef enum {
     BRT_STATUS_NUM_ROWS
 } brt_status_entry;
 
-void brt_begin_checkpoint(void);
-void brt_end_checkpoint(void);
-
 typedef struct {
     bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[BRT_STATUS_NUM_ROWS];
