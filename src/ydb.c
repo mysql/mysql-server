@@ -5015,8 +5015,7 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
     //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
-    if (db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) return 0;
-    if (db_txn_struct_i(txn)->flags&DB_READ_COMMITTED) return 0;
+    if (db_txn_struct_i(txn)->flags&(DB_READ_UNCOMMITTED|DB_READ_COMMITTED)) return 0;
 
     DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;

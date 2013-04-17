@@ -4065,10 +4065,10 @@ brt_cursor_cleanup_dbts(BRT_CURSOR c) {
 static inline void brt_cursor_extract_key_and_val(
     LEAFENTRY le, 
     BRT_CURSOR cursor, 
-    u_int32_t* keylen,
-    bytevec*   key,
-    u_int32_t* vallen,
-    bytevec*   val
+    u_int32_t *keylen,
+    void     **key,
+    u_int32_t *vallen,
+    void     **val
     )
 {
     if (cursor->is_read_committed) {
@@ -4097,27 +4097,14 @@ static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {
     OMTVALUE le = 0;
     int r = toku_omt_cursor_current(c->omtcursor, &le);
     assert(r==0);
-    u_int32_t keylen;
-    bytevec   key_vec    = NULL;
-    u_int32_t vallen;
-    bytevec   val_vec    = NULL;
-    
     brt_cursor_extract_key_and_val(
         le,
         c,
-        &keylen,
-        &key_vec,
-        &vallen,
-        &val_vec
-        );
-    if (key) {
-        key->data = (void *)key_vec;
-        key->size = keylen;
-    }
-    if (val) {
-        val->data = (void *)val_vec;
-        val->size = vallen;
-    }
+        &key->size,
+        &key->data,
+        &val->size,
+        &val->data
+    );
 }
 
 // When an omt cursor is invalidated, this is the brt-level function
@@ -4371,9 +4358,9 @@ got_a_good_value:
     maybe_do_implicit_promotion_on_query(brtcursor, le);
     {
         u_int32_t keylen;
-        bytevec   key    = NULL;
+        void     *key;
         u_int32_t vallen;
-        bytevec   val    = NULL;
+        void     *val;
 
         brt_cursor_extract_key_and_val(
             le,
@@ -4818,9 +4805,9 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             if (!is_le_val_empty(le,cursor)) {
                 maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
-                bytevec   key    = NULL;
+                void     *key;
                 u_int32_t vallen;
-                bytevec   val    = NULL;
+                void     *val;
 
                 brt_cursor_extract_key_and_val(
                     le,
