@@ -3059,11 +3059,13 @@ deserialize_brtheader_versioned(int fd, struct rbuf *rb, struct brt_header **brt
     // anymore.  Since the header is going to think it's the current
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
+    if (version <= BRT_LAYOUT_VERSION_13) {
     int r = toku_update_descriptor(h, &h->cmp_descriptor, fd);
-    if (r != 0) {
-        errno = r;
-        e = DS_ERRNO;
-        goto exit;
+        if (r != 0) {
+            errno = r;
+            e = DS_ERRNO;
+            goto exit;
+        }
     }
 exit:
     if (e != DS_OK && h != NULL) {
