@@ -34,7 +34,7 @@ static inline int db_opened(DB *db) {
 
 static inline toku_dbt_cmp 
 toku_db_get_compare_fun(DB* db) {
-    return db->i->ft_handle->compare_fun;
+    return db->i->ft_handle->h->compare_fun;
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);

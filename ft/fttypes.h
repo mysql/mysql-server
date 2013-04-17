@@ -38,6 +38,7 @@ typedef struct ftnode_leaf_basement_node *BASEMENTNODE;
 typedef struct ftnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
 typedef struct sub_block *SUB_BLOCK;
 typedef struct ft *FT;
+typedef struct ft_options *FT_OPTIONS;
 struct wbuf;
 struct dbuf;
 
