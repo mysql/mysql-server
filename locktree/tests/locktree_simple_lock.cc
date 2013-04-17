@@ -140,8 +140,6 @@ void locktree_unit_test::test_simple_lock(void) {
         invariant(r == 0);
     }
     t1 = current_time_usec();
-    printf(PRId64 " locks acquired in %zd usec, %lf locks/sec\n",
-            num_locks, t1 - t0, num_locks / ((t1 - t0*1.0) / 1000000));
 
     t0 = current_time_usec();
     for (int64_t i = 0; i < num_locks; i++) {
@@ -149,8 +147,6 @@ void locktree_unit_test::test_simple_lock(void) {
         lt->remove_overlapping_locks_for_txnid(txnid_a, &k, &k);
     }
     t1 = current_time_usec();
-    printf(PRId64 " locks released in %zd usec, %lf locks/sec\n",
-            num_locks, t1 - t0, num_locks / ((t1 - t0*1.0) / 1000000));
 
     toku_free(keys);
 
