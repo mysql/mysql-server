@@ -188,6 +188,7 @@ int toku_txn_begin_with_xid (
     if (toku_omt_size(logger->live_txns) == 0) {
         assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
         logger->oldest_living_xid = result->txnid64;
+        logger->oldest_living_starttime = result->starttime;
     }
     assert(logger->oldest_living_xid <= result->txnid64);
 
