@@ -998,6 +998,14 @@ int toku_brt_loader_close (BRTLOADER bl,
     return result;
 }
 
+int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
+/* Effect : Abort the bulk loader, free brtloader resources */
+{
+    int result = 0;
+    brtloader_destroy(bl, is_error);
+    return result;
+}
+
 struct dbuf {
     unsigned char *buf;
     int buflen;

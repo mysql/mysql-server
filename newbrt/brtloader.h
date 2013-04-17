@@ -19,6 +19,8 @@ int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val);
 int toku_brt_loader_close (BRTLOADER bl,
 			   void (*error_callback)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra,
 			   int (*poll_callback)(void *extra, float progress), 	                                 void *poll_callback_extra);
+int toku_brt_loader_abort(BRTLOADER bl, 
+                          BOOL is_error);
 
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
