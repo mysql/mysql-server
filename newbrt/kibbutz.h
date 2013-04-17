@@ -3,10 +3,6 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "c_dialects.h"
-
-C_BEGIN
-
 //
 // The kibbutz is another threadpool meant to do arbitrary work.
 // It is introduced in Dr. No, and as of Dr. No, the only work kibbutzim
@@ -37,7 +33,5 @@ void toku_kibbutz_enq (KIBBUTZ k, void (*f)(void*), void *extra);
 // destroys the kibbutz
 //
 void toku_kibbutz_destroy (KIBBUTZ k);
-
-C_END
 
 #endif

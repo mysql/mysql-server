@@ -23,7 +23,6 @@
 #include "pqueue.h"
 #include "trace_mem.h"
 #include "dbufio.h"
-#include "c_dialects.h"
 #include "leafentry.h"
 #include "log-internal.h"
 
@@ -49,9 +48,6 @@
 #define cilk_for for
 #define cilk_worker_count 1
 #endif
-
-// mark everything as C and selectively mark cilk functions
-C_BEGIN
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
@@ -437,14 +433,12 @@ static unsigned brt_loader_get_fractal_workers_count(BRTLOADER bl) {
     return w;
 }
 
-CILK_BEGIN
 static void brt_loader_set_fractal_workers_count(BRTLOADER bl) {
     brt_loader_lock(bl);
     if (bl->fractal_workers == 0)
         bl->fractal_workers = cilk_worker_count;
     brt_loader_unlock(bl);
 }
-CILK_END
 
 // To compute a merge, we have a certain amount of memory to work with.
 // We perform only one fanin at a time.
@@ -938,7 +932,6 @@ int add_row (struct rowset *rows, DBT *key, DBT *val)
 
 static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset);
 
-CILK_BEGIN
 static int finish_primary_rows_internal (BRTLOADER bl)
 // now we have been asked to finish up.
 // Be sure to destroy the rowsets.
@@ -966,14 +959,9 @@ static int finish_primary_rows_internal (BRTLOADER bl)
     toku_free(ra);
     return r;
 }
-CILK_END
 
 static int finish_primary_rows (BRTLOADER bl) {
-#if defined(__cilkplusplus)
-    return cilk::run(finish_primary_rows_internal, bl);
-#else
     return           finish_primary_rows_internal (bl);
-#endif
 }
 
 static void* extractor_thread (void *blv) {
@@ -1090,13 +1078,7 @@ static DBT make_dbt (void *data, u_int32_t size) {
     return result;
 }
 
-// gcc 4.1 does not like f&a
-// Previously this macro was defined without "()".  This macro should look like a function call not a variable dereference, however.
-#if defined(__cilkplusplus)
-#define inc_error_count() __sync_fetch_and_add(&error_count, 1)
-#else
 #define inc_error_count() error_count++
-#endif
 
 static TXNID leafentry_xid(BRTLOADER bl, int which_db) {
     TXNID le_xid = TXNID_NONE;
@@ -1113,8 +1095,6 @@ size_t brtloader_leafentry_size(size_t key_size, size_t val_size, TXNID xid) {
         s = LE_MVCC_COMMITTED_MEMSIZE(key_size, val_size);
     return s;
 }
-
-CILK_BEGIN
 
 static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_rowset)
 // process the rows in primary_rowset, and then destroy the rowset.
@@ -1235,19 +1215,13 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
     BL_TRACE(blt_extractor);
     return r;
 }
-CILK_END
 
 static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset) {
     BL_TRACE(blt_extractor);
-#if defined(__cilkplusplus)
-    int r = cilk::run(process_primary_rows_internal, bl, primary_rowset);
-#else
-    int r =           process_primary_rows_internal (bl, primary_rowset);
-#endif
+    int r = process_primary_rows_internal (bl, primary_rowset);
     BL_TRACE(blt_extractor);
     return r;
 }
-
  
 int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val)
 /* Effect: Put a key-value pair into the brt loader.  Called by DB_LOADER->put().
@@ -1371,7 +1345,6 @@ static int binary_search (int *location,
 
 #define SWAP(typ,x,y) { typ tmp = x; x=y; y=tmp; }
 
-CILK_BEGIN
 static int merge_row_arrays (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
 			     int which_db, DB *dest_db, brt_compare_func compare,
 			     BRTLOADER bl,
@@ -1408,9 +1381,7 @@ static int merge_row_arrays (struct row dest[/*an+bn*/], struct row a[/*an*/], i
     if (ra!=0) return ra;
     else       return rb;
 }
-CILK_END
 
-CILK_BEGIN
 int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func compare, BRTLOADER bl, struct rowset *rowset)
 /* Sort an array of rows (using mergesort).
  * Arguments:
@@ -1445,18 +1416,12 @@ int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_d
     toku_free(tmp);
     return 0;
 }
-CILK_END
 
 // C function for testing mergesort_row_array 
 int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func compare, BRTLOADER bl, struct rowset *rowset) {
-#if defined(__cilkplusplus)
-    return cilk::run(mergesort_row_array, rows, n, which_db, dest_db, compare, bl, rowset);
-#else
-    return           mergesort_row_array (rows, n, which_db, dest_db, compare, bl, rowset);
-#endif
+    return mergesort_row_array (rows, n, which_db, dest_db, compare, bl, rowset);
 }
 
-CILK_BEGIN
 static int sort_rows (struct rowset *rows, int which_db, DB *dest_db, brt_compare_func compare,
 		      BRTLOADER bl)
 /* Effect: Sort a collection of rows.
@@ -1467,7 +1432,6 @@ static int sort_rows (struct rowset *rows, int which_db, DB *dest_db, brt_compar
 {
     return mergesort_row_array(rows->rows, rows->n_rows, which_db, dest_db, compare, bl, rows);
 }
-CILK_END
 
 /* filesets Maintain a collection of files.  Typically these files are each individually sorted, and we will merge them.
  * These files have two parts, one is for the data rows, and the other is a collection of offsets so we an more easily parallelize the manipulation (e.g., by allowing us to find the offset of the ith row quickly). */
@@ -1564,7 +1528,6 @@ static int write_rowset_to_file (BRTLOADER bl, FIDX sfile, const struct rowset r
 }
 
 
-CILK_BEGIN
 int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare)
 /* Effect: Given a rowset, sort it and write it to a temporary file.
  * Note:  The loader maintains for each index the most recently written-to file, as well as the DBT for the last key written into that file.
@@ -1633,15 +1596,10 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
     
     return result;
 }
-CILK_END
 
 // C function for testing sort_and_write_rows
 int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare) {
-#if defined(__cilkplusplus)
-    return cilk::run(sort_and_write_rows, *rows, fs, bl, which_db, dest_db, compare);
-#else
-    return           sort_and_write_rows (*rows, fs, bl, which_db, dest_db, compare);
-#endif
+    return sort_and_write_rows (*rows, fs, bl, which_db, dest_db, compare);
 }
 
 int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation)
@@ -2218,10 +2176,8 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     return lbuf;
 }
 
-CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize);
 static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize);
-CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk);
@@ -2261,7 +2217,6 @@ static int copy_maxkey(DBT *maxkey) {
     return r;
 }
 
-CILK_BEGIN
 static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 const DESCRIPTOR descriptor,
 					 int fd, // write to here
@@ -2530,7 +2485,6 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     return result;
 }
-CILK_END
 
 int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       const DESCRIPTOR descriptor,
@@ -2546,22 +2500,14 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;
     target_basementnodesize = target_basementnodesize == 0 ? default_loader_basementnodesize : target_basementnodesize;
-#if defined(__cilkplusplus)
-    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
-#else
-    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
-#endif
+    return toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
 }
 
 
 static void* fractal_thread (void *ftav) {
     BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
-#if defined(__cilkplusplus)
-    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
-#else
-    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
-#endif
+    int r = toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
     fta->errno_result = r;
     return NULL;
 }
@@ -2805,7 +2751,6 @@ static int write_literal(struct dbout *out, void*data,  size_t len) {
     return result;
 }
 
-CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize) {
     int result = 0;
 
@@ -2844,8 +2789,6 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     if (result)
         brt_loader_set_panic(bl, result, TRUE);
 }
-
-CILK_END
 
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p) {
     seek_align(out);
@@ -2990,8 +2933,6 @@ static int setup_nonleaf_block (int n_children,
 
     return result;
 }
-
-CILK_BEGIN
 
 static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknum_of_new_node, int n_children,
                                 DBT *pivots, /* must free this array, as well as the things it points t */
@@ -3186,15 +3127,8 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
     return result;
 }
 
-CILK_END
-
 void brt_loader_set_fractal_workers_count_from_c(BRTLOADER bl) {
-#if defined(__cilkplusplus)
-    cilk::run(brt_loader_set_fractal_workers_count, bl);
-#else
-              brt_loader_set_fractal_workers_count (bl);
-#endif
+    brt_loader_set_fractal_workers_count (bl);
 }
 
-C_END
 

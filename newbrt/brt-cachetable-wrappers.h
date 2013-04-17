@@ -6,11 +6,8 @@
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <c_dialects.h>
 #include <brttypes.h>
 #include "cachetable.h"
-
-C_BEGIN
 
 /**
  * Put an empty node (that is, no fields filled) into the cachetable. 
@@ -128,7 +125,5 @@ toku_unpin_brtnode(BRT brt, BRTNODE node);
 
 void
 toku_unpin_brtnode_read_only(BRT brt, BRTNODE node);
-
-C_END
 
 #endif

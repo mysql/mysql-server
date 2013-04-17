@@ -8,10 +8,6 @@
 #include <toku_list.h>
 #include <toku_pthread.h>
 
-#include "c_dialects.h"
-
-C_BEGIN
-
 // The work struct is the base class for work to be done by some threads
 struct work {
     struct toku_list next;
@@ -106,7 +102,5 @@ workset_join(struct workset *ws) {
     }
     workset_unlock(ws);
 }
-
-C_END
 
 #endif

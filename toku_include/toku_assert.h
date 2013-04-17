@@ -5,10 +5,11 @@
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
 #include <stdint.h>
-#include "c_dialects.h"
 #include "errno.h"
 
-C_BEGIN
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #ifdef NDEBUG
 #error NDEBUG should not be set
@@ -52,6 +53,8 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable
 
-C_END
+#if defined(__cplusplus)
+};
+#endif
 
 #endif

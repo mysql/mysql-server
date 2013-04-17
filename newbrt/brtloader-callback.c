@@ -113,7 +113,3 @@ int brt_loader_call_poll_function(brtloader_poll_callback p, float progress) {
 	r = p->poll_function(p->poll_extra, progress);
     return r;
 }
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif

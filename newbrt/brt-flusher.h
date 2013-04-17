@@ -7,9 +7,6 @@
 
 // This must be first to make the 64-bit file mode work right in Linux
 #include <brttypes.h>
-#include <c_dialects.h>
-
-C_BEGIN
 
 typedef enum {
     BRT_FLUSHER_CLEANER_TOTAL_NODES = 0,     // total number of nodes whose buffers are potentially flushed by cleaner thread
@@ -145,7 +142,5 @@ int
 toku_brt_hot_optimize(BRT brt,
                       int (*progress_callback)(void *extra, float progress),
                       void *progress_extra);
-
-C_END
 
 #endif // End of header guardian.

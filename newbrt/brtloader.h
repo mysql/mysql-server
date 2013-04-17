@@ -6,10 +6,6 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "c_dialects.h"
-
-C_BEGIN
-
 // The loader callbacks are C functions and need to be defined as such
 
 typedef void (*brt_loader_error_func)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra);
@@ -45,7 +41,5 @@ void toku_brtloader_set_size_factor (uint32_t factor);
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
 size_t brtloader_leafentry_size(size_t key_size, size_t val_size, TXNID xid);
-
-C_END
 
 #endif // BRTLOADER_H
