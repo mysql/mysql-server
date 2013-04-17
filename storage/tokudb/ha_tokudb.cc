@@ -1601,9 +1601,10 @@ int ha_tokudb::initialize_share(
     bool table_exists;
     DB_TXN* txn = NULL;
     bool do_commit = false;
+    THD* thd = ha_thd();
     tokudb_trx_data *trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
-    if (trx && trx->sub_sp_level) {
+    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
         txn = trx->sub_sp_level;
     }
     else {
@@ -6482,6 +6483,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char* newname = NULL;
     KEY_AND_COL_INFO kc_info;
     tokudb_trx_data *trx = NULL;
+    THD* thd = ha_thd();
     bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     bzero(&kc_info, sizeof(kc_info));
 
@@ -6499,7 +6501,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
-    if (trx && trx->sub_sp_level) {
+    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
         txn = trx->sub_sp_level;
     }
     else {
