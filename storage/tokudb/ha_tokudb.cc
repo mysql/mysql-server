@@ -3046,7 +3046,6 @@ double ha_tokudb::scan_time() {
 //
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
-#if 0 // QQQ need key_range
     DBT key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
     DB *kfile = key_file[keynr];
@@ -3117,9 +3116,6 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     ret_val = (ha_rows) (rows <= 1 ? 1 : rows);
 cleanup:
     TOKUDB_DBUG_RETURN(ret_val);
-#else
-    TOKUDB_DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
-#endif
 }
 
 void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values) {
