@@ -958,6 +958,22 @@ locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const D
     return r;
 }
 
+static void
+format_time(const time_t *timer, char *buf) {
+    ctime_r(timer, buf);
+    size_t len = strlen(buf);
+    assert(len < 26);
+    char end;
+
+    assert(len>=1);
+    end = buf[len-1];
+    while (end == '\n' || end == '\r') {
+        buf[len-1] = '\0';
+        len--;
+        assert(len>=1);
+        end = buf[len-1];
+    }
+}
 
 // Do not take ydb lock around or in this function.  
 // If the engine is blocked because some thread is holding the ydb lock, this function
@@ -970,9 +986,18 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
     else {
+	time_t now = time(NULL);
+        format_time(&now, engstat->now);
 	engstat->ydb_lock_ctr = toku_ydb_lock_ctr();                       // is ydb lock held? how many times?
 	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock (take minicron lock, but that's a very ephemeral low-level lock)
-	engstat->checkpoint_footprint = toku_checkpoint_get_footprint();
+	{
+            CHECKPOINT_STATUS_S cpstat;
+            toku_checkpoint_get_status(&cpstat);
+            engstat->checkpoint_footprint = cpstat.footprint;
+	    format_time(&cpstat.time_last_checkpoint_begin_complete, engstat->checkpoint_time_begin_complete);
+	    format_time(&cpstat.time_last_checkpoint_begin,          engstat->checkpoint_time_begin);
+	    format_time(&cpstat.time_last_checkpoint_end,            engstat->checkpoint_time_end);
+	}
 	{
 	    CACHETABLE_STATUS_S ctstat;
 	    toku_cachetable_get_status(env->i->cachetable, &ctstat);

@@ -37,6 +37,7 @@
  *  - ydb_big_lock
  *    This is the existing lock used to serialize all access to tokudb.
  *    This lock is held by the checkpoint function only for as long as is required to 
+
  *    to set all the "pending" bits and to create the checkpoint-in-progress versions
  *    of the header and translation table (btt).
  *    
@@ -48,14 +49,19 @@
  *****/
 
 #include <toku_portability.h>
+#include <time.h>
+
 #include "brttypes.h"
 #include "cachetable.h"
 #include "log-internal.h"
 #include "logger.h"
 #include "checkpoint.h"
 
-// footprint for debugging and status reporting only
+// for debugging/accountability and status reporting only
 static u_int32_t checkpoint_footprint = 0;
+static time_t time_last_checkpoint_begin_complete;
+static time_t time_last_checkpoint_begin;
+static time_t time_last_checkpoint_end;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
@@ -156,9 +162,12 @@ toku_checkpoint_safe_client_unlock(void) {
 }
 
 
-u_int32_t 
-toku_checkpoint_get_footprint(void) {
-    return checkpoint_footprint;
+void
+toku_checkpoint_get_status(CHECKPOINT_STATUS s) {
+    s->footprint = checkpoint_footprint;
+    s->time_last_checkpoint_begin_complete = time_last_checkpoint_begin_complete;
+    s->time_last_checkpoint_begin = time_last_checkpoint_begin;
+    s->time_last_checkpoint_end   = time_last_checkpoint_end;
 }
 
 
@@ -207,6 +216,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
     ydb_lock();
     
     checkpoint_footprint = 40;
+    time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
     LSN oldest_live_lsn = toku_logger_get_oldest_living_lsn(logger);
 
@@ -225,6 +235,8 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
     }
 
     checkpoint_footprint = 60;
+    time_last_checkpoint_end = time(NULL);
+    time_last_checkpoint_begin_complete = time_last_checkpoint_begin;
     checkpoint_safe_checkpoint_unlock();
     checkpoint_footprint = 0;
 

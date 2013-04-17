@@ -347,9 +347,13 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
+    printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
     printf("  u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
+    printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");
+    printf("  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ \n");
+    printf("  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ \n");
     printf("  u_int32_t        cachetable_lock_ctr;     /* how many times has cachetable lock been taken/released */ \n");
     printf("  u_int64_t        cachetable_hit;          /* how many cache hits   */ \n");
     printf("  u_int64_t        cachetable_miss;         /* how many cache misses */ \n");
@@ -371,6 +375,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t        aborts;                  /* ydb txn abort operations             */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                    */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries               */ \n");
+    
 
     //    printf("  struct timeval   checkpoint_tbegin;       /* time of last checkpoint begin        */ \n");
     //    printf("  struct timeval   checkpoint_tend;         /* time of last checkpoint end          */ \n");

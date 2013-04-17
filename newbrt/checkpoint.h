@@ -66,6 +66,14 @@ int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
  * Some status information may be incorrect because no locks are taken to collect status.
  * (If checkpoint is in progress, it may overwrite status info while it is being read.)
  *****/
+typedef struct {
+    u_int32_t footprint;
+    time_t time_last_checkpoint_begin_complete;
+    time_t time_last_checkpoint_begin;
+    time_t time_last_checkpoint_end;
+} CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
-u_int32_t toku_checkpoint_get_footprint(void);
+void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);
+
+
 

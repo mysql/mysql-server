@@ -43,9 +43,13 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
 } DB_BTREE_STAT64;
 typedef struct __toku_engine_status {
+  char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int32_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
   u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
   u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
+  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
+  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ 
+  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ 
   u_int32_t        cachetable_lock_ctr;     /* how many times has cachetable lock been taken/released */ 
   u_int64_t        cachetable_hit;          /* how many cache hits   */ 
   u_int64_t        cachetable_miss;         /* how many cache misses */ 
