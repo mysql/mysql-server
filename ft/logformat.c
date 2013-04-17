@@ -124,7 +124,7 @@ const struct logtype logtypes[] = {
                            {"BLOCKNUM",  "spilled_rollback_head", 0}, 
                            {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                            {"BLOCKNUM",  "current_rollback", 0}, 
-                           NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
+                           NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED}, // record all transactions
     // prepared txns need a gid
     {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
                                    {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
@@ -136,7 +136,7 @@ const struct logtype logtypes[] = {
                                    {"BLOCKNUM",  "spilled_rollback_head", 0}, 
                                    {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                                    {"BLOCKNUM",  "current_rollback", 0}, 
-                                   NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
+                                   NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED}, // record all transactions
     {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
                                   {"TXNID",      "xid", 0},
                                   NULLFIELD}, SHOULD_LOG_BEGIN},
