@@ -122,7 +122,18 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
                 txn->roll_info.spilled_rollback_head_hash = next_log_hash;
             }
         }
-        toku_rollback_log_unpin_and_remove(txn, log);
+        bool give_back = false;
+        // each txn tries to give back at most one rollback log node
+        // to the cache.
+        if (next_log.b == ROLLBACK_NONE.b) {
+            give_back = txn->logger->rollback_cache.give_rollback_log_node(
+                txn,
+                log
+                );
+        }
+        if (!give_back) {
+            toku_rollback_log_unpin_and_remove(txn, log);
+        }
     }
     return r;
 }
@@ -183,7 +194,17 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
                 // If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
                 memarena_move_buffers(parent_log->rollentry_arena, child_log->rollentry_arena);
             }
-            toku_rollback_log_unpin_and_remove(txn, child_log);
+            // each txn tries to give back at most one rollback log node
+            // to the cache. All other rollback log nodes for this child
+            // transaction are included in the parent's rollback log,
+            // so this is the only node we can give back to the cache
+            bool give_back = txn->logger->rollback_cache.give_rollback_log_node(
+                txn,
+                child_log
+                );
+            if (!give_back) {
+                toku_rollback_log_unpin_and_remove(txn, child_log);
+            }
             txn->roll_info.current_rollback = ROLLBACK_NONE;
             txn->roll_info.current_rollback_hash = 0;
 

@@ -5,7 +5,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
-#include "ft-internal.h"	// ugly but pragmatic, need access to dirty bits while holding translation lock
+#include "ft-internal.h"        // ugly but pragmatic, need access to dirty bits while holding translation lock
 #include "fttypes.h"
 #include "block_table.h"
 #include "memory.h"
@@ -145,8 +145,8 @@ copy_translation(struct translation * dst, struct translation * src, enum transl
     dst->length_of_array              = dst->smallest_never_used_blocknum.b;
     XMALLOC_N(dst->length_of_array, dst->block_translation);
     memcpy(dst->block_translation,
-	   src->block_translation,
-	   dst->length_of_array * sizeof(*dst->block_translation));
+           src->block_translation,
+           dst->length_of_array * sizeof(*dst->block_translation));
     //New version of btt is not yet stored on disk.
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size      = 0;
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff = diskoff_unused;
@@ -241,7 +241,7 @@ cleanup_failed_checkpoint (BLOCK_TABLE bt) {
 
     for (i = 0; i < t->length_of_array; i++) {
         struct block_translation_pair *pair = &t->block_translation[i];
-	if (pair->size > 0 &&
+        if (pair->size > 0 &&
             !translation_prevents_freeing(&bt->current, make_blocknum(i), pair) &&
             !translation_prevents_freeing(&bt->checkpointed, make_blocknum(i), pair)) {
 PRNTF("free", i, pair->size, pair->u.diskoff, bt);
@@ -368,7 +368,7 @@ static int64_t
 calculate_size_on_disk (struct translation *t) {
     int64_t r = (8 + // smallest_never_used_blocknum
                  8 + // blocknum_freelist_head
-	         t->smallest_never_used_blocknum.b * 16 + // Array
+                 t->smallest_never_used_blocknum.b * 16 + // Array
                  4); // 4 for checksum
     return r;
 }
@@ -400,18 +400,21 @@ PRNTF("Freed", b.b, old_pair.size, old_pair.u.diskoff, bt);
         block_allocator_free_block(bt->block_allocator, old_pair.u.diskoff);
     }
 
-    uint64_t allocator_offset;
-    //Allocate a new block
-    block_allocator_alloc_block(bt->block_allocator, size, &allocator_offset);
+    uint64_t allocator_offset = diskoff_unused;
+    t->block_translation[b.b].size = size;
+    if (size > 0) {
+        // Allocate a new block if the size is greater than 0,
+        // if the size is just 0, offset will be set to diskoff_unused
+        block_allocator_alloc_block(bt->block_allocator, size, &allocator_offset);
+    }
     t->block_translation[b.b].u.diskoff = allocator_offset;
-    t->block_translation[b.b].size    = size;
     *offset = allocator_offset;
 
 PRNTF("New", b.b, t->block_translation[b.b].size, t->block_translation[b.b].u.diskoff, bt);
     //Update inprogress btt if appropriate (if called because Pending bit is set).
     if (for_checkpoint) {
-	assert(b.b < bt->inprogress.length_of_array);
-	bt->inprogress.block_translation[b.b] = t->block_translation[b.b];
+        assert(b.b < bt->inprogress.length_of_array);
+        bt->inprogress.block_translation[b.b] = t->block_translation[b.b];
     }
 }
 
@@ -630,15 +633,36 @@ toku_block_verify_no_free_blocknums(BLOCK_TABLE bt) {
     assert(bt->current.blocknum_freelist_head.b == freelist_null.b);
 }
 
+// Frees blocknums that have a size of 0 and unused diskoff
+// Currently used for eliminating unused cached rollback log nodes
+void
+toku_free_unused_blocknums(BLOCK_TABLE bt, BLOCKNUM root) {
+    lock_for_blocktable(bt);
+    int64_t smallest = bt->current.smallest_never_used_blocknum.b;
+    for (int64_t i=RESERVED_BLOCKNUMS; i < smallest; i++) {
+        if (i == root.b) {
+            continue;
+        }
+        BLOCKNUM b = make_blocknum(i);
+        if (bt->current.block_translation[b.b].size == 0) {
+            invariant(bt->current.block_translation[b.b].u.diskoff == diskoff_unused);
+            free_blocknum_in_translation(&bt->current, b);
+        }
+    }
+    unlock_for_blocktable(bt);
+}
+
+
 //Verify there are no data blocks except root.
 void
-toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root) {
+toku_block_verify_no_data_blocks_except_root(BLOCK_TABLE bt, BLOCKNUM root) {
     lock_for_blocktable(bt);
-    //Relies on checkpoint having used optimize_translation
     assert(root.b >= RESERVED_BLOCKNUMS);
-    assert(bt->current.smallest_never_used_blocknum.b == root.b + 1);
-    int64_t i;
-    for (i=RESERVED_BLOCKNUMS; i < root.b; i++) {
+    int64_t smallest = bt->current.smallest_never_used_blocknum.b;
+    for (int64_t i=RESERVED_BLOCKNUMS; i < smallest; i++) {
+        if (i == root.b) {
+            continue;
+        }
         BLOCKNUM b = make_blocknum(i);
         assert(bt->current.block_translation[b.b].size == size_is_free);
     }

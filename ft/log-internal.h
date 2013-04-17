@@ -20,6 +20,7 @@
 #include "txn_manager.h"
 #include <portability/toku_pthread.h>
 #include <util/omt.h>
+#include "rollback_log_node_cache.h"
 
 using namespace toku;
 // Locking for the logger
@@ -93,6 +94,7 @@ struct tokulogger {
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
     CACHEFILE rollback_cachefile;
+    rollback_log_node_cache rollback_cache;
     TXN_MANAGER txn_manager;
 };
 

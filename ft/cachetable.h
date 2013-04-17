@@ -528,7 +528,6 @@ uint64_t toku_cachefile_size(CACHEFILE cf);
 typedef enum {
     CT_MISS = 0,
     CT_MISSTIME,               // how many usec spent waiting for disk read because of cache miss
-    CT_PUTS,                   // how many times has a newly created node been put into the cachetable?
     CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
     CT_SIZE_CURRENT,           // the sum of the sizes of the nodes represented in the cachetable
     CT_SIZE_LIMIT,             // the limit to the sum of the node sizes

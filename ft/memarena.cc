@@ -33,8 +33,8 @@ void memarena_clear (MEMARENA ma) {
     // Free the other bufs.
     int i;
     for (i=0; i<ma->n_other_bufs; i++) {
-	toku_free(ma->other_bufs[i]);
-	ma->other_bufs[i]=0;
+        toku_free(ma->other_bufs[i]);
+        ma->other_bufs[i]=0;
     }
     ma->n_other_bufs=0;
     // But reuse the main buffer
@@ -54,25 +54,25 @@ round_to_page (size_t size) {
 
 void* malloc_in_memarena (MEMARENA ma, size_t size) {
     if (ma->buf_size < ma->buf_used + size) {
-	// The existing block isn't big enough.
-	// Add the block to the vector of blocks.
-	if (ma->buf) {
-	    int old_n = ma->n_other_bufs;
-	    REALLOC_N(old_n+1, ma->other_bufs);
-	    assert(ma->other_bufs);
-	    ma->other_bufs[old_n]=ma->buf;
-	    ma->n_other_bufs = old_n+1;
+        // The existing block isn't big enough.
+        // Add the block to the vector of blocks.
+        if (ma->buf) {
+            int old_n = ma->n_other_bufs;
+            REALLOC_N(old_n+1, ma->other_bufs);
+            assert(ma->other_bufs);
+            ma->other_bufs[old_n]=ma->buf;
+            ma->n_other_bufs = old_n+1;
             ma->size_of_other_bufs += ma->buf_size;
-	}
-	// Make a new one
-	{
-	    size_t new_size = 2*ma->buf_size;
-	    if (new_size<size) new_size=size;
-	    new_size=round_to_page(new_size); // at least size, but round to the next page size
-	    XMALLOC_N(new_size, ma->buf);
-	    ma->buf_used = 0;
-	    ma->buf_size = new_size;
-	}
+        }
+        // Make a new one
+        {
+            size_t new_size = 2*ma->buf_size;
+            if (new_size<size) new_size=size;
+            new_size=round_to_page(new_size); // at least size, but round to the next page size
+            XMALLOC_N(new_size, ma->buf);
+            ma->buf_used = 0;
+            ma->buf_size = new_size;
+        }
     }
     // allocate in the existing block.
     char *result=ma->buf+ma->buf_used;
@@ -89,12 +89,12 @@ void *memarena_memdup (MEMARENA ma, const void *v, size_t len) {
 void memarena_close(MEMARENA *map) {
     MEMARENA ma=*map;
     if (ma->buf) {
-	toku_free(ma->buf);
-	ma->buf=0;
+        toku_free(ma->buf);
+        ma->buf=0;
     }
     int i;
     for (i=0; i<ma->n_other_bufs; i++) {
-	toku_free(ma->other_bufs[i]);
+        toku_free(ma->other_bufs[i]);
     }
     if (ma->other_bufs) toku_free(ma->other_bufs);
     ma->other_bufs=0;
@@ -116,15 +116,15 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
 #if TOKU_WINDOWS_32
     if (other_bufs == 0) {
-	char **new_other_bufs;
+        char **new_other_bufs;
         printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
         printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n",
                move_counter,
                dest, dest->other_bufs, dest->n_other_bufs,
                source, source->other_bufs, source->n_other_bufs,
                errno);
-	new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));
- 	printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
+        new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));
+         printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
     }
 #endif
 
@@ -134,7 +134,7 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     assert(other_bufs);
     dest->other_bufs = other_bufs;
     for (i=0; i<source->n_other_bufs; i++) {
-	dest->other_bufs[dest->n_other_bufs++] = source->other_bufs[i];
+        dest->other_bufs[dest->n_other_bufs++] = source->other_bufs[i];
     }
     dest->other_bufs[dest->n_other_bufs++] = source->buf;
     source->n_other_bufs = 0;

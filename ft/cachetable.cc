@@ -31,7 +31,6 @@
 // so they are still easily available to the debugger and to save lots of typing.
 static uint64_t cachetable_miss;
 static uint64_t cachetable_misstime;     // time spent waiting for disk read
-static uint64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
 static uint64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
 static uint64_t cachetable_evictions;
 static uint64_t cleaner_executions; // number of times the cleaner thread's loop has executed
@@ -53,7 +52,6 @@ status_init(void) {
 
     STATUS_INIT(CT_MISS,                   UINT64, "miss");
     STATUS_INIT(CT_MISSTIME,               UINT64, "miss time");
-    STATUS_INIT(CT_PUTS,                   UINT64, "puts (new nodes created)");
     STATUS_INIT(CT_PREFETCHES,             UINT64, "prefetches");
     STATUS_INIT(CT_SIZE_CURRENT,           UINT64, "size current");
     STATUS_INIT(CT_SIZE_LIMIT,             UINT64, "size limit");
@@ -107,7 +105,6 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     }
     STATUS_VALUE(CT_MISS)                   = cachetable_miss;
     STATUS_VALUE(CT_MISSTIME)               = cachetable_misstime;
-    STATUS_VALUE(CT_PUTS)                   = cachetable_puts;
     STATUS_VALUE(CT_PREFETCHES)             = cachetable_prefetches;
     STATUS_VALUE(CT_EVICTIONS)              = cachetable_evictions;
     STATUS_VALUE(CT_CLEANER_EXECUTIONS)     = cleaner_executions;
@@ -780,9 +777,9 @@ void pair_init(PAIR p,
 // Requires pair list's write lock to be held on entry.
 // On exit, get pair with mutex held
 //
-static PAIR cachetable_insert_at(CACHETABLE ct, 
-                                 CACHEFILE cachefile, CACHEKEY key, void *value, 
-                                 uint32_t fullhash, 
+static PAIR cachetable_insert_at(CACHETABLE ct,
+                                 CACHEFILE cachefile, CACHEKEY key, void *value,
+                                 uint32_t fullhash,
                                  PAIR_ATTR attr,
                                  CACHETABLE_WRITE_CALLBACK write_callback,
                                  enum cachetable_dirty dirty) {
@@ -798,12 +795,19 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
         fullhash,
         write_callback,
         &ct->ev,
-        &ct->list);
+        &ct->list
+        );
 
     ct->list.put(p);
     ct->ev.add_pair_attr(attr);
     return p;
 }
+
+static void cachetable_insert_pair_at(CACHETABLE ct, PAIR p, PAIR_ATTR attr) {
+    ct->list.put(p);
+    ct->ev.add_pair_attr(attr);
+}
+
 
 // has ct locked on entry
 // This function MUST NOT release and reacquire the cachetable lock
@@ -813,41 +817,27 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
 //
 static void cachetable_put_internal(
     CACHEFILE cachefile, 
-    CACHEKEY key, 
-    uint32_t fullhash, 
+    PAIR p,
     void *value, 
     PAIR_ATTR attr,
-    CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_PUT_CALLBACK put_callback
     )
 {
     CACHETABLE ct = cachefile->cachetable;
-    PAIR p = ct->list.find_pair(cachefile, key, fullhash);
-    invariant_null(p);
-
-    // flushing could change the table size, but wont' change the fullhash
-    cachetable_puts++;
-    p = cachetable_insert_at(
-        ct, 
-        cachefile, 
-        key, 
-        value,
-        fullhash, 
-        attr, 
-        write_callback,
-        CACHETABLE_DIRTY
-        );
-    invariant_notnull(p);
-    pair_lock(p);
-    p->value_rwlock.write_lock(true);
-    pair_unlock(p);
-    //note_hash_count(count);
+    //
+    //
+    // TODO: (Zardosht), make code run in debug only 
+    //
+    //
+    //PAIR dummy_p = ct->list.find_pair(cachefile, key, fullhash);
+    //invariant_null(dummy_p);
+    cachetable_insert_pair_at(ct, p, attr);
     invariant_notnull(put_callback);
     put_callback(value, p);
 }
 
 // Pair mutex (p->mutex) is may or may not be held on entry,
-// Holding the pair mutex on entry is not important 
+// Holding the pair mutex on entry is not important
 // for performance or corrrectness
 // Pair is pinned on entry
 static void
@@ -1061,10 +1051,41 @@ static void get_pairs(
     }
 }
 
+// does NOT include the actual key and fullhash we eventually want
+// a helper function for the two cachetable_put functions below
+static inline PAIR malloc_and_init_pair(
+    CACHEFILE cachefile,
+    void *value,
+    PAIR_ATTR attr,
+    CACHETABLE_WRITE_CALLBACK write_callback
+    )
+{
+    CACHETABLE ct = cachefile->cachetable;
+    CACHEKEY dummy_key = {0};
+    uint32_t dummy_fullhash = 0;
+    PAIR XMALLOC(p);
+    memset(p, 0, sizeof *p);
+    pair_init(p,
+        cachefile,
+        dummy_key,
+        value,
+        attr,
+        CACHETABLE_DIRTY,
+        dummy_fullhash,
+        write_callback,
+        &ct->ev,
+        &ct->list
+        );
+    pair_lock(p);
+    p->value_rwlock.write_lock(true);
+    pair_unlock(p);
+    return p;
+}
+
 void toku_cachetable_put_with_dep_pairs(
-    CACHEFILE cachefile, 
+    CACHEFILE cachefile,
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
-    void *value, 
+    void *value,
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback,
     void *get_key_and_fullhash_extra,
@@ -1088,15 +1109,18 @@ void toku_cachetable_put_with_dep_pairs(
     if (ct->ev.should_client_wake_eviction_thread()) {
         ct->ev.signal_eviction_thread();
     }
+
+    PAIR p = malloc_and_init_pair(cachefile, value, attr, write_callback);
+
     ct->list.write_list_lock();
     get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
+    p->key.b = key->b;
+    p->fullhash = *fullhash;
     cachetable_put_internal(
         cachefile,
-        *key,
-        *fullhash,
+        p,
         value,
         attr,
-        write_callback,
         put_callback
         );
     PAIR dependent_pairs[num_dependent_pairs];
@@ -1141,14 +1165,16 @@ void toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, v
     if (ct->ev.should_client_wake_eviction_thread()) {
         ct->ev.signal_eviction_thread();
     }
+    PAIR p = malloc_and_init_pair(cachefile, value, attr, write_callback);
+
     ct->list.write_list_lock();
+    p->key.b = key.b;
+    p->fullhash = fullhash;
     cachetable_put_internal(
         cachefile,
-        key,
-        fullhash,
+        p,
         value,
         attr,
-        write_callback,
         put_callback
         );
     ct->list.write_list_unlock();
@@ -4475,7 +4501,6 @@ void
 toku_cachetable_helgrind_ignore(void) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
-    TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
