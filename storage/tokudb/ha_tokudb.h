@@ -133,6 +133,7 @@ private:
     // of more than one key
     //
     uchar *key_buff2; 
+    uchar *key_buff3; 
     //
     // buffer used to temporarily store a "packed key" 
     // data pointer of a DBT will end up pointing to this
@@ -336,6 +337,7 @@ public:
     int prepare_index_scan();
     int index_init(uint index, bool sorted);
     int index_end();
+    int index_next_same(uchar * buf, const uchar * key, uint keylen); 
     int index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag);
 #if 0
     int index_read_last(uchar * buf, const uchar * key, uint key_len);

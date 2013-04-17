@@ -1160,6 +1160,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     alloc_ptr = my_multi_malloc(MYF(MY_WME),
         &key_buff, max_key_length, 
         &key_buff2, max_key_length, 
+        &key_buff3, max_key_length, 
         &primary_key_buff, (hidden_primary_key ? 0 : max_key_length),
         &fixed_cols_for_query, table_share->fields*sizeof(u_int32_t),
         &var_cols_for_query, table_share->fields*sizeof(u_int32_t),
@@ -3214,6 +3215,62 @@ static int before_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
     int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
     return (cmp<0) ? -1 : 1;
 }
+
+
+// 
+// Reads the next row matching to the key, on success, advances cursor 
+// Parameters: 
+//      [out]   buf - buffer for the next row, in MySQL format 
+//      [in]     key - key value 
+//                keylen - length of key 
+// Returns: 
+//      0 on success 
+//      HA_ERR_END_OF_FILE if not found 
+//      error otherwise 
+// 
+int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) { 
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this); 
+    int error; 
+    struct smart_dbt_info info; 
+    DBT curr_key;
+    DBT found_key;
+    bool has_null;
+    int cmp;
+    HANDLE_INVALID_CURSOR(); 
+
+
+    statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status); 
+    info.ha = this; 
+    info.buf = buf; 
+    info.keynr = active_index; 
+
+    pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_NEG_INF);
+
+
+    u_int32_t flags = SET_READ_FLAG(0); 
+    error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index); 
+    if (error) {
+        goto cleanup;
+    }
+    if (!key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) { 
+        error = read_full_row(buf); 
+        if (error) {
+            goto cleanup;
+        }
+    } 
+    //
+    // now do the comparison
+    //
+    create_dbt_key_from_table(&found_key,active_index,key_buff3,buf,&has_null);
+    cmp = tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &curr_key, &found_key);
+    if (cmp) {
+        error = HA_ERR_END_OF_FILE; 
+    }
+
+ cleanup: 
+    TOKUDB_DBUG_RETURN(error); 
+ } 
+
 
 //
 // According to InnoDB handlerton: Positions an index cursor to the index 
