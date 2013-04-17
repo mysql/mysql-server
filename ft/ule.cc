@@ -207,6 +207,42 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, const xid_omt_t &snapshot_txnids, c
     return rval;
 }
 
+//
+// This function does some simple garbage collection given a TXNID known
+// to be the oldest referenced xid, that is, the oldest xid in any live list.
+// We find the youngest entry in the stack with an xid less 
+// than oldest_referenced_xid. All elements below this entry are garbage,
+// so we get rid of them.
+//
+static void
+simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid) {
+    uint32_t curr_index = 0;
+    uint32_t num_entries;
+    if (ule->num_cuxrs == 1 || oldest_referenced_xid == TXNID_NONE) {
+        goto done;
+    }
+    // starting at the top of the committed stack, find the first
+    // uxr with a txnid that is less than oldest_referenced_xid
+    for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
+        curr_index = ule->num_cuxrs - i - 1;
+        if (ule->uxrs[curr_index].xid < oldest_referenced_xid) {
+            break;
+        }
+    }
+    // curr_index is now set to the youngest uxr older than oldest_referenced_xid
+    if (curr_index == 0) {
+        goto done;
+    }
+
+    // now get rid of the entries below curr_index
+    num_entries = ule->num_cuxrs + ule->num_puxrs - curr_index;
+    memmove(&ule->uxrs[0], &ule->uxrs[curr_index], num_entries * sizeof(ule->uxrs[0]));
+    ule->uxrs[0].xid = TXNID_NONE; //New 'bottom of stack' loses its TXNID
+    ule->num_cuxrs -= curr_index;
+    
+done:;
+}
+
 static void
 garbage_collection(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &referenced_xids, const xid_omt_t &live_root_txns) {
     if (ule->num_cuxrs == 1) goto done;
@@ -320,6 +356,7 @@ done:;
 int
 apply_msg_to_leafentry(FT_MSG   msg,		// message to apply to leafentry
                        LEAFENTRY old_leafentry, // NULL if there was no stored data.
+                       TXNID oldest_referenced_xid,
                        size_t *new_leafentry_memorysize,
                        LEAFENTRY *new_leafentry_p,
                        OMT *omtp,
@@ -338,6 +375,7 @@ apply_msg_to_leafentry(FT_MSG   msg,		// message to apply to leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
+    simple_garbage_collection(&ule, oldest_referenced_xid);
     rval = le_pack(&ule,                // create packed leafentry
                    new_leafentry_memorysize,
                    new_leafentry_p,

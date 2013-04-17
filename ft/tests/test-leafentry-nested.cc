@@ -398,6 +398,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     int64_t ignoreme;
     r = apply_msg_to_leafentry(msg,
                                le_initial,
+                               TXNID_NONE,
                                &result_memsize,
                                &le_result,
                                NULL, 

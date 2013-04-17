@@ -54,6 +54,7 @@ void fast_msg_to_leafentry(
 
 int apply_msg_to_leafentry(FT_MSG   msg,
                            LEAFENTRY old_leafentry, // NULL if there was no stored data.
+                           TXNID oldest_referenced_xid,
                            size_t *new_leafentry_memorysize,
                            LEAFENTRY *new_leafentry_p,
                            OMT *omtp,

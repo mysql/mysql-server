@@ -255,6 +255,23 @@ max_xid(TXNID a, TXNID b) {
     return a < b ? b : a;
 }
 
+static TXNID get_oldest_referenced_xid_unlocked(TXN_MANAGER txn_manager) {
+    TXNID oldest_referenced_xid = TXNID_NONE_LIVING;
+    int r = txn_manager->live_root_txns.fetch(0, &oldest_referenced_xid);
+    // this function should only be called when we know there is at least
+    // one live transaction
+    invariant_zero(r);
+
+    struct referenced_xid_tuple* tuple;
+    if (txn_manager->referenced_xids.size() > 0) {
+        r = txn_manager->referenced_xids.fetch(0, &tuple);
+        if (r == 0 && tuple->begin_id < oldest_referenced_xid) {
+            oldest_referenced_xid = tuple->begin_id;
+        }
+    }
+    return oldest_referenced_xid;
+}
+
 int toku_txn_manager_start_txn(
     TOKUTXN *txnp,
     TXN_MANAGER txn_manager,
@@ -318,6 +335,7 @@ int toku_txn_manager_start_txn(
         lazy_assert_zero(r);
     }
 
+
     {
         //
         // maintain the data structures necessary for MVCC:
@@ -342,6 +360,7 @@ int toku_txn_manager_start_txn(
             }
             r = txn_manager->live_root_txns.insert_at(txn->txnid64, idx);
         }
+        txn->oldest_referenced_xid = get_oldest_referenced_xid_unlocked(txn_manager);
 
         // setup information for snapshot reads
         if (txn->snapshot_type != TXN_SNAPSHOT_NONE) {
