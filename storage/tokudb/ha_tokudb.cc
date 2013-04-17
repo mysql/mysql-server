@@ -2608,7 +2608,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     delay_updating_ai_metadata = share->ai_first_col;
     ai_metadata_update_required = false;
     if (share->try_table_lock) {
-        if (may_table_be_empty() && tokudb_prelock_empty) {
+        if (tokudb_prelock_empty && may_table_be_empty()) {
             acquire_table_lock(transaction, lock_write);
         }
         pthread_mutex_lock(&share->mutex);
