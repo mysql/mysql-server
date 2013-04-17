@@ -647,8 +647,6 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
             if (!*new_key_ptr++)
                 continue;
         }
-        if (0)
-            printf("%s:%d:insert_or_update=%d\n", __FILE__, __LINE__, key->table->insert_or_update);
         if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
             return cmp;
         length = key_part->field->packed_col_length(new_key_ptr, key_part->length);
@@ -1229,7 +1227,6 @@ int ha_tokudb::write_row(uchar * record) {
         put_flags = DB_YESOVERWRITE;
     }
 
-    table->insert_or_update = 1;        // For handling of VARCHAR
     if (table_share->keys + test(hidden_primary_key) == 1) {
         error = file->put(file, transaction, create_key(&prim_key, primary_key, key_buff, record), &row, put_flags);
         last_dup_key = primary_key;
@@ -1275,7 +1272,6 @@ int ha_tokudb::write_row(uchar * record) {
                 break;
         }
     }
-    table->insert_or_update = 0;
     if (error == DB_KEYEXIST)
         error = HA_ERR_FOUND_DUPP_KEY;
     else if (!error)
@@ -1388,7 +1384,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
         table->timestamp_field->set_time();
 
-    table->insert_or_update = 1;        // For handling of VARCHAR
     if (hidden_primary_key) {
         primary_key_changed = 0;
         bzero((void *) &prim_key, sizeof(prim_key));
@@ -1415,7 +1410,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                     continue;
                 if (key_cmp(keynr, old_row, new_row) || primary_key_changed) {
                     if ((error = remove_key(sub_trans, keynr, old_row, &old_prim_key))) {
-                        table->insert_or_update = 0;
                         DBUG_RETURN(error);     // Fatal error
                     }
                     changed_keys.set_bit(keynr);
@@ -1443,7 +1437,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         if (error != DB_LOCK_DEADLOCK)
             break;
     }
-    table->insert_or_update = 0;
     if (error == DB_KEYEXIST)
         error = HA_ERR_FOUND_DUPP_KEY;
     DBUG_RETURN(error);
@@ -1639,7 +1632,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len);
             if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) == 0) {
-                error = cursor->c_get(cursor, &last_key, &row, DB_NEXT);
+                error = cursor->c_get(cursor, &last_key, &row, DB_NEXT_NODUP);
             }
         }
         error = read_row(error, buf, active_index, &row, 0, 0);
