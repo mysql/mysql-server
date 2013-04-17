@@ -5213,20 +5213,6 @@ toku_brt_cursor_peek(BRT_CURSOR cursor, const DBT **pkey, const DBT **pval)
     *pval = &cursor->val;
 }
 
-static int brt_cursor_compare_heaviside(brt_search_t *search, DBT *x, DBT *y) {
-    HEAVI_WRAPPER wrapper = search->context;
-    int r = wrapper->h(x, y, wrapper->extra_h);
-    // wrapper->r_h must have the same signus as the final chosen element.
-    // it is initialized to -1 or 1.  0's are closer to the min (max) that we
-    // want so once we hit 0 we keep it.
-    if (r==0) wrapper->r_h = 0;
-    //direction>0 means BRT_SEARCH_LEFT
-    //direction<0 means BRT_SEARCH_RIGHT
-    //direction==0 is not allowed
-    r = (wrapper->direction>0) ? r>=0 : r<=0;
-    return r;
-}
-
 //We pass in toku_dbt_fake to the search functions, since it will not pass the
 //key(or val) to the heaviside function if key(or val) is NULL.
 //It is not used for anything else,
@@ -5234,78 +5220,6 @@ static int brt_cursor_compare_heaviside(brt_search_t *search, DBT *x, DBT *y) {
 //wrapper.
 static const DBT __toku_dbt_fake;
 static const DBT* const toku_dbt_fake = &__toku_dbt_fake;
-
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-struct brt_cursor_straddle_search_struct {
-    BRT_GET_STRADDLE_CALLBACK_FUNCTION getf;
-    void *getf_v;
-    BRT_CURSOR cursor;
-    brt_search_t *search;
-};
-
-static int
-straddle_hack_getf(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val,
-                   ITEMLEN next_keylen, bytevec next_key, ITEMLEN next_vallen, bytevec next_val, void* v) {
-    struct brt_cursor_straddle_search_struct *bcsss = v;
-    int old_hack_value = STRADDLE_HACK_INSIDE_CALLBACK;
-    STRADDLE_HACK_INSIDE_CALLBACK = 1;
-    int r = bcsss->getf(keylen, key, vallen, val, next_keylen, next_key, next_vallen, next_val, bcsss->getf_v);
-    STRADDLE_HACK_INSIDE_CALLBACK = old_hack_value;
-    return r;
-}
-#endif
-
-/* search for the first kv pair that matches the search object */
-static int
-brt_cursor_straddle_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    brt_cursor_invalidate(cursor);
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-    struct brt_cursor_straddle_search_struct bcsss = {getf, getf_v, cursor, search};
-    int r = toku_brt_search(cursor->brt, search, straddle_hack_getf, &bcsss, cursor, &cursor->root_put_counter);
-#else
-    int r = toku_brt_search(cursor->brt, search, getf, getf_v, logger, cursor, &cursor->root_put_counter);
-#endif
-    return r;
-}
-
-struct brt_cursor_heaviside_struct {
-    BRT_GET_STRADDLE_CALLBACK_FUNCTION getf;
-    void *getf_v;
-    HEAVI_WRAPPER wrapper;
-};
-
-static int
-heaviside_getf(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val,
-               ITEMLEN next_keylen, bytevec next_key, ITEMLEN next_vallen, bytevec next_val, void* v) {
-    struct brt_cursor_heaviside_struct *bchs = v;
-    if (bchs->wrapper->r_h==0) {
-        //PROVDELs can confuse the heaviside query.
-        //If r_h is 0, it might be wrong.
-        //Run the heaviside function again to get correct answer.
-        DBT dbtkey, dbtval;
-        bchs->wrapper->r_h = bchs->wrapper->h(toku_fill_dbt(&dbtkey, key, keylen),
-                                              toku_fill_dbt(&dbtval, val, vallen),
-                                              bchs->wrapper->extra_h);
-    }
-    int r = bchs->getf(keylen, key, vallen, val, next_keylen, next_key, next_vallen, next_val, bchs->getf_v);
-    return r;
-}
-
-int
-toku_brt_cursor_heaviside(BRT_CURSOR cursor, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, HEAVI_WRAPPER wrapper)
-{
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_heaviside,
-                                         wrapper->direction < 0 ? BRT_SEARCH_RIGHT : BRT_SEARCH_LEFT,
-                                         toku_dbt_fake,
-                                         cursor->brt->flags & TOKU_DB_DUPSORT ? (DBT*)toku_dbt_fake : NULL,
-                                         wrapper);
-
-
-    struct brt_cursor_heaviside_struct bchs = {getf, getf_v, wrapper};
-
-    return brt_cursor_straddle_search(cursor, &search, heaviside_getf, &bchs);
-}
 
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
     return brt_cursor_not_set(c);

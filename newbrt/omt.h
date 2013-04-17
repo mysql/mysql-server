@@ -125,7 +125,7 @@ extern "C" {
 //
 // The brt cursor implements its search by first finding a leaf node,
 // containing an OMT.  The BRT then passes its OMTCURSOR into the lookup
-// method (i.e., one of toku_ebdomt_fetch, toku_omt_find_zero,
+// method (i.e., one of toku_omt_fetch, toku_omt_find_zero,
 // toku_omt_find).  The lookup method, if successful, sets the
 // OMTCURSOR to refer to that element.
 //

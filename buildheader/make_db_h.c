@@ -391,8 +391,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("typedef struct __toku_dbt DBT;\n");
     printf("typedef u_int32_t db_recno_t;\n");
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
-    printf("typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);\n");
-    printf("typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);\n");
 
     printf("#include <tdb-internal.h>\n");
     
@@ -652,9 +650,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-                             "int (*c_getf_heaviside)(DBC *, u_int32_t, "
-                                 "YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f, "
-                                 "YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction)",
+
 			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",

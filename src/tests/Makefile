@@ -148,11 +148,8 @@ BDB_DONTRUN_TESTS = \
         test_db_descriptor \
         test_db_descriptor_named_db \
         test_dbremove_old \
-        test_db_txn_locks_heaviside \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
-        test_heaviside_rh_1756 \
-        test_heaviside_straddle_1622 \
         test_logflush \
         test_txn_abort6 \
         test_txn_abort8 \
