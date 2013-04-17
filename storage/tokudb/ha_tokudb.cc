@@ -4013,15 +4013,8 @@ void ha_tokudb::track_progress(THD* thd) {
                 next_status += r;
                 first = false;
             }
-            if (first) sprintf(
-                write_status_msg, 
-                "Queried about %llu rows, inserted about %llu rows, updated about %llu rows, deleted about %llu rows", 
-                trx->stmt_progress.queried,
-                trx->stmt_progress.inserted,
-                trx->stmt_progress.updated,
-                trx->stmt_progress.deleted
-                );
-            thd_proc_info(thd, write_status_msg);
+            if (!first)
+	        thd_proc_info(thd, write_status_msg);
         }
     }
 }
