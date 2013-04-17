@@ -1580,10 +1580,15 @@ cleanup:
     return error;
 }
 
+
+int ha_tokudb::write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size ){
+    return write_metadata(db, &curr_key_data, sizeof(curr_key_data), data, size);
+}
+
 //
 // helper function to write a piece of metadata in to status.tokudb
 //
-int ha_tokudb::write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size ){
+int ha_tokudb::write_metadata(DB* db, void* key_data, uint key_size, void* val_data, uint val_size ){
     int error;
     DBT key;
     DBT value;
@@ -1598,10 +1603,10 @@ int ha_tokudb::write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data,
 
     bzero(&key, sizeof(key));
     bzero(&value, sizeof(value));
-    key.data = &curr_key_data;
-    key.size = sizeof(curr_key_data);
-    value.data = data;
-    value.size = size;
+    key.data = key_data;
+    key.size = key_size;
+    value.data = val_data;
+    value.size = val_size;
     error = db->put(db, txn, &key, &value, 0);
     if (error) { 
         goto cleanup; 
@@ -1632,7 +1637,7 @@ cleanup:
 //
 //
 int ha_tokudb::update_max_auto_inc(DB* db, ulonglong val){
-    return write_metadata(db,hatoku_max_ai,&val,sizeof(val));
+    return write_to_status(db,hatoku_max_ai,&val,sizeof(val));
 }
 
 //
@@ -1647,7 +1652,7 @@ int ha_tokudb::update_max_auto_inc(DB* db, ulonglong val){
 //
 //
 int ha_tokudb::write_auto_inc_create(DB* db, ulonglong val){
-    return write_metadata(db,hatoku_ai_create_value,&val,sizeof(val));
+    return write_to_status(db,hatoku_ai_create_value,&val,sizeof(val));
 }
 
 
@@ -4966,14 +4971,16 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     version = HA_TOKU_VERSION;
     capabilities = HA_TOKU_CAP;
     
-    error = write_metadata(status_block, hatoku_version,&version,sizeof(version));
+    error = write_to_status(status_block, hatoku_version,&version,sizeof(version));
     if (error) { goto cleanup; }
 
-    error = write_metadata(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
+    error = write_to_status(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
     if (error) { goto cleanup; }
 
     error = write_auto_inc_create(status_block, create_info->auto_increment_value);
     if (error) { goto cleanup; }
+
+
 
 
     error = add_table_to_metadata(name, form);
