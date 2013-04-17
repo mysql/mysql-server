@@ -10,56 +10,7 @@ project(TokuDB)
 include(TokuFeatureDetection)
 include(TokuSetupCompiler)
 include(TokuSetupCTest)
-
-## add lzma with an external project
-include(ExternalProject)
-set(xz_configure_opts --with-pic)
-if (CMAKE_SYSTEM_NAME MATCHES Darwin)
-  ## lzma has some assembly that doesn't work on osx
-  list(APPEND xz_configure_opts --disable-assembler)
-endif ()
-
-if (CMAKE_BUILD_TYPE MATCHES Release)
-  if (CMAKE_C_COMPILER_ID MATCHES Intel)
-    list(APPEND xz_configure_opts CC=icc "CFLAGS=-O2 -g -ip -ipo1" AR=xiar)
-  endif ()
-else ()
-  list(APPEND xz_configure_opts --enable-debug)
-endif ()
-
-if (CMAKE_GENERATOR STREQUAL Ninja)
-  ## ninja doesn't understand "$(MAKE)"
-  ExternalProject_Add(ep_lzma
-    PREFIX xz
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
-    CONFIGURE_COMMAND
-        ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure ${xz_configure_opts}
-        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
-    BUILD_COMMAND
-        make -C src/liblzma
-    INSTALL_COMMAND
-        make -C src/liblzma install
-    )
-else ()
-  ## use "$(MAKE)" for submakes so they can use the jobserver, doesn't
-  ## seem to break Xcode...
-  ExternalProject_Add(ep_lzma
-    PREFIX xz
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
-    CONFIGURE_COMMAND
-        ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure ${xz_configure_opts}
-        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
-    BUILD_COMMAND
-        $(MAKE) -C src/liblzma
-    INSTALL_COMMAND
-        $(MAKE) -C src/liblzma install
-    )
-endif ()
-add_custom_target(build_lzma DEPENDS ep_lzma)
-
-add_library(lzma STATIC IMPORTED)
-set_target_properties(lzma PROPERTIES IMPORTED_LOCATION
-  "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz/lib/liblzma.a")
+include(TokuThirdParty)
 
 ## everything needs these libraries
 link_libraries(dl pthread z)
