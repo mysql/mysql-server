@@ -383,7 +383,7 @@ int toku_cachefile_fd (CACHEFILE cf) {
 
 BOOL
 toku_cachefile_is_dev_null (CACHEFILE cf) {
-    return cf->fname_relative_to_env==NULL;
+    return (BOOL)(cf->fname_relative_to_env==NULL);
 }
 
 int

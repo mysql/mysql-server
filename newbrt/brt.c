@@ -2988,7 +2988,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
             if (r != 0) goto died_after_open;
-            txn_created = (txn!=NULL);
+            txn_created = (BOOL)(txn!=NULL);
         } else {
 	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
 	}
@@ -3186,7 +3186,7 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
     if (r==0) {
         assert(h->type == BRTHEADER_CURRENT);
 	struct brt_header *ch = h->checkpoint_header;
-	BOOL checkpoint_success_so_far = (ch->checkpoint_count==h->checkpoint_count+1 && ch->dirty==0);
+	BOOL checkpoint_success_so_far = (BOOL)(ch->checkpoint_count==h->checkpoint_count+1 && ch->dirty==0);
 	if (checkpoint_success_so_far) {
             r = toku_cachefile_fsync(cachefile);
 	    if (r!=0) 
@@ -4718,7 +4718,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 		{
 		    struct subtree_estimates *e = &BNC_SUBTREE_ESTIMATES(node, i);
 		    fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
-			    e->ndata, e->nkeys, e->dsize, e->exact);
+			    e->ndata, e->nkeys, e->dsize, (int)e->exact);
 		}
 		fprintf(file, "\n");
                 FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
@@ -4748,7 +4748,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
         if (lorange) { toku_print_BYTESTRING(file, lolen, (void*)lorange); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
         if (hirange) { toku_print_BYTESTRING(file, hilen, (void*)hirange); } else { fprintf(file, "\\infty"); }
 	fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
-		node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, node->u.l.leaf_stats.exact);
+		node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, (int)node->u.l.leaf_stats.exact);
 	fprintf(file, "\n");
         int size = toku_omt_size(node->u.l.buffer);
         int i;

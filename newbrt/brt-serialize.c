@@ -780,7 +780,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    se->nkeys = rbuf_ulonglong(&rc);
 	    se->ndata = rbuf_ulonglong(&rc);
 	    se->dsize = rbuf_ulonglong(&rc);
-	    se->exact = rbuf_char(&rc);
+	    se->exact = (BOOL) (rbuf_char(&rc) != 0);
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
