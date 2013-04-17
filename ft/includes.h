@@ -56,5 +56,6 @@
 #include "wbuf.h"
 
 #include <db.h>
+#include "tokuconst.h"
 
 #endif

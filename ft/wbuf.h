@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <string.h>
 
-
 #define CRC_INCR
 
 /* When serializing a value, write it into a buffer. */
