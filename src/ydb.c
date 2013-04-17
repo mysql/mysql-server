@@ -5538,7 +5538,7 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 // It is the caller's responsibility to free them.
 // Return 0 on success (could fail if write lock not available).
 int
-ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N]) {
+ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn) {
     int rval;
     int i;
     
@@ -5575,11 +5575,15 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     if (!rval && using_txns) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         int do_fsync = 0;
+        LSN *get_lsn = NULL;
         for (i = 0; i < N; i++) {
             BRT brt  = dbs[i]->i->brt;
             //Fsync is necessary for the last one only.
-            if (i==N-1) do_fsync = 1; //We only need a single fsync of logs.
-            rval = toku_brt_load(brt, ttxn, new_inames_in_env[i], do_fsync);
+            if (i==N-1) {
+                do_fsync = 1; //We only need a single fsync of logs.
+                get_lsn  = load_lsn; //Set pointer to capture the last lsn.
+            }
+            rval = toku_brt_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
             if (rval) break;
         }
     }
@@ -5606,9 +5610,9 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 }
 
 int
-locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N]) {
+locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn) {
     toku_ydb_lock();
-    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env);
+    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, load_lsn);
     toku_ydb_unlock();
     return r;
 }

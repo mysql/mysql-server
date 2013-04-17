@@ -197,7 +197,8 @@ int toku_loader_create_loader(DB_ENV *env,
 	}
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
-        r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env);
+        LSN load_lsn;
+        r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
         if ( r!=0 ) {
             toku_free(descriptors);
             free_loader(loader);
@@ -212,7 +213,8 @@ int toku_loader_create_loader(DB_ENV *env,
 			     descriptors,
                              (const char **)new_inames_in_env,
                              compare_functions,
-                             loader->i->temp_file_template);
+                             loader->i->temp_file_template,
+                             load_lsn);
         loader->i->inames_in_env = new_inames_in_env;
 	toku_free(descriptors);
     }
