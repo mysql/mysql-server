@@ -98,6 +98,7 @@ if(BUILD_TESTING)
       perf_nop
       perf_ptquery
       perf_ptquery2
+      perf_read_write
       perf_xmalloc_free
       prelock-read-read
       prelock-read-write
