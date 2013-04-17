@@ -208,6 +208,7 @@ ctest -j$ncpus \
     -D NightlyUpdate \
     -D NightlyConfigure \
     -D NightlyBuild \
+    -D NightlyTest \
     -D NightlyMemCheck \
     2>&1 | tee -a $tracefile
 set -e
