@@ -1282,8 +1282,6 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(uchar * record, uchar* data, uint
             }
             record[key_part->null_offset] &= ~key_part->null_bit;
         }
-        /* tokutek change to make pack_key and unpack_key work for
-           decimals */
         uint unpack_length = key_part->length;
         pos = (uchar *) key_part->field->unpack_key(
             record + field_offset(key_part->field, table), 
