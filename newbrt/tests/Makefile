@@ -159,10 +159,6 @@ check_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 check_brt-serialize-benchmark: brt-serialize-benchmark$(BINSUF)
 	./$< 92 200000
 
-# test3884 doesn't work with valgrind yet, I need to resolve this
-check_test3884: test3884$(BINSUF)
-	./$<
-
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 

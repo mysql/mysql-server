@@ -105,22 +105,19 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
 
-    // r = toku_close_brt(brt, NULL); assert(r == 0);
-    // r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_unpin_brtnode(brt, nodeb);
+    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
         toku_free(splitk.data);
     }
 
-    toku_brtnode_free(&nodeb);
-
     for (int i = 0; i < sn.n_children - 1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < nelts / 2; ++i) {
-        toku_free(elts[i]);
-    }
     for (int i = 0; i < sn.n_children; ++i) {
+        toku_omt_free_items(BLB_BUFFER(&sn, i));
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
