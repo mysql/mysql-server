@@ -461,7 +461,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       get_filename_component(base ${src} NAME_WE)
       set(test ${base}.tdb)
 
-      add_test(ydb/${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000 600)
+      if (NOT ${src} MATCHES test_stress0)
+        add_test(ydb/${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000 600)
+      endif ()
 
       add_custom_executable(tiny ${test} ${base})
       add_drd_test(ydb/drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150 --join_timeout 1200)
@@ -473,6 +475,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 14400)
     endif()
   endforeach(src)
+
+  # Run test_stress0 with a special size
+  add_test(ydb/test_stress0.tdb ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 512 1000 600)
 
   # Set up upgrade tests. Exclude test_stress_openclose
   configure_file(run_upgrade_stress_test.sh . COPYONLY)
