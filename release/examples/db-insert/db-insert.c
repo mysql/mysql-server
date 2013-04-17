@@ -1,9 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-/* Insert a bunch of stuff */
-#include <inttypes.h>
+// Define BDB if you want to compile this to use Berkeley DB
+#ifdef BDB
+#include <db.h>
+#define DIRSUF bdb
+#else
 #include <tokudb.h>
+#define DIRSUF tokudb
+#endif
+
+#include <inttypes.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -78,7 +85,7 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+const char *dbdir = "../bench."  STRINGIFY(DIRSUF);
 char *dbfilename = "bench.db";
 char *dbname;
 
@@ -98,7 +105,7 @@ static void benchmark_setup (void) {
 	system(unlink_cmd);
 
         if (strcmp(dbdir, ".") != 0) {
-            r = toku_os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+            r = mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
             assert(r == 0);
         }
     }
