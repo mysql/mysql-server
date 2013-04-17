@@ -501,6 +501,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        maybe_get_and_pin_if_in_memorys;  /* how many times has get_and_pin_if_in_memory been called */ \n");
     printf("  int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ \n");
     printf("  int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ \n");
+    printf("  int64_t          cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ \n");
+    printf("  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ \n");
+    printf("  uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ \n");
     printf("  int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ \n");
     printf("  int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ \n");
     printf("  int64_t          local_checkpoint;        /* number of times a local checkpoint is taken for commit */ \n");

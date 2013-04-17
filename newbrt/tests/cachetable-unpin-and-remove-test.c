@@ -108,7 +108,7 @@ cachetable_unpin_and_remove_test (int n) {
 
     // verify that the cachtable is empty
     int nentries;
-    toku_cachetable_get_state(ct, &nentries, NULL, NULL, NULL);
+    toku_cachetable_get_state(ct, &nentries, NULL, NULL, NULL, NULL);
     assert(nentries == 0);
 
     char *error_string;

@@ -717,6 +717,8 @@ typedef struct brt_status {
     u_int64_t msn_discards;             // how many messages were ignored by leaf because of msn
     u_int64_t max_workdone;             // max workdone value of any buffer
     u_int64_t dsn_gap;                  // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
+    u_int64_t bytes_leaf;               // memory used by leaf nodes
+    u_int64_t bytes_nonleaf;            // memory used by nonleaf nodes
 } BRT_STATUS_S, *BRT_STATUS;
 
 void toku_brt_get_status(BRT_STATUS);

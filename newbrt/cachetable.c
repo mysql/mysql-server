@@ -138,6 +138,7 @@ struct cachetable {
     int64_t size_reserved;           // How much memory is reserved (e.g., by the loader)
     int64_t size_current;            // the sum of the sizes of the pairs in the cachetable
     int64_t size_limit;              // the limit to the sum of the pair sizes
+    int64_t size_max;                // high water mark of size_current (max value size_current ever had)
     TOKULOGGER logger;
     toku_pthread_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
     toku_pthread_mutex_t cachefiles_mutex;  // lock that protects the cachefiles list
@@ -292,6 +293,8 @@ u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
 	}
     }
     ct->size_current += reserved_memory;
+    if (ct->size_current > ct->size_max)
+	ct->size_max = ct->size_current;
     cachetable_unlock(ct);
     return reserved_memory;
 }
@@ -1133,6 +1136,8 @@ static int cachetable_fetch_pair(
         p->value = toku_value;
         p->size = size;
         ct->size_current += size;
+	if (ct->size_current > ct->size_max)
+	    ct->size_max = ct->size_current;
         if (p->cq) {
             workitem_init(&p->asyncwork, NULL, p);
             workqueue_enq(p->cq, &p->asyncwork, 1);
@@ -1356,6 +1361,8 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     ct->table[h] = p;
     ct->n_in_table++;
     ct->size_current += size;
+    if (ct->size_current > ct->size_max)
+	ct->size_max = ct->size_current;
     if (ct->n_in_table > ct->table_size) {
         cachetable_rehash(ct, ct->table_size*2);
     }
@@ -1498,6 +1505,8 @@ do_partial_fetch(CACHETABLE ct, CACHEFILE cachefile, PAIR p, CACHETABLE_PARTIAL_
     p->size = size;
     ct->size_current += size;
     ct->size_current -= old_size;
+    if (ct->size_current > ct->size_max)
+	ct->size_max = ct->size_current;
     p->state = CTPAIR_IDLE;
     if (p->cq) {
         workitem_init(&p->asyncwork, NULL, p);
@@ -1811,6 +1820,8 @@ toku_cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t full
                 ct->size_current -= p->size; 
                 p->size = size;
                 ct->size_current += p->size; 
+		if (ct->size_current > ct->size_max)
+		    ct->size_max = ct->size_current;
             }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
@@ -2804,7 +2815,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
     cachetable_unlock(ct);
 }
 
-void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
+void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr, int64_t *size_max_ptr) {
     cachetable_lock(ct);
     if (num_entries_ptr) 
         *num_entries_ptr = ct->n_in_table;
@@ -2814,6 +2825,8 @@ void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_s
         *size_current_ptr = ct->size_current;
     if (size_limit_ptr)
         *size_limit_ptr = ct->size_limit;
+    if (size_max_ptr)
+        *size_max_ptr = ct->size_max;
     cachetable_unlock(ct);
 }
 
@@ -2945,6 +2958,7 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->get_and_pin_if_in_memorys = cachetable_get_and_pin_if_in_memorys;
     s->size_current = ct->size_current;          
     s->size_limit   = ct->size_limit;            
+    s->size_max     = ct->size_max;
     s->size_writing = 0;          
     s->get_and_pin_footprint = get_and_pin_footprint;
     s->local_checkpoint      = local_checkpoint;
