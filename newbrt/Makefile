@@ -49,6 +49,8 @@ BRT_SOURCES = \
   brt-serialize \
   brt-verify \
   brt \
+  brt-cachetable-wrappers \
+  brt-flusher \
   brt_msg \
   brt-test-helpers \
   cachetable \

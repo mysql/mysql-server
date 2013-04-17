@@ -13,6 +13,7 @@
 
 
 #include "includes.h"
+#include <brt-cachetable-wrappers.h>
 #include "test.h"
 
 static BRTNODE

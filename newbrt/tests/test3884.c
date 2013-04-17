@@ -9,6 +9,7 @@
 #include "test.h"
 
 #include "includes.h"
+#include <brt-cachetable-wrappers.h>
 
 // Some constants to be used in calculations below
 static const int nodesize = 1024; // Target max node size

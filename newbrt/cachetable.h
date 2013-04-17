@@ -309,7 +309,6 @@ int toku_cachetable_get_and_pin (
     void* write_extraargs
     );
 
-typedef struct unlockers *UNLOCKERS;
 struct unlockers {
     BOOL       locked;
     void (*f)(void*extra);
