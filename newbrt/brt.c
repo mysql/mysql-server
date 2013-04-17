@@ -4755,7 +4755,8 @@ toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
 //Wrapper functions for upgrading from version 10.
 #include "backwards_10.h"
 void
-toku_upgrade_maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
-    maybe_bump_nkeys(node, idx, le, direction);
+toku_calculate_leaf_stats (BRTNODE node) {
+    assert(node->height == 0);
+    node->u.l.leaf_stats = calc_leaf_stats(node);
 }
 
