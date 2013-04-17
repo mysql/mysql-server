@@ -14,7 +14,7 @@ static uint64_t get_tnow(void) {
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
-#define DO_ASSERT_ON_ENOSPC 0
+#define DO_ASSERT_ON_ENOSPC 1
 
 static const int toku_write_enospc_sleep = 1;
 static uint64_t toku_write_enospc_last_report;
@@ -49,6 +49,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     }
     case ENOSPC: {
 #if DO_ASSERT_ON_ENOSPC
+        toku_write_enospc_last_report = get_tnow();
 	char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
 	snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
 	perror(err_msg);
