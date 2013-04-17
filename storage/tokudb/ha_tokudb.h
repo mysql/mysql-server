@@ -5,6 +5,14 @@
 #pragma interface               /* gcc class implementation */
 #endif
 
+// In MariaDB 5.3, thread progress reporting was introduced.
+// Only include that functionality if we're using maria 5.3 +
+#ifdef MARIADB_BASE_VERSION
+#if MYSQL_VERSION_ID >= 50300
+#define HA_TOKUDB_HAS_THD_PROGRESS
+#endif
+#endif
+
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
@@ -51,6 +59,7 @@ typedef struct hot_optimize_context {
     THD *thd;
     char* write_status_msg;
     ha_tokudb *ha;
+    uint progress_stage;
     uint current_table;
     uint num_tables;
 } *HOT_OPTIMIZE_CONTEXT;

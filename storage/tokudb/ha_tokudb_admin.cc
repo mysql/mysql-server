@@ -45,11 +45,6 @@ ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 }
 #endif
 
-struct hot_poll_fun_extra {
-    uint current_table;
-    uint num_tables;
-};
-
 static int 
 hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
@@ -57,14 +52,25 @@ hot_poll_fun(void *extra, float progress) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
         return ER_ABORTING_CONNECTION;
     }
-    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, progress*100);
+    float percentage = progress * 100;
+    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, percentage);
     thd_proc_info(context->thd, context->write_status_msg);
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    if (context->progress_stage < context->current_table) {
+        // the progress stage is behind the current table, so move up
+        // to the next stage and set the progress stage to current.
+        thd_progress_next_stage(context->thd);
+        context->progress_stage = context->current_table;
+    }
+    // the percentage we report here is for the current stage/db
+    thd_progress_report(context->thd, (unsigned long long) percentage, 100);
+#endif
     return 0;
 }
 
 volatile int ha_tokudb_optimize_wait = 0; // debug
 
-// flatten all DB's in this table, to do so, just do a full scan on every DB
+// flatten all DB's in this table, to do so, peform hot optimize on each db
 int 
 ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
@@ -72,6 +78,13 @@ ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
 
     int error;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    // each DB is its own stage. as HOT goes through each db, we'll
+    // move on to the next stage.
+    thd_progress_init(thd, curr_num_DBs);
+#endif
+
     //
     // for each DB, run optimize and hot_optimize
     //
@@ -96,6 +109,11 @@ ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
 
     error = 0;
 cleanup:
+
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    thd_progress_end(thd);
+#endif
+
     TOKUDB_DBUG_RETURN(error);
 }
 
