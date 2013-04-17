@@ -274,6 +274,14 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
         );
 }
 
+static inline uint get_key_parts(const KEY *key) {
+#if 50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    return key->usable_key_parts;
+#else
+    return key->key_parts;
+#endif
+}
+
 ulonglong ha_tokudb::table_flags() const {
     return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
@@ -628,7 +636,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     FILTER_KEY_PART_INFO parts[MAX_REF_PARTS];
     uint curr_skip_index = 0;
 
-    for (uint i = 0; i < key->key_parts; i++) {
+    for (uint i = 0; i < get_key_parts(key); i++) {
         //
         // horrendous hack due to bugs in mysql, basically
         // we cannot always reliably get the offset from the same source
@@ -638,7 +646,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     }
     qsort(
         parts, // start of array
-        key->key_parts, //num elements
+        get_key_parts(key), //num elements
         sizeof(*parts), //size of each element
         filter_key_part_compare
         );
@@ -646,7 +654,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     for (uint i = 0; i < table->s->fields; i++) {
         Field* field = table->field[i];
         uint curr_field_offset = field_offset(field, table);
-        if (curr_skip_index < key->key_parts) {
+        if (curr_skip_index < get_key_parts(key)) {
             uint curr_skip_offset = 0;
             curr_skip_offset = parts[curr_skip_index].offset;
             if (curr_skip_offset == curr_field_offset) {
@@ -1582,7 +1590,7 @@ bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_I
     for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
         if (curr_index == pk) continue;
         KEY* curr_key_info = &table_share->key_info[curr_index];
-        for (uint i = 0; i < curr_key_info->key_parts; i++) {
+        for (uint i = 0; i < get_key_parts(curr_key_info); i++) {
             uint16 curr_field_index = curr_key_info->key_part[i].field->field_index;
             if (!bitmap_is_set(&kc_info->key_filters[curr_index],curr_field_index)) {
                 ret_val = false;
@@ -1708,7 +1716,7 @@ int ha_tokudb::initialize_share(
         //
         ref_length = sizeof(uint32_t) + sizeof(uchar);
         KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
-        KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
+        KEY_PART_INFO *end = key_part + get_key_parts(&table->key_info[primary_key]);
         for (; key_part != end; key_part++) {
             ref_length += key_part->field->max_packed_col_length(key_part->length);
         }
@@ -2554,7 +2562,7 @@ uint32_t ha_tokudb::place_key_into_mysql_buff(
     uchar* data
     ) 
 {
-    KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
+    KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + get_key_parts(key_info);
     uchar *pos = data;
 
     for (; key_part != end; key_part++) {
@@ -2623,7 +2631,7 @@ uint32_t ha_tokudb::place_key_into_dbt_buff(
     ) 
 {
     KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + key_info->key_parts;
+    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
     uchar* curr_buff = buff;
     *has_null = false;
     for (; key_part != end && key_length > 0; key_part++) {
@@ -2808,7 +2816,7 @@ DBT *ha_tokudb::pack_key(
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
     KEY *key_info = &table->key_info[keynr];
     KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + key_info->key_parts;
+    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
     memset((void *) key, 0, sizeof(*key));
@@ -5731,7 +5739,7 @@ int ha_tokudb::info(uint flag) {
         for (uint i = 0; i < table_share->keys; i++) {
             bool is_unique_key = (i == primary_key) || (table->key_info[i].flags & HA_NOSAME);
             ulong val = (is_unique_key) ? 1 : 0;
-            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = val;
+            table->key_info[i].rec_per_key[get_key_parts(&table->key_info[i]) - 1] = val;
         }
     }
     /* Don't return key if we got an error for the internal primary key */
@@ -6359,9 +6367,9 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
         }
         for (i = 0; i < form->s->keys; i++) {
             KEY *key = &form->s->key_info[i];
-            TOKUDB_TRACE("key:%d:%s:%d\n", i, key->name, key->key_parts);
+            TOKUDB_TRACE("key:%d:%s:%d\n", i, key->name, get_key_parts(key));
             uint p;
-            for (p = 0; p < key->key_parts; p++) {
+            for (p = 0; p < get_key_parts(key); p++) {
                 KEY_PART_INFO *key_part = &key->key_part[p];
                 Field *field = key_part->field;
                 TOKUDB_TRACE("key:%d:%d:length=%d:%s:type=%d:flags=%x\n",
