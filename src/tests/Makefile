@@ -116,6 +116,8 @@ BDB_DONTRUN_TESTS = \
 	recover-fclose-in-checkpoint \
 	test_cursor_delete_2119 \
 	transactional_fileops \
+	env_startup \
+	zombie_db \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
