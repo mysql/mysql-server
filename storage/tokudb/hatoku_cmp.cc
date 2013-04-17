@@ -1147,6 +1147,13 @@ int create_key_descriptor(KEY* key, uchar* buf, u_int32_t* num_bytes) {
         assert (type < 256);
         *pos = (uchar)(type & 255);
         pos++;
+
+        //
+        // The second bytes states if there is a null byte
+        //
+        *pos = field->null_bit;
+        pos++;
+
         //
         // based on the type, extra data follows afterwards
         // doubles and floats have no extra information
