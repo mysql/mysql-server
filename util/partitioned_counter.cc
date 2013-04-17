@@ -106,7 +106,7 @@ static void pc_unlock (void)
 }
 
 //******************************************************************************
-// Key creation primivites.
+// Key creation primitives
 //******************************************************************************
 static void pk_create (pthread_key_t *key, void (*destructor)(void*)) {
     int r = pthread_key_create(key, destructor);
@@ -151,10 +151,9 @@ struct local_counter {
 static __thread GrowableArray<struct local_counter *> thread_local_array;
 static __thread bool                                  thread_local_array_inited = false;
 
-DoublyLinkedList<GrowableArray<struct local_counter *> *> all_thread_local_arrays;
-__thread LinkedListElement<GrowableArray<struct local_counter *> *> thread_local_ll_elt;
+static DoublyLinkedList<GrowableArray<struct local_counter *> *> all_thread_local_arrays;
+static __thread LinkedListElement<GrowableArray<struct local_counter *> *> thread_local_ll_elt;
 
-// I want this to be static, but I have to use hidden visibility instead because it's a friend function.
 static void destroy_thread_local_part_of_partitioned_counters (void *ignore_me);
 static void destroy_thread_local_part_of_partitioned_counters (void *ignore_me __attribute__((__unused__)))
 // Effect: This function is called whenever a thread terminates using the
@@ -200,35 +199,28 @@ static pthread_key_t thread_destructor_key;
 
 //******************************************************************************
 // We don't like using up pthread_keys (macos provides only 128 of them),
-// so we built our own. 
+// so we built our own.   Also, looking at the source code for linux libc,
+// it looks like pthread_keys get slower if there are a lot of them.
+// So we use only one pthread_key.
 //******************************************************************************
 
-bool *counters_in_use = NULL;
-uint64_t counters_in_use_size = 0;
+GrowableArray<bool> counters_in_use;
+//bool *counters_in_use = NULL;
+//uint64_t counters_in_use_size = 0;
 
 static uint64_t allocate_counter (void)
 // Effect: Find an unused counter number, and allocate it, returning the counter number.
 // Requires: The pc mutex is held before calling.
 {
-    for (uint64_t i=0; i<counters_in_use_size; i++) {
-        if (!counters_in_use[i]) {
-            counters_in_use[i]=true;
+    size_t size = counters_in_use.get_size();
+    for (uint64_t i=0; i<size; i++) {
+        if (!counters_in_use.fetch_unchecked(i)) {
+            counters_in_use.store_unchecked(i, true);
             return i;
         }
     }
-    uint64_t old_size = counters_in_use_size;
-    if (counters_in_use_size==0) {
-        counters_in_use_size = 1;
-    } else {
-        counters_in_use_size *= 2;
-    }
-    XREALLOC_N(counters_in_use_size, counters_in_use);
-    for (uint64_t i=old_size; i<counters_in_use_size; i++) {
-        counters_in_use[i] = false;
-    }
-    assert(old_size < counters_in_use_size);
-    counters_in_use[old_size] = true;
-    return old_size;
+    counters_in_use.push(true);
+    return size;
 }
 
 
@@ -236,15 +228,13 @@ static void free_counter(uint64_t counternum)
 // Effect: Free a counter.
 // Requires: The pc mutex is held before calling.
 {
-    assert(counternum < counters_in_use_size);
-    assert(counters_in_use[counternum]);
-    counters_in_use[counternum] = false;
+    assert(counternum < counters_in_use.get_size());
+    assert(counters_in_use.fetch_unchecked(counternum));
+    counters_in_use.store_unchecked(counternum, false);
 }
 
 static void destroy_counters (void) {
-    toku_free(counters_in_use);
-    counters_in_use=NULL;
-    counters_in_use_size=0;
+    counters_in_use.deinit();
 }
 
 
@@ -299,7 +289,7 @@ static struct local_counter *get_or_alloc_thread_local_counter(PARTITIONED_COUNT
     // trying to access the same local counter at the same time.
     uint64_t pc_key = pc->pc_key;
     struct local_counter *lc = get_thread_local_counter(pc->pc_key, &thread_local_array);
-    if (__builtin_expect(!!(lc == NULL), 0)) {
+    if (lc == NULL) {
         XMALLOC(lc);    // Might as well do the malloc without holding the pc lock.  But most of the rest of this work needs the lock.
         pc_lock();
 
