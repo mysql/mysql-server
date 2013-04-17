@@ -1014,6 +1014,16 @@ static void smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, vo
 }
 
 //
+// Smart DBT callback function in records_in_range
+//
+static void smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+    DBT* copied_key = (DBT *)context;
+    copied_key->size = key->size;
+    memcpy(copied_key->data, key->data, key->size);
+}
+
+
+//
 // macro for Smart DBT callback function, 
 // so we do not need to put this long line of code in multiple places
 //
@@ -4185,22 +4195,39 @@ cleanup:
 //
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
-    DBT key;
+    DBT key, after_key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
     DB *kfile = share->key_file[keynr];
     u_int64_t less, equal, greater;
     u_int64_t start_rows, end_rows, rows;
     int is_exact;
     int error;
+    struct heavi_info heavi_info;
+    DBC* tmp_cursor = NULL;
+    u_int64_t after_key_less, after_key_equal, after_key_greater;
+    heavi_info.db = kfile;
+    heavi_info.key = &key;
+    after_key.data = key_buff2;
+
+    error = kfile->cursor(kfile, transaction, &tmp_cursor, 0);
+    if (error) {
+        ret_val = HA_TOKUDB_RANGE_COUNT;
+        goto cleanup;
+    }
 
     //
     // get start_rows and end_rows values so that we can estimate range
+    // when calling key_range64, the only value we can trust is the value for less
+    // The reason is that the key being passed in may be a prefix of keys in the DB
+    // As a result, equal may be 0 and greater may actually be equal+greater
+    // So, we call key_range64 on the key, and the key that is after it.
     //
     if (start_key) {
+        pack_key(&key, keynr, key_buff, start_key->key, start_key->length); 
         error = kfile->key_range64(
             kfile, 
             transaction, 
-            pack_key(&key, keynr, key_buff, start_key->key, start_key->length), 
+            &key,
             &less,
             &equal,
             &greater,
@@ -4214,7 +4241,38 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
             start_rows= less;
         }
         else {
-            start_rows = less + equal;
+            error = tmp_cursor->c_getf_heavi(
+                tmp_cursor, 
+                0, 
+                smart_dbt_callback_ror_heavi, 
+                &after_key,
+                after_key_heavi, 
+                &heavi_info, 
+                1
+                );
+            if (error && error != DB_NOTFOUND) {
+                ret_val = HA_TOKUDB_RANGE_COUNT;
+                goto cleanup;
+            }
+            else if (error == DB_NOTFOUND) {
+                start_rows = stats.records;
+            }
+            else {
+                error = kfile->key_range64(
+                    kfile, 
+                    transaction, 
+                    &after_key,
+                    &after_key_less,
+                    &after_key_equal,
+                    &after_key_greater,
+                    &is_exact
+                    );
+                if (error) {
+                    ret_val = HA_TOKUDB_RANGE_COUNT;
+                    goto cleanup;
+                }
+                start_rows = after_key_less;
+            }
         }
     }
     else {
@@ -4222,10 +4280,11 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     }
 
     if (end_key) {
+        pack_key(&key, keynr, key_buff, end_key->key, end_key->length);
         error = kfile->key_range64(
             kfile, 
             transaction, 
-            pack_key(&key, keynr, key_buff, end_key->key, end_key->length), 
+            &key,
             &less,
             &equal,
             &greater,
@@ -4239,14 +4298,45 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
             end_rows= less;
         }
         else {
-            end_rows= less + equal;
+            error = tmp_cursor->c_getf_heavi(
+                tmp_cursor, 
+                0, 
+                smart_dbt_callback_ror_heavi, 
+                &after_key,
+                after_key_heavi, 
+                &heavi_info, 
+                1
+                );
+            if (error && error != DB_NOTFOUND) {
+                ret_val = HA_TOKUDB_RANGE_COUNT;
+                goto cleanup;
+            }
+            else if (error == DB_NOTFOUND) {
+                end_rows = stats.records;
+            }
+            else {
+                error = kfile->key_range64(
+                    kfile, 
+                    transaction, 
+                    &after_key,
+                    &after_key_less,
+                    &after_key_equal,
+                    &after_key_greater,
+                    &is_exact
+                    );
+                if (error) {
+                    ret_val = HA_TOKUDB_RANGE_COUNT;
+                    goto cleanup;
+                }
+                end_rows= after_key_less;
+            }
         }
     }
     else {
         end_rows = stats.records;
     }
 
-    rows = end_rows - start_rows;
+    rows = (end_rows > start_rows) ? end_rows - start_rows : 1;
 
     //
     // MySQL thinks a return value of 0 means there are exactly 0 rows
@@ -4254,6 +4344,10 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     //
     ret_val = (ha_rows) (rows <= 1 ? 1 : rows);
 cleanup:
+    if (tmp_cursor) {
+        tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
+    }
     TOKUDB_DBUG_RETURN(ret_val);
 }
 
