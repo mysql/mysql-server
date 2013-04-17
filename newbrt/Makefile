@@ -59,6 +59,7 @@ BRT_SOURCES = \
   key \
   leafentry \
   leaflock \
+  le-cursor \
   logfilemgr \
   logger \
   log_code \

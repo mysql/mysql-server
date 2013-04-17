@@ -4055,7 +4055,11 @@ static inline int brt_cursor_extract_key_and_val(
                    u_int32_t *vallen,
                    void     **val) {
     int r = 0;
-    if (cursor->is_snapshot_read) {
+    if (toku_brt_cursor_is_leaf_mode(cursor)) {
+        *key = le_key_and_len(le, keylen);
+        *val = le;
+        *vallen = leafentry_memsize(le);
+    } else if (cursor->is_snapshot_read) {
         le_iterate_val(
             le, 
             does_txn_read_entry, 
@@ -4063,9 +4067,8 @@ static inline int brt_cursor_extract_key_and_val(
             vallen, 
             cursor->ttxn
             );
-        *key = le_key_and_len(le,keylen);
-    }
-    else {
+        *key = le_key_and_len(le, keylen);
+    } else {
         *key = le_key_and_len(le, keylen);
         *val = le_latest_val_and_len(le, vallen);
     }
@@ -4147,6 +4150,7 @@ int toku_brt_cursor (
     cursor->prefetching = FALSE;
     cursor->oldest_living_xid = ttxn ? toku_logger_get_oldest_living_xid(ttxn->logger) : TXNID_NONE;
     cursor->is_snapshot_read = is_snapshot_read;
+    cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
     toku_list_push(&brt->cursors, &cursor->cursors_link);
     int r = toku_omt_cursor_create(&cursor->omtcursor);
@@ -4156,6 +4160,16 @@ int toku_brt_cursor (
     cursor->root_put_counter=0;
     *cursorptr = cursor;
     return 0;
+}
+
+void
+toku_brt_cursor_set_leaf_mode(BRT_CURSOR brtcursor) {
+    brtcursor->is_leaf_mode = TRUE;
+}
+
+int
+toku_brt_cursor_is_leaf_mode(BRT_CURSOR brtcursor) {
+    return brtcursor->is_leaf_mode;
 }
 
 // Called during cursor destruction
@@ -4299,7 +4313,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTI
     if (r!=0) return r;
 
     LEAFENTRY le = datav;
-    if (is_le_val_empty(le,brtcursor)) {
+    if (!toku_brt_cursor_is_leaf_mode(brtcursor) && is_le_val_empty(le,brtcursor)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
         while (1) {
@@ -4708,7 +4722,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             r = toku_omt_fetch(omt, index, &le, NULL);
             assert(r==0);
 
-            if (!is_le_val_empty(le,cursor)) {
+            if (toku_brt_cursor_is_leaf_mode(cursor) || !is_le_val_empty(le, cursor)) {
                 maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
                 void     *key;

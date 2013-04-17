@@ -313,6 +313,7 @@ struct brt_cursor {
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
     TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
     BOOL is_snapshot_read; // true if query is read_committed, false otherwise
+    BOOL is_leaf_mode;
     TOKUTXN ttxn;
     struct brt_cursor_leaf_info  leaf_info;
 };
