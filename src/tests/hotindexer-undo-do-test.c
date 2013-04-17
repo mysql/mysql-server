@@ -149,11 +149,10 @@ print_dbt(DBT *dbt) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data, void *extra) {
+put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
     dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
-    lazy_assert(extra == NULL);
 
     switch (dest_key->flags) {
     case 0:

@@ -16,16 +16,14 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data, void *extra) {
+del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
     dest_db = dest_db; src_db = src_db; dest_key = dest_key; src_key = src_key; src_data = src_data;
     assert(src_db == NULL);
-    assert(extra == NULL);
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
     memcpy(&dbnum, dest_db->descriptor->dbt.data, sizeof dbnum);
     assert(dbnum < src_data->size / sizeof (int));
-
     int *pri_data = (int *) src_data->data;
 
     assert(dest_key->flags == 0);
@@ -83,7 +81,7 @@ verify_del_multiple(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         DBT pri_data; dbt_init(&pri_data, &v[0], sizeof v);
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->del_multiple(env, NULL, deltxn, &pri_key, &pri_data, ndbs, db, keys, flags, NULL); assert_zero(r);
+        r = env->del_multiple(env, NULL, deltxn, &pri_key, &pri_data, ndbs, db, keys, flags); assert_zero(r);
         for (int dbnum = 0; dbnum < ndbs; dbnum++) 
             verify_locked(env, db[dbnum], get_key(i, dbnum));
     }

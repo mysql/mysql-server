@@ -15,8 +15,8 @@ int NUM_DBS=10;
 int USE_PUTS=0;
 int USE_REGION=0;
 
-static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) __attribute__((unused)); 
-static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) __attribute__((unused));
+static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused)); 
+static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused));
 
 // linenumber,orderkey form a unique, primary key
 // key is a potentially duplicate secondary key
@@ -91,13 +91,12 @@ static void tpch_parse_row(char *row, char *fields[], int fields_N)
  *     region table
  */
 
-static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) 
+static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) 
 {
 
     // not used
     src_db  = src_db;
     src_key = src_key;
-    extra   = extra;
     assert(*(uint32_t*)dest_db->app_private == 0);
 
     // region fields
@@ -144,12 +143,11 @@ static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT 
  */
 
 
-static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) 
+static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) 
 {
     // not used
     src_db  = src_db;
     src_key = src_key;
-    extra   = extra;
 
     // lineitem fields
     char orderkey[16];   

@@ -18,10 +18,9 @@ struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
 
-static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
     src_db = src_db;
-    extra = extra;
 
     uint32_t which = (uint32_t) (intptr_t) dest_db->app_private;
     
@@ -123,7 +122,7 @@ static void run_test(void)
 
     // putm (8,9)
     pk = 8; pv = 9;
-    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags, NULL);
+    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
     CKERR(r);
 
     r = indexer->build(indexer);
@@ -131,7 +130,7 @@ static void run_test(void)
 
     // putm (9, 10)
     pk = 9; pv = 10;
-    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags, NULL);
+    r = env->put_multiple(env, src_db, txn, &prikey, &prival, NUM_DBS+1, putm_dbs, putm_keys, putm_vals, putm_flags);
     CKERR(r);
 
     r = indexer->close(indexer);

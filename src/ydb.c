@@ -1571,37 +1571,34 @@ locked_env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_f
 
 static int env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
                             const DBT *key, const DBT *val, 
-                            uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, 
-                            void *extra);
+                            uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array);
 
 static int env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
                             const DBT *key, const DBT *val, 
-                            uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, 
-                            void *extra);
+                            uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array);
 
 static int env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
                                DBT *old_src_key, DBT *old_src_data,
                                DBT *new_src_key, DBT *new_src_data,
                                uint32_t num_dbs, DB **db_array, uint32_t* flags_array, 
                                uint32_t num_keys, DBT *keys, 
-                               uint32_t num_vals, DBT *vals,
-                               void *extra);
+                               uint32_t num_vals, DBT *vals);
 
 static int
-locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra) {
+locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) {
     int r = env_check_avail_fs_space(env);
     if (r == 0) {
 	toku_ydb_lock();
-	r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array, extra);
+	r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array);
 	toku_ydb_unlock();
     }
     return r;
 }
 
 static int
-locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, void *extra) {
+locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) {
     toku_ydb_lock();
-    int r = env_del_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, flags_array, extra);
+    int r = env_del_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, flags_array);
     toku_ydb_unlock();
     return r;
 }
@@ -1612,10 +1609,9 @@ locked_env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                            DBT *new_src_key, DBT *new_src_data,
                            uint32_t num_dbs, DB **db_array, uint32_t* flags_array, 
                            uint32_t num_keys, DBT *keys, 
-                           uint32_t num_vals, DBT *vals,
-                           void *extra) {
+                           uint32_t num_vals, DBT *vals) {
     toku_ydb_lock();
-    int r = env_update_multiple(env, src_db, txn, old_src_key, old_src_data, new_src_key, new_src_data, num_dbs, db_array, flags_array, num_keys, keys, num_vals, vals, extra);
+    int r = env_update_multiple(env, src_db, txn, old_src_key, old_src_data, new_src_key, new_src_data, num_dbs, db_array, flags_array, num_keys, keys, num_vals, vals);
     toku_ydb_unlock();
     return r;
 }
@@ -3880,9 +3876,7 @@ env_del_multiple(
     uint32_t num_dbs, 
     DB **db_array, 
     DBT *keys, 
-    uint32_t *flags_array, 
-    void *extra
-    ) 
+    uint32_t *flags_array) 
 {
     int r;
     DBT del_keys[num_dbs];
@@ -3921,7 +3915,7 @@ env_del_multiple(
         }
         else {
         //Generate the key
-            r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val, extra);
+            r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val);
             if (r != 0) goto cleanup;
             del_keys[which_db] = keys[which_db];
         }
@@ -4589,9 +4583,7 @@ env_put_multiple(
     DB **db_array, 
     DBT *keys, 
     DBT *vals, 
-    uint32_t *flags_array, 
-    void *extra
-    ) 
+    uint32_t *flags_array) 
 {
     int r;
     DBT put_keys[num_dbs];
@@ -4632,7 +4624,7 @@ env_put_multiple(
             put_vals[which_db] = *val;
         }
         else {
-            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val, extra);
+            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val);
             if (r != 0) goto cleanup;
             put_keys[which_db] = keys[which_db];
             put_vals[which_db] = vals[which_db];            
@@ -4751,8 +4743,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                     DBT *new_src_key, DBT *new_src_data,
                     uint32_t num_dbs, DB **db_array, uint32_t* flags_array, 
                     uint32_t num_keys, DBT keys[], 
-                    uint32_t num_vals, DBT vals[],
-                    void *extra) {
+                    uint32_t num_vals, DBT vals[]) {
     int r = 0;
     BOOL multi_accounting = TRUE;  // use num_multi_update accountability counters 
 
@@ -4823,7 +4814,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 curr_old_key = *old_src_key;
             }
             else {
-                r = env->i->generate_row_for_put(db, src_db, &keys[which_db + num_dbs], NULL, old_src_key, old_src_data, extra);
+                r = env->i->generate_row_for_put(db, src_db, &keys[which_db + num_dbs], NULL, old_src_key, old_src_data);
                 if (r != 0) goto cleanup;
                 curr_old_key = keys[which_db + num_dbs];
             }
@@ -4836,7 +4827,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 curr_new_val = *new_src_data;
             }
             else {
-                r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], new_src_key, new_src_data, extra);
+                r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], new_src_key, new_src_data);
                 if (r != 0) goto cleanup;
                 curr_new_key = keys[which_db];
                 curr_new_val = vals[which_db];

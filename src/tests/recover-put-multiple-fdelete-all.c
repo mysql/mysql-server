@@ -15,9 +15,8 @@ static DBT dest_vals[num_dbs];
 BOOL do_test=FALSE, do_recover=FALSE;
 
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
     assert(src_db == NULL);
-    assert(extra==&namea || extra==NULL); //Verifying extra gets set right.
     assert(dest_db->descriptor->dbt.size == 4);
     uint32_t which = *(uint32_t*)dest_db->descriptor->dbt.data;
     assert(which < num_dbs);
@@ -77,7 +76,7 @@ static void run_test (void) {
 	DBT k={.data="a", .size=2};
 	DBT v={.data="a", .size=2};
 
-        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, &namea);
+        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
@@ -93,7 +92,7 @@ static void run_test (void) {
 	DBT k={.data="a", .size=2};
 	DBT v={.data="b", .size=2};
 
-        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, &namea);
+        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
         r = txn->commit(txn, 0);                                                        CKERR(r);
     }

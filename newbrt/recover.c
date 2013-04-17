@@ -854,7 +854,7 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
         if (r==0) {
             // We found the cachefile.  (maybe) Do the insert.
             DB *db = tuple->brt->db;
-            r = renv->generate_row_for_put(db, src_db, &dest_key, &dest_val, &src_key, &src_val, NULL);
+            r = renv->generate_row_for_put(db, src_db, &dest_key, &dest_val, &src_key, &src_val);
             assert(r==0);
             r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE, BRT_INSERT);
             assert(r == 0);
@@ -913,7 +913,7 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
         if (r==0) {
             // We found the cachefile.  (maybe) Do the delete.
             DB *db = tuple->brt->db;
-            r = renv->generate_row_for_del(db, src_db, &dest_key, &src_key, &src_val, NULL);
+            r = renv->generate_row_for_del(db, src_db, &dest_key, &src_key, &src_val);
             assert(r==0);
             r = toku_brt_maybe_delete(tuple->brt, &dest_key, txn, TRUE, l->lsn, FALSE);
             assert(r == 0);

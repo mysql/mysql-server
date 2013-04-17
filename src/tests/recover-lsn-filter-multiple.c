@@ -15,17 +15,11 @@ static DBT dest_vals[num_dbs];
 BOOL do_test=FALSE, do_recover=FALSE;
 
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
-    if (extra == NULL) {
-        if (src_db) {
-            assert(src_db->descriptor);
-            assert(src_db->descriptor->dbt.size == 4);
-            assert((*(uint32_t*)src_db->descriptor->dbt.data) == 0);
-        }
-    }
-    else {
-        assert(src_db == NULL);
-        assert(extra==&namea); //Verifying extra gets set right.
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+    if (src_db) {
+        assert(src_db->descriptor);
+        assert(src_db->descriptor->dbt.size == 4);
+        assert((*(uint32_t*)src_db->descriptor->dbt.data) == 0);
     }
     assert(dest_db->descriptor->dbt.size == 4);
     uint32_t which = *(uint32_t*)dest_db->descriptor->dbt.data;
@@ -85,7 +79,7 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="a", .size=2};
-        r = env->put_multiple(env, dba, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, NULL);
+        r = env->put_multiple(env, dba, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
@@ -100,7 +94,7 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="b", .size=2};
-        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, &namea);
+        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags);
         CKERR(r);
     }
 

@@ -121,9 +121,6 @@ typedef struct brt_msg BRT_MSG_S, *BRT_MSG;
 
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
 
-typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra);
-typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra);
-
 #define UU(x) x __attribute__((__unused__))
 
 typedef struct memarena *MEMARENA;

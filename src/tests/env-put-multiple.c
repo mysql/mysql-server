@@ -23,14 +23,10 @@ DBT dest_vals[MAX_DBS];
 #define CKERR2IFNOT0(r, rexpect) do { if (num_dbs>0) { CKERR2(r, rexpect); } else { CKERR2(r, EINVAL); } } while (0)
 
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
-    if (extra == NULL) {
-        assert(src_db == dbs_multiple[0]);
-    }
-    else {
-        assert(src_db == NULL);
-        assert(extra==&num_dbs); //Verifying extra gets set right.
-    }
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+
+    src_db = src_db;
+
     uint32_t which = *(uint32_t*)dest_db->app_private;
     assert(which < MAX_DBS);
 
@@ -101,7 +97,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -124,7 +120,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -147,7 +143,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERR2IFNOT0(r, DB_KEYEXIST);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -173,7 +169,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, NULL, txna, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txna, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -188,7 +184,7 @@ static void run_test (void) {
         CKERR(r);
 
         //Lock should fail
-        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERR2IFNOT0(r, DB_LOCK_NOTGRANTED);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -200,7 +196,7 @@ static void run_test (void) {
         r = txna->commit(txna, 0);
 
         //Should succeed this time.
-        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};

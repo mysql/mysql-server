@@ -7,12 +7,12 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 
 static int
-put_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), DBT *dest_val __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused)), void *extra __attribute__((unused))) {
+put_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), DBT *dest_val __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused))) {
     return 0;
 }
 
 static int
-del_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused)), void *extra __attribute__((unused))) {
+del_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused))) {
     return 0;
 }
 
@@ -68,8 +68,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = env->put_multiple(
         env, db, txn,
         &key, &val,
-        1, &db, &in_key, &in_val, &flags,
-        NULL);
+        1, &db, &in_key, &in_val, &flags);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -77,8 +76,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = env->put_multiple(
         env, NULL, txn,
         &key, &val,
-        1, &db, &in_key, &in_val, &flags,
-        NULL);
+        1, &db, &in_key, &in_val, &flags);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -88,8 +86,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = env->del_multiple(
         env, db, txn,
         &key, &val,
-        1, &db, &in_key, &flags,
-        NULL);
+        1, &db, &in_key, &flags);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -97,8 +94,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     r = env->del_multiple(
         env, NULL, txn,
         &key, &val,
-        1, &db, &in_key, &flags,
-        NULL);
+        1, &db, &in_key, &flags);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -111,9 +107,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
         &key, &val,
         1, &db, &flags,
         2, in_keys,
-        1, &in_val,
-        NULL
-        );
+        1, &in_val);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -124,9 +118,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
         &key, &val,
         1, &db, &flags,
         2, in_keys,
-        1, &in_val,
-        NULL
-        );
+        1, &in_val);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -258,16 +250,14 @@ int test_main (int argc, char * const argv[]) {
     env->put_multiple(
         env, NULL, txna,
         &key, &val,
-        1, &db, &in_key, &in_val, &flags,
-        NULL);
+        1, &db, &in_key, &in_val, &flags);
     CKERR(r);
     dbt_init(&key, "b", 4);
     dbt_init(&val, "b", 4);
     env->put_multiple(
         env, NULL, txnb,
         &key, &val,
-        1, &db, &in_key, &in_val, &flags,
-        NULL);
+        1, &db, &in_key, &in_val, &flags);
     CKERR(r);
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
@@ -281,16 +271,14 @@ int test_main (int argc, char * const argv[]) {
     env->del_multiple(
         env, NULL, txna,
         &key, &val,
-        1, &db, &in_key, &flags,
-        NULL);
+        1, &db, &in_key, &flags);
     CKERR(r);
     dbt_init(&key, "b", 4);
     dbt_init(&val, "b", 4);
     env->del_multiple(
         env, db, txnb,
         &key, &val,
-        1, &db, &in_key, &flags,
-        NULL);
+        1, &db, &in_key, &flags);
     CKERR(r);
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
@@ -309,9 +297,7 @@ int test_main (int argc, char * const argv[]) {
         &key, &val,
         1, &db, &flags,
         2, in_keys,
-        1, &in_val,
-        NULL
-        );
+        1, &in_val);
     CKERR(r);
     dbt_init(&key, "b", 4);
     dbt_init(&val, "b", 4);
@@ -321,9 +307,7 @@ int test_main (int argc, char * const argv[]) {
         &key, &val,
         1, &db, &flags,
         2, in_keys,
-        1, &in_val,
-        NULL
-        );
+        1, &in_val);
     CKERR(r);
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);

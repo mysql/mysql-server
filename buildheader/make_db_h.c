@@ -573,6 +573,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 //    print_db_notices();
     print_defines();
 
+    printf("typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
+    printf("typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
+
     printf("/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/\n");
     printf("#ifdef _TOKUDB_WRAP_H\n#undef txn_begin\n#endif\n");
     assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
@@ -595,29 +598,21 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
-                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"
-                             "                                             void *extra) /* insert into multiple DBs */",
-                             "int (*set_generate_row_callback_for_put)    (DB_ENV *env, \n"
-                             "                                             int (*generate_row_for_put)(DB *dest_db, DB *src_db,\n"
-                             "                                                                         DBT *dest_key, DBT *dest_val,\n"
-                             "                                                                         const DBT *src_key, const DBT *src_val,\n"
-                             "                                                                         void *extra))",
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array\n"
+                             "                                            ) /* insert into multiple DBs */",
+                             "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
                              "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
-                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,\n"
-                             "                                             void *extra) /* delete from multiple DBs */",
-                             "int (*set_generate_row_callback_for_del)    (DB_ENV *env, \n"
-                             "                                             int (*generate_row_for_del)(DB *dest_db, DB *src_db,\n"
-                             "                                                                         DBT *dest_key,\n"
-                             "                                                                         const DBT *src_key, const DBT *src_val,\n"
-                             "                                                                         void *extra))",
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array\n"
+                             "                                            ) /* delete from multiple DBs */",
+                             "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
                              "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             DBT *old_src_key, DBT *old_src_data,\n"
                              "                                             DBT *new_src_key, DBT *new_src_data,\n"
                              "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
                              "                                             uint32_t num_keys, DBT *keys,\n"
-                             "                                             uint32_t num_vals, DBT *vals,\n"
-                             "                                             void *extra) /* update multiple DBs */",
+                             "                                             uint32_t num_vals, DBT *vals\n"
+                             "                                            ) /* update multiple DBs */",
                              "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
                              "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
