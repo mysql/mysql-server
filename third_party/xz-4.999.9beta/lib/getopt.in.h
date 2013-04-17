@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 /* Declarations for getopt.
    Copyright (C) 1989-1994,1996-1999,2001,2003,2004,2005,2006,2007
    Free Software Foundation, Inc.
