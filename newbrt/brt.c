@@ -4091,6 +4091,10 @@ static inline int brt_cursor_extract_key_and_val(
         TXNID rootid = cursor->brt->h->root_that_created_or_locked_when_empty;
         if (rootid != TXNID_NONE && rootid != cursor->ancestor_id) {
             r = DB_NOTFOUND;
+            *keylen = 0;
+            *key = NULL;
+            *vallen = 0;
+            *val = NULL;
         }
         else {
             TXNID le_anc_id = le_outermost_uncommitted_xid(le);
