@@ -49,6 +49,7 @@ BRT_SOURCES = \
   log \
   log_code \
   memarena \
+  memory \
   mempool \
   omt \
   recover \
@@ -100,7 +101,6 @@ bins: $(BINS)
 check: bins
 	$(MAYBEATSIGN)cd tests;$(MAKE) check
 
-%$(BINSUF): BIN_FROM_C_FLAGS+=$(LIBPORTABILITY)
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
 checko2:
