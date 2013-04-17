@@ -338,6 +338,8 @@ public:
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     void unpack_row(uchar * record, DBT const *row, DBT const *key);
 
+    int heavi_ret_val;
+
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
