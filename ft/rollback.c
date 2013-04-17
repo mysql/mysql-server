@@ -6,8 +6,8 @@
 
 #include "includes.h"
 
-void
-toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint) {
+static void
+poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint) {
     if (txn->progress_poll_fun) {
         TOKU_TXN_PROGRESS_S progress = {
             .entries_total     = txn->num_rollentries,
@@ -22,8 +22,9 @@ int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yiel
     int r=0;
     rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv, lsn);
     txn->num_rollentries_processed++;
-    if (txn->num_rollentries_processed % 1024 == 0)
-        toku_poll_txn_progress_function(txn, TRUE, FALSE);
+    if (txn->num_rollentries_processed % 1024 == 0) {
+        poll_txn_progress_function(txn, TRUE, FALSE);
+    }
     return r;
 }
 
@@ -31,8 +32,9 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield
     int r=0;
     rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv, lsn);
     txn->num_rollentries_processed++;
-    if (txn->num_rollentries_processed % 1024 == 0)
-        toku_poll_txn_progress_function(txn, FALSE, FALSE);
+    if (txn->num_rollentries_processed % 1024 == 0) {
+        poll_txn_progress_function(txn, FALSE, FALSE);
+    }
     return r;
 }
 
