@@ -87,7 +87,10 @@ static void
 free_indexer_resources(DB_INDEXER *indexer) {
     if ( indexer->i ) {
         if ( indexer->i->lec )   { le_cursor_close(indexer->i->lec); }
-        if ( indexer->i->fnums ) { toku_free(indexer->i->fnums); }
+        if ( indexer->i->fnums ) { 
+            toku_free(indexer->i->fnums); 
+            indexer->i->fnums = NULL;
+        }
         indexer_release_refs(indexer);
         // indexer->i
         toku_free(indexer->i);
