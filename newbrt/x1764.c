@@ -1,8 +1,4 @@
-#include "x1764.h"
-#include "toku_assert.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
+#include "includes.h"
 
 #define PRINT 0
 

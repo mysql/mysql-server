@@ -1,11 +1,4 @@
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#include "toku_assert.h"
-#include "memory.h"
-#include "fifo.h"
-#include "ybt.h"
+#include "includes.h"
 
 struct fifo {
     int n_items_in_fifo;

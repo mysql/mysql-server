@@ -1,24 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <errno.h>
-#include <malloc.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-
-#include "cachetable.h"
-#include "hashfun.h"
-#include "memory.h"
-#include "toku_assert.h"
-#include "brt-internal.h"
-#include "log_header.h"
-#include "threadpool.h"
-#include "cachetable-rwlock.h"
-#include <malloc.h>
+#include "includes.h"
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
 #define DO_WRITER_THREAD 1

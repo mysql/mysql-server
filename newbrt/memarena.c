@@ -1,9 +1,4 @@
-#include <string.h>
-#include <stdio.h>
-
-#include "memarena.h"
-#include "memory.h"
-#include "toku_assert.h"
+#include "includes.h"
 
 struct memarena {
     char *buf;

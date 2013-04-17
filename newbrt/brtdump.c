@@ -1,13 +1,6 @@
 /* Tell me the diff between two brt files. */
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <inttypes.h>
 
-#include "toku_assert.h"
-#include "key.h"
-#include "brt-internal.h"
+#include "includes.h"
 
 static int dump_data = 1;
 
@@ -252,12 +245,12 @@ int main (int argc, const char *argv[]) {
     if (interactive) {
         while (1) {
             printf("brtdump>"); fflush(stdout);
-            const int maxline = 64;
+	    enum { maxline = 64};
             char line[maxline+1];
             readline(line, maxline);
             if (strcmp(line, "") == 0) 
                 break;
-            const int maxfields = 2;
+            enum { maxfields = 2 };
             char *fields[maxfields];
             int nfields = split_fields(line, fields, maxfields);
             if (nfields == 0) 
