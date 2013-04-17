@@ -965,7 +965,7 @@ check_blocking_tdb: $(BLOCKING_TDB_TESTS)
 
 check_blocking_bdb: $(BLOCKING_BDB_TESTS)
 
-check_drd: drd_tiny_test_stress1.tdbrun drd_test_stress1.tdbrun
+check_drd: drd_tiny_test_stress1.tdbrun drd_test_stress1.tdbrun drd_test_stress1.1000.tdbrun
 	true
 
 drd_tiny_test_stress1.tdbrun: test_stress1.tdb
@@ -973,4 +973,9 @@ drd_tiny_test_stress1.tdbrun: test_stress1.tdb
 
 drd_test_stress1.tdbrun: test_stress1.tdb
 	./test_stress1.tdb --only_create --envdir dir.$@ && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb --only_stress --num_seconds 10 --envdir dir.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb --verbose --only_stress --num_seconds 10 --envdir dir.$@
+
+drd_test_stress1.1000.tdbrun: test_stress1.tdb
+	./test_stress1.tdb --only_create --envdir dir.$@ && \
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb --verbose --only_stress --num_seconds 1000 --envdir dir.$@
+
