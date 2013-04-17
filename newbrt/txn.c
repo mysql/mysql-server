@@ -61,6 +61,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->rollentry_fd = -1;
     result->rollentry_filesize = 0;
     result->force_fsync_on_commit = 0;
+    result->has_done_work = 0;
     *tokutxn = result;
     return 0;
 
@@ -81,7 +82,8 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     // panic handled in log_commit
 
     //Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
-    int do_fsync = !txn->parent && (txn->force_fsync_on_commit || !nosync);
+    int do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->has_done_work));
+
     r = toku_log_commit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (r!=0)
         return r;

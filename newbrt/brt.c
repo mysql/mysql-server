@@ -2632,10 +2632,17 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN);
 }
 
+static void
+txn_note_doing_work(TOKUTXN txn) {
+    if (txn)
+        txn->has_done_work = 1;
+}
+
 int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
     int r = 0;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
+    txn_note_doing_work(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
@@ -2681,6 +2688,7 @@ int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN 
     int r;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
+    txn_note_doing_work(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(brt->cf), keybs);
@@ -4774,6 +4782,7 @@ int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL op
     int r;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
+    txn_note_doing_work(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
