@@ -8,7 +8,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 
 #include "test.h"

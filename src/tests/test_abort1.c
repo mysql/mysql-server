@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <string.h>
 #include <stdio.h>

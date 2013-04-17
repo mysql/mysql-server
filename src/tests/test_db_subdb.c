@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 
 // ENVDIR is defined in the Makefile

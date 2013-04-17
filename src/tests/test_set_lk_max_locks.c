@@ -5,7 +5,7 @@
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>

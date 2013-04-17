@@ -6,7 +6,7 @@
  * Also if we've deleted a lot of stuff, so that the first good thing is not on the first page.
  */
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"

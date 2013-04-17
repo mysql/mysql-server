@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <errno.h>
 

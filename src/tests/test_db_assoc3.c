@@ -1,7 +1,7 @@
 /* Primary with two associated things. */
 
 #include <assert.h>
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <errno.h>
 #include <string.h>

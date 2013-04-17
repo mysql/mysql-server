@@ -7,7 +7,7 @@
  *     big child commits, parent commits
  */
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"

@@ -4,7 +4,7 @@
  *  test_dupsort_del.c notices that the wrong thing is being saved.
  */
 
-#include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"
