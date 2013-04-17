@@ -1313,18 +1313,6 @@ cleanup:
     return r;
 }
 
-void 
-toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
-    assert(mgr && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    toku_lt_map* map = NULL;
-    ltm_mutex_lock(mgr);
-    map = toku_idlth_find(mgr->idlth, dict_id);
-    if (map) { 
-	toku_idlth_delete(mgr->idlth, dict_id);
-    }
-    ltm_mutex_unlock(mgr);
-}
-
 static inline void 
 lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
     assert(lt && dict_id.dictid != DICTIONARY_ID_NONE.dictid);

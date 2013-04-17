@@ -45,16 +45,6 @@ toku_commit_fdelete (FILENUM    filenum,
     }
     assert_zero(r);
 
-    // TODO(yoni): this callback may not be necessary. it seems to remove
-    // the locktree from the environment's ltm, but that shouldn't
-    // be necessary since that happens once this txn commits
-    // (which is after this function ends, essentially)
-    FT ft;
-    CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
-    DICTIONARY_ID dict_id;
-    dict_id = ft->dict_id;
-    toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
-
     // bug fix for #4718
     // bug was introduced in with fix for #3590
     // Before Maxwell (and fix for #3590), 
@@ -122,16 +112,6 @@ toku_rollback_fcreate (FILENUM    filenum,
         goto done;
     }
     assert_zero(r);
-
-    // TODO(yoni): this callback may not be necessary. it seems to remove
-    // the locktree from the environment's ltm, but that shouldn't
-    // be necessary since that happens once this txn commits
-    // (which is after this function ends, essentially)
-    FT ft;
-    CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
-    DICTIONARY_ID dict_id;
-    dict_id = ft->dict_id;
-    toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
 
     // Mark the cachefile as unlink on close. There are two ways for close
     // to be eventually called on the cachefile:
