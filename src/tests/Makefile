@@ -425,6 +425,10 @@ check.tdb: $(LIBTDB) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
 check.tdb.extra: $(EXTRA_TDB_TESTS) ;
 check.abortrecover: $(RECOVER_TESTS) ;
 
+.PHONY: fastcheck.tdb fastcheckonlyfail.tdb
+fastcheck.tdb: $(patsubst %,%.fast,$(RUN_TDB_TESTS))
+fastcheckonlyfail.tdb: $(patsubst %,%.fastonlyfail,$(RUN_TDB_TESTS))
+
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
 	echo ALL_TESTS: $(ALL_TESTS)
@@ -538,6 +542,25 @@ all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
 
 #DISABLE standard tdbrun for recover tests.
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
+
+.PHONY: %.fast %.fastonlyfail
+%.fast: $(DEPEND_COMPILE) $(DEPEND_LINK) $(LIBTDB) $(PTHREAD_LOCAL)
+	@($(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
+		if test $$? != 0 ; then \
+			printf "%-60s FAIL\nexamine %s\n" $* $*.fastlog; \
+			exit 2 ; \
+		else \
+			printf "%-60s PASS\n" $* ; \
+			$(RM) $*.fastlog ; \
+		fi
+%.fastonlyfail: $(DEPEND_COMPILE) $(DEPEND_LINK) $(LIBTDB) $(PTHREAD_LOCAL)
+	@($(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
+		if test $$? != 0 ; then \
+			printf "%-60s FAIL\nexamine %s\n" $* $*.fastlog; \
+			exit 2 ; \
+		else \
+			$(RM) $*.fastlog ; \
+		fi
 
 BDB_CFLAGS=
 TDB_CFLAGS=
@@ -886,3 +909,4 @@ clean:
 	rm -rf dir.* *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 	rm -f *.bdb *.tdb
+	rm -f *.fastlog

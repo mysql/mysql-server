@@ -49,12 +49,13 @@ CHECKS = \
 
 build: $(BINS)
 check: $(PTHREAD_LOCAL) $(patsubst %,check_%,$(CHECKS))
+fastcheck: $(PTHREAD_LOCAL) $(patsubst %,fastcheck_%,$(CHECKS))
+fastcheckonlyfail: $(PTHREAD_LOCAL) $(patsubst %,fastcheckonlyfail_%,$(CHECKS))
 
 check_fail:
 	test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
-
 
 ifeq ($(TOKU_SKIP_MINICRON),1)
 check_minicron-test$(BINSUF):
@@ -165,6 +166,24 @@ check_bnc-insert-benchmark: bnc-insert-benchmark$(BINSUF)
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
+fastcheck_%: $(PTHREAD_LOCAL)
+	@($(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
+		if test $$? != 0 ; then \
+			printf "%-60s FAIL\nexamine %s\n" check_$* $*.fastlog; \
+			exit 2 ; \
+		else \
+			printf "%-60s PASS\n" check_$* ; \
+			$(RM) $*.fastlog ; \
+		fi
+fastcheckonlyfail_%: $(PTHREAD_LOCAL)
+	@($(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
+		if test $$? != 0 ; then \
+			printf "%-60s FAIL\nexamine %s\n" check_$* $*.fastlog; \
+			exit 2 ; \
+		else \
+			$(RM) $*.fastlog ; \
+		fi
+
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
 brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
@@ -228,7 +247,7 @@ clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir dir.*
 	rm -f test_oexcl.c.tmp
-	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
+	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind *.fastlog
 
 $(BINS): LDFLAGS=-L../../lib -ltokuportability -lnewbrt $(ALWAYS_LINK) -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 $(BINS): test.h
