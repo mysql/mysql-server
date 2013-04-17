@@ -11,7 +11,7 @@ typedef struct st_tokudb_share {
     THR_LOCK lock;
 
     ulonglong auto_ident;
-    ulonglong last_auto_increment;
+    ulonglong last_auto_increment, auto_inc_create_value;
     ha_rows rows;
     DB *status_block;
     //
@@ -27,8 +27,15 @@ typedef struct st_tokudb_share {
     u_int32_t key_type[MAX_KEY +1];
     uint status, version, capabilities;
     uint ref_length;
-    bool fixed_length_primary_key, fixed_length_row;
-
+    bool fixed_length_primary_key, fixed_length_row; 
+    //
+    // whether table has an auto increment column
+    //
+    bool has_auto_inc;
+    //
+    // index of auto increment column in table->field, if auto_inc exists
+    //
+    uint ai_field_index;
 } TOKUDB_SHARE;
 
 #define HA_TOKU_VERSION 1
@@ -45,7 +52,9 @@ typedef struct st_tokudb_share {
 //
 typedef enum {
     hatoku_version = 0,
-    hatoku_capabilities
+    hatoku_capabilities,
+    hatoku_max_ai, //maximum auto increment value found so far
+    hatoku_ai_create_value
 } HA_METADATA_KEY ;
 
 typedef struct st_prim_key_part_info {
@@ -174,6 +183,12 @@ private:
     int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows);
+    bool has_auto_increment_flag(uint* index);
+    int write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, ulonglong size );
+    int update_max_auto_inc(DB* db, ulonglong val);
+    int write_auto_inc_create(DB* db, ulonglong val);
+    void init_auto_increment();
+
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
