@@ -320,6 +320,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         }
     } else
     if (only_flags(ctx->handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
+        HA_CREATE_INFO *create_info = ha_alter_info->create_info;
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
