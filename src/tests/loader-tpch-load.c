@@ -395,7 +395,7 @@ static int run_test(void)
     for(int i=0;i<NUM_DBS;i++) {
         idx[i] = i;
         r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
-        r = dbs[i]->set_descriptor(dbs[i], 1, &desc, abort_on_upgrade);                                       CKERR(r);
+        r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                       CKERR(r);
         dbs[i]->app_private = &idx[i];
         snprintf(name, sizeof(name), "db_%04x", i);
         r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);

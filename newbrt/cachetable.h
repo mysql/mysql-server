@@ -330,7 +330,7 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
 
 LEAFLOCK_POOL toku_cachefile_leaflock_pool(CACHEFILE cf);
 
-void toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir);
+void toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir);
 char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 

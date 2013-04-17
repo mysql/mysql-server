@@ -292,7 +292,7 @@ static void test (const char *directory, BOOL is_error) {
 
     BRTLOADER bl;
     DB **XMALLOC_N(N_DEST_DBS, dbs);
-    const struct descriptor **XMALLOC_N(N_DEST_DBS, descriptors);
+    DESCRIPTOR *XMALLOC_N(N_DEST_DBS, descriptors);
     const char **XMALLOC_N(N_DEST_DBS, new_fnames_in_env);
     for (int i=0; i<N_DEST_DBS; i++) {
 	char s[100];

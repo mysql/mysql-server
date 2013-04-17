@@ -8,7 +8,9 @@
 static void recover_callback_at_turnaround(void *UU(arg)) {
     // change the LSN in the first log entry of log 2.  this will cause an LSN error during the forward scan.
     int r;
-    FILE *f = fopen("log000000000002.tokulog", "r+b"); assert(f);
+    char logname[PATH_MAX];
+    sprintf(logname, "log000000000002.tokulog%d", TOKU_LOG_VERSION);
+    FILE *f = fopen(logname, "r+b"); assert(f);
     r = fseek(f, 025, SEEK_SET); assert(r == 0);
     char c = 100;
     size_t n = fwrite(&c, sizeof c, 1, f); assert(n == sizeof c);

@@ -572,9 +572,11 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
 
-    printf("typedef int (*toku_dbt_upgradef)(DB*,\n");
-    printf("                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,\n");
-    printf("                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val);\n");
+    //descriptor
+    printf("typedef struct __toku_descriptor {\n");
+    printf("    u_int32_t version;\n");
+    printf("    DBT       dbt;\n");
+    printf("} *DESCRIPTOR, DESCRIPTOR_S;\n");
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
     {
@@ -601,8 +603,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
                              "int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */",
                              "int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */",
-                             "const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
-                             "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) /* set row/dictionary descriptor for a db.  Available only while db is open */",
+                             "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
+                             "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */",
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			     "int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */",
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",

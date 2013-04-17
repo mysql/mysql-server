@@ -61,6 +61,7 @@ BRT_SOURCES = \
   logfilemgr \
   logger \
   log_code \
+  log_upgrade \
   log_print \
   logcursor \
   memarena \
@@ -93,6 +94,8 @@ BRT_O_FILES = $(patsubst %,%.$(OEXT),$(BRT_SOURCES))
 
 newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
 	$(CC) -c $(BRT_C_FILES) $(COMBINE_C) $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
+
+brt-serialize.$(OEXT): $(wildcard backwards_*.c)
 
 ifneq ($(CYGWIN),)
 NEWBRT_O_FILES = $(BRT_O_FILES)

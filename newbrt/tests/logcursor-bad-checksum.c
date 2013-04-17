@@ -13,8 +13,10 @@
 
 static void corrupt_the_checksum(void) {
     // change the LSN in the first log entry of log 0.  this will cause an checksum error.
+    char logname[PATH_MAX];
     int r;
-    FILE *f = fopen(dname "/" "log000000000000.tokulog", "r+b"); assert(f);
+    sprintf(logname, dname "/" "log000000000000.tokulog%d", TOKU_LOG_VERSION);
+    FILE *f = fopen(logname, "r+b"); assert(f);
     r = fseek(f, 025, SEEK_SET); assert(r == 0);
     char c = 100;
     size_t n = fwrite(&c, sizeof c, 1, f); assert(n == sizeof c);

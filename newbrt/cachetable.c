@@ -321,7 +321,7 @@ void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_me
 }
 
 void
-toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir) {
+toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
     assert(!ct->set_env_dir);
     toku_free(ct->env_dir);
     ct->env_dir = toku_xstrdup(env_dir);

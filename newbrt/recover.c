@@ -7,11 +7,13 @@
 #include "log_header.h"
 #include "checkpoint.h"
 
+static const char recovery_lock_file[] = "/__tokudb_recoverylock_dont_delete_me";
+
 int tokudb_recovery_trace = 0;                    // turn on recovery tracing, default off.
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
-#define VERIFY_COUNTS(n) toku_verify_counts(n)
+#define VERIFY_COUNTS(n) toku_verify_or_set_counts(n, FALSE)
 #else
 #define VERIFY_COUNTS(n) ((void)0)
 #endif
@@ -235,14 +237,6 @@ static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
     if (f) f(fpthunk);
 }
 
-static int
-abort_on_upgrade(DB* UU(pdb),
-                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
-                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
-    assert(FALSE); //Must not upgrade.
-    return ENOSYS;
-}
-
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags, 
                                               u_int32_t descriptor_version, BYTESTRING* descriptor, TOKUTXN txn) {
@@ -269,7 +263,7 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     if (descriptor_version > 0) {
         DBT descriptor_dbt;
         toku_fill_dbt(&descriptor_dbt, descriptor->data, descriptor->len);
-        r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt, abort_on_upgrade);
+        r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt);
         if (r!=0) goto close_brt;
     }
     r = toku_brt_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, fake_db, filenum);
@@ -674,6 +668,32 @@ static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), RECOVER_ENV
     return 0;
 }
 
+static int toku_recover_fdescriptor (struct logtype_fdescriptor *l, RECOVER_ENV renv) {
+    int r;
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    if (r==0) {
+        //Maybe do the descriptor (lsn filter)
+        LSN treelsn = toku_brt_checkpoint_lsn(tuple->brt);
+        if (l->lsn.lsn > treelsn.lsn) {
+            //Upgrade descriptor.
+            assert(tuple->brt->h->descriptor.version < l->descriptor_version); //Must be doing an upgrade.
+            DESCRIPTOR_S d;
+            d.version = l->descriptor_version;
+            toku_fill_dbt(&d.dbt, toku_xmemdup(l->descriptor.data, l->descriptor.len), l->descriptor.len);
+            r = toku_maybe_upgrade_descriptor(tuple->brt, &d, FALSE, NULL);
+            assert(r==0);
+        }
+    }    
+    return 0;
+}
+
+static int toku_recover_backward_fdescriptor (struct logtype_fdescriptor *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+
 // if file referred to in l is open, close it
 static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
     struct file_map_tuple *tuple = NULL;
@@ -949,6 +969,16 @@ static int toku_recover_backward_comment (struct logtype_comment *UU(l), RECOVER
     return 0;
 }
 
+static int toku_recover_shutdown (struct logtype_shutdown *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_backward_shutdown (struct logtype_shutdown *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
 static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
     int r;
     TOKUTXN txn = NULL;
@@ -992,7 +1022,7 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     if (r != 0) {
         needs_recovery = TRUE; goto exit;
     }
-    if (le->cmd == LT_comment) {
+    if (le->cmd==LT_shutdown || le->cmd==LT_comment) {
         r = toku_logcursor_prev(logcursor, &le);
         if (r != 0) {
             needs_recovery = TRUE; goto exit;
@@ -1261,15 +1291,14 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     return rr;
 }
 
-static int recover_lock(const char *lock_dir, int *lockfd) {
+int
+toku_recover_lock(const char *lock_dir, int *lockfd) {
     if (!lock_dir)
         return ENOENT;
-
-    const char fname[] = "/__tokudb_recoverylock_dont_delete_me";
     int namelen=strlen(lock_dir);
-    char lockfname[namelen+sizeof(fname)];
+    char lockfname[namelen+sizeof(recovery_lock_file)];
 
-    int l = snprintf(lockfname, sizeof(lockfname), "%s%s", lock_dir, fname);
+    int l = snprintf(lockfname, sizeof(lockfname), "%s%s", lock_dir, recovery_lock_file);
     assert(l+1 == (signed)(sizeof(lockfname)));
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
@@ -1280,12 +1309,15 @@ static int recover_lock(const char *lock_dir, int *lockfd) {
     return 0;
 }
 
-static int recover_unlock(int lockfd) {
+int
+toku_recover_unlock(int lockfd) {
     int r = toku_os_unlock_file(lockfd);
     if (r != 0)
         return errno;
     return 0;
 }
+
+
 
 int tokudb_recover(const char *env_dir, const char *log_dir,
                    brt_compare_func bt_compare,
@@ -1296,7 +1328,7 @@ int tokudb_recover(const char *env_dir, const char *log_dir,
     int r;
     int lockfd = -1;
 
-    r = recover_lock(log_dir, &lockfd);
+    r = toku_recover_lock(log_dir, &lockfd);
     if (r != 0)
         return r;
 
@@ -1314,7 +1346,7 @@ int tokudb_recover(const char *env_dir, const char *log_dir,
         recover_env_cleanup(&renv, (BOOL)(rr == 0));
     }
 
-    r = recover_unlock(lockfd);
+    r = toku_recover_unlock(lockfd);
     if (r != 0)
         return r;
 

@@ -80,8 +80,10 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
         }
         // find the index
         basename = strrchr(logfiles[i], '/') + 1;
-        r = sscanf(basename, "log%lld.tokulog", &index);
-        assert(r==1);  // found index
+        int version;
+        r = sscanf(basename, "log%lld.tokulog%d", &index, &version);
+        assert(r==2);  // found index and version
+        assert(version==TOKU_LOG_VERSION);
         lf_info->index = index;
         // find last LSN
         r = toku_logcursor_create_for_file(&cursor, log_dir, basename);

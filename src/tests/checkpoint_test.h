@@ -159,7 +159,7 @@ db_startup(DICTIONARY d, DB_TXN *open_txn) {
     {
         DBT desc;
         dbt_init(&desc, "foo", sizeof("foo"));
-        r = db->set_descriptor(db, 1, &desc, abort_on_upgrade);
+        r = db->set_descriptor(db, 1, &desc);
             CKERR(r);
     }
     {

@@ -88,7 +88,6 @@ typedef struct brtnode *BRTNODE;
 /* Internal nodes. */
 struct brtnode {
     enum typ_tag tag;
-    struct descriptor *desc;
     unsigned int nodesize;
     int ever_been_written;
     unsigned int flags;
@@ -170,11 +169,12 @@ struct brt_header {
     int layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
     int layout_version_read_from_disk;  // transient, not serialized to disk
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
+    uint64_t num_blocks_to_upgrade;     // Number of blocks still not newest version. When we release layout 13 we may need to turn this to an array.
     unsigned int nodesize;
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
-    struct descriptor descriptor;
+    DESCRIPTOR_S descriptor;
 
     u_int64_t root_put_counter; // the generation number of the brt
 
@@ -200,8 +200,7 @@ struct brt {
     unsigned int flags;
     BOOL did_set_flags;
     BOOL did_set_descriptor;
-    struct descriptor temp_descriptor;
-    toku_dbt_upgradef dbt_userformat_upgrade;
+    DESCRIPTOR_S temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun, and close once transactions are done.
@@ -230,14 +229,14 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/,
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
-void toku_verify_counts(BRTNODE);
+void toku_verify_or_set_counts(BRTNODE, BOOL);
 
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
 int toku_deserialize_brtheader_from (int fd, struct brt_header **brth);
-int toku_serialize_descriptor_contents_to_fd(int fd, const struct descriptor *desc, DISKOFF offset);
-void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const struct descriptor *desc);
+int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
+void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 
 void toku_brtnode_free (BRTNODE *node);
 
@@ -347,10 +346,10 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
     BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
     BRT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  BRT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
-    BRT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added BRT_CMD 'BRT_INSERT_NO_OVERWRITE'
+    BRT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added BRT_CMD 'BRT_INSERT_NO_OVERWRITE', compressed block format, num old blocks
     BRT_NEXT_VERSION,           // the version after the current version
     BRT_LAYOUT_VERSION   = BRT_NEXT_VERSION-1, // A hack so I don't have to change this line.
-    BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION // Minimum version supported without transparent upgrade
+    BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION_12 // Minimum version supported
 };
 
 void toku_brtheader_free (struct brt_header *h);
@@ -363,6 +362,15 @@ int toku_db_badformat(void);
 
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p);
 int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
+
+
+typedef struct brt_upgrade_status {
+    u_int64_t header;
+    u_int64_t nonleaf;
+    u_int64_t leaf;
+} BRT_UPGRADE_STATUS_S, *BRT_UPGRADE_STATUS;
+
+void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);
 
 C_END
 

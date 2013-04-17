@@ -4,32 +4,45 @@
 #include "test.h"
 
 
-char descriptor_contents[] = "Spoon full of sugar";
+char *descriptor_contents[] = {
+    "Spoon full of sugar",
+    "Bucket full of pants"
+};
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 char *namea="a.db";
-char *nameb="b.db";
+
+int verified = 0;
+uint32_t forced_version = 2;
 
 #if USE_TDB
 
 static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     assert(db);
     assert(db->descriptor);
-    assert(db->descriptor->dbt.size == sizeof(descriptor_contents));
-    assert(memcmp(db->descriptor->dbt.data, descriptor_contents, sizeof(descriptor_contents)) == 0);
+    uint32_t version = db->descriptor->version;
+    assert(version > 0);
+    assert(version == forced_version);
+    uint32_t which = version-1;
+    size_t len = strlen(descriptor_contents[which])+1;
+
+    assert(db->descriptor->dbt.size == len);
+    assert(memcmp(db->descriptor->dbt.data, descriptor_contents[which], len) == 0);
 
     assert(a->size == b->size);
+    verified = 1;
     return memcmp(a->data, b->data, a->size);
 }   
 
 #endif
 
 static void
-set_descriptor(DB* db) {
+set_descriptor(DB* db, int which) {
 #if USE_TDB
     DBT descriptor;
-    dbt_init(&descriptor, descriptor_contents, sizeof(descriptor_contents));
-    int r = db->set_descriptor(db, 1, &descriptor);                 CKERR(r);
+    size_t len = strlen(descriptor_contents[which])+1;
+    dbt_init(&descriptor, descriptor_contents[which], len);
+    int r = db->set_descriptor(db, which+1, &descriptor);  CKERR(r);
 #endif
 }
 
@@ -40,19 +53,25 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = toku_os_mkdir(ENVDIR"/data", S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     DB_ENV *env;
-    DB *dba, *dbb;
+    DB *dba;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->set_data_dir(env, "data");                                                 CKERR(r);
 #if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                   CKERR(r);
 #endif
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+
     r = db_create(&dba, env, 0);                                                        CKERR(r);
-    set_descriptor(dba);
+    set_descriptor(dba, 0);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
-    r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    set_descriptor(dbb);
-    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    r = dba->close(dba, 0);                                                                 CKERR(r);
+
+    r = db_create(&dba, env, 0);                                                        CKERR(r);
+    set_descriptor(dba, 1);
+    r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+
+    
+
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
@@ -60,7 +79,6 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
 	DBT b={.data="b", .size=2};
 	r = dba->put(dba, txn, &a, &b, 0);                                              CKERR(r);
 	r = dba->put(dba, txn, &b, &a, 0);                                              CKERR(r);
-	r = dbb->put(dbb, txn, &b, &a, 0);                                              CKERR(r);
     }
     //printf("opened\n");
     if (do_commit) {
@@ -73,13 +91,14 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
         r = txn->commit(txn, 0);                                                        CKERR(r);
     }
     //printf("shutdown\n");
+    assert(verified);
     toku_hard_crash_on_purpose();
 }
 
 static void
 do_x1_recover (BOOL did_commit) {
     DB_ENV *env;
-    DB *dba, *dbb;
+    DB *dba;
     int r;
     r = system("rm -rf " ENVDIR"/data"); /* Delete dictionaries */                          CKERR(r);
     r = toku_os_mkdir(ENVDIR"/data", S_IRWXU+S_IRWXG+S_IRWXO);                              CKERR(r);
@@ -91,49 +110,35 @@ do_x1_recover (BOOL did_commit) {
     r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
-    r = db_create(&dbb, env, 0);                                                            CKERR(r);
-    r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
     DBT aa={.size=0}, ab={.size=0};
-    DBT ba={.size=0}, bb={.size=0};
     DB_TXN *txn;
-    DBC *ca,*cb;
+    DBC *ca;
     r = env->txn_begin(env, NULL, &txn, 0);                                                 CKERR(r);
     r = dba->cursor(dba, txn, &ca, 0);                                                      CKERR(r);
-    r = dbb->cursor(dbb, txn, &cb, 0);                                                      CKERR(r);
     int ra = ca->c_get(ca, &aa, &ab, DB_FIRST);                                             CKERR(r);
-    int rb = cb->c_get(cb, &ba, &bb, DB_FIRST);                                             CKERR(r);
     if (did_commit) {
 	assert(ra==0);
-	assert(rb==0);
 	// verify key-value pairs
 	assert(aa.size==2);
 	assert(ab.size==2);
-	assert(ba.size==2);
-	assert(bb.size==2);
 	const char a[2] = "a";
 	const char b[2] = "b";
         assert(memcmp(aa.data, &a, 2)==0);
         assert(memcmp(ab.data, &b, 2)==0);
         assert(memcmp(ab.data, &b, 2)==0);
-        assert(memcmp(bb.data, &a, 2)==0);
 	assert(ca->c_get(ca, &aa, &ab, DB_NEXT) == 0);
         assert(aa.size == 2 && ab.size == 2 && memcmp(aa.data, b, 2) == 0 && memcmp(ab.data, a, 2) == 0);
 	// make sure no other entries in DB
 	assert(ca->c_get(ca, &aa, &ab, DB_NEXT) == DB_NOTFOUND);
-	assert(cb->c_get(cb, &ba, &bb, DB_NEXT) == DB_NOTFOUND);
-	fprintf(stderr, "Both verified. Yay!\n");
     } else {
 	// It wasn't committed (it also wasn't aborted), but a checkpoint happened.
 	assert(ra==DB_NOTFOUND);
-	assert(rb==DB_NOTFOUND);
-	fprintf(stderr, "Neither present. Yay!\n");
     }
     r = ca->c_close(ca);                                                                    CKERR(r);
-    r = cb->c_close(cb);                                                                    CKERR(r);
     r = txn->commit(txn, 0);                                                                CKERR(r);
     r = dba->close(dba, 0);                                                                 CKERR(r);
-    r = dbb->close(dbb, 0);                                                                 CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
+    assert(verified);
     exit(0);
 }
 

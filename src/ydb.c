@@ -569,9 +569,9 @@ static const char * orig_env_ver_key = "original_version";
 
 // requires: persistent environment dictionary is already open
 static int
-upgrade_env(DB_ENV * env, DB_TXN * txn) {
+maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn) {
     int r;
-    uint64_t stored_env_version;
+    uint32_t stored_env_version;
     DBT key, val;
 
     toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
@@ -579,8 +579,18 @@ upgrade_env(DB_ENV * env, DB_TXN * txn) {
     r = toku_db_get(env->i->persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
     stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
-    if (stored_env_version != BRT_LAYOUT_VERSION)
+    if (stored_env_version > BRT_LAYOUT_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_NEW;
+    else if (stored_env_version < BRT_LAYOUT_MIN_SUPPORTED_VERSION)
+	r = TOKUDB_DICTIONARY_TOO_OLD;
+    else if (stored_env_version < BRT_LAYOUT_VERSION) {
+        const uint32_t environment_version = toku_htod32(BRT_LAYOUT_VERSION);
+        toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
+        toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
+        r = toku_db_put(env->i->persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+        assert(r==0);
+    }
+    // TODO: add key/val for timestamp of VERSION_12_CREATION (could be upgrade)
     return r;
 }
 
@@ -640,7 +650,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 		r = 0;           // both rollback cachefile and persistent env are missing
 	}
 	else {
-	    r = toku_ydb_do_error(env, errno, "Unable to access rollback cachefile\n");
+	    r = toku_ydb_do_error(env, stat_errno, "Unable to access rollback cachefile\n");
 	    assert(r);
 	}
     }
@@ -663,7 +673,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 		r = 0;           // both fileops directory and persistent env are missing
 	}
 	else {
-	    r = toku_ydb_do_error(env, errno, "Unable to access fileops directory\n");
+	    r = toku_ydb_do_error(env, stat_errno, "Unable to access fileops directory\n");
 	    assert(r);
 	}
     }
@@ -686,6 +696,18 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 	*valid_newenv = FALSE;
     return r;
 }
+
+static int
+ydb_maybe_upgrade_env (DB_ENV *env) {
+    int r = 0;
+    if (env->i->open_flags & DB_INIT_TXN && env->i->open_flags & DB_INIT_LOG) {
+        toku_ydb_unlock();
+        r = toku_maybe_upgrade_log(env->i->dir, env->i->real_log_dir);
+        toku_ydb_lock();
+    }
+    return r;
+}
+
 
 
 
@@ -766,6 +788,9 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         need_rollback_cachefile = TRUE;
     }
+
+    r = ydb_maybe_upgrade_env(env);
+    if (r!=0) return r;
 
     r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
     if (r != 0) return r;
@@ -848,11 +873,11 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         r = db_use_builtin_val_cmp(env->i->persistent_environment);
         assert(r==0);
 	r = db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
+	assert(r==0);
 	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
 	    const uint32_t environment_version = toku_htod32(BRT_LAYOUT_VERSION);
-	    assert(r==0);
 	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
 	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
@@ -863,8 +888,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	    assert(r==0);
 	}
 	else {
+	    r = maybe_upgrade_persistent_environment_dictionary(env, txn);
 	    assert(r==0);
-	    r = upgrade_env(env, txn);
 	}
     }
     {
@@ -1664,11 +1689,13 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->logsuppressfail = logsuppressfail;
 	}
 	{
-	    // dummy values until upgrade logic is complete and counters are available
-	    engstat->upgrade_env_status = 0;
-	    engstat->upgrade_header     = 0;
-	    engstat->upgrade_nonleaf    = 0;
-	    engstat->upgrade_leaf       = 0;
+	    BRT_UPGRADE_STATUS_S brt_upgrade_stat;
+	    toku_brt_get_upgrade_status(&brt_upgrade_stat);
+
+	    engstat->upgrade_env_status = toku_log_upgrade_get_footprint();
+	    engstat->upgrade_header     = brt_upgrade_stat.header;
+	    engstat->upgrade_nonleaf    = brt_upgrade_stat.nonleaf;
+	    engstat->upgrade_leaf       = brt_upgrade_stat.leaf;
 	}
     }
     return r;
@@ -5012,13 +5039,13 @@ toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT 
     return r;
 }
 
-static int toku_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
+static int toku_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
     HANDLE_PANICKED_DB(db);
     int r;
     if (db_opened(db)) return EINVAL;
     else if (!descriptor) r = EINVAL;
     else if (descriptor->size>0 && !descriptor->data) r = EINVAL;
-    else r = toku_brt_set_descriptor(db->i->brt, version, descriptor, dbt_userformat_upgrade);
+    else r = toku_brt_set_descriptor(db->i->brt, version, descriptor);
     return r;
 }
 
@@ -5410,9 +5437,9 @@ static int locked_db_set_dup_compare(DB * db, int (*dup_compare) (DB *, const DB
     toku_ydb_lock(); int r = toku_db_set_dup_compare(db, dup_compare); toku_ydb_unlock(); return r;
 }
 
-static int locked_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
+static int locked_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
     toku_ydb_lock();
-    int r = toku_db_set_descriptor(db, version, descriptor, dbt_userformat_upgrade);
+    int r = toku_db_set_descriptor(db, version, descriptor);
     toku_ydb_unlock();
     return r;
 }

@@ -135,6 +135,11 @@ const struct logtype logtypes[] = {
                         {"u_int32_t",  "treeflags", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
+    {"fdescriptor", 'd', FA{{"FILENUM",    "filenum", 0},
+                            {"u_int32_t",  "descriptor_version", 0},
+                            {"BYTESTRING", "descriptor", 0},
+                            NULLFIELD}},
+    //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
                          NULLFIELD}},
@@ -176,6 +181,8 @@ const struct logtype logtypes[] = {
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                         {"BYTESTRING", "comment", 0},
                         NULLFIELD}},
+    {"shutdown", 'Q', FA{{"u_int64_t", "timestamp", 0},
+                         NULLFIELD}},
     {"load", 'l', FA{{"TXNID",      "xid", 0},
                      {"BYTESTRING", "old_iname", 0},
                      {"BYTESTRING", "new_iname", 0},

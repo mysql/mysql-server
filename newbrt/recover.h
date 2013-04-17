@@ -41,6 +41,11 @@ void toku_recover_set_callback2 (void (*)(void*), void*);
 
 extern int tokudb_recovery_trace;
 
+int toku_recover_lock (const char *lock_dir, int *lockfd);
+
+int toku_recover_unlock(int lockfd);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

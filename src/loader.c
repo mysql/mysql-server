@@ -212,7 +212,7 @@ int toku_loader_create_loader(DB_ENV *env,
 	}
 	else {
 	    char **XMALLOC_N(N, new_inames_in_env);
-	    const struct descriptor **XMALLOC_N(N, descriptors);
+	    DESCRIPTOR *XMALLOC_N(N, descriptors);
 	    for (int i=0; i<N; i++) {
 		descriptors[i] = &dbs[i]->i->brt->h->descriptor;
 	    }

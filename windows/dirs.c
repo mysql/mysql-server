@@ -140,7 +140,7 @@ toku_fstat(int fd, toku_struct_stat *statbuf) {
 
 int
 toku_fsync_dirfd_without_accounting(DIR *dirp) {
-    //Not supported in windows.
+    //Believed to not be supported in windows.
     //Possibly not needed
     return 0;
 }
@@ -149,3 +149,11 @@ int
 toku_fsync_directory(const char *UU(fname)) {
     return 0; // toku_fsync_dirfd
 }
+
+int
+toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
+    //Believed to not be supported in windows.
+    //Possibly not needed
+    return 0;
+}
+

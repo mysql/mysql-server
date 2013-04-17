@@ -31,7 +31,7 @@ static void verify_local_fingerprint (BRTNODE node) {
 			      });
 	assert(fp==node->local_fingerprint);
     } else {
-	toku_verify_counts(node);
+	toku_verify_or_set_counts(node, FALSE);
     }
 }
 

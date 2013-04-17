@@ -38,6 +38,10 @@ static inline void toku_free_FILENUMS(FILENUMS val) { toku_free(val.filenums); }
 
 void toku_set_lsn_increment (uint64_t incr) __attribute__((__visibility__("default")));
 
+int toku_maybe_upgrade_log (const char *env_dir, const char *log_dir);
+uint64_t toku_log_upgrade_get_footprint(void);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

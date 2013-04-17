@@ -295,7 +295,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     // open the brtloader. this runs the extractor.
     const int N = 1;
     DB *dbs[N];
-    const struct descriptor *descriptors[N];
+    DESCRIPTOR descriptors[N];
     const char *fnames[N];
     brt_compare_func compares[N];
     for (int i = 0; i < N; i++) {

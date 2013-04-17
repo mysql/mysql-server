@@ -15,7 +15,7 @@
 #define FNAME       "foo.tokudb"
 char *name = NULL;
 
-#define NUM         8
+#define NUM         3
 #define MAX_LENGTH  (1<<16)
 
 int order[NUM+1];
@@ -24,7 +24,8 @@ u_int8_t data[NUM][MAX_LENGTH];
 DBT descriptors[NUM];
 DB_ENV *env;
 
-DB *db;
+enum {NUM_DBS=2};
+DB *dbs[NUM_DBS];
 DB_TXN *txn = NULL;
 DB_TXN *null_txn;
 int last_open_descriptor = -1;
@@ -37,17 +38,27 @@ int manual_truncate = 0;
 
 static void
 verify_db_matches(void) {
-    const DBT * dbt = db->descriptor;
+    DB *db;
+    int which;
+    for (which = 0; which < NUM_DBS; which++) {
+        db = dbs[which];
+        if (db) {
+            const DBT * dbt = &db->descriptor->dbt;
 
-    if (last_open_descriptor<0) {
-        assert(dbt->size == 0 && dbt->data == NULL);
+            if (last_open_descriptor<0) {
+                assert(dbt->size == 0 && dbt->data == NULL);
+                assert(db->descriptor->version == 0);
+            }
+            else {
+                assert(last_open_descriptor < NUM);
+                assert(dbt->size == descriptors[last_open_descriptor].size);
+                assert(!memcmp(dbt->data, descriptors[last_open_descriptor].data, dbt->size));
+                assert(dbt->data != descriptors[last_open_descriptor].data);
+                assert(db->descriptor->version == (uint32_t)last_open_descriptor+1);
+            }
+        }
     }
-    else {
-        assert(last_open_descriptor < NUM);
-        assert(dbt->size == descriptors[last_open_descriptor].size);
-        assert(!memcmp(dbt->data, descriptors[last_open_descriptor].data, dbt->size));
-        assert(dbt->data != descriptors[last_open_descriptor].data);
-    }
+    
 }
 
 static int
@@ -59,30 +70,33 @@ verify_int_cmp (DB *dbp, const DBT *a, const DBT *b) {
 }
 
 static void
-open_db(int descriptor) {
+open_db(int descriptor, int which) {
     /* create the dup database file */
-    assert(txn==NULL);
+    assert(dbs[which]==NULL);
+    DB *db;
     int r = db_create(&db, env, 0);
     CKERR(r);
+    dbs[which] = db;
+
     r = db->set_bt_compare(db, verify_int_cmp);
     CKERR(r);
     assert(abort_type >=0 && abort_type <= 2);
-    if (abort_type==2) {
+    if (abort_type==2 && !txn) {
         r = env->txn_begin(env, null_txn, &txn, 0);
             CKERR(r);
         last_open_descriptor = -1; //DB was destroyed at end of last close, did not hang around.
     }
     if (descriptor >= 0) {
         assert(descriptor < NUM);
-        u_int32_t descriptor_version = 1;
-        r = db->set_descriptor(db, descriptor_version, &descriptors[descriptor], abort_on_upgrade);
+        u_int32_t descriptor_version = descriptor+1;
+        r = db->set_descriptor(db, descriptor_version, &descriptors[descriptor]);
         CKERR(r);
         last_open_descriptor = descriptor;
     }
     r = db->open(db, txn, FNAME, name, DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
     verify_db_matches();
-    if (abort_type!=2) {
+    if (abort_type!=2 && !txn) {
         r = env->txn_begin(env, null_txn, &txn, 0);
             CKERR(r);
     }
@@ -95,6 +109,11 @@ open_db(int descriptor) {
 
 static void
 delete_db(void) {
+    int which;
+    for (which = 0; which < NUM_DBS; which++) {
+        assert(dbs[which] == NULL);
+    }
+    DB *db;
     int r = db_create(&db, env, 0);
     CKERR(r);
     r = db->remove(db, FNAME, name, 0);
@@ -106,14 +125,26 @@ delete_db(void) {
 }
 
 static void
-close_db(void) {
+close_db(int which) {
+    assert(dbs[which]!=NULL);
+    DB *db = dbs[which];
+    dbs[which] = NULL;
+
     int r;
+    if (which==1) {
+        r = db->close(db, 0);
+        CKERR(r);
+        return;
+    }
     if (manual_truncate) {
         u_int32_t ignore_row_count;
         r = db->truncate(db, txn, &ignore_row_count, 0);
         CKERR(r);
     }
     if (abort_type>0) {
+        if (abort_type==2 && dbs[1]) {
+            close_db(1);
+        }
         r = db->close(db, 0);
         CKERR(r);
         r = txn->abort(txn);
@@ -163,7 +194,17 @@ permute_order(void) {
 }
 
 static void
-test_insert (int n) {
+test_insert (int n, int which) {
+    if (which == -1) {
+        for (which = 0; which < NUM_DBS; which++) {
+            if (dbs[which]) {
+                test_insert(n, which);
+            }
+        }
+        return;
+    }
+    assert(dbs[which]!=NULL);
+    DB *db = dbs[which];
     int i;
     static int last = 0;
     for (i=0; i<n; i++) {
@@ -187,26 +228,63 @@ runtest(void) {
     permute_order();
 
     int i;
+    /* Subsumed by rest of test.
     for (i=0; i < NUM; i++) {
-        open_db(-1);
-        test_insert(i);
-        close_db();
-        open_db(-1);
-        test_insert(i);
-        close_db();
-        delete_db();
-
-        open_db(order[i]);
-        test_insert(i);
-        close_db();
-        open_db(-1);
-        test_insert(i);
-        close_db();
-        open_db(order[i]);
-        test_insert(i);
-        close_db();
+        open_db(-1, 0);
+        test_insert(i, 0);
+        close_db(0);
+        open_db(-1, 0);
+        test_insert(i, 0);
+        close_db(0);
         delete_db();
     }
+
+    for (i=0; i < NUM; i++) {
+        open_db(order[i], 0);
+        test_insert(i, 0);
+        close_db(0);
+        open_db(-1, 0);
+        test_insert(i, 0);
+        close_db(0);
+        open_db(order[i], 0);
+        test_insert(i, 0);
+        close_db(0);
+        delete_db();
+    }
+    */
+
+    //Upgrade descriptors along the way.  Need version to increase, so do not use 'order[i]'
+    for (i=0; i < NUM; i++) {
+        open_db(i, 0);
+        test_insert(i, 0);
+        close_db(0);
+        open_db(-1, 0);
+        test_insert(i, 0);
+        close_db(0);
+        open_db(i, 0);
+        test_insert(i, 0);
+        close_db(0);
+    }
+    delete_db();
+
+    //Upgrade descriptors along the way. With two handles
+    open_db(-1, 1);
+    for (i=0; i < NUM; i++) {
+        open_db(i, 0);
+        test_insert(i, -1);
+        close_db(0);
+        open_db(-1, 0);
+        test_insert(i, -1);
+        close_db(0);
+        open_db(i, 0);
+        test_insert(i, -1);
+        close_db(0);
+    }
+    if (dbs[1]) { 
+        close_db(1);
+    }
+    delete_db();
+    
     env->close(env, 0);
 }
 

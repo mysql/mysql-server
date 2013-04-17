@@ -43,7 +43,7 @@ static void test_loader_open(int ndbs) {
 
     // open the brtloader. this runs the extractor.
     DB *dbs[ndbs];
-    const struct descriptor *descriptors[ndbs];
+    DESCRIPTOR descriptors[ndbs];
     const char *fnames[ndbs];
     brt_compare_func compares[ndbs];
     for (int i = 0; i < ndbs; i++) {

@@ -14,6 +14,7 @@ enum {
     TOKU_LOG_VERSION_2 = 2,
     TOKU_LOG_NEXT_VERSION,           // the version after the current version
     TOKU_LOG_VERSION   = TOKU_LOG_NEXT_VERSION-1, // A hack so I don't have to change this line.
+    TOKU_LOG_MIN_SUPPORTED_VERSION = TOKU_LOG_VERSION_2
 };
 #define ROLLBACK_CACHEFILE_NAME "tokudb.rollback"
 
@@ -56,6 +57,7 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags, DESCRIPTOR descriptor_p);
 int toku_logger_log_fdelete (TOKUTXN txn, const char *fname);
 int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
+int toku_logger_log_descriptor (TOKUTXN txn, FILENUM filenum, DESCRIPTOR descriptor_p);
 
 int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len);
 int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v);
@@ -165,6 +167,9 @@ typedef struct logger_status {
 } LOGGER_STATUS_S, *LOGGER_STATUS;
 
 void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
+
+int toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found);
+int toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

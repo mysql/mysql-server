@@ -73,7 +73,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;
-    toku_verify_counts(node);
+    toku_verify_or_set_counts(node, FALSE);
     assert(node->height==0);
 
     size_t lesize, disksize;
@@ -114,7 +114,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     node->dirty=1;
     *subtree_fingerprint = node->local_fingerprint;
 
-    toku_verify_counts(node);
+    toku_verify_or_set_counts(node, FALSE);
 
     r = toku_unpin_brtnode(brt, node_v);
     return r;

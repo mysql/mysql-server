@@ -152,7 +152,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     r = queue_destroy(q);
     assert(r==0);
 
-    struct descriptor desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
+    DESCRIPTOR_S desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);

@@ -372,6 +372,25 @@ toku_fsync_dirfd_without_accounting(DIR *dirp) {
     return r;
 }
 
+int
+toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
+    int r = 0;
+    DIR * dir = opendir(dir_name);
+    if (!dir) {
+        r = errno;
+        assert(r);
+    }
+    else {
+        r = toku_fsync_dirfd_without_accounting(dir);
+        int rc = closedir(dir);
+        if (r==0 && rc!=0) {
+            r = errno;
+            assert(r);
+        }
+    }
+    return r;
+}
+
 // include fsync in scheduling accounting
 int
 toku_file_fsync(int fd) {
@@ -421,16 +440,7 @@ toku_fsync_directory(const char *fname) {
     }
 
     if (result == 0) {
-        // fsync the dir
-        DIR *d = opendir(dirname);
-        if (d == NULL) {
-            result = errno;
-        } else {
-            result = toku_fsync_dirfd_without_accounting(d);
-            int r = closedir(d);
-            if (result == 0 && r != 0)
-                result = errno;
-        }
+        result = toku_fsync_dir_by_name_without_accounting(dirname);
     }
     toku_free(dirname);
     return result;

@@ -46,7 +46,7 @@ run_test(void) {
         r = close(devnul);                      assert(r==0);
 
         char fname[256];
-        sprintf(fname, "%s/%s", TESTDIR, "log000000000000.tokulog");
+        sprintf(fname, "%s/%s%d", TESTDIR, "log000000000000.tokulog", TOKU_LOG_VERSION);
 
         r = toku_stat(fname, &st); assert(r==0);
         if ( st.st_size - trim > magic_begin_end_checkpoint_sz ) {

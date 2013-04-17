@@ -1641,25 +1641,3 @@ bool transaction_open(TXNID xid) {
 
 #endif
 
-// Wrapper code to support backwards compatibility with version 10 (until we don't want it).
-// These wrappers should be removed if/when we remove support for version 10 leafentries.
-#include "backwards_10.h"
-void
-toku_upgrade_ule_init_empty_ule(ULE ule, u_int32_t keylen, void * keyp) {
-    ule_init_empty_ule(ule, keylen, keyp);
-}
-void
-toku_upgrade_ule_remove_innermost_uxr(ULE ule) {
-    ule_remove_innermost_uxr(ule);
-}
-void
-toku_upgrade_ule_push_insert_uxr(ULE ule, TXNID xid, u_int32_t vallen, void * valp) {
-    ule_push_insert_uxr(ule, xid, vallen, valp);
-}
-void
-toku_upgrade_ule_push_delete_uxr(ULE ule, TXNID xid) {
-    ule_push_delete_uxr(ule, xid);
-}
-
-
-

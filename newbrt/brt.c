@@ -227,7 +227,7 @@ int toku_brt_debug_mode = 0;
 
 //#define SLOW
 #ifdef SLOW
-#define VERIFY_NODE(t,n) (toku_verify_counts(n), toku_verify_estimates(t,n))
+#define VERIFY_NODE(t,n) (toku_verify_or_set_counts(n, FALSE), toku_verify_estimates(t,n))
 #else
 #define VERIFY_NODE(t,n) ((void)0)
 #endif
@@ -648,7 +648,6 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
 // Effect: Fill in N as an empty brtnode.
 {
     n->tag = TYP_BRTNODE;
-    n->desc = &t->h->descriptor;
     n->nodesize = t->h->nodesize;
     n->flags = t->flags;
     n->thisnodename = nodename;
@@ -3009,6 +3008,7 @@ brt_init_header_partial (BRT t) {
     if (t->h->cf!=NULL) assert(t->h->cf == t->cf);
     t->h->cf = t->cf;
     t->h->nodesize=t->nodesize;
+    t->h->num_blocks_to_upgrade = 0;
 
     compute_and_fill_remembered_hash(t);
 
@@ -3152,6 +3152,44 @@ verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     return 0;
 }
 
+
+//if r==0, then frees/takes over descriptor_dbt.data
+int
+toku_maybe_upgrade_descriptor(BRT t, DESCRIPTOR d, BOOL do_log, TOKUTXN txn) {
+    int r = 0;
+    //txn is only for access to logger
+    if (t->h->descriptor.version!=d->version ||
+        t->h->descriptor.dbt.size!=d->dbt.size ||
+        memcmp(t->h->descriptor.dbt.data, d->dbt.data, d->dbt.size)) {
+        if (d->version <= t->h->descriptor.version) {
+            //Changing descriptor requires upping the version.
+            r = EINVAL;
+            goto cleanup;
+        }
+        if (do_log) {
+            //If we didn't log fcreate (which contains descriptor)
+            //we need to log descriptor now.
+            r = toku_logger_log_descriptor(txn, toku_cachefile_filenum(t->cf), d);
+            if (r!=0) goto cleanup;
+        }
+        DISKOFF offset;
+        //4 for checksum
+        toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, t->h);
+        {
+            int fd = toku_cachefile_get_and_pin_fd (t->cf);
+            r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+            toku_cachefile_unpin_fd(t->cf);
+        }
+        if (r!=0) goto cleanup;
+        if (t->h->descriptor.dbt.data) toku_free(t->h->descriptor.dbt.data);
+        t->h->descriptor = *d;
+    }
+    else toku_free(d->dbt.data);
+    d->dbt.data = NULL;
+cleanup:
+    return r;
+}
+
 // This is the actual open, used for various purposes, such as normal use, recovery, and redirect.  
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix)
 static int
@@ -3172,7 +3210,6 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 
     assert(is_create || !only_create);
     t->db = db;
-    BOOL log_fopen = FALSE;  // set true if we're opening a pre-existing file 
     BOOL did_create = FALSE;
     FILENUM reserved_filenum = use_filenum;
     {
@@ -3208,8 +3245,6 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 					      fname_in_env,
 					      use_reserved_filenum||did_create, reserved_filenum, did_create);
         if (r != 0) goto died1;
-        if (!did_create)
-            log_fopen = TRUE; //Log of fopen must be delayed till flags are available
     }
     if (r!=0) {
         died_after_open: 
@@ -3254,12 +3289,22 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
         }
     }
 
-    int use_reserved_dict_id = use_dictionary_id.dictid != DICTIONARY_ID_NONE.dictid;
     if (!was_already_open) {
-	if (log_fopen) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
+	if (!did_create) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
 	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
 	    if (r!=0) goto died_after_read_and_pin;
 	}
+    }
+    if (t->did_set_descriptor) {
+        r = toku_maybe_upgrade_descriptor(t, &t->temp_descriptor, !did_create, txn);
+        if (r!=0) {
+            toku_free(t->temp_descriptor.dbt.data);
+            goto died_after_read_and_pin;
+        }
+        t->did_set_descriptor = FALSE;
+    }
+    int use_reserved_dict_id = use_dictionary_id.dictid != DICTIONARY_ID_NONE.dictid;
+    if (!was_already_open) {
 	DICTIONARY_ID dict_id;
         if (use_reserved_dict_id)
             dict_id = use_dictionary_id;
@@ -3275,40 +3320,6 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     assert(t->h);
     assert(t->h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     assert(t->h->dict_id.dictid < dict_id_serial);
-    if (t->did_set_descriptor) {
-        if (t->h->descriptor.version!=t->temp_descriptor.version ||
-            t->h->descriptor.dbt.size!=t->temp_descriptor.dbt.size ||
-            memcmp(t->h->descriptor.dbt.data, t->temp_descriptor.dbt.data, t->temp_descriptor.dbt.size)) {
-            if (t->temp_descriptor.version <= t->h->descriptor.version) {
-                //Changing descriptor requires upping the version.
-                r = EINVAL;
-                goto died_after_read_and_pin;
-            }
-            toku_brtheader_lock(t->h);
-            if (!toku_list_empty(&t->h->live_brts) || !toku_list_empty(&t->h->zombie_brts)) {
-                //Disallow changing if exists two brts with the same header (counting this one)
-                //The upgrade would be impossible/very hard!
-                r = EINVAL;
-                toku_brtheader_unlock(t->h);
-                goto died_after_read_and_pin;
-            }
-            toku_brtheader_unlock(t->h);
-            DISKOFF offset;
-            //4 for checksum
-            toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(&t->temp_descriptor)+4, &offset, t->h);
-            {
-                int fd = toku_cachefile_get_and_pin_fd (t->cf);
-                r = toku_serialize_descriptor_contents_to_fd(fd, &t->temp_descriptor, offset);
-                toku_cachefile_unpin_fd(t->cf);
-            }
-            if (r!=0) goto died_after_read_and_pin;
-            if (t->h->descriptor.dbt.data) toku_free(t->h->descriptor.dbt.data);
-            t->h->descriptor = t->temp_descriptor;
-        }
-        else toku_free(t->temp_descriptor.dbt.data);
-        t->temp_descriptor.dbt.data = NULL;
-        t->did_set_descriptor = FALSE;
-    }
 
     r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
     if (r!=0) goto died_after_read_and_pin;
@@ -3316,7 +3327,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     // brtheader_note_brt_open must be after all functions that can fail.
     r = brtheader_note_brt_open(t);
     if (r!=0) goto died_after_read_and_pin;
-    if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
+    if (t->db) t->db->descriptor = &t->h->descriptor;
     if (txn_created) {
         assert(txn);
         assert(t->h->txnid_that_created_or_locked_when_empty == TXNID_NONE);
@@ -3353,15 +3364,6 @@ toku_brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, C
     return r;
 }
 
-static int
-abort_on_upgrade(DB* UU(pdb),
-                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
-                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
-    assert(FALSE); //Must not upgrade.
-    return ENOSYS;
-}
-
-
 // Open a brt for use by redirect.  The new brt must have the same dict_id as the old_brt passed in.  (FILENUM is assigned by the brt_open() function.)
 static int
 brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT old_brt) {
@@ -3380,7 +3382,7 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
     r = toku_brt_set_nodesize(t, old_brt->nodesize);
     assert(r==0);
     if (old_h->descriptor.version>0) {
-        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt, abort_on_upgrade);
+        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt);
         assert(r==0);
     }
     CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
@@ -3503,7 +3505,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *sr
 
         //Do not need to swap descriptors pointers.
         //Done by brt_open_for_redirect
-        assert(dst_brt->db->descriptor == &dst_brt->h->descriptor.dbt);
+        assert(dst_brt->db->descriptor == &dst_brt->h->descriptor);
 
         //Set db->i->brt to new brt
         brt_redirect_db(dst_brt, src_brt);
@@ -4032,11 +4034,10 @@ int toku_brt_create(BRT *brt_ptr) {
 }
 
 int
-toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
+toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor) {
     int r;
     if (t->did_set_descriptor)             r = EINVAL;
     else if (version==0)                   r = EINVAL; //0 is reserved for default (no descriptor).
-    else if (dbt_userformat_upgrade==NULL) r = EINVAL; //Must have an upgrade function.
     else {
         void *copy = toku_memdup(descriptor->data, descriptor->size);
         if (!copy) r = ENOMEM;
@@ -4044,8 +4045,6 @@ toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_d
             t->temp_descriptor.version = version;
             assert(!t->temp_descriptor.dbt.data);
             toku_fill_dbt(&t->temp_descriptor.dbt, copy, descriptor->size);
-            assert(!t->dbt_userformat_upgrade);
-            t->dbt_userformat_upgrade = dbt_userformat_upgrade;
             t->did_set_descriptor = TRUE;
             r = 0;
         }
@@ -5737,14 +5736,6 @@ int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_strin
 
 int toku_brt_set_panic(BRT brt, int panic, char *panic_string) {
     return toku_brt_header_set_panic(brt->h, panic, panic_string);
-}
-
-//Wrapper functions for upgrading from version 10.
-#include "backwards_10.h"
-void
-toku_calculate_leaf_stats (BRTNODE node) {
-    assert(node->height == 0);
-    node->u.l.leaf_stats = calc_leaf_stats(node);
 }
 
 #if 0
