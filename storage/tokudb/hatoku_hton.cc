@@ -827,16 +827,16 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
     error = 0;
 
 cleanup:
-    if (curr_db) {
-        int r = curr_db->close(curr_db, 0);
-        assert(r==0);
-    }
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
         assert(r==0);
     }
     if (tmp_table_cursor) {
         int r = tmp_table_cursor->c_close(tmp_table_cursor);
+        assert(r==0);
+    }
+    if (curr_db) {
+        int r = curr_db->close(curr_db, 0);
         assert(r==0);
     }
     if (txn) {
