@@ -321,7 +321,7 @@ generate_log_writer (void) {
 static void
 generate_log_reader (void) {
     DO_LOGTYPES(lt, {
-			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
+			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, u_int32_t len1, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
 			fprintf(cf, " {\n");
 			fprintf(cf, "  int r=0;\n");
 			fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
@@ -331,7 +331,7 @@ generate_log_reader (void) {
 			fprintf(cf, "  u_int32_t checksum_in_file, len_in_file;\n");
 			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
 			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len) return DB_BADFORMAT;\n");
+			fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
 		    });
@@ -351,7 +351,7 @@ generate_log_reader (void) {
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, {
 			fprintf(cf, "  case LT_%s:\n", lt->name);
-			fprintf(cf, "    return toku_log_fread_%s (infile, &le->u.%s, &checksum);\n", lt->name, lt->name);
+			fprintf(cf, "    return toku_log_fread_%s (infile, len1, &le->u.%s, &checksum);\n", lt->name, lt->name);
 		    });
     fprintf(cf, "  };\n");
     fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.
