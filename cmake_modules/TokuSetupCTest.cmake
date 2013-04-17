@@ -120,7 +120,7 @@ set(BUILDNAME "${branchname} ${buildname_build_type} ${CMAKE_SYSTEM} ${machine_t
 
 include(CTest)
 
-if (BUILD_TESTING)
+if (BUILD_TESTING OR BUILD_FT_TESTS)
   ## set up full valgrind suppressions file (concatenate the suppressions files)
   file(READ ft/valgrind.suppressions valgrind_suppressions)
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/valgrind.suppressions" "${valgrind_suppressions}")
@@ -178,4 +178,4 @@ if (BUILD_TESTING)
   option(RUN_PERF_TESTS "If set, run the perf tests." OFF)
 
   configure_file(CTestCustom.cmake . @ONLY)
-endif (BUILD_TESTING)
+endif (BUILD_TESTING OR BUILD_FT_TESTS)
