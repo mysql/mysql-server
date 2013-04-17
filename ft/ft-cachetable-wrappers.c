@@ -110,7 +110,7 @@ toku_create_new_ftnode (
     int n_children)
 {
     return create_new_ftnode_with_dep_nodes(
-        t->h,
+        t->ft,
         result,
         height,
         n_children,
@@ -135,12 +135,12 @@ toku_pin_ftnode(
     void *node_v;
     *msgs_applied = FALSE;
     int r = toku_cachetable_get_and_pin_nonblocking(
-            brt->h->cf,
+            brt->ft->cf,
             blocknum,
             fullhash,
             &node_v,
             NULL,
-            get_write_callbacks_for_node(brt->h),
+            get_write_callbacks_for_node(brt->ft),
             toku_ftnode_fetch_callback,
             toku_ftnode_pf_req_callback,
             toku_ftnode_pf_callback,
@@ -232,7 +232,7 @@ void
 toku_unpin_ftnode_read_only(FT_HANDLE brt, FTNODE node)
 {
     int r = toku_cachetable_unpin(
-        brt->h->cf,
+        brt->ft->cf,
         node->thisnodename,
         node->fullhash,
         (enum cachetable_dirty) node->dirty,

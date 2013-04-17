@@ -507,11 +507,11 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->root_xids_that_created);
-    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->h->root_xid_that_created;
+    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
     for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
-    for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->h->descriptor;
+    for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->ft->descriptor;
     MY_CALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
     MY_CALLOC_N(N, bl->extracted_datasizes); // the calloc_n zeroed everything, which is what we want

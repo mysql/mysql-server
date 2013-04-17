@@ -104,7 +104,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -133,7 +133,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, 1, 1, FALSE);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -237,7 +237,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -266,7 +266,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, 1, 1, FALSE);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;

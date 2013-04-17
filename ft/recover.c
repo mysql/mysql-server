@@ -68,8 +68,8 @@ static void file_map_tuple_init(struct file_map_tuple *tuple, FILENUM filenum, F
     tuple->iname = iname;
     // use a fake DB for comparisons, using the ft's cmp descriptor
     memset(&tuple->fake_db, 0, sizeof(tuple->fake_db));
-    tuple->fake_db.cmp_descriptor = &tuple->ft_handle->h->cmp_descriptor;
-    tuple->fake_db.descriptor = &tuple->ft_handle->h->descriptor;
+    tuple->fake_db.cmp_descriptor = &tuple->ft_handle->ft->cmp_descriptor;
+    tuple->fake_db.descriptor = &tuple->ft_handle->ft->descriptor;
 }
 
 static void file_map_tuple_destroy(struct file_map_tuple *tuple) {
@@ -432,7 +432,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
 		r = toku_ft_handle_create(&t);
 		assert(r==0);
 		r = toku_ft_handle_open_recovery(t, ROLLBACK_CACHEFILE_NAME, false, false, renv->ct, (TOKUTXN)NULL, l->filenum, max_acceptable_lsn);
-		renv->logger->rollback_cachefile = t->h->cf;
+		renv->logger->rollback_cachefile = t->ft->cf;
 	    } else {
 		r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, max_acceptable_lsn);
 		assert(r==0);
@@ -535,7 +535,7 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
                 struct file_map_tuple *tuple = NULL;
                 r = file_map_find(&renv->fmap, open_filenums.filenums[i], &tuple);
                 if (r==0) {
-                    info.open_fts[info.num_fts++] = tuple->ft_handle->h;
+                    info.open_fts[info.num_fts++] = tuple->ft_handle->ft;
                 }
                 else {
                     assert(r==DB_NOTFOUND);
@@ -622,9 +622,9 @@ static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(
         r = toku_txnid2txn(renv->logger, l->xid, &txn);
         assert(r == 0);
         assert(txn!=NULL);
-        FT h = tuple->ft_handle->h;
+        FT h = tuple->ft_handle->ft;
         toku_ft_suppress_rollbacks(h, txn);
-	r = toku_txn_note_ft(txn, tuple->ft_handle->h);
+	r = toku_txn_note_ft(txn, tuple->ft_handle->ft);
 	assert(r==0);
     }
     return 0;
@@ -890,7 +890,7 @@ static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV re
         toku_fill_dbt(&valdbt, l->value.data, l->value.len);
         r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, FT_INSERT);
         assert(r == 0);
-	r = toku_txn_note_ft(txn, tuple->ft_handle->h);
+	r = toku_txn_note_ft(txn, tuple->ft_handle->ft);
 	assert(r == 0);
     }    
     return 0;

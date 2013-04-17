@@ -155,11 +155,11 @@ doit (BOOL after_split) {
     
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->h);
+    fill_bfe_for_min_read(&bfe, t->ft);
     toku_pin_ftnode_off_client_thread(
-        t->h, 
+        t->ft, 
         node_root,
-        toku_cachetable_hash(t->h->cf, node_root),
+        toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -170,14 +170,14 @@ doit (BOOL after_split) {
     assert(node->n_children == 1);
 
     // do the flush
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has split
     toku_pin_ftnode_off_client_thread(
-        t->h, 
+        t->ft, 
         node_root,
-        toku_cachetable_hash(t->h->cf, node_root),
+        toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -186,7 +186,7 @@ doit (BOOL after_split) {
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
 
     void *ret;
     r = toku_pthread_join(checkpoint_tid, &ret); 
@@ -212,11 +212,11 @@ doit (BOOL after_split) {
     //
     // now pin the root, verify that we have a message in there, and that it is clean
     //
-    fill_bfe_for_full_read(&bfe, c_ft->h);
+    fill_bfe_for_full_read(&bfe, c_ft->ft);
     toku_pin_ftnode_off_client_thread(
-        c_ft->h, 
+        c_ft->ft, 
         node_root,
-        toku_cachetable_hash(c_ft->h->cf, node_root),
+        toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -237,14 +237,14 @@ doit (BOOL after_split) {
         left_child = BP_BLOCKNUM(node,0);
         assert(left_child.b == node_leaf.b);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
     if (after_split) {
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             left_child,
-            toku_cachetable_hash(c_ft->h->cf, left_child),
+            toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             TRUE, 
             0,
@@ -255,12 +255,12 @@ doit (BOOL after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             right_child,
-            toku_cachetable_hash(c_ft->h->cf, right_child),
+            toku_cachetable_hash(c_ft->ft->cf, right_child),
             &bfe,
             TRUE, 
             0,
@@ -271,13 +271,13 @@ doit (BOOL after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else {
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             left_child,
-            toku_cachetable_hash(c_ft->h->cf, left_child),
+            toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             TRUE, 
             0,
@@ -288,7 +288,7 @@ doit (BOOL after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 2);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
 
 

@@ -18,16 +18,16 @@
 
 static int 
 compare_pairs (FT_HANDLE brt, const DBT *a, const DBT *b) {
-    FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->h->compare_fun(&db, a, b);
+    FAKE_DB(db, &brt->ft->cmp_descriptor);
+    int cmp = brt->ft->compare_fun(&db, a, b);
     return cmp;
 }
 
 static int 
 compare_leafentries (FT_HANDLE brt, LEAFENTRY a, LEAFENTRY b) {
     DBT x,y;
-    FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->h->compare_fun(&db,
+    FAKE_DB(db, &brt->ft->cmp_descriptor);
+    int cmp = brt->ft->compare_fun(&db,
                                toku_fill_dbt(&x, le_key(a), le_keylen(a)),
                                toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
@@ -36,16 +36,16 @@ compare_leafentries (FT_HANDLE brt, LEAFENTRY a, LEAFENTRY b) {
 static int 
 compare_pair_to_leafentry (FT_HANDLE brt, const DBT *a, LEAFENTRY b) {
     DBT y;
-    FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->h->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
+    FAKE_DB(db, &brt->ft->cmp_descriptor);
+    int cmp = brt->ft->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
 }
 
 static int 
 compare_pair_to_key (FT_HANDLE brt, const DBT *a, bytevec key, ITEMLEN keylen) {
     DBT y;
-    FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->h->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
+    FAKE_DB(db, &brt->ft->cmp_descriptor);
+    int cmp = brt->ft->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
     return cmp;
 }
 
@@ -171,7 +171,7 @@ verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt) {
         assert_zero(r);
         size_t offset = (size_t) v;
         if (i > 0) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun, .fifo = fifo };
+            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->ft->cmp_descriptor, .cmp = brt->ft->compare_fun, .fifo = fifo };
             if (toku_fifo_entry_key_msn_cmp(&extra, &last_offset, &offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
@@ -185,7 +185,7 @@ verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt) {
 static int
 count_eq_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt, const DBT *key, MSN msn) {
     struct toku_fifo_entry_key_msn_heaviside_extra extra = { 
-        .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun, .fifo = fifo, .key = key, .msn = msn 
+        .desc = &brt->ft->cmp_descriptor, .cmp = brt->ft->compare_fun, .fifo = fifo, .key = key, .msn = msn 
     };
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(mt, toku_fifo_entry_key_msn_heaviside, &extra, &v, &idx);
@@ -206,11 +206,11 @@ toku_get_node_for_verify(
     FTNODE* nodep
     )
 {
-    u_int32_t fullhash = toku_cachetable_hash(brt->h->cf, blocknum);
+    u_int32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h,
+        brt->ft,
         blocknum,
         fullhash,
         &bfe,
@@ -311,7 +311,7 @@ toku_verify_ftnode (FT_HANDLE brt,
                              }
                              struct count_msgs_extra extra = { .count = 0, .key = &keydbt,
                                                                .msn = msn, .fifo = bnc->buffer,
-                                                               .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun };
+                                                               .desc = &brt->ft->cmp_descriptor, .cmp = brt->ft->compare_fun };
                              extra.count = 0;
                              toku_omt_iterate(bnc->broadcast_list, count_msgs, &extra);
                              if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
@@ -378,9 +378,9 @@ toku_verify_ftnode (FT_HANDLE brt,
 done:
     {
     int r = toku_cachetable_unpin(
-        brt->h->cf, 
+        brt->ft->cf, 
         node->thisnodename, 
-        toku_cachetable_hash(brt->h->cf, node->thisnodename), 
+        toku_cachetable_hash(brt->ft->cf, node->thisnodename), 
         CACHETABLE_CLEAN, 
         make_ftnode_pair_attr(node)
         );
@@ -395,24 +395,24 @@ done:
 
 int 
 toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_on_going) {
-    assert(brt->h);
+    assert(brt->ft);
     FTNODE root_node = NULL;
     {
-        toku_ft_grab_treelock(brt->h);
+        toku_ft_grab_treelock(brt->ft);
 
         u_int32_t root_hash;
         CACHEKEY root_key;
-        toku_calculate_root_offset_pointer(brt->h, &root_key, &root_hash);
+        toku_calculate_root_offset_pointer(brt->ft, &root_key, &root_hash);
         toku_get_node_for_verify(root_key, brt, &root_node);
 
-        toku_ft_release_treelock(brt->h);
+        toku_ft_release_treelock(brt->ft);
     }
     int r = toku_verify_ftnode(brt, ZERO_MSN, ZERO_MSN, root_node, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
     if (r == 0) {
-        toku_ft_lock(brt->h);
-        brt->h->time_of_last_verification = time(NULL);
-        brt->h->dirty = 1;
-        toku_ft_unlock(brt->h);
+        toku_ft_lock(brt->ft);
+        brt->ft->time_of_last_verification = time(NULL);
+        brt->ft->dirty = 1;
+        toku_ft_unlock(brt->ft);
     }
     return r;
 }
