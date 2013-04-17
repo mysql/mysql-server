@@ -39,10 +39,18 @@ typedef struct toku_mutex {
 
 #if defined(__APPLE__)
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{0}};
+# if TOKU_PTHREAD_DEBUG
+static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
+# else
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
+# endif
 #else
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{{0}}};
+# if TOKU_PTHREAD_DEBUG
+static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
+# else
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
+# endif
 #endif
 
 static inline void
