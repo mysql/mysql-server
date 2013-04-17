@@ -76,14 +76,11 @@ typedef struct {
     FILENUM  *filenums;
 } FILENUMS;
 
-#if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
-#define BOOL_DEFINED
 #include <stdbool.h>
-// typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
+// In the future, use the stdbool bool and constants (true false), rather than BOOL, TRUE, and FALSE.
 #define TRUE true
 #define FALSE false
 typedef bool BOOL;
-#endif
 
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)
