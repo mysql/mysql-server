@@ -70,7 +70,7 @@ install: libs install_libs ;
 
 .PHONY: local libs buildlocktrees
 libs: $(LIBRARIES) ;
-$(IPO_YDB) $(NOIPO_YDB) $(LIBRARIES): export.def
+$(IPO_YDB) $(NOIPO_YDB) $(LIBRARIES): | export.def
 export.def: export.map
 	echo "EXPORTS" > $@
 	cat export.map |sed -n "s/\([a-zA-Z_0-9][a-zA-Z_0-9]*\);/\t\1 @/g;/@/ P" |sed -n 'P;=' | sed '{;N;s/\n//;}' >> $@
