@@ -82,7 +82,7 @@ public:
     }
 
     inline bool is_null(void) const {
-        return NODE_NULL == get_index();
+        return NODE_NULL == this->get_index();
     }
 
     inline uint32_t get_index(void) const {
@@ -108,11 +108,11 @@ private:
 public:
     static const uint32_t NODE_NULL = INT32_MAX;
     inline void set_to_null(void) {
-        set_index_internal(NODE_NULL);
+        this->set_index_internal(NODE_NULL);
     }
 
     inline bool is_null(void) const {
-        return NODE_NULL == get_index();
+        return NODE_NULL == this->get_index();
     }
 
     inline uint32_t get_index(void) const {
@@ -121,7 +121,7 @@ public:
 
     inline void set_index(uint32_t index) {
         invariant(index < NODE_NULL);
-        set_index_internal(index);
+        this->set_index_internal(index);
     }
 
     inline bool get_bit(void) const {
@@ -173,7 +173,7 @@ public:
     inline void set_marks_below_bit(void) {
         // This function can be called by multiple threads.
         // Checking first reduces cache invalidation.
-        if (!get_marks_below()) {
+        if (!this->get_marks_below()) {
             right.enable_bit();
         }
     }
@@ -182,8 +182,8 @@ public:
     }
 
     inline void clear_stolen_bits(void) {
-        unset_marked_bit();
-        unset_marks_below_bit();
+        this->unset_marked_bit();
+        this->unset_marks_below_bit();
     }
 } __attribute__((__packed__,aligned(4)));
 
@@ -435,6 +435,12 @@ public:
     void verify_marks_consistent(void) const;
 
     /**
+     * Effect: None
+     * Returns whether there are any marks in the tree.
+     */
+    bool has_marks(void) const;
+
+    /**
      * Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
      *  The first argument passed to f is a pointer to the value stored in the omt.
      *  The second argument passed to f is the index of the value.
@@ -459,7 +465,6 @@ public:
      * Performance: time=O(\log N)
      */
     int fetch(const uint32_t idx, omtdataout_t *const value) const;
-    
 
     /**
      * Effect:  Find the smallest i such that h(V_i, extra)>=0
@@ -577,6 +582,8 @@ private:
         struct omt_tree t;
     } d;
 
+    __attribute__((nonnull))
+    void unmark(const subtree &subtree, const uint32_t index, uint32_t *const num_indexes, uint32_t *const indexes);
 
     void create_internal_no_array(const uint32_t new_capacity);
 
@@ -611,6 +618,7 @@ private:
 
     void set_at_internal(const subtree &subtree, const omtdata_t &value, const uint32_t idx);
 
+    __attribute__((nonnull(2,5)))
     void delete_internal(subtree *const subtreep, const uint32_t idx, omt_node *const copyn, subtree **const rebalance_subtree);
 
     template<typename iterate_extra_t,
@@ -648,9 +656,9 @@ private:
 
     uint32_t verify_marks_consistent_internal(const subtree &subtree, const bool allow_marks) const;
 
-    void fetch_internal_array(const uint32_t i, omtdataout_t *value) const;
+    void fetch_internal_array(const uint32_t i, omtdataout_t *const value) const;
 
-    void fetch_internal(const subtree &subtree, const uint32_t i, omtdataout_t *value) const;
+    void fetch_internal(const subtree &subtree, const uint32_t i, omtdataout_t *const value) const;
 
     __attribute__((nonnull))
     void fill_array_with_subtree_idxs(node_idx *const array, const subtree &subtree) const;
@@ -675,27 +683,27 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_zero_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_zero_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_zero(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_zero(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_plus_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_plus_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_plus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_plus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_minus_array(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_minus_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_minus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_minus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const;
 };
 
 } // namespace toku

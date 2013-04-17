@@ -149,8 +149,11 @@ toku_pin_ftnode(
             unlockers);
     if (r==0) {
         FTNODE node = (FTNODE) node_v;
-        if (apply_ancestor_messages) {
-            maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
+        if (apply_ancestor_messages && node->height == 0) {
+            toku_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
+        }
+        if (may_modify_node && node->height > 0) {
+            toku_move_ftnode_messages_to_stale(brt->ft, node);
         }
         *node_p = node;
         // printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
@@ -204,7 +207,24 @@ toku_pin_ftnode_off_client_thread(
         );
     assert(r==0);
     FTNODE node = (FTNODE) node_v;
+    if (may_modify_node && node->height > 0) {
+        toku_move_ftnode_messages_to_stale(h, node);
+    }
     *node_p = node;
+}
+
+int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep, bool may_modify_node) {
+    void *node_v;
+    int r = toku_cachetable_maybe_get_and_pin_clean(ft->cf, blocknum, fullhash, &node_v);
+    if (r != 0) {
+        goto cleanup;
+    }
+    CAST_FROM_VOIDP(*nodep, node_v);
+    if (may_modify_node && (*nodep)->height > 0) {
+        toku_move_ftnode_messages_to_stale(ft, *nodep);
+    }
+cleanup:
+    return r;
 }
 
 void

@@ -55,7 +55,7 @@ void toku_fifo_free(FIFO *);
 
 int toku_fifo_n_entries(FIFO);
 
-int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest);
+int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, int32_t *dest);
 
 unsigned int toku_fifo_buffer_size_in_use (FIFO fifo);
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
@@ -90,7 +90,7 @@ int toku_fifo_iterate_internal_next(FIFO fifo, int off);
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
 
 DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
-const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
+struct fifo_entry *toku_fifo_get_entry(FIFO fifo, int off);
 
 void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
 

@@ -1800,7 +1800,7 @@ key_msn_cmp(const DBT *a, const DBT *b, const MSN amsn, const MSN bmsn,
 }
 
 int
-toku_fifo_entry_key_msn_heaviside(const long &offset, const struct toku_fifo_entry_key_msn_heaviside_extra &extra)
+toku_fifo_entry_key_msn_heaviside(const int32_t &offset, const struct toku_fifo_entry_key_msn_heaviside_extra &extra)
 {
     const struct fifo_entry *query = toku_fifo_get_entry(extra.fifo, offset);
     DBT qdbt;
@@ -1811,7 +1811,7 @@ toku_fifo_entry_key_msn_heaviside(const long &offset, const struct toku_fifo_ent
 }
 
 int
-toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extra, const long &ao, const long &bo)
+toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extra, const int32_t &ao, const int32_t &bo)
 {
     const struct fifo_entry *a = toku_fifo_get_entry(extra.fifo, ao);
     const struct fifo_entry *b = toku_fifo_get_entry(extra.fifo, bo);
@@ -1830,7 +1830,7 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 //
 // This is only exported for tests.
 {
-    long offset;
+    int32_t offset;
     int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
     assert_zero(r);
     if (ft_msg_type_applies_once(type)) {
@@ -2351,7 +2351,7 @@ void toku_ft_leaf_apply_cmd(
     // Because toku_ft_leaf_apply_cmd is called with the intent of permanently
     // applying a message to a leaf node (meaning the message is permanently applied
     // and will be purged from the system after this call, as opposed to
-    // maybe_apply_ancestors_messages_to_node, which applies a message
+    // toku_apply_ancestors_messages_to_node, which applies a message
     // for a query, but the message may still reside in the system and
     // be reapplied later), we mark the node as dirty and
     // take the opportunity to update node->max_msn_applied_to_node_on_disk.
@@ -2362,7 +2362,7 @@ void toku_ft_leaf_apply_cmd(
     // we cannot blindly update node->max_msn_applied_to_node_on_disk,
     // we must check to see if the msn is greater that the one already stored,
     // because the cmd may have already been applied earlier (via
-    // maybe_apply_ancestors_messages_to_node) to answer a query
+    // toku_apply_ancestors_messages_to_node) to answer a query
     //
     // This is why we handle node->max_msn_applied_to_node_on_disk both here
     // and in ft_nonleaf_put_cmd, as opposed to in one location, toku_ft_node_put_cmd.
@@ -3770,35 +3770,13 @@ static bool search_pivot_is_bounded (ft_search_t *search, DESCRIPTOR desc, ft_co
     }
 }
 
-struct copy_to_stale_extra {
-    FT_HANDLE ft_handle;
-    NONLEAF_CHILDINFO bnc;
-};
-
-// template-only function, but must be extern
-int copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
-    __attribute__((nonnull(3)));
-int copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
-{
-    struct fifo_entry *entry = (struct fifo_entry *) toku_fifo_get_entry(extra->bnc->buffer, offset);
-    entry->is_fresh = false;
-    DBT keydbt;
-    DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft_handle->ft->cmp_descriptor, .cmp = extra->ft_handle->ft->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
-    int r = extra->bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, heaviside_extra, nullptr);
-    assert_zero(r);
-    return r;
-}
-
 struct store_fifo_offset_extra {
-    long *offsets;
+    int32_t *offsets;
     int i;
 };
 
-// template-only function, but must be extern
-int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
-    __attribute__((nonnull(3)));
-int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
+__attribute__((nonnull(3)))
+static int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
 {
     extra->offsets[extra->i] = offset;
     extra->i++;
@@ -3810,10 +3788,8 @@ int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_f
  * figure out the MSN of each message, and compare those MSNs.  Returns 1,
  * 0, or -1 if a is larger than, equal to, or smaller than b.
  */
-// template-only function, but must be extern
-int fifo_offset_msn_cmp(FIFO &fifo, const long &ao, const long &bo);
-int
-fifo_offset_msn_cmp(FIFO &fifo, const long &ao, const long &bo)
+static int
+fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo)
 {
     const struct fifo_entry *a = toku_fifo_get_entry(fifo, ao);
     const struct fifo_entry *b = toku_fifo_get_entry(fifo, bo);
@@ -3832,7 +3808,7 @@ fifo_offset_msn_cmp(FIFO &fifo, const long &ao, const long &bo)
  * basement node.
  */
 static void
-do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, const struct fifo_entry *entry, STAT64INFO stats_to_update)
+do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, struct fifo_entry *entry, STAT64INFO stats_to_update)
 {
     // The messages are being iterated over in (key,msn) order or just in
     // msn order, so all the messages for one key, from one buffer, are in
@@ -3846,6 +3822,7 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, con
         const XIDS xids = (XIDS) &entry->xids_s;
         bytevec key = xids_get_end_of_array(xids);
         bytevec val = (uint8_t*)key + entry->keylen;
+        entry->is_fresh = false;
 
         DBT hk;
         toku_fill_dbt(&hk, key, keylen);
@@ -3873,13 +3850,11 @@ struct iterate_do_bn_apply_cmd_extra {
     STAT64INFO stats_to_update;
 };
 
-// template-only function, but must be extern
-int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
-    __attribute__((nonnull(3)));
-int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
+__attribute__((nonnull(3)))
+static int iterate_do_bn_apply_cmd(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
 {
     NONLEAF_CHILDINFO bnc = BNC(e->ancestor, e->childnum);
-    const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
+    struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
     do_bn_apply_cmd(e->t, e->bn, e->ancestor, e->childnum, entry, e->stats_to_update);
     return 0;
 }
@@ -3899,11 +3874,12 @@ int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct i
  * Outputs the OMT indices in lbi (lower bound inclusive) and ube (upper
  * bound exclusive).
  */
+template<typename find_bounds_omt_t>
 static void
 find_bounds_within_message_tree(
     DESCRIPTOR desc,       /// used for cmp
     ft_compare_func cmp,  /// used to compare keys
-    const off_omt_t &message_tree,      /// tree holding FIFO offsets, in which we want to look for indices
+    const find_bounds_omt_t &message_tree,      /// tree holding FIFO offsets, in which we want to look for indices
     FIFO buffer,           /// buffer in which messages are found
     struct pivot_bounds const * const bounds,  /// key bounds within the basement node we're applying messages to
     uint32_t *lbi,        /// (output) "lower bound inclusive" (index into message_tree)
@@ -3918,13 +3894,15 @@ find_bounds_within_message_tree(
         // message (with any msn) with the key lower_bound_exclusive.
         // This will be a message we want to try applying, so it is the
         // "lower bound inclusive" within the message_tree.
-        struct toku_fifo_entry_key_msn_heaviside_extra lbi_extra = {
-            .desc = desc, .cmp = cmp,
-            .fifo = buffer,
-            .key = bounds->lower_bound_exclusive,
-            .msn = MAX_MSN };
-        long found_lb;
-        r = message_tree.find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(lbi_extra, +1, &found_lb, lbi);
+        struct toku_fifo_entry_key_msn_heaviside_extra lbi_extra;
+        ZERO_STRUCT(lbi_extra);
+        lbi_extra.desc = desc;
+        lbi_extra.cmp = cmp;
+        lbi_extra.fifo = buffer;
+        lbi_extra.key = bounds->lower_bound_exclusive;
+        lbi_extra.msn = MAX_MSN;
+        int32_t found_lb;
+        r = message_tree.template find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(lbi_extra, +1, &found_lb, lbi);
         if (r == DB_NOTFOUND) {
             // There is no relevant data (the lower bound is bigger than
             // any message in this tree), so we have no range and we're
@@ -3938,7 +3916,7 @@ find_bounds_within_message_tree(
             // bound inclusive that we have.  If so, there are no relevant
             // messages between these bounds.
             const DBT *ubi = bounds->upper_bound_inclusive;
-            const long offset = (long) found_lb;
+            const int32_t offset = found_lb;
             DBT found_lbidbt;
             fill_dbt_for_fifo_entry(&found_lbidbt, toku_fifo_get_entry(buffer, offset));
             FAKE_DB(db, desc);
@@ -3964,12 +3942,14 @@ find_bounds_within_message_tree(
         // the first thing bigger than the upper_bound_inclusive key.
         // This is therefore the smallest thing we don't want to apply,
         // and toku_omt_iterate_on_range will not examine it.
-        struct toku_fifo_entry_key_msn_heaviside_extra ube_extra = {
-            .desc = desc, .cmp = cmp,
-            .fifo = buffer,
-            .key = bounds->upper_bound_inclusive,
-            .msn = MAX_MSN };
-        r = message_tree.find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(ube_extra, +1, nullptr, ube);
+        struct toku_fifo_entry_key_msn_heaviside_extra ube_extra;
+        ZERO_STRUCT(ube_extra);
+        ube_extra.desc = desc;
+        ube_extra.cmp = cmp;
+        ube_extra.fifo = buffer;
+        ube_extra.key = bounds->upper_bound_inclusive;
+        ube_extra.msn = MAX_MSN;
+        r = message_tree.template find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(ube_extra, +1, nullptr, ube);
         if (r == DB_NOTFOUND) {
             // Couldn't find anything in the buffer bigger than our key,
             // so we need to look at everything up to the end of
@@ -3990,7 +3970,7 @@ find_bounds_within_message_tree(
  * or plus infinity respectively if they are NULL.  Do not mark the node
  * as dirty (preserve previous state of 'dirty' bit).
  */
-static int
+static void
 bnc_apply_messages_to_basement_node(
     FT_HANDLE t,             // used for comparison function
     BASEMENTNODE bn,   // where to apply messages
@@ -4020,24 +4000,24 @@ bnc_apply_messages_to_basement_node(
     // following 4 cases will do the application, depending on which of
     // the lists contains relevant messages:
     //
-    // 1. broadcast messages and anything else
+    // 1. broadcast messages and anything else, or a mix of fresh and stale
     // 2. only fresh messages
     // 3. only stale messages
-    // 4. fresh and stale messages but no broadcasts
-    if (bnc->broadcast_list.size() > 0) {
-        // We have some broadcasts, which don't have keys, so we grab all
+    if (bnc->broadcast_list.size() > 0 ||
+        (stale_lbi != stale_ube && fresh_lbi != fresh_ube)) {
+        // We have messages in multiple trees, so we grab all
         // the relevant messages' offsets and sort them by MSN, then apply
         // them in MSN order.
         const int buffer_size = ((stale_ube - stale_lbi) + (fresh_ube - fresh_lbi) + bnc->broadcast_list.size());
-        long *XMALLOC_N(buffer_size, offsets);
+        int32_t *XMALLOC_N(buffer_size, offsets);
         struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
         // Populate offsets array with offsets to stale messages
         r = bnc->stale_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(stale_lbi, stale_ube, &sfo_extra);
         assert_zero(r);
 
-        // Then store fresh offsets
-        r = bnc->fresh_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(fresh_lbi, fresh_ube, &sfo_extra);
+        // Then store fresh offsets, and mark them to be moved to stale later.
+        r = bnc->fresh_message_tree.iterate_and_mark_range<struct store_fifo_offset_extra, store_fifo_offset>(fresh_lbi, fresh_ube, &sfo_extra);
         assert_zero(r);
 
         // Store offsets of all broadcast messages.
@@ -4046,24 +4026,25 @@ bnc_apply_messages_to_basement_node(
         invariant(sfo_extra.i == buffer_size);
 
         // Sort by MSN.
-        r = toku::sort<long, FIFO, fifo_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->buffer);
+        r = toku::sort<int32_t, FIFO, fifo_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->buffer);
         assert_zero(r);
 
         // Apply the messages in MSN order.
         for (int i = 0; i < buffer_size; ++i) {
             *msgs_applied = true;
-            const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
+            struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
             do_bn_apply_cmd(t, bn, ancestor, childnum, entry, &stats_delta);
         }
 
         toku_free(offsets);
     } else if (stale_lbi == stale_ube) {
-        // No stale messages to apply, we just apply fresh messages.
+        // No stale messages to apply, we just apply fresh messages, and mark them to be moved to stale later.
         struct iterate_do_bn_apply_cmd_extra iter_extra = { .t = t, .bn = bn, .ancestor = ancestor, .childnum = childnum, .stats_to_update = &stats_delta};
         if (fresh_ube - fresh_lbi > 0) *msgs_applied = true;
-        r = bnc->fresh_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(fresh_lbi, fresh_ube, &iter_extra);
+        r = bnc->fresh_message_tree.iterate_and_mark_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(fresh_lbi, fresh_ube, &iter_extra);
         assert_zero(r);
-    } else if (fresh_lbi == fresh_ube) {
+    } else {
+        invariant(fresh_lbi == fresh_ube);
         // No fresh messages to apply, we just apply stale messages.
 
         if (stale_ube - stale_lbi > 0) *msgs_applied = true;
@@ -4071,82 +4052,6 @@ bnc_apply_messages_to_basement_node(
 
         r = bnc->stale_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(stale_lbi, stale_ube, &iter_extra);
         assert_zero(r);
-    } else {
-        // We have stale and fresh messages but no broadcasts.  We can
-        // iterate over both OMTs together.
-
-        // For the loop, we'll keep the indices into both the fresh and
-        // stale trees, and also the OMTVALUE at those indices.
-        uint32_t stale_i = stale_lbi, fresh_i = fresh_lbi;
-        long stale_offset, fresh_offset;
-        r = bnc->stale_message_tree.fetch(stale_i, &stale_offset);
-        assert_zero(r);
-        r = bnc->fresh_message_tree.fetch(fresh_i, &fresh_offset);
-        assert_zero(r);
-
-        // This comparison extra struct won't change during iteration.
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc= &t->ft->cmp_descriptor, .cmp = t->ft->compare_fun, .fifo = bnc->buffer };
-
-        // Iterate over both lists, applying the smaller (in (key, msn)
-        // order) message at each step
-        while (stale_i < stale_ube && fresh_i < fresh_ube) {
-            *msgs_applied = true;
-            int c = toku_fifo_entry_key_msn_cmp(extra, stale_offset, fresh_offset);
-            if (c < 0) {
-                // The stale message we're pointing to either has a
-                // smaller key than the fresh message, or has the same key
-                // but a smaller MSN.  We'll apply it, then get the next
-                // stale message into stale_i and stale_v.
-                const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-                do_bn_apply_cmd(t, bn, ancestor, childnum, stale_entry, &stats_delta);
-                stale_i++;
-                if (stale_i != stale_ube) {
-                    invariant(stale_i < stale_ube);
-                    r = bnc->stale_message_tree.fetch(stale_i, &stale_offset);
-                    assert_zero(r);
-                }
-            } else if (c > 0) {
-                // The fresh message we're pointing to either has a
-                // smaller key than the stale message, or has the same key
-                // but a smaller MSN.  We'll apply it, then get the next
-                // fresh message into fresh_i and fresh_v.
-                const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-                do_bn_apply_cmd(t, bn, ancestor, childnum, fresh_entry, &stats_delta);
-                fresh_i++;
-                if (fresh_i != fresh_ube) {
-                    invariant(fresh_i < fresh_ube);
-                    r = bnc->fresh_message_tree.fetch(fresh_i, &fresh_offset);
-                    assert_zero(r);
-                }
-            } else {
-                // We have found the same MSN in both trees.  This means a
-                // single message showing up in both trees.  This should
-                // not happen.
-                abort();
-            }
-        }
-
-        // Apply the rest of the stale messages, if any exist
-        while (stale_i < stale_ube) {
-            const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-            do_bn_apply_cmd(t, bn, ancestor, childnum, stale_entry, &stats_delta);
-            stale_i++;
-            if (stale_i != stale_ube) {
-                r = bnc->stale_message_tree.fetch(stale_i, &stale_offset);
-                assert_zero(r);
-            }
-        }
-
-        // Apply the rest of the fresh messages, if any exist
-        while (fresh_i < fresh_ube) {
-            const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-            do_bn_apply_cmd(t, bn, ancestor, childnum, fresh_entry, &stats_delta);
-            fresh_i++;
-            if (fresh_i != fresh_ube) {
-                r = bnc->fresh_message_tree.fetch(fresh_i, &fresh_offset);
-                assert_zero(r);
-            }
-        }
     }
     //
     // update stats
@@ -4154,23 +4059,12 @@ bnc_apply_messages_to_basement_node(
     if (stats_delta.numbytes || stats_delta.numrows) {
         toku_ft_update_stats(&t->ft->in_memory_stats, stats_delta);
     }
-    // We can't delete things out of the fresh tree inside the above
-    // procedures because we're still looking at the fresh tree.  Instead
-    // we have to move messages after we're done looking at it.
-    struct copy_to_stale_extra cts_extra = { .ft_handle = t, .bnc = bnc };
-    r = bnc->fresh_message_tree.iterate_on_range<struct copy_to_stale_extra, copy_to_stale>(fresh_lbi, fresh_ube, &cts_extra);
-    assert_zero(r);
-    for (uint32_t ube = fresh_ube; fresh_lbi < ube; --ube) {
-        // When we delete the message at the fresh_lbi index, everything
-        // to the right moves down one spot, including the offset at ube.
-        r = bnc->fresh_message_tree.delete_at(fresh_lbi);
-        assert_zero(r);
-    }
-    return r;
+#if 0
+#endif
 }
 
 void
-maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied)
+toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied)
 // Effect:
 //   Bring a leaf node up-to-date according to all the messages in the ancestors.
 //   If the leaf node is already up-to-date then do nothing.
@@ -4181,7 +4075,7 @@ maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ance
 //   The entire root-to-leaf path is pinned and appears in the ancestors list.
 {
     VERIFY_NODE(t, node);
-    if (node->height > 0) { goto exit; }
+    invariant(node->height == 0);
     // know we are a leaf node
     // An important invariant:
     // We MUST bring every available basement node up to date.
@@ -4215,8 +4109,44 @@ maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ance
         // false when it's read in again).
         curr_bn->stale_ancestor_messages_applied = true;
     }
-exit:
     VERIFY_NODE(t, node);
+}
+
+struct copy_to_stale_extra {
+    FT ft;
+    NONLEAF_CHILDINFO bnc;
+};
+
+__attribute__((nonnull(3)))
+static int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
+{
+    struct fifo_entry *entry = toku_fifo_get_entry(extra->bnc->buffer, offset);
+    DBT keydbt;
+    DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
+    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft->cmp_descriptor, .cmp = extra->ft->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
+    int r = extra->bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, heaviside_extra, nullptr);
+    invariant_zero(r);
+    return 0;
+}
+
+__attribute__((nonnull))
+void
+toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
+    invariant(node->height > 0);
+    // TODO: could be cilkified
+    for (int i = 0; i < node->n_children; ++i) {
+        if (BP_STATE(node, i) != PT_AVAIL) {
+            continue;
+        }
+        NONLEAF_CHILDINFO bnc = BNC(node, i);
+        // We can't delete things out of the fresh tree inside the above
+        // procedures because we're still looking at the fresh tree.  Instead
+        // we have to move messages after we're done looking at it.
+        struct copy_to_stale_extra cts_extra = { .ft = ft, .bnc = bnc };
+        int r = bnc->fresh_message_tree.iterate_over_marked<struct copy_to_stale_extra, copy_to_stale>(&cts_extra);
+        invariant_zero(r);
+        bnc->fresh_message_tree.delete_all_marked();
+    }
 }
 
 static int

@@ -51,13 +51,13 @@ int toku_fifo_n_entries(FIFO fifo) {
 static int next_power_of_two (int n) {
     int r = 4096;
     while (r < n) {
-	r*=2;
-	assert(r>0);
+        r*=2;
+        assert(r>0);
     }
     return r;
 }
 
-int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest) {
+int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, int32_t *dest) {
     int need_space_here = sizeof(struct fifo_entry)
                           + keylen + datalen
                           + xids_get_size(xids)
@@ -134,7 +134,7 @@ DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry) {
     return toku_fill_dbt(dbt, xids_get_end_of_array((XIDS) &entry->xids_s), entry->keylen);
 }
 
-const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off) {
+struct fifo_entry *toku_fifo_get_entry(FIFO fifo, int off) {
     return toku_fifo_iterate_internal_get_entry(fifo, off);
 }
 
