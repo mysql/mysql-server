@@ -6356,6 +6356,9 @@ void ha_tokudb::print_error(int error, myf errflag) {
         error = HA_ERR_LOCK_DEADLOCK;
     if (error == DB_LOCK_NOTGRANTED)
         error = HA_ERR_LOCK_WAIT_TIMEOUT;
+    if (error == ENOSPC) {
+        error = HA_ERR_DISK_FULL;
+    }
     handler::print_error(error, errflag);
 }
 
