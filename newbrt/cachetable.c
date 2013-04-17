@@ -1292,6 +1292,7 @@ static void cachetable_fetch_pair(
     if (p->cq) {
         workitem_init(&p->asyncwork, NULL, p);
         workqueue_enq(p->cq, &p->asyncwork, 1);
+        return;
     }
     p->state = CTPAIR_IDLE;
     
@@ -1967,7 +1968,14 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
 // via the completion queue.
 //
 static void
-do_partial_fetch(CACHETABLE ct, CACHEFILE cachefile, PAIR p, CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback, void *read_extraargs)
+do_partial_fetch(
+    CACHETABLE ct, 
+    CACHEFILE cachefile, 
+    PAIR p, 
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback, 
+    void *read_extraargs,
+    BOOL keep_pair_locked
+    )
 {
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = zero_attr;
@@ -1985,12 +1993,21 @@ do_partial_fetch(CACHETABLE ct, CACHEFILE cachefile, PAIR p, CACHETABLE_PARTIAL_
     p->attr = new_attr;
     cachetable_change_pair_attr(ct, old_attr, new_attr);
     p->state = CTPAIR_IDLE;
-    if (p->cq) {
-        workitem_init(&p->asyncwork, NULL, p);
-        workqueue_enq(p->cq, &p->asyncwork, 1);
+    if (keep_pair_locked) {
+        // if the caller wants the pair to remain locked
+        // that means the caller requests continued
+        // ownership of the PAIR, so there better not
+        // be a cq asking to transfer ownership
+        assert(!p->cq);
     }
     else {
-        nb_mutex_write_unlock(&p->nb_mutex);
+        if (p->cq) {
+            workitem_init(&p->asyncwork, NULL, p);
+            workqueue_enq(p->cq, &p->asyncwork, 1);
+        }
+        else {
+            nb_mutex_write_unlock(&p->nb_mutex);
+        }
     }
 }
 
@@ -2089,8 +2106,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
                 assert(!p->dirty);
                 p->state = CTPAIR_READING;
 
-                do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs);
-                nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
+                do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, TRUE);
             }
 
             pair_touch(p);
@@ -2376,7 +2392,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                     // Now wait for the I/O to occur.
     
-                    do_partial_fetch(ct, cf, p, pf_callback, read_extraargs);
+                    do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, FALSE);
     
                     cachetable_unlock(ct);
                     if (ct->ydb_lock_callback) ct->ydb_lock_callback();
@@ -3375,7 +3391,7 @@ static void cachetable_partial_reader(WORKITEM wi) {
     struct cachefile_partial_prefetch_args *cpargs = workitem_arg(wi);
     CACHETABLE ct = cpargs->p->cachefile->cachetable;
     cachetable_lock(ct);
-    do_partial_fetch(ct, cpargs->p->cachefile, cpargs->p, cpargs->pf_callback, cpargs->read_extraargs);
+    do_partial_fetch(ct, cpargs->p->cachefile, cpargs->p, cpargs->pf_callback, cpargs->read_extraargs, FALSE);
     cachetable_unlock(ct);
     toku_free(cpargs);
 }
