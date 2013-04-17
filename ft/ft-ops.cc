@@ -752,7 +752,7 @@ void toku_ftnode_clone_callback(
         rebalance_ftnode_leaf(node, ft->h->basementnodesize);
     }
 
-    cloned_node->oldest_referenced_xid_known = node->oldest_known_referenced_xid;
+    cloned_node->oldest_referenced_xid_known = node->oldest_referenced_xid_known;
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
     cloned_node->flags = node->flags;
     cloned_node->thisnodename = node->thisnodename;
@@ -2337,7 +2337,7 @@ void toku_bnc_flush_to_child(
                 );
             remaining_memsize -= FIFO_CURRENT_ENTRY_MEMSIZE;
         }));
-    child->oldest_referenced_xid_known = oldest_known_referenced_xid;
+    child->oldest_referenced_xid_known = oldest_referenced_xid_known;
 
     invariant(remaining_memsize == 0);
     if (stats_delta.numbytes || stats_delta.numrows) {
@@ -2440,7 +2440,7 @@ void toku_ft_leaf_apply_cmd(
 
     // Pass the oldest possible live xid value to each basementnode
     // when we apply messages to them.
-    TXNID oldest_referenced_xid_known = node->oldest_known_referenced_xid;
+    TXNID oldest_referenced_xid_known = node->oldest_referenced_xid_known;
 
     if (ft_msg_applies_once(cmd)) {
         unsigned int childnum = (target_childnum >= 0

@@ -730,7 +730,7 @@ static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
     // The new node in the split inherits the oldest known reference xid
-    B->oldest_referenced_xid_known = node->oldest_known_referenced_xid;
+    B->oldest_referenced_xid_known = node->oldest_referenced_xid_known;
 
     node->dirty = 1;
     B->dirty = 1;
@@ -1917,7 +1917,7 @@ place_node_and_bnc_on_background_thread(
 //
 void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
 {
-    TXNID oldest_referenced_xid_known = parent->oldest_known_referenced_xid;
+    TXNID oldest_referenced_xid_known = parent->oldest_referenced_xid_known;
     //
     // first let's see if we can detach buffer on client thread
     // and pick the child we want to flush to
