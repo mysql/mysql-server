@@ -2578,8 +2578,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
-        BYTESTRING valbs = {.len=0, .data=NULL};
-        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs);
         if (r!=0) return r;
     }
     DBT val;
