@@ -3236,8 +3236,8 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     DBT found_key;
     bool has_null;
     int cmp;
+    u_int32_t flags;
     HANDLE_INVALID_CURSOR(); 
-
 
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status); 
     info.ha = this; 
@@ -3246,8 +3246,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
 
     pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_NEG_INF);
 
-
-    u_int32_t flags = SET_READ_FLAG(0); 
+    flags = SET_READ_FLAG(0); 
     error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index); 
     if (error) {
         goto cleanup;
