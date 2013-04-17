@@ -638,6 +638,7 @@ brtnode_cachepressure_size(BRTNODE node)
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 totally_empty = totally_empty && (toku_bnc_n_entries(BNC(node, i)) == 0);
                 retval += get_avail_internal_node_partition_size(node, i);
+                retval += BP_WORKDONE(node, i);
             }
             else {
                 assert(FALSE);
