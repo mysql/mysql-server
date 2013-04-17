@@ -9,7 +9,8 @@
 
 namespace toku {
 
-static int find_by_txnid(const TXNID &txnid_a, const TXNID &txnid_b) {
+int find_by_txnid(const TXNID &txnid_a, const TXNID &txnid_b);
+int find_by_txnid(const TXNID &txnid_a, const TXNID &txnid_b) {
     if (txnid_a < txnid_b) {
         return -1;
     } else if (txnid_a == txnid_b) {

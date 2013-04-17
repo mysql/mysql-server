@@ -26,7 +26,9 @@ static DB_TXN *txn_oldest_ancester(DB_TXN* txn) {
     return txn;
 }
 
-static int find_key_ranges_by_lt(const txn_lt_key_ranges &ranges,
+int find_key_ranges_by_lt(const txn_lt_key_ranges &ranges,
+        toku::locktree *const &find_lt);
+int find_key_ranges_by_lt(const txn_lt_key_ranges &ranges,
         toku::locktree *const &find_lt) {
     return ranges.lt->compare(find_lt);
 }

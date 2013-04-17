@@ -192,7 +192,8 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
             remove_row_lock(&lkr, lock, m_mem_tracker);
         }
 
-        lock = { .range = requested_range, .txnid = txnid };
+        lock.range = requested_range;
+        lock.txnid = txnid;
         insert_row_lock(&lkr, lock, m_mem_tracker);
     }
 
