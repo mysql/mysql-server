@@ -41,6 +41,8 @@
 # To make warnings be warnngs instead of errors do
 #   make WERROR=
 
+DEBUG = 0
+
 .DELETE_ON_ERROR:
 
 ifneq ($(GCOV),)
@@ -186,10 +188,10 @@ ifneq ($(CYGWIN),)
     ifeq ($(CC),icc)
 	#Cygwin icc only
 	ifeq ($(CRUNTIME),)
-	ifneq ($(DEBUG),)
-	    CRUNTIME=MDd
-	else
+	ifeq ($(DEBUG),0)
 	    CRUNTIME=MD
+	else
+	    CRUNTIME=MDd
 	endif
 	endif
         ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
@@ -229,12 +231,12 @@ ifneq ($(CYGWIN),)
     endif
 endif
 
-ifneq ($(DEBUG),)
-    OPTFLAGS = $(DBG_OPTFLAGS)
-    ARFLAGS  = $(DBG_ARFLAGS)
-else
+ifeq ($(DEBUG),0)
     OPTFLAGS = $(OPT_OPTFLAGS)
     ARFLAGS  = $(OPT_ARFLAGS)
+else
+    OPTFLAGS = $(DBG_OPTFLAGS)
+    ARFLAGS  = $(DBG_ARFLAGS)
 endif
 
 CFLAGS = $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW)
@@ -356,7 +358,7 @@ EXPORTMAP = -Wl,--version-script=$(EXPORTMAPFILE)
 SHARED=-shared
 endif
 ifeq ($(SOEXT),dll)
-    ifeq ($(DEBUG),)
+    ifeq ($(DEBUG),0)
         SHARED=/LD
     else
         SHARED=/LDd
