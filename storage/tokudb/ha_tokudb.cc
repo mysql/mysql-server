@@ -501,7 +501,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     char name_buff[FN_REFLEN];
     char error_msg[MAX_ALIAS_NAME + 50]; //50 is arbitrary upper bound of extra txt
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
-    DBT cmp_byte_stream;
     char* newname = NULL;
     newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
     if (newname == NULL) {
@@ -520,19 +519,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
     *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
     (*ptr)->app_private = (void *) (key_info);
-    if (tokudb_debug & TOKUDB_DEBUG_SAVE_TRACE) {
-        bzero((void *) &cmp_byte_stream, sizeof(cmp_byte_stream));
-        cmp_byte_stream.flags = DB_DBT_MALLOC;
-        if ((error = tokutrace_db_get_cmp_byte_stream(*ptr, &cmp_byte_stream))) {
-            my_errno = error;
-            goto cleanup;
-        }
-        (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
-        my_free(cmp_byte_stream.data, MYF(0));
-    }
-    else {
-        (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);    
-    }
+    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);    
     
     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %s\n", key_info->name));
     //
@@ -674,7 +661,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     }
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
-        DBT cmp_byte_stream;
 
         if ((error = db_create(&share->file, db_env, 0))) {
             free_share(share, table, hidden_primary_key, 1);
@@ -697,28 +683,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         else {
             share->file->app_private = NULL;
         }
-        if (tokudb_debug & TOKUDB_DEBUG_SAVE_TRACE) {
-            bzero((void *) &cmp_byte_stream, sizeof(cmp_byte_stream));
-            cmp_byte_stream.flags = DB_DBT_MALLOC;
-            if ((error = tokutrace_db_get_cmp_byte_stream(share->file, &cmp_byte_stream))) {
-                free_share(share, table, hidden_primary_key, 1);
-                my_free((char *) rec_buff, MYF(0));
-                rec_buff = NULL;
-                my_free(alloc_ptr, MYF(0));
-                alloc_ptr = NULL;
-                if (primary_key_offsets) {
-                    my_free(primary_key_offsets, MYF(0));
-                    primary_key_offsets = NULL;
-                }
-                my_errno = error;
-                my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
-                TOKUDB_DBUG_RETURN(1);
-            }
-            share->file->set_bt_compare(share->file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
-            my_free(cmp_byte_stream.data, MYF(0));
-        }
-        else
-            share->file->set_bt_compare(share->file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
+        share->file->set_bt_compare(share->file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
         
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
