@@ -17,8 +17,6 @@ typedef enum {
     toku_type_int = 0,
     toku_type_double,
     toku_type_float,
-    toku_type_decimal,
-    toku_type_bitstream,
     toku_type_fixbinary,
     toku_type_fixstring,
     toku_type_varbinary,
