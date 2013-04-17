@@ -2850,7 +2850,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     ai_metadata_update_required = false;
     abort_loader = false;
     if (share->try_table_lock) {
-        if (tokudb_prelock_empty && may_table_be_empty()) {
+        if (get_prelock_empty(thd) && may_table_be_empty()) {
             if (using_ignore || get_load_save_space(thd)) {
                 acquire_table_lock(transaction, lock_write);
             }
