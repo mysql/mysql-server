@@ -40,14 +40,16 @@ check: $(TARGETS) $(RUNTARGETS);
 ifeq ($(VGRIND),)
 	./$< $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.valgrind ./$<; \
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.check.valgrind ./$<; \
 	if [ $$? = 0 ] ; then \
-		lines=`cat $<.valgrind | wc -l`; \
-		if [ $$lines -ne 0 ] ; then cat $<.valgrind; test 0 = 1; fi \
+		lines=`cat $<.check.valgrind | wc -l`; \
+		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
+	else \
+	        test 0 = 1; \
 	fi \
 	$(SUMMARIZE_CMD)
 endif
 
 clean:
-	rm -rf $(TARGETS) *.valgrind pwrite4g.data testdir
+	rm -rf $(TARGETS) *.check.valgrind pwrite4g.data testdir
 
