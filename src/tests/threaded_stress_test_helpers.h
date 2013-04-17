@@ -43,24 +43,6 @@
 #include <util/rwlock.h>
 #include <util/kibbutz.h>
 
-// TODO: Move me to portability/memory.cc and toku_include/memory.h
-#if defined(HAVE_MALLOC_H)
-# include <malloc.h>
-#elif defined(HAVE_SYS_MALLOC_H)
-# include <sys/malloc.h>
-#endif
-#if !defined(HAVE_MEMALIGN)
-# if defined(HAVE_VALLOC)
-static void *
-memalign(size_t UU(alignment), size_t size)
-{
-    return valloc(size);
-}
-# else
-#  error "no suitable aligned malloc available (checked memalign and valloc)"
-# endif
-#endif
-
 static const size_t min_val_size = sizeof(int32_t);
 static const size_t min_key_size = sizeof(int32_t);
 
@@ -1534,8 +1516,8 @@ static int run_workers(
     if (cli_args->print_performance) {
         perf_formatter->header(cli_args, num_threads);
     }
-    struct worker_extra *worker_extra = (struct worker_extra *)
-        memalign(64, num_threads * sizeof (struct worker_extra)); // allocate worker_extra's on cache line boundaries
+    // allocate worker_extra's on cache line boundaries
+    struct worker_extra *XMALLOC_N_ALIGNED(64, num_threads, worker_extra);
     struct test_time_extra tte;
     tte.num_seconds = num_seconds;
     tte.crash_at_end = crash_at_end;
