@@ -169,7 +169,7 @@ static int workqueue_deq(WORKQUEUE wq, WORKITEM *wiptr, int dolock) {
     return 0;
 }
 
-// Suspend a work queue writer thread
+// Suspend the caller (thread that is currently attempting to put more work items into the work queue)
 __attribute__((unused))
 static void workqueue_wait_write(WORKQUEUE wq, int dolock) {
     if (dolock) workqueue_lock(wq);
@@ -179,7 +179,7 @@ static void workqueue_wait_write(WORKQUEUE wq, int dolock) {
     if (dolock) workqueue_unlock(wq);
 }
 
-// Wakeup the waiting work queue writer threads
+// Wakeup all threads that are currently attempting to put more work items into the work queue
 __attribute__((unused))
 static void workqueue_wakeup_write(WORKQUEUE wq, int dolock) {
     if (wq->want_write) {
