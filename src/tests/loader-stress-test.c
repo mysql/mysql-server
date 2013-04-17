@@ -242,13 +242,12 @@ static void check_results(DB **dbs)
         r = dbs[j]->cursor(dbs[j], txn, &cursor, 0);
         CKERR(r);
 
-        // generate skeys
-
-        unsigned int *skey = (unsigned int *) toku_malloc(NUM_ROWS * sizeof (unsigned int));
+        // generate the expected keys
+        unsigned int *expected_key = (unsigned int *) toku_malloc(NUM_ROWS * sizeof (unsigned int));
         for (int i = 0; i < NUM_ROWS; i++)
-            skey[i] = twiddle32(i+1, j);
-        // sort skeys
-        qsort(skey, NUM_ROWS, sizeof (unsigned int), uint_cmp);
+            expected_key[i] = j == 0 ? (unsigned int)(i+1) : twiddle32(i+1, j);
+        // sort the keys
+        qsort(expected_key, NUM_ROWS, sizeof (unsigned int), uint_cmp);
 
         for (int i = 0; i < NUM_ROWS+1; i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);
@@ -266,13 +265,8 @@ static void check_results(DB **dbs)
             assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
 
-            // check the primary key == i+1
-            if (j == 0) {
-                assert(k == (unsigned int)(i+1));
-            } else {
-                // check the secondary key 
-                assert(k == skey[i]);
-            }
+            // check the expected keys
+            assert(k == expected_key[i]);
 
             // check prev_key < key
             if (i > 0) 
@@ -281,7 +275,8 @@ static void check_results(DB **dbs)
             // update prev = current
             prev_k = k; prev_v = v;
         }
-        toku_free(skey);
+
+        toku_free(expected_key);
 
         if ( verbose ) {printf("."); fflush(stdout);}
         r = cursor->c_close(cursor);
