@@ -1977,7 +1977,7 @@ maybe_pin_pair(
         pair_unlock(p);
         goto exit;
     }
-    else if (p->value_rwlock.try_write_lock(expensive)){
+    if (lock_type != PL_READ && p->value_rwlock.try_write_lock(expensive)){
         pair_unlock(p);
         goto exit;
     }
