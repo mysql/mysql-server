@@ -202,7 +202,7 @@ private:
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows);
     bool has_auto_increment_flag(uint* index);
-    int write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, ulonglong size );
+    int write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size );
     int update_max_auto_inc(DB* db, ulonglong val);
     int write_auto_inc_create(DB* db, ulonglong val);
     void init_auto_increment();
