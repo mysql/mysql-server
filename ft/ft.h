@@ -46,7 +46,7 @@ int toku_ft_needed_unlocked(FT h);
 BOOL toku_ft_has_one_reference_unlocked(FT ft);
 int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
-FT_HANDLE toku_ft_get_some_existing_ft_handle(FT h);
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 
 void toku_ft_note_hot_begin(FT_HANDLE brt);
 void toku_ft_note_hot_complete(FT_HANDLE brt, BOOL success, MSN msn_at_start_of_hot);

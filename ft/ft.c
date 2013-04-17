@@ -576,14 +576,12 @@ int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     return r;
 }
 
-// gets the first existing BRT handle, if it exists. If no BRT handle exists
-// for this header, returns NULL
-FT_HANDLE toku_ft_get_some_existing_ft_handle(FT h) {
+// Verifies there exists exactly one ft handle and returns it.
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h) {
     FT_HANDLE ft_handle_ret = NULL;
     toku_ft_grab_reflock(h);
-    if (!toku_list_empty(&h->live_ft_handles)) {
-        ft_handle_ret = toku_list_struct(toku_list_head(&h->live_ft_handles), struct ft_handle, live_ft_handle_link);
-    }
+    assert(toku_list_num_elements_est(&h->live_ft_handles) == 1);
+    ft_handle_ret = toku_list_struct(toku_list_head(&h->live_ft_handles), struct ft_handle, live_ft_handle_link);
     toku_ft_release_reflock(h);
     return ft_handle_ret;
 }
