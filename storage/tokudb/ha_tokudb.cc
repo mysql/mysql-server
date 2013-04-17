@@ -4459,7 +4459,8 @@ int ha_tokudb::index_end() {
 
     invalidate_bulk_fetch();
     doing_bulk_fetch = false;
-
+    close_dsmrr();
+    
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -5791,6 +5792,7 @@ int ha_tokudb::reset(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::reset");
     key_read = 0;
     using_ignore = 0;
+    close_dsmrr();
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -8068,6 +8070,13 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
     last_dup_key = primary_key;
 }
 
+void ha_tokudb::close_dsmrr() {
+#ifdef MARIADB_BASE_VERSION
+    ds_mrr.dsmrr_close();
+#endif
+}
+
+
 // table admin 
 #include "ha_tokudb_admin.cc"
 
@@ -8080,6 +8089,11 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
 // alter table code for various mysql distros
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"
+
+// maria mrr
+#ifdef MARIADB_BASE_VERSION
+#include  "ha_tokudb_mrr_maria.cc"
+#endif
 
 // key comparisons
 #include "hatoku_cmp.cc"
