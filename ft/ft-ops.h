@@ -109,8 +109,6 @@ toku_ft_handle_open_with_dict_id(
     DICTIONARY_ID use_dictionary_id
     )  __attribute__ ((warn_unused_result));
 
-int toku_ft_remove_subdb(FT_HANDLE brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
-
 int toku_ft_lookup (FT_HANDLE brt, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
 // Effect: Insert a key and data pair into a brt
