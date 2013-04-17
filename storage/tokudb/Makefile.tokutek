@@ -4,6 +4,8 @@ MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
 TOKUDB = /usr/local/tokudb-4.4
 TOKUDB_VERSION = "Tokudb"
 DEBUG = 1
+GCOV = 0
+SINGLESO = 1
 SYSTEM = $(shell uname -s | tr [A-Z] [a-z])
 
 # sources to target
@@ -37,10 +39,13 @@ CPPFLAGS += -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\"
 CXXFLAGS += -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
 LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
-LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
-ifeq ($(SYSTEM),linux)
-LIBS += -L$(TOKUDB)/lib -ltokuportability
+ifeq ($(SINGLESO),1)
+LIBS = $(TOKUDB)/lib/libtokudb.a $(TOKUDB)/lib/libtokuportability.a
+else
+LIBS = -L$(TOKUDB)/lib -ltokudb -ltokuportability 
 endif
+LIBS += -lpthread -lz -lstdc++ -lm -lgcc_s -lc
+
 
 # LIBDIR = /usr/lib
 # GCCLIBDIR = /usr/lib/gcc/i386-redhat-linux/4.1.1
