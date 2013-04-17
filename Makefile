@@ -81,4 +81,3 @@ check-coverage-range-tree-tests:
 	(cd src/range_tree/tests && $(MAKE) clean && $(MAKE) -k check.lin VGRIND="" OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
 check-coverage-lock-tree-tests:
 	(cd src/lock_tree/tests && $(MAKE) clean && $(MAKE) -k check.lin VGRIND="" OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
-

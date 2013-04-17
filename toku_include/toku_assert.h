@@ -8,7 +8,8 @@
 #error NDEBUG should not be set
 #endif
 
-void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/);
+void toku_do_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
+void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/) __attribute__((__visibility__("default")));
 
 // Define GCOV if you want to get test-coverage information that ignores the assert statements.
 // #define GCOV
@@ -16,7 +17,7 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 #if defined(GCOV) || TOKU_WINDOWS
 #define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__)
 #else
-#include <assert.h>
+#define assert(expr) ((expr) ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__))
 #endif
 
 #ifdef GCOV

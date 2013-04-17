@@ -2,11 +2,14 @@
 CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
 CFLAGS = -Wall -Werror -g -O0 -std=c99
+ifeq ($(GCCVERSION),4.4.2)
+CFLAGS += -Wno-deprecated
+endif
 ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
 endif
 LDFLAGS = ../libtokuportability.a -lpthread
-SRCS = $(wildcard test-*.c)
+SRCS = $(wildcard *.c)
 TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
 VGRIND = valgrind
@@ -19,10 +22,10 @@ HERE=linux/tests
 ifeq ($(SUMMARIZE),1)
 SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
 SUMMARIZE_SHOULD_FAIL= ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
-INVERTER=;test $$? -ne 0
 else
 SUMMARIZE_CMD =
 endif
+INVERTER=;test $$? -ne 0
 
 all: $(TARGETS)
 
@@ -50,6 +53,30 @@ else
 	$(SUMMARIZE_CMD)
 endif
 
+# check to see if that logic makes an error when there is a leak.
+try-leak.tdbrun: try-leak
+ifeq ($(VGRIND),)
+	./$< $(SUMMARIZE_CMD)
+else
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	if [ $$? = 0 ] ; then \
+		lines=`cat $<.check.valgrind | wc -l`; \
+		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
+	else \
+	        test 0 = 1; \
+	fi \
+	$(INVERTER) \
+	$(SUMMARIZE_CMD)
+endif
+
+try-assert0.tdbrun: try-assert0
+	./$< 2> /dev/null $(INVERTER) $(SUMMARIZE_CMD)
+
 clean:
 	rm -rf $(TARGETS) *.check.output *.check.valgrind pwrite4g.data testdir
 
+try-assert0.tdbrun:
+
+
+foo:
+	echo $(TARGETS)
