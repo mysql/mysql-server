@@ -534,7 +534,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        original_ver;            /* original environment version  */ \n");
     printf("  u_int64_t        ver_at_startup;          /* environment version at startup */ \n");
     printf("  u_int64_t        last_lsn_v12;            /* last lsn of version 12 environment */ \n");
-    printf("  char             upgrade_v13_time[26];     /* timestamp of when upgrade to version 13 environment was done */ \n");
+    printf("  char             upgrade_v13_time[26];    /* timestamp of when upgrade to version 13 environment was done */ \n");
+    printf("  u_int64_t        env_panic;               /* non-zero if environment is panicked */ \n");
+    printf("  u_int64_t        logger_panic;            /* non-zero if logger is panicked */ \n");
+    printf("  u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();
@@ -556,7 +559,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
-			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
+			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
                              "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",

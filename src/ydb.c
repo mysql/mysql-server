@@ -1642,13 +1642,22 @@ format_time(const time_t *timer, char *buf) {
 // because of a race condition.  
 // Note, engine status is still collected even if the environment or logger is panicked
 static int
-env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
-    int r = 0;
+env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_string_buf, int env_panic_string_length) {
+    int r;
+    if (env_panic_string_buf) {
+	if (env && env->i && env->i->is_panicked && env->i->panic_string)
+	    strncpy(env_panic_string_buf, env->i->panic_string, env_panic_string_length);
+	else 
+	    *env_panic_string_buf = '\0';
+    }
+
     if ( !(env)     || 
 	 !(env->i)  || 
 	 !(env_opened(env)) )
 	r = EINVAL;
     else {
+	r = 0;
+	engstat->env_panic = env->i->is_panicked;
 	format_time(&persistent_creation_time, engstat->creationtime);
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
@@ -1768,6 +1777,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->logger_ilock_ctr = log_stat.ilock_ctr;
 	    engstat->logger_olock_ctr = log_stat.olock_ctr;
 	    engstat->logger_swap_ctr  = log_stat.swap_ctr;
+	    engstat->logger_panic     = log_stat.panicked;
+	    engstat->logger_panic_errno = log_stat.panic_errno;
 	}
 	{
 	    time_t    enospc_most_recent_timestamp;
@@ -1820,8 +1831,16 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 static int
 env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     ENGINE_STATUS engstat;
-    int r = env_get_engine_status(env, &engstat);    
+    uint stringsize = 80;
+    char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
+
+    int r = env_get_engine_status(env, &engstat, panicstring, stringsize);    
+
+    if (strlen(panicstring)) {
+	invariant(strlen(panicstring) <= stringsize);
+	n += snprintf(buff + n, bufsiz - n, "Env panic: %s\n", panicstring);
+    }
 
     if (r) {
 	n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
@@ -1836,6 +1855,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	}
     }
     else {
+	n += snprintf(buff + n, bufsiz - n, "env panic                        %"PRIu64"\n", engstat.env_panic);
 	n += snprintf(buff + n, bufsiz - n, "creationtime                     %s \n", engstat.creationtime);
 	n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
 	n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
@@ -1908,6 +1928,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
 	n += snprintf(buff + n, bufsiz - n, "logger olock count               %"PRIu64"\n", engstat.logger_olock_ctr);
 	n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
+	n += snprintf(buff + n, bufsiz - n, "logger panic                     %"PRIu64"\n", engstat.logger_panic);
+	n += snprintf(buff + n, bufsiz - n, "logger panic_errno               %"PRIu64"\n", engstat.logger_panic_errno);
 	n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
 	n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
 	n += snprintf(buff + n, bufsiz - n, "enospc count                     %"PRIu64"\n", engstat.enospc_ctr);
