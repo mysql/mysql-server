@@ -231,7 +231,7 @@ build_index(DB_INDEXER *indexer) {
 
         toku_ydb_lock();
 
-        result = le_cursor_next(indexer->i->lec, &key, &le);
+        result = le_cursor_next(indexer->i->lec, &le);
 	if (result != 0) {
 	    done = TRUE;
 	    if (result == DB_NOTFOUND)
@@ -243,6 +243,7 @@ build_index(DB_INDEXER *indexer) {
                 DB *db = indexer->i->dest_dbs[which_db];
                 result = indexer_undo_do(indexer, db, ule);
                 if ( (result != 0) && (indexer->i->error_callback != NULL)) {
+                    toku_dbt_set(ule_get_keylen(ule), ule_get_key(ule), &key, NULL);
                     indexer->i->error_callback(db, which_db, result, &key, NULL, indexer->i->error_extra);
                 }
             }

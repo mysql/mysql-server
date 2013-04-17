@@ -4436,7 +4436,9 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTI
     if (r!=0) return r;
 
     LEAFENTRY le = datav;
-    if (!toku_brt_cursor_is_leaf_mode(brtcursor) && is_le_val_del(le,brtcursor)) {
+    if (toku_brt_cursor_is_leaf_mode(brtcursor))
+        goto got_a_good_value;  // leaf mode cursors see all leaf entries
+    if (is_le_val_del(le,brtcursor)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
         while (1) {
@@ -4846,6 +4848,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             lazy_assert_zero(r);
 
             if (toku_brt_cursor_is_leaf_mode(cursor) || !is_le_val_del(le, cursor)) {
+
                 maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
                 void     *key;

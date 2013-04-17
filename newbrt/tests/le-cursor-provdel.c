@@ -146,16 +146,16 @@ test_provdel(const char *logdir, const char *fname, int n) {
 
     int i;
     for (i=0; ; i++) {
-        error = le_cursor_next(cursor, &key, &val);
+        error = le_cursor_next(cursor, &val);
         if (error != 0) 
             break;
-        assert(key.size == sizeof (int));
-        int ii;
-        memcpy(&ii, key.data, key.size);
-        assert((int) toku_htonl(i) == ii);
         
         LEAFENTRY le = (LEAFENTRY) val.data;
         assert(le->type == LE_MVCC);
+        assert(le->keylen == sizeof (int));
+        int ii;
+        memcpy(&ii, le->u.mvcc.key_xrs, le->keylen);
+        assert((int) toku_htonl(i) == ii);
     }
     assert(i == n);
 

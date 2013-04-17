@@ -28,13 +28,13 @@ int le_cursor_close(LE_CURSOR le_cursor);
 // Retrieve the next leaf entry under the LE_CURSOR
 // Success: returns zero, stores the leaf entry key into the key dbt, and the leaf entry into the val dbt
 // Failure: returns a non-zero error number
-int le_cursor_next(LE_CURSOR le_cursor, DBT *key, DBT *val);
+int le_cursor_next(LE_CURSOR le_cursor, DBT *le);
 
 // Return TRUE if the key is to the right of the LE_CURSOR position
-// Otherwise returns FALSE
+// Otherwise returns FALSE when the key is at or to the left of the LE_CURSOR position
 // The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns TRUE.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
 // returns FALSE.
-int is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db);
+BOOL is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db);
 
 #endif
