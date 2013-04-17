@@ -363,6 +363,7 @@ static void print_db_env_struct (void) {
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
 			     "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)",
 			     "int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **)",
+			     "int (*get_cursor_for_directory)            (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
                              NULL};
 
 	sort_and_dump_fields("db_env", true, extra);

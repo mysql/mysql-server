@@ -2128,6 +2128,14 @@ toku_db_lt_panic(DB* db, int r) {
     return toku_ydb_do_error(env, r, "%s", panic_string);
 }
 
+static int
+env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
+    if (!env_opened(env)) {
+        return EINVAL;
+    }
+    return toku_db_cursor(env->i->directory, txn, c, 0);
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     int r = ENOSYS;
@@ -2197,8 +2205,9 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(set_lock_timeout);
     USENV(set_redzone);
     USENV(log_flush);
-    USENV(log_archive);    
+    USENV(log_archive);
     USENV(create_loader);
+    USENV(get_cursor_for_directory);
 #undef USENV
     
     // unlocked methods
