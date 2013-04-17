@@ -94,3 +94,9 @@
    drd:ConflictingAccess
    fun:_ZNK7evictor24unsafe_read_size_currentEv
 }
+{
+   signal_ev_thread_without_holding_mutex_for_condition
+   drd:CondRaceErr
+   fun:pthread_cond_signal@*
+   fun:_ZN7evictor22signal_eviction_threadEv
+}
