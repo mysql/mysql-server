@@ -164,7 +164,6 @@ typedef enum {
 #define DB_DBT_MALLOC 4
 #define DB_DBT_REALLOC 16
 #define DB_DBT_USERMEM 32
-#define DB_DBT_TEMPMEMORY 2
 #define DB_TXN_WRITE_NOSYNC 524288
 #define DB_TXN_NOWAIT 2048
 #define DB_TXN_SYNC 4096

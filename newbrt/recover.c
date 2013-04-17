@@ -523,13 +523,13 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
         assert(r==0);
         r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE);
         assert(r == 0);
-        //DB_DBT_TEMPMEMORY indicates the return values are stored in temporary memory that does
+        //flags==0 indicates the return values are stored in temporary memory that does
         //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
-        if (dest_key.flags & DB_DBT_TEMPMEMORY) {
+        if (dest_key.flags == 0) {
             toku_init_dbt(&dest_key);
             dest_key.flags = DB_DBT_REALLOC;
         }
-        if (dest_val.flags & DB_DBT_TEMPMEMORY) {
+        if (dest_val.flags == 0) {
             toku_init_dbt(&dest_val);
             dest_val.flags = DB_DBT_REALLOC;
         }
@@ -585,9 +585,9 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
         assert(r==0);
         r = toku_brt_maybe_delete(tuple->brt, &dest_key, txn, TRUE, l->lsn, FALSE);
         assert(r == 0);
-        //DB_DBT_TEMPMEMORY indicates the return values are stored in temporary memory that does
+        //flags==0 indicates the return values are stored in temporary memory that does
         //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
-        if (dest_key.flags & DB_DBT_TEMPMEMORY) {
+        if (dest_key.flags == 0) {
             toku_init_dbt(&dest_key);
             dest_key.flags = DB_DBT_REALLOC;
         }

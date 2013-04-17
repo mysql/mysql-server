@@ -142,7 +142,6 @@ void print_defines (void) {
 #endif
         dodefine_track(dbt_flags, DB_DBT_REALLOC);
         dodefine_track(dbt_flags, DB_DBT_USERMEM);
-        dodefine_from_track(dbt_flags, DB_DBT_TEMPMEMORY);
     }
 
     // flags for the env->set_flags function
