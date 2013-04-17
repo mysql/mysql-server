@@ -5403,7 +5403,6 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
     int r;
     uint trycount = 0;     // How many tries did it take to get the result?
     //uint root_tries = 0;   // How many times did we fetch the root node from disk?
-    uint tree_height;      // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
 
 try_again:
     
@@ -5466,7 +5465,8 @@ try_again:
         toku_brtheader_release_treelock(brt->h);
     }
 
-    tree_height = node->height + 1;  // height of tree (leaf is at height 0)
+    //uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
+
 
     struct unlock_brtnode_extra unlock_extra   = {brt,node};
     struct unlockers		unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
