@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "toku_mysql_priv.h"
 #include <db.h>
 
 extern "C" {
@@ -890,6 +890,8 @@ cleanup:
     return error;
 }
 
+#if TOKU_INCLUDE_SHOW_DATA_AMOUNT
+
 static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
     TOKUDB_DBUG_ENTER("tokudb_show_data_size");
     uint64_t data_size = 0;
@@ -909,6 +911,8 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
+
+#endif
 
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
@@ -1376,7 +1380,7 @@ struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERF
 
 static ST_FIELD_INFO tokudb_user_data_field_info[] = {
     {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
-    {NULL, 0, MYSQL_TYPE_NULL, NULL, NULL, NULL, NULL}
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
 static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
@@ -1405,7 +1409,7 @@ struct st_mysql_information_schema tokudb_user_data_information_schema = { MYSQL
 
 static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
     {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
-    {NULL, 0, MYSQL_TYPE_NULL, NULL, NULL, NULL, NULL}
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
 static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
