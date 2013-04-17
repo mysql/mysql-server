@@ -25,6 +25,10 @@ int toku_os_get_pagesize(void);
 // Returns: the size of physical memory (in bytes)
 uint64_t toku_os_get_phys_memory_size(void);
 
+// Returns the processor frequency in Hz
+// Returns 0 if success
+int toku_os_get_processor_frequency(uint64_t *hz);
+
 // Returns: 0 on success
 // sets fsize to the number of bytes in a file
 int toku_os_get_file_size(int fildes, int64_t *fsize)   __attribute__((__visibility__("default")));
