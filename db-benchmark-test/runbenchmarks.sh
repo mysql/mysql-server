@@ -4,7 +4,7 @@ make db-benchmark-test-tokudb$BINSUF
 make scanscan-tokudb$BINSUF
 alias db='./db-benchmark-test-tokudb$BINSUF' # standard db-benchmark test
 alias db='rm -rf bench.db && ./db-benchmark-test-tokudb$BINSUF' # standard db-benchmark test
-alias dbtxn='db -x --singlex' # db-benchmark test with single transaction
+alias dbtxn='db -x --singlex --prelock' # db-benchmark test with single transaction
 alias dbabort='dbtxn --abort' # db-benchmark test with single transaction (AND ABORT) at end
 alias scan='./scanscan-tokudb$BINSUF --lwc --prelock --prelockflag --cachesize 268435456'     # scanscan default, cache of windows (256MB)
 alias flatteneddb='db && scan'
