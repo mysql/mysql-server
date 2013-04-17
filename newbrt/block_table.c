@@ -44,12 +44,15 @@ static const DISKOFF  diskoff_unused = (DISKOFF)-2;  // value of block_translati
  *
  *    checkpointed   Is initialized by deserializing from disk,
  *                   and is the only version ever read from disk.
- *                   It is immutable.  Once read from disk it is never changed.
+ *                   When read from disk it is copied to current.
+ *                   It is immutable. It can be replaced by an inprogress btt.
  *
  *    inprogress     Is only filled by copying from current,
  *                   and is the only version ever serialized to disk.
  *                   (It is serialized to disk on checkpoint and clean shutdown.)
- *                   It is immutable.  Once copied from current it is never changed.
+ *                   At end of checkpoint it replaces 'checkpointed'.
+ *                   During a checkpoint, any 'pending' dirty writes will update
+ *                   inprogress.
  *
  *    current        Is initialized by copying from checkpointed,
  *                   is the only version ever modified while the database is in use, 
