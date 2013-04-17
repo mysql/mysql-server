@@ -86,7 +86,7 @@ minicron_do (void *pv)
                 
             }
         }
-        else {
+        else if (p->period_in_ms != 0) {
             toku_mutex_unlock(&p->mutex);
             int r = p->f(p->arg);
             assert(r==0);
