@@ -278,7 +278,6 @@ static inline bool is_replace_into(THD* thd) {
 
 static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
     uint pk_insert_mode = get_pk_insert_mode(thd);
-    printf("is replace into %d, insert ignore %d \n", is_replace_into(thd), is_insert_ignore(thd));
     return ( 
         opt_eligible && 
         (is_replace_into(thd) || is_insert_ignore(thd)) && 
