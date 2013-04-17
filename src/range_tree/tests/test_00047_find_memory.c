@@ -22,19 +22,19 @@ rundelete (int rexpect, toku_range* todelete) {
 static void
 tests (BOOL allow_overlaps) {
     toku_range insert;
-    unsigned i;
+    int i;
     /* Force buf to increase. */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
-    for (i = 0; i < numlen / 2; i++) {
+    for (i = 0; i < (int)numlen / 2; i++) {
     	runinsert(0, init_range(&insert, i, i, 0));
-        unsigned j = numlen /2 + i;
+        int j = numlen /2 + i;
         runinsert(0, init_range(&insert, j, j, 1));  
     }
     int k;
-    for (k = numlen/2 -1; k >= 0; k--) {
+    for (k = (int)numlen/2 -1; k >= 0; k--) {
         i = k;
         rundelete(0, init_range(&insert, i, i, 0));
-        unsigned j = numlen /2 + i;
+        int j = numlen /2 + i;
         rundelete(0, init_range(&insert, j, j, 1));
     }
      
