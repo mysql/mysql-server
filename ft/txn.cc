@@ -140,7 +140,6 @@ void toku_txn_create_txn (
     };
 
     struct tokutxn new_txn = {
-        .starttime = time(NULL),
         .txnid64 = TXNID_NONE,
         .ancestor_txnid64 = TXNID_NONE,
         .snapshot_txnid64 = TXNID_NONE,
