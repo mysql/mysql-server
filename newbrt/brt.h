@@ -155,4 +155,9 @@ int maybe_preallocate_in_file (int fd, u_int64_t size);
 int toku_brt_note_table_lock (BRT brt, TOKUTXN txn);
 // Effect: Record the fact that the BRT has a table lock (and thus no other txn will modify it until this txn completes.  As a result, we can limit the amount of information in the rollback data structure.
 
+//TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
+#ifndef TOKU_MULTIPLE_MAIN_THREADS
+#define TOKU_MULTIPLE_MAIN_THREADS 0
+#endif
+
 #endif

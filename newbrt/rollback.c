@@ -31,6 +31,23 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     }
 
     list_remove(&txn->live_txns_link);
+    assert(oldest_living_xid <= txn->txnid64);
+    assert(oldest_living_xid < MAX_TXNID);
+    if (txn->txnid64 == oldest_living_xid) {
+        TOKULOGGER logger = txn->logger;
+        LSN oldest_live_txn_lsn = {MAX_TXNID};
+        {
+            struct list *l;
+            for (l=list_head(&logger->live_txns); l!=&logger->live_txns; l=l->next) {
+                TOKUTXN live_txn = list_struct(l, struct tokutxn, live_txns_link);
+                if (oldest_live_txn_lsn.lsn>live_txn->txnid64) {
+                    oldest_live_txn_lsn.lsn=live_txn->txnid64;
+                }
+            }
+        }
+        oldest_living_xid = oldest_live_txn_lsn.lsn;
+    }
+
     note_txn_closing(txn);
     xids_destroy(&txn->xids);
     toku_free(txn);

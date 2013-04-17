@@ -6,19 +6,6 @@
 
 /*
 
-Checkpoint and recovery notes:
-
-After a checkpoint, on a the first write of a node, we are supposed to write the node to a new location on disk.
-
-Q: During recovery, how do we find the root node without looking at every block on disk?
-A: The root node is either the designated root near the front of the freelist.
-   The freelist is updated infrequently.  Before updating the stable copy of the freelist, we make sure that
-   the root is up-to-date.  We can make the freelist-and-root update be an arbitrarily small fraction of disk bandwidth.
-
-*/
-
-/*
-
 Managing the tree shape:  How insertion, deletion, and querying work
 
 
@@ -1301,6 +1288,85 @@ maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
     assert(node->u.l.leaf_stats.exact);
 }
 
+static void
+brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
+// Effect: fully promote leafentry
+//   le is old leafentry (and new one)
+// Requires: is not a provdel
+// Requires: is not fully promoted already
+// Requires: outermost uncommitted xid represented in le HAS been committed (le is out of date)
+// This is equivalent (faster) to brt_leaf_apply_cmd_once where the message is a commit message
+// with an XIDS representing the outermost uncommitted xid in the leafentry.
+{
+    // See brt_leaf_apply_cmd_once().  This function should be similar except that some
+    // meta-data updates are unnecessary.
+
+    // brt_leaf_check_leaf_stats(node);
+
+    //le is being reused.  Statistics about original must be gotten before promotion
+    size_t oldmemsize  = leafentry_memsize(le);
+    size_t olddisksize = oldmemsize;
+#if ULE_DEBUG
+    olddisksize = leafentry_disksize(le);
+    assert(oldmemsize == olddisksize);
+#endif
+    u_int32_t old_crc = toku_le_crc(le);
+
+    size_t newmemsize;
+    size_t newdisksize;
+    // This function is guaranteed not to malloc nor free anything.
+    // le will be reused, and memory is guaranteed to be reduced.
+    le_full_promotion(le, &newmemsize, &newdisksize);
+
+#if ULE_DEBUG
+    assert(newmemsize  == leafentry_memsize(le));
+    assert(newdisksize == leafentry_disksize(le));
+#endif
+
+    //le_innermost_inserted_vallen(le); does not change.  No need to update leaf stats
+
+    assert(newmemsize < oldmemsize);
+    size_t size_reclaimed = oldmemsize - newmemsize;
+    u_int8_t *p = NULL;
+#if ULE_DEBUG
+    p = ((u_int8_t*)le) + size_reclaimed; //passing in pointer runs additional verification
+#endif
+    toku_mempool_mfree(&node->u.l.buffer_mempool, p, size_reclaimed);
+
+    node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + olddisksize;
+    node->local_fingerprint     -= node->rand4fingerprint * old_crc;
+
+    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
+    node->local_fingerprint     += node->rand4fingerprint * toku_le_crc(le);
+
+    //le_* functions (accessors) would return same key/keylen/val/vallen.
+    //Therefore no cursor invalidation is needed.
+
+    // brt_leaf_check_leaf_stats(node);
+}
+
+static void
+maybe_do_implicit_promotion_on_query (BRTNODE node, LEAFENTRY le) {
+    //Requires: le is not a provdel (Callers never call it unless not provdel).
+    //assert(!le_is_provdel(le)); //Must be as fast as possible.  Assert is superfluous.
+
+    //Do implicit promotion on query if all of the following apply:
+    // * !le_is_provdel(le)                    - True by prerequisite.
+    //  * We don't do this for provdels since explicit commit messages deal with that.
+    // * le_outermost_uncommitted_xid(le) != 0 - Need to test
+    //  * It is already committed if this does not apply
+    // * le_outermost_uncommitted_xid(le) < oldest_living_transaction_id
+    //  * It is already finished, (and not aborted, since by virtue of doing
+    //    a query, we would have already received the abort message).
+    //  * We allow errors here to improve speed.
+    //   * We will sometimes say a txn is uncommitted when it is committed.
+    //   * We will NEVER say a txn is committed when it is uncommitted.
+    TXNID outermost_uncommitted_xid = le_outermost_uncommitted_xid(le);
+    if (outermost_uncommitted_xid != 0 && outermost_uncommitted_xid < oldest_living_xid) {
+        brt_leaf_apply_full_promotion_once(node, le);
+    }
+}
+
 static int
 brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
                          u_int32_t idx, LEAFENTRY le)
@@ -1399,7 +1465,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 //        printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
  return_r:
 
-    if (maybe_free) toku_free(maybe_free); //
+    if (maybe_free) toku_free(maybe_free);
 
     // brt_leaf_check_leaf_stats(node);
 
@@ -3408,6 +3474,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBA
         }
     }
 got_a_good_value:
+    maybe_do_implicit_promotion_on_query(node, le);
     {
         u_int32_t keylen;
         bytevec   key    = le_latest_key_and_len(le, &keylen);
@@ -3429,8 +3496,12 @@ got_a_good_value:
             //
             // Instead, all associating of omtcursors with omts (for leaf nodes)
             // is done in brt_cursor_update.
+#if TOKU_MULTIPLE_MAIN_THREADS
+//TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
             brtcursor->leaf_info.fullhash    = node->fullhash;
             brtcursor->leaf_info.blocknumber = node->thisnodename;
+#endif
+            brtcursor->leaf_info.node        = node;
             brtcursor->leaf_info.leaflock    = node->u.l.leaflock;
             brtcursor->leaf_info.to_be.omt   = node->u.l.buffer;
             brtcursor->leaf_info.to_be.index = idx;
@@ -3819,6 +3890,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             assert(r==0);
 
             if (!le_is_provdel(le)) {
+                maybe_do_implicit_promotion_on_query(cursor->leaf_info.node, le);
                 u_int32_t keylen;
                 bytevec   key    = le_latest_key_and_len(le, &keylen);
                 u_int32_t vallen;
@@ -3842,20 +3914,15 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
 }
 
 //TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
-#ifndef TOKU_MULTIPLE_MAIN_THREADS
-#define TOKU_MULTIPLE_MAIN_THREADS 0
-#endif
-
 #if TOKU_MULTIPLE_MAIN_THREADS
 static int
 brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
-    void * nodep = NULL;
     int r = toku_cachetable_maybe_get_and_pin(brtcursor->brt->cf,
                                               brtcursor->leaf_info.blocknumber,
                                               brtcursor->leaf_info.fullhash,
-                                              &nodep);
+                                              &brtcursor->leaf_info.node);
     if (r == 0) {
-	BRTNODE leaf = nodep;
+	BRTNODE leaf = brtcursor->leaf_info.node;
 	assert(leaf->height == 0);	// verify that returned node is leaf...
 	assert(leaf->u.l.buffer == toku_omt_cursor_get_omt(brtcursor->omtcursor));  // ... and has right omt
 	*leafp = leaf;

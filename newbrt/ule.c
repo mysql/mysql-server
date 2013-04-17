@@ -772,8 +772,8 @@ le_full_promotion(LEAFENTRY le,
 
     assert(new_keylen == old_keylen);
     assert(new_vallen == old_vallen);
-    assert(memcpy(new_key, old_key, old_keylen) == 0);
-    assert(memcpy(new_val, old_val, old_vallen) == 0);
+    assert(memcmp(new_key, old_key, old_keylen) == 0);
+    assert(memcmp(new_val, old_val, old_vallen) == 0);
 
     xids_destroy(&slow_full_promotion_msg.xids);
     toku_free(slow_le);

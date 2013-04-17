@@ -260,8 +260,11 @@ struct brt_cursor_leaf_info_to_be {
 // Values to be used to pin a leaf for shortcut searches
 // and to access the leaflock.
 struct brt_cursor_leaf_info {
+#if TOKU_MULTIPLE_MAIN_THREADS
     BLOCKNUM  blocknumber;
     u_int32_t fullhash;
+#endif
+    BRTNODE   node;
     LEAFLOCK  leaflock;
     struct brt_cursor_leaf_info_to_be  to_be;
 };
