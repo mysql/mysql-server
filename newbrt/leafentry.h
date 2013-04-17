@@ -175,10 +175,11 @@ le_clean(uint8_t *key, uint32_t keylen,
 
 
 //Callback contract:
+//      Function checks to see if id is accepted by context.
 //  Returns:
-//      0:  Ignore this entry and go on to next one.
-//      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
-//      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
+//      0:  context ignores this entry, id.
+//      TOKUDB_ACCEPT: context accepts id
+//      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r, because something unexpected went wrong (error case)
 typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 
 int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
