@@ -1,3 +1,4 @@
+#ident "$Id$"
 /* Test an overflow condition on the leaf.  See #632. */
 
 

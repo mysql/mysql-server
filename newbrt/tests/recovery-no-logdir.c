@@ -1,3 +1,4 @@
+#ident "$Id$"
 // test recovery with a NULL log directory
 
 #include "test.h"

@@ -1,3 +1,4 @@
+#ident "$Id$"
 /* How fast can we read a file usng the cachetable interface. */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 

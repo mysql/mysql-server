@@ -1,3 +1,4 @@
+#ident "$Id$"
 /* The goal of this test.  Make sure that inserts stay behind deletes. */
 
 

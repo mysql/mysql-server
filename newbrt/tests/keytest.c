@@ -1,3 +1,4 @@
+#ident "$Id$"
 #include "test.h"
 #include "key.h"
 

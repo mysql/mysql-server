@@ -1,3 +1,4 @@
+#ident "$Id$"
 // test recovery of a clean shutdown
 
 #include "test.h"

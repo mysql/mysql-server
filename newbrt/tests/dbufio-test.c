@@ -1,3 +1,4 @@
+#ident "$Id$"
 #include "dbufio.h"
 #include <stdio.h>
 #include <fcntl.h>

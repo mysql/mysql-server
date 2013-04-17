@@ -1,3 +1,4 @@
+#ident "$Id$"
 // force a bad LSN during the forward scan.  recovery should fail.
 
 #include "test.h"
