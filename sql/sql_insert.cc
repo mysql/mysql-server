@@ -3591,8 +3591,10 @@ int select_insert::prepare2(void)
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
+    DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    bulk_insert_started= true;
   }
   DBUG_RETURN(0);
 }
@@ -3720,7 +3722,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
+  error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
   if (!error && thd->is_error())
     error= thd->get_stmt_da()->sql_errno();
@@ -3812,8 +3814,7 @@ void select_insert::abort_result_set() {
       if tables are not locked yet (bulk insert is not started yet
       in this case).
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        thd->lex->is_query_tables_locked())
+    if (bulk_insert_started)
       table->file->ha_end_bulk_insert();
 
     /*
@@ -4193,7 +4194,10 @@ select_create::prepare2()
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+  {
     table->file->ha_start_bulk_insert((ha_rows) 0);
+    bulk_insert_started= true;
+  }
   thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
   if (check_that_all_fields_are_given_values(thd, table, table_list))
     DBUG_RETURN(1);
