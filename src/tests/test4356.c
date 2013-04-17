@@ -36,7 +36,7 @@ setup(void)
         DB_TXN *txn;
         r = env->txn_begin(env, 0, &txn, 0);
         CKERR(r);
-        r = db->open(db, txn, __FILE__".db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+        r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
         r = txn->commit(txn, 0);
         CKERR(r);
@@ -94,10 +94,10 @@ progress_4356(void *extra, float progress)
             r = env->txn_begin(env, 0, &txn, 0);
             CKERR(r);
             if (verbose) { printf("Running remove.\n"); }
-            r = env->dbremove(env, txn, __FILE__".db", NULL, 0);
-            CKERR2(r, DB_LOCK_NOTGRANTED);  // cannot remove a db with an open handle
+            r = env->dbremove(env, txn, "foo.db", NULL, 0);
+            CKERR2(r, EINVAL);  // cannot remove a db with an open handle
             if (verbose) { printf("Completed remove.\n"); }
-            r = txn->commit(txn, 0);
+            r = txn->abort(txn);
             CKERR(r);
         } else if (e->op == TRUNCATE_4356) {
             DB_TXN *txn;
@@ -137,9 +137,9 @@ int
 test_main(int argc, char * const argv[])
 {
     parse_args(argc, argv);
-    if (verbose) { printf("Running truncate test.\n"); }
-    run_test(TRUNCATE_4356);
     if (verbose) { printf("Running remove test.\n"); }
     run_test(REMOVE_4356);
+    if (verbose) { printf("Running truncate test.\n"); }
+    run_test(TRUNCATE_4356);
     return 0;
 }
