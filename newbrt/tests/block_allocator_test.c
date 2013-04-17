@@ -1,8 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include "block_allocator.h"
-#include "toku_assert.h"
 
-#include <stdlib.h>
+#include "includes.h"
 
 static void ba_alloc_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
     block_allocator_validate(ba);

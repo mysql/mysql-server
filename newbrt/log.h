@@ -3,6 +3,7 @@
 
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "portability.h"
 #include <errno.h>
 
 #include "../include/db.h"
