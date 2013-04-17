@@ -239,7 +239,16 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     // of the nodes on disk does indeed change in the future.
     if (version < FT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES)
     {
-        r = check_old_node(node, &rb, version);
+        struct rbuf nrb;
+        // Use old decompression method for legacy nodes.
+        r = decompress_from_raw_block_into_rbuf(rb.buf, rb.size, &nrb, blocknum);
+        if (r != 0) {
+            failure++;
+            goto cleanup;
+        }
+        
+        // Check the end-to-end checksum.
+        r = check_old_node(node, &nrb, version);
         if (r != 0) {
             failure++;
         }
@@ -344,7 +353,7 @@ check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
 				true,
 				true);
     if (r != 0) {
-	// We can print more information here if necessary.
+        // We can print more information here if necessary.
     }
 
     assert(extra.blocks_done == extra.total_blocks);
@@ -362,13 +371,13 @@ check_args(int argc)
 {
     int r = 0;
     if (argc < 3 || argc > 4) {
-	printf("ERROR: ");
-	printf("Too few arguments.\n");
-	printf("USAGE:\n");
-	printf(" verify_block_checksum");
-	printf(" DICTIONARY_FILE OUTPUT_FILE [PERCENTAGE]\n");
-	printf(" [PERCENTAGE] is optional.\n");
-	r = 1;
+        printf("ERROR: ");
+        printf("Too few arguments.\n");
+        printf("USAGE:\n");
+        printf(" verify_block_checksum");
+        printf(" DICTIONARY_FILE OUTPUT_FILE [PERCENTAGE]\n");
+        printf(" [PERCENTAGE] is optional.\n");
+        r = 1;
     }
     return r;
 }
@@ -383,7 +392,7 @@ main(int argc, char *argv[])
     char *dictfname, *outfname;
     r = check_args(argc);
     if (r) {
-	goto exit;
+        goto exit;
     }
 
     assert(argc == 3 || argc == 4);
@@ -429,7 +438,7 @@ main(int argc, char *argv[])
         check_block_table(dictfd, h2->blocktable, h2);
     }
     if (h1 == NULL && h2 == NULL) {
-	printf("Both headers have a corruption and could not be used.\n");
+        printf("Both headers have a corruption and could not be used.\n");
     }    
 
     toku_thread_pool_destroy(&ft_pool);

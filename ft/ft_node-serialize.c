@@ -2749,7 +2749,7 @@ deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blockn
     return r;
 }
 
-static int
+int
 decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     toku_trace("decompress");
     int r = 0;

@@ -524,6 +524,11 @@ int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnu
 int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, DESCRIPTOR desc, ft_compare_func cmp);
 int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
 
+// <CER> For verifying old, non-upgraded nodes (versions 13 and 14).
+int
+decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum);
+// 
+    
 //////////////// <CER> TODO: Move these function declarations
 int
 deserialize_ft_from_fd_into_rbuf(int fd,
