@@ -188,8 +188,8 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         print_alter_info(altered_table, ha_alter_info);
     }
 
-    THD *thd = ha_thd();
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
+    THD *thd = ha_thd();
 
     // setup context
     tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
@@ -199,6 +199,9 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
     memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
 
+    if (get_disable_hot_alter(thd)) {
+        ; // do nothing
+    } else
     // add or drop index
     if (only_flags(ctx->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
                    Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
