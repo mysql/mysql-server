@@ -392,6 +392,8 @@ test_serialize_leaf(void) {
         toku_free(elts[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
+        struct mempool * mp = &(BLB_BUFFER_MEMPOOL(&sn, i));
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
