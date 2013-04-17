@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <signal.h>
 #include <locale.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -1487,6 +1488,11 @@ static void *test_time(void *arg) {
     return arg;
 }
 
+static void crashing_alarm_handler(int sig) {
+    assert(sig == SIGALRM);
+    toku_hard_crash_on_purpose();
+}
+
 static int run_workers(
     struct arg *thread_args,
     int num_threads,
@@ -1534,6 +1540,8 @@ static int run_workers(
     void *ret;
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
     if (verbose) printf("%lu joined\n", (unsigned long) time_tid);
+    sighandler_t old_alarm = signal(SIGALRM, crashing_alarm_handler);
+    assert(old_alarm != SIG_ERR);
     // Set an alarm that will kill us if it takes too long to join all the
     // threads (i.e. there is some runaway thread).
     unsigned int remaining = alarm(cli_args->join_timeout);
