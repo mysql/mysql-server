@@ -174,25 +174,11 @@ static void test_rename (void) {
 }
 
 int main (int argc, const char *argv[]) {
-    // defaults
-    int do_malloc_fail = 0;
-
     // parse args
     default_parse_args(argc, argv);
-    int i;
-    for (i=1; i<argc; i++) {
-        const char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0) {
-            verbose++;
-            continue;
-        }
-        if (strcmp(arg, "-malloc-fail") == 0) {
-            do_malloc_fail = 1;
-            continue;
-        }
-    }
 
     // run tests
+    int i;
     for (i=0; i<1; i++) 
         test_rename();
     return 0;
