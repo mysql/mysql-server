@@ -1292,6 +1292,7 @@ flush_some_child(
         // prevent merging leaf nodes, sometimes (when the cleaner thread
         // called us)
         child_re = RE_STABLE;
+        brt_status->cleaner_num_leaves_unmerged++;
     }
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
