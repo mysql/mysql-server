@@ -9,6 +9,7 @@
 
 #include <toku_portability.h>
 #include <stdint.h>
+#include "growable_array.h"
 
 namespace toku {
 
@@ -583,7 +584,7 @@ private:
     } d;
 
     __attribute__((nonnull))
-    void unmark(const subtree &subtree, const uint32_t index, uint32_t *const num_indexes, uint32_t *const indexes);
+    void unmark(const subtree &subtree, const uint32_t index, GrowableArray<node_idx> *const indexes);
 
     void create_internal_no_array(const uint32_t new_capacity);
 
