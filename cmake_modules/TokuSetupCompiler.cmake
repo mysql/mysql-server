@@ -20,8 +20,8 @@ add_c_defines(
   _LARGEFILE64_SOURCE
   )
 
-if (CMAKE_SYSTEM_NAME MATCHES Darwin)
-  message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin.  TODO: remove this.")
+if (CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_C_COMPILER_ID MATCHES Clang)
+  message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin and with clang.  TODO: remove this.")
   add_c_defines(TOKU_ALLOW_DEPRECATED)
 endif ()
 
@@ -153,10 +153,10 @@ endfunction(maybe_add_gcov_to_libraries)
 ## good for binaries
 function(add_common_options_to_binary_targets)
   foreach(tgt ${ARGN})
-    add_space_separated_property(TARGET ${tgt} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
     if (CMAKE_C_COMPILER_ID STREQUAL Clang)
-      add_space_separated_property(TARGET ${tgt} LINK_FLAGS "-fPIE -Wl,-pie")
+      add_space_separated_property(TARGET ${tgt} COMPILE_FLAGS "-fvisibility=hidden")
     else ()
+      add_space_separated_property(TARGET ${tgt} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
       add_space_separated_property(TARGET ${tgt} LINK_FLAGS "-fPIE -pie")
     endif ()
   endforeach(tgt)
