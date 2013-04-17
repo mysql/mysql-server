@@ -54,9 +54,10 @@ static long shuffle (long l, int i) {
 }
 
 static void do_write (void) {
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
 

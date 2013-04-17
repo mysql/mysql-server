@@ -20,7 +20,8 @@ static void make_db (void) {
     DB_TXN *tid;
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
     env->set_errfile(env, stderr);

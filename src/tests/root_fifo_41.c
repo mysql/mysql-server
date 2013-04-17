@@ -81,7 +81,8 @@ static void root_fifo_41(int n, int ntxn, BOOL do_populate) {
     int r;
 
     // create the env
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // populate

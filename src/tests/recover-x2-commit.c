@@ -34,7 +34,8 @@ put (DB_TXN *txn, DB *db, char *key, char *data) {
 static void
 do_x2_shutdown (BOOL do_commit) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
     DB *dba, *dbb; // Use two DBs so that BDB doesn't get a lock conflict

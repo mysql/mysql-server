@@ -21,7 +21,8 @@ static DB_TXN* null_txn = NULL;
 
 static void setup_env(void) {
     assert(!env && !db && !cursor);
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);
         CKERR(r);

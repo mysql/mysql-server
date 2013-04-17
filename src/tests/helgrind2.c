@@ -15,7 +15,8 @@ DB *db;
 
 static void initialize (void) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, 0777);
 
     // setup environment

@@ -67,13 +67,16 @@ test_main (int argc __attribute__((__unused__)),
     int i;
     int loop;
     const int numloops = 100;
+    int r;
     for (loop = 0; loop < numloops; loop++) {
-        system(rmrf);
+        r = system(rmrf);
+        CKERR(r);
         for (i = 0; i < NUM_LOGGERS; i++) setup_logger(i);
         for (i = 0; i < NUM_LOGGERS; i++) play_with_logger(i);
         for (i = 0; i < NUM_LOGGERS; i++) tear_down_logger(i);
     }
-    system(rmrf);
+    r = system(rmrf);
+    CKERR(r);
 
     return 0;
 }

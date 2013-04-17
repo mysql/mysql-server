@@ -121,10 +121,10 @@ int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-
     int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_TXN *txn;
     {

@@ -15,7 +15,8 @@ run_test(void) {
 
     while ( 1 ) {
         // setup the test dir
-        system("rm -rf " TESTDIR);
+        r = system("rm -rf " TESTDIR);
+        CKERR(r);
         r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
 
         // create the log
@@ -48,8 +49,10 @@ run_test(void) {
         sprintf(fname, "%s/%s", TESTDIR, "log000000000000.tokulog");
 
         r = toku_stat(fname, &st); assert(r==0);
-        if ( st.st_size - trim > magic_begin_end_checkpoint_sz )
-            truncate(fname, st.st_size - trim);
+        if ( st.st_size - trim > magic_begin_end_checkpoint_sz ) {
+            r = truncate(fname, st.st_size - trim);
+            CKERR(r);
+        }
         else
             break;
         // run recovery

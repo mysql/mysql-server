@@ -66,7 +66,9 @@ test_main(int argc, char *const argv[]) {
     int nthreads = 2;
     my_t n = 1000000;
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int i;
@@ -91,7 +93,6 @@ test_main(int argc, char *const argv[]) {
         }
     }
 
-    int r;
     DB_ENV *env;
 
     r = db_env_create(&env, 0); assert(r == 0);

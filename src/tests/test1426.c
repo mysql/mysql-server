@@ -35,10 +35,11 @@ empty_cachetable (void)
 static void
 do_insert_delete_fifo (void)
 {
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     
-    int r;
     r = db_env_create(&env, 0);                                           CKERR(r);
 #ifdef TOKUDB
     r = env->set_cachesize(env, 0, 10000000, 1);                          CKERR(r);

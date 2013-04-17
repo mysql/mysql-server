@@ -37,14 +37,16 @@ test_main(int argc, char *const argv[]) {
 #endif
 	int private_flags = do_private ? (DB_CREATE|DB_PRIVATE) : 0;
 	
-	system("rm -rf " ENVDIR);
+	r = system("rm -rf " ENVDIR);
+	CKERR(r);
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
 	r = dbenv->open(dbenv, ENVDIR, private_flags|DB_INIT_MPOOL, 0);
 	assert(r==ENOENT);
 	dbenv->close(dbenv,0); // free memory
 	
-	system("rm -rf " ENVDIR);
+	r = system("rm -rf " ENVDIR);
+	CKERR(r);
 	toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
@@ -63,7 +65,8 @@ test_main(int argc, char *const argv[]) {
 #ifndef USE_TDB
     // Now make sure that if we have a non-private DB that we can tell if it opened or not.
     DB *db;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&dbenv, 0);
     CKERR(r);

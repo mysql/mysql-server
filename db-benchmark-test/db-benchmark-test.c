@@ -155,7 +155,8 @@ static void benchmark_setup (void) {
 	char unlink_cmd[strlen(dbdir) + strlen("rm -rf ") + 1];
 	snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
 	//printf("unlink_cmd=%s\n", unlink_cmd);
-	system(unlink_cmd);
+	r = system(unlink_cmd);
+        CKERR(r);
 
         if (strcmp(dbdir, ".") != 0) {
             r = toku_os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);

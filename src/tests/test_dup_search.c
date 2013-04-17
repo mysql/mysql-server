@@ -338,14 +338,15 @@ test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int limit = 1<<13;
     if (verbose > 1)
         limit = 1<<16;
 
-    int r;
     /* dup search */
     if (IS_TDB) {
 	if (verbose) printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);

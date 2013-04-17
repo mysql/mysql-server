@@ -20,7 +20,8 @@ test_txn_close_open_commit (void) {
     if (verbose) fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
     return;
 #else
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int r;

@@ -51,14 +51,16 @@ int test_main(int argc, const char *argv[]) {
     // start from a clean directory
     char rmrf_cmd[100];
     sprintf(rmrf_cmd, "rm -rf %s", LOGDIR);
-    system(rmrf_cmd);
+    r = system(rmrf_cmd);
+    CKERR(r);
     toku_os_mkdir(LOGDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     if ( (r=create_logfiles()) !=0 ) return r;
 
     if ( (r=test_0()) !=0 ) return r;
     if ( (r=test_1()) !=0 ) return r;
 
-    system(rmrf_cmd);
+    r = system(rmrf_cmd);
+    CKERR(r);
     return r;
 }
 

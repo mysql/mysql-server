@@ -1681,7 +1681,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;
-	(void) snprintf(buff + (bufsiz - 1) - len, len, errmsg);
+	(void) snprintf(buff + (bufsiz - 1) - len, len, "%s", errmsg);
     }
 
     return r;

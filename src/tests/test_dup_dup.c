@@ -248,7 +248,9 @@ test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_put_00_01_01(0, 0); 

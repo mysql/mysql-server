@@ -17,12 +17,14 @@ int
 test_main (int argc __attribute__((__unused__)), char *const argv[]  __attribute__((__unused__))) {
     DB_ENV *env;
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
     env->set_errfile(env,0); // Turn off those annoying errors
     r=env->close   (env, 0);   assert(r==0);
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
     env->set_errfile(env,0); // Turn off those annoying errors
@@ -33,7 +35,8 @@ test_main (int argc __attribute__((__unused__)), char *const argv[]  __attribute
 #else
     assert(r==0);
 #endif
-    system("rm -rf " ENVDIR); 
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r==0);
 
     r=db_env_create(&env, 0);  assert(r==0);
@@ -41,7 +44,8 @@ test_main (int argc __attribute__((__unused__)), char *const argv[]  __attribute
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=env->close   (env, 0);  assert(r==0);
     
-    system("rm -rf " ENVDIR); 
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);        assert(r==0);
 
     r=db_env_create(&env, 0);  assert(r==0);

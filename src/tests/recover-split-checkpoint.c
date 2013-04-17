@@ -26,7 +26,8 @@ static void test_checkpoint_callback2(void *extra) {
 
 static void run_test (BOOL do_commit, BOOL do_abort) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env = NULL;

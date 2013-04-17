@@ -96,8 +96,10 @@ test_main(int argc, char *const argv[]) {
     int nodesize = 1024*1024;
     int leafentry = 25;
     int n = (nodesize/leafentry) * 2;
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    int r = test_truncate(n);
+    r = test_truncate(n);
     return r;
 }

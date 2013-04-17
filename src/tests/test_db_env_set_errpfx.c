@@ -18,7 +18,8 @@ test_main(int argc, char *const argv[]) {
     DB_ENV *dbenv;
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&dbenv, 0);

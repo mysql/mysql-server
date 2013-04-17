@@ -21,7 +21,8 @@ test_main(int argc, char *const argv[]) {
     const char * const fname = "test.db";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
 
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 

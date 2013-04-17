@@ -14,7 +14,8 @@ test_main (int argc, char *const argv[]) {
     DBT key,data;
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); CKERR(r);

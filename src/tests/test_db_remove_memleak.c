@@ -21,7 +21,8 @@ DBT data;
 int
 test_main (int UU(argc), char UU(*const argv[])) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);         assert(r==0);
     memset(&key, 0, sizeof(key));
     memset(&data, 0, sizeof(data));
