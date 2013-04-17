@@ -4374,14 +4374,13 @@ ulong ha_tokudb::field_offset(Field *field) {
 int ha_tokudb::delete_all_rows() {
     TOKUDB_DBUG_ENTER("delete_all_rows");
     int error = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(current_thd, tokudb_hton->slot);
 
     // truncate all dictionaries
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint i = 0; i < curr_num_DBs; i++) {
         DB *db = share->key_file[i];
         u_int32_t row_count = 0;
-        error = db->truncate(db, trx ? trx->stmt : 0, &row_count, 0);
+        error = db->truncate(db, transaction, &row_count, 0);
         if (error) 
             break;
         // do something with the row_count?
