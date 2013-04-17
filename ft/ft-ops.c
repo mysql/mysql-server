@@ -3071,6 +3071,10 @@ verify_builtin_comparisons_consistent(FT_HANDLE t, u_int32_t flags) {
     return 0;
 }
 
+//
+// See comments in toku_db_change_descriptor to understand invariants 
+// in the system when this function is called
+//
 int
 toku_ft_change_descriptor(
     FT_HANDLE ft_h,
