@@ -25,14 +25,14 @@
 
 #include "indexer-internal.h"
 
-// initialize the commit keys collection
+// initialize the commit keys
 static void
 indexer_commit_keys_init(struct indexer_commit_keys *keys) {
     keys->max_keys = keys->current_keys = 0;
     keys->keys = NULL;
 }
 
-// destroy the commit keys collection
+// destroy the commit keys
 static void
 indexer_commit_keys_destroy(struct indexer_commit_keys *keys) {
     for (int i = 0; i < keys->max_keys; i++)
@@ -40,17 +40,17 @@ indexer_commit_keys_destroy(struct indexer_commit_keys *keys) {
     toku_free(keys->keys);
 }
 
-// return the number of keys in the collection
+// return the number of keys in the ordered set
 static int
 indexer_commit_keys_valid(struct indexer_commit_keys *keys) {
     return keys->current_keys;
 }
 
-// add a key to the commit keys collection
+// add a key to the commit keys
 static void
 indexer_commit_keys_add(struct indexer_commit_keys *keys, size_t length, void *ptr) {
     if (keys->current_keys >= keys->max_keys) {
-        int new_max_keys = keys->max_keys == 0 ? 8 : keys->max_keys * 2;
+        int new_max_keys = keys->max_keys == 0 ? 256 : keys->max_keys * 2;
         keys->keys = (DBT *) toku_realloc(keys->keys, new_max_keys * sizeof (DBT));
         resource_assert(keys->keys);
         for (int i = keys->current_keys; i < new_max_keys; i++) {
@@ -64,7 +64,7 @@ indexer_commit_keys_add(struct indexer_commit_keys *keys, size_t length, void *p
     keys->current_keys++;
 }
 
-// set the collection to empty
+// set the ordered set to empty
 static void
 indexer_commit_keys_set_empty(struct indexer_commit_keys *keys) {
     keys->current_keys = 0;
@@ -290,6 +290,8 @@ indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 }
 
 // the committed XIDS always = [this_xid]
+// Note that this could be sped up by adding a new xids constructor that constructs the stack with
+// exactly one xid.
 static int
 indexer_set_xid(DB_INDEXER *UU(indexer), TXNID this_xid, XIDS *xids_result) {
     int result = 0;
@@ -398,6 +400,9 @@ indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_
     return result;
 }
 
+// find the index of a non-placeholder transaction record that is previous to the transaction record
+// found at xrindex.  return TRUE if one is found and return its index in prev_xrindex.  otherwise,
+// return FALSE.
 static BOOL
 indexer_find_prev_xr(DB_INDEXER *UU(indexer), ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex) {
     invariant(xrindex < ule_num_uxrs(ule));
@@ -414,6 +419,8 @@ indexer_find_prev_xr(DB_INDEXER *UU(indexer), ULEHANDLE ule, uint64_t xrindex, u
     return prev_found;
 }
 
+// get the innermost live txn from the xids stack.  the xid on the top of the xids stack must be live
+// when calling this function.  the indexer_append_xid only appends live xid's onto the stack.
 static TOKUTXN
 indexer_get_innermost_live_txn(DB_INDEXER *indexer, XIDS xids) {
     DB_ENV *env = indexer->i->env;

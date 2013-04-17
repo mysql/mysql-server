@@ -10,8 +10,9 @@
 #ifndef TOKU_INDEXER_INTERNAL_H
 #define TOKU_INDEXER_INTERNAL_H
 
-// the indexer_commit_keys is a set of keys described by a DBT in the keys array.
+// the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.
 // the array is a resizeable array with max size "max_keys" and current size "current_keys".
+// the ordered set is used by the hotindex undo function to collect the commit keys.
 struct indexer_commit_keys {
     int max_keys;        // max number of keys
     int current_keys;    // number of valid keys
