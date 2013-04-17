@@ -512,14 +512,19 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 
 #endif
 
+static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
+  return 0;
+}
 
-static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
+
+static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
     u_int64_t num_bytes_in_db = 0;
     DB* curr_db = NULL;
     DB_TXN* txn = NULL;
     DBC* tmp_cursor = NULL;
+    DBC* tmp_table_cursor = NULL;
     DBT curr_key;
     DBT curr_val;
     char data_amount_msg[50] = {0};
@@ -527,7 +532,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
     memset(&curr_val, 0, sizeof curr_val);
     pthread_mutex_lock(&tokudb_meta_mutex);
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
     if (error) {
         goto cleanup;
     }
@@ -536,6 +541,14 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
         goto cleanup;
     }
     while (error == 0) {
+        //
+        // here, and in other places, check if process has been killed
+        // if so, get out of function so user is not stalled
+        //
+        if (thd->killed) {
+            break;
+        }
+        
         //
         // do not need this to be super fast, so use old simple API
         //
@@ -570,6 +583,33 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
             
             error = curr_db->open(curr_db, 0, name_buff, NULL, DB_BTREE, DB_THREAD, 0);
             if (error) { goto cleanup; }
+
+            if (exact) {
+                //
+                // flatten if exact is required
+                //
+                uint curr_num_items = 0;                
+                error = curr_db->cursor(curr_db, txn, &tmp_table_cursor, 0);
+                if (error) {
+                    tmp_table_cursor = NULL;
+                    goto cleanup;
+                }
+                while (error != DB_NOTFOUND) {
+                    error = tmp_table_cursor->c_getf_next(tmp_table_cursor, 0, smart_dbt_do_nothing, NULL);
+                    if (error && error != DB_NOTFOUND) {
+                        goto cleanup;
+                    }
+                    curr_num_items++;
+                    //
+                    // allow early exit if command has been killed
+                    //
+                    if ( (curr_num_items % 1000) == 0 && thd->killed) {
+                        goto cleanup;
+                    }
+                }                
+                tmp_table_cursor->c_close(tmp_table_cursor);
+                tmp_table_cursor = NULL;
+            }
 
             error = curr_db->stat64(
                 curr_db, 
@@ -624,11 +664,14 @@ cleanup:
     if (tmp_cursor) {
         tmp_cursor->c_close(tmp_cursor);
     }
+    if (tmp_table_cursor) {
+        tmp_table_cursor->c_close(tmp_table_cursor);
+    }
     if (txn) {
         txn->commit(txn, 0);
     }
     if (error) {
-        printf("got an error %d in show engine status\n", error);
+        sql_print_error("got an error %d in show_data_size\n", error);
     }
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
@@ -680,7 +723,7 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
     case HA_ENGINE_DATA_AMOUNT:
-        return tokudb_show_data_size(thd, stat_print);
+        return tokudb_show_data_size(thd, stat_print, false);
         break;
     case HA_ENGINE_LOGS:
         return tokudb_show_logs(thd, stat_print);

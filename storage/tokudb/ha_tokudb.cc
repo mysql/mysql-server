@@ -819,7 +819,6 @@ static int add_table_to_metadata(const char *name, TABLE* table) {
     DBT val;
     DB_TXN* txn = NULL;
     uchar hidden_primary_key = (table->s->primary_key >= MAX_KEY);
-    pthread_mutex_lock(&tokudb_meta_mutex);
 
     
     error = db_env->txn_begin(db_env, 0, &txn, 0);
@@ -846,7 +845,6 @@ cleanup:
         int r = !error ? txn->commit(txn,0) : txn->abort(txn);
         assert(!r);
     }
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 
@@ -855,7 +853,6 @@ static int drop_table_from_metadata(const char *name) {
     DBT key;
     DBT data;
     DB_TXN* txn = NULL;
-    pthread_mutex_lock(&tokudb_meta_mutex);
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) {
         goto cleanup;
@@ -877,7 +874,6 @@ cleanup:
         int r = !error ? txn->commit(txn,0) : txn->abort(txn);
         assert(!r);
     }
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 
@@ -887,7 +883,6 @@ static int rename_table_in_metadata(const char *from, const char *to) {
     DBT to_key;
     DBT val;
     DB_TXN* txn = NULL;
-    pthread_mutex_lock(&tokudb_meta_mutex);
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) {
         goto cleanup;
@@ -944,7 +939,6 @@ cleanup:
     }
     my_free(val.data, MYF(MY_ALLOW_ZERO_PTR));
 
-    pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
 
@@ -4764,6 +4758,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     KEY* prim_key = NULL;
     char* fn_ret = NULL;
 
+    pthread_mutex_lock(&tokudb_meta_mutex);
     bzero(&row_descriptor, sizeof(row_descriptor));
     row_desc_buff = (uchar *)my_malloc(2*(form->s->fields * 6)+10 ,MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
@@ -4931,6 +4926,7 @@ cleanup:
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(dirname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4960,6 +4956,7 @@ int ha_tokudb::delete_table(const char *name) {
 
     int error;
     char* newname = NULL;
+    pthread_mutex_lock(&tokudb_meta_mutex);
     // remove all of the dictionaries in the table directory 
     error = drop_table_from_metadata(name);
     if (error) {
@@ -4975,6 +4972,7 @@ int ha_tokudb::delete_table(const char *name) {
     my_errno = error;
 cleanup:
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4993,6 +4991,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     int error;
     char* newfrom = NULL;
     char* newto = NULL;
+    pthread_mutex_lock(&tokudb_meta_mutex);
 
     //
     // this can only fail if we have not opened the environment
@@ -5032,6 +5031,7 @@ cleanup:
     }
     my_free(newfrom, MYF(MY_ALLOW_ZERO_PTR));
     my_free(newto, MYF(MY_ALLOW_ZERO_PTR));
+    pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
 }
 
