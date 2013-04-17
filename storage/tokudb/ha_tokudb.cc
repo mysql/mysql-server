@@ -1218,6 +1218,13 @@ int ha_tokudb::initialize_share(
         init_auto_increment();
     }
 
+    if (may_table_be_empty()) {
+        share->try_table_lock = true;
+    }
+    else {
+        share->try_table_lock = false;
+    }
+
     error = 0;
 exit:
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
@@ -2352,12 +2359,61 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 }
 
 
+//
+// This function returns true if the table MAY be empty.
+// It is NOT meant to be a 100% check for emptiness.
+// This is used for a bulk load optimization.
+//
+bool ha_tokudb::may_table_be_empty() {
+    int error;
+    bool ret_val = false;
+    DBC* tmp_cursor = NULL;
+    DB_TXN* txn = NULL;
+
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+
+    error = share->file->cursor(share->file, txn, &tmp_cursor, 0);
+    if (error) {
+        goto cleanup;
+    }
+    error = tmp_cursor->c_getf_next(tmp_cursor, 0, smart_dbt_opt_callback, NULL);
+    if (error == DB_NOTFOUND) {
+        ret_val = true;
+    }
+    else {
+        ret_val = false;
+    }
+    error = 0;
+cleanup:
+    if (tmp_cursor) {
+        tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
+    }
+    if (txn) {
+        int r = txn->commit(txn, 0);
+        assert(r == 0);
+        txn = NULL;
+    }
+    return ret_val;
+}
+
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
     //
     // make sure delay_auto_inc_update is true
     //
     delay_auto_inc_update = true;
     auto_inc_update_req = false;
+    if (share->try_table_lock) {
+        if (may_table_be_empty()) {
+            acquire_table_lock(transaction, lock_write);
+        }
+        pthread_mutex_lock(&share->mutex);
+        share->try_table_lock = false;
+        pthread_mutex_unlock(&share->mutex);
+    }
 }
 
 int ha_tokudb::end_bulk_insert() {
