@@ -1241,6 +1241,8 @@ should_compare_both_keys (BRTNODE node, BRT_MSG cmd)
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
     case BRT_COMMIT_BROADCAST_ALL:
+    case BRT_COMMIT_BROADCAST_TXN:
+    case BRT_ABORT_BROADCAST_TXN:
         return 0;
     case BRT_NONE:
         break;
@@ -1503,6 +1505,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     OMTVALUE storeddatav=NULL;
 
     u_int32_t idx;
+    u_int32_t omt_size;
     int r;
     int compare_both = should_compare_both_keys(node, cmd);
     struct cmd_leafval_heaviside_extra be = {t, cmd, compare_both};
@@ -1625,7 +1628,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     case BRT_COMMIT_BROADCAST_ALL:
         // Apply to all leafentries
         idx = 0;
-        u_int32_t omt_size = toku_omt_size(node->u.l.buffer);
+        omt_size = toku_omt_size(node->u.l.buffer);
         for (idx = 0; idx < omt_size; ) {
             r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL); 
             assert(r==0);
@@ -1638,6 +1641,35 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
                 }
                 else
                     brt_leaf_apply_full_promotion_once(node, storeddata);
+                node->dirty = 1;
+            }
+            if (deleted)
+                omt_size--;
+            else
+                idx++;
+        }
+        assert(toku_omt_size(node->u.l.buffer) == omt_size);
+
+        break;
+    case BRT_COMMIT_BROADCAST_TXN:
+    case BRT_ABORT_BROADCAST_TXN:
+        // Apply to all leafentries if txn is represented
+        idx = 0;
+        omt_size = toku_omt_size(node->u.l.buffer);
+        for (idx = 0; idx < omt_size; ) {
+            r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL); 
+            assert(r==0);
+            storeddata=storeddatav;
+            int deleted = 0;
+            if (le_has_xids(storeddata, cmd->xids)) {
+                r = brt_leaf_apply_cmd_once(node, cmd, idx, storeddata);
+                if (r!=0) return r;
+                u_int32_t new_omt_size = toku_omt_size(node->u.l.buffer);
+                if (new_omt_size != omt_size) {
+                    assert(new_omt_size+1 == omt_size);
+                    //Item was deleted.
+                    deleted = 1;
+                }
                 node->dirty = 1;
             }
             if (deleted)
@@ -1887,6 +1919,8 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
         if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // for nondupsort brt, delete_any message goes to one child.
         return brt_nonleaf_cmd_many(t, node, cmd, re_array, did_io);  // send message to at least one, possibly all children
     case BRT_COMMIT_BROADCAST_ALL:
+    case BRT_COMMIT_BROADCAST_TXN:
+    case BRT_ABORT_BROADCAST_TXN:
         return brt_nonleaf_cmd_all (t, node, cmd, re_array, did_io);  // send message to all children
     case BRT_NONE:
         break;
