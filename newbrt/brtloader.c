@@ -883,7 +883,15 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	
 	    {
 		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
-		lazy_assert(r==0); // LAZY
+		if (r != 0) {
+                    error_codes[i] = r;
+#if defined(__cilkplusplus)
+		    __sync_fetch_and_add(&error_count, 1);
+#else
+                    error_count++;
+#endif
+                    break;
+                }
 	    }
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
@@ -937,7 +945,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	for (int i=0; i<bl->N; i++) {
 	    if (error_codes[i]) r = error_codes[i];
 	}
-	lazy_assert(r); // found the error 
+        invariant(r); // found the error 
     }
     toku_free(error_codes);
     BL_TRACE(blt_extractor);
