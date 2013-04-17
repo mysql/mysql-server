@@ -270,7 +270,6 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children>=1);
-    assert(dn->bp_offset > 0);
     assert(dn->max_msn_applied_to_node_on_disk.msn == POSTSERIALIZE_MSN_ON_DISK.msn);
     {
         const u_int32_t npartitions = dn->n_children;
@@ -279,9 +278,10 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
             assert(BLB_MAX_MSN_APPLIED(dn, i).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
@@ -401,16 +401,16 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(keylens*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -520,16 +520,16 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(sizeof(int)*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_int_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -645,7 +645,6 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(npartitions == 7);
@@ -653,9 +652,10 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = 7, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -777,16 +777,16 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children>0);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -894,16 +894,16 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children == 1);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 0, .elts = NULL, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) == 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -1018,16 +1018,16 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children>=1);
-    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].offset > 0);
+            assert(dn->bp[i].start > 0);
+            assert(dn->bp[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;

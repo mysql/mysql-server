@@ -252,12 +252,13 @@ struct brtnode_leaf_basement_node {
     bool stale_ancestor_messages_applied;
 };
 
-#define PT_INVALID 0
-#define PT_ON_DISK 1
-#define PT_COMPRESSED 2
-#define PT_AVAIL 3
+enum  __attribute__((__packed__)) pt_state {  // declare this to be packed so that when used below it will only take 1 byte.
+    PT_INVALID = 0,
+    PT_ON_DISK = 1,
+    PT_COMPRESSED = 2,
+    PT_AVAIL = 3};
 
-enum brtnode_child_tag {
+enum __attribute__((__packed__)) brtnode_child_tag {
     BCT_INVALID = 0,
     BCT_NULL,
     BCT_SUBBLOCK,
@@ -266,7 +267,7 @@ enum brtnode_child_tag {
 };
     
 typedef struct __attribute__((__packed__)) brtnode_child_pointer {
-    u_int8_t tag;
+    enum brtnode_child_tag tag;
     union {
 	struct sub_block *subblock;
 	struct brtnode_nonleaf_childinfo *nonleaf;
@@ -289,12 +290,15 @@ struct   __attribute__((__packed__)) brtnode_partition {
     //   PT_COMPRESSED - means that the partition is compressed in memory. To use, must decompress
     //   PT_AVAIL - means the partition is decompressed and in memory
     //
-    u_int8_t state;
+    enum pt_state state; // make this an enum to make debugging easier.  
     //
-    // stores the offset to the end of the partition on disk from the brtnode, needed to read a partition off of disk
+    // stores the offset to the beginning of the partition on disk from the brtnode, and the length, needed to read a partition off of disk
     // the value is only meaningful if the node is clean. If the node is dirty, then the value is meaningless
-    //
-    u_int32_t offset;
+    //  The START is the distance from the end of the compressed node_info data, to the beginning of the compressed partition
+    //  The SIZE is the size of the compressed partition.
+    // Rationale:  We cannot store the size from the beginning of the node since we don't know how big the header will be.
+    //  However, later when we are doing aligned writes, we won't be able to store the size from the end since we want things to align.
+    u_int32_t start,size;
     //
     // pointer to the partition. Depending on the state, they may be different things
     // if state == PT_INVALID, then the node was just initialized and ptr == NULL
@@ -331,8 +335,6 @@ struct brtnode {
     unsigned int    totalchildkeylens;
     struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
-    u_int32_t bp_offset; // offset on disk to where the partitions start
-
     // array of size n_children, consisting of brtnode partitions
     // each one is associated with a child
     // for internal nodes, the ith partition corresponds to the ith message buffer
@@ -346,7 +348,8 @@ struct brtnode {
 #define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
 #define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
 #define BP_STATE(node,i) ((node)->bp[i].state)
-#define BP_OFFSET(node,i) ((node)->bp[i].offset)
+#define BP_START(node,i) ((node)->bp[i].start)
+#define BP_SIZE(node,i) ((node)->bp[i].size)
 #define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
 #define BP_WORKDONE(node, i)((node)->bp[i].workdone)
 
