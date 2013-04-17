@@ -11,9 +11,6 @@ struct block_translation_pair {
     DISKOFF size;    // set to 0xFFFFFFFFFFFFFFFF for free
 };
 
-void toku_blocktable_lock_init(void);
-void toku_blocktable_lock_destroy(void);
-
 void toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset, int *dirty);
 void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
 void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
@@ -50,8 +47,8 @@ u_int64_t toku_block_get_translated_blocknum_limit(BLOCK_TABLE bt);
 void toku_block_memcpy_translation_table(BLOCK_TABLE bt, size_t n, void *p);
 
 //Unlocked/multi ops
-void toku_block_lock_for_multiple_operations(void);
-void toku_block_unlock_for_multiple_operations(void);
+void toku_block_lock_for_multiple_operations(BLOCK_TABLE bt);
+void toku_block_unlock_for_multiple_operations(BLOCK_TABLE bt);
 
 void toku_block_realloc_translation_unlocked(BLOCK_TABLE bt);
 void toku_block_wbuf_free_blocks_unlocked(BLOCK_TABLE bt, struct wbuf *wbuf);
