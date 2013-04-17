@@ -22,7 +22,7 @@ set(tokudb_srcs
 add_library(${LIBTOKUDB} SHARED ${tokudb_srcs})
 add_dependencies(${LIBTOKUDB} install_tdb_h)
 target_link_libraries(${LIBTOKUDB} LINK_PRIVATE lock_tree_static range_tree_static ft_static)
-target_link_libraries(${LIBTOKUDB} LINK_INTERFACE_LIBRARIES ${ZLIB_LIBRARIES})
+target_link_libraries(${LIBTOKUDB} LINK_PUBLIC ${ZLIB_LIBRARIES})
 
 ## make the static library
 add_library(${LIBTOKUDB}_static STATIC ${tokudb_srcs})
