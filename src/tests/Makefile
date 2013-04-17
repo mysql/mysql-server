@@ -113,22 +113,23 @@ BDB_DONTRUN_TESTS = \
 	backwards_10_each_le_and_msg \
 	test_dupsort_set_range_reverse \
 	test_dupsort_get_both_range_reverse \
-	recover-compare-db \
-	recover-compare-db-descriptor \
-	recover-tablelock \
-	recover-fclose-in-checkpoint \
 	test_cursor_delete_2119 \
 	transactional_fileops \
 	env_startup \
 	zombie_db \
-	recover-delboth-checkpoint \
-	recover-delboth-after-checkpoint \
 	filesize \
         isolation \
 	env-put-multiple \
+	recover-compare-db \
+	recover-compare-db-descriptor \
+	recover-tablelock \
+	recover-fclose-in-checkpoint \
+	recover-delboth-checkpoint \
+	recover-delboth-after-checkpoint \
 	recover-lsn-filter-multiple \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \
+	recover-split-checkpoint \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
