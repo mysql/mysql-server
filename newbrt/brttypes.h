@@ -127,6 +127,16 @@ typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val,
 typedef struct memarena *MEMARENA;
 typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
 
+//
+// Types of snapshots that can be taken by a tokutxn
+//  - TXN_SNAPSHOT_NONE: means that there is no snapshot. Reads do not use snapshot reads.
+//                       used for SERIALIZABLE and READ UNCOMMITTED
+//  - TXN_SNAPSHOT_ROOT: means that all tokutxns use their root transaction's snapshot
+//                       used for REPEATABLE READ
+//  - TXN_SNAPSHOT_CHILD: means that each child tokutxn creates its own snapshot
+//                        used for READ COMMITTED
+//
+
 typedef enum __TXN_SNAPSHOT_TYPE { 
     TXN_SNAPSHOT_NONE=0,
     TXN_SNAPSHOT_ROOT=1,
