@@ -81,12 +81,12 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     } else
 #endif
     {
-	DBT key = { .data = key_buffer, .size = sizeof key_buffer };
-	DBT value = { .data = val_buffer, .size = sizeof val_buffer };
+        DBT key = { .data = key_buffer, .size = sizeof key_buffer };
+        DBT value = { .data = val_buffer, .size = sizeof val_buffer };
         DBT oldvalue = { };
         r = db->get(db, txn, &key, &oldvalue, 0);
         assert(r == 0 || r == DB_NOTFOUND);
-	if (r == 0) {
+        if (r == 0) {
             // update it
             if (verbose) printf("U");
             int oldc = get_int(oldvalue.data);
@@ -94,10 +94,10 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
             memcpy(val_buffer, &newc, sizeof newc);
             r = db->put(db, txn, &key, &value, 0);
             assert(r == 0);
-	} else if (r == DB_NOTFOUND) {
+        } else if (r == DB_NOTFOUND) {
             r = db->put(db, txn, &key, &value, 0);
             assert(r == 0);
-	}
+        }
     }
 }
 
