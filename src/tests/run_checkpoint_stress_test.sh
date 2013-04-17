@@ -8,10 +8,9 @@ bin=$1; shift
 size=$1; shift
 runs=$1; shift
 abortcode=$1; shift
-valgrind="$@"
 
-$valgrind $bin -C -n $size
-$valgrind $bin -C -i 0 -n $size
+$bin -C -n $size
+$bin -C -i 0 -n $size
 for (( i = 1; i < $runs; i++ ))
 do
     echo -n "$i: " && date
