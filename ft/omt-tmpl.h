@@ -26,71 +26,28 @@ namespace toku {
     template<typename omtdata_t,
              typename omtdataout_t=omtdata_t>
     struct omt {
-
         /**
          * 
          */
-        static void create(struct omt *&omt)
+        void create(void)
         {
-            XMALLOC(omt);
-            omt->init();
+            this->create_internal(2);
         }
 
         /**
          * 
          */
-        static void create_from_sorted_array(struct omt *&omt,
-                                             const omtdata_t *values,
-                                             const uint32_t numvalues)
+        void create_no_array(void)
         {
-            XMALLOC(omt);
-            omt->init_from_sorted_array(values, numvalues);
+            this->create_internal_no_array(0);
         }
 
         /**
          * 
          */
-        static void create_steal_sorted_array(struct omt *&omt,
-                                              omtdata_t *&values,
-                                              const uint32_t numvalues,
-                                              const uint32_t capacity_)
+        void create_from_sorted_array(const omtdata_t *values, const uint32_t numvalues)
         {
-            XMALLOC(omt);
-            omt->init_steal_sorted_array(values, numvalues, capacity_);
-        }
-
-        /**
-         * 
-         */
-        static void destroy(struct omt *&omt)
-        {
-            omt->deinit();
-            toku_free(omt);
-            omt = nullptr;
-        }
-
-        /**
-         * 
-         */
-        void init(void)
-        {
-            this->init_internal(2);
-        }
-
-        /**
-         * 
-         */
-        void init_no_array(void)
-        {
-            this->init_internal_no_array(0);
-        }
-
-        /**
-         * 
-         */
-        void init_from_sorted_array(const omtdata_t *values, const uint32_t numvalues)
-        {
-            this->init_internal(numvalues);
+            this->create_internal(numvalues);
             memcpy(this->d.a.values, values, numvalues * (sizeof values[0]));
             this->d.a.num_values = numvalues;
         }
@@ -98,9 +55,9 @@ namespace toku {
         /**
          * 
          */
-        void init_steal_sorted_array(omtdata_t *&values, const uint32_t numvalues, const uint32_t capacity_)
+        void create_steal_sorted_array(omtdata_t *&values, const uint32_t numvalues, const uint32_t capacity_)
         {
-            this->init_internal_no_array(capacity_);
+            this->create_internal_no_array(capacity_);
             this->d.a.num_values = numvalues;
             this->d.a.values = values;
             values = nullptr;
@@ -109,11 +66,11 @@ namespace toku {
         /**
          * 
          */
-        void split_at_init(omt &newomt, const uint32_t idx) {
+        void split_at(omt &newomt, const uint32_t idx) {
             if (idx > this->size()) { return EINVAL; }
             this->convert_to_array();
             const uint32_t newsize = this->size() - idx;
-            newomt.init_from_sorted_array(&this->d.a.values[this->d.a.start_idx + idx], newsize);
+            newomt.create_from_sorted_array(&this->d.a.values[this->d.a.start_idx + idx], newsize);
             this->d.a.num_values = idx;
             this->maybe_resize_array();
         }
@@ -121,35 +78,26 @@ namespace toku {
         /**
          * 
          */
-        void split_at_create(omt *&newomt, const uint32_t idx) {
-            if (idx > this->size()) { return EINVAL; }
-            XMALLOC(newomt);
-            this->split_at_init(*newomt, idx);
-        }
-
-        /**
-         * 
-         */
-        void merge_init(omt &leftomt, omt &rightomt) {
+        void merge(omt &leftomt, omt &rightomt) {
             const uint32_t leftsize = leftomt.size();
             const uint32_t rightsize = rightomt.size();
             const uint32_t newsize = leftsize + rightsize;
 
             if (leftomt.is_array) {
                 if (leftomt.capacity - (leftomt.d.a.start_idx + leftomt.d.a.num_values) >= rightsize) {
-                    this->init_steal_sorted_array(leftomt.d.a.values, leftomt.d.a.num_values, leftomt.capacity);
+                    this->create_steal_sorted_array(leftomt.d.a.values, leftomt.d.a.num_values, leftomt.capacity);
                     this->d.a.start_idx = leftomt.d.a.start_idx;
                 } else {
-                    this->init_internal(newsize);
+                    this->create_internal(newsize);
                     memcpy(&this->d.a.values[0],
                            &leftomt.d.a.values[leftomt.d.a.start_idx],
                            leftomt.d.a.num_values * (sizeof this->d.a.values[0]));
                 }
             } else {
-                this->init_internal(newsize);
+                this->create_internal(newsize);
                 leftomt.fill_array_with_subtree_values(&this->d.a.values[0], leftomt.d.t.root);
             }
-            leftomt.deinit();
+            leftomt.destroy();
             this->d.a.num_values = leftsize;
 
             if (rightomt.is_array) {
@@ -160,7 +108,7 @@ namespace toku {
                 rightomt.fill_array_with_subtree_values(&this->d.a.values[this->d.a.start_idx + this->d.a.num_values],
                                                         rightomt.d.t.root);
             }
-            rightomt.deinit();
+            rightomt.destroy();
             this->d.a.num_values += rightsize;
             invariant(this->size() == newsize);
         }
@@ -168,17 +116,9 @@ namespace toku {
         /**
          * 
          */
-        static void merge_create(omt *&newomt, omt &leftomt, omt &rightomt) {
-            XMALLOC(newomt);
-            newomt->merge_init(leftomt, rightomt);
-        }
-
-        /**
-         * 
-         */
-        void clone_init(const omt &src)
+        void clone(const omt &src)
         {
-            this->init_internal(src.size());
+            this->create_internal(src.size());
             if (src.is_array) {
                 memcpy(&this->d.a.values[0], &src.d.a.values[src.d.a.start_idx], src.d.a.num_values * (sizeof this->d.a.values[0]));
             } else {
@@ -190,28 +130,12 @@ namespace toku {
         /**
          * 
          */
-        static void clone_create(omt *&newomt, const omt &src) {
-            XMALLOC(newomt);
-            newomt->clone_init(src);
-        }
-
-        /**
-         * 
-         */
-        void deep_clone_init(const omt &src)
+        void deep_clone(const omt &src)
         {
-            this->init_internal(src.size());
+            this->create_internal(src.size());
             int r = src.iterate<omt, deep_clone_iter>(*this);
             lazy_assert_zero(r);
             this->d.a.num_values = src.size();
-        }
-
-        /**
-         * 
-         */
-        static void deep_clone_create(omt *&newomt, const omt &src) {
-            XMALLOC(newomt);
-            newomt->deep_clone_init(src);
         }
 
         /**
@@ -231,7 +155,7 @@ namespace toku {
         /**
          * 
          */
-        void deinit(void)
+        void destroy(void)
         {
             this->clear();
             this->capacity = 0;
@@ -497,7 +421,7 @@ namespace toku {
         } d;
 
 
-        void init_internal_no_array(const uint32_t capacity_) {
+        void create_internal_no_array(const uint32_t capacity_) {
             this->is_array = true;
             this->capacity = capacity_;
             this->d.a.start_idx = 0;
@@ -505,8 +429,8 @@ namespace toku {
             this->d.a.values = nullptr;
         }
 
-        void init_internal(const uint32_t capacity_) {
-            this->init_internal_no_array(capacity_);
+        void create_internal(const uint32_t capacity_) {
+            this->create_internal_no_array(capacity_);
             XMALLOC_N(this->capacity, this->d.a.values);
         }
 

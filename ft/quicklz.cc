@@ -75,6 +75,7 @@ static void reset_table_compress(qlz_state_compress *state)
 		state->hash[i].offset = 0;
 #else
 		state->hash_counter[i] = 0;
+                state->hash[i].offset[0] = 0;
 #endif
 	}
 }
