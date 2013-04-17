@@ -23,15 +23,17 @@ static void
 append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen) {
     assert(leafnode->height == 0);
 
-    DBT thekey = { .data = key, .size = keylen }; 
-    DBT theval = { .data = val, .size = vallen };
+    DBT thekey;
+    toku_fill_dbt(&thekey, key, keylen);
+    DBT theval;
+    toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
     uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
 
     // apply an insert to the leaf node
     MSN msn = next_dummymsn();
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
     toku_ft_bn_apply_cmd_once(BLB(leafnode, 0), &cmd, idx, NULL, NULL, NULL);
 
     // dont forget to dirty the node

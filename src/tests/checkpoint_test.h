@@ -185,7 +185,7 @@ null_dictionary(DICTIONARY d) {
 }
 
 static void UU()
-init_dictionary(DICTIONARY d, u_int32_t flags, char *name) {
+init_dictionary(DICTIONARY d, u_int32_t flags, const char *name) {
     null_dictionary(d);
     d->flags = flags;
     strcpy(d->filename, name);
@@ -247,13 +247,13 @@ dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
     r = env->get_iname(env, &src_dname_dbt, &src_iname_dbt);
     CKERR(r);
 
-    char * src_iname = src_iname_dbt.data;
-    char * dest_iname = dest_iname_dbt.data;
+    char * src_iname = cast_to_typeof(src_iname) src_iname_dbt.data;
+    char * dest_iname = cast_to_typeof(dest_iname) dest_iname_dbt.data;
 
     int bytes;
 
-    char command[sizeof("cp -f ") + strlen(src_iname)+ strlen(ENVDIR"/ " ENVDIR"/ ") + strlen(dest_iname)];
-    bytes = snprintf(command, sizeof(command), "cp -f "ENVDIR"/%s "ENVDIR"/%s", src_iname, dest_iname);
+    char command[sizeof("cp -f ") + strlen(src_iname)+ strlen(ENVDIR "/ " ENVDIR "/ ") + strlen(dest_iname)];
+    bytes = snprintf(command, sizeof(command), "cp -f " ENVDIR "/%s " ENVDIR "/%s", src_iname, dest_iname);
     assert(bytes<(int)sizeof(command));
 
     toku_free(src_iname);

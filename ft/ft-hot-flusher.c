@@ -29,7 +29,7 @@ struct hot_flusher_extra {
     bool rightmost_leaf_seen;
 };
 
-static volatile FT_HOT_STATUS_S hot_status;
+static FT_HOT_STATUS_S hot_status;
 
 #define STATUS_INIT(k,t,l) {                            \
         hot_status.status[k].keyname = #k;              \
@@ -147,7 +147,7 @@ hot_pick_child(FT h,
                FTNODE parent,
                void *extra)
 {
-    struct hot_flusher_extra *flusher = extra;
+    struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
     int childnum = hot_just_pick_child(h, parent, flusher);
 
     // Now we determine the percentage of the tree flushed so far.
@@ -184,7 +184,7 @@ hot_pick_child_after_split(FT h,
                            int childnumb,
                            void *extra)
 {
-    struct hot_flusher_extra *flusher = extra;
+    struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
     int childnum = hot_just_pick_child(h, parent, flusher);
     assert(childnum == childnuma || childnum == childnumb);
     hot_update_flusher_keys(parent, childnum, flusher);
@@ -370,7 +370,7 @@ void __attribute__((__constructor__)) toku_hot_helgrind_ignore(void);
 void
 toku_hot_helgrind_ignore(void) {
     // incremented only while lock is held, but read by engine status asynchronously.
-    VALGRIND_HG_DISABLE_CHECKING(&hot_status, sizeof hot_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&hot_status, sizeof hot_status);
 }
 
 

@@ -19,7 +19,7 @@ static DB_TXN *txn = NULL;
 static DB *db = NULL;
 static u_int32_t db_page_size = 4096;
 static u_int32_t db_basement_size = 4096;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 static u_int64_t nrows = 0;
 
 static u_int64_t 
@@ -32,8 +32,8 @@ run_test(void) {
     if (verbose) printf("%s %" PRIu64 "\n", __FUNCTION__, nrows);
 
     // create a tree with 2 children
-    size_t key_size = 9;
-    size_t val_size = db_basement_size / 4;
+    uint32_t key_size = 9;
+    uint32_t val_size = db_basement_size / 4;
     size_t est_row_size_with_overhead = 8 + key_size + 4 + val_size + 4; // xid + key + key_len + val + val)len
     size_t rows_per_basement = db_basement_size / est_row_size_with_overhead;
 
@@ -90,8 +90,10 @@ run_test(void) {
             char key[100];
             snprintf(key, sizeof key, "%08llu", (unsigned long long)2*(i-1)+1);
             assert(1+strlen(key) == key_size);
-            DBT k = { .data = key, .size = 1+strlen(key), };
-            DBT v = { .data = NULL, .size = 0, };
+            DBT k;
+            dbt_init(&k, key, 1+strlen(key));
+            DBT v;
+            dbt_init(&v, NULL, 0);
             r = db->put(db, txn, &k, &v, 0); CKERR(r);
         }
         r = txn->commit(txn, 0); CKERR(r);

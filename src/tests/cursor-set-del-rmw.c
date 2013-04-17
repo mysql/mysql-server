@@ -53,8 +53,8 @@ static void test_del_rmw(DB_ENV *env, DB *db, uint32_t t1_flags, uint32_t t2_fla
 int test_main(int argc, char * const argv[]) {
     int r;
 
-    char *env_dir = ENVDIR;
-    char *db_filename = "rmwtest";
+    const char *env_dir = ENVDIR;
+    const char *db_filename = "rmwtest";
 
     parse_args(argc, argv);
 

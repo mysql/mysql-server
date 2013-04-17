@@ -8,7 +8,7 @@
 #include <db.h>
 #include <sys/stat.h>
 
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 DB_ENV *env;
 int USE_PUTS=0;

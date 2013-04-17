@@ -6,7 +6,7 @@
 
 #include "test.h"
 
-static int read_lock(toku_lock_tree *lt, TXNID txnid, char *k, struct timeval *wait_time) {
+static int read_lock(toku_lock_tree *lt, TXNID txnid, const char *k, struct timeval *wait_time) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
     toku_lock_request_init(&lr, txnid, &key, &key, LOCK_REQUEST_READ);
@@ -15,7 +15,7 @@ static int read_lock(toku_lock_tree *lt, TXNID txnid, char *k, struct timeval *w
     return r;
 }
 
-static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k, struct timeval *wait_time) {
+static int write_lock(toku_lock_tree *lt, TXNID txnid, const char *k, struct timeval *wait_time) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
     toku_lock_request_init(&lr, txnid, &key, &key, LOCK_REQUEST_WRITE);

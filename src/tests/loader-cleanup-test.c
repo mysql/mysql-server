@@ -350,7 +350,7 @@ assert_inames_missing(DBT* inames) {
     int i;
     char * dir = env->i->real_data_dir;
     for (i=0; i<NUM_DBS; i++) {
-	char * iname = inames[i].data;
+	char * iname = cast_to_typeof(iname) inames[i].data;
 	int r = verify_file(dir, iname);
 	if (r) {
 	    printf("File %s exists, but it should not\n", iname);
@@ -752,7 +752,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 
 
 static int run_test_count = 0;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 static void run_test(enum test_type t, int trigger) 
 {

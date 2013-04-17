@@ -146,7 +146,7 @@ static inline int maybe_resize_array(OMT omt, u_int32_t n) {
 
     if (room<n || omt->capacity/2>=new_size) {
         OMTVALUE *XMALLOC_N(new_size, tmp_values);
-        if (tmp_values==NULL) return errno;
+        if (tmp_values==NULL) return get_error_errno();
         memcpy(tmp_values, omt->i.a.values+omt->i.a.start_idx,
                omt->i.a.num_values*sizeof(*tmp_values));
         omt->i.a.start_idx = 0;
@@ -164,7 +164,7 @@ static int omt_convert_to_tree(OMT omt) {
     new_size = new_size < 4 ? 4 : new_size;
 
     OMT_NODE XMALLOC_N(new_size, new_nodes);
-    if (new_nodes==NULL) return errno;
+    if (new_nodes==NULL) return get_error_errno();
     OMTVALUE *values     = omt->i.a.values;
     OMTVALUE *tmp_values = values + omt->i.a.start_idx;
     omt->is_array          = FALSE;
@@ -184,7 +184,7 @@ static int omt_convert_to_array(OMT omt) {
     new_size = new_size < 4 ? 4 : new_size;
 
     OMTVALUE *XMALLOC_N(new_size, tmp_values);
-    if (tmp_values==NULL) return errno;
+    if (tmp_values==NULL) return get_error_errno();
     fill_array_with_subtree_values(omt, tmp_values, omt->i.t.root);
     toku_free(omt->i.t.nodes);
     omt->is_array       = TRUE;
@@ -788,7 +788,7 @@ struct copy_data_extra {
 };
 
 static int copy_data_iter(OMTVALUE v, u_int32_t idx, void *ve) {
-    struct copy_data_extra *e = ve;
+    struct copy_data_extra *e = cast_to_typeof(e) ve;
     memcpy(e->a[idx], v, e->eltsize);
     return 0;
 }
@@ -807,9 +807,9 @@ int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize) {
         toku_omt_create(dest);
         return 0;
     }
-    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
+    OMTVALUE *XMALLOC_N(size, a);
     for (u_int32_t i = 0; i < size; ++i) {
-        a[i] = toku_xmalloc(eltsize);
+        a[i] = cast_to_typeof(a[i]) toku_xmalloc(eltsize);
     }
     int r = omt_copy_data(a, src, eltsize);
     if (r != 0) { goto err; }
@@ -827,8 +827,8 @@ int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize) {
         toku_omt_create(dest);
         return 0;
     }
-    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
-    unsigned char *data = toku_xmalloc(eltsize * size);
+    OMTVALUE *XMALLOC_N(size, a);
+    unsigned char *XMALLOC_N(eltsize * size, data);
     for (u_int32_t i = 0; i < size; ++i) {
         a[i] = &data[eltsize * i];
     }
@@ -860,7 +860,7 @@ int toku_omt_clone_noptr(OMT *dest, OMT src) {
         toku_omt_create(dest);
         return 0;
     }
-    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
+    OMTVALUE *XMALLOC_N(size, a);
     if (src->is_array) {
         memcpy(a, src->i.a.values + src->i.a.start_idx, size * (sizeof *src->i.a.values));
     } else {

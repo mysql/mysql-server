@@ -34,9 +34,9 @@ static void ybt_test0 (void) {
 	toku_dbt_set(  4, temp2, &t1, &v1);
     }
     assert(t0.size==6);
-    assert(strcmp(t0.data, "hello")==0); 
+    assert(strcmp((char*)t0.data, "hello")==0); 
     assert(t1.size==4);
-    assert(strcmp(t1.data, "foo")==0);
+    assert(strcmp((char*)t1.data, "foo")==0);
 
     {
         bytevec temp3 = "byebye";
@@ -45,7 +45,7 @@ static void ybt_test0 (void) {
     // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
     // at the wrong place
     //assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
-    assert(strcmp(t1.data, "byebye")==0);
+    assert(strcmp((char*)t1.data, "byebye")==0);
 
     cleanup_and_free(&v0);
     cleanup_and_free(&v1);
@@ -72,14 +72,14 @@ static void ybt_test0 (void) {
     }
     assert(v0.data==0); /* Didn't change v0 */
     assert(t0.size==21);
-    assert(strcmp(t0.data, "internationalization")==0);
+    assert(strcmp((char*)t0.data, "internationalization")==0);
 
     {
         bytevec temp6 = "provincial";
 	toku_dbt_set(11, temp6, &t0, &v0);
     }
     assert(t0.size==11);
-    assert(strcmp(t0.data, "provincial")==0);
+    assert(strcmp((char*)t0.data, "provincial")==0);
     
     toku_free(t0.data);
     

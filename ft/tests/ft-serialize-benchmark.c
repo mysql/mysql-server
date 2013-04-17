@@ -15,7 +15,8 @@ const double USECS_PER_SEC = 1000000.0;
 
 static int omt_cmp(OMTVALUE p, void *q)
 {
-    LEAFENTRY a = p, b = q;
+    LEAFENTRY a = cast_to_typeof(a) p;
+    LEAFENTRY b = cast_to_typeof(b) q;
     void *ak, *bk;
     u_int32_t al, bl;
     ak = le_key_and_len(a, &al);
@@ -33,7 +34,7 @@ static int omt_cmp(OMTVALUE p, void *q)
 static LEAFENTRY
 le_fastmalloc(char *key, int keylen, char *val, int vallen)
 {
-    LEAFENTRY r = toku_malloc(sizeof(r->type) + sizeof(r->keylen) + sizeof(r->u.clean.vallen) +
+    LEAFENTRY r = cast_to_typeof(r) toku_malloc(sizeof(r->type) + sizeof(r->keylen) + sizeof(r->u.clean.vallen) +
                               keylen + vallen);
     resource_assert(r);
     r->type = LE_CLEAN;
@@ -47,7 +48,8 @@ le_fastmalloc(char *key, int keylen, char *val, int vallen)
 static int
 long_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 {
-    const long *x = a->data, *y = b->data;
+    const long *x = cast_to_typeof(x) a->data;
+    const long *y = cast_to_typeof(y) b->data;
     return (*x > *y) - (*x < *y);
 }
 

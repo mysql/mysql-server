@@ -44,7 +44,7 @@ static void test5 (void) {
 	    if (i%1000==0 && verbose) { printf("r"); fflush(stdout); }
 	    snprintf(key, 100, "key%d", rk);
 	    snprintf(valexpected, 100, "val%d", values[rk]);
-	    struct check_pair pair = {1+strlen(key), key, 1+strlen(valexpected), valexpected, 0};
+	    struct check_pair pair = {(ITEMLEN) (1+strlen(key)), key, (ITEMLEN) (1+strlen(valexpected)), valexpected, 0};
 	    r = toku_ft_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), lookup_checkf, &pair);
 	    assert(r==0);
 	    assert(pair.call_count==1);

@@ -19,7 +19,7 @@ db_put (DB *db, DB_TXN *txn, int k, int v) {
     return db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_NOOVERWRITE);
 }
 
-static char *db_error(int error) {
+static const char *db_error(int error) {
     static char errorbuf[32];
     switch (error) {
     case DB_NOTFOUND: return "DB_NOTFOUND";

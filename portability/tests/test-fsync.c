@@ -11,7 +11,7 @@
 
 int verbose = 0;
 static void
-create_files(int N, int fds[N]) {
+create_files(int N, int fds[/*N*/]) {
     int r;
     int i;
     char name[30];
@@ -19,14 +19,14 @@ create_files(int N, int fds[N]) {
         snprintf(name, sizeof(name), "%d", i);
         fds[i] = open(name, O_CREAT|O_WRONLY, 0644);
         if (fds[i] < 0) {
-            r = errno;
+            r = get_error_errno();
             CKERR(r);
         }
     }
 }
 
 static void
-write_to_files(int N, int bytes, int fds[N]) {
+write_to_files(int N, int bytes, int fds[/*N*/]) {
     char junk[bytes];
 
     int i;
@@ -42,7 +42,7 @@ write_to_files(int N, int bytes, int fds[N]) {
 }
 
 static void
-time_many_fsyncs_one_file(int N, int bytes, int fds[N]) {
+time_many_fsyncs_one_file(int N, int bytes, int fds[/*N*/]) {
     if (verbose>1) {
         printf("Starting %s\n", __FUNCTION__);
         fflush(stdout);
@@ -86,7 +86,7 @@ time_many_fsyncs_one_file(int N, int bytes, int fds[N]) {
 }
 
 static void
-time_fsyncs_many_files(int N, int bytes, int fds[N]) {
+time_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
     if (verbose>1) {
         printf("Starting %s\n", __FUNCTION__);
         fflush(stdout);
@@ -135,7 +135,7 @@ time_fsyncs_many_files(int N, int bytes, int fds[N]) {
 #if !TOKU_WINDOWS
 //sync() does not appear to have an analogue on windows.
 static void
-time_sync_fsyncs_many_files(int N, int bytes, int fds[N]) {
+time_sync_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
     if (verbose>1) {
         printf("Starting %s\n", __FUNCTION__);
         fflush(stdout);

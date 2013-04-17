@@ -19,7 +19,7 @@ enum { MAX_LOCKS = 1000, MAX_LOCK_MEMORY = MAX_LOCKS * 64 };
     } while (0)
 
 #define MAKE_DESCRIPTOR(buf) \
-    { .dbt = { .data = buf, .size = sizeof(buf) } }
+    { .dbt = { .data = (char *) buf, .size = sizeof(buf) } }
 static DESCRIPTOR_S descriptors[] = {
     MAKE_DESCRIPTOR("cats"),
     MAKE_DESCRIPTOR("elephants"),
@@ -75,8 +75,8 @@ int main(int argc, const char *argv[])
         // check that we can call this point comparison a couple
         // of times and pass the comparison function's assertion
         for (int i = 0; i < 10; i++) {
-            const toku_point x = { .lt = tree, .key_payload = "" };
-            const toku_point y = { .lt = tree, .key_payload = "" };
+            const toku_point x = { .lt = tree, .key_payload = (void *) "" };
+            const toku_point y = { .lt = tree, .key_payload = (void *) "" };
             toku_lt_point_cmp(&x, &y);
         }
     }

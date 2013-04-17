@@ -36,7 +36,7 @@ static DB_ENV *env = NULL;
 static DB_TXN *txn = NULL;
 static DB     *dbs[MAX_DBS];
 static int num_open_dbs = 0;
-static char *dname = DICT_0;
+static const char *dname = DICT_0;
 static DBT key;
 
 
@@ -184,7 +184,7 @@ verify(int64_t i) {
 }
 
 static void
-redirect_dictionary(char *new_dname, int r_expect) {
+redirect_dictionary(const char *new_dname, int r_expect) {
     assert(env!=NULL);
     assert(txn!=NULL);
     assert(num_open_dbs>0);

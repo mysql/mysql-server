@@ -40,7 +40,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static void kibbutz_work(void *fe_v)
 {
-    CACHEFILE f1 = fe_v;
+    CACHEFILE f1 = cast_to_typeof(f1) fe_v;
     sleep(2);
     foo = TRUE;
     int r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));

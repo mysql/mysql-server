@@ -23,7 +23,7 @@ static const int commit_abort_ratio = 3;
 static const int start_crashing_iter = 10;
 // iterations_per_crash_in_recovery should be an odd number;
 static const int iterations_per_crash_in_recovery = 7;
-char *state_db_name="states.db";
+const char *state_db_name="states.db";
 
 #define CREATED 0
 #define OPEN    1
@@ -244,7 +244,7 @@ static void run_test(int iter){
     u_int32_t recovery_flags = DB_INIT_LOG | DB_INIT_TXN;
     int r, i;
 
-    db_array = toku_malloc(sizeof(DB*) * NUM_DICTIONARIES);
+    XMALLOC_N(NUM_DICTIONARIES, db_array);
     srand(iter);
 
     if (iter == 0) {
@@ -523,7 +523,7 @@ static void verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t num
 	k = i + firstkey;
 	v = generate_val(k);
         r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
-//        printf("k = %"PRIu64", v = %"PRIu64", key = %"PRIu64", val = %"PRIu64"\n",
+//        printf("k = %" PRIu64 ", v = %" PRIu64 ", key = %" PRIu64 ", val = %" PRIu64 "\n",
 //               k, v, *((int64_t *)(key1.data)), *((int64_t *)(val1.data)));
         assert(r1==0);
 	rval = verify_identical_dbts(&key1, &key2) |

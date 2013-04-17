@@ -137,7 +137,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     gettimeofday(&tend, NULL);
 
     assert(tdelta_usec(&tend, &tstart) >= 2000000); 
-    if (verbose) printf("time %"PRIu64" \n", tdelta_usec(&tend, &tstart));
+    if (verbose) printf("time %" PRIu64 " \n", tdelta_usec(&tend, &tstart));
     toku_cachetable_verify(ct);
 
     r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));

@@ -24,15 +24,15 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *k, *ov, *e, v;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(extra->size == sizeof(*e));
-    e = extra->data;
+    e = cast_to_typeof(e) extra->data;
     if (to_delete[*k]) {
         assert(old_val == NULL);
         v = _u(_v(*k), *e);
     } else {
         assert(old_val->size == sizeof(*ov));
-        ov = old_val->data;
+        ov = cast_to_typeof(ov) old_val->data;
         v = _u(*ov, *e);
     }
 
@@ -124,7 +124,7 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
         } else {
             CKERR(r);
             assert(val.size == sizeof(*vp));
-            vp = val.data;
+            vp = cast_to_typeof(vp) val.data;
             check_val(i, *vp);
         }
     }

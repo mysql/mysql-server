@@ -147,7 +147,7 @@ void *
 toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
-	ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+	HELGRIND_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
             __sync_add_and_fetch(&status.malloc_count, 1);
@@ -197,7 +197,7 @@ toku_memdup(const void *v, size_t len) {
 
 char *
 toku_strdup(const char *s) {
-    return toku_memdup(s, strlen(s)+1);
+    return (char *) toku_memdup(s, strlen(s)+1);
 }
 
 void
@@ -225,7 +225,7 @@ toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
-    ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+    HELGRIND_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         __sync_add_and_fetch(&status.malloc_count, 1);
@@ -275,7 +275,7 @@ toku_xmemdup (const void *v, size_t len) {
 
 char *
 toku_xstrdup (const char *s) {
-    return toku_xmemdup(s, strlen(s)+1);
+    return (char *) toku_xmemdup(s, strlen(s)+1);
 }
 
 void
@@ -320,5 +320,5 @@ toku_set_func_free(free_fun_t f) {
 void __attribute__((constructor)) toku_memory_helgrind_ignore(void);
 void
 toku_memory_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&status, sizeof status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&status, sizeof status);
 }

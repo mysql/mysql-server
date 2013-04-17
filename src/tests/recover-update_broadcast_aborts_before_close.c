@@ -22,9 +22,9 @@ static int update_fun(DB *UU(db),
 {
     unsigned int *k, *ov, v;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(old_val->size == sizeof(*ov));
-    ov = old_val->data;
+    ov = cast_to_typeof(ov) old_val->data;
     assert(extra->size == 0);
     v = _u(*ov, _e(*k));
 
@@ -100,7 +100,7 @@ static int verify_unchanged(DB_ENV *env, DB *db)
                 r = db->get(db, txn_1, keyp, valp, 0);
                 CKERR(r);
                 assert(val.size == sizeof(*vp));
-                vp = val.data;
+                vp = cast_to_typeof(vp) val.data;
                 assert(*vp == _v(i));
             }
         });

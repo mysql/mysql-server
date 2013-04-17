@@ -39,7 +39,7 @@ static int compare_int(DB *desc, const DBT *akey, const DBT *bkey) {
 static char **get_temp_files(const char *testdir) {
     int ntemp = 0;
     int maxtemp = 32;
-    char **tempfiles = toku_malloc(maxtemp * sizeof (char *)); assert(tempfiles);
+    char **XMALLOC_N(maxtemp, tempfiles);
 
     DIR *d = opendir(testdir);
     if (d) {
@@ -48,8 +48,7 @@ static char **get_temp_files(const char *testdir) {
             if (strncmp(de->d_name, "temp", 4) == 0) {
                 if (ntemp >= maxtemp-1) {
                     maxtemp = 2*maxtemp;
-                    tempfiles = toku_realloc(tempfiles, 2*maxtemp*sizeof (char *));
-                    assert(tempfiles);
+                    XREALLOC_N(2*maxtemp, tempfiles);
                 }
                 tempfiles[ntemp++] = toku_strdup(de->d_name);
             }
@@ -105,19 +104,20 @@ static void write_row(FILE *f, DBT *key, DBT *val) {
 static void read_tempfile(const char *testdir, const char *tempfile, int **tempkeys, int *ntempkeys) {
     int maxkeys = 32;
     int nkeys = 0;
-    int *keys = toku_calloc(maxkeys, sizeof (int));
-    assert(keys);
+    int *XCALLOC_N(maxkeys, keys);
 
     char fname[strlen(testdir) + 1 + strlen(tempfile) + 1];
     sprintf(fname, "%s/%s", testdir, tempfile);
     FILE *f = fopen(fname, "r");
     if (f) {
-        DBT key = { .flags = DB_DBT_REALLOC };
-        DBT val = { .flags = DB_DBT_REALLOC };
+        DBT key;
+        toku_init_dbt_flags(&key, DB_DBT_REALLOC);
+        DBT val;
+        toku_init_dbt_flags(&val, DB_DBT_REALLOC);
         while (read_row(f, &key, &val) == 0) {
             if (nkeys >= maxkeys) {
                 maxkeys *= 2;
-                keys = toku_realloc(keys, maxkeys * sizeof (int));
+                XREALLOC_N(maxkeys, keys);
             }
             assert(key.size == sizeof (int));
             memcpy(&keys[nkeys], key.data, key.size);
@@ -271,8 +271,10 @@ static void populate_rowset(struct rowset *rowset, int seq, int nrows, int keys[
     for (int i = 0; i < nrows; i++) {
         int k = keys[i];
         int v = seq * nrows + i;
-        DBT key = { .size = sizeof k, .data = &k };
-        DBT val = { .size = sizeof v, .data = &v };
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+        DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         add_row(rowset, &key, &val);
     }
 }
@@ -295,7 +297,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     int r;
 
     int nkeys = nrows * nrowsets;
-    int *keys = toku_calloc(nkeys, sizeof (int)); assert(keys);
+    int *XCALLOC_N(nkeys, keys);
     for (int i = 0; i < nkeys; i++)
         keys[i] = ascending_keys ? 2*i : nkeys - i;
     if (ascending_keys_poison) {

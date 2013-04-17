@@ -185,7 +185,8 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     }
     HANDLE_PANICKED_ENV(txn->mgrp);
     // Take the mo lock as soon as a non-readonly txn is found
-    bool holds_mo_lock = false;
+    bool holds_mo_lock;
+    holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
         // A readonly transaction does no logging, and therefore does not
         // need the MO lock.
@@ -205,9 +206,11 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
     assert(!db_txn_struct_i(txn)->child);
-    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    TOKUTXN ttxn;
+    ttxn = db_txn_struct_i(txn)->tokutxn;
     r = toku_txn_prepare_txn(ttxn, xid);
-    TOKULOGGER logger = txn->mgrp->i->logger;
+    TOKULOGGER logger;
+    logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
     bool do_fsync;
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
@@ -225,7 +228,7 @@ exit:
 static int
 toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     TOKU_XA_XID xid;
-    ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
+    HELGRIND_ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
     xid.formatID=0x756b6f54; // "Toku"
     xid.gtrid_length=DB_GID_SIZE/2;  // The maximum allowed gtrid length is 64.  See the XA spec in source:/import/opengroup.org/C193.pdf page 20.
     xid.bqual_length=DB_GID_SIZE/2; // The maximum allowed bqual length is 64.

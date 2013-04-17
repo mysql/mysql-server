@@ -22,7 +22,7 @@ static int const count = 1000;
 static int
 string_cmp(DB* UU(db), const DBT *a, const DBT *b)
 {
-    return strcmp(a->data, b->data);
+    return strcmp((char*)a->data, (char*)b->data);
 }
 
 static int

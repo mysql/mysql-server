@@ -18,10 +18,24 @@ extern "C" {
 #endif
 
 
+static inline int get_error_errno(void);
+
+static inline int
+get_maybe_error_errno(void)
+{
+    return errno;
+}
+
+static inline void
+set_errno(int new_errno)
+{
+    errno = new_errno;
+}
+
 void toku_assert_init(void) __attribute__((constructor));
 
 void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
-			       void (*toku_maybe_set_env_panic_pointer)(int, char*),
+			       void (*toku_maybe_set_env_panic_pointer)(int, const char*),
                                uint64_t num_rows);
 
 void toku_do_assert(int /*expr*/,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default")));
@@ -35,11 +49,11 @@ void toku_do_assert_zero_fail(uintptr_t/*expr*/, const char*/*expr_as_string*/,c
 extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
 
 #if defined(GCOV) || TOKU_WINDOWS
-#define assert(expr)      toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, errno)
-#define assert_zero(expr) toku_do_assert((expr) == 0, #expr, __FUNCTION__, __FILE__, __LINE__, errno)
+#define assert(expr)      toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
+#define assert_zero(expr) toku_do_assert((expr) == 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #else
-#define assert(expr)      ((expr)      ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
-#define assert_zero(expr) ((expr) == 0 ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, errno))
+#define assert(expr)      ((expr)      ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
+#define assert_zero(expr) ((expr) == 0 ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #endif
 
 #ifdef GCOV
@@ -58,6 +72,13 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define invariant_zero(a)       assert_zero(a) // indicates a code invariant that must be true
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable
+
+static inline int
+get_error_errno(void)
+{
+    invariant(errno);
+    return errno;
+}
 
 #if defined(__cplusplus)
 };

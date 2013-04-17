@@ -85,7 +85,7 @@ create_iname_hint(const char *dname, char *hint) {
 // n >= 0 means to include mark ("_B_" or "_P_") with hex value of n in iname
 // (intended for use by loader, which will create many inames using one txnid).
 static char *
-create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
+create_iname(DB_ENV *env, u_int64_t id, char *hint, const char *mark, int n) {
     int bytes;
     char inamebase[strlen(hint) +
                    8 +  // hex file format version
@@ -94,12 +94,12 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
                    sizeof("_B___.tokudb")]; // extra pieces
     if (n < 0)
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%"PRIx64"_%"PRIx32            ".tokudb",
+                         "%s_%" PRIx64 "_%" PRIx32            ".tokudb",
                          hint, id, FT_LAYOUT_VERSION);
     else {
         invariant(strlen(mark) == 1);
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%"PRIx64"_%"PRIx32"_%s_%"PRIx32".tokudb",
+                         "%s_%" PRIx64 "_%" PRIx32 "_%s_%" PRIx32 ".tokudb",
                          hint, id, FT_LAYOUT_VERSION, mark, n);
     }
     assert(bytes>0);
@@ -259,7 +259,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
     r = toku_db_get(db->dbenv->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
-    char *iname = iname_dbt.data;
+    char *iname = (char *) iname_dbt.data;
     if (r == DB_NOTFOUND && !is_db_create) {
         r = ENOENT;
     } else if (r==0 && is_db_excl) {
@@ -316,7 +316,7 @@ db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
 // Need to investigate further.
 static void
 db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
-    DB *db = extra;
+    DB *db = (DB *) extra;
     db_set_descriptors(db, ft_handle);
 }
 
@@ -330,7 +330,7 @@ struct lt_on_create_callback_extra {
 static void
 lt_on_create_callback(toku_lock_tree *lt, void *extra) {
     int r;
-    struct lt_on_create_callback_extra *info = extra;
+    struct lt_on_create_callback_extra *info = (struct lt_on_create_callback_extra *) extra;
     TOKUTXN ttxn = info->txn ? db_txn_struct_i(info->txn)->tokutxn : NULL;
     FT_HANDLE ft_handle = info->ft_handle;
 
@@ -345,7 +345,7 @@ lt_on_create_callback(toku_lock_tree *lt, void *extra) {
 // when a locktree closes, get its ft handle as userdata and close it.
 static void
 lt_on_close_callback(toku_lock_tree *lt) {
-    FT_HANDLE ft_handle = toku_lt_get_userdata(lt);
+    FT_HANDLE ft_handle = (FT_HANDLE) toku_lt_get_userdata(lt);
     assert(ft_handle);
     toku_ft_handle_close(ft_handle);
 }
@@ -452,7 +452,7 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
     if (!dname)
         return 0;
 
-    DBT key_in_directory = { .data = dname, .size = strlen(dname)+1 };
+    DBT key_in_directory = { .data = dname, .size = (uint32_t) strlen(dname)+1 };
     //Left end of range == right end of range (point lock)
     int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_WRITE);
     if (r == 0)
@@ -950,7 +950,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 // to indicate that the file is created by the brt loader.
 // Return 0 on success (could fail if write lock not available).
 static int
-load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
+load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new_inames_in_env[/*N*/], LSN *load_lsn, BOOL mark_as_loader) {
     int rval = 0;
     int i;
     
@@ -958,7 +958,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds new iname
     
-    char * mark;
+    const char *mark;
 
     if (mark_as_loader) {
         mark = "B";
@@ -979,7 +979,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in
         // now create new iname
         char hint[strlen(dname) + 1];
         create_iname_hint(dname, hint);
-        char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
+        const char *new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
         new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, txn, &dname_dbt, &iname_dbt, 0, TRUE);
@@ -1006,7 +1006,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in
 }
 
 int
-locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
+locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], char * new_inames_in_env[/*N*/], LSN *load_lsn, BOOL mark_as_loader) {
     int ret, r;
 
     DB_TXN *child_txn = NULL;
@@ -1018,7 +1018,7 @@ locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_in
 
     // cannot begin a checkpoint
     toku_multi_operation_client_lock();
-    r = load_inames(env, child_txn, N, dbs, new_inames_in_env, load_lsn, mark_as_loader);
+    r = load_inames(env, child_txn, N, dbs, (const char **) new_inames_in_env, load_lsn, mark_as_loader);
     toku_multi_operation_client_unlock();
 
     if (using_txns) {
@@ -1047,5 +1047,5 @@ locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_in
 void __attribute__((constructor)) toku_ydb_db_helgrind_ignore(void);
 void
 toku_ydb_db_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&ydb_db_layer_status, sizeof ydb_db_layer_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ydb_db_layer_status, sizeof ydb_db_layer_status);
 }

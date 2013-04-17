@@ -51,9 +51,15 @@ static long long mcount = 0, fcount=0;
 
 typedef size_t (*malloc_usable_size_fun_t)(void *p);
 #if defined(HAVE_MALLOC_USABLE_SIZE)
+# ifdef __cplusplus
+extern "C"
+# endif
 size_t malloc_usable_size(void *p);
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
 #elif defined(HAVE_MALLOC_SIZE)
+# ifdef __cplusplus
+extern "C"
+# endif
 size_t malloc_size(void *p);
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
 #endif
@@ -454,19 +460,19 @@ static void test_loader(DB **dbs)
     }
 }
 
-static char *envdir = ENVDIR;
-char *tmp_subdir = "tmp.subdir";
+static const char *envdir = ENVDIR;
+const char *tmp_subdir = "tmp.subdir";
 
 #ifndef OLDDATADIR
 #define OLDDATADIR "../../../../tokudb.data/"
 #endif
-char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.emptydictionaries.cleanshutdown";
+const char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.emptydictionaries.cleanshutdown";
 
 static void setup(void) {
     int r;
     int len = 256;
     char syscmd[len];
-    char * src_db_dir;
+    const char * src_db_dir;
 
     src_db_dir = db_v4_dir;
 

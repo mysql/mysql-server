@@ -47,14 +47,12 @@ test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {
         r = env->txn_begin(env, 0, &x2, DB_TXN_NOWAIT); CKERR(r);
     #endif
     DBT k1,k2,v1,v2;
-    memset(&k1, 0, sizeof(DBT));
-    memset(&k2, 0, sizeof(DBT));
+    dbt_init(&k1, "hello", sizeof "hello");
+    dbt_init(&k2, "hello", sizeof "hello");
+    dbt_init(&v1, "there", sizeof "there");
+    dbt_init(&v2, NULL, 0);
     memset(&v1, 0, sizeof(DBT));
     memset(&v2, 0, sizeof(DBT));
-    k2.data = k1.data = "hello";
-    k2.size = k1.size = 6;
-    v1.data = "there";
-    v1.size = 6;
     r = db->put(db, x1, &k1, &v1, 0); CKERR(r);
     r = db->get(db, x2, &k2, &v2, 0); assert(r==DB_LOCK_DEADLOCK || r==DB_LOCK_NOTGRANTED);
     r = x1->commit(x1, 0);         CKERR(r);

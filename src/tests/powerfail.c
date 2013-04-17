@@ -107,9 +107,9 @@ static long maxl (long a, long b) {
 }
 
 static void maxf (DBT *k, DBT *v, void *extrav) {
-    long *extra=extrav;
-    long *kd = k->data;
-    long *vd = v->data;
+    long *extra = cast_to_typeof(extra) extrav;
+    long *kd = cast_to_typeof(kd) k->data;
+    long *vd = cast_to_typeof(vd) v->data;
     extra[0] = maxl(extra[0], *kd);
     extra[1] = maxl(extra[0], *vd);
 }

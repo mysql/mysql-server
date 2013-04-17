@@ -8,7 +8,7 @@
 #include "rollback-ct-callbacks.h"
 
 static void rollback_unpin_remove_callback(CACHEKEY* cachekey, BOOL for_checkpoint, void* extra) {
-    FT h = extra;
+    FT h = cast_to_typeof(h) extra;
     toku_free_blocknum(
         h->blocktable, 
         cachekey,
@@ -21,7 +21,7 @@ static void rollback_unpin_remove_callback(CACHEKEY* cachekey, BOOL for_checkpoi
 void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    FT h = toku_cachefile_get_userdata(cf);
+    FT h = cast_to_typeof(h) toku_cachefile_get_userdata(cf);
     r = toku_cachetable_unpin_and_remove (cf, log->blocknum, rollback_unpin_remove_callback, h);
     assert(r == 0);
 }
@@ -73,7 +73,7 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
 
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    FT h = toku_cachefile_get_userdata(cf);
+    FT h = cast_to_typeof(h) toku_cachefile_get_userdata(cf);
 
     log->layout_version                = FT_LAYOUT_VERSION;
     log->layout_version_original       = FT_LAYOUT_VERSION;
@@ -130,8 +130,8 @@ void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
 }
 
 static int find_filenum (OMTVALUE v, void *hv) {
-    FT h = v;
-    FT hfind = hv;
+    FT h = cast_to_typeof(h) v;
+    FT hfind = cast_to_typeof(hfind) hv;
     FILENUM fnum     = toku_cachefile_filenum(h->cf);
     FILENUM fnumfind = toku_cachefile_filenum(hfind->cf);
     if (fnum.fileid<fnumfind.fileid) return -1;
@@ -176,7 +176,7 @@ void toku_maybe_prefetch_previous_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE lo
     if (name.b != ROLLBACK_NONE.b) {
         uint32_t hash = log->previous_hash;
         CACHEFILE cf = txn->logger->rollback_cachefile;
-        FT h = toku_cachefile_get_userdata(cf);
+        FT h = cast_to_typeof(h) toku_cachefile_get_userdata(cf);
         BOOL doing_prefetch = FALSE;
         r = toku_cachefile_prefetch(cf, name, hash,
                                     get_write_callbacks_for_rollback_log(h),
@@ -199,7 +199,7 @@ void toku_rollback_verify_contents(ROLLBACK_LOG_NODE log,
 void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash, ROLLBACK_LOG_NODE *log) {
     void * value;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    FT h = toku_cachefile_get_userdata(cf);
+    FT h = cast_to_typeof(h) toku_cachefile_get_userdata(cf);
     int r = toku_cachetable_get_and_pin(cf, blocknum, hash,
                                         &value, NULL,
                                         get_write_callbacks_for_rollback_log(h),
@@ -210,7 +210,7 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
                                         h
                                         );
     assert(r == 0);
-    ROLLBACK_LOG_NODE pinned_log = value;
+    ROLLBACK_LOG_NODE pinned_log = cast_to_typeof(pinned_log) value;
     assert(pinned_log->blocknum.b == blocknum.b);
     *log = pinned_log;
 }

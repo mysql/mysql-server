@@ -25,7 +25,7 @@ static void blocking_range_lock(DB_ENV *db_env, DB *db, uint64_t nrows, long sle
 
         r = txn->commit(txn, 0); assert(r == 0);
         if (verbose)
-            printf("%lu %"PRIu64"\n", (unsigned long) toku_pthread_self(), i);
+            printf("%lu %" PRIu64 "\n", (unsigned long) toku_pthread_self(), i);
     }
 }
 
@@ -48,8 +48,8 @@ int test_main(int argc, char * const argv[]) {
     uint64_t nrows = 100;
     int nthreads = 2;
     long sleeptime = 100000;
-    char *db_env_dir = ENVDIR;
-    char *db_filename = "test.db";
+    const char *db_env_dir = ENVDIR;
+    const char *db_filename = "test.db";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

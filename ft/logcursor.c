@@ -35,7 +35,7 @@ void toku_logcursor_print(TOKULOGCURSOR lc)  {
     printf("  n_logfiles = %d\n", lc->n_logfiles);
     printf("  cur_logfiles_index = %d\n", lc->cur_logfiles_index);
     printf("  cur_fp = %p\n", lc->cur_fp);
-    printf("  cur_lsn = %"PRIu64"\n", lc->cur_lsn.lsn);
+    printf("  cur_lsn = %" PRIu64 "\n", lc->cur_lsn.lsn);
     printf("  last_direction = %d\n", (int) lc->last_direction);
 }
 
@@ -81,7 +81,7 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
         return DB_NOTFOUND;
     // debug printf("%s:%d %s %p %u\n", __FUNCTION__, __LINE__, lc->logfiles[index], lc->buffer, (unsigned) lc->buffer_size);
 #if !TOKU_WINDOWS //Windows reads logs fastest if we use default settings (not use setvbuf to change buffering)
-    r = setvbuf(lc->cur_fp, lc->buffer, _IOFBF, lc->buffer_size);
+    r = setvbuf(lc->cur_fp, (char *) lc->buffer, _IOFBF, lc->buffer_size);
     assert(r == 0);
 #endif
     // position fp past header, ignore 0 length file (t:2384)
@@ -104,7 +104,7 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
     if (((dir == LC_FORWARD)  && ( lsn.lsn != lc->cur_lsn.lsn + 1 )) ||
         ((dir == LC_BACKWARD) && ( lsn.lsn != lc->cur_lsn.lsn - 1 ))) {
 //        int index = lc->cur_logfiles_index;
-//        fprintf(stderr, "Bad LSN: %d %s direction = %d, lsn.lsn = %"PRIu64", cur_lsn.lsn=%"PRIu64"\n", 
+//        fprintf(stderr, "Bad LSN: %d %s direction = %d, lsn.lsn = %" PRIu64 ", cur_lsn.lsn=%" PRIu64 "\n", 
 //                index, lc->logfiles[index], dir, lsn.lsn, lc->cur_lsn.lsn);
         if (tokudb_recovery_trace) 
             printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, 0);
@@ -172,12 +172,12 @@ int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const
 
     TOKULOGCURSOR cursor = *lc;
     int fullnamelen = strlen(cursor->logdir) + strlen(log_file) + 3;
-    char *log_file_fullname = toku_xmalloc(fullnamelen);
+    char *XMALLOC_N(fullnamelen, log_file_fullname);
     sprintf(log_file_fullname, "%s/%s", cursor->logdir, log_file);
 
     cursor->n_logfiles=1;
 
-    char **logfiles = toku_xmalloc(sizeof(char**));
+    char **XMALLOC(logfiles);
     cursor->logfiles = logfiles;
     cursor->logfiles[0] = log_file_fullname;
     *lc = cursor;

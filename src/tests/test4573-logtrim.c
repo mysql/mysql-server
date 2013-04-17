@@ -66,7 +66,8 @@ int test_main (int UU(argc), char UU(*const argv[])) {
     r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
     for (int i=0; i<N; i++) {
 	DBT k;
-	DBT v = {.size=0};
+	DBT v;
+        dbt_init(&v, NULL, 0);
 	r = db->get(db, txn, dbt_init(&k, &i, sizeof(i)), &v, 0);
 	if (i%2==1) {
 	    assert(r==0);

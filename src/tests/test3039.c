@@ -98,8 +98,15 @@ void* reader_thread (void *arg)
     { int r = env->txn_begin(env, NULL, &txn, 0);                              CKERR(r); }
     char key[20];
     char data [200];
-    DBT keyd  = { .data = key,  .size = 0, .ulen = sizeof(key),  .flags = DB_DBT_USERMEM };
-    DBT datad = { .data = data, .size = 0, .ulen = sizeof(data), .flags = DB_DBT_USERMEM };
+    DBT keyd, datad;
+    keyd.data = key;
+    keyd.size = 0;
+    keyd.ulen = sizeof(key);
+    keyd.flags = DB_DBT_USERMEM;
+    datad.data = data;
+    datad.size = 0;
+    datad.ulen = sizeof(data);
+    datad.flags = DB_DBT_USERMEM;
 
 #define N_DISTINCT 16
     unsigned long long vals[N_DISTINCT];
@@ -143,12 +150,16 @@ void* reader_thread (void *arg)
 static
 void do_threads (unsigned long long N, int do_nonlocal) {
     toku_pthread_t ths[2];
-    struct reader_thread_state rstates[2] = {{.n_to_read = N,
-					      .do_local  = 1,
-					      .finish    = 0},
-					     {.n_to_read = -1,
-					      .do_local  = 0,
-					      .finish    = 0}};
+    struct reader_thread_state rstates[2] = {{.elapsed_time = 0.0,
+                                              .n_did_read = 0,
+                                              .n_to_read = (long long signed) N,
+                                              .do_local  = 1,
+                                              .finish    = 0},
+                                             {.elapsed_time = 0.0,
+                                              .n_did_read = 0,
+                                              .n_to_read = -1,
+                                              .do_local  = 0,
+                                              .finish    = 0}};
     int n_to_create = do_nonlocal ? 2 : 1;
     for (int i=0; i<n_to_create; i++) {
 	int r =  toku_pthread_create(&ths[i], 0, reader_thread, (void*)&rstates[i]);

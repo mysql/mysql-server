@@ -21,8 +21,8 @@
  */
 
 // Sets initial values for the given fractal tree node to be
-// desiralized
-inline void
+// deserialized
+void
 initialize_ftnode(FTNODE node, BLOCKNUM blocknum)
 {
     node->fullhash = 0xDEADBEEF; // <CER> Is this 'spoof' ok?
@@ -92,8 +92,7 @@ allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DA
 {
     XMALLOC_N(node->n_children, node->bp);
     // TODO: Fix this to use xmalloc_n
-    // XMALLOC_N(node->n_children, *ndd);
-    *ndd = toku_xmalloc(node->n_children * sizeof(**ndd));
+    XMALLOC_N(node->n_children, *ndd);
     // Read the partition locations.
     for (int i = 0; i < node->n_children; i++) {
         BP_START(*ndd, i) = rbuf_int(rb);

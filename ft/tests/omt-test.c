@@ -827,7 +827,7 @@ test_clone(u_int32_t nelts)
         long *l;
         r = toku_omt_fetch(dest, i, &v);
         assert_zero(r);
-        l = v;
+        l = cast_to_typeof(l) v;
         assert(*l == i);
     }
     toku_omt_free_items_pool(dest);
@@ -841,7 +841,7 @@ test_clone(u_int32_t nelts)
         long *l;
         r = toku_omt_fetch(dest, i, &v);
         assert_zero(r);
-        l = v;
+        l = cast_to_typeof(l) v;
         assert(*l == i);
     }
     toku_omt_free_items(dest);

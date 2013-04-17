@@ -32,7 +32,7 @@ make_node(FT_HANDLE brt, int height) {
 }
 
 static void
-append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen) {
+append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *val, uint32_t vallen) {
     assert(leafnode->height == 0);
 
     DBT thekey; toku_fill_dbt(&thekey, key, keylen);
@@ -45,7 +45,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, size_t keylen, void *val,
 
     // apply an insert to the leaf node
     MSN msn = next_dummymsn();
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
 
     u_int64_t workdone=0;
     toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, &cmd, &workdone, NULL);
@@ -55,7 +55,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, size_t keylen, void *val,
 	assert(pair.call_count==1);
     }
 
-    FT_MSG_S badcmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
+    FT_MSG_S badcmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval }} };
     toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, &badcmd, &workdone, NULL);
 
     
@@ -68,7 +68,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, size_t keylen, void *val,
 
     // now verify that message with proper msn gets through
     msn = next_dummymsn();
-    FT_MSG_S cmd2 = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &val2 } };
+    FT_MSG_S cmd2 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &val2 }} };
     toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, &cmd2, &workdone, NULL);
     
     // message should be accepted, val should have new value
@@ -80,7 +80,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, size_t keylen, void *val,
 
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
-    FT_MSG_S cmd3 = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
+    FT_MSG_S cmd3 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval } }};
     toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, &cmd3, &workdone, NULL);
     
     // message should be rejected, val should still have value in pair2
@@ -109,7 +109,10 @@ test_msnfilter(int do_verify) {
     // cleanup
     char fname[]= __SRCFILE__ ".ft_handle";
     r = unlink(fname);
-    assert(r == 0 || (r == -1 && errno == ENOENT));
+    if (r != 0) {
+        assert(r == -1);
+        assert(get_error_errno() == ENOENT);
+    }
 
     // create a cachetable
     CACHETABLE ct = NULL;

@@ -50,7 +50,7 @@ static void make_db (BOOL close_env) {
     for (i=0; i<maxcount; i++) {
 	char hello[30], there[30];
 	DBT key,data;
-	struct in_db *newitem = toku_malloc(sizeof(*newitem));
+	struct in_db *XMALLOC(newitem);
 	newitem->r = random();
 	newitem->i = i;
 	newitem->next = items;

@@ -1,4 +1,4 @@
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
 if(BUILD_TESTING)
   file(GLOB transparent_upgrade_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" upgrade*.c)
@@ -389,7 +389,7 @@ if(BUILD_TESTING)
     add_test(NAME ydb/test1426.tdb
       COMMAND run_test1426.sh
           $<TARGET_FILE:test1426.tdb> $<TARGET_FILE:test1426.bdb>
-          $<TARGET_FILE:tokudb_dump> "${BDBDIR}/bin/db_dump")
+          $<TARGET_FILE:tokudb_dump> "${BDB_INCLUDE_DIR}/../bin/db_dump")
     add_dependencies(test1426.tdb tokudb_dump)
   endif()
 

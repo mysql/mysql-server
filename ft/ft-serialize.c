@@ -117,7 +117,7 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
                 }
             }
             {
-                struct rbuf rb = {.buf = dbuf, .size = size, .ndone = 0};
+                struct rbuf rb = {.buf = dbuf, .size = (unsigned int) size, .ndone = 0};
                 //Not temporary; must have a toku_memdup'd copy.
                 deserialize_descriptor_from_rbuf(&rb, desc, layout_version);
             }
@@ -148,10 +148,6 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     lazy_assert(memcmp(magic,"tokudata",8)==0);
 
     XCALLOC(ft);
-    if (!ft) {
-        r = errno;
-        goto exit;
-    }
     ft->checkpoint_header = NULL;
     ft->panic = 0;
     ft->panic_string = 0;
@@ -163,23 +159,31 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     invariant(ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION);
 
     //build_id MUST be in network order on disk regardless of disk order
-    uint32_t build_id = rbuf_network_int(rb);
+    uint32_t build_id;
+    build_id = rbuf_network_int(rb);
 
     //Size MUST be in network order regardless of disk order.
-    u_int32_t size = rbuf_network_int(rb);
+    u_int32_t size;
+    size = rbuf_network_int(rb);
     lazy_assert(size == rb->size);
 
     bytevec tmp_byte_order_check;
     lazy_assert((sizeof tmp_byte_order_check) >= 8);
     rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
-    int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
+    int64_t byte_order_stored;
+    byte_order_stored = *(int64_t*)tmp_byte_order_check;
     lazy_assert(byte_order_stored == toku_byte_order_host);
 
-    uint64_t checkpoint_count = rbuf_ulonglong(rb);
-    LSN checkpoint_lsn = rbuf_lsn(rb);
-    unsigned nodesize = rbuf_int(rb);
-    DISKOFF translation_address_on_disk = rbuf_diskoff(rb);
-    DISKOFF translation_size_on_disk = rbuf_diskoff(rb);
+    uint64_t checkpoint_count;
+    checkpoint_count = rbuf_ulonglong(rb);
+    LSN checkpoint_lsn;
+    checkpoint_lsn = rbuf_lsn(rb);
+    unsigned nodesize;
+    nodesize = rbuf_int(rb);
+    DISKOFF translation_address_on_disk;
+    translation_address_on_disk = rbuf_diskoff(rb);
+    DISKOFF translation_size_on_disk;
+    translation_size_on_disk = rbuf_diskoff(rb);
     lazy_assert(translation_address_on_disk > 0);
     lazy_assert(translation_size_on_disk > 0);
 
@@ -210,16 +214,22 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
         }
     }
 
-    BLOCKNUM root_blocknum = rbuf_blocknum(rb);
-    unsigned flags = rbuf_int(rb);
+    BLOCKNUM root_blocknum;
+    root_blocknum = rbuf_blocknum(rb);
+    unsigned flags;
+    flags = rbuf_int(rb);
     if (ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_13) {
         // deprecate 'TOKU_DB_VALCMP_BUILTIN'. just remove the flag
         flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
     }
-    int layout_version_original = rbuf_int(rb);
-    uint32_t build_id_original = rbuf_int(rb);
-    uint64_t time_of_creation = rbuf_ulonglong(rb);
-    uint64_t time_of_last_modification = rbuf_ulonglong(rb);
+    int layout_version_original;
+    layout_version_original = rbuf_int(rb);
+    uint32_t build_id_original;
+    build_id_original = rbuf_int(rb);
+    uint64_t time_of_creation;
+    time_of_creation = rbuf_ulonglong(rb);
+    uint64_t time_of_last_modification;
+    time_of_last_modification = rbuf_ulonglong(rb);
 
     if (ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_18) {
         // 17 was the last version with these fields, we no longer store
@@ -231,25 +241,33 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     }
 
     // fake creation during the last checkpoint
-    TXNID root_xid_that_created = checkpoint_lsn.lsn;
+    TXNID root_xid_that_created;
+    root_xid_that_created = checkpoint_lsn.lsn;
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_14) {
         rbuf_TXNID(rb, &root_xid_that_created);
     }
 
     // TODO(leif): get this to default to what's specified, not the
     // hard-coded default
-    unsigned basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
-    uint64_t time_of_last_verification = 0;
+    unsigned basementnodesize;
+    basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
+    uint64_t time_of_last_verification;
+    time_of_last_verification = 0;
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_15) {
         basementnodesize = rbuf_int(rb);
         time_of_last_verification = rbuf_ulonglong(rb);
     }
 
-    STAT64INFO_S on_disk_stats = ZEROSTATS;
-    uint64_t time_of_last_optimize_begin = 0;
-    uint64_t time_of_last_optimize_end = 0;
-    uint32_t count_of_optimize_in_progress = 0;
-    MSN msn_at_start_of_last_completed_optimize = ZERO_MSN;
+    STAT64INFO_S on_disk_stats;
+    on_disk_stats = ZEROSTATS;
+    uint64_t time_of_last_optimize_begin;
+    time_of_last_optimize_begin = 0;
+    uint64_t time_of_last_optimize_end;
+    time_of_last_optimize_end = 0;
+    uint32_t count_of_optimize_in_progress;
+    count_of_optimize_in_progress = 0;
+    MSN msn_at_start_of_last_completed_optimize;
+    msn_at_start_of_last_completed_optimize = ZERO_MSN;
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_18) {
         on_disk_stats.numrows = rbuf_ulonglong(rb);
         on_disk_stats.numbytes = rbuf_ulonglong(rb);
@@ -261,7 +279,8 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     }
 
     enum toku_compression_method compression_method;
-    MSN highest_unused_msn_for_upgrade = (MSN) { .msn = (MIN_MSN.msn - 1) };
+    MSN highest_unused_msn_for_upgrade;
+    highest_unused_msn_for_upgrade.msn = (MIN_MSN.msn - 1);
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_19) {
         unsigned char method = rbuf_char(rb);
         compression_method = (enum toku_compression_method) method;
@@ -282,33 +301,35 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
         goto exit;
     }
 
-    struct ft_header h = {
-        .type = FT_CURRENT,
-        .dirty = 0,
-        .checkpoint_count = checkpoint_count,
-        .checkpoint_lsn = checkpoint_lsn,
-        .layout_version = FT_LAYOUT_VERSION,
-        .layout_version_original = layout_version_original,
-        .build_id = build_id,
-        .build_id_original = build_id_original,
-        .time_of_creation = time_of_creation,
-        .root_xid_that_created = root_xid_that_created,
-        .time_of_last_modification = time_of_last_modification,
-        .time_of_last_verification = time_of_last_verification,
-        .root_blocknum = root_blocknum,
-        .flags = flags,
-        .nodesize = nodesize,
-        .basementnodesize = basementnodesize,
-        .compression_method = compression_method,
-        .highest_unused_msn_for_upgrade = highest_unused_msn_for_upgrade,
-        .time_of_last_optimize_begin = time_of_last_optimize_begin,
-        .time_of_last_optimize_end = time_of_last_optimize_end,
-        .count_of_optimize_in_progress = count_of_optimize_in_progress,
-        .count_of_optimize_in_progress_read_from_disk = count_of_optimize_in_progress,
-        .msn_at_start_of_last_completed_optimize = msn_at_start_of_last_completed_optimize,
-        .on_disk_stats = on_disk_stats
-    };
-    ft->h = toku_xmemdup(&h, sizeof h);
+    {
+        struct ft_header h = {
+            .type = FT_CURRENT,
+            .dirty = 0,
+            .checkpoint_count = checkpoint_count,
+            .checkpoint_lsn = checkpoint_lsn,
+            .layout_version = FT_LAYOUT_VERSION,
+            .layout_version_original = layout_version_original,
+            .build_id = build_id,
+            .build_id_original = build_id_original,
+            .time_of_creation = time_of_creation,
+            .root_xid_that_created = root_xid_that_created,
+            .time_of_last_modification = time_of_last_modification,
+            .time_of_last_verification = time_of_last_verification,
+            .root_blocknum = root_blocknum,
+            .flags = flags,
+            .nodesize = nodesize,
+            .basementnodesize = basementnodesize,
+            .compression_method = compression_method,
+            .highest_unused_msn_for_upgrade = highest_unused_msn_for_upgrade,
+            .time_of_last_optimize_begin = time_of_last_optimize_begin,
+            .time_of_last_optimize_end = time_of_last_optimize_end,
+            .count_of_optimize_in_progress = count_of_optimize_in_progress,
+            .count_of_optimize_in_progress_read_from_disk = count_of_optimize_in_progress,
+            .msn_at_start_of_last_completed_optimize = msn_at_start_of_last_completed_optimize,
+            .on_disk_stats = on_disk_stats
+        };
+        XMEMDUP(ft->h, &h);
+    }
 
     if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
         // This needs ft->h to be non-null, so we have to do it after we
@@ -427,8 +448,7 @@ deserialize_ft_from_fd_into_rbuf(int fd,
         if (n==0) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
         } else if (n<0) {
-            r = errno;
-            lazy_assert(r!=0);
+            r = get_error_errno();
         } else {
             r = EINVAL;
         }
@@ -450,7 +470,8 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     }
 
     //Version MUST be in network order regardless of disk order.
-    u_int32_t version = rbuf_network_int(rb);
+    u_int32_t version;
+    version = rbuf_network_int(rb);
     *version_p = version;
     if (version < FT_LAYOUT_MIN_SUPPORTED_VERSION) {
         r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
@@ -461,29 +482,30 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     }
 
     //build_id MUST be in network order regardless of disk order.
-    u_int32_t build_id __attribute__((__unused__)) = rbuf_network_int(rb);
-    const int64_t max_header_size = BLOCK_ALLOCATOR_HEADER_RESERVE;
-    int64_t min_header_size = serialize_ft_min_size(version);
+    u_int32_t build_id __attribute__((__unused__));
+    build_id = rbuf_network_int(rb);
+    int64_t min_header_size;
+    min_header_size = serialize_ft_min_size(version);
 
     //Size MUST be in network order regardless of disk order.
-    u_int32_t size = rbuf_network_int(rb);
+    u_int32_t size;
+    size = rbuf_network_int(rb);
     //If too big, it is corrupt.  We would probably notice during checksum
     //but may have to do a multi-gigabyte malloc+read to find out.
     //If its too small reading rbuf would crash, so verify.
-    if (size > max_header_size || size < min_header_size) {
+    if (size > BLOCK_ALLOCATOR_HEADER_RESERVE || size < min_header_size) {
         r = TOKUDB_DICTIONARY_NO_HEADER;
         goto exit;
     }
 
     lazy_assert(rb->ndone==prefix_size);
     rb->size = size;
-    rb->buf = toku_xmalloc(rb->size);
+    XMALLOC_N(rb->size, rb->buf);
 
     n = toku_os_pread(fd, rb->buf, rb->size, offset_of_header);
     if (n != rb->size) {
         if (n < 0) {
-            r = errno;
-            lazy_assert(r!=0);
+            r = get_error_errno();
         } else {
             r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
         }
@@ -494,8 +516,10 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     //Size is within acceptable bounds.
 
     //Verify checksum (FT_LAYOUT_VERSION_13 or later, when checksum function changed)
-    u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
-    u_int32_t stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
+    u_int32_t calculated_x1764;
+    calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
+    u_int32_t stored_x1764;
+    stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
     if (calculated_x1764 != stored_x1764) {
         r = TOKUDB_BAD_CHECKSUM; //Header useless
         fprintf(stderr, "Header checksum failure: calc=0x%08x read=0x%08x\n", calculated_x1764, stored_x1764);
@@ -506,7 +530,8 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     bytevec tmp_byte_order_check;
     lazy_assert((sizeof toku_byte_order_host) == 8);
     rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
-    int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
+    int64_t byte_order_stored;
+    byte_order_stored = *(int64_t*)tmp_byte_order_check;
     if (byte_order_stored != toku_byte_order_host) {
         r = TOKUDB_DICTIONARY_NO_HEADER; //Cannot use dictionary
         goto exit;

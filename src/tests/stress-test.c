@@ -37,7 +37,8 @@ char some_data[200] = ("abetefocebbrk3894d,h"
 static int
 pair_cmp(const void *a, const void *b)
 {
-    const struct pair *p1 = a, *p2 = b;
+    const struct pair *p1 = cast_to_typeof(p1) a;
+    const struct pair *p2 = cast_to_typeof(p2) b;
     if (p1->key.size < p2->key.size) {
         int c = memcmp(p1->key.data, p2->key.data, p1->key.size);
         if (!c) {

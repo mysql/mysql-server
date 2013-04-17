@@ -18,7 +18,7 @@ static int verify_nodes(TXNID id, void *extra) {
 }
 
 static void verify_nodes_in_cycle(struct wfg *cycles, TXNID a, TXNID b) {
-    struct verify_extra verify_extra = { .next_id = a, .ids = { a, b } };
+    struct verify_extra verify_extra = { .next_id = (int) a, .ids = { a, b } };
     wfg_apply_nodes(cycles, verify_nodes, &verify_extra);
     assert(verify_extra.next_id == 2);
 }

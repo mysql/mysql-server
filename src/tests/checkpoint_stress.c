@@ -217,7 +217,7 @@ run_test (int iter, int die) {
     if (iter & 2) cachebytes = 0;       // use default cachesize half the time
 
     if (verbose)
-	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08"PRIx64"\n", iter, cachebytes);
+	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08" PRIx64 "\n", iter, cachebytes);
 
     int recovery_flags = 0;
     if ( do_log_recover ) {

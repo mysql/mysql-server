@@ -107,7 +107,7 @@ void toku_txn_set_container_db_txn (TOKUTXN tokutxn, DB_TXN*container) {
 }
 
 static void invalidate_xa_xid (TOKU_XA_XID *xid) {
-    ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
+    HELGRIND_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 
@@ -139,8 +139,8 @@ toku_txn_create_txn (
         .num_rollentries_processed = 0,
         .rollentry_raw_count = 0,
         .spilled_rollback_head = ROLLBACK_NONE,
-        .spilled_rollback_tail = ROLLBACK_NONE,
         .spilled_rollback_head_hash = 0,
+        .spilled_rollback_tail = ROLLBACK_NONE,
         .spilled_rollback_tail_hash = 0,
         .current_rollback = ROLLBACK_NONE,
         .current_rollback_hash = 0,
@@ -148,30 +148,34 @@ toku_txn_create_txn (
 
     struct tokutxn new_txn = {
         .starttime = time(NULL),
-        .open_fts = open_fts,
-        .logger = logger,
-        .parent = parent_tokutxn,
-        .progress_poll_fun = NULL,
-        .progress_poll_fun_extra = NULL,
-        .snapshot_type = snapshot_type,
-        .snapshot_txnid64 = TXNID_NONE,
-        .container_db_txn = container_db_txn,
-        .force_fsync_on_commit = FALSE,
-        .begin_was_logged = false,
-        .recovered_from_checkpoint = for_checkpoint,
-        .checkpoint_needed_before_commit = FALSE,
-        .state = TOKUTXN_LIVE,
-        .do_fsync = FALSE,
-        .do_fsync_lsn = ZERO_LSN,
         .txnid64 = TXNID_NONE,
         .ancestor_txnid64 = TXNID_NONE,
+        .snapshot_txnid64 = TXNID_NONE,
+        .snapshot_type = snapshot_type,
+        .recovered_from_checkpoint = for_checkpoint,
+        .logger = logger,
+        .parent = parent_tokutxn,
+        .container_db_txn = container_db_txn,
+        .live_root_txn_list = NULL,
         .xids = xids,
+        .begin_was_logged = false,
+        .checkpoint_needed_before_commit = FALSE,
+        .do_fsync = FALSE,
+        .force_fsync_on_commit = FALSE,
+        .do_fsync_lsn = ZERO_LSN,
+        .xa_xid = {0},
+        .progress_poll_fun = NULL,
+        .progress_poll_fun_extra = NULL,
+        .txn_lock = {{{0}}},
+        .open_fts = open_fts,
         .roll_info = roll_info,
+        .state = TOKUTXN_LIVE,
+        .prepared_txns_link = {0},
         .num_pin = 0
     };
 
 
-    TOKUTXN result = toku_xmemdup(&new_txn, sizeof new_txn);
+    TOKUTXN XMEMDUP(result, &new_txn);
     toku_mutex_init(&result->txn_lock, NULL);
     invalidate_xa_xid(&result->xa_xid);
     *tokutxn = result;
@@ -339,7 +343,7 @@ cleanup:
 }
 
 static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
-    ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
+    HELGRIND_ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
     dest->formatID     = source->formatID;
     dest->gtrid_length = source->gtrid_length;
     dest->bqual_length = source->bqual_length;
@@ -401,8 +405,8 @@ static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
 // Effect:  This function is called on every open FT that a transaction used.
 //  This function removes the transaction from that FT.
 {
-    FT h = hv;
-    TOKUTXN txn = txnv;
+    FT h = cast_to_typeof(h) hv;
+    TOKUTXN txn = cast_to_typeof(txn) txnv;
 
     if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
         h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
@@ -491,9 +495,12 @@ maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
     if (txn->begin_was_logged) {
         goto cleanup;
     }
-    TOKUTXN parent = txn->parent;
-    TXNID xid = txn->txnid64;
-    TXNID pxid = 0;
+    TOKUTXN parent;
+    parent = txn->parent;
+    TXNID xid;
+    xid = txn->txnid64;
+    TXNID pxid;
+    pxid = 0;
     if (parent) {
         // Recursively log parent first if necessary.
         // Transactions cannot do work if they have children,
@@ -502,7 +509,8 @@ maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
         pxid = parent->txnid64;
     }
 
-    int r = toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
+    int r;
+    r = toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
     lazy_assert_zero(r);
 
     txn->begin_was_logged = true;
@@ -536,7 +544,7 @@ toku_txn_is_read_only(TOKUTXN txn) {
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);
 void
 toku_txn_status_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&txn_status, sizeof txn_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&txn_status, sizeof txn_status);
 }
 
 #undef STATUS_VALUE

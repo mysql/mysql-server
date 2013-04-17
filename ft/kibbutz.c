@@ -72,7 +72,7 @@ static void ksignal (KIBBUTZ k) {
 // to avoid deadlocks in flusher threads.
 //
 static void *work_on_kibbutz (void *kidv) {
-    struct kid *kid = kidv;
+    struct kid *kid = cast_to_typeof(kid) kidv;
     KIBBUTZ k = kid->k;
     klock(k);
     while (1) {

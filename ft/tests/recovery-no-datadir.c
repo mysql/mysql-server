@@ -21,7 +21,7 @@ run_test(void) {
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
-    BYTESTRING hello  = { strlen("hello"), "hello" };
+    BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
     r = toku_log_comment(logger, NULL, TRUE, 0, hello);
     r = toku_logger_close(&logger); assert(r == 0);
 

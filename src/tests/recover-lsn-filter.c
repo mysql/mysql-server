@@ -9,7 +9,7 @@
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
-char *namea="a.db";
+const char *namea="a.db";
 
 static void run_test (void) {
     int r;
@@ -36,8 +36,9 @@ static void run_test (void) {
     {
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
-	DBT k={.data="a", .size=2};
-	DBT v={.data="a", .size=2};
+        DBT k,v;
+        dbt_init(&k, "a", 2);
+        dbt_init(&v, "b", 2);
 	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
@@ -46,8 +47,9 @@ static void run_test (void) {
     {
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
-	DBT k={.data="a", .size=2};
-	DBT v={.data="b", .size=2};
+        DBT k,v;
+        dbt_init(&k, "a", 2);
+        dbt_init(&v, "b", 2);
 	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
     }
 

@@ -21,7 +21,7 @@ MEMARENA memarena_create_presized (size_t initial_size) {
     result->other_bufs = NULL;
     result->size_of_other_bufs = 0;
     result->n_other_bufs = 0;
-    result->buf = toku_malloc(result->buf_size);  assert(result->buf);
+    XMALLOC_N(result->buf_size, result->buf);
     return result;
 }
 
@@ -69,8 +69,7 @@ void* malloc_in_memarena (MEMARENA ma, size_t size) {
 	    size_t new_size = 2*ma->buf_size;
 	    if (new_size<size) new_size=size;
 	    new_size=round_to_page(new_size); // at least size, but round to the next page size
-	    ma->buf = toku_malloc(new_size);
-	    assert(ma->buf);
+	    XMALLOC_N(new_size, ma->buf);
 	    ma->buf_used = 0;
 	    ma->buf_size = new_size;
 	}

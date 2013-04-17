@@ -29,7 +29,7 @@ insert (int i) {
 }
 
 static void
-delete (int i) {
+op_delete (int i) {
     char hello[30];
     DBT key;
     snprintf(hello, sizeof(hello), "hello%d", i);
@@ -69,8 +69,8 @@ find_first_or_last (int i, int cflag) {
     snprintf(hello, sizeof(hello), "hello%d", i);
     snprintf(there, sizeof(there), "there%d", i);
 
-    assert(strcmp(hello, key.data)==0);
-    assert(strcmp(there, val.data)==0);
+    assert(strcmp(hello, (char*)key.data)==0);
+    assert(strcmp(there, (char*)val.data)==0);
 
     r = cursor->c_close(cursor);
 }
@@ -101,17 +101,17 @@ do_abort_delete_first_or_last(int N,
     }
     r=txn->commit(txn, 0); CKERR(r);
 
-    // Now delete a bunch of stuff and see if we can do DB_FIRST
+    // Now op_delete a bunch of stuff and see if we can do DB_FIRST
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     if (first) {
 	for (i=0; i<N-1; i++) {
-	    delete(i);
+	    op_delete(i);
 	}
 	find(i);
 	find_first_or_last(i, DB_FIRST);
     } else {
 	for (i=1; i<N; i++) {
-	    delete(i);
+	    op_delete(i);
 	}
 	find_first_or_last(0, DB_LAST);
     }

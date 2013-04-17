@@ -27,10 +27,10 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *k, *ov, e, v;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(should_insert(*k));
     assert(old_val->size == sizeof(*ov));
-    ov = old_val->data;
+    ov = cast_to_typeof(ov) old_val->data;
     assert(extra->size == 0);
     if (should_update(*k)) {
         e = _e(*k);
@@ -96,7 +96,7 @@ static int do_verify_results(DB_TXN *txn, DB *db) {
         } else if (should_insert(i)) {
             CKERR(r);
             assert(val.size == sizeof(*vp));
-            vp = val.data;
+            vp = cast_to_typeof(vp) val.data;
             if (should_update(i)) {
                 assert(*vp == _u(_v(i), _e(i)));
             } else {

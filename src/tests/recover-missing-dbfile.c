@@ -35,8 +35,9 @@ static void run_test (void) {
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
-	DBT a={.data="a", .size=2};
-	DBT b={.data="b", .size=2};
+        DBT a,b;
+        dbt_init(&a, "a", 2);
+        dbt_init(&b, "b", 2);
 	r = dba->put(dba, txn, &a, &b, 0);                                CKERR(r);
     }
 

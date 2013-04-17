@@ -108,7 +108,7 @@ struct count_msgs_extra {
 static int
 count_msgs(OMTVALUE v, u_int32_t UU(idx), void *ve)
 {
-    struct count_msgs_extra *e = ve;
+    struct count_msgs_extra *e = cast_to_typeof(e) ve;
     long offset = (long) v;
     const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
     if (entry->msn.msn == e->msn.msn) {
@@ -130,7 +130,7 @@ struct verify_message_tree_extra {
 static int
 verify_message_tree(OMTVALUE v, u_int32_t UU(idx), void *ve)
 {
-    struct verify_message_tree_extra *e = ve;
+    struct verify_message_tree_extra *e = cast_to_typeof(e) ve;
     int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
     int keep_going_on_failure = e->keep_going_on_failure;

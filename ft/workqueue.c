@@ -34,7 +34,7 @@ void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
 }
 
 void *toku_worker(void *arg) {
-    WORKQUEUE wq = arg;
+    WORKQUEUE wq = cast_to_typeof(wq) arg;
     int r;
     while (1) {
         WORKITEM wi = 0;

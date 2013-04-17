@@ -129,8 +129,8 @@ block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allocator
 
 static int
 compare_blockpairs (const void *av, const void *bv) {
-    const struct block_allocator_blockpair *a = av;
-    const struct block_allocator_blockpair *b = bv;
+    const struct block_allocator_blockpair *a = (const struct block_allocator_blockpair *) av;
+    const struct block_allocator_blockpair *b = (const struct block_allocator_blockpair *) bv;
     if (a->offset < b->offset) return -1;
     if (a->offset > b->offset) return +1;
     return 0;
@@ -156,7 +156,7 @@ block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct 
 
 void
 block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
-    struct block_allocator_blockpair p = {.size = size, .offset=offset};
+    struct block_allocator_blockpair p = {.offset = offset, .size=size};
     // Just do a linear search for the block.
     // This data structure is a sorted array (no gaps or anything), so the search isn't really making this any slower than the insertion.
     // To speed up the insertion when opening a file, we provide the block_allocator_alloc_blocks_at function.

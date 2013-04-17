@@ -151,7 +151,7 @@ int main(int argc, const char *argv[]) {
         assert(t.curr_lock_memory > s.curr_lock_memory);
         
         if (verbose)
-            printf("%"PRIu64" %"PRIu64"\n", i, t.curr_lock_memory - s.curr_lock_memory);
+            printf("%" PRIu64 " %" PRIu64 "\n", i, t.curr_lock_memory - s.curr_lock_memory);
         
         s = t;
     }

@@ -16,7 +16,7 @@ ftnode_get_key_and_fullhash(
     u_int32_t* fullhash,
     void* extra)
 {
-    FT h = extra;
+    FT h = (FT) extra;
     BLOCKNUM name;
     toku_allocate_blocknum(h->blocktable, &name, h);
     *cachekey = name;
@@ -148,7 +148,7 @@ toku_pin_ftnode(
             bfe, //read_extraargs
             unlockers);
     if (r==0) {
-        FTNODE node = node_v;
+        FTNODE node = (FTNODE) node_v;
         if (apply_ancestor_messages) {
             maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
         }
@@ -203,7 +203,7 @@ toku_pin_ftnode_off_client_thread(
         dependent_dirty_bits
         );
     assert(r==0);
-    FTNODE node = node_v;
+    FTNODE node = (FTNODE) node_v;
     *node_p = node;
 }
 

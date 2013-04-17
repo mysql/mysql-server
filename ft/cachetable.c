@@ -314,7 +314,7 @@ checkpoint_thread (void *cachetable_v)
 //  If someone sets the checkpoint_shutdown boolean , then this thread exits. 
 // This thread notices those changes by waiting on a condition variable.
 {
-    CACHETABLE ct = cachetable_v;
+    CACHETABLE ct = (CACHETABLE) cachetable_v;
     int r = toku_checkpoint(ct, ct->logger, NULL, NULL, NULL, NULL, SCHEDULED_CHECKPOINT);
     if (r) {
         fprintf(stderr, "%s:%d Got error %d while doing checkpoint\n", __FILE__, __LINE__, r);
@@ -375,12 +375,12 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     CACHETABLE MALLOC(ct);
     if (ct == 0) return ENOMEM;
     memset(ct, 0, sizeof(*ct));
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_nonleaf, sizeof ct->size_nonleaf); // modified only when the cachetable lock is held, but read by engine status
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_current, sizeof ct->size_current);
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_evicting, sizeof ct->size_evicting);
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_leaf, sizeof ct->size_leaf);
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_rollback, sizeof ct->size_rollback);
-    VALGRIND_HG_DISABLE_CHECKING(&ct->size_cachepressure, sizeof ct->size_cachepressure);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_nonleaf, sizeof ct->size_nonleaf); // modified only when the cachetable lock is held, but read by engine status
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_current, sizeof ct->size_current);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_evicting, sizeof ct->size_evicting);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_leaf, sizeof ct->size_leaf);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_rollback, sizeof ct->size_rollback);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct->size_cachepressure, sizeof ct->size_cachepressure);
     ct->table_size = 4;
     rwlock_init(&ct->pending_lock);
     XCALLOC_N(ct->table_size, ct->table);
@@ -514,7 +514,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     assert(filenum.fileid != FILENUM_NONE.fileid);
     r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=errno; close(fd); // no change for t:2444
+        r=get_error_errno(); close(fd); // no change for t:2444
         return r;
     }
     cachetable_lock(ct);
@@ -571,7 +571,7 @@ int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in
     char *fname_in_cwd = toku_construct_full_name(2, ct->env_dir, fname_in_env);
     int fd = open(fname_in_cwd, flags+O_BINARY, mode);
     int r;
-    if (fd<0) r = errno;
+    if (fd<0) r = get_error_errno();
     else      r = toku_cachetable_openfd (cfptr, ct, fd, fname_in_env);
     toku_free(fname_in_cwd);
     return r;
@@ -589,7 +589,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     struct fileid fileid;
     r=toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=errno; close(fd); goto cleanup; // no change for t:2444
+        r=get_error_errno(); close(fd); goto cleanup; // no change for t:2444
     }
     if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, 0, FALSE, ZERO_LSN))) {
         goto cleanup;
@@ -743,7 +743,7 @@ static void cachetable_rehash (CACHETABLE ct, u_int32_t newtable_size) {
     // printf("rehash %p %d %d %d\n", t, primeindexdelta, ct->n_in_table, ct->table_size);
 
     assert(newtable_size>=4 && ((newtable_size & (newtable_size-1))==0));
-    PAIR *newtable = toku_calloc(newtable_size, sizeof(*ct->table));
+    PAIR *XCALLOC_N(newtable_size, newtable);
     u_int32_t i;
     //printf("%s:%d newtable_size=%d\n", __FILE__, __LINE__, newtable_size);
     assert(newtable!=0);
@@ -1056,7 +1056,7 @@ static void cachetable_evict_pair(CACHETABLE ct, PAIR p) {
 
 // Worker thread function to writes and evicts  a pair from memory to its cachefile
 static void cachetable_evicter(WORKITEM wi) {
-    PAIR p = workitem_arg(wi);
+    PAIR p = (PAIR) workitem_arg(wi);
     CACHEFILE cf = p->cachefile;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -1121,7 +1121,7 @@ static void do_partial_eviction(CACHETABLE ct, PAIR p) {
 }
 
 static void cachetable_partial_eviction(WORKITEM wi) {
-    PAIR p = workitem_arg(wi);
+    PAIR p = (PAIR) workitem_arg(wi);
     CACHEFILE cf = p->cachefile;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -1407,7 +1407,7 @@ clone_pair(CACHETABLE ct, PAIR p) {
 }
 
 static void checkpoint_cloned_pair(WORKITEM wi) {
-    PAIR p = workitem_arg(wi);
+    PAIR p = (PAIR) workitem_arg(wi);
     CACHETABLE ct = p->cachefile->cachetable;
     cachetable_lock(ct);
     PAIR_ATTR new_attr;
@@ -1838,7 +1838,7 @@ static void cachetable_fetch_pair(
     if (!keep_pair_locked) {
         nb_mutex_unlock(&p->value_nb_mutex);
     }
-    if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
+    if (0) printf("%s:%d %" PRId64 " complete\n", __FUNCTION__, __LINE__, key.b);
 }
 
 static BOOL resolve_checkpointing_fast(PAIR p) {
@@ -2269,7 +2269,7 @@ struct cachefile_partial_prefetch_args {
 
 // Worker thread function to read a pair from a cachefile to memory
 static void cachetable_reader(WORKITEM wi) {
-    struct cachefile_prefetch_args* cpargs = workitem_arg(wi);
+    struct cachefile_prefetch_args* cpargs = (struct cachefile_prefetch_args *) workitem_arg(wi);
     CACHEFILE cf = cpargs->p->cachefile;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -2287,7 +2287,7 @@ static void cachetable_reader(WORKITEM wi) {
 }
 
 static void cachetable_partial_reader(WORKITEM wi) {
-    struct cachefile_partial_prefetch_args *cpargs = workitem_arg(wi);
+    struct cachefile_partial_prefetch_args *cpargs = (struct cachefile_partial_prefetch_args *) workitem_arg(wi);
     CACHEFILE cf = cpargs->p->cachefile;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -2459,7 +2459,7 @@ struct pair_flush_for_close{
 };
 
 static void cachetable_flush_pair_for_close(WORKITEM wi) {
-    struct pair_flush_for_close *args = workitem_arg(wi);
+    struct pair_flush_for_close *args = cast_to_typeof(args) workitem_arg(wi);
     PAIR p = args->p;
     CACHEFILE cf = p->cachefile;
     CACHETABLE ct = cf->cachetable;
@@ -2753,7 +2753,7 @@ int toku_cachetable_unpin_and_remove (
                     r = workqueue_deq(&cq, &wi, 1);
                     //Writer is now done.
                     assert(r == 0);
-                    PAIR pp = workitem_arg(wi);
+                    PAIR pp = (PAIR) workitem_arg(wi);
                     assert(pp == p);
 
                     //We are holding the write lock on the pair
@@ -2791,8 +2791,8 @@ int toku_cachetable_unpin_and_remove (
 
 static int
 set_filenum_in_array(OMTVALUE hv, u_int32_t index, void*arrayv) {
-    FILENUM *array = arrayv;
-    FT h = hv;
+    FILENUM *array = (FILENUM *) arrayv;
+    FT h = (FT) hv;
     array[index] = toku_cachefile_filenum(h->cf);
     return 0;
 }
@@ -2800,7 +2800,7 @@ set_filenum_in_array(OMTVALUE hv, u_int32_t index, void*arrayv) {
 static int
 log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
     int r;
-    TOKUTXN    txn    = txnv;
+    TOKUTXN    txn    = (TOKUTXN) txnv;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
     uint32_t num_filenums = toku_omt_size(txn->open_fts);
@@ -2809,7 +2809,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
         goto cleanup;
     }
     else {
-        CACHETABLE ct = extra;
+        CACHETABLE ct = (CACHETABLE) extra;
         ct->checkpoint_num_txns++;
     }
 
@@ -2900,7 +2900,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         if (logger) {
             // The checkpoint must be performed after the lock is acquired.
             {
-                LSN begin_lsn={.lsn=-1}; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
+                LSN begin_lsn={ .lsn = (uint64_t) -1 }; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
                 TXN_MANAGER mgr = toku_logger_get_txn_manager(logger);
                 TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
                 int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, 0, last_xid);
@@ -3179,7 +3179,7 @@ int toku_cachetable_assert_all_unpinned (CACHETABLE ct) {
         for (p=ct->table[i]; p; p=p->hash_chain) {
             assert(nb_mutex_writers(&p->value_nb_mutex)>=0);
             if (nb_mutex_writers(&p->value_nb_mutex)) {
-                //printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value_data);
+                //printf("%s:%d pinned: %" PRId64 " (%p)\n", __FILE__, __LINE__, p->key.b, p->value_data);
                 some_pinned=1;
             }
         }
@@ -3197,7 +3197,7 @@ int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
         PAIR p = toku_list_struct(next_pair, struct ctpair, next_for_cachefile);
         assert(nb_mutex_writers(&p->value_nb_mutex) >= 0);
         if (nb_mutex_writers(&p->value_nb_mutex)) {
-            if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value_data);
+            if (print_them) printf("%s:%d pinned: %" PRId64 " (%p)\n", __FILE__, __LINE__, p->key.b, p->value_data);
             n_pinned++;
         }
     }
@@ -3213,7 +3213,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
         if (p != 0) {
             printf("t[%u]=", i);
             for (p=ct->table[i]; p; p=p->hash_chain) {
-                printf(" {%"PRId64", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, (int) p->dirty, nb_mutex_writers(&p->value_nb_mutex), p->attr.size);
+                printf(" {%" PRId64 ", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, (int) p->dirty, nb_mutex_writers(&p->value_nb_mutex), p->attr.size);
             }
             printf("\n");
         }
@@ -3332,7 +3332,7 @@ toku_construct_full_name(int count, ...) {
         char *arg = va_arg(ap, char *);
         if (arg) {
             n += 1 + strlen(arg) + 1;
-            char *newname = toku_xmalloc(n);
+            char *XMALLOC_N(n, newname);
             if (name && !toku_os_is_absolute_name(arg))
                 snprintf(newname, n, "%s/%s", name, arg);
             else
@@ -3379,7 +3379,7 @@ toku_cleaner_thread (void *cachetable_v)
 // start).  At this point, we can safely unlock the cachetable, do the
 // work (callback), and unlock/release our claim to the cachefile.
 {
-    CACHETABLE ct = cachetable_v;
+    CACHETABLE ct = (CACHETABLE) cachetable_v;
     assert(ct);
     u_int32_t num_iterations = toku_get_cleaner_iterations(ct);
     for (u_int32_t i = 0; i < num_iterations; ++i) {
@@ -3409,10 +3409,12 @@ toku_cleaner_thread (void *cachetable_v)
                 goto next_pair;
             }
             n_seen++;
-            long score = cleaner_thread_rate_pair(ct->cleaner_head);
-            if (score > best_score) {
-                best_score = score;
-                best_pair = ct->cleaner_head;
+            {
+                long score = cleaner_thread_rate_pair(ct->cleaner_head);
+                if (score > best_score) {
+                    best_score = score;
+                    best_pair = ct->cleaner_head;
+                }
             }
         next_pair:
             ct->cleaner_head = ct->cleaner_head->clock_next;
@@ -3485,13 +3487,13 @@ toku_cleaner_thread (void *cachetable_v)
 void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void
 toku_cachetable_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
-    VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
-    VALGRIND_HG_DISABLE_CHECKING(&ct_status, sizeof ct_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_puts, sizeof cachetable_puts);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_prefetches, sizeof cachetable_prefetches);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cachetable_evictions, sizeof cachetable_evictions);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cleaner_executions, sizeof cleaner_executions);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ct_status, sizeof ct_status);
 }
 
 #undef STATUS_VALUE

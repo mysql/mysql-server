@@ -228,7 +228,7 @@ static void verify_items (DB_ENV *env, DB *db) {
 	//printf("committed: %u,%u\n", kv, dv);
 	r=db->get(db, txn,  &k2, &v2, 0);
 	assert(r==0);
-	assert(strcmp(v2.data, there)==0);
+	assert(strcmp((char*)v2.data, there)==0);
 	curscount++;
     }
     assert(curscount==com_count);

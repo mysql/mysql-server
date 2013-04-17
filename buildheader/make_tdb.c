@@ -18,15 +18,15 @@
 
 #define FIELD_LIMIT 100
 struct fieldinfo {
-    char *decl_format_string;
-    char *name;
+    const char *decl_format_string;
+    const char *name;
     size_t offset;
 } fields[FIELD_LIMIT];
 static int field_counter=0;
 
 static int compare_fields (const void *av, const void *bv) {
-    const struct fieldinfo *a = av;
-    const struct fieldinfo *b = bv;
+    const struct fieldinfo *a = (const struct fieldinfo *) av;
+    const struct fieldinfo *b = (const struct fieldinfo *) bv;
     if (a->offset< b->offset) return -1;
     if (a->offset==b->offset) return  0;
     return +1;
@@ -282,7 +282,7 @@ static void print_db_env_struct (void) {
     STRUCT_SETUP(DB_ENV, api1_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
     STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");
+    STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...) __attribute__ (( format (printf, 3, 4) ))");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     STRUCT_SETUP(DB_ENV, get_cachesize, "int  (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
     STRUCT_SETUP(DB_ENV, get_flags, "int  (*%s) (DB_ENV *, u_int32_t *)");
@@ -626,12 +626,12 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("} toku_engine_status_display_type; \n");
 
     printf("typedef struct __toku_engine_status_row {\n");
-    printf("  char * keyname;                  // info schema key, should not change across revisions without good reason \n");
-    printf("  char * legend;                   // the text that will appear at user interface \n");
+    printf("  const char * keyname;                  // info schema key, should not change across revisions without good reason \n");
+    printf("  const char * legend;                   // the text that will appear at user interface \n");
     printf("  toku_engine_status_display_type type;  // how to interpret the value \n");
     printf("  union {              \n");
     printf("         uint64_t num; \n");
-    printf("         char *   str; \n");
+    printf("         const char *   str; \n");
     printf("  } value;       \n");
     printf("} * TOKU_ENGINE_STATUS_ROW, TOKU_ENGINE_STATUS_ROW_S; \n");
 
@@ -684,11 +684,11 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 
     printf("int db_env_create(DB_ENV **, u_int32_t) %s;\n", VISIBLE);
     printf("int db_create(DB **, DB_ENV *, u_int32_t) %s;\n", VISIBLE);
-    printf("char *db_strerror(int) %s;\n", VISIBLE);
+    printf("const char *db_strerror(int) %s;\n", VISIBLE);
     printf("const char *db_version(int*,int *,int *) %s;\n", VISIBLE);
     printf("int log_compare (const DB_LSN*, const DB_LSN *) %s;\n", VISIBLE);
     printf("int db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
-    printf("int toku_set_trace_file (char *fname) %s;\n", VISIBLE);
+    printf("int toku_set_trace_file (const char *fname) %s;\n", VISIBLE);
     printf("int toku_close_trace_file (void) %s;\n", VISIBLE);
     printf("int db_env_set_func_free (void (*)(void*)) %s;\n", VISIBLE);
     printf("int db_env_set_func_malloc (void *(*)(size_t)) %s;\n", VISIBLE);

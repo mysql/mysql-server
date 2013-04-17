@@ -54,7 +54,7 @@ ft_copy_for_checkpoint_unlocked(FT ft, LSN checkpoint_lsn) {
     assert(ft->checkpoint_header == NULL);
     assert(ft->panic==0);
 
-    FT_HEADER ch = toku_xmemdup(ft->h, sizeof *ft->h);
+    FT_HEADER XMEMDUP(ch, ft->h);
     ch->type = FT_CHECKPOINT_INPROGRESS; //Different type
     //printf("checkpoint_lsn=%" PRIu64 "\n", checkpoint_lsn.lsn);
     ch->checkpoint_lsn = checkpoint_lsn;
@@ -116,10 +116,10 @@ toku_ft_release_reflock(FT ft) {
 // maps to cf->log_fassociate_during_checkpoint
 static int
 ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     char* fname_in_env = toku_cachefile_fname_in_env(cf);
-    BYTESTRING bs = { strlen(fname_in_env), // don't include the NUL
-                      fname_in_env };
+    BYTESTRING bs = { .len = (uint32_t) strlen(fname_in_env), // don't include the NUL
+                      .data = fname_in_env };
     TOKULOGGER logger = toku_cachefile_logger(cf);
     FILENUM filenum = toku_cachefile_filenum(cf);
     bool unlink_on_close = toku_cachefile_is_unlink_on_close(cf);
@@ -131,7 +131,7 @@ ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
 static int
 ft_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
     int r = 0;
-    FT h = header_v;
+    FT h = (FT) header_v;
     TXNID xid = h->txnid_that_created_or_locked_when_empty;
     if (xid != TXNID_NONE) {
         //Only log if useful.
@@ -152,7 +152,7 @@ ft_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
 // Not reentrant for a single FT (see ft_checkpoint)
 static int
 ft_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     int r = ft->panic;
     if (r==0) {
         // hold lock around copying and clearing of dirty bit
@@ -198,7 +198,7 @@ ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(FT ft) {
 // end_checkpoint is not reentrant period
 static int
 ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     FT_HEADER ch = ft->checkpoint_header;
     int r = 0;
     if (ft->panic!=0) goto handle_error;
@@ -249,7 +249,7 @@ handle_error:
 // Must have access to fd (protected)
 static int
 ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     int r = ft->panic;
     if (r==0) {
         assert(ft->h->type == FT_CURRENT);
@@ -266,7 +266,7 @@ ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
 // Has access to fd (it is protected).
 static int
 ft_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     assert(ft->h->type == FT_CURRENT);
     // We already have exclusive access to this field already, so skip the locking.
     // This should already never fail.
@@ -292,7 +292,7 @@ ft_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_str
             if (logger) {
                 char* fname_in_env = toku_cachefile_fname_in_env(cachefile);
                 assert(fname_in_env);
-                BYTESTRING bs = {.len=strlen(fname_in_env), .data=fname_in_env};
+                BYTESTRING bs = {.len=(uint32_t) strlen(fname_in_env), .data=fname_in_env};
                 r = toku_log_fclose(logger, &lsn, ft->h->dirty, bs, toku_cachefile_filenum(cachefile)); // flush the log on close (if new header is being written), otherwise it might not make it out.
                 if (r!=0) return r;
             }
@@ -329,7 +329,7 @@ ft_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 {
     //Set arbitrary brt (for given header) as pinned by checkpoint.
     //Only one can be pinned (only one checkpoint at a time), but not worth verifying.
-    FT ft = header_v;
+    FT ft = (FT) header_v;
 
     // Note: open_close lock is held by checkpoint begin
     toku_ft_grab_reflock(ft);
@@ -355,7 +355,7 @@ unpin_by_checkpoint_callback(FT ft, void *extra)
 static int
 ft_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 {
-    FT ft = header_v;
+    FT ft = (FT) header_v;
     toku_ft_remove_reference(ft, false, ZERO_LSN, unpin_by_checkpoint_callback, NULL);
     return 0;
 }
@@ -451,7 +451,7 @@ ft_header_new(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that_cr
         .msn_at_start_of_last_completed_optimize = ZERO_MSN,
         .on_disk_stats = ZEROSTATS
     };
-    return toku_xmemdup(&h, sizeof h);
+    return (FT_HEADER) toku_xmemdup(&h, sizeof h);
 }
 
 // allocate and initialize a fractal tree.
@@ -500,7 +500,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
 {
     {
         FT h;
-        if ((h=toku_cachefile_get_userdata(cf))!=0) {
+        if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
             *was_open = TRUE;
             assert(brt->options.update_fun == h->update_fun);
@@ -649,7 +649,9 @@ toku_ft_init(FT ft,
         .nodesize = target_nodesize,
         .basementnodesize = target_basementnodesize,
         .compression_method = compression_method,
-        .flags = 0
+        .flags = 0,
+        .compare_fun = NULL,
+        .update_fun = NULL
     };
     ft->h = ft_header_new(&options, root_blocknum_on_disk, root_xid_that_created);
     ft->h->checkpoint_count = 1;
@@ -880,7 +882,7 @@ LSN toku_ft_checkpoint_lsn(FT ft) {
     return ft->h->checkpoint_lsn;
 }
 
-int toku_ft_set_panic(FT ft, int panic, char *panic_string) {
+int toku_ft_set_panic(FT ft, int panic, const char *panic_string) {
     if (ft->panic == 0) {
         ft->panic = panic;
         if (ft->panic_string) {

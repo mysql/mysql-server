@@ -60,7 +60,7 @@ static void simple_lockwait(DB_ENV *db_env, DB *db, int do_txn, int nrows, int n
 
     toku_pthread_t tids[ntxns];
     for (int i = 1 ; i < ntxns; i++) {
-        struct insert_one_arg *arg = toku_malloc(sizeof (struct insert_one_arg));
+        struct insert_one_arg *XMALLOC(arg);
         *arg = (struct insert_one_arg) { txns[i], db};
         r = toku_pthread_create(&tids[i], NULL, insert_one, arg);
     }
@@ -82,8 +82,8 @@ int test_main(int argc, char * const argv[]) {
     int do_txn = 1;
     int nrows = 1000;
     int ntxns = 2;
-    char *db_env_dir = ENVDIR;
-    char *db_filename = "simple_lockwait";
+    const char *db_env_dir = ENVDIR;
+    const char *db_filename = "simple_lockwait";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

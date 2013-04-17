@@ -16,6 +16,7 @@
 #include <ydb-internal.h>
 #include <ft/ft-internal.h>
 #include <toku_stdint.h>
+#include <db.h>
 #include <valgrind/drd.h>
 
 /* TODO: Yoni should check that all asserts make sense instead of panic,
@@ -104,8 +105,8 @@ static toku_lock_request *lock_request_tree_find(toku_lock_tree *tree, TXNID id)
                 
 const uint32_t __toku_default_buflen = 2;
 
-static const DBT __toku_lt_infinity;
-static const DBT __toku_lt_neg_infinity;
+static const DBT __toku_lt_infinity = {};
+static const DBT __toku_lt_neg_infinity = {};
 
 const DBT* const toku_lt_infinity     = &__toku_lt_infinity;
 const DBT* const toku_lt_neg_infinity = &__toku_lt_neg_infinity;
@@ -130,7 +131,7 @@ lt_mutex_unlock(toku_lock_tree *tree) {
     toku_mutex_unlock(&tree->mutex);
 }
 
-char* 
+const char* 
 toku_lt_strerror(TOKU_LT_ERROR r) {
     if (r >= 0) 
         return strerror(r);
@@ -210,15 +211,15 @@ toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
     assert(x->lt);
     assert(x->lt == y->lt);
 
-    if (lt_is_infinite(x->key_payload) ||
-        lt_is_infinite(y->key_payload)) {
+    if (lt_is_infinite((DBT *) x->key_payload) ||
+        lt_is_infinite((DBT *) y->key_payload)) {
         /* If either payload is infinite, then:
            - if duplicates are allowed, the data must be the same 
              infinite value. 
            - if duplicates are not allowed, the data is irrelevant
              In either case, we do not have to compare data: the key will
              be the sole determinant of the comparison */
-        return infinite_compare(x->key_payload, y->key_payload);
+        return infinite_compare((DBT *) x->key_payload, (DBT *) y->key_payload);
     }
     return x->lt->compare_fun(&x->lt->fake_db,
                               recreate_DBT(&point_1, x->key_payload, x->key_len),
@@ -385,7 +386,7 @@ ltm_decr_lock_memory_callback(void *extra, size_t s) {
 static inline void 
 p_free(toku_lock_tree* tree, toku_point* point) {
     assert(point);
-    if (!lt_is_infinite(point->key_payload)) {
+    if (!lt_is_infinite((DBT *) point->key_payload)) {
         ltm_decr_lock_memory(tree->mgr, toku_malloc_usable_size(point->key_payload));
         toku_free(point->key_payload);
     }
@@ -403,7 +404,7 @@ payload_copy(toku_lock_tree* tree,
     int r = 0;
     assert(payload_out && len_out);
     if (!len_in) {
-        assert(!payload_in || lt_is_infinite(payload_in));
+        assert(!payload_in || lt_is_infinite((DBT *) payload_in));
         *payload_out = payload_in;
         *len_out     = len_in;
     } else {
@@ -1031,7 +1032,7 @@ typedef struct {
 
 static int 
 free_contents_helper(toku_range* value, void* extra) {
-    free_contents_info* info = extra;
+    free_contents_info* info = (free_contents_info *) extra;
     int r               = ENOSYS;
 
     *info->store_value = *value;
@@ -1457,7 +1458,8 @@ toku_lt_close(toku_lock_tree* tree) {
     if (!first_error && r != 0)
         first_error = r;
 
-    uint32_t ranges = 0;
+    uint32_t ranges;
+    ranges = 0;
     toku_rth_start_scan(tree->rth);
     rt_forest* forest;
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
@@ -1582,11 +1584,15 @@ escalate_writes_from_border_range(toku_lock_tree* tree, toku_range* border_range
         r = EINVAL; goto cleanup; 
     }
     
-    TXNID txn = border_range->data;
-    toku_range_tree* self_write = toku_lt_ifexist_selfwrite(tree, txn);
+    TXNID txn;
+    txn = border_range->data;
+    toku_range_tree* self_write;
+    self_write = toku_lt_ifexist_selfwrite(tree, txn);
     assert(self_write);
-    toku_interval query = border_range->ends;
-    uint32_t numfound = 0;
+    toku_interval query;
+    query = border_range->ends;
+    uint32_t numfound;
+    numfound = 0;
 
     /*
      * Delete all overlapping ranges
@@ -1650,7 +1656,7 @@ typedef struct {
 
 static int 
 escalate_read_locks_helper(toku_range* border_range, void* extra) {
-    escalate_info* info = extra;
+    escalate_info* info = (escalate_info *) extra;
     int r               = ENOSYS;
 
     if (!lt_txn_cmp(border_range->data, info->txn)) { 
@@ -1697,7 +1703,7 @@ cleanup:
 
 static int 
 escalate_write_locks_helper(toku_range* border_range, void* extra) {
-    toku_lock_tree* tree = extra;
+    toku_lock_tree* tree = (toku_lock_tree *) extra;
     int r                = ENOSYS;
     bool trivial;
     if ((r = border_escalation_trivial(tree, border_range, &trivial))) 
@@ -2239,8 +2245,8 @@ void
 toku_lock_request_default_init(toku_lock_request *lock_request) {
     lock_request->txnid = 0;
     lock_request->key_left = lock_request->key_right = NULL;
-    lock_request->key_left_copy = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
-    lock_request->key_right_copy = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
+    toku_init_dbt_flags(&lock_request->key_left_copy, DB_DBT_REALLOC);
+    toku_init_dbt_flags(&lock_request->key_right_copy, DB_DBT_REALLOC);
     lock_request->state = LOCK_REQUEST_INIT;
     lock_request->complete_r = 0;
     lock_request->type = LOCK_REQUEST_UNKNOWN;
@@ -2670,7 +2676,7 @@ toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec) {
     if (lock_wait_time_msec == UINT64_MAX)
         mgr->lock_wait_time = max_timeval;
     else
-        mgr->lock_wait_time = (struct timeval) { lock_wait_time_msec / 1000, (lock_wait_time_msec % 1000) * 1000 };
+        mgr->lock_wait_time = (struct timeval) { (time_t) lock_wait_time_msec / 1000, (__suseconds_t) (lock_wait_time_msec % 1000) * 1000 };
 }
 
 void 

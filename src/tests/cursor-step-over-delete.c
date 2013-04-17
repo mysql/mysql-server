@@ -53,11 +53,11 @@ doit (void) {
     memset(&key,  0, sizeof(key));
     memset(&data, 0, sizeof(data));
     r = dbc->c_get(dbc, &key, &data, DB_FIRST);                 assert(r==0);
-    assert(strcmp(key.data, "a")==0);
-    assert(strcmp(data.data, "a")==0);
+    assert(strcmp((char*)key.data, "a")==0);
+    assert(strcmp((char*)data.data, "a")==0);
     r = dbc->c_get(dbc, &key, &data, DB_NEXT);                  assert(r==0);
-    assert(strcmp(key.data, "c")==0);
-    assert(strcmp(data.data, "c")==0);
+    assert(strcmp((char*)key.data, "c")==0);
+    assert(strcmp((char*)data.data, "c")==0);
     r = dbc->c_close(dbc);                                      assert(r==0);
     r=txn->commit(txn, 0);    assert(r==0);
 }

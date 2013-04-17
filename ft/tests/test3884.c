@@ -31,7 +31,8 @@ static const char fname[]= __SRCFILE__ ".ft_handle";
 
 static int omt_long_cmp(OMTVALUE p, void *q)
 {
-    LEAFENTRY a = p, b = q;
+    LEAFENTRY a = cast_to_typeof(a) p;
+    LEAFENTRY b = cast_to_typeof(b) q;
     void *ak, *bk;
     u_int32_t al, bl;
     ak = le_key_and_len(a, &al);
@@ -55,7 +56,7 @@ le_fastmalloc(struct mempool * mp, char *key, int key_size, char *val, int val_s
 {
     LEAFENTRY le;
     size_t le_size = calc_le_size(key_size, val_size);
-    le = toku_mempool_malloc(mp, le_size, 1);
+    le = cast_to_typeof(le) toku_mempool_malloc(mp, le_size, 1);
     resource_assert(le);
     le->type = LE_CLEAN;
     le->keylen = key_size;
@@ -225,7 +226,7 @@ test_split_with_everything_on_the_left(void)
             // little bigger, so the halfway mark will land inside this
             // value and it will be split to the left
             big_val_size += 100;
-            char * big_val = toku_xmalloc(big_val_size);
+            char * XMALLOC_N(big_val_size, big_val);
             memset(big_val, k, big_val_size);
             struct mempool *mp = &BLB(&sn, bn)->buffer_mempool;
             LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);
@@ -300,7 +301,7 @@ test_split_on_boundary_of_last_node(void)
                                  +sizeof(((LEAFENTRY)NULL)->keylen)
                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
             invariant(big_val_size <= maxbnsize);
-            char * big_val = toku_xmalloc(big_val_size);
+            char * XMALLOC_N(big_val_size, big_val);
             memset(big_val, k, big_val_size);
             struct mempool *mp = &BLB(&sn, bn)->buffer_mempool;
             LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);

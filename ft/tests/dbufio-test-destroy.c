@@ -26,7 +26,10 @@ static void test1 (size_t chars_per_file, size_t bytes_per_read) {
 	for (size_t j=0; j<chars_per_file; j++) {
 	    unsigned char c = (i+j)%256;
 	    int r = toku_os_write(fds[i], &c, 1);
-	    if (r!=0) printf("fds[%d]=%d r=%d errno=%d (%s)\n", i, fds[i], r, errno, strerror(errno));
+	    if (r!=0) {
+                int er = get_maybe_error_errno();
+                printf("fds[%d]=%d r=%d errno=%d (%s)\n", i, fds[i], r, er, strerror(er));
+            }
 	    assert(r==0);
 	}
 	{

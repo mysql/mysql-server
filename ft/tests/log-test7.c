@@ -22,7 +22,12 @@ static void setup_logger(int which) {
     char dnamewhich[200];
     int r;
     snprintf(dnamewhich, sizeof(dnamewhich), "%s_%d", dname, which);
-    r = toku_os_mkdir(dnamewhich, S_IRWXU);    if (r!=0) printf("file %s error (%d) %s\n", dnamewhich, errno, strerror(errno)); assert(r==0);
+    r = toku_os_mkdir(dnamewhich, S_IRWXU);
+    if (r!=0) {
+        int er = get_error_errno();
+        printf("file %s error (%d) %s\n", dnamewhich, er, strerror(er));
+        assert(r==0);
+    }
     r = toku_logger_create(&logger[which]);
     assert(r == 0);
     r = toku_logger_set_lg_max(logger[which], LSIZE);

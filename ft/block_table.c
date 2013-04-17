@@ -222,7 +222,7 @@ toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
     bt->checkpoint_failed  = FALSE;
 }
 
-//#define PRNTF(str, b, siz, ad, bt) printf("%s[%d] %s %"PRId64" %"PRId64" %"PRId64"\n", __FUNCTION__, __LINE__, str, b, siz, ad); fflush(stdout); if (bt) block_allocator_validate(((BLOCK_TABLE)(bt))->block_allocator);
+//#define PRNTF(str, b, siz, ad, bt) printf("%s[%d] %s %" PRId64 " %" PRId64 " %" PRId64 "\n", __FUNCTION__, __LINE__, str, b, siz, ad); fflush(stdout); if (bt) block_allocator_validate(((BLOCK_TABLE)(bt))->block_allocator);
 //Debugging function
 #define PRNTF(str, b, siz, ad, bt) 
 
@@ -287,22 +287,24 @@ toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd) {
     assert(bt->inprogress.block_translation[RESERVED_BLOCKNUM_TRANSLATION].size > 0);
     assert(bt->inprogress.block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff > 0);
 
-    int64_t i;
-    struct translation *t = &bt->checkpointed;
+    {
+        int64_t i;
+        struct translation *t = &bt->checkpointed;
 
-    for (i = 0; i < t->length_of_array; i++) {
-        struct block_translation_pair *pair = &t->block_translation[i];
-	if (pair->size > 0 && !translation_prevents_freeing(&bt->inprogress, make_blocknum(i), pair)) {
-            assert(!translation_prevents_freeing(&bt->current, make_blocknum(i), pair));
-PRNTF("free", i, pair->size, pair->u.diskoff, bt);
-            block_allocator_free_block(bt->block_allocator, pair->u.diskoff);
+        for (i = 0; i < t->length_of_array; i++) {
+            struct block_translation_pair *pair = &t->block_translation[i];
+            if (pair->size > 0 && !translation_prevents_freeing(&bt->inprogress, make_blocknum(i), pair)) {
+                assert(!translation_prevents_freeing(&bt->current, make_blocknum(i), pair));
+                PRNTF("free", i, pair->size, pair->u.diskoff, bt);
+                block_allocator_free_block(bt->block_allocator, pair->u.diskoff);
+            }
         }
+        toku_free(bt->checkpointed.block_translation);
+        bt->checkpointed = bt->inprogress;
+        bt->checkpointed.type = TRANSLATION_CHECKPOINTED;
+        memset(&bt->inprogress, 0, sizeof(bt->inprogress));
+        maybe_truncate_file(bt, fd, allocated_limit_at_start);
     }
-    toku_free(bt->checkpointed.block_translation);
-    bt->checkpointed = bt->inprogress;
-    bt->checkpointed.type = TRANSLATION_CHECKPOINTED;
-    memset(&bt->inprogress, 0, sizeof(bt->inprogress));
-    maybe_truncate_file(bt, fd, allocated_limit_at_start);
 end:
     unlock_for_blocktable(bt);
 }
@@ -500,7 +502,7 @@ toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
         u_int64_t size_translation = calculate_size_on_disk(t);
         assert((int64_t)size_translation==t->block_translation[b.b].size);
         if (0)
-            printf("%s:%d writing translation table of size_translation %"PRIu64" at %"PRId64"\n", __FILE__, __LINE__, size_translation, t->block_translation[b.b].u.diskoff);
+            printf("%s:%d writing translation table of size_translation %" PRIu64 " at %" PRId64 "\n", __FILE__, __LINE__, size_translation, t->block_translation[b.b].u.diskoff);
         wbuf_init(w, toku_malloc(size_translation), size_translation);
         assert(w->size==size_translation);
     }
@@ -509,7 +511,7 @@ toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
     int64_t i;
     for (i=0; i<t->smallest_never_used_blocknum.b; i++) {
         if (0)
-            printf("%s:%d %"PRId64",%"PRId64"\n", __FILE__, __LINE__, t->block_translation[i].u.diskoff, t->block_translation[i].size);
+            printf("%s:%d %" PRId64 ",%" PRId64 "\n", __FILE__, __LINE__, t->block_translation[i].u.diskoff, t->block_translation[i].size);
         wbuf_DISKOFF(w, t->block_translation[i].u.diskoff);
         wbuf_DISKOFF(w, t->block_translation[i].size);
     }
@@ -678,14 +680,14 @@ static void
 dump_translation(FILE *f, struct translation *t) {
     if (t->block_translation) {
         BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_TRANSLATION);
-        fprintf(f, " length_of_array[%"PRId64"]", t->length_of_array);
-        fprintf(f, " smallest_never_used_blocknum[%"PRId64"]", t->smallest_never_used_blocknum.b);
-        fprintf(f, " blocknum_free_list_head[%"PRId64"]", t->blocknum_freelist_head.b);
-        fprintf(f, " size_on_disk[%"PRId64"]", t->block_translation[b.b].size);
-        fprintf(f, " location_on_disk[%"PRId64"]\n", t->block_translation[b.b].u.diskoff);
+        fprintf(f, " length_of_array[%" PRId64 "]", t->length_of_array);
+        fprintf(f, " smallest_never_used_blocknum[%" PRId64 "]", t->smallest_never_used_blocknum.b);
+        fprintf(f, " blocknum_free_list_head[%" PRId64 "]", t->blocknum_freelist_head.b);
+        fprintf(f, " size_on_disk[%" PRId64 "]", t->block_translation[b.b].size);
+        fprintf(f, " location_on_disk[%" PRId64 "]\n", t->block_translation[b.b].u.diskoff);
         int64_t i;
         for (i=0; i<t->length_of_array; i++) {
-            fprintf(f, " %"PRId64": %"PRId64" %"PRId64"\n", i, t->block_translation[i].u.diskoff, t->block_translation[i].size);
+            fprintf(f, " %" PRId64 ": %" PRId64 " %" PRId64 "\n", i, t->block_translation[i].u.diskoff, t->block_translation[i].size);
         }
         fprintf(f, "\n");
     }
@@ -832,11 +834,12 @@ blocktable_note_translation (BLOCK_ALLOCATOR allocator, struct translation *t) {
     u_int64_t n_pairs = 0;
     for (int64_t i=0; i<t->smallest_never_used_blocknum.b; i++) {
         struct block_translation_pair pair = t->block_translation[i];
-	if (pair.size > 0) {
+        if (pair.size > 0) {
             assert(pair.u.diskoff != diskoff_unused);
-	    pairs[n_pairs++] = (struct block_allocator_blockpair){.size   = pair.size,
-								  .offset = pair.u.diskoff};
-	}
+            int cur_pair = n_pairs++;
+            pairs[cur_pair] = (struct block_allocator_blockpair) { .offset = (uint64_t) pair.u.diskoff,
+                                                                   .size = (uint64_t) pair.size };
+        }
     }
     block_allocator_alloc_blocks_at(allocator, n_pairs, pairs);
     toku_free(pairs);
@@ -924,7 +927,7 @@ typedef struct {
 
 static int
 frag_helper(BLOCKNUM UU(b), int64_t size, int64_t address, void *extra) {
-    frag_extra *info = extra;
+    frag_extra *info = (frag_extra *) extra;
 
     if (size + address > info->total_space)
         info->total_space = size + address;

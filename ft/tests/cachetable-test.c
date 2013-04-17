@@ -60,11 +60,11 @@ static const int test_object_size = 1;
 
 struct item {
     CACHEKEY key;
-    char *something;
+    const char *something;
 };
 
 static volatile int expect_n_flushes=0;
-static volatile CACHEKEY flushes[100];
+static CACHEKEY flushes[100];
 
 static void expect_init(void) {
     test_mutex_lock();
@@ -101,7 +101,7 @@ static void flush (CACHEFILE f,
 		   BOOL for_checkpoint __attribute__((__unused__)),
         BOOL UU(is_clone)
 		   ) {
-    struct item *it = value;
+    struct item *it = cast_to_typeof(it) value;
     int i;
 
     if (keep_me) return;
@@ -302,7 +302,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEK
 		     BOOL for_checkpoint __attribute__ ((__unused__)),
         BOOL UU(is_clone)
 		     ) {
-    int *v = value;
+    int *v = cast_to_typeof(v) value;
     assert(*v==0);
 }
 static int fetch_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
@@ -487,7 +487,7 @@ static void test_dirty(void) {
     r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = __SRCFILE__ "test.dat";
+    const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
@@ -620,7 +620,7 @@ static void test_size_resize(void) {
     r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = __SRCFILE__ "test.dat";
+    const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
@@ -678,7 +678,7 @@ static void test_size_flush(void) {
     r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = __SRCFILE__ "test.dat";
+    const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);

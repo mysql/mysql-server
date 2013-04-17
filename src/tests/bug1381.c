@@ -93,8 +93,10 @@ static void do_1381_maybe_lock (int do_loader, u_int64_t *raw_count) {
 	r = txn->txn_stat(txn, &s1);                                      CKERR(r);
 
 	{
-	    DBT key={.data="hi", .size=3};
-	    DBT val={.data="v",    .size=2};
+	    DBT key;
+            dbt_init(&key, "hi", 3);
+	    DBT val;
+            dbt_init(&val, "v", 2);
             if (do_loader) {
                 r = loader->put(loader, &key, &val);
                 CKERR(r);

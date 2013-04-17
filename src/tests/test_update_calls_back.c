@@ -22,7 +22,7 @@ static int update_fun(DB *UU(db),
                       void *UU(set_extra)) {
     unsigned int *k;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(to_update[*k] == 1);
     assert(updates_called[*k] == 0);
     updates_called[*k] = 1;

@@ -34,10 +34,8 @@ static void make_db (BOOL close_env) {
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     {
 	DBT key,data;
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	key.data  = "hello"; key.size=6;
-	data.data = "there"; data.size=6;
+        dbt_init(&key, "hello", sizeof "hello");
+        dbt_init(&data, "there", sizeof "there");
 	r=db->put(db, tid, &key, &data, 0);  assert(r==0);
     }
     r=tid->commit(tid, 0);    assert(r==0);

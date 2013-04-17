@@ -20,9 +20,9 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *k, *ov;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(old_val->size == sizeof(*ov));
-    ov = old_val->data;
+    ov = cast_to_typeof(ov) old_val->data;
     assert(extra->size == 0);
 
     set_val(NULL, set_extra);
@@ -81,7 +81,7 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
         } else {
             CKERR(r);
             assert(val.size == sizeof(*vp));
-            vp = val.data;
+            vp = cast_to_typeof(vp) val.data;
             check_val(i, *vp);
         }
     }

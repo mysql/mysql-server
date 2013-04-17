@@ -14,7 +14,8 @@ int MAGIC_EXTRA = 0xd3adb00f;
 
 static int
 int_qsort_cmp(const void *va, const void *vb) {
-    const int *a = va, *b = vb;
+    const int *a = cast_to_typeof(a) va;
+    const int *b = cast_to_typeof(b) vb;
     assert(*a < MAX_NUM);
     assert(*b < MAX_NUM);
     return (*a > *b) - (*a < *b);
@@ -23,7 +24,7 @@ int_qsort_cmp(const void *va, const void *vb) {
 static int
 int_cmp(void *ve, const void *va, const void *vb)
 {
-    int *e = ve;
+    int *e = cast_to_typeof(e) ve;
     assert(e);
     assert(*e == MAGIC_EXTRA);
     return int_qsort_cmp(va, vb);
@@ -89,14 +90,15 @@ random_array_test(int nelts)
 
 static int
 uint64_qsort_cmp(const void *va, const void *vb) {
-    const uint64_t *a = va, *b = vb;
+    const uint64_t *a = cast_to_typeof(a) va;
+    const uint64_t *b = cast_to_typeof(b) vb;
     return (*a > *b) - (*a < *b);
 }
 
 static int
 uint64_cmp(void *ve, const void *va, const void *vb)
 {
-    int *e = ve;
+    int *e = cast_to_typeof(e) ve;
     assert(e);
     assert(*e == MAGIC_EXTRA);
     return uint64_qsort_cmp(va, vb);

@@ -24,11 +24,11 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *k, *ov, *e, v;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(old_val->size == sizeof(*ov));
-    ov = old_val->data;
+    ov = cast_to_typeof(ov) old_val->data;
     assert(extra->size == sizeof(*e));
-    e = extra->data;
+    e = cast_to_typeof(e) extra->data;
     v = _u(*ov, *e);
 
     {
@@ -43,9 +43,9 @@ static int
 int_cmp(DB *UU(db), const DBT *a, const DBT *b) {
     unsigned int *ap, *bp;
     assert(a->size == sizeof(*ap));
-    ap = a->data;
+    ap = cast_to_typeof(ap) a->data;
     assert(b->size == sizeof(*bp));
-    bp = b->data;
+    bp = cast_to_typeof(bp) b->data;
     return (*ap > *bp) - (*ap < *bp);
 }
 
@@ -112,7 +112,7 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
     for (i = 0; i < NUM_KEYS; ++i) {
         r = db->get(db, txn, keyp, valp, 0); CKERR(r);
         assert(val.size == sizeof(*vp));
-        vp = val.data;
+        vp = cast_to_typeof(vp) val.data;
         check_val(i, *vp);
     }
     return r;

@@ -28,9 +28,9 @@ run_test(void) {
 
         // create the log
         TOKULOGGER logger;
-        BYTESTRING hello  = { strlen("hello"), "hello" };
-        BYTESTRING world  = { strlen("world"), "world" };
-        BYTESTRING there  = { strlen("there"), "there" };
+        BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
+        BYTESTRING world  = { (uint32_t) strlen("world"), (char *) "world" };
+        BYTESTRING there  = { (uint32_t) strlen("there"), (char *) "there" };
         r = toku_logger_create(&logger); assert(r == 0);
         r = toku_logger_open(TESTDIR, logger); assert(r == 0);
         LSN beginlsn;

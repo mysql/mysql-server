@@ -9,7 +9,7 @@
 #include "test.h"
 #include <inttypes.h>
 
-static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
+static int write_lock(toku_lock_tree *lt, TXNID txnid, const char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
     toku_lock_request_init(&lr, txnid, &key, &key, LOCK_REQUEST_WRITE);
@@ -28,17 +28,17 @@ static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
 struct writer_arg {
     TXNID id;
     toku_lock_tree *lt;
-    char *name;
+    const char *name;
 };
 
 static void *writer_thread(void *arg) {
     struct writer_arg *writer_arg = (struct writer_arg *) arg;
-    printf("%"PRIu64" wait\n", writer_arg->id);
+    printf("%" PRIu64 " wait\n", writer_arg->id);
     int r = write_lock(writer_arg->lt, writer_arg->id, writer_arg->name); assert(r == 0);
-    printf("%"PRIu64" locked\n", writer_arg->id);
+    printf("%" PRIu64 " locked\n", writer_arg->id);
     sleep(1);
     toku_lt_unlock_txn(writer_arg->lt, writer_arg->id);
-    printf("%"PRIu64" unlocked\n", writer_arg->id);
+    printf("%" PRIu64 " unlocked\n", writer_arg->id);
     return arg;
 }
 
@@ -91,7 +91,7 @@ int main(int argc, const char *argv[]) {
     toku_pthread_t tids[max_threads];
     for (int i = 0 ; i < max_threads; i++) {
         struct writer_arg *writer_arg = (struct writer_arg *) toku_malloc(sizeof (struct writer_arg));
-        *writer_arg = (struct writer_arg) { i+10, lt, "L"};
+        *writer_arg = (struct writer_arg) { (TXNID) i+10, lt, "L"};
         r = toku_pthread_create(&tids[i], NULL, writer_thread, writer_arg); assert(r == 0);
     }
     sleep(10);

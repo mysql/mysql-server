@@ -68,7 +68,7 @@ static DB_TXN *tid = NULL;
 static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
 static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-static char *dbfilename = "bench.db";
+static const char *dbfilename = "bench.db";
 
 static double gettime (void) {
     struct timeval tv;
@@ -170,8 +170,8 @@ static inline uint64_t mysql_get_bigint(unsigned char *d) {
 
 static int mysql_key_compare(DB* file __attribute__((unused)),
                                const DBT *adbt, const DBT *bdbt) {
-    unsigned char *adata = adbt->data;
-    unsigned char *bdata = bdbt->data;
+    unsigned char *adata = cast_to_typeof(adata) adbt->data;
+    unsigned char *bdata = cast_to_typeof(bdata) bdbt->data;
     uint64_t a, b;
     assert(adbt->size == 9 && bdbt->size == 9);
     assert(adata[0] == 0 && bdata[0] == 0);
@@ -286,14 +286,14 @@ struct extra_count {
 };
 
 static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
-    struct extra_count *e=extrav;
+    struct extra_count *e = cast_to_typeof(e) extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
     if (do_mysql && 0) {
         static uint64_t expect_key = 0;
         uint64_t k = mysql_get_bigint((unsigned char*)key->data+1);
         if (k != expect_key)
-            printf("%s:%d %"PRIu64" %"PRIu64"\n", __FUNCTION__, __LINE__, k, expect_key);
+            printf("%s:%d %" PRIu64 " %" PRIu64 "\n", __FUNCTION__, __LINE__, k, expect_key);
         expect_key = k + 1;
     }
     return bulk_fetch ? TOKUDB_CURSOR_CONTINUE : 0;
@@ -358,7 +358,7 @@ static void scanscan_range (void) {
         r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
         if (r != 0) {
             assert(r == DB_NOTFOUND);
-            //printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, k);
+            //printf("%s:%d %" PRIu64 "\n", __FUNCTION__, __LINE__, k);
             goto makekey;
         }
 
@@ -378,7 +378,7 @@ static void scanscan_range (void) {
         assert(r==0);
 
         texperiments[counter] = gettime() - tstart;
-        printf("%"PRIu64" %f\n", k, texperiments[counter]); fflush(stdout);
+        printf("%" PRIu64 " %f\n", k, texperiments[counter]); fflush(stdout);
     }
 
     // print the times
@@ -403,7 +403,7 @@ struct extra_verify {
 
 static int
 checkbytes (DBT const *key, DBT const *data, void *extrav) {
-    struct extra_verify *e=extrav;
+    struct extra_verify *e = cast_to_typeof(e) extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
     assert(e->k.size == key->size);

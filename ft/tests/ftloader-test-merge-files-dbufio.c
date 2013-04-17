@@ -502,8 +502,8 @@ int test_main (int argc, const char *argv[]) {
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
 
     int  templen = strlen(directory)+15;
-    char template[templen];
-    int tlen = snprintf(template, templen, "%s/tempXXXXXX", directory);
+    char tf_template[templen];
+    int tlen = snprintf(tf_template, templen, "%s/tempXXXXXX", directory);
     assert (tlen>0 && tlen<templen);
 
     char output_name[templen];

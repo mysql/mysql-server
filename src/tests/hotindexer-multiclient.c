@@ -26,7 +26,7 @@ DB_ENV *env;
  *          and to close during or after index creation)
  */
 
-typedef struct client_spec {
+typedef struct {
     uint32_t num; // number of rows to write
     uint32_t start; // approximate start row 
     int      offset; // offset from stride (= MAX_CLIENTS)
@@ -43,7 +43,7 @@ int client_count = 0;
 
 static void * client(void *arg)
 {
-    client_spec cs = arg;
+    client_spec cs = cast_to_typeof(cs) arg;
     client_count++;
     if ( verbose ) printf("client[%d]\n", cs->client_number);
     assert(cs->client_number < MAX_CLIENTS);
@@ -119,8 +119,8 @@ client_spec_t  *client_specs;
 
 static void clients_init(DB **dbs, uint32_t *flags) 
 {
-    client_threads = toku_malloc(sizeof(toku_pthread_t) * MAX_CLIENTS);
-    client_specs   = toku_malloc(sizeof(client_spec_t) * MAX_CLIENTS);
+    XMALLOC_N(MAX_CLIENTS, client_threads);
+    XMALLOC_N(MAX_CLIENTS, client_specs);
     
     client_specs[0].client_number = 0;
     client_specs[0].start         = 0;

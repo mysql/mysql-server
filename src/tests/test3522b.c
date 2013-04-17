@@ -43,10 +43,10 @@ insert(int i, DB_TXN *txn)
     CKERR(r);
 }
 
-static void delete (int i, DB_TXN *x) {
+static void op_delete (int i, DB_TXN *x) {
     char hello[30];
     DBT key;
-    if (verbose>1) printf("delete %d\n", i);
+    if (verbose>1) printf("op_delete %d\n", i);
     snprintf(hello, sizeof(hello), "hello%d", i);
     int r = db->del(db, x,
 		    dbt_init(&key,  hello, strlen(hello)+1),
@@ -99,8 +99,8 @@ do_nothing(DBT const *a, DBT  const *b, void *c) {
     snprintf(there, sizeof(there), "there%d", expect_n);
     assert(strlen(hello)+1 == a->size);
     assert(strlen(there)+1 == b->size);
-    assert(strcmp(hello, a->data)==0);
-    assert(strcmp(there, b->data)==0);
+    assert(strcmp(hello, (char*)a->data)==0);
+    assert(strcmp(there, (char*)b->data)==0);
     return 0;
 }
 static void run_del_next (void) {
@@ -108,7 +108,7 @@ static void run_del_next (void) {
     DBC *cursor;
     int r;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
-    for (int i=0; i<N-1; i++) delete(i, txn);
+    for (int i=0; i<N-1; i++) op_delete(i, txn);
     r = db->cursor(db, txn, &cursor, 0);                                              CKERR(r);
     expect_n = N-1;
     did_nothing_count = 0;
@@ -126,7 +126,7 @@ static void run_del_prev (void) {
     DBC *cursor;
     int r;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
-    for (int i=1; i<N; i++) delete(i, txn);
+    for (int i=1; i<N; i++) op_delete(i, txn);
     r = db->cursor(db, txn, &cursor, 0);                                              CKERR(r);
     expect_n = 0;
     did_nothing_count = 0;

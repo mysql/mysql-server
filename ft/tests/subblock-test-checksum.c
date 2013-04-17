@@ -13,8 +13,6 @@
 #include "compress.h"
 #include "sub_block.h"
 
-int verbose;
-
 static uint8_t
 get_uint8_at_offset(void *vp, size_t offset) {
     uint8_t *ip = (uint8_t *) vp;
@@ -47,7 +45,7 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
     void *cbuf = toku_malloc(cbuf_size_bound);
     assert(cbuf);
 
-    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, buf, cbuf, n_cores, pool, method);
+    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, (char*)buf, (char*)cbuf, n_cores, pool, method);
     assert(cbuf_size <= cbuf_size_bound);
 
     void *ubuf = toku_malloc(total_size);
@@ -57,13 +55,13 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
         // corrupt a checksum
         sub_blocks[xidx].xsum += 1;
 
-        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
+        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, (unsigned char*)cbuf, (unsigned char*)ubuf, n_cores, pool);
         assert(r != 0);
 
         // reset the checksums
         sub_blocks[xidx].xsum -= 1;
 
-        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
+        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, (unsigned char*)cbuf, (unsigned char*)ubuf, n_cores, pool);
         assert(r == 0);
         assert(memcmp(buf, ubuf, total_size) == 0);
 
@@ -72,13 +70,13 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
         unsigned char c = get_uint8_at_offset(cbuf, offset);
         set_uint8_at_offset(cbuf, offset, c+1);
 
-        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
+        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, (unsigned char*)cbuf, (unsigned char*)ubuf, n_cores, pool);
         assert(r != 0);
 
         // reset the data
         set_uint8_at_offset(cbuf, offset, c);
 
-        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, pool);
+        r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, (unsigned char*)cbuf, (unsigned char*)ubuf, n_cores, pool);
 
         assert(r == 0);
         assert(memcmp(buf, ubuf, total_size) == 0);

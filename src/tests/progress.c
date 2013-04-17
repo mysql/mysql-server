@@ -22,7 +22,7 @@
       for i = 0 -> 5 {
           for j = 0 -> 1023
               if (j & 0x20) insert
-              else delete
+              else op_delete
    }
 
    verify (n) {
@@ -69,7 +69,7 @@ static DB_TXN *txn_parent = NULL;
 static DB_TXN *txn_child  = NULL;
 static DB_TXN *txn_hold_dname_lock  = NULL;
 static DB     *db;
-static char *dname = DICT_0;
+static const char *dname = DICT_0;
 static DBT key;
 static DBT val;
 
@@ -79,7 +79,7 @@ static void commit_txn(int);
 static void open_db(void);
 static void close_db(void);
 static void insert(void);
-static void delete(void);
+static void op_delete(void);
 static void
 
 start_env(void) {
@@ -165,7 +165,7 @@ struct progress_expect {
 };
 
 static void poll(TOKU_TXN_PROGRESS progress, void *extra) {
-    struct progress_expect *info = extra;
+    struct progress_expect *info = cast_to_typeof(info) extra;
     info->num_calls++;
     assert(progress->is_commit == info->is_commit_expected);
     assert(progress->stalled_on_checkpoint == info->stalled_on_checkpoint_expected);
@@ -194,7 +194,7 @@ abort_txn(int expect_number_polls) {
         .num_calls = 0,
         .is_commit_expected = 0,
         .stalled_on_checkpoint_expected = 0,
-        .min_entries_total_expected = expect_number_polls * 1024,
+        .min_entries_total_expected = (uint64_t) expect_number_polls * 1024,
         .last_entries_processed = 0
     };
 
@@ -229,7 +229,7 @@ commit_txn(int expect_number_polls) {
         .num_calls = 0,
         .is_commit_expected = 1,
         .stalled_on_checkpoint_expected = 0,
-        .min_entries_total_expected = expect_number_polls * 1024,
+        .min_entries_total_expected = (uint64_t) expect_number_polls * 1024,
         .last_entries_processed = 0
     };
 
@@ -283,7 +283,7 @@ insert(void) {
 }
 
 static void
-delete(void) {
+op_delete(void) {
     assert(env!=NULL);
     assert(db!=NULL);
     DB_TXN *txn = txn_child ? txn_child : txn_parent;
@@ -302,7 +302,7 @@ perform_ops(int n) {
     for (i = 0; i < n; i++) {
         for (j = 0; j < 1024; j++) {
             if (j & 0x20)
-                delete();
+                op_delete();
             else
                 insert();
         }

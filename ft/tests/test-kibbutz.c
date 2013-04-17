@@ -13,7 +13,7 @@
 bool done[ND];
 
 static void dowork (void *idv) {
-    int *idp = idv;
+    int *idp = cast_to_typeof(idp) idv;
     int id = *idp;
     if (verbose) printf("s%d\n", id);
     assert(!done[id]);

@@ -19,7 +19,7 @@ static DB *db = NULL;
 static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER|DB_THREAD;
 // static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-static char *dbfilename = "bench.db";
+static const char *dbfilename = "bench.db";
 static u_int64_t cachesize = 127*1024*1024;
 static int nqueries = 1000000;
 static int nthreads = 1;
@@ -130,7 +130,7 @@ static void warmup(void) {
     memset(&key, 0, sizeof key);
     memset(&val, 0, sizeof val);
     r = c->c_get(c, &key, &val, DB_LAST); assert_zero(r);
-    array_to_long_long(&maxkey, key.data, key.size);
+    array_to_long_long(&maxkey, (unsigned char*)key.data, key.size);
     r = c->c_close(c); assert_zero(r);
     r = txn->commit(txn, 0); assert_zero(r);
     double tdiff = gettime() - tstart;

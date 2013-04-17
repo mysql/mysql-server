@@ -9,8 +9,6 @@
 #include "test.h"
 #include "includes.h"
 
-int verbose;
-
 static const char fname[]= __SRCFILE__ ".ft_handle";
 
 static TOKUTXN const null_txn = 0;

@@ -48,12 +48,8 @@ test_db_open_aborts (void) {
 	r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU|S_IRWXG|S_IRWXO); CKERR(r);
 	{
 	    DBT key,data;
-	    memset(&key, 0, sizeof(key));
-	    memset(&data, 0, sizeof(data));
-	    key.data="hello";
-	    key.size=6;
-	    data.data="there";
-	    data.size=6;
+            dbt_init(&key, "hello", 6);
+            dbt_init(&data, "there", 6);
 	    r=db->put(db, tid, &key, &data, 0);
 	    CKERR(r);
 	}
@@ -108,23 +104,15 @@ test_db_put_aborts (void) {
 	r=env->txn_begin(env, 0, &tid2, 0); assert(r==0);
 	{
 	    DBT key,data;
-	    memset(&key, 0, sizeof(key));
-	    memset(&data, 0, sizeof(data));
-	    key.data="hello";
-	    key.size=6;
-	    data.data="there";
-	    data.size=6;
+            dbt_init(&key, "hello", 6);
+            dbt_init(&data, "there", 6);
 	    r=db->put(db, tid, &key, &data, 0);
 	    CKERR(r);
 	}
 	{
 	    DBT key,data;
-	    memset(&key, 0, sizeof(key));
-	    memset(&data, 0, sizeof(data));
-	    key.data="bye";
-	    key.size=4;
-	    data.data="now";
-	    data.size=4;
+            dbt_init(&key, "bye", 4);
+            dbt_init(&data, "now", 4);
 	    r=db->put(db, tid2, &key, &data, 0);
 	    CKERR(r);
 	}
@@ -145,7 +133,7 @@ test_db_put_aborts (void) {
             iname.flags |= DB_DBT_MALLOC;
             r = env->get_iname(env, &dname, &iname);
             CKERR(r);
-            filename = iname.data;
+            filename = cast_to_typeof(filename) iname.data;
             assert(filename);
         }
 #else
@@ -165,20 +153,16 @@ test_db_put_aborts (void) {
 	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
 	{
 	    DBT key,data;
-	    memset(&key, 0, sizeof(key));
-	    memset(&data, 0, sizeof(data));
-	    key.data="hello";
-	    key.size=6;
+            dbt_init(&key, "hello", 6);
+            dbt_init(&data, NULL, 0);
 	    r=db->get(db, tid, &key, &data, 0);
 	    assert(r!=0);
 	    assert(r==DB_NOTFOUND);
 	}	    
 	{
 	    DBT key,data;
-	    memset(&key, 0, sizeof(key));
-	    memset(&data, 0, sizeof(data));
-	    key.data="bye";
-	    key.size=4;
+            dbt_init(&key, "bye", 4);
+            dbt_init(&data, NULL, 0);
 	    r=db->get(db, tid, &key, &data, 0);
 	    CKERR(r);
 	}	    

@@ -40,12 +40,11 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     int try_again = 0;
 
     assert(r_write < 0);
-    int errno_write = errno;
-    assert(errno_write != 0);
+    int errno_write = get_error_errno();
     switch (errno_write) {
     case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
 	char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-	snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
+	snprintf(err_msg, sizeof(err_msg), "Write of [%" PRIu64 "] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
 	perror(err_msg);
 	fflush(stderr);
 	try_again = 1;
@@ -54,7 +53,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     case ENOSPC: {
         if (toku_assert_on_write_enospc) {
             char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-            snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
+            snprintf(err_msg, sizeof(err_msg), "Failed write of [%" PRIu64 "] bytes to fd=[%d].", (uint64_t)len, fd);
             perror(err_msg);
             fflush(stderr);
             int out_of_disk_space = 1;
@@ -79,10 +78,10 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
                 ssize_t n = readlink(fname, symname, MY_MAX_PATH);
 
                 if ((int)n == -1)
-                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to fd=%d ", tstr, (uint64_t) len, fd);
+                    fprintf(stderr, "%.24s Tokudb No space when writing %" PRIu64 " bytes to fd=%d ", tstr, (uint64_t) len, fd);
                 else {
 		    tstr[n] = 0; // readlink doesn't append a NUL to the end of the buffer.
-                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to %*s ", tstr, (uint64_t) len, (int) n, symname);
+                    fprintf(stderr, "%.24s Tokudb No space when writing %" PRIu64 " bytes to %*s ", tstr, (uint64_t) len, (int) n, symname);
 		}
                 fprintf(stderr, "retry in %d second%s\n", toku_write_enospc_sleep, toku_write_enospc_sleep > 1 ? "s" : "");
                 fflush(stderr);
@@ -460,7 +459,7 @@ toku_fsync_directory(const char *fname) {
     if (sp) {
         resource_assert(sp >= fname);
         len = sp - fname + 1;
-        dirname = toku_malloc(len+1);
+        MALLOC_N(len+1, dirname);
         if (dirname == NULL)
             result = errno;
         else {

@@ -14,7 +14,7 @@
 
 // ENVDIR is defined in the Makefile
 #define FNAME       "foo.tokudb"
-char *name = NULL;
+const char *name = NULL;
 
 #define NUM         8
 #define MAX_LENGTH  (1<<16)

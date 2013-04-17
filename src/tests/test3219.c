@@ -39,7 +39,10 @@ lookup(int i, DB_TXN *txn)
     char hello[30], there[30], expectthere[30];
     snprintf(hello, sizeof(hello), "hello%d", i);
     snprintf(expectthere, sizeof(expectthere), "there%d", i);
-    DBT key, val={.data=there, .ulen=sizeof(there), .flags=DB_DBT_USERMEM};
+    DBT key, val;
+    val.data = there;
+    val.ulen = sizeof there;
+    val.flags = DB_DBT_USERMEM;
     int r=db->get(db, txn,
 		  dbt_init(&key, hello, strlen(hello)+1),
 		  &val,

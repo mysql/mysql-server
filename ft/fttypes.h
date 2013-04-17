@@ -74,7 +74,7 @@ typedef struct pair_attr_s {
     long leaf_size; // size if PAIR is a leaf node, 0 otherwise, used only for engine status
     long rollback_size; // size of PAIR is a rollback node, 0 otherwise, used only for engine status
     long cache_pressure_size; // amount PAIR contributes to cache pressure, is sum of buffer sizes and workdone counts
-    BOOL is_valid;
+    bool is_valid;
 } PAIR_ATTR;
 
 static inline PAIR_ATTR make_pair_attr(long size) { 

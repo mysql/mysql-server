@@ -34,7 +34,7 @@ clone_callback(
     )
 {
     new_attr->is_valid = FALSE;
-    int64_t* data_val = toku_xmalloc(sizeof(int64_t));
+    int64_t* XMALLOC(data_val);
     *data_val = *(int64_t *)value_data;
     *cloned_value_data = data_val;   
 }
@@ -83,7 +83,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     size_t data_index = (size_t)k.b;
     assert(data[data_index] != INT64_MAX);
     
-    int64_t* data_val = toku_malloc(sizeof(int64_t));
+    int64_t* XMALLOC(data_val);
     usleep(10);
     *data_val = data[data_index];
     *value = data_val;
@@ -306,17 +306,17 @@ dummy_int_checkpoint_userdata(CACHEFILE UU(cf), int UU(n), void* UU(extra)) {
 static void sum_vals(void) {
     int64_t sum = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
-        //printf("actual: i %d val %"PRId64" \n", i, data[i]);
+        //printf("actual: i %d val %" PRId64 " \n", i, data[i]);
         sum += data[i];
     }
-    if (verbose) printf("actual sum %"PRId64" \n", sum);
+    if (verbose) printf("actual sum %" PRId64 " \n", sum);
     assert(sum == 0);
     sum = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
-        //printf("checkpointed: i %d val %"PRId64" \n", i, checkpointed_data[i]);
+        //printf("checkpointed: i %d val %" PRId64 " \n", i, checkpointed_data[i]);
         sum += checkpointed_data[i];
     }
-    if (verbose) printf("checkpointed sum %"PRId64" \n", sum);
+    if (verbose) printf("checkpointed sum %" PRId64 " \n", sum);
     assert(sum == 0);
 }
 

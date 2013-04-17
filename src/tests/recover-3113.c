@@ -29,7 +29,7 @@
  */        
 
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-static char *namea="a.db";
+static const char *namea="a.db";
 static void checkpoint_callback_2(void * UU(extra));
 static DB_ENV *env;
 static BOOL do_test=FALSE, do_recover=FALSE;
@@ -53,8 +53,9 @@ run_test(void) {
     {
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
-	DBT k={.data="a", .size=2};
-	DBT v={.data="a", .size=2};
+        DBT k,v;
+        dbt_init(&k, "a", 2);
+        dbt_init(&v, "a", 2);
 	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
         r = txn->commit(txn, 0);                                                            CKERR(r);
     }
@@ -65,8 +66,9 @@ run_test(void) {
     {
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
-	DBT k={.data="b", .size=2};
-	DBT v={.data="b", .size=2};
+        DBT k,v;
+        dbt_init(&k, "b", 2);
+        dbt_init(&v, "b", 2);
 	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
     }
 

@@ -57,8 +57,10 @@ static void populate_rowset(struct rowset *rowset, int seq, int nrows, int keys[
     for (int i = 0; i < nrows; i++) {
         int k = keys[i];
         int v = seq * nrows + i;
-        DBT key = { .size = sizeof k, .data = &k };
-        DBT val = { .size = sizeof v, .data = &v };
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+        DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         add_row(rowset, &key, &val);
     }
 }
@@ -80,7 +82,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char
     int r;
 
     int nkeys = nrows * nrowsets;
-    int *keys = toku_malloc(nkeys * sizeof (int)); assert(keys);
+    int *XMALLOC_N(nkeys, keys);
     for (int i = 0; i < nkeys; i++)
         keys[i] = ascending_keys ? i : nkeys - i;
     if (random_keys)

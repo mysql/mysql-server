@@ -15,7 +15,7 @@ static DB * const null_db = 0;
 
 static int
 get_next_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    DBT *val_dbt = extra;
+    DBT *val_dbt = cast_to_typeof(val_dbt) extra;
     if (!lock_only) {
         toku_dbt_set(vallen, val, val_dbt, NULL);
     }

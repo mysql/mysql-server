@@ -64,7 +64,7 @@ static void run_recover (void) {
     r = toku_os_mkdir(ENVDIR "/saveddbs", S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
-    r = system("mv " ENVDIR "/"NAMEB_HINT "*.tokudb " ENVDIR "/saveddbs/");
+    r = system("mv " ENVDIR "/" NAMEB_HINT "*.tokudb " ENVDIR "/saveddbs/");
     CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
@@ -74,7 +74,7 @@ static void run_recover (void) {
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
 
-    r = system("rm -rf " ENVDIR "/"NAMEB_HINT"*.tokudb");
+    r = system("rm -rf " ENVDIR "/" NAMEB_HINT "*.tokudb");
     CKERR(r);
 
     r = system("mv "  ENVDIR "/saveddbs/*.tokudb " ENVDIR "/");

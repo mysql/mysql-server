@@ -67,11 +67,14 @@ toku_os_get_number_processors(void) {
     return sysconf(_SC_NPROCESSORS_CONF);
 }
 
+#if defined(HAVE_SCHED_GETAFFINITY)
+#include <sched.h>
+#endif
+
 int
 toku_os_get_number_active_processors(void) {
     int n = sysconf(_SC_NPROCESSORS_ONLN);
 #if defined(HAVE_SCHED_GETAFFINITY)
-#include <sched.h>
     {
         cpu_set_t cpuset;
         int r = sched_getaffinity(getpid(), sizeof cpuset, &cpuset);
@@ -142,7 +145,7 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
 }
 
 int
-toku_os_lock_file(char *name) {
+toku_os_lock_file(const char *name) {
     int r;
     int fd = open(name, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
     if (fd>=0) {
@@ -176,7 +179,7 @@ toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) 
     struct rusage rusage;
     r = getrusage(RUSAGE_SELF, &rusage);
     if (r == -1)
-        return errno;
+        return get_error_errno();
     if (usertime) 
         *usertime = rusage.ru_utime;
     if (kerneltime)
@@ -206,7 +209,7 @@ toku_os_get_max_rss(int64_t *maxrss) {
         *maxrss = rusage.ru_maxrss * 1024; // ru_maxrss is in kB
         return 0;
 #else
-        return errno;
+        return get_error_errno();
 #endif
     }
     int r = ENOENT;
@@ -236,7 +239,7 @@ toku_os_get_rss(int64_t *rss) {
         *rss = (rusage.ru_idrss + rusage.ru_ixrss + rusage.ru_isrss) * 1024;
         return 0;
 #else
-        return errno;
+        return get_error_errno();
 #endif
     }
     int r = ENOENT;
@@ -276,7 +279,7 @@ toku_os_get_max_process_data_size(uint64_t *maxdata) {
             d = 1ULL << 31;
 	*maxdata = d;
     } else
-        r = errno;
+        r = get_error_errno();
     return r;
 }
 
@@ -297,7 +300,7 @@ toku_get_processor_frequency_sys(uint64_t *hzret) {
     int r;
     FILE *fp = fopen("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq", "r");
     if (!fp) 
-        r = errno;
+        r = get_error_errno();
     else {
         unsigned int khz = 0;
         if (fscanf(fp, "%u", &khz) == 1) {
@@ -315,7 +318,7 @@ toku_get_processor_frequency_cpuinfo(uint64_t *hzret) {
     int r;
     FILE *fp = fopen("/proc/cpuinfo", "r");
     if (!fp) {
-        r = errno;
+        r = get_error_errno();
     } else {
         uint64_t maxhz = 0;
         char *buf = NULL;
@@ -349,9 +352,9 @@ toku_get_processor_frequency_sysctl(uint64_t *hzret) {
                      // gotta pick something
         goto exit;
     }
-    r = fscanf(fp, "hw.cpufrequency: %"SCNu64, hzret);
+    r = fscanf(fp, "hw.cpufrequency: %" SCNu64, hzret);
     if (r != 1) {
-        r = errno;
+        r = get_maybe_error_errno();
     } else {
         r = 0;
     }
@@ -375,9 +378,9 @@ int
 toku_get_filesystem_sizes(const char *path, uint64_t *avail_size, uint64_t *free_size, uint64_t *total_size) {
     struct statvfs s;
     int r = statvfs(path, &s);
-    if (r == -1) 
-        r = errno;
-    else {
+    if (r == -1) {
+        r = get_error_errno();
+    } else {
         // get the block size in bytes
         uint64_t bsize = s.f_frsize ? s.f_frsize : s.f_bsize;
         // convert blocks to bytes

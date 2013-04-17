@@ -16,7 +16,7 @@ static uint64_t maxk = 100000;
 
 static int usage(const char *prog) {
     fprintf(stderr, "%s: run single row insertions with prelocking\n", prog);
-    fprintf(stderr, "[--n %"PRIu64"]\n", maxk);
+    fprintf(stderr, "[--n %" PRIu64 "]\n", maxk);
     return 1;
 }
 
@@ -25,7 +25,7 @@ static int inserter(DB_ENV *env, DB *db, uint64_t _maxk, int putflags, int expec
     int r;
     for (uint64_t k = 0; k < _maxk; k++) {
         
-        if (verbose) printf("%"PRIu64"\n", k);
+        if (verbose) printf("%" PRIu64 "\n", k);
 
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);

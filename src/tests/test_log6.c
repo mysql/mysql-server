@@ -30,7 +30,7 @@ struct in_db {
 static void put_n (DB *db, DB_TXN *tid, int i) {
     char hello[30], there[30];
     DBT key,data;
-    struct in_db *newitem = toku_malloc(sizeof(*newitem));
+    struct in_db *XMALLOC(newitem);
     newitem->r = random();
     newitem->i = i;
     newitem->next = items;

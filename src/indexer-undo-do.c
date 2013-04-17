@@ -229,10 +229,12 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
         goto exit;
     }
 
-    TXNID outermost_xid_state = prov_states[0];
+    TXNID outermost_xid_state;
+    outermost_xid_state = prov_states[0];
     
     // scan the provisional stack from the outermost to the innermost transaction record
-    TOKUTXN curr_txn = NULL;
+    TOKUTXN curr_txn;
+    curr_txn = NULL;
     for (uint64_t xrindex = num_committed; xrindex < num_committed + num_provisional; xrindex++) {
 
         // get the ith transaction record

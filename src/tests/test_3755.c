@@ -36,9 +36,9 @@ static int
 int_cmp(DB *UU(db), const DBT *a, const DBT *b) {
     unsigned int *ap, *bp;
     assert(a->size == sizeof(*ap));
-    ap = a->data;
+    ap = cast_to_typeof(ap) a->data;
     assert(b->size == sizeof(*bp));
-    bp = b->data;
+    bp = cast_to_typeof(bp) b->data;
     return (*ap > *bp) - (*ap < *bp);
 }
 
@@ -107,7 +107,7 @@ int test_main(int argc, char * const argv[]) {
                     { int chk_r = db->get(db, txn_3, keyp, valp, 0); CKERR(chk_r); }
             });
             assert(val.size == sizeof(*vp));
-            vp = val.data;
+            vp = cast_to_typeof(vp) val.data;
             assert(*vp==i);
         }
     }

@@ -48,7 +48,7 @@ enum cursor_type {
 static void get_value_by_key(DBT * key, DBT * value)
 {
     // keys/values are always stored in the DBT in net order
-    int * k = key->data; 
+    int * k = cast_to_typeof(k) key->data; 
     int v = toku_ntohl(*k) * 2 + 1;
     memcpy(value->data, &v, sizeof(int));
 }
@@ -64,7 +64,7 @@ static void verify_value_by_key(DBT * key, DBT * value)
     expected_dbt.size = sizeof(int);
     get_value_by_key(key, &expected_dbt);
 
-    int * v = value->data;
+    int * v = cast_to_typeof(v) value->data;
     assert(*v == expected);
 }
 
@@ -79,8 +79,8 @@ struct cursor_cb_info {
 static int cursor_cb(DBT const * key,
         DBT const * value, void * extra)
 {
-    struct cursor_cb_info * info = extra;
-    int * kbuf = key->data;
+    struct cursor_cb_info * info = cast_to_typeof(info) extra;
+    int * kbuf = cast_to_typeof(kbuf) key->data;
     int k = ntohl(*kbuf);
 
     switch (info->type) {

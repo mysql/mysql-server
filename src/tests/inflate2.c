@@ -63,8 +63,10 @@ char  vdata[150];
 static void
 insert_n (u_int32_t ah) {
     u_int32_t an = htonl(ah);
-    DBT key = {.size = 4,             .data=&an };
-    DBT val = {.size = sizeof(vdata), .data=vdata};
+    DBT key;
+    dbt_init(&key, &an, 4);
+    DBT val;
+    dbt_init(&val, vdata, sizeof vdata);
     int r = db->put(db, NULL, &key, &val, 0);
     CKERR(r);
 }
@@ -73,8 +75,10 @@ static void
 get_n (u_int32_t ah, int expect_r)
 {
     u_int32_t an = htonl(ah);
-    DBT key = {.size = 4,             .data=&an };
-    DBT val = {.data=0, .flags = DB_DBT_MALLOC};
+    DBT key;
+    dbt_init(&key, &an, 4);
+    DBT val;
+    dbt_init_malloc(&val);
     int r = db->get(db, NULL, &key, &val, 0);
     assert(r==expect_r);
     if (r==0) toku_free(val.data);
@@ -85,7 +89,8 @@ static void
 delete_n_now (u_int32_t ah)
 {
     u_int32_t an = htonl(ah);
-    DBT key = {.size = 4,             .data=&an };
+    DBT key;
+    dbt_init(&key, &an, 4);
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
 #ifdef USE_BDB
     assert(r==0 || r==DB_NOTFOUND);

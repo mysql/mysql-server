@@ -63,7 +63,7 @@ DB_TXN *tid=0;
 
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
 
-char *dbfilename = "bench.db";
+const char *dbfilename = "bench.db";
 
 static void scanrace_setup (void) {
     int r;
@@ -107,7 +107,7 @@ struct extra_count {
 
 static int
 counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
-    struct extra_count *e=extrav;
+    struct extra_count *e = cast_to_typeof(e) extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
     return 0;

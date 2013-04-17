@@ -14,8 +14,6 @@
 #include "workqueue.h"
 #include "threadpool.h"
 
-int verbose;
-
 static WORKITEM
 new_workitem (void) {
     WORKITEM wi = (WORKITEM) toku_malloc(sizeof *wi); assert(wi);
@@ -83,7 +81,7 @@ test_set_closed (void) {
 
 static void *
 test_set_closed_waiter(void *arg) {
-    struct workqueue *wq = arg;
+    struct workqueue *wq = cast_to_typeof(wq) arg;
     int r;
 
     WORKITEM wi = 0;
@@ -143,7 +141,7 @@ rwfc_do_read (WORKITEM wi) {
 
 static void *
 rwfc_worker (void *arg) {
-    struct workqueue *wq = arg;
+    struct workqueue *wq = cast_to_typeof(wq) arg;
     while (1) {
         WORKITEM wi = 0;
         int r = workqueue_deq(wq, &wi, 1);

@@ -217,7 +217,7 @@ static void test_loader(DB **dbs)
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
-    struct error_extra error_extra = {.error_count=0};
+    struct error_extra error_extra = {.bad_i = 0, .error_count=0};
     r = loader->set_error_callback(loader, error_callback, (void*)&error_extra);
     CKERR(r);
     r = loader->set_poll_function(loader, NULL, NULL);
@@ -287,7 +287,7 @@ static void test_loader(DB **dbs)
 }
 
 char *free_me = NULL;
-char *env_dir = ENVDIR; // the default env_dir
+const char *env_dir = ENVDIR; // the default env_dir
 
 static void run_test(void) 
 {
@@ -389,7 +389,8 @@ static void do_args(int argc, char * const argv[]) {
 	    char full_env_dir[len];
 	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
 	    assert(r<len);
-	    free_me = env_dir = toku_strdup(full_env_dir);
+	    env_dir = toku_strdup(full_env_dir);
+            free_me = (char *) env_dir;
 	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {

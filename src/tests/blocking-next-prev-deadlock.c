@@ -58,8 +58,8 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
     int r;
 
     struct my_callback_context context;
-    context.key = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
-    context.val = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
+    dbt_init_realloc(&context.key);
+    dbt_init_realloc(&context.val);
 
     DB_TXN *txn = NULL;
     r = db_env->txn_begin(db_env, NULL, &txn, 0); assert(r == 0);
@@ -77,7 +77,7 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
         if (r != 0)
             break;
         if (verbose)
-            printf("%lu next %"PRIu64"\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
+            printf("%lu next %" PRIu64 "\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
         usleep(sleeptime);
     }
 
@@ -104,8 +104,8 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
     int r;
 
     struct my_callback_context context;
-    context.key = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
-    context.val = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
+    dbt_init_realloc(&context.key);
+    dbt_init_realloc(&context.val);
 
     DB_TXN *txn = NULL;
     r = db_env->txn_begin(db_env, NULL, &txn, 0); assert(r == 0);
@@ -123,7 +123,7 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
         if (r != 0)
             break;
         if (verbose)
-            printf("%lu prev %"PRIu64"\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
+            printf("%lu prev %" PRIu64 "\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
         usleep(sleeptime);
     }
 
@@ -179,8 +179,8 @@ int test_main(int argc, char * const argv[]) {
     uint64_t nrows = 10;
     int nthreads = 2;
     long sleeptime = 100000;
-    char *db_env_dir = ENVDIR;
-    char *db_filename = "test.db";
+    const char *db_env_dir = ENVDIR;
+    const char *db_filename = "test.db";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

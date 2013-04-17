@@ -228,13 +228,15 @@ toku_db_update(DB *db, DB_TXN *txn,
     r = db_put_check_size_constraints(db, key, update_function_extra);
     if (r != 0) { goto cleanup; }
 
-    BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
+    BOOL do_locking;
+    do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
         r = get_point_write_lock(db, txn, key);
         if (r != 0) { goto cleanup; }
     }
 
-    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    TOKUTXN ttxn;
+    ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
     r = toku_ft_maybe_update(db->i->ft_handle, key, update_function_extra, ttxn,
                               FALSE, ZERO_LSN, TRUE);
@@ -283,13 +285,15 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
         if (r != 0) { goto cleanup; }
     }
 
-    BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
+    BOOL do_locking;
+    do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
         r = toku_db_pre_acquire_table_lock(db, txn);
         if (r != 0) { goto cleanup; }
     }
 
-    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    TOKUTXN ttxn;
+    ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
     r = toku_ft_maybe_update_broadcast(db->i->ft_handle, update_function_extra, ttxn,
                                         FALSE, ZERO_LSN, TRUE, is_resetting_op);
@@ -901,5 +905,5 @@ toku_ydb_check_avail_fs_space(DB_ENV *env) {
 void __attribute__((constructor)) toku_ydb_write_helgrind_ignore(void);
 void
 toku_ydb_write_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&ydb_write_layer_status, sizeof ydb_write_layer_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ydb_write_layer_status, sizeof ydb_write_layer_status);
 }

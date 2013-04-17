@@ -60,10 +60,12 @@ int main(int argc, const char *argv[]) {
 
     const TXNID txn_c = 3;
     WRITE_REQUEST(c, l);
-    do_request_that_blocks(lt, &c_w_l, 2, (TXNID[]){ txn_a, txn_b });
+    TXNID ta1[] = { txn_a, txn_b };
+    do_request_that_blocks(lt, &c_w_l, 2, ta1);
 
     r = toku_lt_unlock_txn(lt, txn_a); assert(r == 0);
-    request_still_blocked(lt, &c_w_l, 1, (TXNID[]){ txn_b });
+    TXNID ta2[] = { txn_b };
+    request_still_blocked(lt, &c_w_l, 1, ta2);
 
     r = toku_lt_unlock_txn(lt, txn_b); assert(r == 0);
 

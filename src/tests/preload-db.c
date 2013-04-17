@@ -87,7 +87,7 @@ static void preload_dbs(DB **dbs)
 
 
 char *free_me = NULL;
-char *env_dir = ENVDIR; // the default env_dir.
+const char *env_dir = ENVDIR; // the default env_dir.
 
 static void run_test(void) 
 {

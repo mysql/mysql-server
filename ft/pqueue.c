@@ -16,13 +16,15 @@
 
 int pqueue_init(pqueue_t **result, size_t n, int which_db, DB *db, ft_compare_func compare, struct error_callback_s *err_callback)
 {
-    pqueue_t *q;
-    if (!(q = toku_malloc(sizeof(pqueue_t))))
-        return errno;
+    pqueue_t *MALLOC(q);
+    if (!q) {
+        return get_error_errno();
+    }
 
     /* Need to allocate n+1 elements since element 0 isn't used. */
-    if (!(q->d = toku_malloc((n + 1) * sizeof(pqueue_node_t *)))) {
-	int r = errno;
+    MALLOC_N(n + 1, q->d);
+    if (!q->d) {
+        int r = get_error_errno();
         toku_free(q);
         return r;
     }

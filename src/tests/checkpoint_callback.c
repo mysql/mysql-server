@@ -12,8 +12,8 @@
 // Purpose of test is to verify that callbacks are called correctly
 // without breaking a simple checkpoint (copied from tests/checkpoint_1.c).
 
-static char * string_1 = "extra1";
-static char * string_2 = "extra2";
+static const char * string_1 = "extra1";
+static const char * string_2 = "extra2";
 static int callback_1_count = 0;
 static int callback_2_count = 0;
 

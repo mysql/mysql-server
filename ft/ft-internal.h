@@ -395,9 +395,8 @@ struct ft_header {
     uint32_t count_of_optimize_in_progress_read_from_disk;
     // all messages before this msn have been applied to leaf nodes
     MSN msn_at_start_of_last_completed_optimize;
-    
-    STAT64INFO_S on_disk_stats;
 
+    STAT64INFO_S on_disk_stats;
 };
 
 // brt_header is always the current version.
@@ -467,9 +466,8 @@ struct ft {
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
 // In combination with the annotation in toku_ft_update_descriptor, this seems to be enough to convince test_4015 that all is well.
 // Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
-static const struct __toku_db zero_db; // it's static, so it's all zeros.  icc needs this to be a global
 static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
-    *fake_db = zero_db;
+    memset(fake_db, 0, sizeof *fake_db);
     fake_db->cmp_descriptor = orig_desc;
 }
 #define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc))
@@ -567,7 +565,6 @@ int check_legacy_end_checksum(struct rbuf *rb);
 /* End of ft-node-deserialization.c helper functions. */
 
 unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it take? */
-int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 void toku_verify_or_set_counts(FTNODE);
 
@@ -854,8 +851,8 @@ int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char 
 int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
 int toku_testsetup_root(FT_HANDLE brt, BLOCKNUM);
 int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM); // Return the size on disk.
-int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM, char *key, int keylen, char *val, int vallen);
-int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type, char *key, int keylen, char *val, int vallen);
+int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM, const char *key, int keylen, const char *val, int vallen);
+int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
 // These two go together to do lookups in a ftnode using the keys in a command.

@@ -75,7 +75,7 @@ rw_event_destroy (struct rw_event *rwe) {
 
 static void *
 test_writer_priority_thread (void *arg) {
-    struct rw_event *rwe = arg;
+    struct rw_event *rwe = cast_to_typeof(rwe) arg;
 
     toku_mutex_lock(&rwe->mutex);
     rwlock_write_lock(&rwe->the_rwlock, &rwe->mutex);
@@ -135,7 +135,7 @@ test_writer_priority (void) {
 
 static void *
 test_single_writer_thread (void *arg) {
-    struct rw_event *rwe = arg;
+    struct rw_event *rwe = cast_to_typeof(rwe) arg;
 
     toku_mutex_lock(&rwe->mutex);
     rwlock_write_lock(&rwe->the_rwlock, &rwe->mutex);

@@ -8,13 +8,14 @@
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
-char *namea="a.db";
-char *nameb="b.db";
+const char *namea="a.db";
+const char *nameb="b.db";
 
-static void put_something(DB_ENV *env, DB *db, char *k, char *v) {
+static void put_something(DB_ENV *env, DB *db, const char *k, const char *v) {
     int r;
-    DBT key={.data=k, .size=strlen(k)};
-    DBT val={.data=v, .size=strlen(v)};
+    DBT key, val;
+    dbt_init(&key, k, strlen(k));
+    dbt_init(&val, v, strlen(v));
     DB_TXN *txn;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
     r = db->put(db, txn, &key, &val, 0);                                CKERR(r);

@@ -23,7 +23,7 @@ int db_env_create_toku10(DB_ENV **, u_int32_t) __attribute__((__visibility__("de
 int db_create_toku10(DB **, DB_ENV *, u_int32_t) __attribute__((__visibility__("default")));
 
 // test only function
-int toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) __attribute__((__visibility__("default")));
+int toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN *dbtxn) __attribute__((__visibility__("default")));
 
 uint64_t toku_test_get_latest_lsn(DB_ENV *env) __attribute__((__visibility__("default")));
 

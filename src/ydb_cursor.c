@@ -77,7 +77,7 @@ query_context_wrapped_init(QUERY_CONTEXT_WRAPPED context, DBC *c, DBT *key, DBT 
 
 static int
 c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
-    QUERY_CONTEXT_WRAPPED context = extra;
+    QUERY_CONTEXT_WRAPPED context = (QUERY_CONTEXT_WRAPPED) extra;
     int r;
               r = toku_dbt_set(key->size, key->data, context->key, context->skey);
     if (r==0) r = toku_dbt_set(val->size, val->data, context->val, context->sval);
@@ -215,7 +215,7 @@ toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) 
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT      super_context = (QUERY_CONTEXT) extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
@@ -267,7 +267,7 @@ toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT      super_context = (QUERY_CONTEXT) extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
@@ -324,7 +324,7 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT      super_context = (QUERY_CONTEXT) extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
@@ -384,7 +384,7 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT      super_context = (QUERY_CONTEXT) extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
@@ -430,7 +430,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT      super_context = extra;
+    QUERY_CONTEXT      super_context = (QUERY_CONTEXT) extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
@@ -490,7 +490,7 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_WITH_INPUT super_context = (QUERY_CONTEXT_WITH_INPUT) extra;
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
@@ -544,7 +544,7 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_WITH_INPUT super_context = (QUERY_CONTEXT_WITH_INPUT) extra;
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
@@ -601,7 +601,7 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
 //result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
 static int
 c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
-    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_WITH_INPUT super_context = (QUERY_CONTEXT_WITH_INPUT) extra;
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
@@ -908,5 +908,5 @@ toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
 void __attribute__((constructor)) toku_ydb_cursor_helgrind_ignore(void);
 void
 toku_ydb_cursor_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&ydb_c_layer_status, sizeof ydb_c_layer_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ydb_c_layer_status, sizeof ydb_c_layer_status);
 }

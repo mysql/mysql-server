@@ -23,13 +23,15 @@ int tokudb_recovery_trace = 0;                    // turn on recovery tracing, d
 // time in seconds between recovery progress reports
 #define TOKUDB_RECOVERY_PROGRESS_TIME 15
 
+enum ss {
+    BACKWARD_NEWER_CHECKPOINT_END = 1,
+    BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END,
+    FORWARD_BETWEEN_CHECKPOINT_BEGIN_END,
+    FORWARD_NEWER_CHECKPOINT_END,
+};
+
 struct scan_state {
-    enum {
-        BACKWARD_NEWER_CHECKPOINT_END = 1,
-        BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END,
-        FORWARD_BETWEEN_CHECKPOINT_BEGIN_END,
-        FORWARD_NEWER_CHECKPOINT_END,
-    } ss;
+    enum ss ss;
     LSN checkpoint_begin_lsn;
     LSN checkpoint_end_lsn;
     uint64_t checkpoint_end_timestamp;
@@ -131,7 +133,7 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         assert(r == 0);
         r = toku_omt_delete_at(fmap->filenums, n-1);
         assert(r == 0);
-        struct file_map_tuple *tuple = v;
+        struct file_map_tuple *tuple = cast_to_typeof(tuple) v;
         assert(tuple->ft_handle);
         if (!recovery_succeeded) {
             // don't update the brt on close
@@ -150,16 +152,15 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
 }
 
 static int file_map_h(OMTVALUE omtv, void *v) {
-    struct file_map_tuple *a = omtv;
-    FILENUM *b = v;
+    struct file_map_tuple *a = cast_to_typeof(a) omtv;
+    FILENUM *b = cast_to_typeof(b) v;
     if (a->filenum.fileid < b->fileid) return -1;
     if (a->filenum.fileid > b->fileid) return +1;
     return 0;
 }
 
 static int file_map_insert (struct file_map *fmap, FILENUM fnum, FT_HANDLE brt, char *iname) {
-    struct file_map_tuple *tuple = toku_malloc(sizeof (struct file_map_tuple));
-    assert(tuple);
+    struct file_map_tuple *XMALLOC(tuple);
     file_map_tuple_init(tuple, fnum, brt, iname);
     int r = toku_omt_insert(fmap->filenums, tuple, file_map_h, &fnum, NULL);
     return r;
@@ -169,7 +170,7 @@ static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
-        struct file_map_tuple *tuple = v;
+        struct file_map_tuple *tuple = cast_to_typeof(tuple) v;
         r = toku_omt_delete_at(fmap->filenums, idx);
         file_map_tuple_destroy(tuple);
         toku_free(tuple);
@@ -181,7 +182,7 @@ static int file_map_find(struct file_map *fmap, FILENUM fnum, struct file_map_tu
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
-        struct file_map_tuple *tuple = v;
+        struct file_map_tuple *tuple = cast_to_typeof(tuple) v;
         assert(tuple->filenum.fileid == fnum.fileid);
         *file_map_tuple = tuple;
     }
@@ -348,7 +349,7 @@ static int toku_recover_begin_checkpoint (struct logtype_begin_checkpoint *l, RE
 static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoint *l, RECOVER_ENV renv) {
     int r;
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb recovery bw_begin_checkpoint at %"PRIu64" timestamp %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, recover_state(renv));
+    fprintf(stderr, "%.24s Tokudb recovery bw_begin_checkpoint at %" PRIu64 " timestamp %" PRIu64 " (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_NEWER_CHECKPOINT_END:
         // incomplete checkpoint, nothing to do
@@ -360,7 +361,7 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
         renv->ss.checkpoint_begin_timestamp = l->timestamp;
         renv->goforward = TRUE;
         tnow = time(NULL);
-        fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %"PRIu64" time %"PRIu64"\n", 
+        fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %" PRIu64 " time %" PRIu64 "\n", 
                 ctime(&tnow), l->lsn.lsn, 
                 renv->ss.checkpoint_end_timestamp - renv->ss.checkpoint_begin_timestamp);
         r = 0;
@@ -396,7 +397,7 @@ static int toku_recover_end_checkpoint (struct logtype_end_checkpoint *l, RECOVE
 
 static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *l, RECOVER_ENV renv) {
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb recovery bw_end_checkpoint at %"PRIu64" timestamp %"PRIu64" xid %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, l->lsn_begin_checkpoint.lsn, recover_state(renv));
+    fprintf(stderr, "%.24s Tokudb recovery bw_end_checkpoint at %" PRIu64 " timestamp %" PRIu64 " xid %" PRIu64 " (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, l->lsn_begin_checkpoint.lsn, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_NEWER_CHECKPOINT_END:
         renv->ss.ss = BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END;
@@ -442,7 +443,8 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
         }
         // try to open the file again and if we get it, restore
         // the unlink on close bit.
-        int ret = file_map_find(&renv->fmap, l->filenum, &tuple);
+        int ret;
+        ret = file_map_find(&renv->fmap, l->filenum, &tuple);
         if (ret == 0 && l->unlink_on_close) {
             toku_cachefile_unlink_on_close(tuple->ft_handle->ft->cf);
         }
@@ -503,7 +505,7 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
                                         TXNID            parentxid,
                                         u_int64_t        rollentry_raw_count,
                                         FILENUMS         open_filenums,
-                                        u_int8_t         force_fsync_on_commit,
+                                        bool             force_fsync_on_commit,
                                         u_int64_t        num_rollback_nodes,
                                         u_int64_t        num_rollentries,
                                         BLOCKNUM         spilled_rollback_head,
@@ -764,10 +766,13 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     char *iname = fixup_fname(&l->iname);
     char *iname_in_cwd = toku_cachetable_get_fname_in_cwd(renv->ct, iname);
     r = unlink(iname_in_cwd);
-    if (r != 0 && errno != ENOENT) {
-        fprintf(stderr, "Tokudb recovery %s:%d unlink %s %d\n", __FUNCTION__, __LINE__, iname, errno);
-        toku_free(iname);
-        return r;
+    if (r != 0) {
+        int er = get_error_errno();
+        if (er != ENOENT) {
+            fprintf(stderr, "Tokudb recovery %s:%d unlink %s %d\n", __FUNCTION__, __LINE__, iname, er);
+            toku_free(iname);
+            return r;
+        }
     }
     assert(0!=strcmp(iname, ROLLBACK_CACHEFILE_NAME)); //Creation of rollback cachefile never gets logged.
     toku_free(iname_in_cwd);
@@ -1216,7 +1221,8 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
         needs_recovery = TRUE; goto exit;
     }
     
-    struct log_entry *le = NULL;
+    struct log_entry *le;
+    le = NULL;
     r = toku_logcursor_last(logcursor, &le);
     if (r == 0) {
         needs_recovery = le->cmd != LT_shutdown;
@@ -1238,7 +1244,7 @@ static uint32_t recover_get_num_live_txns(RECOVER_ENV renv) {
 
 static int
 is_txn_unprepared (OMTVALUE txnv, u_int32_t UU(index), void* extra) {
-    TOKUTXN txn = txnv;
+    TOKUTXN txn = cast_to_typeof(txn) txnv;
     if (txn->state != TOKUTXN_PREPARING) {
         *(TOKUTXN *)extra = txn;
         return -1; // return -1 to get iterator to return
@@ -1264,8 +1270,8 @@ static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
 
 static int
 call_prepare_txn_callback_iter (OMTVALUE txnv, u_int32_t UU(index), void* extra) {
-    TOKUTXN txn = txnv;
-    RECOVER_ENV renv = extra;
+    TOKUTXN txn = cast_to_typeof(txn) txnv;
+    RECOVER_ENV renv = cast_to_typeof(renv) extra;
     renv->prepared_txn_callback(renv->env, txn);
     return 0;
 }
@@ -1301,7 +1307,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
 static void recover_trace_le(const char *f, int l, int r, struct log_entry *le) {
     if (le) {
         LSN thislsn = toku_log_entry_get_lsn(le);
-        fprintf(stderr, "%s:%d r=%d cmd=%c lsn=%"PRIu64"\n", f, l, r, le->cmd, thislsn.lsn);
+        fprintf(stderr, "%s:%d r=%d cmd=%c lsn=%" PRIu64 "\n", f, l, r, le->cmd, thislsn.lsn);
     } else
         fprintf(stderr, "%s:%d r=%d cmd=?\n", f, l, r);
 }
@@ -1355,8 +1361,9 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     {
         toku_struct_stat buf;
         if (toku_stat(env_dir, &buf)!=0) {
+            rr = get_error_errno();
             fprintf(stderr, "%.24s Tokudb recovery error: directory does not exist: %s\n", ctime(&tnow), env_dir);
-            rr = errno; goto errorexit;
+            goto errorexit;
         } else if (!S_ISDIR(buf.st_mode)) {
             fprintf(stderr, "%.24s Tokudb recovery error: this file is supposed to be a directory, but is not: %s\n", ctime(&tnow), env_dir);
             rr = ENOTDIR; goto errorexit;
@@ -1365,8 +1372,9 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     // scan backwards
     scan_state_init(&renv->ss);
     tnow = time(NULL);
-    time_t tlast = tnow;
-    fprintf(stderr, "%.24s Tokudb recovery scanning backward from %"PRIu64"\n", ctime(&tnow), lastlsn.lsn);
+    time_t tlast;
+    tlast = tnow;
+    fprintf(stderr, "%.24s Tokudb recovery scanning backward from %" PRIu64 "\n", ctime(&tnow), lastlsn.lsn);
     for (unsigned i=0; 1; i++) {
 
         // get the previous log entry (first time gets the last one)
@@ -1386,7 +1394,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
             tnow = time(NULL);
             if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
                 thislsn = toku_log_entry_get_lsn(le);
-                fprintf(stderr, "%.24s Tokudb recovery scanning backward from %"PRIu64" at %"PRIu64" (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, recover_state(renv));
+                fprintf(stderr, "%.24s Tokudb recovery scanning backward from %" PRIu64 " at %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, recover_state(renv));
                 tlast = tnow;
             }
         }
@@ -1415,7 +1423,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     assert(le);
     thislsn = toku_log_entry_get_lsn(le);
     tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb recovery starts scanning forward to %"PRIu64" from %"PRIu64" left %"PRIu64" (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
+    fprintf(stderr, "%.24s Tokudb recovery starts scanning forward to %" PRIu64 " from %" PRIu64 " left %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
 
     for (unsigned i=0; 1; i++) {
 
@@ -1424,7 +1432,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
             tnow = time(NULL);
             if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
                 thislsn = toku_log_entry_get_lsn(le);
-                fprintf(stderr, "%.24s Tokudb recovery scanning forward to %"PRIu64" at %"PRIu64" left %"PRIu64" (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
+                fprintf(stderr, "%.24s Tokudb recovery scanning forward to %" PRIu64 " at %" PRIu64 " left %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
                 tlast = tnow;
             }
         }
@@ -1473,7 +1481,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         uint32_t n = recover_get_num_live_txns(renv);
         if (n > 0) {
             tnow = time(NULL);
-            fprintf(stderr, "%.24s Tokudb recovery has %"PRIu32" live transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
+            fprintf(stderr, "%.24s Tokudb recovery has %" PRIu32 " live transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
         }
     }
     recover_abort_live_txns(renv);
@@ -1481,22 +1489,25 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         uint32_t n = recover_get_num_live_txns(renv);
         if (n > 0) {
             tnow = time(NULL);
-            fprintf(stderr, "%.24s Tokudb recovery has %"PRIu32" prepared transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
+            fprintf(stderr, "%.24s Tokudb recovery has %" PRIu32 " prepared transaction%s\n", ctime(&tnow), n, n > 1 ? "s" : "");
         }
     }
 
     // close the open dictionaries
-    uint32_t n = file_map_get_num_dictionaries(&renv->fmap);
+    uint32_t n;
+    n = file_map_get_num_dictionaries(&renv->fmap);
     if (n > 0) {
         tnow = time(NULL);
-        fprintf(stderr, "%.24s Tokudb recovery closing %"PRIu32" dictionar%s\n", ctime(&tnow), n, n > 1 ? "ies" : "y");
+        fprintf(stderr, "%.24s Tokudb recovery closing %" PRIu32 " dictionar%s\n", ctime(&tnow), n, n > 1 ? "ies" : "y");
     }
     file_map_close_dictionaries(&renv->fmap, TRUE, lastlsn);
 
-    // write a recovery log entry
-    BYTESTRING recover_comment = { strlen("recover"), "recover" };
-    r = toku_log_comment(renv->logger, NULL, TRUE, 0, recover_comment);
-    assert(r == 0);
+    {
+        // write a recovery log entry
+        BYTESTRING recover_comment = { strlen("recover"), (char *) "recover" };
+        r = toku_log_comment(renv->logger, NULL, TRUE, 0, recover_comment);
+        assert(r == 0);
+    }
 
     // checkpoint 
     tnow = time(NULL);
@@ -1531,7 +1542,7 @@ toku_recover_lock(const char *lock_dir, int *lockfd) {
     assert(l+1 == (signed)(sizeof(lockfname)));
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
-        int e = errno;
+        int e = get_error_errno();
         fprintf(stderr, "Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
         return e;
     }
@@ -1541,8 +1552,9 @@ toku_recover_lock(const char *lock_dir, int *lockfd) {
 int
 toku_recover_unlock(int lockfd) {
     int r = toku_os_unlock_file(lockfd);
-    if (r != 0)
-        return errno;
+    if (r != 0) {
+        return get_error_errno();
+    }
     return 0;
 }
 

@@ -53,7 +53,8 @@ static int run_test(void)
 
     DBT keys[n_sources];
     DBT vals[n_sources];
-    DBT zero = {.data=0, .flags=DB_DBT_REALLOC, .size=0, .ulen=0};
+    DBT zero;
+    toku_init_dbt_flags(&zero, DB_DBT_REALLOC);
     int key_data[10] = {0, 4, 8, 9, 5, 1, 2, 6, 7, 3};
 
     for (int i=0;i<n_sources; i++) {

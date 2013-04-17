@@ -108,6 +108,7 @@ typedef int64_t toku_off_t;
 
 #include "toku_os.h"
 #include "toku_htod.h"
+#include "toku_assert.h"
 
 #define UU(x) x __attribute__((__unused__))
 
@@ -127,6 +128,9 @@ typedef int64_t toku_off_t;
 #    ifndef DONT_DEPRECATE_MALLOC
 #       pragma deprecated (malloc, free, realloc)
 #    endif
+#    ifndef DONT_DEPRECATE_ERRNO
+#       pragma deprecated (errno)
+#    endif
 #    ifndef TOKU_WINDOWS_ALLOW_DEPRECATED
 #       pragma poison   dup2
 #       pragma poison   _dup2
@@ -144,7 +148,7 @@ int      dup2(int fd, int fd2)                      __attribute__((__deprecated_
 int      _dup2(int fd, int fd2)                     __attribute__((__deprecated__));
 // strdup is a macro in some libraries.
 #undef strdup
-char*    strdup(const char *)           __attribute__((__deprecated__));
+char*    strdup(const char *)         __THROW __attribute_malloc__ __nonnull ((1)) __attribute__((__deprecated__));
 #undef __strdup
 char*    __strdup(const char *)         __attribute__((__deprecated__));
 #    ifndef DONT_DEPRECATE_WRITES
@@ -155,6 +159,9 @@ ssize_t  pwrite(int, const void *, size_t, off_t)   __attribute__((__deprecated_
 extern void *malloc(size_t)                    __THROW __attribute__((__deprecated__)) ;
 extern void free(void*)                        __THROW __attribute__((__deprecated__));
 extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecated__));
+#    endif
+#    ifndef DONT_DEPRECATE_ERRNO
+//extern int errno __attribute__((__deprecated__));
 #    endif
 #   endif
 #endif

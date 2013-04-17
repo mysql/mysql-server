@@ -26,7 +26,7 @@ long logsize   = -2; // must be set to a number from -1 to 20 inclusive, on comm
 
 // ENVDIR is defined in the Makefile
 // And can be overridden by -e
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 static void
 init(void) {
@@ -128,7 +128,7 @@ verify_and_tear_down(int close_first) {
             iname.flags |= DB_DBT_MALLOC;
             r = env->get_iname(env, &dname, &iname);
             CKERR(r);
-            filename = iname.data;
+            filename = cast_to_typeof(filename) iname.data;
             assert(filename);
         }
 #else

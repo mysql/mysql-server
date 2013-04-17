@@ -91,8 +91,8 @@ test_stat64 (unsigned int N) {
         /* r = env->txn_begin(env, NULL, &txn, 0); CKERR(r); */
         DBC *c = NULL;
         r = db->cursor(db, txn, &c, 0); CKERR(r);
-        DBT key = {.size = 0};
-        DBT val = {.size = 0};
+        DBT key; dbt_init(&key, NULL, 0);
+        DBT val; dbt_init(&val, NULL, 0);
         r = c->c_get(c, &key, &val, DB_LAST);
         CKERR(r);
         r = c->c_close(c); CKERR(r);

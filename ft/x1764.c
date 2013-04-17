@@ -11,7 +11,7 @@
 
 u_int32_t x1764_memory_simple (const void *buf, int len)
 {
-    const u_int64_t *lbuf=buf;
+    const u_int64_t *lbuf = cast_to_typeof(lbuf) buf;
     u_int64_t c=0;
     while (len>=8) {
 	c = c*17 + *lbuf;
@@ -33,7 +33,7 @@ u_int32_t x1764_memory_simple (const void *buf, int len)
 
 u_int32_t x1764_memory (const void *vbuf, int len)
 {
-    const u_int8_t *buf = vbuf;
+    const u_int8_t *buf = cast_to_typeof(buf) vbuf;
     int len_4_words = 4*sizeof(u_int64_t);
     u_int64_t suma=0, sumb=0, sumc=0, sumd=0;
     while (len >= len_4_words) {
@@ -71,7 +71,7 @@ void x1764_init(struct x1764 *l) {
 void x1764_add (struct x1764 *l, const void *vbuf, int len) {
     if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
     int n_input_bytes = l->n_input_bytes;
-    const unsigned char *cbuf = vbuf;
+    const unsigned char *cbuf = cast_to_typeof(cbuf) vbuf;
     // Special case short inputs
     if (len==1) {
 	u_int64_t input = l->input | ((u_int64_t)(*cbuf))<<(8*n_input_bytes);

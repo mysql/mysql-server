@@ -25,8 +25,7 @@ doit (void) {
     int r;
     
     fnamelen = strlen(__SRCFILE__) + 20;
-    fname = toku_malloc(fnamelen);
-    assert(fname!=0);
+    XMALLOC_N(fnamelen, fname);
 
     snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
     r = toku_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -51,8 +50,7 @@ doit (void) {
 
     // make a 1MB val
     u_int32_t big_val_size = 1000000;
-    char* big_val = toku_xmalloc(big_val_size);
-    memset(big_val, 0, big_val_size);
+    char* XCALLOC_N(big_val_size, big_val);
     DBT k,v;
     memset(&k, 0, sizeof(k));
     memset(&v, 0, sizeof(v));

@@ -23,7 +23,7 @@ int state_to_crash = 0;
 
 static void *do_checkpoint_and_crash(void *arg) {
     // first verify that checkpointed_data is correct;
-    DB_ENV* env = arg;
+    DB_ENV* env = cast_to_typeof(env) arg;
     if (verbose) printf("starting a checkpoint\n");
     int r = env->txn_checkpoint(env, 0, 0, 0); assert(r==0);
     if (verbose) printf("completed a checkpoint, about to crash\n");

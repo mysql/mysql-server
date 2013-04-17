@@ -47,7 +47,7 @@ test_main (int argc, const char *argv[]) {
 
         char str[32];
         sprintf(str, "hello%d", helloseq++);
-        BYTESTRING bs0 = { .data = str, .len = strlen(str) };
+        BYTESTRING bs0 = { .len = (uint32_t) strlen(str), .data = str };
         r = toku_log_comment(logger, &lsn, 0, 0, bs0);
         assert(r == 0);
 

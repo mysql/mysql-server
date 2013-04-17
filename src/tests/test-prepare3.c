@@ -43,7 +43,8 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir) {
 		data[0]='a'+tnum;
 		data[1]='a'+k;
 		data[DSIZE-1]=0;
-		DBT key={.size=DSIZE, .data=data};
+                DBT key;
+                dbt_init(&key, data, DSIZE);
 		CKERR(db->put(db, txn, &key, &key, 0));
 	    }
 	}
@@ -53,8 +54,9 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir) {
     for (int tnum=0; tnum<NTXNS; tnum++) {
 	DB_TXN *txn;
 	CKERR((*envp)->txn_begin(*envp, 0, &txn, 0));
-	char data[3]={'a'+tnum,'_',0};
-	DBT key={.size=3, .data=data};
+	char data[3]={(char)('a'+tnum),'_',0};
+	DBT key;
+        dbt_init(&key, data, 3);
 	CKERR(db->put(db, txn, &key, &key, 0));
 	u_int8_t gid[DB_GID_SIZE];
 	memset(gid, 0, DB_GID_SIZE);
@@ -146,9 +148,11 @@ static void check_state_after_full_recovery (DB_ENV *env) {
     for (int tnum=0; tnum<NTXNS; tnum++) {
 	DB_TXN *txn;
 	CKERR(env->txn_begin(env, 0, &txn, 0));
-	char data[3]={'a'+tnum,'_',0};
-	DBT key = {.size=3, .data=data};
-	DBT dbt_data = {.size=0, .data=0};
+	char data[3]={(char)('a'+tnum),'_',0};
+	DBT key;
+        dbt_init(&key, data, 3);
+	DBT dbt_data;
+        dbt_init(&dbt_data, NULL, 0);
 	int r = db->get(db, txn, &key, &dbt_data, 0);
 	if (tnum%2==0) {
 	    assert(r==0);

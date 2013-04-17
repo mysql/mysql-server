@@ -50,7 +50,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logger_open(dname, logger);
     assert(r == 0);
 
-    BYTESTRING bs0 = { .data = "hello", .len = 5 };
+    BYTESTRING bs0 = { .len = 5, .data = (char *) "hello" };
     r = toku_log_comment(logger, &lsn, 0, 0, bs0);
     assert(r == 0);
 

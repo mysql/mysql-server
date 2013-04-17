@@ -25,7 +25,7 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_set_lg_max(logger, 32); assert(r == 0);
     r = toku_logger_open(dname, logger); assert(r == 0);
-    BYTESTRING hello = (BYTESTRING) { 5, "hello"};
+    BYTESTRING hello = (BYTESTRING) { 5, (char *) "hello"};
     LSN comment_lsn;
     r = toku_log_comment(logger, &comment_lsn, TRUE, 0, hello);
     LSN begin_lsn;

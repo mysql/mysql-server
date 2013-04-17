@@ -50,7 +50,7 @@ flush (
 {
     // printf("f");
     assert(size.size== item_size);
-    int *v = value;
+    int *v = cast_to_typeof(v) value;
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
     (void)__sync_fetch_and_add(&n_flush, 1);
@@ -93,7 +93,7 @@ do_update (void *UU(ignore))
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
-	int *v = vv;
+	int *v = cast_to_typeof(v) vv;
 	assert(*v==42);
 	*v = 43;
 	//printf("[%d]43\n", i);
@@ -127,7 +127,7 @@ static void checkpoint_pending(void) {
     int r;
     r = toku_create_cachetable(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __SRCFILE__ "test1.dat";
-    r = unlink(fname1); if (r!=0) CKERR2(errno, ENOENT);
+    r = unlink(fname1); if (r!=0) CKERR2(get_error_errno(), ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                 dummy_pin_unpin, dummy_pin_unpin);

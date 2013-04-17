@@ -23,7 +23,7 @@ struct toku_logfilemgr {
 
 int toku_logfilemgr_create(TOKULOGFILEMGR *lfm) {
     // malloc a logfilemgr
-    TOKULOGFILEMGR mgr = toku_xmalloc(sizeof(struct toku_logfilemgr));
+    TOKULOGFILEMGR XMALLOC(mgr);
     mgr->first = NULL;
     mgr->last = NULL;
     mgr->n_entries = 0;    
@@ -63,7 +63,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir, TXNID *last_xi
     LSN tmp_lsn = {0};
     TXNID last_xid = TXNID_NONE;
     for(int i=0;i<n_logfiles;i++){
-        lf_info = toku_xmalloc(sizeof(struct toku_logfile_info));
+        XMALLOC(lf_info);
         // find the index
 	// basename is the filename of the i-th logfile
         basename = strrchr(logfiles[i], '/') + 1;
@@ -114,7 +114,7 @@ int toku_logfilemgr_num_logfiles(TOKULOGFILEMGR lfm) {
 
 int toku_logfilemgr_add_logfile_info(TOKULOGFILEMGR lfm, TOKULOGFILEINFO lf_info) {
     assert(lfm);
-    struct lfm_entry *entry = toku_xmalloc(sizeof(struct lfm_entry));
+    struct lfm_entry *XMALLOC(entry);
     entry->lf_info = lf_info;
     entry->next = NULL;
     if ( lfm->n_entries != 0 )
@@ -167,7 +167,7 @@ void toku_logfilemgr_print(TOKULOGFILEMGR lfm) {
     printf("toku_logfilemgr_print [%p] : %d entries \n", lfm, lfm->n_entries);
     struct lfm_entry *entry = lfm->first;
     for (int i=0;i<lfm->n_entries;i++) {
-        printf("  entry %d : index = %"PRId64", maxlsn = %"PRIu64"\n", i, entry->lf_info->index, entry->lf_info->maxlsn.lsn);
+        printf("  entry %d : index = %" PRId64 ", maxlsn = %" PRIu64 "\n", i, entry->lf_info->index, entry->lf_info->maxlsn.lsn);
         entry = entry->next;
     }
 }

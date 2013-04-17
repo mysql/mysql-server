@@ -81,7 +81,7 @@ static void test_indexer(DB *src, DB **dbs)
     if ( verbose ) printf("test_indexer done\n");
 }
 
-char *src_name="src.db";
+const char *src_name="src.db";
 
 static void run_test(void) 
 {

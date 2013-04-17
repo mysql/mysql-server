@@ -31,7 +31,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
     flush_calls++;
     if (keep == FALSE) {
         flush_evict_calls++;
-	if (verbose) printf("%s:%d flush %"PRId64"\n", __FUNCTION__, __LINE__, k.b);
+	if (verbose) printf("%s:%d flush %" PRId64 "\n", __FUNCTION__, __LINE__, k.b);
         evicted_keys |= 1 << k.b;
     }
 }
@@ -51,7 +51,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        ) {
 
     fetch_calls++;
-    if (verbose) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, k.b);
+    if (verbose) printf("%s:%d %" PRId64 "\n", __FUNCTION__, __LINE__, k.b);
 
     *value = 0;
     *sizep = make_pair_attr(1);

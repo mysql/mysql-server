@@ -81,9 +81,10 @@ static inline uint32_t myrandom (void) {
 }
 
 
-static inline DBT *dbt_init(DBT *dbt, void *data, uint32_t size) {
+static inline DBT *dbt_init(DBT *dbt, const void *data, uint32_t size) {
     memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
+    dbt->data = (void *) data;  // this is unsafe, but just for tests
+                                // which like to use string literals
     dbt->size = size;
     return dbt;
 }
@@ -148,7 +149,7 @@ request_still_blocked(
         toku_lock_tree *lt,
         toku_lock_request *request,
         size_t num_conflicts,
-        TXNID conflicting_txns[num_conflicts]) {
+        TXNID conflicting_txns[/*num_conflicts*/]) {
     int r;
     txnid_set conflicts; 
 
@@ -172,7 +173,7 @@ do_request_that_blocks(
         toku_lock_tree *lt,
         toku_lock_request *request,
         int num_conflicts,
-        TXNID conflicting_txns[num_conflicts]) {
+        TXNID conflicting_txns[/*num_conflicts*/]) {
     int r;
 
     r = toku_lock_request_start(request, lt, false);
