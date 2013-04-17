@@ -1402,6 +1402,7 @@ static bool try_pin_pair(
     PAIR p,
     CACHETABLE ct,
     CACHEFILE cachefile,
+    bool have_read_list_lock,
     bool may_modify_value,
     uint32_t num_dependent_pairs,
     PAIR* dependent_pairs,
@@ -1413,8 +1414,12 @@ static bool try_pin_pair(
 {
     bool dep_checkpoint_pending[num_dependent_pairs];
     bool try_again = true;
-    bool reacquire_lock = false;
-    if (nb_mutex_writers(&p->value_nb_mutex)) {
+
+    // we need to exit with the read_list_lock, if we don't already have
+    // it we definitely need to reacquire it
+    bool reacquire_lock = !have_read_list_lock;
+    if (have_read_list_lock && nb_mutex_writers(&p->value_nb_mutex)) {
+        // drop the read_list_lock before doing an expensive lock
         reacquire_lock = true;
         ct->list.read_list_unlock();
     }
@@ -1543,6 +1548,7 @@ beginning:
             p,
             ct,
             cachefile,
+            true,
             may_modify_value,
             num_dependent_pairs,
             dependent_pairs,
@@ -1576,10 +1582,7 @@ beginning:
         if (p != NULL) {
             pair_lock(p);
             ct->list.write_list_unlock();
-
-            // Don't forget to grab the read list lock
-            // BEFORE calling try_pin_pair.
-            ct->list.read_list_lock();
+            // we will gain the read_list_lock again before exiting try_pin_pair
 
             // on entry, holds p->mutex,
             // on exit, does not hold p->mutex
@@ -1587,6 +1590,7 @@ beginning:
                 p,
                 ct,
                 cachefile,
+                false,
                 may_modify_value,
                 num_dependent_pairs,
                 dependent_pairs,
