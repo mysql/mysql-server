@@ -1048,7 +1048,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create);
       STATPRINT("loader create (success)", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create_fail);
-      STATPRINT("loader create fail)", buf);
+      STATPRINT("loader create fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put);
       STATPRINT("loader put", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close);
