@@ -399,7 +399,7 @@ int toku_loader_abort(DB_LOADER *loader)
 int toku_loader_cleanup_temp_files(DB_ENV *env) {
     int result;
     struct dirent *de;
-    char * dir = env->i->real_data_dir;
+    char * dir = env->i->real_tmp_dir;
     DIR *d = opendir(dir);
     if (d==0) {
         result = errno; goto exit;
