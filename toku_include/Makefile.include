@@ -98,7 +98,7 @@ WERROR    = -Werror
 endif
 WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn
 
-FORMAT    = -Wmissing-format-attribute
+FORMAT    = -Wmissing-format-attribute #-Wformat=2 #Stronger printf warnings once logger.c cleaned up
 ifeq ($(SYSTEM),sunos)
 VISIBILITY=
 else
@@ -338,6 +338,7 @@ endif
 tags: cscope.out TAGS
 
 TAGS: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	rm -f `find $(TOKUROOT) -type f -name TAGS` #Delete all other tag files
 	etags $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
 
 cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]

@@ -142,8 +142,10 @@ static int toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNC
 
 static int toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
 static int toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
 static int toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra);
 static int toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_get_both_range_reverse(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra);
 
 static int toku_c_getf_heaviside(DBC *c, u_int32_t flags,
                                  YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f,
@@ -1469,6 +1471,10 @@ toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
             query_context_wrapped_init(&context, c, key,  val);
             r = toku_c_getf_set_range(c, remaining_flags, key, c_get_wrapper_callback, &context);
             break;
+        case (DB_SET_RANGE_REVERSE):
+            query_context_wrapped_init(&context, c, key,  val);
+            r = toku_c_getf_set_range_reverse(c, remaining_flags, key, c_get_wrapper_callback, &context);
+            break;
         case (DB_GET_BOTH):
             query_context_wrapped_init(&context, c, NULL, NULL);
             r = toku_c_getf_get_both(c, remaining_flags, key, val, c_get_wrapper_callback, &context);
@@ -1479,6 +1485,13 @@ toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
             if (c_db_is_nodup(c)) query_context_wrapped_init(&context, c, NULL, NULL);
             else                  query_context_wrapped_init(&context, c, NULL, val);
             r = toku_c_getf_get_both_range(c, remaining_flags, key, val, c_get_wrapper_callback, &context);
+            break;
+        case (DB_GET_BOTH_RANGE_REVERSE):
+            //For a nodup database, DB_GET_BOTH_RANGE_REVERSE is an alias for DB_GET_BOTH.
+            //DB_GET_BOTH(_RANGE_REVERSE) require different contexts (see case(DB_GET_BOTH)).
+            if (c_db_is_nodup(c)) query_context_wrapped_init(&context, c, NULL, NULL);
+            else                  query_context_wrapped_init(&context, c, NULL, val);
+            r = toku_c_getf_get_both_range_reverse(c, remaining_flags, key, val, c_get_wrapper_callback, &context);
             break;
         default:
             r = EINVAL;
@@ -1535,12 +1548,20 @@ static int locked_c_getf_set_range(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBA
     toku_ydb_lock();  int r = toku_c_getf_set_range(c, flag, key, f, extra); toku_ydb_unlock(); return r;
 }
 
+static int locked_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_set_range_reverse(c, flag, key, f, extra); toku_ydb_unlock(); return r;
+}
+
 static int locked_c_getf_get_both(DBC *c, u_int32_t flag, DBT * key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_get_both(c, flag, key, val, f, extra); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT * key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     toku_ydb_lock();  int r = toku_c_getf_get_both_range(c, flag, key, val, f, extra); toku_ydb_unlock(); return r;
+}
+
+static int locked_c_getf_get_both_range_reverse(DBC *c, u_int32_t flag, DBT * key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock();  int r = toku_c_getf_get_both_range_reverse(c, flag, key, val, f, extra); toku_ydb_unlock(); return r;
 }
 
 typedef struct {
@@ -2267,6 +2288,65 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
     return r;
 }
 
+static int c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
+
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
+    TOKULOGGER logger = c_get_logger(c);
+    //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
+    int r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context, logger);
+    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key) = found ? found_key : -infinity
+    //  left(val) = found ? found_val : -infinity
+    //  right(key,val)  = (input_key, infinity)
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   &found_key,               &found_val,
+                                   super_context->input_key, toku_lt_infinity);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   toku_lt_neg_infinity,     toku_lt_neg_infinity,
+                                   super_context->input_key, toku_lt_infinity);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range_reverse
+    return r;
+}
+
 static int c_getf_get_both_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
 
 static int
@@ -2379,6 +2459,66 @@ c_getf_get_both_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, byte
     return r;
 }
 
+static int c_getf_get_both_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
+
+static int
+toku_c_getf_get_both_range_reverse(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
+    int r;
+    if (c_db_is_nodup(c)) r = toku_c_getf_get_both(c, flag, key, val, f, extra);
+    else {
+        QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+        query_context_with_input_init(&context, c, flag, key, val, f, extra); 
+        TOKULOGGER logger = c_get_logger(c);
+        //toku_brt_cursor_get_both_range_reverse will call c_getf_get_both_range_reverse_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_get_both_range_reverse(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_reverse_callback, &context, logger);
+        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    }
+    return r;
+}
+
+//result is the result of the query (i.e. 0 means found, DB_NOTFOUND, etc..)
+static int
+c_getf_get_both_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra) {
+    QUERY_CONTEXT_WITH_INPUT super_context = extra;
+    QUERY_CONTEXT_BASE       context       = &super_context->base;
+
+    int r;
+
+    DBT found_key;
+    DBT found_val;
+    toku_fill_dbt(&found_key, key, keylen);
+    toku_fill_dbt(&found_val, val, vallen);
+
+    //Lock:
+    //  left(key,val)  = (input_key, found ? found_val : -infinity)
+    //  right(key,val) = (input_key, input_val)
+    if (context->do_locking) {
+        RANGE_LOCK_REQUEST_S request;
+        if (key!=NULL) {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, &found_val,
+                                   super_context->input_key, super_context->input_val);
+        }
+        else {
+            read_lock_request_init(&request, context->txn, context->db,
+                                   super_context->input_key, toku_lt_neg_infinity,
+                                   super_context->input_key, super_context->input_val);
+        }
+        r = grab_range_lock(&request);
+    }
+    else r = 0;
+
+    //Call application-layer callback if found and locks were successfully obtained.
+    if (r==0 && key!=NULL) {
+        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+    }
+
+    //Give brt-layer an error (if any) to return from toku_brt_cursor_get_both_range_reverse
+    return r;
+}
 
 static int locked_c_getf_heaviside(DBC *c, u_int32_t flags,
                                YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f,
@@ -2737,8 +2877,10 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     SCRS(c_getf_heaviside);
     SCRS(c_getf_set);
     SCRS(c_getf_set_range);
+    SCRS(c_getf_set_range_reverse);
     SCRS(c_getf_get_both);
     SCRS(c_getf_get_both_range);
+    SCRS(c_getf_get_both_range_reverse);
 #undef SCRS
 
 #if !TOKUDB_NATIVE_H

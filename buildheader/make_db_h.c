@@ -119,6 +119,8 @@ void print_defines (void) {
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
+    printf("#define DB_SET_RANGE_REVERSE 252\n"); // private tokudb
+    printf("#define DB_GET_BOTH_RANGE_REVERSE 251\n"); // private tokudb
     dodefine(DB_RMW);
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
@@ -424,8 +426,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                                  "YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction)",
 			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
