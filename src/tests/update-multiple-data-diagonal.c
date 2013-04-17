@@ -181,8 +181,9 @@ update_diagonal(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         int ndbts = 2 * ndbs;
         DBT keys[ndbts]; memset(keys, 0, sizeof keys);
         DBT vals[ndbts]; memset(vals, 0, sizeof vals);
+        uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
 
-        r = env->update_multiple(env, NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, ndbts, keys, ndbts, vals, NULL);
+        r = env->update_multiple(env, NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals, NULL);
         assert_zero(r);
     }
     r = txn->commit(txn, 0); assert_zero(r);

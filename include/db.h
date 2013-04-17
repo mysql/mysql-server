@@ -281,9 +281,9 @@ struct __toku_db_env {
                                                                          const DBT *src_key, const DBT *src_val,
                                                                          void *extra));
   int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,
-                                             const DBT *old_src_key, const DBT *old_src_data,
-                                             const DBT *new_src_key, const DBT *new_src_data,
-                                             uint32_t num_dbs, DB **db_array,
+                                             DBT *old_src_key, DBT *old_src_data,
+                                             DBT *new_src_key, DBT *new_src_data,
+                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,
                                              uint32_t num_keys, DBT *keys,
                                              uint32_t num_vals, DBT *vals,
                                              void *extra) /* update multiple DBs */;

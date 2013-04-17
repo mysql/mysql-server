@@ -579,9 +579,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "                                                                         const DBT *src_key, const DBT *src_val,\n"
                              "                                                                         void *extra))",
                              "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-                             "                                             const DBT *old_src_key, const DBT *old_src_data,\n"
-                             "                                             const DBT *new_src_key, const DBT *new_src_data,\n"
-                             "                                             uint32_t num_dbs, DB **db_array,\n"
+                             "                                             DBT *old_src_key, DBT *old_src_data,\n"
+                             "                                             DBT *new_src_key, DBT *new_src_data,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
                              "                                             uint32_t num_keys, DBT *keys,\n"
                              "                                             uint32_t num_vals, DBT *vals,\n"
                              "                                             void *extra) /* update multiple DBs */",
