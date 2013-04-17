@@ -98,7 +98,7 @@ static void test_loader(DB **dbs)
     r = txn->commit(txn, 0);
     CKERR(r);
 
-    printf("PASS\n");
+    if ( verbose ) printf("PASS\n");
 }
 
 static void run_test(void) 
