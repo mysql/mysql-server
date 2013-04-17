@@ -560,7 +560,8 @@ static int finish_primary_rows_internal (BRTLOADER bl)
 // now we have been asked to finish up.
 // Be sure to destroy the rowsets.
 {
-    int ra[bl->N];
+    int *MALLOC_N(bl->N, ra);
+    if (ra==NULL) return errno;
 
     cilk_for (int i = 0; i < bl->N; i++) {
 	struct rowset *rows = &(bl->rows[i]);
@@ -571,11 +572,13 @@ static int finish_primary_rows_internal (BRTLOADER bl)
     }
     // Implicit cilk_sync after that cilk_for loop.
 
+    // accept any of the error codes (in this case, the last one).
     int r = 0;
     for (int i = 0; i < bl->N; i++)
         if (ra[i] != 0)
             r = ra[i];
 
+    toku_free(ra);
     return r;
 }
 CILK_END
