@@ -8,6 +8,9 @@
 
 static int dump_data = 1;
 
+
+static CACHETABLE ct;
+
 static void
 print_item (bytevec val, ITEMLEN len) {
     printf("\"");
@@ -24,10 +27,11 @@ print_item (bytevec val, ITEMLEN len) {
 }
 
 static void
-dump_header (int f, struct brt_header **header) {
+dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     struct brt_header *h;
     int r;
     r = toku_deserialize_brtheader_from (f, &h); assert(r==0);
+    h->cf = cf;
     printf("brtheader:\n");
     printf(" layout_version=%d\n", h->layout_version);
     printf(" layout_version_original=%d\n", h->layout_version_original);
@@ -296,7 +300,14 @@ main (int argc, const char *argv[]) {
     const char *n = argv[0];
     int f = open(n, O_RDONLY + O_BINARY);  assert(f>=0);
     struct brt_header *h;
-    dump_header(f, &h);
+    // create a cachefile for the header
+    int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
+    assert(r == 0);
+    CACHEFILE cf;
+    FILENUM fn;
+    r = toku_cachetable_openfd_with_filenum (&cf, ct, f, n, FALSE, fn, FALSE);
+    assert(r==0);
+    dump_header(f, &h, cf);
     if (interactive) {
         while (1) {
             printf("brtdump>"); fflush(stdout);
@@ -314,7 +325,7 @@ main (int argc, const char *argv[]) {
                 interactive_help();
             } else if (strcmp(fields[0], "header") == 0) {
                 toku_brtheader_free(h);
-                dump_header(f, &h);
+                dump_header(f, &h, cf);
             } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
                 BLOCKNUM off = make_blocknum(getuint64(fields[1]));
                 dump_node(f, off, h);
