@@ -40,8 +40,7 @@ le_cursor_create(LE_CURSOR *le_cursor_result, BRT brt, TOKUTXN txn) {
 
 int 
 le_cursor_close(LE_CURSOR le_cursor) {
-    int result = 0;
-    result = toku_brt_cursor_close(le_cursor->brt_cursor);
+    int result = toku_brt_cursor_close(le_cursor->brt_cursor);
     toku_destroy_dbt(&le_cursor->key);
     toku_free(le_cursor);
     return result;
@@ -63,12 +62,12 @@ int
 le_cursor_next(LE_CURSOR le_cursor, DBT *key, DBT *val) {
     le_cursor->neg_infinity = FALSE;
     struct le_cursor_callback_arg arg = { &le_cursor->key, val };
-    int error = toku_brt_cursor_get(le_cursor->brt_cursor, NULL, le_cursor_callback, &arg, DB_NEXT);
-    if (error == 0 && key != NULL)
+    int result = toku_brt_cursor_get(le_cursor->brt_cursor, NULL, le_cursor_callback, &arg, DB_NEXT);
+    if (result == 0 && key != NULL)
         toku_dbt_set(le_cursor->key.size, le_cursor->key.data, key, NULL);
-    else if (error == DB_NOTFOUND)
+    else if (result == DB_NOTFOUND)
         le_cursor->pos_infinity = TRUE;
-    return error;
+    return result;
 }
 
 int
@@ -77,7 +76,7 @@ is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, int (*keycompare)
     if (le_cursor->neg_infinity)
         result = TRUE;
     else if (le_cursor->pos_infinity)
-        return FALSE;
+        result = FALSE;
     else {
         int r = keycompare(db, &le_cursor->key, key);
         if (r < 0)
