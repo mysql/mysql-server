@@ -13,10 +13,7 @@ void rollback_log_node_cache::init (uint32_t max_num_avail_nodes) {
     m_max_num_avail = max_num_avail_nodes;
     m_first = 0;
     m_num_avail = 0;
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP);
-    toku_mutex_init(&m_mutex, &attr);
+    m_mutex = TOKU_ADAPTIVE_MUTEX_INITIALIZER;
 }
 
 void rollback_log_node_cache::destroy() {
