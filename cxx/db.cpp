@@ -8,6 +8,7 @@
 Db::Db(DbEnv *env, u_int32_t flags)
     :      the_Env(env)
 {
+    assert(env); // modern versions of TokuDB require an env.
     the_db   = 0;
 
     is_private_env = (the_Env == 0);
