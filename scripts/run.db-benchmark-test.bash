@@ -57,14 +57,22 @@ done
 
 # require a revision
 if [ $revision -eq 0 ] ; then exit 1; fi
+if [ $branch = "." ] ; then branch="toku"; fi
+
+function append() {
+    local s=""; local x
+    for x in $*; do
+	if [ "$s" != "" ] ; then s=$s-$x; else s=$x; fi
+    done
+    echo $s
+}
 
 # setup the branchrevision string
-if [ $branch = "toku" ] ; then
-    branchrevision=$revision
-else
-    branchrevision=`basename $branch`-$revision
-fi
-if [ $suffix != "." ] ; then branchrevision=$branchrevision-$suffix; fi
+branchrevision=""
+if [ $branch != "toku" ] ; then branchrevision=$(append $branchrevision $(basename $branch)); fi
+if [ $tokudb != "tokudb" ] ; then branchrevision=$(append $branchrevision $tokudb); fi
+branchrevision=$(append $branchrevision $revision)
+if [ $suffix != "." ] ; then branchrevision=$(append $branchrevision $suffix); fi
 
 # goto the base directory
 if [ ! -d $basedir ] ; then mkdir $basedir; fi
@@ -72,31 +80,17 @@ if [ ! -d $basedir ] ; then mkdir $basedir; fi
 pushd $basedir
 
 # update the build directory
-if [ ! -d $builddir ] ; then
-    retry svn checkout -q $svnserver/tokudb.build
-    exitcode=$?
-    if [ $exitcode -ne 0 ] ; then exit 1; fi
-else
-    pushd $builddir
-        retry svn update -q
-        exitcode=$?
-        if [ $exitcode -ne 0 ] ; then exit 1; fi
-    popd
-fi
+if [ ! -d $builddir ] ; then mkdir $builddir; fi
 
 date=`date +%Y%m%d`
-testresultsdir=$builddir/$date
 pushd $builddir
     while [ ! -d $date ] ; do
-        mkdir $date
-        svn add $date
-        svn commit $date -m ""
-        if [ $? -eq 0 ] ; then break; fi
-        rm -rf $date
-        svn remove $date
-        svn update -q
+        svn mkdir $svnserver/mysql.build/$date -m ""
+        svn co -q $svnserver/mysql.build/$date
+        if [ $? -ne 0 ] ; then rm -rf $date; fi
     done
 popd
+testresultsdir=$builddir/$date
 
 gccversion=`$cc --version|head -1|cut -f3 -d" "`
 
@@ -110,10 +104,9 @@ rm -rf $testdir
 
 # checkout the tokudb branch
 if [ $testresult = "PASS" ] ; then
-    retry svn checkout -q https://svn.tokutek.com/tokudb/$branch/$tokudb
+    retry svn export -q https://svn.tokutek.com/tokudb/$branch/$tokudb $testdir
     exitcode=$?
     if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
-    mv $tokudb $testdir
 fi
 
 # build it
