@@ -62,6 +62,13 @@ static int next_power_of_two (int n) {
     return r;
 }
 
+void toku_fifo_size_hint(FIFO fifo, size_t size) {
+    if (fifo->memory == NULL) {
+        fifo->memory_size = next_power_of_two(size);
+        fifo->memory = toku_malloc(fifo->memory_size);
+    }
+}
+
 int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, XIDS xids) {
     int need_space_here = sizeof(struct fifo_entry)
                           + keylen + datalen
@@ -69,8 +76,8 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
                           - sizeof(XIDS_S); //Prevent double counting
     int need_space_total = fifo->memory_used+need_space_here;
     if (fifo->memory == NULL) {
-	fifo->memory_size = next_power_of_two(need_space_total);
-	fifo->memory = toku_malloc(fifo->memory_size);
+        fifo->memory_size = next_power_of_two(need_space_total);
+        fifo->memory = toku_malloc(fifo->memory_size);
     }
     if (fifo->memory_start+need_space_total > fifo->memory_size) {
 	// Out of memory at the end.

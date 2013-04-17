@@ -5,14 +5,25 @@
 
 #include "includes.h"
 
-static void test_serialize(void) {
+static void
+test_serialize_leaf(void) {
+    int r;
+
+    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+
+    r = close(fd); assert(r != -1);
+}
+
+static void 
+test_serialize_nonleaf(void) {
     //    struct brt source_brt;
-    int nodesize = 1024;
+    const int nodesize = 1024;
     struct brtnode sn, *dn;
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
+
+    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+
     int r;
     const u_int32_t randval = random();
-    assert(fd>=0);
 
     //    source_brt.fd=fd;
     char *hello_string;
@@ -119,28 +130,6 @@ static void test_serialize(void) {
 	}
 	assert(dn->local_fingerprint==sn.local_fingerprint);
     }
-#if 0
-    {
-	bytevec data; ITEMLEN datalen; int type;
-	r = toku_hash_find(dn->u.n.buffers[0], "a", 2, &data, &datalen, &type);
-	assert(r==0);
-	assert(strcmp(data,"aval")==0);
-	assert(datalen==5);
-        assert(type == BRT_NONE);
-
-	r=toku_hash_find(dn->u.n.buffers[0], "b", 2, &data, &datalen, &type);
-	assert(r==0);
-	assert(strcmp(data,"bval")==0);
-	assert(datalen==5);
-        assert(type == BRT_NONE);
-
-	r=toku_hash_find(dn->u.n.buffers[1], "x", 2, &data, &datalen, &type);
-	assert(r==0);
-	assert(strcmp(data,"xval")==0);
-	assert(datalen==5);
-        assert(type == BRT_NONE);
-    }
-#endif
     toku_brtnode_free(&dn);
 
     kv_pair_free(sn.u.n.childkeys[0]);
@@ -159,7 +148,8 @@ static void test_serialize(void) {
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     toku_memory_check = 1;
-    test_serialize();
+    test_serialize_leaf();
+    test_serialize_nonleaf();
     toku_malloc_cleanup();
     return 0;
 }
