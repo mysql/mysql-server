@@ -105,6 +105,11 @@ void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threa
 // Handles the case where cf points to /dev/null
 int toku_cachefile_fsync(CACHEFILE cf);
 
+enum partial_eviction_cost {
+    PE_CHEAP=0, // running partial eviction is cheap, and can be done on the client thread
+    PE_EXPENSIVE=1, // running partial eviction is expensive, and should not be done on the client thread
+};
+
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.
 // When keep_me is false, the value should be freed.
@@ -119,6 +124,13 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void 
 // associated with the key are returned.
 // Can access fd (fd is protected by a readlock during call)
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *read_extraargs);
+
+// The partial eviction estimate callback is a cheap operation called by the cachetable on the client thread
+// to determine whether partial eviction is cheap and can be run on the client thread, or partial eviction
+// is expensive and should be done on a background (writer) thread. If the callback says that 
+// partial eviction is expensive, it returns an estimate of the number of bytes it will free
+// so that the cachetable can estimate how much data is being evicted on background threads
+typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void *write_extraargs);
 
 // The partial eviction callback is called by the cachetable to possibly try and partially evict pieces
 // of the PAIR. The strategy for what to evict is left to the callback. The callback may choose to free
@@ -172,6 +184,7 @@ CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 			void *value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback,
+			CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
                         CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
                         void *write_extraargs
                         );
@@ -189,6 +202,7 @@ int toku_cachetable_get_and_pin (
     long *sizep,
     CACHETABLE_FLUSH_CALLBACK flush_callback, 
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
@@ -215,6 +229,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     long *sizep,
     CACHETABLE_FLUSH_CALLBACK flush_callback, 
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
@@ -258,7 +273,8 @@ int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing somethin
 
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
-                            CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                            CACHETABLE_FETCH_CALLBACK fetch_callback,
+                            CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
                             CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,

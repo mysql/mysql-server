@@ -1,4 +1,4 @@
-#ident "$Id$"
+#ident "$Id: cachetable-clock-eviction2.c 34104 2011-08-22 01:17:04Z zardosht $"
 #include "includes.h"
 #include "test.h"
 
@@ -9,7 +9,7 @@ static void
 flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
-       void *v,
+       void* UU(v),
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
@@ -18,8 +18,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        ) {
     assert(flush_may_occur);
     if (!keep) {
-        int* foo = v;
-        assert(*foo == 3);
+        //int* foo = v;
+        //assert(*foo == 3);
         toku_free(v);
     }
 }
@@ -63,8 +63,8 @@ pe_est_callback(
     void* UU(write_extraargs)
     )
 {
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
+    *bytes_freed_estimate = 1000;
+    *cost = PE_EXPENSIVE;
 }
 
 static int 
@@ -76,6 +76,7 @@ pe_callback (
     ) 
 {
     *bytes_freed = 1;
+    printf("calling pe_callback\n");
     expected_bytes_to_free--;
     int* foo = brtnode_pv;
     int blah = *foo;
@@ -104,7 +105,7 @@ static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd
 
 static void
 cachetable_test (void) {
-    const int test_limit = 16;
+    const int test_limit = 20;
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
@@ -137,8 +138,16 @@ cachetable_test (void) {
     expected_bytes_to_free = 4;
     r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, 4, other_flush, pe_est_callback, other_pe_callback, NULL);
     flush_may_occur = TRUE;
-    r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, 4);
-    assert(expected_bytes_to_free == 0);
+    r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, 8);
+
+    // we are testing that having a wildly different estimate than
+    // what actually gets freed is ok
+    // in the callbacks, we estimate that 1000 bytes gets freed
+    // whereas in reality, only 1 byte will be freed
+    // we measure that only 1 byte gets freed (which leaves cachetable
+    // oversubscrubed)
+    usleep(2*1024*1024);
+    assert(expected_bytes_to_free == 3);
 
 
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);

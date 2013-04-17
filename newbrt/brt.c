@@ -284,6 +284,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             NULL, 
             toku_brtnode_flush_callback, 
             toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_est_callback,
             toku_brtnode_pe_callback,
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
@@ -316,6 +317,7 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         NULL, 
         toku_brtnode_flush_callback, 
         toku_brtnode_fetch_callback, 
+        toku_brtnode_pe_est_callback,
         toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
@@ -492,6 +494,19 @@ fetch_from_buf (OMT omt, u_int32_t idx) {
 }
 
 static long
+get_avail_internal_node_partition_size(BRTNODE node, int i)
+{
+    long retval = 0;
+    assert(node->height > 0);
+    NONLEAF_CHILDINFO childinfo = BNC(node, i);
+    retval += sizeof(*childinfo);
+    retval += toku_fifo_memory_size(BNC_BUFFER(node, i));
+    retval += toku_omt_memory_size(BNC_BROADCAST_BUFFER(node, i));
+    retval += toku_omt_memory_size(BNC_MESSAGE_TREE(node, i));
+    return retval;
+}
+
+static long
 brtnode_memory_size (BRTNODE node)
 // Effect: Estimate how much main memory a node requires.
 {
@@ -513,11 +528,7 @@ brtnode_memory_size (BRTNODE node)
         }
         else if (BP_STATE(node,i) == PT_AVAIL) {
             if (node->height > 0) {
-                NONLEAF_CHILDINFO childinfo = BNC(node, i);
-                retval += sizeof(*childinfo);
-                retval += toku_fifo_memory_size(BNC_BUFFER(node, i));
-                retval += toku_omt_memory_size(BNC_BROADCAST_BUFFER(node, i));
-                retval += toku_omt_memory_size(BNC_MESSAGE_TREE(node, i));
+                retval += get_avail_internal_node_partition_size(node, i);
             }
             else {
                 BASEMENTNODE bn = BLB(node, i);
@@ -659,17 +670,96 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     return r;
 }
 
+
+void toku_brtnode_pe_est_callback(
+    void* brtnode_pv, 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    assert(brtnode_pv != NULL);
+    long bytes_to_free = 0;
+    BRTNODE node = (BRTNODE)brtnode_pv;
+    if (node->dirty || node->height == 0) {
+        *bytes_freed_estimate = 0;
+        *cost = PE_CHEAP;
+        goto exit;
+    }
+
+    //
+    // we are dealing with a clean internal node
+    //
+    *cost = PE_EXPENSIVE;
+    // now lets get an estimate for how much data we can free up
+    // we estimate the compressed size of data to be how large
+    // the compressed data is on disk
+    for (int i = 0; i < node->n_children; i++) {
+        if (BP_SHOULD_EVICT(node,i)) {
+            // calculate how much data would be freed if
+            // we compress this node and add it to
+            // bytes_to_free
+
+            // first get an estimate for how much space will be taken 
+            // after compression, it is simply the size of compressed
+            // data on disk plus the size of the struct that holds it
+            u_int32_t compressed_data_size = 
+                ((i==0) ? 
+                    BP_OFFSET(node,i) : 
+                    (BP_OFFSET(node,i) - BP_OFFSET(node,i-1)));
+            compressed_data_size += sizeof(struct sub_block);
+
+            // now get the space taken now
+            u_int32_t decompressed_data_size = get_avail_internal_node_partition_size(node,i);
+            bytes_to_free += (decompressed_data_size - compressed_data_size);
+        }
+    }
+
+    *bytes_freed_estimate = bytes_to_free;
+exit:
+    return;
+}
+
+
 // callback for partially evicting a node
-int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void* UU(extraargs)) {
+int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* bytes_freed, void* UU(extraargs)) {
     BRTNODE node = (BRTNODE)brtnode_pv;
     long orig_size = brtnode_memory_size(node);
-    assert(bytes_to_free > 0);
 
     // 
     // nothing on internal nodes for now
     //
-    if (node->dirty || node->height > 0) {
+    if (node->dirty) {
         *bytes_freed = 0;
+        goto exit;
+    }
+    //
+    // partial eviction for internal nodes
+    //
+    if (node->height > 0) {
+        for (int i = 0; i < node->n_children; i++) {
+            if (BP_STATE(node,i) == PT_AVAIL) {
+                if (BP_SHOULD_EVICT(node,i)) {
+                    // if we should evict, compress the
+                    // message buffer into a sub_block
+                    SUB_BLOCK sb = NULL;
+                    sb = toku_xmalloc(sizeof(struct sub_block));
+                    sub_block_init(sb);
+                    toku_create_compressed_partition_from_available(node, i, sb);
+
+                    // now free the old partition and replace it with this
+                    destroy_nonleaf_childinfo(BNC(node,i));
+                    set_BSB(node, i, sb);
+                    BP_STATE(node,i) = PT_COMPRESSED;
+                }
+                else {
+                    BP_SWEEP_CLOCK(node,i);
+                }
+            }
+            else {
+                continue;
+            }
+        }
     }
     //
     // partial eviction strategy for basement nodes:
@@ -683,7 +773,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
-		set_BNULL(node, i);
+                set_BNULL(node, i);
                 BP_STATE(node,i) = PT_ON_DISK;
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
@@ -693,7 +783,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
                     OMT curr_omt = BLB_BUFFER(node, i);
                     toku_omt_free_items(curr_omt);
                     destroy_basement_node(bn);
-		    set_BNULL(node,i);
+                    set_BNULL(node,i);
                     BP_STATE(node,i) = PT_ON_DISK;
                 }
                 else {
@@ -709,11 +799,14 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
         }
     }
     *bytes_freed = orig_size - brtnode_memory_size(node);
-    invariant(*bytes_freed >= 0);
-    if (node->height == 0)
-	brt_status.bytes_leaf -= *bytes_freed;
-    else
-	brt_status.bytes_nonleaf -= *bytes_freed;
+
+exit:
+    if (node->height == 0) {
+        brt_status.bytes_leaf -= *bytes_freed;
+    }
+    else {
+        brt_status.bytes_nonleaf -= *bytes_freed;
+    }
     return 0;
 }
 
@@ -1085,7 +1178,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
     toku_cachetable_put(brt->cf, newroot_diskoff, fullhash, newroot, brtnode_memory_size(newroot),
-			toku_brtnode_flush_callback, toku_brtnode_pe_callback, brt->h);
+			toku_brtnode_flush_callback, toku_brtnode_pe_est_callback, toku_brtnode_pe_callback, brt->h);
     *newrootp = newroot;
 }
 
@@ -1107,7 +1200,7 @@ toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
     n->fullhash = fullhash;
     int r = toku_cachetable_put(t->cf, n->thisnodename, fullhash,
                             n, brtnode_memory_size(n),
-                            toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
+                            toku_brtnode_flush_callback, toku_brtnode_pe_est_callback, toku_brtnode_pe_callback, t->h);
     assert_zero(r);
 
     *result = n;
@@ -3514,7 +3607,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     node->fullhash = fullhash;
     int r = toku_cachetable_put(t->cf, blocknum, fullhash,
                                 node, brtnode_memory_size(node),
-                                toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
+                                toku_brtnode_flush_callback, toku_brtnode_pe_est_callback, toku_brtnode_pe_callback, t->h);
     if (r != 0)
 	toku_free(node);
     else
@@ -5493,6 +5586,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
                 nextfullhash,
                 toku_brtnode_flush_callback,
                 brtnode_fetch_callback_and_free_bfe,
+                toku_brtnode_pe_est_callback,
                 toku_brtnode_pe_callback,
                 toku_brtnode_pf_req_callback,
                 brtnode_pf_callback_and_free_bfe,
@@ -6358,6 +6452,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
         NULL,
 	toku_brtnode_flush_callback, 
 	toku_brtnode_fetch_callback, 
+	toku_brtnode_pe_est_callback,
 	toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
@@ -6675,6 +6770,7 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
                     NULL, 
                     toku_brtnode_flush_callback, 
                     toku_brtnode_fetch_callback, 
+                    toku_brtnode_pe_est_callback,
                     toku_brtnode_pe_callback, 
                     toku_brtnode_pf_req_callback,
                     toku_brtnode_pf_callback,
@@ -6720,6 +6816,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
             NULL, 
             toku_brtnode_flush_callback, 
             toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_est_callback,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,

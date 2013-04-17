@@ -232,6 +232,7 @@ BDB_DONTRUN_TESTS = \
 	test3522 \
 	test3522b \
         test938c \
+        test_3645 \
         test_3755 \
         test_abort1 \
         test_abort4 \
@@ -599,6 +600,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 diskfull.tdbrun: VGRIND=
 stress-gc.tdbrun: VGRIND=
 insert-dup-prelock: VGRIND=
+test_3645: VGRIND=
 test_large_update_broadcast_small_cachetable.tdbrun: VGRIND=
 test_update_broadcast_stress.tdbrun: VGRIND=
 test_update_stress.tdbrun: VGRIND=

@@ -1,26 +1,41 @@
-#ident "$Id$"
+#ident "$Id: cachetable-clock-eviction.c 34099 2011-08-21 19:35:34Z zardosht $"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
 
+int num_entries;
 BOOL flush_may_occur;
-long expected_bytes_to_free;
+int expected_flushed_key;
+BOOL check_flush;
+
+
+//
+// This test verifies that if partial eviction is expensive and
+// does not estimate number of freed bytes to be greater than 0,
+// then partial eviction is not called, and normal eviction
+// is used. The verification is done ia an assert(FALSE) in 
+// pe_callback.
+//
+
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
-       void *v,
+       void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
-       BOOL keep,
+       BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
        ) {
-    assert(flush_may_occur);
-    if (!keep) {
-        int* foo = v;
-        assert(*foo == 3);
-        toku_free(v);
+    /* Do nothing */
+    if (check_flush && !keep) {
+        printf("FLUSH: %d write_me %d\n", (int)k.b, w);
+        assert(flush_may_occur);
+        assert(!w);
+        assert(expected_flushed_key == (int)k.b);
+        expected_flushed_key--;
     }
 }
 
@@ -35,24 +50,9 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
        ) {
     *dirtyp = 0;
-    int* foo = toku_malloc(sizeof(int));
-    *value = foo;
-    *sizep = 4;
-    *foo = 4;
+    *value = NULL;
+    *sizep = 1;
     return 0;
-}
-
-static void
-other_flush (CACHEFILE f __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k  __attribute__((__unused__)),
-       void *v     __attribute__((__unused__)),
-       void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
-       ) {
 }
 
 static void 
@@ -64,35 +64,22 @@ pe_est_callback(
     )
 {
     *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
+    *cost = PE_EXPENSIVE;
 }
 
 static int 
 pe_callback (
-    void *brtnode_pv, 
-    long UU(bytes_to_free), 
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
     long* bytes_freed, 
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 1;
-    expected_bytes_to_free--;
-    int* foo = brtnode_pv;
-    int blah = *foo;
-    *foo = blah-1;
+    assert(FALSE);
+    *bytes_freed = 0;
     return 0;
 }
 
-static int 
-other_pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed __attribute__((__unused__)), 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    return 0;
-}
 static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
   return FALSE;
 }
@@ -104,7 +91,8 @@ static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd
 
 static void
 cachetable_test (void) {
-    const int test_limit = 16;
+    const int test_limit = 4;
+    num_entries = 0;
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
@@ -117,30 +105,31 @@ cachetable_test (void) {
     void* v2;
     long s1, s2;
     flush_may_occur = FALSE;
+    check_flush = TRUE;
     for (int i = 0; i < 100000; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 4);
+        r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 1);
     }
     for (int i = 0; i < 8; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, 4);
+        r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, 1);
     }
     for (int i = 0; i < 4; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, 4);
+        r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, 1);
     }
     for (int i = 0; i < 2; i++) {
       r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
-      r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, 4);
+        r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, 1);
     }
-    flush_may_occur = FALSE;
-    expected_bytes_to_free = 4;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, 4, other_flush, pe_est_callback, other_pe_callback, NULL);
     flush_may_occur = TRUE;
+    expected_flushed_key = 4;
+    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, 4, flush, pe_est_callback, pe_callback, NULL);
+    flush_may_occur = TRUE;
+    expected_flushed_key = 5;
     r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, 4);
-    assert(expected_bytes_to_free == 0);
 
-
+    check_flush = FALSE;
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }

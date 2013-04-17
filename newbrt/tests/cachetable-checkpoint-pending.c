@@ -52,6 +52,18 @@ fetch (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), u_int32_t UU(fullhash
     return 0;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -83,7 +95,7 @@ do_update (void *UU(ignore))
         u_int32_t hi = toku_cachetable_hash(cf, key);
         void *vv;
 	long size;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
@@ -132,7 +144,7 @@ static void checkpoint_pending(void) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(cf, key);
 	values[i] = 42;
-        r = toku_cachetable_put(cf, key, hi, &values[i], sizeof(int), flush, pe_callback, 0);
+        r = toku_cachetable_put(cf, key, hi, &values[i], sizeof(int), flush, pe_est_callback, pe_callback, 0);
         assert(r == 0);
 
         r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, item_size);

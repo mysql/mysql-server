@@ -615,6 +615,44 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]);
 
+static void
+serialize_and_compress_partition(BRTNODE node, int childnum, SUB_BLOCK sb)
+{
+    serialize_brtnode_partition(node, childnum, sb);
+    compress_brtnode_sub_block(sb);
+}
+
+void
+toku_create_compressed_partition_from_available(
+    BRTNODE node, 
+    int childnum, 
+    SUB_BLOCK sb
+    )
+{
+    serialize_and_compress_partition(node, childnum, sb);
+    //
+    // now we have an sb that would be ready for being written out,
+    // but we are not writing it out, we are storing it in cache for a potentially
+    // long time, so we need to do some cleanup
+    //
+    // The buffer created above contains metadata in the first 8 bytes, and is overallocated
+    // It allocates a bound on the compressed length (evaluated before compression) as opposed
+    // to just the amount of the actual compressed data. So, we create a new buffer and copy
+    // just the compressed data.
+    //
+    u_int32_t compressed_size = toku_dtoh32(*(u_int32_t *)sb->compressed_ptr);
+    void* compressed_data = toku_xmalloc(compressed_size);
+    memcpy(compressed_data, (char *)sb->compressed_ptr + 8, compressed_size);
+    toku_free(sb->compressed_ptr);
+    sb->compressed_ptr = compressed_data;
+    sb->compressed_size = compressed_size;
+    if (sb->uncompressed_ptr) {
+        toku_free(sb->uncompressed_ptr);
+        sb->uncompressed_ptr = NULL;
+    }
+    
+}
+
 
 // tests are showing that serial insertions are slightly faster 
 // using the pthreads than using CILK. Disabling CILK until we have
@@ -626,8 +664,7 @@ static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
 #pragma cilk grainsize = 1
     cilk_for (int i = 0; i < npartitions; i++) {
-        serialize_brtnode_partition(node, i, &sb[i]);
-        compress_brtnode_sub_block(&sb[i]);
+        serialize_and_compress_partition(node, i, &sb[i]);
     }
 }
 
@@ -648,8 +685,7 @@ serialize_and_compress_worker(void *arg) {
         if (w == NULL)
             break;
         int i = w->i;
-        serialize_brtnode_partition(w->node, i, &w->sb[i]);
-        compress_brtnode_sub_block(&w->sb[i]);
+        serialize_and_compress_partition(w->node, i, &w->sb[i]);
     }
     workset_release_ref(ws);
     return arg;
@@ -658,8 +694,7 @@ serialize_and_compress_worker(void *arg) {
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
     if (npartitions == 1) {
-        serialize_brtnode_partition(node, 0, &sb[0]);
-        compress_brtnode_sub_block(&sb[0]);
+        serialize_and_compress_partition(node, 0, &sb[0]);
     } else {
         int T = num_cores;
         if (T > npartitions)
