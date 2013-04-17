@@ -59,6 +59,7 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 endif ()
 check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
 check_symbol_exists(F_NOCACHE "fcntl.h" HAVE_F_NOCACHE)
+check_symbol_exists(MAP_ANONYMOUS "sys/mman.h" HAVE_MAP_ANONYMOUS)
 
 include(CheckFunctionExists)
 
@@ -71,6 +72,7 @@ check_function_exists(valloc HAVE_VALLOC)
 ## check whether we have random_r or nrand48 to use as a reentrant random function
 check_function_exists(nrand48 HAVE_NRAND48)
 check_function_exists(random_r HAVE_RANDOM_R)
+check_function_exists(mincore HAVE_MINCORE)
 
 set(EXTRA_SYSTEM_LIBS "")
 check_function_exists(dlsym HAVE_DLSYM_WITHOUT_DL)
