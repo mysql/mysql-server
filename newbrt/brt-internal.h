@@ -11,7 +11,7 @@
 #include "cachetable.h"
 #include "fifo.h"
 #include "brt.h"
-#include "list.h"
+#include "toku_list.h"
 #include "mempool.h"
 #include "kv-pair.h"
 #include "omt.h"
@@ -172,8 +172,8 @@ struct brt_header {
     // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
     // 0 if no such transaction
     TXNID txnid_that_created_or_locked_when_empty;
-    struct list live_brts;
-    struct list zombie_brts;
+    struct toku_list live_brts;
+    struct toku_list zombie_brts;
 };
 
 struct brt {
@@ -181,7 +181,7 @@ struct brt {
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
 
-    struct list cursors;
+    struct toku_list cursors;
 
     unsigned int nodesize;
     unsigned int flags;
@@ -201,8 +201,8 @@ struct brt {
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
 
-    struct list live_brt_link;
-    struct list zombie_brt_link;
+    struct toku_list live_brt_link;
+    struct toku_list zombie_brt_link;
 };
 
 /* serialization code */
@@ -270,7 +270,7 @@ struct brt_cursor_leaf_info {
 
 /* a brt cursor is represented as a kv pair in a tree */
 struct brt_cursor {
-    struct list cursors_link;
+    struct toku_list cursors_link;
     BRT brt;
     BOOL current_in_omt;
     BOOL prefetching;

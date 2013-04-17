@@ -1397,8 +1397,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
-    list_init(&h->live_brts);
-    list_init(&h->zombie_brts);
+    toku_list_init(&h->live_brts);
+    toku_list_init(&h->zombie_brts);
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
     //TODO: #1924

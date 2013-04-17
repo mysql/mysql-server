@@ -2908,8 +2908,8 @@ brt_init_header (BRT t) {
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
     t->h->root = root;
 
-    list_init(&t->h->live_brts);
-    list_init(&t->h->zombie_brts);
+    toku_list_init(&t->h->live_brts);
+    toku_list_init(&t->h->zombie_brts);
     int r = brt_init_header_partial(t);
     if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
@@ -2965,8 +2965,8 @@ brtheader_note_brt_close(BRT t) {
     struct brt_header *h = t->h;
     if (h) { //Might not yet have been opened.
         toku_brtheader_lock(h);
-        list_remove(&t->live_brt_link);
-        list_remove(&t->zombie_brt_link);
+        toku_list_remove(&t->live_brt_link);
+        toku_list_remove(&t->zombie_brt_link);
         toku_brtheader_unlock(h);
     }
 }
@@ -2980,16 +2980,16 @@ brtheader_note_brt_open(BRT live, char** fnamep) {
     char *fname = *fnamep;
     assert(fname);
     *fnamep     = NULL;
-    while (!list_empty(&h->zombie_brts)) {
+    while (!toku_list_empty(&h->zombie_brts)) {
         //Remove dead brt from list
-        BRT zombie = list_struct(list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
+        BRT zombie = toku_list_struct(toku_list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
         toku_brtheader_unlock(h); //Cannot be holding lock when swapping brts.
         retval = toku_txn_note_swap_brt(live, zombie); //Steal responsibility, close
         toku_brtheader_lock(h);
         if (retval) break;
     }
     if (retval==0)
-        list_push(&h->live_brts, &live->live_brt_link);
+        toku_list_push(&h->live_brts, &live->live_brt_link);
     //Use fname, or throw it away.
     //Must not use fname on failure (or when brt is closed, a (possibly corrupt) header will be written.
     if (retval == 0 && h->fname == NULL)
@@ -3111,7 +3111,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
                 goto died_after_read_and_pin;
             }
             toku_brtheader_lock(t->h);
-            if (!list_empty(&t->h->live_brts) || !list_empty(&t->h->zombie_brts)) {
+            if (!toku_list_empty(&t->h->live_brts) || !toku_list_empty(&t->h->zombie_brts)) {
                 //Disallow changing if exists two brts with the same header (counting this one)
                 //The upgrade would be impossible/very hard!
                 r = EINVAL;
@@ -3290,8 +3290,8 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
     struct brt_header *h = header_v;
     assert(h->type == BRTHEADER_CURRENT);
     toku_brtheader_lock(h);
-    assert(list_empty(&h->live_brts));
-    assert(list_empty(&h->zombie_brts));
+    assert(toku_list_empty(&h->live_brts));
+    assert(toku_list_empty(&h->zombie_brts));
     toku_brtheader_unlock(h);
     int r = 0;
     if (h->panic) {
@@ -3358,15 +3358,15 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
         else {
             //Try to pass responsibility off.
             toku_brtheader_lock(zombie->h);
-            list_remove(&zombie->live_brt_link); //Remove from live.
+            toku_list_remove(&zombie->live_brt_link); //Remove from live.
             BRT replacement = NULL;
-            if (!list_empty(&h->live_brts)) {
-                replacement = list_struct(list_head(&h->live_brts), struct brt, live_brt_link);
+            if (!toku_list_empty(&h->live_brts)) {
+                replacement = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
             }
-            else if (!list_empty(&h->zombie_brts)) {
-                replacement = list_struct(list_head(&h->zombie_brts), struct brt, zombie_brt_link);
+            else if (!toku_list_empty(&h->zombie_brts)) {
+                replacement = toku_list_struct(toku_list_head(&h->zombie_brts), struct brt, zombie_brt_link);
             }
-            list_push(&h->zombie_brts, &zombie->zombie_brt_link); //Add to dead list.
+            toku_list_push(&h->zombie_brts, &zombie->zombie_brt_link); //Add to dead list.
             toku_brtheader_unlock(zombie->h);
             if (replacement == NULL) r = 0;  //Just delay close
             else {
@@ -3382,8 +3382,8 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
 int toku_close_brt_lsn (BRT brt, TOKULOGGER logger, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     assert(toku_omt_size(brt->txns)==0);
     int r;
-    while (!list_empty(&brt->cursors)) {
-        BRT_CURSOR c = list_struct(list_pop(&brt->cursors), struct brt_cursor, cursors_link);
+    while (!toku_list_empty(&brt->cursors)) {
+        BRT_CURSOR c = toku_list_struct(toku_list_pop(&brt->cursors), struct brt_cursor, cursors_link);
         r=toku_brt_cursor_close(c);
         if (r!=0) return r;
     }
@@ -3417,9 +3417,9 @@ int toku_brt_create(BRT *brt_ptr) {
     if (brt == 0)
         return ENOMEM;
     memset(brt, 0, sizeof *brt);
-    list_init(&brt->live_brt_link);
-    list_init(&brt->zombie_brt_link);
-    list_init(&brt->cursors);
+    toku_list_init(&brt->live_brt_link);
+    toku_list_init(&brt->zombie_brt_link);
+    toku_list_init(&brt->cursors);
     brt->flags = 0;
     brt->did_set_flags = FALSE;
     brt->did_set_descriptor = FALSE;
@@ -3529,7 +3529,7 @@ int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger) {
     cursor->current_in_omt = FALSE;
     cursor->prefetching = FALSE;
     cursor->oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
-    list_push(&brt->cursors, &cursor->cursors_link);
+    toku_list_push(&brt->cursors, &cursor->cursors_link);
     int r = toku_omt_cursor_create(&cursor->omtcursor);
     assert(r==0);
     toku_omt_cursor_set_invalidate_callback(cursor->omtcursor,
@@ -3557,7 +3557,7 @@ brt_cursor_invalidate_no_callback(BRT_CURSOR brtcursor) {
 int toku_brt_cursor_close(BRT_CURSOR cursor) {
     brt_cursor_invalidate_no_callback(cursor);
     brt_cursor_cleanup_dbts(cursor);
-    list_remove(&cursor->cursors_link);
+    toku_list_remove(&cursor->cursors_link);
     toku_omt_cursor_destroy(&cursor->omtcursor);
     toku_free_n(cursor, sizeof *cursor);
     return 0;
@@ -4607,7 +4607,7 @@ BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
 
 int toku_brt_get_cursor_count (BRT brt) {
     int n = 0;
-    struct list *list;
+    struct toku_list *list;
     for (list = brt->cursors.next; list != &brt->cursors; list = list->next)
         n += 1;
     return n;
