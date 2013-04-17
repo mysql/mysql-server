@@ -57,6 +57,7 @@ struct __toku_loader_internal {
  *  free_loader_resources() frees all of the resources associated with
  *      struct __toku_loader_internal 
  *  assumes any previously freed items set the field pointer to NULL
+ *  Requires that the brt_loader is closed or destroyed before calling this function.
  */
 static void free_loader_resources(DB_LOADER *loader) 
 {
@@ -86,7 +87,6 @@ static void free_loader_resources(DB_LOADER *loader)
             toku_free(loader->i->inames_in_env);
         }
         if (loader->i->temp_file_template) toku_free(loader->i->temp_file_template);
-        if (loader->i->brt_loader)         toku_free(loader->i->brt_loader);
 
         // loader->i
         toku_free(loader->i);
