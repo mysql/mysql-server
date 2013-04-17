@@ -1220,7 +1220,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 //-1 means we can overwrite everything in the file AND the header is useless
 static int
 deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *rb, u_int64_t *checkpoint_count) {
-    int r;
+    int r = 0;
     const int prefix_size = 8 + // magic ("tokudata")
                             4;  // size
     char prefix[prefix_size];
@@ -1244,16 +1244,16 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
         else {
             n = pread(fd, rb->buf, rb->size, offset);
             if (n!=(int64_t)size) r = EINVAL; //Header might be useless (wrong size) or could be an error.
-            else {
+            if (r==0) {
+                //check version (before checksum, since older versions didn't have checksums)
+                int version = rbuf_network_int(rb);
+                if (version != BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
+            }
+            if (r==0) {
                 u_int32_t calculated_x1764 = x1764_memory(rb->buf, size-4);
                 u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+size-4));
                 if (calculated_x1764!=stored_x1764) r = -1; //Header useless
                 else r = 0;
-            }
-            if (r==0) {
-                //check version/checkstuff
-                int version = rbuf_network_int(rb);
-                if (version != BRT_LAYOUT_VERSION_10) r = EINVAL; //Cannot use
             }
             if (r==0) {
                 //Verify byte order
@@ -1299,6 +1299,7 @@ int toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
     int r = 0;
     if (rb==NULL) {
         r = r0;
+        if (r1==TOKUDB_DICTIONARY_TOO_OLD) r = r1;
         assert(r!=0);
     }
 
