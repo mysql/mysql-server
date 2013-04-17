@@ -479,20 +479,18 @@ build_index(DB_INDEXER *indexer) {
 }
 
 // Clients must not operate on any of the hot dbs concurrently with close
-static int 
+static int
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
     (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
 
-    // Mark txn as needing a checkpoint.  
-    // (This will cause a checkpoint, which is necessary 
-    //   because these files are not necessarily on disk and all the operations 
+    // Mark txn as needing a checkpoint.
+    // (This will cause a checkpoint, which is necessary
+    //   because these files are not necessarily on disk and all the operations
     //   to create them are not in the recovery log.)
     DB_TXN     *txn = indexer->i->txn;
     TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
-    for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
-        toku_txn_require_checkpoint_on_commit(tokutxn);
-    }
+    toku_txn_require_checkpoint_on_commit(tokutxn);
 
     // Disassociate the indexer from the hot db and free_indexer
     disassociate_indexer_from_hot_dbs(indexer);

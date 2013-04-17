@@ -374,9 +374,10 @@ void toku_ft_loader_internal_destroy (FTLOADER bl, BOOL is_error) {
     toku_free(bl->fractal_queues);
     toku_free(bl->fractal_threads_live);
 
-    if (bl->did_reserve_memory)
+    if (bl->did_reserve_memory) {
         invariant(bl->cachetable);
         toku_cachetable_release_reserved_memory(bl->cachetable, bl->reserved_memory);
+    }
 
     ft_loader_destroy_error_callback(&bl->error_callback);
     ft_loader_destroy_poll_callback(&bl->poll_callback);

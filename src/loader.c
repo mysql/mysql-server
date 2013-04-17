@@ -274,7 +274,7 @@ int toku_loader_create_loader(DB_ENV *env,
                                  loader->i->temp_file_template,
                                  load_lsn,
                                  ttxn,
-                                 use_puts);
+                                 !use_puts);
         if ( r!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
