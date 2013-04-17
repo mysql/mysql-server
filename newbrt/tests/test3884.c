@@ -10,6 +10,18 @@
 
 #include "includes.h"
 
+// Some constants to be used in calculations below
+static const int nodesize = 1024; // Target max node size
+static const int eltsize = 64;    // Element size (for most elements)
+static const int bnsize = 256;    // Target basement node size
+static const int eltsperbn = 256 / 64;  // bnsize / eltsize
+static const int keylen = sizeof(long);
+// vallen is eltsize - keylen and leafentry overhead
+static const int vallen = 64 - sizeof(long) - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
+                                               +sizeof(((LEAFENTRY)NULL)->keylen)
+                                               +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
+#define dummy_msn_3884 ((MSN) { (u_int64_t) 3884 * MIN_MSN.msn })
+
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static const char fname[]= __FILE__ ".brt";
@@ -28,28 +40,95 @@ static int omt_long_cmp(OMTVALUE p, void *q)
 }
 
 static size_t
-calc_le_size(int keylen, int vallen) {
+calc_le_size(int key_size, int val_size) {
     size_t rval;
     LEAFENTRY le;
-    rval = sizeof(le->type) + sizeof(le->keylen) + sizeof(le->u.clean.vallen) + keylen + vallen;
+    rval = sizeof(le->type) + sizeof(le->keylen) + sizeof(le->u.clean.vallen) + key_size + val_size;
     return rval;
 }
 
 static LEAFENTRY
-le_fastmalloc(struct mempool * mp, char *key, int keylen, char *val, int vallen)
+le_fastmalloc(struct mempool * mp, char *key, int key_size, char *val, int val_size)
 {
     LEAFENTRY le;
-    size_t le_size = calc_le_size(keylen, vallen);
+    size_t le_size = calc_le_size(key_size, val_size);
     le = toku_mempool_malloc(mp, le_size, 1);
     resource_assert(le);
     le->type = LE_CLEAN;
-    le->keylen = keylen;
-    le->u.clean.vallen = vallen;
-    memcpy(&le->u.clean.key_val[0], key, keylen);
-    memcpy(&le->u.clean.key_val[keylen], val, vallen);
+    le->keylen = key_size;
+    le->u.clean.vallen = val_size;
+    memcpy(&le->u.clean.key_val[0], key, key_size);
+    memcpy(&le->u.clean.key_val[keylen], val, val_size);
     return le;
 }
 
+static size_t
+insert_dummy_value(BRTNODE node, int bn, long k)
+{
+    char val[vallen];
+    memset(val, k, sizeof val);
+    struct mempool *mp = &BLB(node, bn)->buffer_mempool;
+    LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+    int r = toku_omt_insert(BLB_BUFFER(node, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+    BLB_NBYTESINBUF(node, bn) += leafentry_disksize(le);
+    return leafentry_disksize(le);
+}
+
+static void
+setup_brtnode_header(struct brtnode *node)
+{
+    node->nodesize = nodesize;
+    node->flags = 0x11223344;
+    node->thisnodename.b = 20;
+    node->layout_version = BRT_LAYOUT_VERSION;
+    node->layout_version_original = BRT_LAYOUT_VERSION;
+    node->height = 0;
+    node->optimized_for_upgrade = 1324;
+    node->dirty = 1;
+    node->totalchildkeylens = 0;
+}
+
+static void
+setup_brtnode_partitions(struct brtnode *node, int n_children, const MSN msn, size_t maxbnsize)
+{
+    node->n_children = n_children;
+    node->max_msn_applied_to_node_on_disk = msn;
+    MALLOC_N(node->n_children, node->bp);
+    MALLOC_N(node->n_children - 1, node->childkeys);
+    for (int bn = 0; bn < node->n_children; ++bn) {
+        BP_STATE(node, bn) = PT_AVAIL;
+        set_BLB(node, bn, toku_create_empty_bn());
+        BASEMENTNODE basement = BLB(node, bn);
+        struct mempool *mp = &basement->buffer_mempool;
+        toku_mempool_construct(mp, maxbnsize);
+        BLB_NBYTESINBUF(node, bn) = 0;
+        BLB_MAX_MSN_APPLIED(node, bn) = msn;
+    }
+}
+
+static void
+destroy_brtnode_and_internals(struct brtnode *node)
+{
+    for (int i = 0; i < node->n_children - 1; ++i) {
+        kv_pair_free(node->childkeys[i]);
+    }
+    for (int i = 0; i < node->n_children; ++i) {
+        BASEMENTNODE bn = BLB(node, i);
+        struct mempool * mp = &bn->buffer_mempool;
+        toku_mempool_destroy(mp);
+        destroy_basement_node(BLB(node, i));
+    }
+    toku_free(node->bp);
+    toku_free(node->childkeys);
+}
+
+static void
+verify_basement_node_msns(BRTNODE node, MSN expected)
+{
+    for(int i = 0; i < node->n_children; ++i) {
+        assert(expected.msn == BLB_MAX_MSN_APPLIED(node, i).msn);
+    }
+}
 
 //
 // Maximum node size according to the BRT: 1024 (expected node size after split)
@@ -60,50 +139,20 @@ le_fastmalloc(struct mempool * mp, char *key, int keylen, char *val, int vallen)
 static void
 test_split_on_boundary(void)
 {
-    const int nodesize = 1024, eltsize = 64, bnsize = 256;
-    const size_t maxbnsize = bnsize;
-    const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
-                                                                  +sizeof(((LEAFENTRY)NULL)->keylen)
-                                                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
-    const int eltsperbn = bnsize / eltsize;
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     const int nelts = 2 * nodesize / eltsize;
-    sn.n_children = nelts * eltsize / bnsize;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
-    const MSN new_msn = { .msn = 2 * MIN_MSN.msn };
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize, dummy_msn_3884, bnsize);
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-        // Write an MSN to this basement node.
-        BLB_MAX_MSN_APPLIED(&sn, bn) = new_msn;
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
-            char val[vallen];
-            memset(val, k, sizeof val);
-            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+            insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -122,18 +171,8 @@ test_split_on_boundary(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    // Verify that the MSN is the same on the basement nodes after the split.
-    int a_children = nodea->n_children;
-    int b_children = nodeb->n_children;
-    for(int i = 0; i < a_children; ++i)
-    {
-        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodea, i).msn);
-    }
-
-    for(int i = 0; i < b_children; ++i)
-    {
-        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodeb, i).msn);
-    }
+    verify_basement_node_msns(nodea, dummy_msn_3884);
+    verify_basement_node_msns(nodeb, dummy_msn_3884);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -143,17 +182,7 @@ test_split_on_boundary(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 //
@@ -169,58 +198,36 @@ test_split_on_boundary(void)
 static void
 test_split_with_everything_on_the_left(void)
 {
-    const int nodesize = 1024, eltsize = 64, bnsize = 256;
-    const size_t maxbnsize = 1024 * 2;
-    const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
-                                                                  +sizeof(((LEAFENTRY)NULL)->keylen)
-                                                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
-    const int eltsperbn = bnsize / eltsize;
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     const int nelts = 2 * nodesize / eltsize;
-    sn.n_children = nelts * eltsize / bnsize + 1;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize + 1, dummy_msn_3884, 2 * nodesize);
+    size_t big_val_size = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         if (bn < sn.n_children - 1) {
             for (int i = 0; i < eltsperbn; ++i) {
                 k = bn * eltsperbn + i;
-                char val[vallen];
-                memset(val, k, sizeof val);
-                LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-                r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+                big_val_size += insert_dummy_value(&sn, bn, k);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
-	    size_t big_val_size = (nelts * eltsize - 1);   // TODO: Explain this
+            // we want this to be as big as the rest of our data and a
+            // little bigger, so the halfway mark will land inside this
+            // value and it will be split to the left
+            big_val_size += 100;
             char * big_val = toku_xmalloc(big_val_size);
             memset(big_val, k, big_val_size);
+            struct mempool *mp = &BLB(&sn, bn)->buffer_mempool;
             LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);
-	    toku_free(big_val);
+            toku_free(big_val);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
             BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
@@ -245,17 +252,7 @@ test_split_with_everything_on_the_left(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 
@@ -272,59 +269,40 @@ test_split_with_everything_on_the_left(void)
 static void
 test_split_on_boundary_of_last_node(void)
 {
-    const int nodesize = 1024, eltsize = 64, bnsize = 256;
-    const size_t maxbnsize = 1024 * 2;
-    const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
-                                                                  +sizeof(((LEAFENTRY)NULL)->keylen)
-                                                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
-    const int eltsperbn = bnsize / eltsize;
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     const int nelts = 2 * nodesize / eltsize;
-    sn.n_children = nelts * eltsize / bnsize + 1;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    const size_t maxbnsize = 2 * nodesize;
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize + 1, dummy_msn_3884, maxbnsize);
+    size_t big_val_size = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         if (bn < sn.n_children - 1) {
             for (int i = 0; i < eltsperbn; ++i) {
                 k = bn * eltsperbn + i;
-                char val[vallen];
-                memset(val, k, sizeof val);
-                LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-                r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+                big_val_size += insert_dummy_value(&sn, bn, k);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
-	    size_t big_val_size = (nelts * eltsize - 100);    // TODO: This looks wrong, should perhaps be +100?
-	    invariant(big_val_size <=  maxbnsize);
+            // we want this to be slightly smaller than all the rest of
+            // the data combined, so the halfway mark will be just to its
+            // left and just this element will end up on the right of the split
+            big_val_size -= 1 + (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
+                                 +sizeof(((LEAFENTRY)NULL)->keylen)
+                                 +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
+            invariant(big_val_size <= maxbnsize);
             char * big_val = toku_xmalloc(big_val_size);
             memset(big_val, k, big_val_size);
+            struct mempool *mp = &BLB(&sn, bn)->buffer_mempool;
             LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);
-	    toku_free(big_val);
+            toku_free(big_val);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
             BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
@@ -349,56 +327,24 @@ test_split_on_boundary_of_last_node(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 static void
 test_split_at_begin(void)
 {
-    const int nodesize = 1024, eltsize = 64, bnsize = 256;
-    const size_t maxbnsize = 1024 * 2;
-    const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
-                                                                  +sizeof(((LEAFENTRY)NULL)->keylen)
-                                                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
-    const int eltsperbn = bnsize / eltsize;
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     const int nelts = 2 * nodesize / eltsize;
-    sn.n_children = nelts * eltsize / bnsize;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    const size_t maxbnsize = 2 * nodesize;
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize, dummy_msn_3884, maxbnsize);
     size_t totalbytes = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
@@ -407,12 +353,7 @@ test_split_at_begin(void)
                 // to make it
                 continue;
             }
-            char val[vallen];
-            memset(val, k, sizeof val);
-            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
-            totalbytes += leafentry_disksize(le);
+            totalbytes += insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -421,10 +362,13 @@ test_split_at_begin(void)
     }
     {  // now add the first element
         int bn = 0; long k = 0;
-	BASEMENTNODE basement = BLB(&sn, bn);
-	struct mempool * mp = &basement->buffer_mempool;
+        BASEMENTNODE basement = BLB(&sn, bn);
+        struct mempool * mp = &basement->buffer_mempool;
+        // add a few bytes so the halfway mark is definitely inside this
+        // val, which will make it go to the left and everything else to
+        // the right
         char val[totalbytes + 3];
-	invariant(totalbytes + 3 <= maxbnsize);
+        invariant(totalbytes + 3 <= maxbnsize);
         memset(val, k, sizeof val);
         LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, totalbytes + 3);
         r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
@@ -451,72 +395,44 @@ test_split_at_begin(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 static void
 test_split_at_end(void)
 {
-    const int nodesize = 1024, eltsize = 64, bnsize = 256;
-    const size_t maxbnsize = 1024 * 2;
-    const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
-                                                                  +sizeof(((LEAFENTRY)NULL)->keylen)
-                                                                  +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
-    const int eltsperbn = bnsize / eltsize;
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     const int nelts = 2 * nodesize / eltsize;
-    sn.n_children = nelts * eltsize / bnsize;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    const size_t maxbnsize = 2 * nodesize;
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize, dummy_msn_3884, maxbnsize);
     long totalbytes = 0;
-    for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
+    int bn, i;
+    for (bn = 0; bn < sn.n_children; ++bn) {
         long k;
-        for (int i = 0; i < eltsperbn; ++i) {
-	    LEAFENTRY le;
+        for (i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
-            if (bn < sn.n_children - 1 || i < eltsperbn - 1) {
-                char val[vallen];
+            if (bn == sn.n_children - 1 && i == eltsperbn - 1) {
+                BASEMENTNODE basement = BLB(&sn, bn);
+                struct mempool * mp = &basement->buffer_mempool;
+                // add a few bytes so the halfway mark is definitely inside this
+                // val, which will make it go to the left and everything else to
+                // the right, which is nothing, so we actually split at the very end
+                char val[totalbytes + 3];
+                invariant(totalbytes + 3 <= (long) maxbnsize);
                 memset(val, k, sizeof val);
-                le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-            } else {  // the last element
-                char val[totalbytes + 3];  // just to be sure
-                memset(val, k, sizeof val);
-                le = le_fastmalloc(mp, (char *) &k, keylen, val, totalbytes + 3);
+                LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, totalbytes + 3);
+                r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+                totalbytes += leafentry_disksize(le);
+            } else {
+                totalbytes += insert_dummy_value(&sn, bn, k);
             }
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
-            totalbytes += leafentry_disksize(le);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -543,17 +459,7 @@ test_split_at_end(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 // Maximum node size according to the BRT: 1024 (expected node size after split)
@@ -565,18 +471,6 @@ test_split_at_end(void)
 static void
 test_split_odd_nodes(void)
 {
-    const int nodesize = 1024; // Max node size.
-    const int eltsize = 64;    // Element size?
-    const int bnsize = 256;    // Basement Node size.
-    const size_t maxbnsize = bnsize;
-    const int eltsperbn = bnsize / eltsize; // How many elements in a basement node.
-    const int keylen = sizeof(long);
-    const MSN new_msn = { .msn = 2 * MIN_MSN.msn }; // Arbitrary MSN larger than min MSN.
-
-    // Overhead from LE_CLEAN_MEMSIZE.
-    const int vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)
-                                         + sizeof(((LEAFENTRY)NULL)->keylen)
-                                         + sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
     struct brtnode sn;
 
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
@@ -584,38 +478,15 @@ test_split_odd_nodes(void)
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = BRT_LAYOUT_VERSION;
-    sn.layout_version_original = BRT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.optimized_for_upgrade = 1324;
+    setup_brtnode_header(&sn);
     // This will give us 9 children.
     const int nelts = 2 * (nodesize + 128) / eltsize;
-    sn.n_children = nelts * eltsize / bnsize;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children - 1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    setup_brtnode_partitions(&sn, nelts * eltsize / bnsize, dummy_msn_3884, bnsize);
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_STATE(&sn,bn) = PT_AVAIL;
-        set_BLB(&sn, bn, toku_create_empty_bn());
-	BASEMENTNODE basement = BLB(&sn, bn);
-        // Write an MSN to this basement node.
-        BLB_MAX_MSN_APPLIED(&sn, bn) = new_msn;
-	struct mempool * mp = &basement->buffer_mempool;
-	toku_mempool_construct(mp, maxbnsize);
-        BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
-            char val[vallen];
-            memset(val, k, sizeof val);
-            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+            insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -634,18 +505,8 @@ test_split_odd_nodes(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    // Verify that the MSN is the same on the basement nodes after the split.
-    int a_children = nodea->n_children;
-    int b_children = nodeb->n_children;
-    for(int i = 0; i < a_children; ++i)
-    {
-        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodea, i).msn);
-    }
-
-    for(int i = 0; i < b_children; ++i)
-    {
-        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodeb, i).msn);
-    }
+    verify_basement_node_msns(nodea, dummy_msn_3884);
+    verify_basement_node_msns(nodeb, dummy_msn_3884);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -655,17 +516,7 @@ test_split_odd_nodes(void)
         toku_free(splitk.data);
     }
 
-    for (int i = 0; i < sn.n_children - 1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    destroy_brtnode_and_internals(&sn);
 }
 
 int
