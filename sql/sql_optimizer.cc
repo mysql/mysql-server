@@ -189,7 +189,6 @@ JOIN::optimize()
     }
   }
 #endif
-  SELECT_LEX *sel= thd->lex->current_select;
   if (first_optimization)
   {
     /*
@@ -219,7 +218,7 @@ JOIN::optimize()
     build_bitmap_for_nested_joins(join_list, 0);
 
     // Copied from st_select_lex::fix_prepare_information():
-    sel->prep_where=
+    select_lex->prep_where=
       conds ? conds->real_item()->copy_andor_structure(thd) : NULL;
 
     if (arena)
@@ -6528,9 +6527,9 @@ static void fix_list_after_tbl_changes(st_select_lex *parent_select,
 static bool convert_subquery_to_semijoin(JOIN *parent_join,
                                          Item_exists_subselect *subq_pred)
 {
-  SELECT_LEX *parent_lex= parent_join->select_lex;
+  SELECT_LEX *parent_select= parent_join->select_lex;
   TABLE_LIST *emb_tbl_nest= NULL;
-  List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
+  List<TABLE_LIST> *emb_join_list= &parent_select->top_join_list;
   THD *thd= parent_join->thd;
   DBUG_ENTER("convert_subquery_to_semijoin");
 
@@ -6596,7 +6595,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
       TABLE_LIST *const wrap_nest=
         TABLE_LIST::new_nested_join(thd->mem_root, "(sj-wrap)",
                                     outer_tbl->embedding, outer_tbl->join_list,
-                                    parent_lex);
+                                    parent_select);
       if (wrap_nest == NULL)
         DBUG_RETURN(true);
 
@@ -6636,9 +6635,9 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
   TABLE_LIST *const sj_nest=
     TABLE_LIST::new_nested_join(thd->mem_root, "(sj-nest)",
-                                emb_tbl_nest, emb_join_list, parent_lex);
+                                emb_tbl_nest, emb_join_list, parent_select);
   if (sj_nest == NULL)
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);       /* purecov: inspected */
 
   NESTED_JOIN *const nested_join= sj_nest->nested_join;
 
@@ -6655,10 +6654,11 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     2. Walk through subquery's top list and set 'embedding' to point to the
        sj-nest.
   */
-  st_select_lex *subq_lex= subq_pred->unit->first_select();
-  nested_join->query_block_id= subq_lex->select_number;
+  st_select_lex *const subq_select= subq_pred->unit->first_select();
+
+  nested_join->query_block_id= subq_select->select_number;
   nested_join->join_list.empty();
-  List_iterator_fast<TABLE_LIST> li(subq_lex->top_join_list);
+  List_iterator_fast<TABLE_LIST> li(subq_select->top_join_list);
   TABLE_LIST *tl;
   while ((tl= li++))
   {
@@ -6674,17 +6674,17 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  for (tl= parent_select->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
   {}
-  tl->next_leaf= subq_lex->leaf_tables;
+  tl->next_leaf= subq_select->leaf_tables;
 
   /*
     Same as above for next_local chain. This needed only for re-execution.
     (The next_local chain always starts with SELECT_LEX::table_list)
   */
-  for (tl= parent_lex->get_table_list(); tl->next_local; tl= tl->next_local)
+  for (tl= parent_select->get_table_list(); tl->next_local; tl= tl->next_local)
   {}
-  tl->next_local= subq_lex->get_table_list();
+  tl->next_local= subq_select->get_table_list();
 
   /* A theory: no need to re-connect the next_global chain */
 
@@ -6696,19 +6696,19 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   /* n. Adjust the parent_join->tables counter */
   uint table_no= parent_join->tables;
   /* n. Walk through child's tables and adjust table->map */
-  for (tl= subq_lex->leaf_tables; tl; tl= tl->next_leaf, table_no++)
+  for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
   {
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
     SELECT_LEX *old_sl= tl->select_lex;
-    tl->select_lex= parent_join->select_lex; 
+    tl->select_lex= parent_select; 
     for (TABLE_LIST *emb= tl->embedding;
          emb && emb->select_lex == old_sl;
          emb= emb->embedding)
-      emb->select_lex= parent_join->select_lex;
+      emb->select_lex= parent_select;
   }
-  parent_join->tables+= subq_lex->join->tables;
-  parent_join->primary_tables+= subq_lex->join->tables;
+  parent_join->tables+= subq_select->join->tables;
+  parent_join->primary_tables+= subq_select->join->tables;
 
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
@@ -6739,7 +6739,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     nested_join->sj_depends_on=  subq_pred->used_tables() |
                                  in_subq_pred->left_expr->used_tables();
     /* Put the subquery's WHERE into semi-join's condition. */
-    sj_nest->sj_on_expr= subq_lex->where;
+    sj_nest->sj_on_expr= subq_select->where;
 
     /*
     Create the IN-equalities and inject them into semi-join's ON condition.
@@ -6761,11 +6761,11 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     {
       nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
                                             element_index(i));
-      nested_join->sj_inner_exprs.push_back(subq_lex->ref_pointer_array[i]);
+      nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
 
       Item_func_eq *item_eq= 
         new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
-                         subq_lex->ref_pointer_array[i]);
+                         subq_select->ref_pointer_array[i]);
       if (item_eq == NULL)
         DBUG_RETURN(TRUE);
 
@@ -6783,23 +6783,23 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   }
 
   /* Unlink the child select_lex: */
-  subq_lex->master_unit()->exclude_level();
-  parent_lex->removed_select= subq_lex;
+  subq_select->master_unit()->exclude_level();
+  parent_select->removed_select= subq_select;
   /*
     Update the resolver context - needed for Item_field objects that have been
     replaced in the item tree for this execution, but are still needed for
     subsequent executions.
   */
-  for (st_select_lex *select= parent_lex->removed_select;
+  for (st_select_lex *select= parent_select->removed_select;
        select != NULL;
        select= select->removed_select)
-    select->context.select_lex= parent_lex;
+    select->context.select_lex= parent_select;
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex);
-  fix_list_after_tbl_changes(parent_lex, subq_lex,
+  sj_nest->sj_on_expr->fix_after_pullout(parent_select, subq_select);
+  fix_list_after_tbl_changes(parent_select, subq_select,
                              &sj_nest->nested_join->join_list);
 
   //TODO fix QT_
@@ -6828,15 +6828,15 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     parent_join->conds->top_level_item();
     if (parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds))
       DBUG_RETURN(true);
-    parent_join->select_lex->where= parent_join->conds;
+    parent_select->where= parent_join->conds;
   }
 
-  if (subq_lex->ftfunc_list->elements)
+  if (subq_select->ftfunc_list->elements)
   {
     Item_func_match *ifm;
-    List_iterator_fast<Item_func_match> li(*(subq_lex->ftfunc_list));
+    List_iterator_fast<Item_func_match> li(*(subq_select->ftfunc_list));
     while ((ifm= li++))
-      parent_lex->ftfunc_list->push_front(ifm);
+      parent_select->ftfunc_list->push_front(ifm);
   }
 
   DBUG_RETURN(false);
@@ -7483,10 +7483,10 @@ static bool make_join_select(JOIN *join, Item *cond)
     {                        /* there may be a select without a cond. */    
       if (join->primary_tables > 1)
         cond->update_used_tables();		// Tablenr may have changed
+
       if (join->plan_is_const() &&
-	  thd->lex->current_select->master_unit() ==
-	  &thd->lex->unit)		// not upper level SELECT
-        join->const_table_map|=RAND_TABLE_BIT;
+	  join->select_lex->master_unit() == thd->lex->unit) // Outer-most query
+        join->const_table_map|= RAND_TABLE_BIT;
 
       /*
         Extract expressions that depend on constant tables

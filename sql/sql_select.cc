@@ -75,8 +75,9 @@ bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
-  LEX *lex= thd->lex;
-  SELECT_LEX *select_lex = &lex->select_lex;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
+
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -88,10 +89,10 @@ bool handle_select(THD *thd, select_result *result,
 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
-    res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
+    res= mysql_union(thd, lex, result, lex->unit, setup_tables_done_option);
   else
   {
-    SELECT_LEX_UNIT *unit= &lex->unit;
+    SELECT_LEX_UNIT *unit= lex->unit;
     unit->set_limit(unit->global_parameters);
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
@@ -3168,8 +3169,8 @@ void JOIN::join_free()
   if (can_unlock && lock && thd->lock && ! thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
-      (select_lex == (thd->lex->unit.fake_select_lex ?
-                      thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
+      (select_lex == (thd->lex->unit->fake_select_lex ?
+                      thd->lex->unit->fake_select_lex : thd->lex->select_lex)))
   {
     /*
       TODO: unlock tables even if the join isn't top level select in the

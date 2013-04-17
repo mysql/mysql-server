@@ -8777,8 +8777,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.db= from->s->db.str;
       error= 1;
 
-      if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-          setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+      if (thd->lex->select_lex->setup_ref_array(thd, order_num))
+        goto err;            /* purecov: inspected */
+      if (setup_order(thd, thd->lex->select_lex->ref_pointer_array,
                       &tables, fields, all_fields, order))
         goto err;
       Filesort fsort(order, HA_POS_ERROR, NULL);

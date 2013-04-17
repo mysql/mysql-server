@@ -127,7 +127,7 @@ protected:
 
   SELECT_LEX *select_lex() const
   {
-    return join ? join->select_lex : &thd->lex->select_lex;
+    return join ? join->select_lex : thd->lex->select_lex;
   }
 
 
@@ -556,7 +556,7 @@ bool Explain::explain_subqueries(select_result *result)
       }
     }
   }
-  if (&thd->lex->select_lex == select_lex() &&
+  if (thd->lex->select_lex == select_lex() &&
       !thd->lex->value_list.is_empty())
   {
     /*
@@ -739,7 +739,7 @@ bool Explain::explain_id()
 
 bool Explain::explain_select_type()
 {
-  if (&thd->lex->select_lex != select_lex()) // ignore top-level SELECT_LEXes
+  if (thd->lex->select_lex != select_lex()) // ignore top-level SELECT_LEXes
   {
     fmt->entry()->is_dependent= select_lex()->is_dependent();
     if (select_lex()->type(thd) != SELECT_LEX::SLT_DERIVED)
@@ -2016,7 +2016,7 @@ bool explain_query_expression(THD *thd, select_result *result)
 {
   DBUG_ENTER("explain_query_expression");
   const bool res= thd->lex->explain_format->send_headers(result) ||
-                  mysql_explain_unit(thd, &thd->lex->unit, result) ||
+                  mysql_explain_unit(thd, thd->lex->unit, result) ||
                   thd->is_error();
   /*
     The code which prints the extended description is not robust
@@ -2029,8 +2029,8 @@ bool explain_query_expression(THD *thd, select_result *result)
     /*
       The warnings system requires input in utf8, see mysqld_show_warnings().
     */
-    thd->lex->unit.print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+    thd->lex->unit->print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                QT_SHOW_SELECT_NUMBER));
     str.append('\0');
     push_warning(thd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
   }
