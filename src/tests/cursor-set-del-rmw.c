@@ -12,7 +12,7 @@ static void test_del_rmw(DB_ENV *env, DB *db, uint32_t t1_flags, uint32_t t2_fla
             int k = htonl(i); int v = i;
             DBT key; dbt_init(&key, &k, sizeof k);
             DBT val; dbt_init(&val, &v, sizeof v);
-            r = db->put(db, write_txn, &key, &val, DB_YESOVERWRITE); assert_zero(r);
+            r = db->put(db, write_txn, &key, &val, 0); assert_zero(r);
         }
         r = write_txn->commit(write_txn, 0); assert_zero(r);
     }

@@ -51,10 +51,10 @@ int test_main(int argc, char * const argv[]) {
 
     r = db->put(db, txn1, &key, &val, DB_NOOVERWRITE); assert(r == DB_KEYEXIST);
     r = db->put(db, txn2, &key, &val, DB_NOOVERWRITE); assert(r == DB_LOCK_NOTGRANTED);
-    r = db->put(db, txn1, &key, &val, DB_YESOVERWRITE); assert_zero(r);
-    r = db->put(db, txn2, &key, &val, DB_YESOVERWRITE); assert(r == DB_LOCK_NOTGRANTED);
+    r = db->put(db, txn1, &key, &val, 0); assert_zero(r);
+    r = db->put(db, txn2, &key, &val, 0); assert(r == DB_LOCK_NOTGRANTED);
     r = txn1->commit(txn1, 0); assert_zero(r);
-    r = db->put(db, txn2, &key, &val, DB_YESOVERWRITE); assert_zero(r);
+    r = db->put(db, txn2, &key, &val, 0); assert_zero(r);
     r = txn2->commit(txn2, 0); assert_zero(r);
 
     r = db->close(db, 0); assert_zero(r);
