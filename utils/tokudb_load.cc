@@ -506,7 +506,7 @@ error:
 
 int apply_commandline_options()
 {
-   int r;
+   int r = -1;
    unsigned idx;
    char* field;
    char* value = NULL;

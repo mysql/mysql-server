@@ -86,6 +86,7 @@ set_cflags_if_supported(
   -Wlogical-op
   -Wmissing-format-attribute
   -Wno-error=missing-format-attribute
+  -Wno-error=address-of-array-temporary
   -fno-rtti
   -fno-exceptions
   )
