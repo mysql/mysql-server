@@ -49,8 +49,9 @@ typedef struct {     // unpacked leaf entry
     uint32_t  keylen;
     void *    keyp;
     UXR_S     uxrs_static[MAX_TRANSACTION_RECORDS*2];    // uxrs[0] is oldest committed (txn commit time, not txn start time), uxrs[num_cuxrs] is outermost provisional value (if any exist/num_puxrs > 0)
-    UXR       uxrs;                                      //If num_cuxrs < MAX_TRANSACTION_RECORDS then &uxrs_static[0].
+    UXR       uxrs;                                      //If num_cuxrs < MAX_TRANSACTION_RECORDS then uxrs = &uxrs_static[0].
                                                          //Otherwise we use a dynamically allocated array of size num_cuxrs + 1 + MAX_TRANSATION_RECORD.
+                                                         //Felt that MAX_TRANSACTION_RECORD was good upper bound for number of committed UXRs we would be willing to allocate off stack.
 } ULE_S, *ULE;
 
 int apply_msg_to_leafentry(BRT_MSG   msg,
