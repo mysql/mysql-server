@@ -2,12 +2,13 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Insert a bunch of stuff */
+
+#include <portability.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <db.h>
@@ -53,15 +54,13 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 #if !defined(NO_DB_PRELOCKED)
         int r = db->pre_acquire_table_lock(db, txn);
         assert(r==0);
-#else
-        db = db; txn = txn;
 #endif
     }
 }
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 char *dbfilename = "bench.db";
 char *dbname;
 
@@ -70,7 +69,7 @@ DB *db;
 DB_TXN *tid=0;
 
 
-static void setup (void) {
+static void benchmark_setup (void) {
     int r;
    
     {
@@ -79,8 +78,10 @@ static void setup (void) {
 	//printf("unlink_cmd=%s\n", unlink_cmd);
 	system(unlink_cmd);
     }
-    if (strcmp(dbdir, ".") != 0)
-        mkdir(dbdir, 0755);
+    if (strcmp(dbdir, ".") != 0) {
+        r = os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+        assert(r == 0);
+    }
 
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
@@ -103,7 +104,7 @@ static void setup (void) {
     }
 
     {
-	r = dbenv->open(dbenv, dbdir, env_open_flags, 0644);
+	r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	assert(r == 0);
     }
 
@@ -122,7 +123,7 @@ static void setup (void) {
         r = db->set_flags(db, dupflags);
         assert(r == 0);
     }
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
+    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
     if (do_transactions) {
@@ -135,7 +136,7 @@ static void setup (void) {
 
 }
 
-static void shutdown (void) {
+static void benchmark_shutdown (void) {
     int r;
     
     if (do_transactions && singlex) {
@@ -167,7 +168,7 @@ static void fill_array (unsigned char *data, int size) {
     if (compressibility>0) {
 	int i;
 	for (i=0; i<size/compressibility; i++) {
-	    data[i] = (unsigned char)random();
+	    data[i] = (unsigned char) random();
 	}
     }
 }
@@ -380,11 +381,11 @@ int main (int argc, const char *argv[]) {
 	if (!norandom) printf("random ");
 	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
     }
-    setup();
+    benchmark_setup();
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
-    shutdown();
+    benchmark_shutdown();
     gettimeofday(&t3,0);
     if (verbose) {
 	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
