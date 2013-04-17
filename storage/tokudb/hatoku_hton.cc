@@ -1076,6 +1076,57 @@ static int store_dbname_tablename_size(TABLE *table, char *name, u_int64_t size,
     return error;
 }
 
+static int tokudb_dictionary_info(TABLE *table, THD *thd) {
+    int error;
+    DB_TXN* txn = NULL;
+    DBC* tmp_cursor = NULL;
+    DBT curr_key;
+    DBT curr_val;
+    memset(&curr_key, 0, sizeof curr_key); 
+    memset(&curr_val, 0, sizeof curr_val);
+    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    if (error) {
+        goto cleanup;
+    }
+    error = db_env->get_cursor_for_directory(db_env, txn, &tmp_cursor);
+    if (error) {
+        goto cleanup;
+    }
+    while (error == 0) {
+        error = tmp_cursor->c_get(
+            tmp_cursor, 
+            &curr_key, 
+            &curr_val, 
+            DB_NEXT
+            );
+        if (!error) {
+            table->field[0]->store(
+                (char *)curr_key.data,
+                curr_key.size,
+                system_charset_info
+                );
+            table->field[1]->store(
+                (char *)curr_val.data,
+                curr_val.size,
+                system_charset_info
+                );
+            error = schema_table_store_record(thd, table);
+        }
+    }
+    if (error == DB_NOTFOUND) {
+        error = 0;
+    }
+cleanup:
+    if (tmp_cursor) {
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
+    }
+    if (txn) {
+        commit_txn(txn, 0);
+    }
+    return error;
+}
+
 static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
     int error;
     DB* curr_db = NULL;
@@ -1637,6 +1688,37 @@ static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
+static ST_FIELD_INFO tokudb_dictionary_field_info[] = {
+    {"dictionary_name", 512, MYSQL_TYPE_BLOB, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"internal_file_name", 512, MYSQL_TYPE_BLOB, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_dictionary_info_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_dictionary_info_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    TABLE *table = tables->table;
+
+    // 3938: Get a read lock on the status flag, since we must
+    // read it before safely proceeding
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        error = tokudb_dictionary_info(table, thd);
+    }
+
+    //3938: unlock the status flag lock
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
 #if MYSQL_VERSION_ID >= 50600
 static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
 #else
@@ -1669,6 +1751,17 @@ static int tokudb_user_data_exact_init(void *p) {
 }
 
 static int tokudb_user_data_exact_done(void *p) {
+    return 0;
+}
+
+static int tokudb_dictionary_info_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_dictionary_field_info;
+    schema->fill_table = tokudb_dictionary_info_fill_table;
+    return 0;
+}
+
+static int tokudb_dictionary_info_done(void *p) {
     return 0;
 }
 
@@ -1728,6 +1821,23 @@ mysql_declare_plugin(tokudb)
 #if MYSQL_VERSION_ID >= 50521
     0,                         /* flags */
 #endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_exact_information_schema, 
+    "TokuDB_dictionary_info", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_dictionary_info_init,     /* plugin init */
+    tokudb_dictionary_info_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
 }
 mysql_declare_plugin_end;
 
@@ -1773,6 +1883,21 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_PROPRIETARY,
     tokudb_user_data_exact_init,     /* plugin init */
     tokudb_user_data_exact_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_user_data_exact_information_schema, 
+    "TokuDB_dictionary_info", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_dictionary_info_init,     /* plugin init */
+    tokudb_dictionary_info_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
