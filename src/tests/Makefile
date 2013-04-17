@@ -147,6 +147,7 @@ BDB_DONTRUN_TESTS = \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \
 	recover-split-checkpoint \
+	recover-loader-test \
 	progress \
 	redirect \
         isolation-read-committed \
@@ -456,7 +457,7 @@ libs:
 
 
 
-loader-cleanup-test.tdb$(BINSUF) diskfull.tdb$(BINSUF): CPPFLAGS+=-DDONT_DEPRECATE_WRITES
+loader-cleanup-test.tdb$(BINSUF) recover-loader-test.tdb$(BINSUF) diskfull.tdb$(BINSUF): CPPFLAGS+=-DDONT_DEPRECATE_WRITES
 test_db_curs4.tdb$(BINSUF): trace.h
 test_db_curs4.bdb$(BINSUF): trace.h
 # a bunch of little tests designed to run in parallel
