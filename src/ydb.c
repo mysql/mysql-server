@@ -5464,7 +5464,11 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     struct brtstat64_s brtstat;
-    int r = toku_brt_stat64(db->i->brt, db_txn_struct_i(txn)->tokutxn, &brtstat);
+    TOKUTXN tokutxn = NULL;
+    if (txn != NULL) {
+        tokutxn = db_txn_struct_i(txn)->tokutxn;
+    }
+    int r = toku_brt_stat64(db->i->brt, tokutxn, &brtstat);
     if (r==0) {
 	s->bt_nkeys = brtstat.nkeys;
 	s->bt_ndata = brtstat.ndata;
