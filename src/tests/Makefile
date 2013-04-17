@@ -120,6 +120,7 @@ BDB_DONTRUN_TESTS = \
 	zombie_db \
 	recover-delboth-checkpoint \
 	recover-delboth-after-checkpoint \
+	filesize \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
