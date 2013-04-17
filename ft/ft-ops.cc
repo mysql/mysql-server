@@ -179,10 +179,6 @@ status_init(void)
     STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN");
     STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree");
     STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            PARCOUNT, "searches requiring more tries than the height of the tree plus three");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF,                        PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                     PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         PARCOUNT, "leaf nodes flushed to disk (for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint)");
     STATUS_INIT(FT_CREATE_LEAF,                            PARCOUNT, "leaf nodes created");
     STATUS_INIT(FT_CREATE_NONLEAF,                         PARCOUNT, "nonleaf nodes created");
     STATUS_INIT(FT_DESTROY_LEAF,                           PARCOUNT, "leaf nodes destroyed");
@@ -192,6 +188,7 @@ status_init(void)
     STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)");
     STATUS_INIT(FT_MSG_NUM,                                PARCOUNT, "messages injected at root");
     STATUS_INIT(FT_MSG_NUM_BROADCAST,                      PARCOUNT, "broadcast messages injected at root");
+
     STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      PARCOUNT, "basements decompressed as a target of a query");
     STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  PARCOUNT, "basements decompressed for prelocked range");
     STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    PARCOUNT, "basements decompressed for prefetch");
@@ -200,18 +197,49 @@ status_init(void)
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, PARCOUNT, "buffers decompressed for prelocked range");
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   PARCOUNT, "buffers decompressed for prefetch");
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      PARCOUNT, "buffers decompressed for write");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               PARCOUNT, "pivots fetched for query");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            PARCOUNT, "pivots fetched for prefetch");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               PARCOUNT, "pivots fetched for write");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           PARCOUNT, "basements fetched as a target of a query");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       PARCOUNT, "basements fetched for prelocked range");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         PARCOUNT, "basements fetched for prefetch");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      PARCOUNT, "buffers fetched for prelocked range");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        PARCOUNT, "buffers fetched for prefetch");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write");
 
+    // Disk read statistics.
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               PARCOUNT, "pivots fetched for query");
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_QUERY,             PARCOUNT, "pivots fetched for query (bytes)");
+    STATUS_INIT(FT_NANOTIME_PIVOTS_FETCHED_QUERY,          PARCOUNT, "pivots fetched for query (seconds)");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            PARCOUNT, "pivots fetched for prefetch");
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_PREFETCH,          PARCOUNT, "pivots fetched for prefetch (bytes)");
+    STATUS_INIT(FT_NANOTIME_PIVOTS_FETCHED_PREFETCH,       PARCOUNT, "pivots fetched for prefetch (seconds)");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               PARCOUNT, "pivots fetched for write");
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_WRITE,             PARCOUNT, "pivots fetched for write (bytes)");
+    STATUS_INIT(FT_NANOTIME_PIVOTS_FETCHED_WRITE,          PARCOUNT, "pivots fetched for write (seconds)");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           PARCOUNT, "basements fetched as a target of a query");
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_NORMAL,         PARCOUNT, "basements fetched as a target of a query (bytes)");
+    STATUS_INIT(FT_NANOTIME_BASEMENTS_FETCHED_NORMAL,      PARCOUNT, "basements fetched as a target of a query (seconds)");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       PARCOUNT, "basements fetched for prelocked range");
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE,     PARCOUNT, "basements fetched for prelocked range (bytes)");
+    STATUS_INIT(FT_NANOTIME_BASEMENTS_FETCHED_AGGRESSIVE,  PARCOUNT, "basements fetched for prelocked range (seconds)");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         PARCOUNT, "basements fetched for prefetch");
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_PREFETCH,       PARCOUNT, "basements fetched for prefetch (bytes)");
+    STATUS_INIT(FT_NANOTIME_BASEMENTS_FETCHED_PREFETCH,    PARCOUNT, "basements fetched for prefetch (seconds)");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write");
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_WRITE,          PARCOUNT, "basements fetched for write (bytes");
+    STATUS_INIT(FT_NANOTIME_BASEMENTS_FETCHED_WRITE,       PARCOUNT, "basements fetched for write (seconds)");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query");
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_NORMAL,        PARCOUNT, "buffers fetched as a target of a query (bytes)");
+    STATUS_INIT(FT_NANOTIME_MSG_BUFFER_FETCHED_NORMAL,     PARCOUNT, "buffers fetched as a target of a query (seconds)");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      PARCOUNT, "buffers fetched for prelocked range");
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE,    PARCOUNT, "buffers fetched for prelocked range (bytes)");
+    STATUS_INIT(FT_NANOTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, PARCOUNT, "buffers fetched for prelocked range (seconds)");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        PARCOUNT, "buffers fetched for prefetch");
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH,      PARCOUNT, "buffers fetched for prefetch (bytes)");
+    STATUS_INIT(FT_NANOTIME_MSG_BUFFER_FETCHED_PREFETCH,   PARCOUNT, "buffers fetched for prefetch (seconds)");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write");
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_WRITE,         PARCOUNT, "buffers fetched for write (bytes)");
+    STATUS_INIT(FT_NANOTIME_MSG_BUFFER_FETCHED_WRITE,      PARCOUNT, "buffers fetched for write (seconds)");
+    
+    // Disk write statistics.
+    STATUS_INIT(FT_DISK_FLUSH_LEAF,                        PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                     PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         PARCOUNT, "leaf nodes flushed to disk (for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint)");
+
+    // Promotion statistics.
     STATUS_INIT(FT_PRO_NUM_ROOT_SPLIT,                     PARCOUNT, "promotion: roots split");
     STATUS_INIT(FT_PRO_NUM_ROOT_H0_INJECT,                 PARCOUNT, "promotion: leaf roots injected into");
     STATUS_INIT(FT_PRO_NUM_ROOT_H1_INJECT,                 PARCOUNT, "promotion: h1 roots injected into");
@@ -777,10 +805,16 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
 {
     if (bfe->type == ftnode_fetch_prefetch) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_PREFETCH, 1);
+        STATUS_INC(FT_BYTES_PIVOTS_FETCHED_PREFETCH, bfe->bytes_read);
+        STATUS_INC(FT_NANOTIME_PIVOTS_FETCHED_PREFETCH, bfe->read_time);
     } else if (bfe->type == ftnode_fetch_all) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_WRITE, 1);
+        STATUS_INC(FT_BYTES_PIVOTS_FETCHED_WRITE, bfe->bytes_read);
+        STATUS_INC(FT_NANOTIME_PIVOTS_FETCHED_WRITE, bfe->read_time);
     } else if (bfe->type == ftnode_fetch_subset) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_QUERY, 1);
+        STATUS_INC(FT_BYTES_PIVOTS_FETCHED_QUERY, bfe->bytes_read);
+        STATUS_INC(FT_NANOTIME_PIVOTS_FETCHED_QUERY, bfe->read_time);
     }
 }
 
@@ -1055,24 +1089,32 @@ ft_status_update_partial_fetch_reason(
                 STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH, 1);
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_PREFETCH, 1);
+                STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_PREFETCH, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_BASEMENTS_FETCHED_PREFETCH, bfe->read_time);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE, 1);
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_WRITE, 1);
+                STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_WRITE, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_BASEMENTS_FETCHED_WRITE, bfe->read_time);
             }
         } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL, 1);
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_NORMAL, 1);
+                STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_NORMAL, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_BASEMENTS_FETCHED_NORMAL, bfe->read_time);
             }
         } else {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE, 1);
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE, 1);
+                STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_BASEMENTS_FETCHED_AGGRESSIVE, bfe->read_time);
             }
         }
     }
@@ -1082,24 +1124,32 @@ ft_status_update_partial_fetch_reason(
                 STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH, 1);
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH, 1);
+                STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_MSG_BUFFER_FETCHED_PREFETCH, bfe->read_time);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE, 1);
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_WRITE, 1);
+                STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_WRITE, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_MSG_BUFFER_FETCHED_WRITE, bfe->read_time);
             }
         } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL, 1);
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_NORMAL, 1);
+                STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_NORMAL, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_MSG_BUFFER_FETCHED_NORMAL, bfe->read_time);
             }
         } else {
             if (state == PT_COMPRESSED) {
                 STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, 1);
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE, 1);
+                STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE, bfe->bytes_read);
+                STATUS_INC(FT_NANOTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, bfe->read_time);
             }
         }
     }
@@ -1127,23 +1177,23 @@ int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraar
         lc = -1;
         rc = -1;
     }
-    // TODO: possibly cilkify expensive operations in this loop
-    // TODO: review this with others to see if it can be made faster
     for (int i = 0; i < node->n_children; i++) {
         if (BP_STATE(node,i) == PT_AVAIL) {
             continue;
         }
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
-            ft_status_update_partial_fetch_reason(bfe, i, BP_STATE(node, i), (node->height == 0));
-            if (BP_STATE(node,i) == PT_COMPRESSED) {
+            enum pt_state state = BP_STATE(node, i);
+            if (state == PT_COMPRESSED) {
                 r = toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
-            }
-            else if (BP_STATE(node,i) == PT_ON_DISK) {
+            } else {
+                invariant(state == PT_ON_DISK);
+                tokutime_t io_t0 = toku_time_now();
                 r = toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
+                tokutime_t io_t1 = toku_time_now();
+                bfe->bytes_read = BP_SIZE(ndd, i);
+                bfe->read_time = io_t1 - io_t0;
             }
-            else {
-                abort();
-            }
+            ft_status_update_partial_fetch_reason(bfe, i, state, (node->height == 0));
         }
 
         if (r != 0) {

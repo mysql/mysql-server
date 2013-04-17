@@ -91,6 +91,9 @@ struct ftnode_fetch_extra {
     // this value will be set during the fetch_callback call by toku_ftnode_fetch_callback or toku_ftnode_pf_req_callback
     // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
     int child_to_read;
+    // Accounting: How many bytes were fetched, and how much time did it take?
+    tokutime_t bytes_read;
+    uint64_t read_time;
 };
 
 struct toku_fifo_entry_key_msn_heaviside_extra {
@@ -718,6 +721,8 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = false;
+    bfe->bytes_read = 0;
+    bfe->read_time = 0;
 }
 
 //
@@ -747,6 +752,8 @@ static inline void fill_bfe_for_subset_read(
     bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = disable_prefetching;
+    bfe->bytes_read = 0;
+    bfe->read_time = 0;
 }
 
 //
@@ -766,6 +773,8 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = false;
+    bfe->bytes_read = 0;
+    bfe->read_time = 0;
 }
 
 static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
@@ -812,6 +821,8 @@ static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
     bfe->right_is_pos_infty = c->right_is_pos_infty;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = c->disable_prefetching;
+    bfe->bytes_read = 0;
+    bfe->read_time = 0;
 }
 
 struct ancestors {
@@ -973,11 +984,9 @@ typedef enum {
     FT_CREATE_NONLEAF,                         // number of nonleaf nodes created
     FT_DESTROY_LEAF,                           // number of leaf nodes destroyed
     FT_DESTROY_NONLEAF,                        // number of nonleaf nodes destroyed
-    FT_MSG_KEYVAL_BYTES_IN,                    // how many bytes of keyval data ingested by the tree (all tree, no overhead counted)
     FT_MSG_BYTES_IN,                           // how many bytes of messages injected at root (for all trees)
     FT_MSG_BYTES_OUT,                          // how many bytes of messages flushed from h1 nodes to leaves
     FT_MSG_BYTES_CURR,                         // how many bytes of messages currently in trees (estimate)
-    //FT_MSG_BYTES_MAX,                          // how many bytes of messages currently in trees (estimate)
     FT_MSG_NUM,                                // how many messages injected at root
     FT_MSG_NUM_BROADCAST,                      // how many broadcast messages injected at root
     FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      // how many basement nodes were decompressed because they were the target of a query
@@ -989,16 +998,38 @@ typedef enum {
     FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,
     FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,
     FT_NUM_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
+    FT_BYTES_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
+    FT_NANOTIME_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
     FT_NUM_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
+    FT_BYTES_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
+    FT_NANOTIME_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
     FT_NUM_PIVOTS_FETCHED_WRITE,               // ... for a write
+    FT_BYTES_PIVOTS_FETCHED_WRITE,               // ... for a write
+    FT_NANOTIME_PIVOTS_FETCHED_WRITE,               // ... for a write
     FT_NUM_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
+    FT_BYTES_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
+    FT_NANOTIME_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
     FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
+    FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
+    FT_NANOTIME_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
     FT_NUM_BASEMENTS_FETCHED_PREFETCH,
+    FT_BYTES_BASEMENTS_FETCHED_PREFETCH,
+    FT_NANOTIME_BASEMENTS_FETCHED_PREFETCH,
     FT_NUM_BASEMENTS_FETCHED_WRITE,
+    FT_BYTES_BASEMENTS_FETCHED_WRITE,
+    FT_NANOTIME_BASEMENTS_FETCHED_WRITE,
     FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
+    FT_BYTES_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
+    FT_NANOTIME_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
     FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
+    FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
+    FT_NANOTIME_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
     FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,
+    FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH,
+    FT_NANOTIME_MSG_BUFFER_FETCHED_PREFETCH,
     FT_NUM_MSG_BUFFER_FETCHED_WRITE,
+    FT_BYTES_MSG_BUFFER_FETCHED_WRITE,
+    FT_NANOTIME_MSG_BUFFER_FETCHED_WRITE,
     FT_PRO_NUM_ROOT_SPLIT,
     FT_PRO_NUM_ROOT_H0_INJECT,
     FT_PRO_NUM_ROOT_H1_INJECT,
