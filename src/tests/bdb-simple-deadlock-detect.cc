@@ -15,6 +15,7 @@
 
 #include "test.h"
 #include "toku_pthread.h"
+#include <portability/toku_atomic.h>
 
 struct test_seq {
     int state;
@@ -84,7 +85,7 @@ static void *run_locker_a(void *arg) {
     if (m_locked) {
         r = db_env->lock_put(db_env, &lock_a_m); assert(r == 0);
     } else {
-        (void) __sync_fetch_and_add(locker_args->deadlock_count, 1);
+        (void) toku_sync_fetch_and_add(locker_args->deadlock_count, 1);
         if (verbose) printf("%s:%u m deadlock\n", __FUNCTION__, __LINE__);
     }
 
@@ -123,7 +124,7 @@ static void *run_locker_b(void *arg) {
     if (l_locked) {
         r = db_env->lock_put(db_env, &lock_b_l); assert(r == 0);
     } else {
-        (void) __sync_fetch_and_add(locker_args->deadlock_count, 1);
+        (void) toku_sync_fetch_and_add(locker_args->deadlock_count, 1);
         if (verbose) printf("%s:%u l deadlock\n", __FUNCTION__, __LINE__);
     }
 

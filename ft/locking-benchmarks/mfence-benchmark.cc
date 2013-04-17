@@ -34,6 +34,7 @@ lfence:  12.9ns/loop  (marginal cost=  -0.1ns)
 
 #include <sys/time.h>
 #include <stdio.h>
+#include <portability/toku_atomic.h>
 
 enum { COUNT = 100000000 };
 
@@ -67,8 +68,8 @@ static inline void sfence (void) {
 
 int lock_for_lock_and_unlock;
 static inline void lock_and_unlock (void) {
-    (void)__sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
-    __sync_lock_release(&lock_for_lock_and_unlock);
+    (void)toku_sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
+    toku_sync_lock_release(&lock_for_lock_and_unlock);
 }
 
 

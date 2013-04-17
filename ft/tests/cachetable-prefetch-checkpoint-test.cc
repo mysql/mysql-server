@@ -122,7 +122,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
         CACHEKEY key = make_blocknum(i);
         uint32_t hi = toku_cachetable_hash(f1, key);
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, key, hi, PL_WRITE_EXPENSIVE, &v);
         if (r != 0) 
             continue;
         r = toku_test_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, make_pair_attr(item_size));

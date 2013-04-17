@@ -105,7 +105,7 @@ static void test_nested_pin (void) {
     assert(i0==0);
     r = toku_test_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
-    r = toku_cachetable_maybe_get_and_pin(f, make_blocknum(1), f1hash, &vv2);
+    r = toku_cachetable_maybe_get_and_pin(f, make_blocknum(1), f1hash, PL_WRITE_EXPENSIVE, &vv2);
     assert(r==0);
     assert(vv2==vv);
     r = toku_test_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));

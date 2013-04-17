@@ -7,6 +7,7 @@
 #include "tokudb_common_funcs.h"
 #include <toku_pthread.h>
 #include <toku_assert.h>
+#include <portability/toku_atomic.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -102,7 +103,7 @@ static void test_begin_commit(int _nqueries) {
         r = c->c_get(c, &key, &val, DB_SET);
 #endif
         assert_zero(r);
-        (void) __sync_fetch_and_add(&set_count, 1);
+        (void) toku_sync_fetch_and_add(&set_count, 1);
         r = c->c_close(c); assert_zero(r);
         r = txn->commit(txn, 0); assert_zero(r);
     }

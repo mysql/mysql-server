@@ -5,6 +5,7 @@ if(BUILD_TESTING)
   file(GLOB srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cc)
   foreach(src ${srcs})
     get_filename_component(base ${src} NAME_WE)
+    set_property(SOURCE ${src} APPEND PROPERTY COMPILE_DEFINITIONS "__SRCFILE__=\"${CMAKE_CURRENT_SOURCE_DIR}/${src}\"")
     list(APPEND tests ${base})
   endforeach(src)
 

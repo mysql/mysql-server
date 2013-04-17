@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <util/rwlock.h>
 #include <util/frwlock.h>
+#include <portability/toku_atomic.h>
 #include "toku_fair_rwlock.h"
 #include <sys/types.h>
 
@@ -138,8 +139,8 @@ void time_cas (void) {
     for (int t=0; t<T; t++) {
 	gettimeofday(&start, NULL);
 	for (int i=0; i<N; i++) {
-	    { int r = __sync_val_compare_and_swap(&myval, 0, 1);  assert(r==0); }
-	    { int r = __sync_val_compare_and_swap(&myval, 1, 0);  assert(r==1); }
+	    { int r = toku_sync_val_compare_and_swap(&myval, 0, 1);  assert(r==0); }
+	    { int r = toku_sync_val_compare_and_swap(&myval, 1, 0);  assert(r==1); }
 	}
 	gettimeofday(&end,   NULL);
 	double diff = 1e9*toku_tdiff(&end, &start)/N;
@@ -325,7 +326,7 @@ static int log_counter=0;
 
 static void logit (int threadid, int loopid, char action) {
     //printf("%d %d %c\n", threadid, loopid, action);
-    int my_log_counter = __sync_fetch_and_add(&log_counter, 1);
+    int my_log_counter = toku_sync_fetch_and_add(&log_counter, 1);
     assert(my_log_counter<N_LOG_ENTRIES);
     actionlog[my_log_counter].threadid = threadid;
     actionlog[my_log_counter].loopid   = loopid;

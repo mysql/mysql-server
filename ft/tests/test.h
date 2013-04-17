@@ -228,7 +228,8 @@ static UU() CACHETABLE_WRITE_CALLBACK def_write_callback(void* write_extraargs) 
     wc.pe_callback = def_pe_callback;
     wc.cleaner_callback = def_cleaner_callback;
     wc.write_extraargs = write_extraargs;
-    wc.clone_callback = NULL;
+    wc.clone_callback = nullptr;
+    wc.checkpoint_complete_callback = nullptr;
     return wc;
 }
 

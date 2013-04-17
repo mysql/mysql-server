@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <portability/toku_atomic.h>
 
 float tdiff (struct timeval *start, struct timeval *end) {
     return 1e6*(end->tv_sec-start->tv_sec) +(end->tv_usec - start->tv_usec);
@@ -71,13 +72,13 @@ fetch_and_add_i (volatile int *p, int incr)
 static inline int
 gcc_fetch_and_add_i (volatile int *p, int incr)
 {
-  return __sync_fetch_and_add(p, incr);
+  return toku_sync_fetch_and_add(p, incr);
 }
 
 static inline long
 gcc_fetch_and_add_l (volatile long *p, long incr)
 {
-  return __sync_fetch_and_add(p, incr);
+  return toku_sync_fetch_and_add(p, incr);
 }
 
 // Something wrong with the compiler  for longs

@@ -7,7 +7,12 @@ if(USE_BDB)
   find_package(BDB REQUIRED)
 endif()
 
-find_package(Valgrind REQUIRED)
+option(USE_VALGRIND "Build to run safely under valgrind (often slower)." ON)
+if(USE_VALGRIND)
+  find_package(Valgrind REQUIRED)
+endif()
+
+option(TOKU_DEBUG_PARANOID "Enable paranoid asserts." ON)
 
 include(CheckIncludeFiles)
 

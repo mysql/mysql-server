@@ -11,6 +11,7 @@
 
 #include "test.h"
 #include "toku_pthread.h"
+#include <portability/toku_atomic.h>
 
 static void write_row(DB *db, DB_TXN *txn, int k, int v, int expect_r) {
     DBT key; dbt_init(&key, &k, sizeof k);
@@ -52,7 +53,7 @@ static void *write_one_f(void *arg) {
     } else {
         r = txn->abort(txn); assert(r == 0);
     }
-    (void) __sync_fetch_and_sub(&n_txns, 1);
+    (void) toku_sync_fetch_and_sub(&n_txns, 1);
 
     return arg;
 }

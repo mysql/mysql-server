@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
+#include <portability/toku_atomic.h>
 
 
 static int total_size;
@@ -25,7 +26,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
         bool UU(is_clone)
        ) {
     if (w) {
-        int curr_size = __sync_fetch_and_sub(&total_size, 1);
+        int curr_size = toku_sync_fetch_and_sub(&total_size, 1);
         assert(curr_size <= 200);
         usleep(500*1000);
     }
@@ -49,7 +50,7 @@ cachetable_test (void) {
        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
        wc.flush_callback = flush;
         toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc, put_callback_nop);
-        int curr_size = __sync_fetch_and_add(&total_size, 1);
+        int curr_size = toku_sync_fetch_and_add(&total_size, 1);
         assert(curr_size <= test_limit + test_limit/2+1);
         r = toku_test_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(4));
     }

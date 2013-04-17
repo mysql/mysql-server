@@ -15,6 +15,7 @@
 #include <string.h>
 #include <toku_time.h>
 #include <toku_pthread.h>
+#include <portability/toku_atomic.h>
 
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
@@ -187,7 +188,7 @@ void do_threads (unsigned long long N, int do_nonlocal) {
 static volatile unsigned long long n_preads;
 
 static ssize_t my_pread (int fd, void *buf, size_t count, off_t offset) {
-    (void) __sync_fetch_and_add(&n_preads, 1);
+    (void) toku_sync_fetch_and_add(&n_preads, 1);
     usleep(1000); // sleep for a millisecond
     return pread(fd, buf, count, offset);
 }

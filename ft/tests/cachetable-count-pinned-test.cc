@@ -27,7 +27,8 @@ cachetable_count_pinned_test (int n) {
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
+
         assert(r == -1);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 

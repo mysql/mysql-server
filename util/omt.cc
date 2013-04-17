@@ -44,7 +44,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::create_from_sorted_array(cons
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::create_steal_sorted_array(omtdata_t **const values, const uint32_t numvalues, const uint32_t new_capacity) {
-    invariant_notnull(values);
+    paranoid_invariant_notnull(values);
     this->create_internal_no_array(new_capacity);
     this->d.a.num_values = numvalues;
     this->d.a.values = *values;
@@ -57,7 +57,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::create_steal_sorted_array(omt
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 int omt<omtdata_t, omtdataout_t, supports_marks>::split_at(omt *const newomt, const uint32_t idx) {
     barf_if_marked(*this);
-    invariant_notnull(newomt);
+    paranoid_invariant_notnull(newomt);
     if (idx > this->size()) { return EINVAL; }
     this->convert_to_array();
     const uint32_t newsize = this->size() - idx;
@@ -73,8 +73,8 @@ int omt<omtdata_t, omtdataout_t, supports_marks>::split_at(omt *const newomt, co
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::merge(omt *const leftomt, omt *const rightomt) {
     barf_if_marked(*this);
-    invariant_notnull(leftomt);
-    invariant_notnull(rightomt);
+    paranoid_invariant_notnull(leftomt);
+    paranoid_invariant_notnull(rightomt);
     const uint32_t leftsize = leftomt->size();
     const uint32_t rightsize = rightomt->size();
     const uint32_t newsize = leftsize + rightsize;
@@ -106,7 +106,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::merge(omt *const leftomt, omt
     }
     rightomt->destroy();
     this->d.a.num_values += rightsize;
-    invariant(this->size() == newsize);
+    paranoid_invariant(this->size() == newsize);
     if (supports_marks) {
         this->convert_to_tree();
     }
@@ -295,7 +295,7 @@ int omt<omtdata_t, omtdataout_t, supports_marks>::iterate_and_mark_range(const u
     static_assert(supports_marks, "does not support marks");
     if (right > this->size()) { return EINVAL; }
     if (left == right) { return 0; }
-    invariant(!this->is_array);
+    paranoid_invariant(!this->is_array);
     return this->iterate_and_mark_range_internal<iterate_extra_t, f>(left, right, this->d.t.root, 0, iterate_extra);
 }
 
@@ -305,7 +305,7 @@ template<typename iterate_extra_t,
          int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::iterate_over_marked(iterate_extra_t *const iterate_extra) const {
     static_assert(supports_marks, "does not support marks");
-    invariant(!this->is_array);
+    paranoid_invariant(!this->is_array);
     return this->iterate_over_marked_internal<iterate_extra_t, f>(this->d.t.root, 0, iterate_extra);
 }
 
@@ -334,7 +334,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::delete_all_marked(void) {
     if (!this->has_marks()) {
         return;
     }
-    invariant(!this->is_array);
+    paranoid_invariant(!this->is_array);
     GrowableArray<node_idx> marked_indexes;
     marked_indexes.init();
 
@@ -353,7 +353,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::delete_all_marked(void) {
 }
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
-uint32_t omt<omtdata_t, omtdataout_t, supports_marks>::verify_marks_consistent_internal(const subtree &subtree, const bool allow_marks) const {
+uint32_t omt<omtdata_t, omtdataout_t, supports_marks>::verify_marks_consistent_internal(const subtree &subtree, const bool UU(allow_marks)) const {
     if (subtree.is_null()) {
         return 0;
     }
@@ -361,14 +361,14 @@ uint32_t omt<omtdata_t, omtdataout_t, supports_marks>::verify_marks_consistent_i
     uint32_t num_marks = verify_marks_consistent_internal(node.left, node.get_marks_below());
     num_marks += verify_marks_consistent_internal(node.right, node.get_marks_below());
     if (node.get_marks_below()) {
-        invariant(allow_marks);
-        invariant(num_marks > 0);
+        paranoid_invariant(allow_marks);
+        paranoid_invariant(num_marks > 0);
     } else {
         // redundant with invariant below, but nice to have explicitly
-        invariant(num_marks == 0);
+        paranoid_invariant(num_marks == 0);
     }
     if (node.get_marked()) {
-        invariant(allow_marks);
+        paranoid_invariant(allow_marks);
         ++num_marks;
     }
     return num_marks;
@@ -377,7 +377,7 @@ uint32_t omt<omtdata_t, omtdataout_t, supports_marks>::verify_marks_consistent_i
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::verify_marks_consistent(void) const {
     static_assert(supports_marks, "does not support marks");
-    invariant(!this->is_array);
+    paranoid_invariant(!this->is_array);
     this->verify_marks_consistent_internal(this->d.t.root, true);
 }
 
@@ -425,7 +425,7 @@ template<typename omtcmp_t,
 int omt<omtdata_t, omtdataout_t, supports_marks>::find(const omtcmp_t &extra, int direction, omtdataout_t *const value, uint32_t *const idxp) const {
     uint32_t tmp_index;
     uint32_t *const child_idxp = (idxp != nullptr) ? idxp : &tmp_index;
-    invariant(direction != 0);
+    paranoid_invariant(direction != 0);
     if (direction < 0) {
         if (this->is_array) {
             return this->find_internal_minus_array<omtcmp_t, h>(extra, value, child_idxp);
@@ -476,15 +476,15 @@ uint32_t omt<omtdata_t, omtdataout_t, supports_marks>::nweight(const subtree &su
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 typename omt<omtdata_t, omtdataout_t, supports_marks>::node_idx omt<omtdata_t, omtdataout_t, supports_marks>::node_malloc(void) {
-    invariant(this->d.t.free_idx < this->capacity);
+    paranoid_invariant(this->d.t.free_idx < this->capacity);
     omt_node &n = this->d.t.nodes[this->d.t.free_idx];
     n.clear_stolen_bits();
     return this->d.t.free_idx++;
 }
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
-void omt<omtdata_t, omtdataout_t, supports_marks>::node_free(const node_idx idx) {
-    invariant(idx < this->capacity);
+void omt<omtdata_t, omtdataout_t, supports_marks>::node_free(const node_idx UU(idx)) {
+    paranoid_invariant(idx < this->capacity);
 }
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
@@ -604,7 +604,7 @@ bool omt<omtdata_t, omtdataout_t, supports_marks>::will_need_rebalance(const sub
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::insert_internal(subtree *const subtreep, const omtdata_t &value, const uint32_t idx, subtree **const rebalance_subtree) {
     if (subtreep->is_null()) {
-        invariant_zero(idx);
+        paranoid_invariant_zero(idx);
         const node_idx newidx = this->node_malloc();
         omt_node *const newnode = &this->d.t.nodes[newidx];
         newnode->weight = 1;
@@ -637,7 +637,7 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::set_at_internal_array(const o
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::set_at_internal(const subtree &subtree, const omtdata_t &value, const uint32_t idx) {
-    invariant(!subtree.is_null());
+    paranoid_invariant(!subtree.is_null());
     omt_node &n = this->d.t.nodes[subtree.get_index()];
     const uint32_t leftweight = this->nweight(n.left);
     if (idx < leftweight) {
@@ -651,9 +651,9 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::set_at_internal(const subtree
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 void omt<omtdata_t, omtdataout_t, supports_marks>::delete_internal(subtree *const subtreep, const uint32_t idx, omt_node *const copyn, subtree **const rebalance_subtree) {
-    invariant_notnull(subtreep);
-    invariant_notnull(rebalance_subtree);
-    invariant(!subtreep->is_null());
+    paranoid_invariant_notnull(subtreep);
+    paranoid_invariant_notnull(rebalance_subtree);
+    paranoid_invariant(!subtreep->is_null());
     omt_node &n = this->d.t.nodes[subtreep->get_index()];
     const uint32_t leftweight = this->nweight(n.left);
     if (idx < leftweight) {
@@ -774,7 +774,7 @@ template<typename iterate_extra_t,
 int omt<omtdata_t, omtdataout_t, supports_marks>::iterate_and_mark_range_internal(const uint32_t left, const uint32_t right,
                                                                                   const subtree &subtree, const uint32_t idx,
                                                                                   iterate_extra_t *const iterate_extra) {
-    invariant(!subtree.is_null());
+    paranoid_invariant(!subtree.is_null());
     int r;
     omt_node &n = this->d.t.nodes[subtree.get_index()];
     const uint32_t idx_root = idx + this->nweight(n.left);
@@ -925,7 +925,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_zero_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     uint32_t min = this->d.a.start_idx;
     uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
     uint32_t best_pos = subtree::NODE_NULL;
@@ -963,7 +963,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_zero(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         *idxp = 0;
         return DB_NOTFOUND;
@@ -993,7 +993,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_plus_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     uint32_t min = this->d.a.start_idx;
     uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
     uint32_t best = subtree::NODE_NULL;
@@ -1020,7 +1020,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_plus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         return DB_NOTFOUND;
     }
@@ -1049,7 +1049,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_minus_array(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     uint32_t min = this->d.a.start_idx;
     uint32_t limit = this->d.a.start_idx + this->d.a.num_values;
     uint32_t best = subtree::NODE_NULL;
@@ -1076,7 +1076,7 @@ template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
 template<typename omtcmp_t,
          int (*h)(const omtdata_t &, const omtcmp_t &)>
 int omt<omtdata_t, omtdataout_t, supports_marks>::find_internal_minus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const {
-    invariant_notnull(idxp);
+    paranoid_invariant_notnull(idxp);
     if (subtree.is_null()) {
         return DB_NOTFOUND;
     }

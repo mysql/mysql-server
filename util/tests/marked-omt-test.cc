@@ -3,6 +3,8 @@
 #ident "$Id: omt-test.cc 46193 2012-07-26 17:12:18Z yfogel $"
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include <algorithm>
+
 #include "test.h"
 
 #include <toku_portability.h>
@@ -12,10 +14,10 @@
 #include <unistd.h>
 #include <db.h>
 #include <string.h>
-#include <algorithm>
 
 #include <memory.h>
 
+#include <portability/toku_atomic.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_random.h>
 
@@ -352,7 +354,7 @@ static void *stress_delete_worker(void *extrav) {
         rwlock_write_unlock(&shared.lock);
         toku_mutex_unlock(&mutex);
     }
-    __sync_bool_compare_and_swap(&shared.running, true, false);
+    toku_sync_bool_compare_and_swap(&shared.running, true, false);
     return nullptr;
 }
 

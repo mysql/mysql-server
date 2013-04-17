@@ -11,6 +11,7 @@
 #include <errno.h>
 
 #include "threadpool.h"
+#include <portability/toku_atomic.h>
 
 // use gcc builtin fetch_and_add 0->no 1->yes
 #define DO_ATOMIC_FETCH_AND_ADD 0
@@ -61,7 +62,7 @@ void threadpool_maybe_add(THREADPOOL threadpool, void *(*f)(void *), void *arg) 
 
 void threadpool_set_thread_busy(THREADPOOL threadpool) {
 #if DO_ATOMIC_FETCH_AND_ADD
-    (void) __sync_fetch_and_add(&threadpool->busy_threads, 1);
+    (void) toku_sync_fetch_and_add(&threadpool->busy_threads, 1);
 #else
     threadpool->busy_threads++;
 #endif
@@ -69,7 +70,7 @@ void threadpool_set_thread_busy(THREADPOOL threadpool) {
 
 void threadpool_set_thread_idle(THREADPOOL threadpool) {
 #if DO_ATOMIC_FETCH_AND_ADD
-    (void) __sync_fetch_and_add(&threadpool->busy_threads, -1);
+    (void) toku_sync_fetch_and_add(&threadpool->busy_threads, -1);
 #else
     threadpool->busy_threads--;
 #endif

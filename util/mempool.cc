@@ -35,7 +35,7 @@ void toku_mempool_zero(struct mempool *mp) {
 void toku_mempool_copy_construct(struct mempool *mp, const void * const data_source, const size_t data_size) {
     // printf("mempool_copy %p %p %lu\n", mp, data_source, data_size);
     if (data_size) {
-	invariant(data_source);
+	paranoid_invariant(data_source);
 	toku_mempool_construct(mp, data_size);
 	memcpy(mp->base, data_source, data_size);
 	mp->free_offset = data_size;                     // address of first available memory for new data
@@ -49,8 +49,8 @@ void toku_mempool_copy_construct(struct mempool *mp, const void * const data_sou
 // TODO 4050 this is dirty, try to replace all uses of this
 void toku_mempool_init(struct mempool *mp, void *base, size_t size) {
     // printf("mempool_init %p %p %lu\n", mp, base, size);
-    invariant(base != 0);
-    invariant(size < (1U<<31)); // used to be assert(size >= 0), but changed to size_t so now let's make sure it's not more than 2GB...
+    paranoid_invariant(base != 0);
+    paranoid_invariant(size < (1U<<31)); // used to be assert(size >= 0), but changed to size_t so now let's make sure it's not more than 2GB...
     mp->base = base;
     mp->size = size;
     mp->free_offset = 0;             // address of first available memory
@@ -106,10 +106,10 @@ size_t toku_mempool_get_allocated_space(struct mempool *mp) {
 }
 
 void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
-    invariant(size < (1U<<31));
-    invariant(mp->size < (1U<<31));
-    invariant(mp->free_offset < (1U<<31));
-    assert(mp->free_offset <= mp->size);
+    paranoid_invariant(size < (1U<<31));
+    paranoid_invariant(mp->size < (1U<<31));
+    paranoid_invariant(mp->free_offset < (1U<<31));
+    paranoid_invariant(mp->free_offset <= mp->size);
     void *vp;
     size_t offset = (mp->free_offset + (alignment-1)) & ~(alignment-1);
     //printf("mempool_malloc size=%ld base=%p free_offset=%ld mp->size=%ld offset=%ld\n", size, mp->base, mp->free_offset, mp->size, offset);
@@ -119,18 +119,18 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
         vp = (char *)mp->base + offset;
         mp->free_offset = offset + size;
     }
-    assert(mp->free_offset <= mp->size);
-    assert(((long)vp & (alignment-1)) == 0);
-    assert(vp == 0 || toku_mempool_inrange(mp, vp, size));
+    paranoid_invariant(mp->free_offset <= mp->size);
+    paranoid_invariant(((long)vp & (alignment-1)) == 0);
+    paranoid_invariant(vp == 0 || toku_mempool_inrange(mp, vp, size));
     //printf("mempool returning %p\n", vp);
     return vp;
 }
 
 // if vp is null then we are freeing something, but not specifying what.  The data won't be freed until compression is done.
 void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size) {
-    if (vp) assert(toku_mempool_inrange(mp, vp, size));
+    if (vp) { paranoid_invariant(toku_mempool_inrange(mp, vp, size)); }
     mp->frag_size += size;
-    assert(mp->frag_size <= mp->size);
+    paranoid_invariant(mp->frag_size <= mp->size);
 }
 
 

@@ -147,7 +147,7 @@ try_again_for_write_lock:
         if (apply_ancestor_messages && node->height == 0) {
             needs_ancestors_messages = toku_ft_leaf_needs_ancestors_messages(brt->ft, node, ancestors, bounds, &max_msn_in_path);
             if (needs_ancestors_messages && needed_lock_type == PL_READ) {
-                toku_unpin_ftnode_read_only(brt, node);
+                toku_unpin_ftnode_read_only(brt->ft, node);
                 needed_lock_type = PL_WRITE_CHEAP;
                 goto try_again_for_write_lock;
             }
@@ -296,14 +296,14 @@ toku_pin_ftnode_off_client_thread_batched(
             h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
 }
 
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep) {
+int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep) {
     void *node_v;
-    int r = toku_cachetable_maybe_get_and_pin_clean(ft->cf, blocknum, fullhash, &node_v);
+    int r = toku_cachetable_maybe_get_and_pin_clean(ft->cf, blocknum, fullhash, lock_type, &node_v);
     if (r != 0) {
         goto cleanup;
     }
     CAST_FROM_VOIDP(*nodep, node_v);
-    if ((*nodep)->height > 0) {
+    if ((*nodep)->height > 0 && lock_type != PL_READ) {
         toku_move_ftnode_messages_to_stale(ft, *nodep);
     }
 cleanup:
@@ -331,14 +331,13 @@ toku_unpin_ftnode(FT ft, FTNODE node)
 }
 
 void
-toku_unpin_ftnode_read_only(FT_HANDLE brt, FTNODE node)
+toku_unpin_ftnode_read_only(FT ft, FTNODE node)
 {
     int r = toku_cachetable_unpin(
-        brt->ft->cf,
+        ft->cf,
         node->ct_pair,
         (enum cachetable_dirty) node->dirty,
         make_invalid_pair_attr()
         );
     assert(r==0);
 }
-

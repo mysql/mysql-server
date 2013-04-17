@@ -12,6 +12,7 @@
 #include "ydb_row_lock.h"
 #include "ydb_write.h"
 #include "ydb_db.h"
+#include <portability/toku_atomic.h>
 
 static YDB_WRITE_LAYER_STATUS_S ydb_write_layer_status;
 #ifdef STATUS_VALUE
@@ -204,10 +205,10 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_
     if (r == 0) {
         // helgrind flags a race on this status update.  we increment it atomically to satisfy helgrind.
         // STATUS_VALUE(YDB_LAYER_NUM_INSERTS)++;  // accountability 
-        (void) __sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS), 1);
     } else {
         // STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL)++;  // accountability 
-        (void) __sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL), 1);
     }
 
     return r;

@@ -175,12 +175,12 @@ int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *
 
 size_t
 leafentry_disksize_13(LEAFENTRY_13 le);
-int 
+int
 toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry, // NULL if there was no stored data.
-		      size_t *new_leafentry_memorysize, 
-		      LEAFENTRY *new_leafentry_p,
-		      OMT omt,
-		      struct mempool *mp);
+                      size_t *new_leafentry_memorysize,
+                      LEAFENTRY *new_leafentry_p,
+                      OMT *omtp,
+                      struct mempool *mp);
 
 
 

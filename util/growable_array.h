@@ -51,7 +51,7 @@ template<typename T> class GrowableArray {
     void store_unchecked (size_t i, T v)
     // Effect: Store v in the ith element.  If i is out of range, the system asserts.
     {
-	assert(i<m_size);
+	paranoid_invariant(i<m_size);
 	m_array[i]=v;
     }
 

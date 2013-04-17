@@ -93,7 +93,7 @@ public:
     }
 
     inline void set_index(uint32_t index) {
-        invariant(index != NODE_NULL);
+        paranoid_invariant(index != NODE_NULL);
         m_index = index;
     }
 } __attribute__((__packed__,aligned(4)));
@@ -126,7 +126,7 @@ public:
     }
 
     inline void set_index(uint32_t index) {
-        invariant(index < NODE_NULL);
+        paranoid_invariant(index < NODE_NULL);
         this->set_index_internal(index);
     }
 

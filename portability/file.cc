@@ -16,6 +16,7 @@
 
 #include "memory.h"
 #include "toku_time.h"
+#include <portability/toku_atomic.h>
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
@@ -60,8 +61,8 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
             int out_of_disk_space = 1;
             assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
         } else {
-            __sync_fetch_and_add(&toku_write_enospc_total, 1);
-            __sync_fetch_and_add(&toku_write_enospc_current, 1);
+            toku_sync_fetch_and_add(&toku_write_enospc_total, 1);
+            toku_sync_fetch_and_add(&toku_write_enospc_current, 1);
 
             time_t tnow = time(0);
             toku_write_enospc_last_time = tnow;
@@ -89,7 +90,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
             }
             sleep(toku_write_enospc_sleep);
             try_again = 1;
-            __sync_fetch_and_sub(&toku_write_enospc_current, 1);
+            toku_sync_fetch_and_sub(&toku_write_enospc_current, 1);
             break;
         }
     }
@@ -347,9 +348,9 @@ static void file_fsync_internal (int fd, uint64_t *duration_p) {
             assert(get_error_errno() == EINTR);
 	}
     }
-    __sync_fetch_and_add(&toku_fsync_count, 1);
+    toku_sync_fetch_and_add(&toku_fsync_count, 1);
     uint64_t duration = toku_current_time_usec() - tstart;
-    __sync_fetch_and_add(&toku_fsync_time, duration);
+    toku_sync_fetch_and_add(&toku_fsync_time, duration);
     if (duration_p) {
         *duration_p = duration;
     }
@@ -383,8 +384,8 @@ int toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
 void toku_file_fsync(int fd) {
     uint64_t duration;
     file_fsync_internal (fd, &duration);
-    __sync_fetch_and_add(&sched_fsync_count, 1);
-    __sync_fetch_and_add(&sched_fsync_time, duration);
+    toku_sync_fetch_and_add(&sched_fsync_count, 1);
+    toku_sync_fetch_and_add(&sched_fsync_time, duration);
 }
 
 // for real accounting

@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "cachetable-test.h"
 #include "checkpoint.h"
+#include <portability/toku_atomic.h>
 
 static int N; // how many items in the table
 static CACHEFILE cf;
@@ -54,9 +55,9 @@ flush (
     int *CAST_FROM_VOIDP(v, value);
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
-    (void)__sync_fetch_and_add(&n_flush, 1);
-    if (write_me) (void)__sync_fetch_and_add(&n_write_me, 1);
-    if (keep_me)  (void)__sync_fetch_and_add(&n_keep_me, 1);
+    (void)toku_sync_fetch_and_add(&n_flush, 1);
+    if (write_me) (void)toku_sync_fetch_and_add(&n_write_me, 1);
+    if (keep_me)  (void)toku_sync_fetch_and_add(&n_keep_me, 1);
     sleep_random();
 }
 

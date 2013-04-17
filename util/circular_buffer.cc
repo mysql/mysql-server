@@ -8,7 +8,7 @@ namespace toku {
 
     template<typename T>
     void circular_buffer<T>::init(T * const array, size_t cap) {
-        invariant_notnull(array);
+        paranoid_invariant_notnull(array);
         m_array = array;
         m_cap = cap;
         m_begin = 0;
@@ -23,9 +23,9 @@ namespace toku {
     template<typename T>
     void circular_buffer<T>::deinit(void) {
         lock();
-        invariant(is_empty());
-        invariant_zero(m_push_waiters);
-        invariant_zero(m_pop_waiters);
+        paranoid_invariant(is_empty());
+        paranoid_invariant_zero(m_push_waiters);
+        paranoid_invariant_zero(m_pop_waiters);
         unlock();
         toku_cond_destroy(&m_pop_cond);
         toku_cond_destroy(&m_push_cond);
@@ -67,15 +67,15 @@ namespace toku {
     template<typename T>
     T *circular_buffer<T>::get_addr(size_t idx) {
         toku_mutex_assert_locked(&m_lock);
-        invariant(idx >= m_begin);
-        invariant(idx < m_limit);
+        paranoid_invariant(idx >= m_begin);
+        paranoid_invariant(idx < m_limit);
         return &m_array[mod(idx, m_cap)];
     }
 
     template<typename T>
     void circular_buffer<T>::push_and_maybe_signal_unlocked(const T &elt) {
         toku_mutex_assert_locked(&m_lock);
-        invariant(!is_full());
+        paranoid_invariant(!is_full());
         size_t location = m_limit++;
         *get_addr(location) = elt;
         if (m_pop_waiters > 0) {
@@ -110,7 +110,7 @@ namespace toku {
     template<typename T>
     bool circular_buffer<T>::timedpush(const T &elt, toku_timespec_t *abstime) {
         bool pushed = false;
-        invariant_notnull(abstime);
+        paranoid_invariant_notnull(abstime);
         lock();
         if (is_full()) {
             ++m_push_waiters;
@@ -131,7 +131,7 @@ namespace toku {
     template<typename T>
     T circular_buffer<T>::pop_and_maybe_signal_unlocked(void) {
         toku_mutex_assert_locked(&m_lock);
-        invariant(!is_empty());
+        paranoid_invariant(!is_empty());
         T ret = *get_addr(m_begin);
         ++m_begin;
         if (m_push_waiters > 0) {
@@ -156,7 +156,7 @@ namespace toku {
     template<typename T>
     bool circular_buffer<T>::trypop(T * const eltp) {
         bool popped = false;
-        invariant_notnull(eltp);
+        paranoid_invariant_notnull(eltp);
         lock();
         if (!is_empty() && m_pop_waiters == 0) {
             *eltp = pop_and_maybe_signal_unlocked();
@@ -169,8 +169,8 @@ namespace toku {
     template<typename T>
     bool circular_buffer<T>::timedpop(T * const eltp, toku_timespec_t *abstime) {
         bool popped = false;
-        invariant_notnull(eltp);
-        invariant_notnull(abstime);
+        paranoid_invariant_notnull(eltp);
+        paranoid_invariant_notnull(abstime);
         lock();
         if (is_empty()) {
             ++m_pop_waiters;

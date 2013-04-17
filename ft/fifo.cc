@@ -25,10 +25,21 @@ static void fifo_init(struct fifo *fifo) {
     fifo->memory_used  = 0;
 }
 
+__attribute__((const,nonnull))
 static int fifo_entry_size(struct fifo_entry *entry) {
     return sizeof (struct fifo_entry) + entry->keylen + entry->vallen
                   + xids_get_size(&entry->xids_s)
                   - sizeof(XIDS_S); //Prevent double counting from fifo_entry+xids_get_size
+}
+
+__attribute__((const,nonnull))
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd) {
+    // This must stay in sync with fifo_entry_size because that's what we
+    // really trust.  But sometimes we only have an in-memory FT_MSG, not
+    // a serialized fifo_entry so we have to fake it.
+    return sizeof (struct fifo_entry) + cmd->u.id.key->size + cmd->u.id.val->size
+        + xids_get_size(cmd->xids)
+        - sizeof(XIDS_S);
 }
 
 int toku_fifo_create(FIFO *ptr) {
@@ -111,6 +122,9 @@ int toku_fifo_iterate_internal_next(FIFO fifo, int off) {
 }
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off) {
     return (struct fifo_entry *)(fifo->memory + off);
+}
+size_t toku_fifo_internal_entry_memsize(struct fifo_entry *e) {
+    return fifo_entry_size(e);
 }
 
 void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void *arg) {

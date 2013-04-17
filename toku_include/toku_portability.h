@@ -32,6 +32,9 @@
 
 #endif
 
+// include here, before they get deprecated
+#include <toku_atomic.h>
+
 #if TOKU_WINDOWS
 // Windows
 
@@ -210,6 +213,23 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #pragma GCC poison BOOL
 #pragma GCC poison FALSE
 #pragma GCC poison TRUE
+#pragma GCC poison __sync_fetch_and_add
+#pragma GCC poison __sync_fetch_and_sub
+#pragma GCC poison __sync_fetch_and_or
+#pragma GCC poison __sync_fetch_and_and
+#pragma GCC poison __sync_fetch_and_xor
+#pragma GCC poison __sync_fetch_and_nand
+#pragma GCC poison __sync_add_and_fetch
+#pragma GCC poison __sync_sub_and_fetch
+#pragma GCC poison __sync_or_and_fetch
+#pragma GCC poison __sync_and_and_fetch
+#pragma GCC poison __sync_xor_and_fetch
+#pragma GCC poison __sync_nand_and_fetch
+#pragma GCC poison __sync_bool_compare_and_swap
+#pragma GCC poison __sync_val_compare_and_swap
+#pragma GCC poison __sync_synchronize
+#pragma GCC poison __sync_lock_test_and_set
+#pragma GCC poison __sync_release
 #   endif
 #endif
 

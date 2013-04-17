@@ -11,12 +11,12 @@
 #include "toku_portability.h"
 
 int main(void) {
-    int fd = toku_os_lock_file(__FILE__);
+    int fd = toku_os_lock_file(__SRCFILE__);
     assert(fd != -1);
     pid_t pid = fork();
     assert(pid != -1);
     if (pid == 0) {
-        int fd2 = toku_os_lock_file(__FILE__);
+        int fd2 = toku_os_lock_file(__SRCFILE__);
         assert(fd2 == -1);
 	return 0;
     } else {

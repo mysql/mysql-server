@@ -9,6 +9,9 @@
 
 #define TOKUDB_REVISION @CMAKE_TOKUDB_REVISION@
 
+#cmakedefine TOKU_DEBUG_PARANOID 1
+#cmakedefine USE_VALGRIND 1
+
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_BYTESWAP_H 1

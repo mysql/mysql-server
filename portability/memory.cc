@@ -18,6 +18,7 @@
 #include <toku_race_tools.h>
 #include "memory.h"
 #include "toku_assert.h"
+#include <portability/toku_atomic.h>
 
 static malloc_fun_t  t_malloc  = 0;
 static malloc_fun_t  t_xmalloc = 0;
@@ -120,7 +121,7 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
 	do {
 	    old_max = status.max_in_use;
 	} while (old_max < in_use &&
-		 !__sync_bool_compare_and_swap(&status.max_in_use, old_max, in_use));
+		 !toku_sync_bool_compare_and_swap(&status.max_in_use, old_max, in_use));
     }
 }
 
@@ -150,13 +151,13 @@ toku_malloc(size_t size) {
 	TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
-            __sync_add_and_fetch(&status.malloc_count, 1);
-            __sync_add_and_fetch(&status.requested,size);
-            __sync_add_and_fetch(&status.used, used);
+            toku_sync_add_and_fetch(&status.malloc_count, 1);
+            toku_sync_add_and_fetch(&status.requested,size);
+            toku_sync_add_and_fetch(&status.used, used);
             set_max(status.used, status.freed);
         }
     } else {
-        __sync_add_and_fetch(&status.malloc_fail, 1);
+        toku_sync_add_and_fetch(&status.malloc_fail, 1);
     }
   return p;
 }
@@ -176,14 +177,14 @@ toku_realloc(void *p, size_t size) {
     if (q) {
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(q);
-            __sync_add_and_fetch(&status.realloc_count, 1);
-            __sync_add_and_fetch(&status.requested, size);
-            __sync_add_and_fetch(&status.used, used);
-            __sync_add_and_fetch(&status.freed, used_orig);
+            toku_sync_add_and_fetch(&status.realloc_count, 1);
+            toku_sync_add_and_fetch(&status.requested, size);
+            toku_sync_add_and_fetch(&status.used, used);
+            toku_sync_add_and_fetch(&status.freed, used_orig);
             set_max(status.used, status.freed);
         }
     } else {
-	__sync_add_and_fetch(&status.realloc_fail, 1);
+	toku_sync_add_and_fetch(&status.realloc_fail, 1);
     }
     return q;
 }
@@ -205,8 +206,8 @@ toku_free(void *p) {
     if (p) {
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
-            __sync_add_and_fetch(&status.free_count, 1);
-            __sync_add_and_fetch(&status.freed, used);
+            toku_sync_add_and_fetch(&status.free_count, 1);
+            toku_sync_add_and_fetch(&status.freed, used);
         }
 	if (t_free)
 	    t_free(p);
@@ -228,9 +229,9 @@ toku_xmalloc(size_t size) {
     TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
-        __sync_add_and_fetch(&status.malloc_count, 1);
-        __sync_add_and_fetch(&status.requested, size);
-        __sync_add_and_fetch(&status.used, used);
+        toku_sync_add_and_fetch(&status.malloc_count, 1);
+        toku_sync_add_and_fetch(&status.requested, size);
+        toku_sync_add_and_fetch(&status.used, used);
         set_max(status.used, status.freed);
     }
     return p;
@@ -252,10 +253,10 @@ toku_xrealloc(void *v, size_t size) {
         resource_assert(p);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
-        __sync_add_and_fetch(&status.realloc_count, 1);
-        __sync_add_and_fetch(&status.requested, size);
-        __sync_add_and_fetch(&status.used, used);
-        __sync_add_and_fetch(&status.freed, used_orig);
+        toku_sync_add_and_fetch(&status.realloc_count, 1);
+        toku_sync_add_and_fetch(&status.requested, size);
+        toku_sync_add_and_fetch(&status.used, used);
+        toku_sync_add_and_fetch(&status.freed, used_orig);
         set_max(status.used, status.freed);
     }
     return p;

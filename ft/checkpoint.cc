@@ -49,6 +49,7 @@
 #include "log-internal.h"
 #include "logger.h"
 #include "checkpoint.h"
+#include <portability/toku_atomic.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -173,7 +174,7 @@ checkpoint_safe_checkpoint_unlock(void) {
 void 
 toku_multi_operation_client_lock(void) {
     if (locked_mo)
-        (void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
     toku_pthread_rwlock_rdlock(&multi_operation_lock);   
 }
 
@@ -185,7 +186,7 @@ toku_multi_operation_client_unlock(void) {
 void 
 toku_checkpoint_safe_client_lock(void) {
     if (locked_cs)
-        (void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
     toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
     toku_multi_operation_client_lock();
 }
@@ -227,9 +228,9 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
 
     assert(initialized);
 
-    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAITERS_NOW), 1);
+    (void) toku_sync_fetch_and_add(&STATUS_VALUE(CP_WAITERS_NOW), 1);
     checkpoint_safe_checkpoint_lock();
-    (void) __sync_fetch_and_sub(&STATUS_VALUE(CP_WAITERS_NOW), 1);
+    (void) toku_sync_fetch_and_sub(&STATUS_VALUE(CP_WAITERS_NOW), 1);
 
     if (STATUS_VALUE(CP_WAITERS_NOW) > STATUS_VALUE(CP_WAITERS_MAX))
         STATUS_VALUE(CP_WAITERS_MAX) = STATUS_VALUE(CP_WAITERS_NOW);  // threadsafe, within checkpoint_safe lock

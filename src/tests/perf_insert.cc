@@ -33,6 +33,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation = put_op;
         if (cli_args->serial_insert) {
+            spe[i].current = cli_args->num_elements;
             myargs[i].operation_extra = &spe[i];
         }
     }

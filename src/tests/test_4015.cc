@@ -6,6 +6,7 @@
 
 #include "test.h"
 #include "toku_pthread.h"
+#include <portability/toku_atomic.h>
 
 static int my_compare (DB *db, const DBT *a, const DBT *b) {
     assert(db);
@@ -45,7 +46,7 @@ static void *startA (void *ignore __attribute__((__unused__))) {
 	}
 	{ int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     }
-    int r __attribute__((__unused__)) = __sync_fetch_and_add(&done, 1);
+    int r __attribute__((__unused__)) = toku_sync_fetch_and_add(&done, 1);
     return NULL;
 }
 static void change_descriptor (DB_TXN *txn, int i) {

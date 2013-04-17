@@ -26,6 +26,7 @@
 
 #include <memory.h>
 #include <toku_race_tools.h>
+#include <portability/toku_atomic.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_random.h>
 #include <util/rwlock.h>
@@ -62,6 +63,7 @@ enum stress_lock_type {
 struct env_args {
     int node_size;
     int basement_node_size;
+    int rollback_node_size;
     int checkpointing_period;
     int cleaner_period;
     int cleaner_iterations;
@@ -118,6 +120,7 @@ struct cli_args {
     bool unique_checks; // use uniqueness checking during insert. makes it slow.
     bool nosync; // do not fsync on txn commit. useful for testing in memory performance.
     bool nolog; // do not log. useful for testing in memory performance.
+    bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
 };
 
 struct arg {
@@ -1366,7 +1369,7 @@ static void *test_time(void *arg) {
     if (verbose) {
         printf("should now end test\n");
     }
-    __sync_bool_compare_and_swap(&run_test, true, false); // make this atomic to make valgrind --tool=drd happy.
+    toku_sync_bool_compare_and_swap(&run_test, true, false); // make this atomic to make valgrind --tool=drd happy.
     if (verbose) {
         printf("run_test %d\n", run_test);
     }
@@ -1468,6 +1471,7 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
     r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
+    r = env->set_lg_bsize(env, env_args.rollback_node_size); CKERR(r);
     if (env_args.generate_put_callback) {
         r = env->set_generate_row_callback_for_put(env, env_args.generate_put_callback); 
         CKERR(r);
@@ -1540,26 +1544,48 @@ static int fill_table_from_fun(DB *db, int num_elements, int key_bufsz, int val_
     return r;
 }
 
-static void zero_element_callback(int idx, void *UU(extra), void *keyv, int *keysz, void *valv, int *valsz) {
+static uint32_t breverse(uint32_t v)
+// Effect: return the bits in i, reversed
+// Notes: implementation taken from http://graphics.stanford.edu/~seander/bithacks.html#BitReverseObvious
+// Rationale: just a hack to spread out the keys during loading, doesn't need to be fast but does need to be correct.
+{
+    uint32_t r = v; // r will be reversed bits of v; first get LSB of v
+    int s = sizeof(v) * CHAR_BIT - 1; // extra shift needed at end
+
+    for (v >>= 1; v; v >>= 1) {
+        r <<= 1;
+        r |= v & 1;
+        s--;
+    }
+    r <<= s; // shift when v's highest bits are zero
+    return r;
+}
+
+static void zero_element_callback(int idx, void *extra, void *keyv, int *keysz, void *valv, int *valsz) {
+    const bool *disperse_keys = static_cast<bool *>(extra);
     int *CAST_FROM_VOIDP(key, keyv);
     int *CAST_FROM_VOIDP(val, valv);
-    *key = idx;
+    if (*disperse_keys) {
+        *key = static_cast<int>(breverse(idx));
+    } else {
+        *key = idx;
+    }
     *val = 0;
     *keysz = sizeof(int);
     *valsz = sizeof(int);
 }
 
-static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, uint32_t key_size, uint32_t val_size) {
+static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, uint32_t key_size, uint32_t val_size, bool disperse_keys) {
     for (int i = 0; i < num_DBs; i++) {
         assert(key_size >= sizeof(int));
         assert(val_size >= sizeof(int));
         int r = fill_table_from_fun(
-            dbs[i], 
-            num_elements, 
-            key_size, 
-            val_size, 
-            zero_element_callback, 
-            NULL
+            dbs[i],
+            num_elements,
+            key_size,
+            val_size,
+            zero_element_callback,
+            &disperse_keys
             );
         CKERR(r);
     }
@@ -1604,6 +1630,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     env->set_update(env, env_args.update_function);
     // set the cache size to 10MB
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
+    r = env->set_lg_bsize(env, env_args.rollback_node_size); CKERR(r);
     if (env_args.generate_put_callback) {
         r = env->set_generate_row_callback_for_put(env, env_args.generate_put_callback); 
         CKERR(r);
@@ -1652,6 +1679,7 @@ static int close_tables(DB_ENV *env, DB**  dbs, int num_DBs) {
 static const struct env_args DEFAULT_ENV_ARGS = {
     .node_size = 4096,
     .basement_node_size = 1024,
+    .rollback_node_size = 4096,
     .checkpointing_period = 10,
     .cleaner_period = 1,
     .cleaner_iterations = 1,
@@ -1667,6 +1695,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
 static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .node_size = 4*1024*1024,
     .basement_node_size = 128*1024,
+    .rollback_node_size = 4*1024*1024,
     .checkpointing_period = 60,
     .cleaner_period = 1,
     .cleaner_iterations = 5,
@@ -1716,6 +1745,7 @@ static struct cli_args UU() get_default_args(void) {
         .unique_checks = false,
         .nosync = false,
         .nolog = false,
+        .disperse_keys = false,
         };
     return DEFAULT_ARGS;
 }
@@ -2057,6 +2087,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_NONNEG("--num_seconds",             time_of_test,                  "s"),
         INT32_ARG_NONNEG("--node_size",               env_args.node_size,            " bytes"),
         INT32_ARG_NONNEG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
+        INT32_ARG_NONNEG("--rollback_node_size",      env_args.rollback_node_size,   " bytes"),
         INT32_ARG_NONNEG("--checkpointing_period",    env_args.checkpointing_period, "s"),
         INT32_ARG_NONNEG("--cleaner_period",          env_args.cleaner_period,       "s"),
         INT32_ARG_NONNEG("--cleaner_iterations",      env_args.cleaner_iterations,   ""),
@@ -2093,6 +2124,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("unique_checks",     unique_checks),
         BOOL_ARG("nosync",     nosync),
         BOOL_ARG("nolog",     nolog),
+        BOOL_ARG("disperse_keys", disperse_keys),
 
         STRING_ARG("--envdir",    env_args.envdir),
         LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
@@ -2246,7 +2278,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
             bt_compare,
             args
             );
-        { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size); CKERR(chk_r); }
+        { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size, args->disperse_keys); CKERR(chk_r); }
         { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
     if (!args->only_create) {

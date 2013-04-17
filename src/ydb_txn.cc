@@ -11,6 +11,7 @@
 #include "ydb_txn.h"
 #include <lock_tree/lth.h>
 #include <toku_race_tools.h>
+#include <portability/toku_atomic.h>
 #include "ft/txn_manager.h"
 
 static int 
@@ -42,7 +43,7 @@ toku_txn_release_locks(DB_TXN* txn) {
 
 static void
 toku_txn_destroy(DB_TXN *txn) {
-    int32_t open_txns = __sync_sub_and_fetch(&txn->mgrp->i->open_txns, 1);
+    int32_t open_txns = toku_sync_sub_and_fetch(&txn->mgrp->i->open_txns, 1);
     invariant(open_txns >= 0);
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
     toku_mutex_destroy(&db_txn_struct_i(txn)->txn_mutex);
@@ -468,7 +469,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
     }
 
     toku_mutex_init(&db_txn_struct_i(result)->txn_mutex, NULL);
-    (void) __sync_fetch_and_add(&env->i->open_txns, 1);
+    (void) toku_sync_fetch_and_add(&env->i->open_txns, 1);
 
     *txn = result;
     return 0;
@@ -489,7 +490,7 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     toku_txn_set_container_db_txn(tokutxn, result);
 
     toku_mutex_init(&db_txn_struct_i(result)->txn_mutex, NULL);
-    (void) __sync_fetch_and_add(&env->i->open_txns, 1);
+    (void) toku_sync_fetch_and_add(&env->i->open_txns, 1);
 }
 
 // Test-only function

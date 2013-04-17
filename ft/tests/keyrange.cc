@@ -82,8 +82,8 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
         struct ftstat64_s s;
         toku_ft_handle_stat64(t, null_txn, &s);
         
-        assert(0 < s.nkeys && s.nkeys < limit);
-        assert(0 < s.dsize && s.dsize < limit * (9 + 9)); // keylen = 9, vallen = 9
+        assert(0 < s.nkeys && s.nkeys <= limit);
+        assert(0 < s.dsize && s.dsize <= limit * (9 + 9)); // keylen = 9, vallen = 9
     }
     
     maybe_reopen(ms, limit);

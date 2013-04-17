@@ -16,6 +16,7 @@
 
 #include "test.h"
 #include "toku_pthread.h"
+#include <portability/toku_atomic.h>
 
 DB_ENV *env;
 DB     *db;
@@ -38,7 +39,7 @@ static void *start_txns (void *e) {
 	{ int chk_r = env->txn_begin(env, NULL, &txn, 0); CKERR(chk_r); }
 	{ int chk_r = db->put(db, txn, &k, &k, 0); CKERR(chk_r); }
 	{ int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
-	if (j==10) (void)__sync_fetch_and_add(&reader_start_count, 1);
+	if (j==10) (void)toku_sync_fetch_and_add(&reader_start_count, 1);
 	if (j%1000==999) { printf("."); fflush(stdout); }
 	assert(j<1000); // Get upset if we manage to run this many transactions without the checkpoint thread 
     }
@@ -52,7 +53,7 @@ static void start_checkpoints (void) {
 	{ int chk_r = env->txn_checkpoint(env, 0, 0, 0); CKERR(chk_r); }
 	if (verbose) printf("ck\n");
 	sched_yield();
-	(void)__sync_fetch_and_add(&writer_done_count, 1);
+	(void)toku_sync_fetch_and_add(&writer_done_count, 1);
     }
 }
 

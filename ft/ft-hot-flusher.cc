@@ -9,6 +9,7 @@
 #include <ft-cachetable-wrappers.h>
 #include <ft-internal.h>
 #include <ft.h>
+#include <portability/toku_atomic.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -251,7 +252,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
     uint64_t loop_count = 0;
     MSN msn_at_start_of_hot = ZERO_MSN;  // capture msn from root at
                                          // start of HOT operation
-    (void) __sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_STARTED), 1);
+    (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_STARTED), 1);
 
     {
         toku_ft_note_hot_begin(brt);
@@ -353,9 +354,9 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         }
 
         if (success) {
-            (void) __sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_COMPLETED), 1);
+            (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_COMPLETED), 1);
         } else {
-            (void) __sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_ABORTED), 1);
+            (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_ABORTED), 1);
         }
     }
     return r;

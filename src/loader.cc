@@ -26,6 +26,7 @@
 #include <ft/ft-internal.h>
 #include <ft/ft.h>
 #include "ydb_db.h"
+#include <portability/toku_atomic.h>
 
 
 #define lazy_assert(a) assert(a) // indicates code is incomplete 
@@ -302,13 +303,13 @@ static int create_loader(DB_ENV *env,
     *blp = loader;
  create_exit:
     if (rval == 0) {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE), 1);
-        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CURRENT), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CURRENT), 1);
         if (STATUS_VALUE(LOADER_CURRENT) > STATUS_VALUE(LOADER_MAX) )
             STATUS_VALUE(LOADER_MAX) = STATUS_VALUE(LOADER_CURRENT);  // not worth a lock to make threadsafe, may be inaccurate
     }
     else {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE_FAIL), 1);
         free_loader(loader);
     }
     return rval;
@@ -442,7 +443,7 @@ static void redirect_loader_to_empty_dictionaries(DB_LOADER *loader) {
 
 int toku_loader_close(DB_LOADER *loader) 
 {
-    (void) __sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
+    (void) toku_sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -466,16 +467,16 @@ int toku_loader_close(DB_LOADER *loader)
     }
     free_loader(loader);
     if (r==0)
-        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
     else
-        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE_FAIL), 1);
     return r;
 }
 
 int toku_loader_abort(DB_LOADER *loader) 
 {
-    (void) __sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
-    (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_ABORT), 1);
+    (void) toku_sync_fetch_and_sub(&STATUS_VALUE(LOADER_CURRENT), 1);
+    (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_ABORT), 1);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {

@@ -13,6 +13,7 @@
 
 #include <memory.h>
 #include <toku_assert.h>
+#include <portability/toku_atomic.h>
 
 void
 toku_ft_suppress_rollbacks(FT h, TOKUTXN txn) {
@@ -365,6 +366,7 @@ ft_header_create(FT_OPTIONS options, BLOCKNUM root_blocknum, TXNID root_xid_that
         .basementnodesize = options->basementnodesize,
         .compression_method = options->compression_method,
         .highest_unused_msn_for_upgrade = { .msn = (MIN_MSN.msn - 1) },
+        .max_msn_in_ft = ZERO_MSN,
         .time_of_last_optimize_begin = 0,
         .time_of_last_optimize_end = 0,
         .count_of_optimize_in_progress = 0,
@@ -850,14 +852,14 @@ toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
 
 void
 toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta) {
-    (void) __sync_fetch_and_add(&(headerstats->numrows),  delta.numrows);
-    (void) __sync_fetch_and_add(&(headerstats->numbytes), delta.numbytes);
+    (void) toku_sync_fetch_and_add(&(headerstats->numrows),  delta.numrows);
+    (void) toku_sync_fetch_and_add(&(headerstats->numbytes), delta.numbytes);
 }
 
 void
 toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta) {
-    (void) __sync_fetch_and_sub(&(headerstats->numrows),  delta.numrows);
-    (void) __sync_fetch_and_sub(&(headerstats->numbytes), delta.numbytes);
+    (void) toku_sync_fetch_and_sub(&(headerstats->numrows),  delta.numrows);
+    (void) toku_sync_fetch_and_sub(&(headerstats->numbytes), delta.numbytes);
 }
 
 void
