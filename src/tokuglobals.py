@@ -58,6 +58,7 @@ def main():
                "db_env_set_checkpoint_callback2",
                "db_env_set_recover_callback", 
                "db_env_set_recover_callback2",
+               "db_env_enable_engine_status",
                "setup_dlmalloc", "dlfree", "dlmalloc", "dlrealloc" 
                ]:
         exceptsymbols[n] = 1
