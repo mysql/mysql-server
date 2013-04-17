@@ -1378,6 +1378,19 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v13);
       STATPRINT("last LSN of version 13", buf);      
       STATPRINT("time of upgrade to version 14", engstat.upgrade_v14_time);
+      
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_count);
+      STATPRINT("malloc count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.free_count);
+      STATPRINT("free count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.realloc_count);
+      STATPRINT("realloc count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_requested);
+      STATPRINT("mem requested", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_used);
+      STATPRINT("mem used", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_freed);
+      STATPRINT("mem freed", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
