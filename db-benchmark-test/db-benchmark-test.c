@@ -32,12 +32,14 @@ enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { DEFAULT_ITEMS_PER_TRANSACTION = 1<<14 };
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#define CKERR2(r,rexpect) if (r!=rexpect) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==rexpect);
 
 /* default test parameters */
 int keysize = sizeof (long long);
 int valsize = sizeof (long long);
 int pagesize = 0;
 long long cachesize = 128*1024*1024;
+int do_1514_point_query = 0;
 int dupflags = 0;
 int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
@@ -143,9 +145,11 @@ static void benchmark_setup (void) {
 
 }
 
+static void test1514(void);
 static void benchmark_shutdown (void) {
     int r;
     
+    if (do_1514_point_query) test1514();
     if (do_transactions && singlex) {
 #if defined(TOKUDB)
 	struct txn_stat *s;
@@ -302,10 +306,42 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
+    fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
+}
+
+static int
+nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
+    return 0;
+}
+
+static void
+test1514(void) {
+    assert(norandom); //Otherwise we can't know the given element is missing.
+    unsigned char kc[keysize], vc[valsize];
+    DBT  kt;
+    long long v = SERIAL_SPACING - 1;
+    fill_array(kc, sizeof kc);
+    long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
+    fill_array(vc, sizeof vc);
+    long_long_to_array(vc, valsize, v);
+    int r;
+    DBC *c;
+
+
+    struct timeval t1,t2;
+
+    r = db->cursor(db, tid, &c, 0); CKERR(r);
+    gettimeofday(&t1,0);
+    r = c->c_getf_set(c, 0, fill_dbt(&kt, kc, keysize), nothing, NULL);
+    gettimeofday(&t2,0);
+    CKERR2(r, DB_NOTFOUND);
+    r = c->c_close(c); CKERR(r);
+
+    if (verbose) printf("(#1514) Single Point Query %9.6fs\n", tdiff(&t2, &t1));
 }
 
 int main (int argc, const char *argv[]) {
@@ -375,6 +411,8 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--env") == 0) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    dbdir = argv[++i];
+        } else if (strcmp(arg, "--1514") == 0) {
+            do_1514_point_query=1;
         } else if (strcmp(arg, "--prelock") == 0) {
             prelock=1;
         } else if (strcmp(arg, "--prelockflag") == 0) {
@@ -441,5 +479,6 @@ int main (int argc, const char *argv[]) {
 	print_hash_histogram();
     }
 #endif
+
     return 0;
 }
