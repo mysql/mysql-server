@@ -764,7 +764,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-del.p.loader
     ydb/loader-stress-del.comp.loader
     ydb/test3039.tdb
-    ydb/test3529.tdb
     ydb/test_update_stress.tdb
     )
   if (BDB_FOUND)
@@ -780,6 +779,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-test4z.tdb
     ydb/recover_stress.tdb
     ydb/recovery_fileops_unit.tdb
+    ydb/test3529.tdb
     )
   if (BDB_FOUND)
     list(APPEND phenomenally_long_tests
