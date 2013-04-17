@@ -3342,50 +3342,6 @@ cleanup:
 }
 
 //
-// Reads the next row matching to the key, on success, advances cursor
-// Parameters:
-//      [out]   buf - buffer for the next row, in MySQL format
-//      [in]     key - key value
-//                keylen - length of key
-// Returns:
-//      0 on success
-//      HA_ERR_END_OF_FILE if not found
-//      error otherwise
-//
-int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this);
-    int error;
-    struct smart_dbt_info info;
-    HANDLE_INVALID_CURSOR();
-    
-    statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
-    info.ha = this;
-    info.buf = buf;
-    info.keynr = active_index;
-    /* QQQ NEXT_DUP on nodup returns EINVAL for tokudb */
-    if (keylen == table->key_info[active_index].key_length && 
-        !(table->key_info[active_index].flags & HA_NOSAME) && 
-        !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
-
-        u_int32_t flags = SET_READ_FLAG(0);
-        error = handle_cursor_error(cursor->c_getf_next_dup(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
-        if (!error && !key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) {
-            error = read_full_row(buf);
-        }
-    } else {
-        u_int32_t flags = SET_READ_FLAG(0);
-        error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
-        if (!error && !key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) {
-            error = read_full_row(buf);
-        }
-        if (!error &&::key_cmp_if_same(table, key, active_index, keylen))
-            error = HA_ERR_END_OF_FILE;
-    }
-cleanup:
-    TOKUDB_DBUG_RETURN(error);
-}
-
-//
 // Reads the previous row from the active index (cursor) into buf, and advances cursor
 // Parameters:
 //      [out]   buf - buffer for the next row, in MySQL format
