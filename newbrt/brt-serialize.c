@@ -1825,6 +1825,7 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 
     switch(version) {
+        case BRT_LAYOUT_VERSION_16:
         case BRT_LAYOUT_VERSION_15:
             size += 4;  // basement node size
             size += 8;  // num_blocks_to_upgrade_14 (previously num_blocks_to_upgrade, now one int each for upgrade from 13, 14
@@ -2218,7 +2219,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
             case BRT_LAYOUT_VERSION_14:
                 h->basementnodesize = 128*1024;  // basement nodes added in v15
                 //fall through on purpose
-            case BRT_LAYOUT_VERSION_15:
+            case BRT_LAYOUT_VERSION_16:
+            case BRT_LAYOUT_VERSION_15: // this may no properly support version 15, we'll fix that on upgrade.
                 invariant(h->layout_version == BRT_LAYOUT_VERSION);
                 h->upgrade_brt_performed = FALSE;
                 if (upgrade) {
