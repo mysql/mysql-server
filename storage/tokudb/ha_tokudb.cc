@@ -774,7 +774,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
           my_multi_malloc(MYF(MY_WME),
                           &key_buff, max_key_length, 
                           &key_buff2, max_key_length, 
-                          &primary_key_buff, (hidden_primary_key ? 0 : table_share->key_info[table_share->primary_key].key_length + sizeof(uchar)), 
+                          &primary_key_buff, (hidden_primary_key ? 0 : max_key_length), 
                           NullS))) {
         my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
         TOKUDB_DBUG_RETURN(1);
