@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 /* Find out about weak transactions.
  *  User A does a transaction.
  *  User B does somethign without a transaction, and it conflicts.

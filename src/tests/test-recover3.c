@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 // A simple case to see if recovery works.
 //   Create a file (foo.db) in a transaction and commit.
 //   Insert some random key-value pairs in a transaciton an dcommit.

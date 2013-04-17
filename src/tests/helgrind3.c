@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 // The helgrind2 test performs a DB->get() in two different concurrent threads.
 #include <arpa/inet.h>
 #include <assert.h>

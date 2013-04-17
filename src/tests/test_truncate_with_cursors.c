@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#include <toku_portability.h>
 // truncate a database with open cursors
 // verify that the truncate returns EINVAL
 // BDB returns 0 but calls the error callback
