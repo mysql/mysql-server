@@ -64,9 +64,13 @@ run_5x (void *v) {
     struct timeval now;
     gettimeofday(&now, 0);
     double diff = tdiff(&now, &tx->tv);
-    if (verbose) printf("T=%f\n", diff);
-    assert(diff>0.5 + tx->counter);
-    assert(diff<1.5 + tx->counter);
+    if (verbose) printf("T=%f tx->counter=%d\n", diff, tx->counter);
+    // We only verify that the timer was not premature.  
+    // Sometimes it will be delayed, but there's no good way to test it and nothing we can do about it.
+    if (!(diff>0.5 + tx->counter)) {
+      printf("T=%f tx->counter=%d\n", diff, tx->counter);
+      assert(0);
+    }
     tx->counter++;
     return 0;
 }
