@@ -65,7 +65,7 @@ int main(int argc, const char *argv[]) {
     unsigned bufsize = 2;
     unsigned found;
 
-    int stuff[3] = {0,1,2};
+    toku_point stuff[3] = {{0},{1},{2}};
     range.ends.left  = (toku_point*)&stuff[0];
     range.ends.right = (toku_point*)&stuff[1];
     range.data       = 0;
