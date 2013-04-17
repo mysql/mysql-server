@@ -32,10 +32,10 @@ int toku_txn_begin_with_xid (
     );
 
 // Allocate and initialize a txn
-void toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn);
+int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn);
 
 // Assign a txnid. Log the txn begin in the recovery log. Initialize the txn live lists.
-void toku_txn_start_txn(TOKUTXN txn);
+int toku_txn_start_txn(TOKUTXN txn);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 

@@ -82,9 +82,10 @@ toku_txn_begin_with_xid (
     DB_TXN *container_db_txn
     ) 
 {
-    toku_txn_create_txn(tokutxn, parent_tokutxn, logger, xid, snapshot_type, container_db_txn);
-    toku_txn_start_txn(*tokutxn);
-    return 0;
+    int r = toku_txn_create_txn(tokutxn, parent_tokutxn, logger, xid, snapshot_type, container_db_txn);
+    if (r == 0)
+        r = toku_txn_start_txn(*tokutxn);
+    return r;
 }
 
 DB_TXN *
@@ -173,7 +174,7 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 
-void 
+int 
 toku_txn_create_txn (
     TOKUTXN *tokutxn, 
     TOKUTXN parent_tokutxn, 
@@ -234,9 +235,10 @@ toku_txn_create_txn (
     if (garbage_collection_debug) {
         verify_snapshot_system(logger);
     }
+    return 0;
 }
 
-void
+int
 toku_txn_start_txn(TOKUTXN txn) {
     TOKULOGGER logger = txn->logger;
     TOKUTXN parent = txn->parent;
@@ -320,6 +322,7 @@ toku_txn_start_txn(TOKUTXN txn) {
         }
     }
     toku_mutex_unlock(&logger->txn_list_lock);
+    return 0;
 }
 
 //Used on recovery to recover a transaction.
