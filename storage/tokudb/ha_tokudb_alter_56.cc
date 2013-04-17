@@ -299,12 +299,18 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         HA_CREATE_INFO *create_info = ha_alter_info->create_info;
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
-            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-        } 
+            // do a sanity check that the table is what we think it is
+            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+            }
+        }
 #ifndef MARIADB_BASE_VERSION
         // alter row_format
         else if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
-            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+            // do a sanity check that the table is what we think it is
+            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+            }
         }
 #endif
     }

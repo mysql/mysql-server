@@ -677,3 +677,50 @@ find_changed_columns(
 cleanup:
     return retval;
 }
+
+static bool
+tables_have_same_keys_and_columns(TABLE* first_table, TABLE* second_table, bool print_error) {
+    bool retval;
+    if (first_table->s->null_bytes != second_table->s->null_bytes) {
+        retval = false;
+        if (print_error) {
+            sql_print_error(
+                "tables have different number of null bytes, %d, %d", 
+                first_table->s->null_bytes, 
+                second_table->s->null_bytes
+                );
+        }
+        goto exit;
+    }
+    if (first_table->s->fields != second_table->s->fields) {
+        retval = false;
+        if (print_error) {
+            sql_print_error(
+                "tables have different number of fields, %d, %d", 
+                first_table->s->fields, 
+                second_table->s->fields
+                );
+        }
+        goto exit;
+    }
+    for (uint i = 0; i < first_table->s->fields; i++) {
+        Field* a = first_table->field[i];
+        Field* b = second_table->field[i];
+        if (!are_two_fields_same(a,b)) {
+            retval = false;
+            sql_print_error(
+                "tables have different fields at position %d", 
+                i
+                );
+            goto exit;
+        }
+    }
+    if (!tables_have_same_keys(first_table, second_table, print_error, true)) {
+        retval = false;
+        goto exit;
+    }
+
+    retval = true;
+exit:
+    return retval;
+}
