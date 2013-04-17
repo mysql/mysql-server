@@ -24,7 +24,7 @@ populate(DB_ENV *env, DB *db, int nrows) {
     }
 
     r = txn->commit(txn, 0); assert_zero(r);
-    r = txn->commit(parent, 0); assert_zero(r);
+    r = parent->commit(parent, 0); assert_zero(r);
 }
 
 static void
