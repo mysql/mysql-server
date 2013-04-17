@@ -136,6 +136,7 @@ REGRESSION_TESTS = \
 	cachetable-count-pinned-test \
 	cachetable-debug-test \
 	cachetable-debug-test \
+	cachetable-unpin-and-remove-test \
 	fifo-test \
 	list-test \
 	keyrange \
