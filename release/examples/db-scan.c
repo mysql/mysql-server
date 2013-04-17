@@ -24,14 +24,15 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
-const char *pname;
-enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE} run_mode = RUN_HWC;
-int do_txns=1, prelock=0, prelockflag=0;
-u_int32_t lock_flag = 0;
-long limitcount=-1;
-u_int32_t cachesize = 127*1024*1024;
+static const char *pname;
+static enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE} run_mode = RUN_HWC;
+static int do_txns=1, prelock=0, prelockflag=0;
+static u_int32_t lock_flag = 0;
+static long limitcount=-1;
+static u_int32_t cachesize = 127*1024*1024;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
+static int bulk_fetch = 1;
 
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
@@ -45,19 +46,20 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --cachesize N       set the env cachesize to N bytes\n");
     fprintf(stderr, "  --srandom N         srandom(N)\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
+    fprintf(stderr, "  --bulk_fetch 0|1    do bulk fetch on lwc operations (default: 1)\n");
     return 1;
 }
 
-DB_ENV *env;
-DB *db;
-DB_TXN *tid=0;
+static DB_ENV *env;
+static DB *db;
+static DB_TXN *tid=0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
-int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-char *dbfilename = "bench.db";
+static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
+static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+static char *dbfilename = "bench.db";
 
 
 static void parse_args (int argc, const char *argv[]) {
@@ -105,6 +107,9 @@ static void parse_args (int argc, const char *argv[]) {
         } else if (strcmp(*argv, "--srandom") == 0 && argc > 1) {
 	    argc--; argv++;
             srandom(atoi(*argv));
+        } else if (strcmp(*argv, "--bulk_fetch") == 0 && argc > 1) {
+            argc--; argv++;
+            bulk_fetch = atoi(*argv);
 	} else {
             exit(print_usage(pname));
 	}
@@ -195,7 +200,7 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
-    return 0;
+    return bulk_fetch ? TOKUDB_CURSOR_CONTINUE : 0;
 }
 
 static void scanscan_lwc (void) {
