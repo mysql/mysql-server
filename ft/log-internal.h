@@ -152,6 +152,7 @@ struct tokutxn {
     OMT live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
     XIDS xids; // Represents the xid list
 
+    bool begin_was_logged;
     // These are not read until a commit, prepare, or abort starts, and
     // they're "monotonic" (only go false->true) during operation:
     BOOL checkpoint_needed_before_commit;
@@ -222,6 +223,10 @@ static inline int toku_logsizeof_DISKOFF (DISKOFF v __attribute__((__unused__)))
     return 8;
 }
 static inline int toku_logsizeof_BLOCKNUM (BLOCKNUM v __attribute__((__unused__))) {
+    return 8;
+}
+
+static inline int toku_logsizeof_LSN (LSN lsn __attribute__((__unused__))) {
     return 8;
 }
 

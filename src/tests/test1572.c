@@ -7,6 +7,7 @@
 #include <db.h>
 #include <sys/stat.h>
 #include <ft/log.h>
+#include <src/ydb_txn.h>
 
 static void
 four_billion_subtransactions (int do_something_in_children, int use_big_increment) {
@@ -14,10 +15,11 @@ four_billion_subtransactions (int do_something_in_children, int use_big_incremen
     DB *db;
     DB_TXN *xparent;
 
+    uint64_t extra_increment;
     if (use_big_increment) {
-	toku_set_lsn_increment(1<<28); // 1/4 of a billion, so 16 transactions should push us over the edge.
+	extra_increment = (1<<28); // 1/4 of a billion, so 16 transactions should push us over the edge.
     } else {
-	toku_set_lsn_increment(1);
+	extra_increment = 0; // xid is already incrementing once per txn.
     }
 
     int r;
@@ -42,6 +44,7 @@ four_billion_subtransactions (int do_something_in_children, int use_big_incremen
     long long const fourbillion = use_big_increment ? 32 : 500000; // if using the big increment we should run into trouble in only 32 transactions or less.
     for (i=0; i < fourbillion + 100; i++) {
 	DB_TXN *xchild;
+        toku_increase_last_xid(env, extra_increment);
 	r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
 	if (do_something_in_children) {
 	    char hello[30], there[30];

@@ -934,7 +934,7 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     DB_TXN *txn=NULL;
     if (using_txns) {
-        r = locked_txn_begin(env, 0, &txn, 0);
+        r = toku_txn_begin(env, 0, &txn, 0);
         assert_zero(r);
     }
 
@@ -1177,7 +1177,7 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        ret = toku_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
         invariant_zero(ret);
     }
 
@@ -1206,7 +1206,7 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        ret = toku_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
         invariant_zero(ret);
     }
 
@@ -2216,7 +2216,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->get_engine_status = env_get_engine_status;
     result->get_engine_status_text = env_get_engine_status_text;
     result->crash = env_crash;  // handlerton's call to fractal tree layer on failed assert
-    result->txn_begin = locked_txn_begin;
+    result->txn_begin = toku_txn_begin;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }

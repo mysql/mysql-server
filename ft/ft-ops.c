@@ -2564,7 +2564,7 @@ toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, 
     r = toku_logger_save_rollback_load(txn, old_filenum, &new_iname_bs);
     if (r==0 && do_log && logger) {
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_load(logger, load_lsn, do_fsync, xid, old_filenum, new_iname_bs);
+        r = toku_log_load(logger, load_lsn, do_fsync, txn, xid, old_filenum, new_iname_bs);
     }
     return r;
 }
@@ -2585,7 +2585,7 @@ toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_
     if ( r==0 && do_log && logger) {
         TXNID xid = toku_txn_get_txnid(txn);
         // write to the recovery log
-        r = toku_log_hot_index(logger, hot_index_lsn, do_fsync, xid, filenums);
+        r = toku_log_hot_index(logger, hot_index_lsn, do_fsync, txn, xid, filenums);
     }
     return r;
 }
@@ -2648,7 +2648,7 @@ toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         TXNID xid = toku_txn_get_txnid(txn);
         // if (type == FT_INSERT)
-            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
         // else
             // r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
     }
@@ -2677,7 +2677,7 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int nu
             BYTESTRING valbs = {.len=val->size, .data=val->data};
             TXNID xid = toku_txn_get_txnid(txn);
             FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
-            r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+            r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
         }
     }
     return r;
@@ -2709,10 +2709,10 @@ toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, BOOL opls
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         if (type == FT_INSERT) {
-            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
         }
         else {
-            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
+            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
         }
         if (r!=0) return r;
     }
@@ -2756,7 +2756,7 @@ toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data=update_function_extra->data};
-        r = toku_log_enq_update(logger, NULL, 0,
+        r = toku_log_enq_update(logger, NULL, 0, txn,
                                 toku_cachefile_filenum(ft_h->ft->cf),
                                 xid, keybs, extrabs);
         if (r != 0) { goto cleanup; }
@@ -2795,7 +2795,7 @@ toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_extra,
         ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data=update_function_extra->data};
-        r = toku_log_enq_updatebroadcast(logger, NULL, 0,
+        r = toku_log_enq_updatebroadcast(logger, NULL, 0, txn,
                                          toku_cachefile_filenum(ft_h->ft->cf),
                                          xid, extrabs, resetting);
         if (r != 0) { goto cleanup; }
@@ -2844,7 +2844,7 @@ toku_ft_log_del(TOKUTXN txn, FT_HANDLE brt, const DBT *key) {
     if (logger && brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
     }
     return r;
 }
@@ -2871,7 +2871,7 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int nu
             BYTESTRING valbs = {.len=val->size, .data=val->data};
             TXNID xid = toku_txn_get_txnid(txn);
             FILENUM src_filenum = src_ft ? toku_cachefile_filenum(src_ft->ft->cf) : FILENUM_NONE;
-            r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+            r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, txn, src_filenum, filenums, xid, keybs, valbs);
         }
     }
     return r;
@@ -2900,7 +2900,7 @@ toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LS
     if (do_logging && logger &&
         ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
-        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs);
         if (r!=0) return r;
     }
 
@@ -3096,6 +3096,7 @@ toku_ft_change_descriptor(
         TXNID xid = toku_txn_get_txnid(txn);
         r = toku_log_change_fdescriptor(
             logger, NULL, 0,
+            txn,
             toku_cachefile_filenum(ft_h->ft->cf),
             xid,
             old_desc_bs,

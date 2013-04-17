@@ -37,7 +37,8 @@ int toku_txn_begin_with_xid (
     );
 
 // Allocate and initialize a txn
-int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, XIDS xids, DB_TXN *container_db_txn, bool for_checkpoint);
+int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn, bool for_checkpoint);
+void toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid, XIDS xids);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
@@ -114,6 +115,8 @@ struct tokulogger_preplist {
     DB_TXN *txn;
 };
 int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
+
+void toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

@@ -146,4 +146,3 @@ db_env_enable_engine_status(uint32_t enable) {
     engine_status_enable = enable;
 }
 
-

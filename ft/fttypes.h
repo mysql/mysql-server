@@ -40,6 +40,7 @@ typedef struct sub_block *SUB_BLOCK;
 typedef struct ft *FT;
 typedef struct ft_header *FT_HEADER;
 typedef struct ft_options *FT_OPTIONS;
+
 struct wbuf;
 struct dbuf;
 
@@ -47,7 +48,7 @@ typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
 
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
-typedef u_int64_t TXNID;
+typedef uint64_t TXNID;
 #define TXNID_NONE_LIVING ((TXNID)0)
 #define TXNID_NONE        ((TXNID)0)
 
