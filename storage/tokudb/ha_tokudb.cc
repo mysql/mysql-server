@@ -361,6 +361,13 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 }
 
 
+static int
+smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
+    SMART_DBT_INFO info = (SMART_DBT_INFO)context;
+    info->ha->read_row_callback(info->buf,info->keynr,row,key);
+    return 0;
+}
+
 //
 // Smart DBT callback function in case where we have a covering index
 //
@@ -3250,6 +3257,12 @@ void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *row, DBT const
     }
 }
 
+
+void ha_tokudb::read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
+    assert(keynr == primary_key);
+    unpack_row(buf, row,found_key, keynr);
+}
+
 //
 // Reads the contents of row and found_key, DBT's retrieved from the DB associated to keynr, into buf
 // This function assumes that we are using a covering index, as a result, if keynr is the primary key,
@@ -3320,15 +3333,25 @@ exit:
 int ha_tokudb::read_full_row(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_full_row");
     int error;
+    struct smart_dbt_info info;
+    info.ha = this;
+    info.buf = buf;
+    info.keynr = primary_key;
     //
-    // Read the data into current_row, assumes key is stored in this->last_key
+    // assumes key is stored in this->last_key
     //
-    current_row.flags = DB_DBT_REALLOC;
-    if ((error = share->file->get(share->file, transaction, &last_key, &current_row, 0))) {
+    error = share->file->getf_set(
+        share->file, 
+        transaction, 
+        0, 
+        &last_key, 
+        smart_dbt_callback_rowread_ptquery, 
+        &info
+        );
+    if (error) {
         table->status = STATUS_NOT_FOUND;
         TOKUDB_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
     }
-    error = unpack_row(buf, &current_row, &last_key, primary_key);
 
     TOKUDB_DBUG_RETURN(error);
 }
@@ -3924,22 +3947,25 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_pos");
     DBT db_pos;
     int error;
+    struct smart_dbt_info info;
+    bool old_unpack_entire_row = unpack_entire_row;
+    DBT* key = get_pos(&db_pos, pos); 
+
+    unpack_entire_row = true;
     statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
     active_index = MAX_KEY;
-    DBT* key = get_pos(&db_pos, pos); 
-    error = share->file->get(share->file, transaction, key, &current_row, 0);
+
+    info.ha = this;
+    info.buf = buf;
+    info.keynr = primary_key;
+
+    error = share->file->getf_set(share->file, transaction, 0, key, smart_dbt_callback_rowread_ptquery, &info);
     if (error == DB_NOTFOUND) {
         error = HA_ERR_KEY_NOT_FOUND;
         goto cleanup;
-    }    
-
-    if (!error) {
-        bool old_unpack_entire_row = unpack_entire_row;
-        unpack_entire_row = true;
-        error = read_row(buf, primary_key, &current_row, key);
-        unpack_entire_row = old_unpack_entire_row;
     }
 cleanup:
+    unpack_entire_row = old_unpack_entire_row;
     TOKUDB_DBUG_RETURN(error);
 }
 
