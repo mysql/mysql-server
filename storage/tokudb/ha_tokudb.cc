@@ -2252,6 +2252,13 @@ int ha_tokudb::write_row(uchar * record) {
     declare_lockretry;
 
     //
+    // this can only fail if we have not opened the environment
+    // yet. I want to assert that rather than check for the error
+    //
+    error = db_env->checkpointing_begin_atomic_operation(db_env);
+    assert(!error);
+
+    //
     // some crap that needs to be done because MySQL does not properly abstract
     // this work away from us, namely filling in auto increment and setting auto timestamp
     //
@@ -2414,6 +2421,7 @@ cleanup:
             error = sub_trans->commit(sub_trans, DB_TXN_NOSYNC);
         }
     }
+    db_env->checkpointing_end_atomic_operation(db_env);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2488,6 +2496,13 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
+
+    //
+    // this can only fail if we have not opened the environment
+    // yet. I want to assert that rather than check for the error
+    //
+    error = db_env->checkpointing_begin_atomic_operation(db_env);
+    assert(!error);
 
     LINT_INIT(error);
     statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
@@ -2625,6 +2640,7 @@ cleanup:
             error = sub_trans->commit(sub_trans, DB_TXN_NOSYNC);
         }
     }
+    db_env->checkpointing_end_atomic_operation(db_env);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2717,6 +2733,14 @@ int ha_tokudb::delete_row(const uchar * record) {
     key_map keys = table_share->keys_in_use;
     bool has_null;
     THD* thd = ha_thd();
+
+    //
+    // this can only fail if we have not opened the environment
+    // yet. I want to assert that rather than check for the error
+    //
+    error = db_env->checkpointing_begin_atomic_operation(db_env);
+    assert(!error);
+
     statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
 
     create_dbt_key_from_table(&prim_key, primary_key, key_buff, record, &has_null);
@@ -2738,6 +2762,7 @@ int ha_tokudb::delete_row(const uchar * record) {
             thd_proc_info(thd, write_status_msg);
         }
     }
+    db_env->checkpointing_end_atomic_operation(db_env);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4543,6 +4568,13 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     char* newfrom = NULL;
     char* newto = NULL;
 
+    //
+    // this can only fail if we have not opened the environment
+    // yet. I want to assert that rather than check for the error
+    //
+    error = db_env->checkpointing_postpone(db_env);
+    assert(!error);
+
     int n = get_name_length(from) + NAME_CHAR_LEN;
     newfrom = (char *)my_malloc(n,MYF(MY_WME));
     if (newfrom == NULL){
@@ -4565,6 +4597,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     }
 
 cleanup:
+    db_env->checkpointing_resume(db_env);
     my_free(newfrom, MYF(MY_ALLOW_ZERO_PTR));
     my_free(newto, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
