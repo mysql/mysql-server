@@ -237,7 +237,12 @@ int toku_loader_create_loader(DB_ENV *env,
 				 compare_functions,
 				 loader->i->temp_file_template,
 				 load_lsn);
-            lazy_assert(r == 0);
+            if ( r!=0 ) {
+		toku_free(new_inames_in_env);
+		toku_free(descriptors);
+                rval = r;
+                goto create_exit;
+            }
 	    loader->i->inames_in_env = new_inames_in_env;
 	    toku_free(descriptors);
 	    rval = 0;
@@ -262,6 +267,7 @@ int toku_loader_set_poll_function(DB_LOADER *loader,
                                   int (*poll_func)(void *extra, float progress),
 				  void *poll_extra) 
 {
+    invariant(loader != NULL);
     loader->i->poll_func = poll_func;
     loader->i->poll_extra = poll_extra;
     return 0;
@@ -271,6 +277,7 @@ int toku_loader_set_error_callback(DB_LOADER *loader,
                                    void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra),
 				   void *error_extra) 
 {
+    invariant(loader != NULL);
     loader->i->error_callback = error_cb;
     loader->i->error_extra    = error_extra;
     return 0;
