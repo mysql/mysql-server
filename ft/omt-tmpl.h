@@ -579,7 +579,7 @@ private:
     typedef uint32_t node_idx;
     typedef omt_internal::subtree_templated<supports_marks> subtree;
     typedef omt_internal::omt_node_templated<omtdata_t, supports_marks> omt_node;
-    static_assert(std::is_pod<subtree>::value, "not POD");
+    ENSURE_POD(subtree);
 
     struct omt_array {
         uint32_t start_idx;
