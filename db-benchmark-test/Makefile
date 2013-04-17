@@ -40,10 +40,7 @@ SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
 TARGETS = $(TARGET_BDB) $(SCANSCAN_BDB) $(TARGET_TDB) $(SCANSCAN_TDB)
 
 default: build
-build: local;
-
-local: $(TARGETS);
-
+build: $(TARGETS) 
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 

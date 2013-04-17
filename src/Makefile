@@ -49,8 +49,7 @@ INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
 #Half Build Half Install???
 build: local build_tests ;
 
-.PHONY: install
-local install: buildlocktrees libs install_libs ;
+local: buildlocktrees libs install_libs ;
 
 build_tests: | local
 	cd tests && $(MAKE) build
@@ -63,6 +62,8 @@ install_libs: $(INSTALL_LIBRARIES)
 %.install: %
 	if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
 
+.PHONY: install
+install: libs install_libs ;
 
 .PHONY: local libs buildlocktrees
 libs: $(LIBRARIES) ;
