@@ -1055,7 +1055,7 @@ inline int compare_toku_field(
 //
 // at the moment, this returns new position in buffer
 //
-uchar* pack_toku_field(
+uchar* pack_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -1142,7 +1142,7 @@ exit:
     return new_pos;
 }
 
-uchar* pack_key_toku_field(
+uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -1157,7 +1157,7 @@ uchar* pack_key_toku_field(
     case (toku_type_float):
     case (toku_type_fixbinary):
     case (toku_type_fixstring):
-        new_pos = pack_toku_field(to_tokudb, from_mysql, field, key_part_length);
+        new_pos = pack_toku_key_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     case (toku_type_varbinary):
         new_pos = pack_toku_varbinary(
@@ -1189,7 +1189,7 @@ exit:
 }
 
 
-uchar* unpack_toku_field(
+uchar* unpack_toku_key_field(
     uchar* to_mysql,
     uchar* from_tokudb,
     Field* field,

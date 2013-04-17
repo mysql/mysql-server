@@ -30,21 +30,21 @@ typedef enum {
 inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type);
 
 
-uchar* pack_toku_field(
+uchar* pack_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
     u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     );
 
-uchar* pack_key_toku_field(
+uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
     u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     );
 
-uchar* unpack_toku_field(
+uchar* unpack_toku_key_field(
     uchar* to_mysql,
     uchar* from_tokudb,
     Field* field,
