@@ -3698,6 +3698,7 @@ env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
     if (r!=0) goto cleanup;
     for (which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = dbs[which_db];
+        num_deletes++;       // accountability 
         r = toku_brt_maybe_delete(db->i->brt, &keydbts[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         if (r!=0) goto cleanup;
     }
@@ -4344,6 +4345,7 @@ env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
     if (r!=0) goto cleanup;
     for (which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = dbs[which_db];
+        num_inserts++;
         r = toku_brt_maybe_insert(db->i->brt, &keydbts[which_db], &valdbts[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         if (r!=0) goto cleanup;
     }
