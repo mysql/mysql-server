@@ -92,6 +92,7 @@ free_indexer_resources(DB_INDEXER *indexer) {
             toku_free(indexer->i->fnums); 
             indexer->i->fnums = NULL;
         }
+        indexer_undo_do_destroy(indexer);
         indexer_release_refs(indexer);
         // indexer->i
         toku_free(indexer->i);
@@ -172,6 +173,7 @@ toku_indexer_create_indexer(DB_ENV *env,
 create_exit:
     if ( rval == 0 ) {
 
+        indexer_undo_do_init(indexer);
         indexer_add_refs(indexer);
         
         *indexerp = indexer;

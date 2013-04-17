@@ -195,14 +195,13 @@ test_is_xid_live(DB_INDEXER *indexer, TXNID xid) {
 }
 
 static int 
-test_maybe_lock_provisional_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
+test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(indexer == test_indexer);
     invariant(hotdb == test_hotdb);
-    if (test_is_xid_live(indexer, xid)) {
-        printf("lock [%lu] ", xid);
-        print_dbt(key);
-        printf("\n");
-    }
+    invariant(test_is_xid_live(indexer, xid));
+    printf("lock [%lu] ", xid);
+    print_dbt(key);
+    printf("\n");
     return 0;
 }
 
@@ -360,19 +359,19 @@ read_test(char *testname, ULE ule) {
                 ule_add_provisional(ule, &uxr_s);
                 continue;
             }
-            printf("%s???\n", line);
+            fprintf(stderr, "%s???\n", line);
             r = EINVAL;
         }
         toku_free(line);
         fclose(f);
     } else {
         r = errno;
-        printf("fopen %s errno=%d\n", testname, errno);
+        fprintf(stderr, "fopen %s errno=%d\n", testname, errno);
     }
     return r;
  }
 
-static void
+static int
 run_test(char *envdir, char *testname) {
     if (verbose)
         printf("%s\n", testname);
@@ -403,7 +402,7 @@ run_test(char *envdir, char *testname) {
 
     // set test callbacks
     indexer->i->test_is_xid_live = test_is_xid_live;
-    indexer->i->test_maybe_lock_provisional_key = test_maybe_lock_provisional_key;
+    indexer->i->test_lock_key = test_lock_key;
     indexer->i->test_delete_provisional = test_delete_provisional;
     indexer->i->test_delete_committed = test_delete_committed;
     indexer->i->test_insert_provisional = test_insert_provisional;
@@ -419,7 +418,9 @@ run_test(char *envdir, char *testname) {
     ule_init(ule);
 
     // read the test
-    r = read_test(testname, ule); assert_zero(r);
+    r = read_test(testname, ule);
+    if (r != 0)
+        return r;
 
     r = indexer->i->undo_do(indexer, dest_db, ule); assert_zero(r);
 
@@ -435,6 +436,8 @@ run_test(char *envdir, char *testname) {
     r = env->close(env, 0); assert_zero(r);
 
     live_destroy(&live_xids);
+    
+    return r;
 }
 
 int
@@ -457,7 +460,7 @@ test_main(int argc, char * const argv[]) {
         break;
     }
 
-    for ( ; i < argc; i++) {
+    for (r = 0 ; r == 0 && i < argc; i++) {
         char *testname = argv[i];
         char envdir[strlen(ENVDIR) + 1 + 32 + 1];
         sprintf(envdir, "%s.%d", ENVDIR, toku_os_getpid());
@@ -467,9 +470,9 @@ test_main(int argc, char * const argv[]) {
         r = system(syscmd); assert_zero(r);
         r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
-        run_test(envdir, testname);
+        r = run_test(envdir, testname);
     }
 
-    return 0;
+    return r;
 }
 

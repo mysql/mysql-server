@@ -4,10 +4,11 @@
 
 tests=""
 verbose=0
+valgrind=""
 
 for arg in $* ; do 
-    if [ $arg = "--verbose" ] ; then
-	verbose=1
+    if [[ $arg =~ "--(.*)=(.*)" ]] ; then
+	eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
     else
 	tests="$tests $arg"
     fi
@@ -26,7 +27,7 @@ for t in $tests ; do
     fi
     if [ $verbose != 0 ] ; then echo $testdir $testname $testfile $resultfile; fi
 
-    ./hotindexer-undo-do-test.tdb $testdir/$testfile >$testdir/$testname.run
+    $valgrind ./hotindexer-undo-do-test.tdb $testdir/$testfile >$testdir/$testname.run
 
     if [ -f $testdir/$resultfile ] ; then
 	diff -q $testdir/$testname.run $testdir/$resultfile >/dev/null 2>&1

@@ -10,6 +10,14 @@
 #ifndef TOKU_INDEXER_INTERNAL_H
 #define TOKU_INDEXER_INTERNAL_H
 
+// the indexer_commit_keys is a set of keys described by a DBT in the keys array.
+// the array is a resizeable array with max size "max_keys" and current size "current_keys".
+struct indexer_commit_keys {
+    int max_keys;        // max number of keys
+    int current_keys;    // number of valid keys
+    DBT *keys;           // the variable length keys array
+};
+
 struct __toku_indexer_internal {
     DB_ENV *env;
     DB_TXN *txn;
@@ -27,10 +35,15 @@ struct __toku_indexer_internal {
     FILENUM  *fnums; /* [N] */
     FILENUMS filenums;
 
+    // undo state
+    struct indexer_commit_keys commit_keys; // set of keys to commit
+    DBT hotkey, hotval;                     // current hot key and value
+    DBT previous_insert_key;                // previous insert key
+
     // test functions
     int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
     int (*test_is_xid_live)(DB_INDEXER *indexer, TXNID xid);
-    int (*test_maybe_lock_provisional_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
+    int (*test_lock_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
     int (*test_delete_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
     int (*test_delete_committed)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
     int (*test_insert_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
@@ -40,6 +53,10 @@ struct __toku_indexer_internal {
     // test flags
     int test_only_flags;
 };
+
+void indexer_undo_do_init(DB_INDEXER *indexer);
+
+void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
 int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
 
