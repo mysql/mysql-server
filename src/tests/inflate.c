@@ -102,6 +102,25 @@ doit (void)
 	delete_n(i<<16);
 	get_n(i<<16, DB_NOTFOUND);
     }
+    reopen_em();
+    insert_n(N<<16);
+    get_n(N<<16, 0);
+    reopen_em();
+    for (u_int32_t i='J'; i<N+1; i++) {
+	delete_n(i<<16);
+	get_n(i<<16, DB_NOTFOUND);
+    }
+    reopen_em();
+    reopen_em();
+    for (u_int32_t j=0; j<46; j++) {
+	insert_n(('.'<<16) + 1 +j +46);
+    }
+    for (u_int32_t i=0; i<13; i++) {
+	delete_n((73 - i)<< 16);
+	get_n((73-i) << 16, DB_NOTFOUND); 
+    }
+    reopen_em(); // now a node is 9143 bytes
+
 }
 
 int test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
