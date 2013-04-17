@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 DBT* toku_init_dbt (DBT *);
+void toku_destroy_dbt (DBT *);
 DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
 int toku_dbt_set (ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt);
 int toku_dbt_set_value (DBT *, bytevec *val, ITEMLEN vallen, void **staticptrp, BOOL ybt1_disposable);

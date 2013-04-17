@@ -10,6 +10,17 @@ toku_init_dbt (DBT *ybt) {
     return ybt;
 }
 
+void
+toku_destroy_dbt(DBT *dbt) {
+    switch (dbt->flags) {
+    case DB_DBT_MALLOC:
+    case DB_DBT_REALLOC:
+        toku_free(dbt->data);
+        dbt->data = NULL;
+        break;
+    }
+}
+
 DBT*
 toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
     toku_init_dbt(dbt);

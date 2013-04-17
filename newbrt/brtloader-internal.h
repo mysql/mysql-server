@@ -62,6 +62,10 @@ int loader_write_row(DBT *key, DBT *val, FIDX data, FILE*, u_int64_t *dataoff, B
 int loader_read_row (FILE *f, DBT *key, DBT *val);
 
 struct merge_fileset {
+    BOOL have_sorted_output;  // Is there an previous key?
+    FIDX sorted_output;       // this points to one of the data_fidxs.  If output_is_sorted then this is the file containing sorted data.  It's still open
+    DBT  prev_key;            // What is it?  If it's here, its the last output in the merge fileset
+
     int n_temp_files, n_temp_files_limit;
     FIDX *data_fidxs;
 };
@@ -217,6 +221,7 @@ int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, con
 int brtloader_init_file_infos (struct file_infos *fi);
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error);
 int brtloader_fi_close (struct file_infos *fi, FIDX idx);
+void brtloader_fi_close_all (struct file_infos *fi);
 int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode);
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx);
 

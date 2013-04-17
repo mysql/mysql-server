@@ -308,6 +308,8 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     // destroy_rowset(&bset);
     for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1);
 
+    brtloader_fi_close_all(&bl.file_infos);
+
     QUEUE q;
     r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
     assert(r==0);
