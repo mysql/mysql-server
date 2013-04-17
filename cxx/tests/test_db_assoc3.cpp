@@ -477,7 +477,7 @@ int maybe_parse_intarg (const char *progname, const char *arg, const char *cmdna
     }
 }
 
-int main (int argc, const char *argv[]) {
+int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int useseed;
     int activity_count = 100000;
