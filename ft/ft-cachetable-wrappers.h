@@ -114,11 +114,41 @@ toku_pin_ftnode_off_client_thread(
     FTNODE *node_p
     );
 
+void
+toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    bool may_modify_node,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p,
+    bool move_messages
+    );
+
 /**
  * This function may return a pinned ftnode to the caller, if pinning is cheap.
  * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
  */
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep, bool may_modify_node);
+
+/**
+ * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
+ * batched API for more details.
+ */
+void
+toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    bool may_modify_node,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p,
+    bool move_messages
+    );
 
 /**
  * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
