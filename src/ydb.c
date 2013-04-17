@@ -302,29 +302,21 @@ static int do_recovery (DB_ENV *env) {
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
-    
-#if 0
-    // want to do recovery in its own process
-    pid_t pid;
-    if ((pid=fork())==0) {
-	int r=tokudb_recover(datadir, logdir);
-	assert(r==0);
-	toku_free(logdir); // the child must also free.
-	exit(0);
-    }
-    int status;
-    waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status)!=0)  {
-	toku_free(logdir);
-	return toku_ydb_do_error(env, -1, "Recovery failed\n");
-    }
-    toku_free(logdir);
-    return 0;
-#else
     int r = tokudb_recover(datadir, logdir);
     toku_free(logdir);
     return r;
-#endif
+}
+
+static int needs_recovery (DB_ENV *env) {
+    char *logdir;
+    if (env->i->lg_dir) {
+	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+    } else {
+	logdir = toku_strdup(env->i->dir);
+    }
+    BOOL recovery_needed = tokudb_needs_recovery(logdir);
+    toku_free(logdir);
+    return recovery_needed ? DB_RUNRECOVERY : 0;
 }
 
 static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
@@ -396,8 +388,11 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG; 
 
     if (flags&DB_RECOVER) {
-	r=do_recovery(env);
-	if (r!=0) return r;
+	r = do_recovery(env);
+	if (r != 0) return r;
+    } else {
+        r = needs_recovery(env);
+        if (r != 0) return r;
     }
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {

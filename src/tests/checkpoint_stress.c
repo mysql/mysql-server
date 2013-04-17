@@ -39,6 +39,7 @@ Each iteration does:
 #define NUM_DICTIONARIES 4       // any more than 3 is overkill to exercise linked list logic
 
 static int oper_per_iter = 5001;  // not-very-nice odd number (not a multiple of a power of two)
+static int do_log_recover = 0;
 
 static toku_pthread_t thread;
 
@@ -219,7 +220,7 @@ run_test (int iter, int die) {
     if (verbose)
 	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08"PRIx64"\n", iter, cachebytes);
     
-    env_startup(cachebytes);
+    env_startup(cachebytes, do_log_recover);
 
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts
@@ -265,8 +266,9 @@ run_test (int iter, int die) {
 
 static void
 usage(char *progname) {
-    fprintf(stderr, "Usage:\n%s [-i n] [-q|-v]\n"
-                    "      \n%s [-h]\n", progname, progname);
+    fprintf(stderr, "Usage:\n%s [-c] [-C] [-i N] [-n N] [-l] [-q|-v]\n"
+                    "      \n%s [-h]\n", progname, 
+                                         progname);
 }
 
 
@@ -279,7 +281,7 @@ test_main (int argc, char *argv[]) {
 
     int c;
     int crash = 0;
-    while ((c = getopt(argc, argv, "cChi:qvn:")) != -1) {
+    while ((c = getopt(argc, argv, "cChi:qvn:l:")) != -1) {
 	switch(c) {
         case 'c':
             crash = 1;
@@ -293,6 +295,9 @@ test_main (int argc, char *argv[]) {
 	case 'n':
 	    oper_per_iter = atoi(optarg);
 	    break;
+        case 'l':
+            do_log_recover = 1;
+            break;
 	case 'v':
 	    verbose++;
             break;

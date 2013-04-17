@@ -143,6 +143,9 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
+	test_log8 \
+	test_log9 \
+	test_log10 \
 #\ ends prev line
 ifneq ($(OS_CHOICE),windows)
     TDB_TESTS_THAT_SHOULD_FAIL+= \

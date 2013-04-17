@@ -15,7 +15,15 @@
 #include "x1764.h"
 
 int toku_recover_init(void);
+
 void toku_recover_cleanup(void);
+
 int tokudb_recover(const char *datadir, const char *logdir);
+
+// Effect: Check the tokudb logs to determine whether or not we need to run recovery.
+// If the log is empty or if there is a clean shutdown at the end of the log, then we
+// dont need to run recovery.
+// Returns: TRUE if we need recovery, otherwise FALSE.
+int tokudb_needs_recovery(const char *logdir);
 
 #endif // TOKURECOVER_H

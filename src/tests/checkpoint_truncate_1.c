@@ -42,7 +42,7 @@ checkpoint_truncate_test(u_int32_t flags, u_int32_t n) {
         fflush(stdout); 
     }
     dir_create();
-    env_startup(0);
+    env_startup(0, FALSE);
 
     DICTIONARY_S db_control;
     init_dictionary(&db_control, flags, "control");

@@ -13,6 +13,8 @@
 #include "log_header.h"
 #include "varray.h"
 
+static int toku_recover_trace = 0;
+
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
 #define VERIFY_COUNTS(n) toku_verify_counts(n)
@@ -41,6 +43,8 @@ int toku_recover_init (void) {
     assert(r == 0);
     toku_logger_write_log_files(recover_logger, FALSE);
     toku_logger_set_cachetable(recover_logger, recover_ct);
+    if (toku_recover_trace)
+        printf("%s:%d\n", __FUNCTION__, __LINE__);
     return r;
 }
 
@@ -71,6 +75,9 @@ void toku_recover_cleanup (void) {
     
     r = toku_cachetable_close(&recover_ct);
     assert(r == 0);
+
+    if (toku_recover_trace)
+        printf("%s:%d\n", __FUNCTION__, __LINE__);
 }
 
 // Null function supplied to transaction commit and abort
@@ -492,11 +499,10 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
     return result;
 }
 
-// Does this log environment need recovery?
-// Effects: If there are no log files, or if there is a "null" checkpoint at the end of the log,
+// Effects: If there are no log files, or if there is a "clean" checkpoint at the end of the log,
 // then we don't need recovery to run.  We skip the optional shutdown log entry.
 // Returns: TRUE if we need recovery, FALSE if we do not need recovery.
-static int tokudb_needs_recovery(const char *log_dir) {
+int tokudb_needs_recovery(const char *log_dir) {
     int needs_recovery;
     int r;
     TOKULOGCURSOR logcursor = NULL;
@@ -569,8 +575,6 @@ static void abort_live_txn(void *v, void *UU(extra)) {
     toku_txn_close_txn(txn);
 }
 
-static const int toku_recover_trace = 0;
-
 static int really_do_recovery(const char *data_dir, const char *log_dir) {
     int r;
 
@@ -602,12 +606,14 @@ static int really_do_recovery(const char *data_dir, const char *log_dir) {
     while (1) {
         le = NULL;
         r = toku_logcursor_prev(logcursor, &le);
-        if (toku_recover_trace) printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (toku_recover_trace) 
+            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
         if (r != 0)
             break;
         logtype_dispatch_assign(le, toku_recover_backward_, r, &bs);
         if (r != 0) {
-            if (toku_recover_trace) printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+            if (toku_recover_trace) 
+                printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
             logtype_dispatch_args(le, toku_recover_);
             break;
         }
@@ -617,7 +623,8 @@ static int really_do_recovery(const char *data_dir, const char *log_dir) {
     while (1) {
         le = NULL;
         r = toku_logcursor_next(logcursor, &le);
-        if (toku_recover_trace) printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
+        if (toku_recover_trace) 
+            printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
         if (r != 0)
             break;
         logtype_dispatch_args(le, toku_recover_);
