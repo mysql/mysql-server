@@ -120,6 +120,7 @@ BDB_DONTRUN_TESTS = \
 	filesize \
         isolation \
 	env-put-multiple \
+	recover-2483 \
 	recover-compare-db \
 	recover-compare-db-descriptor \
 	recover-tablelock \
