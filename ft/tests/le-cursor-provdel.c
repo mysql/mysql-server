@@ -131,7 +131,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;
-    error = le_cursor_create(&cursor, brt, cursortxn);
+    error = toku_le_cursor_create(&cursor, brt, cursortxn);
     assert(error == 0);
 
     DBT key;
@@ -141,7 +141,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
 
     int i;
     for (i=0; ; i++) {
-        error = le_cursor_next(cursor, &val);
+        error = toku_le_cursor_next(cursor, &val);
         if (error != 0) 
             break;
         
@@ -157,7 +157,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     toku_destroy_dbt(&key);
     toku_destroy_dbt(&val);
 
-    error = le_cursor_close(cursor);
+    error = toku_le_cursor_close(cursor);
     assert(error == 0);
 
     error = toku_txn_commit_txn(cursortxn, TRUE, NULL, NULL);

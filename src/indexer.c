@@ -115,7 +115,9 @@ static void
 free_indexer_resources(DB_INDEXER *indexer) {
     if ( indexer->i ) {        
         toku_mutex_destroy(&indexer->i->indexer_lock);
-        if ( indexer->i->lec )   { le_cursor_close(indexer->i->lec); }
+        if ( indexer->i->lec ) {
+            toku_le_cursor_close(indexer->i->lec);
+        }
         if ( indexer->i->fnums ) { 
             toku_free(indexer->i->fnums); 
             indexer->i->fnums = NULL;
@@ -212,7 +214,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     }
     
     // create and initialize the leafentry cursor
-    rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);
+    rval = toku_le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);
     if ( !indexer->i->lec ) { goto create_exit; }
     
     // 2954: add recovery and rollback entries
@@ -271,9 +273,11 @@ toku_indexer_set_error_callback(DB_INDEXER *indexer,
     return 0;
 }
 
-BOOL
-toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, DB *db, const DBT *key) {
-    return is_key_right_of_le_cursor(indexer->i->lec, key, db);
+// a key is to the right of the indexer's cursor if it compares
+// greater than the current le cursor position.
+bool
+toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key) {
+    return toku_le_cursor_is_key_greater(indexer->i->lec, key);
 }
 
 static int 
@@ -283,14 +287,14 @@ build_index(DB_INDEXER *indexer) {
     DBT key; toku_init_dbt_flags(&key, DB_DBT_REALLOC);
     DBT le; toku_init_dbt_flags(&le, DB_DBT_REALLOC);
 
-    BOOL done = FALSE;
+    bool done = false;
     for (uint64_t loop_count = 0; !done; loop_count++) {
 
         toku_indexer_lock(indexer);
 
-        result = le_cursor_next(indexer->i->lec, &le);
+        result = toku_le_cursor_next(indexer->i->lec, &le);
         if (result != 0) {
-            done = TRUE;
+            done = true;
             if (result == DB_NOTFOUND)
                 result = 0;  // all done, normal way to exit loop successfully
         }
@@ -313,7 +317,7 @@ build_index(DB_INDEXER *indexer) {
         if (result == 0) 
             result = maybe_call_poll_func(indexer, loop_count);
         if (result != 0)
-            done = TRUE;
+            done = true;
     }
 
     toku_destroy_dbt(&key);

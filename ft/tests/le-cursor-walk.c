@@ -97,7 +97,7 @@ walk_tree(const char *fname, int n) {
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;
-    error = le_cursor_create(&cursor, brt, NULL);
+    error = toku_le_cursor_create(&cursor, brt, NULL);
     assert(error == 0);
 
     DBT key;
@@ -109,7 +109,7 @@ walk_tree(const char *fname, int n) {
     for (i = 0; ; i++) {
 	error = TOKUDB_TRY_AGAIN;
 	while (error == TOKUDB_TRY_AGAIN) {
-	    error = le_cursor_next(cursor, &val);
+	    error = toku_le_cursor_next(cursor, &val);
 	}
         if (error != 0) 
             break;
@@ -126,7 +126,7 @@ walk_tree(const char *fname, int n) {
     toku_destroy_dbt(&key);
     toku_destroy_dbt(&val);
 
-    error = le_cursor_close(cursor);
+    error = toku_le_cursor_close(cursor);
     assert(error == 0);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
