@@ -1549,6 +1549,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("mem freed", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.max_mem_in_use);
       STATPRINT("max mem in use", buf);
+      snprintf(buf, bufsiz, "%s", engstat.mallocator_version);
+      STATPRINT("mallocator version", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
