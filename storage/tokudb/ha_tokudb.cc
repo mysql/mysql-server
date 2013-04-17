@@ -838,6 +838,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     char name_buff[FN_REFLEN];
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     char* newname = NULL;
+    char* fn_ret = NULL;
     uint newname_len = 0;
     
     sprintf(dict_name, "key-%s", key_info->name);
@@ -849,7 +850,11 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
         goto cleanup;
     }
     make_name(newname, name, dict_name);
-    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+    fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+    if (fn_ret == NULL) {
+        error = HA_ERR_INTERNAL_ERROR;
+        goto cleanup;
+    }
 
     open_flags += DB_AUTO_COMMIT;
 
@@ -945,6 +950,7 @@ int ha_tokudb::initialize_share(
     int error = 0;
     char* newname = NULL;
     char name_buff[FN_REFLEN];
+    char* fn_ret = NULL;
     u_int64_t num_rows = 0;
     u_int32_t curr_blob_field_index = 0;
     u_int32_t max_var_bytes = 0;
@@ -961,7 +967,11 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
     make_name(newname, name, "main");
-    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+    fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+    if (fn_ret == NULL) {
+        error = HA_ERR_INTERNAL_ERROR;
+        goto exit;
+    }
 
 
     //
@@ -2112,6 +2122,7 @@ int ha_tokudb::get_status() {
     HA_METADATA_KEY curr_key;
     int error;
     char* newname = NULL;
+    char* fn_ret = NULL;
     //
     // open status.tokudb
     //
@@ -2126,7 +2137,11 @@ int ha_tokudb::get_status() {
             goto cleanup;
         }
         make_name(newname, share->table_name, "status");
-        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+        if (fn_ret == NULL) {
+            error = HA_ERR_INTERNAL_ERROR;
+            goto cleanup;
+        }
         uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
                           | DB_THREAD);
         if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
@@ -4424,7 +4439,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
     KEY* prim_key = NULL;
-
+    char* fn_ret = NULL;
 
     bzero(&row_descriptor, sizeof(row_descriptor));
     row_desc_buff = (uchar *)my_malloc(2*(form->s->fields * 6)+10 ,MYF(MY_WME));
@@ -4470,7 +4485,11 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     dir_path_made = true;
 
     make_name(newname, name, "main");
-    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+    fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+    if (fn_ret == NULL) {
+        error = HA_ERR_INTERNAL_ERROR;
+        goto cleanup;
+    }
 
     //
     // setup the row descriptor
@@ -4503,7 +4522,11 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             int flags = (form->s->key_info[i].flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
             sprintf(dict_name, "key-%s", form->s->key_info[i].name);
             make_name(newname, name, dict_name);
-            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+            fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+            if (fn_ret == NULL) {
+                error = HA_ERR_INTERNAL_ERROR;
+                goto cleanup;
+            }
             //
             // setup the row descriptor
             //
@@ -4529,7 +4552,11 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     /* Create status.tokudb and save relevant metadata */
     if (!(error = (db_create(&status_block, db_env, 0)))) {
         make_name(newname, name, "status");
-        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+        if (fn_ret == NULL) {
+            error = HA_ERR_INTERNAL_ERROR;
+            goto cleanup;
+        }
 
         //
         // create a row descriptor that is the same as a hidden primary key
@@ -5026,6 +5053,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     THD* thd = ha_thd(); 
     uchar* row_desc_buff = NULL;
     DBT row_descriptor;
+    char* fn_ret = NULL;
     bzero(&row_descriptor, sizeof(row_descriptor));
     //
     // these variables are for error handling
@@ -5092,7 +5120,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         int flags = (key_info[i].flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
         sprintf(dict_name, "key-%s", key_info[i].name);
         make_name(newname, share->table_name, dict_name);
-        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+        if (fn_ret == NULL) {
+            error = HA_ERR_INTERNAL_ERROR;
+            goto cleanup;
+        }
         //
         // setup the row descriptor
         //
@@ -5334,7 +5366,7 @@ cleanup:
             DB* tmp;
             sprintf(dict_name, "key-%s", key_info[i].name);
             make_name(newname, share->table_name, dict_name);
-            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
             if (!(db_create(&tmp, db_env, 0))) {
                 tmp->remove(tmp, name_buff, NULL, 0);
             }
@@ -5369,6 +5401,7 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     int error;
     char name_buff[FN_REFLEN];
     char* newname = NULL;
+    char* fn_ret = NULL;
     char dict_name[MAX_DICT_NAME_LEN];
     DB** dbs_to_remove = NULL;
 
@@ -5407,7 +5440,11 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
         
         sprintf(dict_name, "key-%s", table_arg->key_info[curr_index].name);
         make_name(newname, share->table_name, dict_name);
-        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
+        fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);
+        if (fn_ret == NULL) {
+            error = HA_ERR_INTERNAL_ERROR;
+            goto cleanup;
+        }
 
         dbs_to_remove[i]->remove(dbs_to_remove[i], name_buff, NULL, 0);
     }
