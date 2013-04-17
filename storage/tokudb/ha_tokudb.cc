@@ -1177,7 +1177,6 @@ int ha_tokudb::initialize_share(
     bool table_exists;
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     open_flags += DB_AUTO_COMMIT;
-    THD* thd = ha_thd();
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
     table_exists = true;

@@ -10,7 +10,7 @@ extern "C" {
 #error "WORDS_BIGENDIAN not supported"
 #endif
 
-inline TOKU_TYPE mysql_to_toku_type (Field* field) {
+TOKU_TYPE mysql_to_toku_type (Field* field) {
     TOKU_TYPE ret_val = toku_type_unknown;
     enum_field_types mysql_type = field->real_type();
     switch (mysql_type) {
