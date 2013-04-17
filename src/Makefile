@@ -1,108 +1,119 @@
-# On OSX do:
-#   make OSX=OSX
+# -*- Mode: Makefile -*-
+
+.DEFAULT_GOAL=build
+TOKUROOT=../
+INCLUDEDIRS=-I$(TOKUROOT)newbrt -I./lock_tree -I./range_tree
+DEPEND_COMPILE += \
+	ydb-internal.h \
+	$(TOKUROOT)include/db.h \
+	$(TOKUROOT)newbrt/cachetable.h \
+	$(TOKUROOT)newbrt/brt.h \
+	$(TOKUROOT)newbrt/log.c \
+#End of line
+ydbtrace.o tdbtrace.o: tdbtrace.h
+include $(TOKUROOT)include/Makefile.include
+CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE
+
+YDB=ydb.$(AEXT)
+TYDB=tydb.$(AEXT)
 
 LIBNAME=libtokudb
 TLIBNAME=libtokudbtrace
 
-EXPORTMAP = -Wl,--version-script=export.map
-VISIBILITY = -fvisibility=hidden
+LIBRARY=$(LIBNAME).$(SOEXT)
+TLIBRARY=$(TLIBNAME).$(SOEXT)
+LIBRARY_S=$(LIBNAME).$(AEXT)
+TLIBRARY_S=$(TLIBNAME).$(AEXT)
+OBJS_RAW = \
+	ydb_lib \
+	ydb \
+	errors \
+	elocks \
+#\end
+#OBJS automatically defined.
 
-# PROF_FLAGS=-pg
-OPTFLAGS = -O3 -finline-functions
-# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
-ifeq ($(CC),icc)
-CFLAGS += -Wall -g
-CFLAGS += -diag-disable 177
-CFLAGS += -diag-disable 589
-CFLAGS += -diag-disable 981
-CFLAGS += -diag-disable 1418
-CFLAGS += -diag-disable 1419
-else
-CFLAGS += -W -Werror -Wall -Wextra -g3 -ggdb3
-CFLAGS += -Wbad-function-cast -Wcast-align
-endif
-CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/
-CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
-CFLAGS+= $(VISIBILITY) $(PROF_FLAGS)
+LIBRARIES= \
+	$(LIBRARY) \
+	$(TLIBRARY) \
+	$(LIBRARY_S) \
+	$(TLIBRARY_S) \
+#Purposely here for \ at end of prev
+
+INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
+
+.PHONY:install_libs install.% build install local build_tests
+
+#Half Build Half Install???
+build: local build_tests ;
+
+local: buildlocktrees libs install_libs ;
+
+build_tests: | local
+	$(MAYBEATSIGN)cd tests && $(MAKE) build
 
 
-ifneq ($(OSX),)
-LIBRARY=$(LIBNAME).dylib
-TLIBRARY=$(TLIBNAME).dylib
-SHARED=-dynamiclib
-RPATHNAME=-install_name @rpath/$(LIBRARY)
-CFLAGS+=-fno-common
-else
-LIBRARY=$(LIBNAME).so
-TLIBRARY=$(TLIBNAME).so
-SHARED=-shared $(EXPORTMAP)
-RPATHNAME=
-endif
+TOBJS= tdbtrace.$(OEXT) $(patsubst ydb.$(OEXT),ydbtrace.$(OEXT),$(OBJS))
 
-build: buildlocktrees lib
-	cd tests;$(MAKE) build
-	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $(LIBNAME).a ../lib/; fi
-	if ! diff $(LIBRARY)  ../lib/$(LIBRARY) > /dev/null 2>&1; then cp $(LIBRARY) ../lib/; fi
-	if ! diff $(TLIBNAME).a ../lib/$(TLIBNAME).a >/dev/null 2>&1; then cp $(TLIBNAME).a ../lib/; fi
-	if ! diff $(TLIBRARY)  ../lib/$(TLIBRARY) > /dev/null 2>&1; then cp $(TLIBRARY) ../lib/; fi
 
-lib: $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
-
-.PHONY: buildlocktrees
-buildlocktrees:
-	cd range_tree;$(MAKE) build
-	cd lock_tree;$(MAKE) build
-
-local: $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
+install_libs: $(INSTALL_LIBRARIES)
+%.install: %
+	$(MAYBEATSIGN)if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
 
 .PHONY: install
-install: $(LIBRARY) $(LIBNAME).a $(TLIBRARY) $(TLIBNAME).a
-	cp $(LIBRARY) ../lib/
-	cp $(LIBNAME).a ../lib
-	cp $(TLIBRARY) ../lib/
-	cp $(TLIBNAME).a ../lib
+install: libs install_libs ;
 
-check_globals: $(LIBRARY)
-	python tokuglobals.py $(LIBRARY)
+.PHONY: local libs buildlocktrees
+libs: $(LIBRARIES) ;
 
-check_tests:
-	cd tests;$(MAKE) check
-check: $(LIBRARY) check_globals check_tests
+buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
+$(YDB):  $(OBJS) 
+$(TYDB): $(TOBJS)
+
+
+$(LIBRARY):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
+$(TLIBRARY): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK)
+
+$(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT)
+$(TLIBRARY): LINK_FILES=$(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
+
+#Skip all BDB tests for CYGWIN+ICC
+ifeq ($(CYGWIN),)
+$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+else ifneq ($(CC),icc)
+$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+else
+$(LIBRARY_S):  $(LIBRARY)  ;
+$(TLIBRARY_S): $(TLIBRARY) ;
+#$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+#$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+endif
+
+static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+	lib /out:$@ $^
+
+
+check_globals: $(LIBNAME).$(AEXT)
+	$(MAYBEATSIGN)python tokuglobals.py $<
+
+.PHONY: check_tests
+check_tests: build_tests
+	$(MAYBEATSIGN)cd tests && $(MAKE) check
+
+.PHONY: check
+check: local check_globals check_tests
+
+.PHONY: strip
 strip: $(LIBRARY)
-	strip $(LIBRARY)
+	$(MAYBEATSIGN)strip $<
 
 clean:
-	rm -rf $(LIBRARY) $(LIBNAME).a $(TLIBRARY) $(TLIBNAME).a *.o *.gcno *.gcda *.gcov
-	cd tests && $(MAKE) clean
-	cd lock_tree && $(MAKE) clean
-	cd range_tree && $(MAKE) clean
+	$(MAYBEATSIGN)cd tests && $(MAKE) clean
+	$(MAYBEATSIGN)cd lock_tree && $(MAKE) clean
+	$(MAYBEATSIGN)cd range_tree && $(MAKE) clean
 
-ydbtrace.o ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
-ydbtrace.o tdbtrace.o: tdbtrace.h
-ydbtrace.o: ydb.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DTOKUTRACE -c -o $@ $<
+ydbtrace.$(OEXT): ydb.c $(DEPEND_COMPILE)
+	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) -DTOKUTRACE
 
-DBBINS = ydb.o errors.o elocks.o ../newbrt/newbrt.o
-
-TDBBINS = tdbtrace.o $(patsubst ydb.o,ydbtrace.o,$(DBBINS))
-
-RANGETREE_BINS = range_tree/rangetree.o
-LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
-
-$(LIBRARY): $(DBBINS) | buildlocktrees
-	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
-
-$(LIBNAME).a: $(DBBINS) | buildlocktrees
-	$(AR) cr $@ $^  $(LOCKTREE_BINS)
-
-$(LIBNAME).a(ydb.o): ydb.o
-
-$(TLIBRARY): $(TDBBINS) | buildlocktrees
-	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
-
-$(TLIBNAME).a: $(TDBBINS) | buildlocktrees
-	$(AR) cr $@ $^  $(LOCKTREE_BINS)
-
-$(TLIBNAME).a(ydbtrace.o): ydbtrace.o

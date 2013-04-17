@@ -8,7 +8,7 @@
    \brief Lock trees: implementation
 */
   
-
+#include "portability.h"
 #include <locktree.h>
 #include <ydb-internal.h>
 #include <brt-internal.h>
@@ -380,7 +380,7 @@ toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-static toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
+toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
     assert(tree);
     rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_write : NULL;
@@ -948,7 +948,7 @@ static int free_contents_helper(toku_range* value, void* extra) {
     toku__lt_free_point (singular)
 */
 static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
-                                         toku_range_tree *rtdel, BOOL close) {
+                                         toku_range_tree *rtdel, BOOL doclose) {
     assert(tree);
     if (!rt) return 0;
     
@@ -965,7 +965,7 @@ static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* 
     info.store_value = &tree->buf[0];
 
     if ((r=toku_rt_iterate(rt, free_contents_helper, &info))) return r;
-    if (close) r = toku_rt_close(rt);
+    if (doclose) r = toku_rt_close(rt);
     else {
         r = 0;
         toku_rt_clear(rt);
@@ -1362,7 +1362,7 @@ int toku_lt_close(toku_lock_tree* tree) {
     toku_rth_close(tree->txns_still_locked);
 
     tree->free(tree->buf);
-    if (tree->db_id) { toku_db_id_remove_ref(tree->db_id); }
+    if (tree->db_id) { toku_db_id_remove_ref(&tree->db_id); }
     tree->free(tree);
     r = first_error;
 cleanup:

@@ -8,8 +8,8 @@
 #include "../../../newbrt/memory.h"
 int verbose=0;
 
-#define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); })
-#define CKERR2(r,r2) ({ if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); })
+#define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); } while (0)
+#define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
 
 static inline void
 parse_args (int argc, const char *argv[]) {
@@ -18,9 +18,11 @@ parse_args (int argc, const char *argv[]) {
 	int resultcode=0;
 	if (strcmp(argv[1], "-v")==0) {
 	    verbose++;
+	} else if (strcmp(argv[1], "-q")==0) {
+	    verbose=0;
 	} else if (strcmp(argv[1], "-h")==0) {
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-h]\n", argv0);
+	    fprintf(stderr, "Usage:\n%s [-v|-h|-q]\n", argv0);
 	    exit(resultcode);
 	} else {
 	    resultcode=1;

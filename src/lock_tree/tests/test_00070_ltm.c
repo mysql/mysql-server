@@ -1,9 +1,10 @@
 /* Test for a memory leak from just closing the lock tree manager (should close
    all lock trees. */
 
+#include "portability.h"
+#include <fcntl.h>
 #include "test.h"
-
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
+#include <unistd.h>
 
 int r;
 toku_lock_tree* lt [10] = {0};
@@ -13,7 +14,7 @@ u_int32_t max_locks = 10;
 BOOL duplicates = FALSE;
 int  nums[10000];
 
-void setup_ltm(void) {
+static void setup_ltm(void) {
     assert(!ltm);
     r = toku_ltm_create(&ltm, max_locks, dbpanic,
                         get_compare_fun_from_db, get_dup_compare_from_db,
@@ -22,7 +23,7 @@ void setup_ltm(void) {
     assert(ltm);
 }
 
-void setup_tree(BOOL dups, size_t index, toku_db_id* db_id) {
+static void setup_tree(BOOL dups, size_t index, toku_db_id* db_id) {
     assert(!lt[index] && ltm);
     r = toku_ltm_get_lt(ltm, &lt[index], dups, db_id);
     CKERR(r);
@@ -30,7 +31,7 @@ void setup_tree(BOOL dups, size_t index, toku_db_id* db_id) {
 }
 
 
-void close_ltm(void) {
+static void close_ltm(void) {
     assert(ltm);
     r = toku_ltm_close(ltm);
     CKERR(r);
@@ -39,19 +40,22 @@ void close_ltm(void) {
     ltm = NULL;
 }
 
-void run_test(BOOL dups) {
+static void run_test(BOOL dups) {
+    int fd = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
+    assert(fd>=0);
+
     toku_db_id* db_id = NULL;
-    r = toku_db_id_create(&db_id, DIR, "subdb");
+    r = toku_db_id_create(&db_id, fd, "subdb");
     CKERR(r);
     assert(db_id);
 
     toku_db_id* db_id2 = NULL;
-    r = toku_db_id_create(&db_id2, DIR, "subdb2");
+    r = toku_db_id_create(&db_id2, fd, "subdb2");
     CKERR(r);
     assert(db_id);
 
     toku_db_id* db_id3 = NULL;
-    r = toku_db_id_create(&db_id3, DIR, "subdb");
+    r = toku_db_id_create(&db_id3, fd, "subdb");
     CKERR(r);
     assert(db_id);
 
@@ -74,9 +78,10 @@ void run_test(BOOL dups) {
     assert(lt[4] == lt[5]);
     
     close_ltm();
-    toku_db_id_remove_ref(db_id);
-    toku_db_id_remove_ref(db_id2);
-    toku_db_id_remove_ref(db_id3);
+    toku_db_id_remove_ref(&db_id);
+    toku_db_id_remove_ref(&db_id2);
+    toku_db_id_remove_ref(&db_id3);
+    close(fd);
 }
 
 int main(int argc, const char *argv[]) {
@@ -84,8 +89,8 @@ int main(int argc, const char *argv[]) {
     compare_fun = intcmp;
     dup_compare = intcmp;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " TESTDIR);
+    os_mkdir(TESTDIR, S_IRWXU|S_IRWXG|S_IRWXO);
 
     run_test(FALSE);
     run_test(TRUE);

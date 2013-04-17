@@ -1,59 +1,38 @@
-# On OSX do:
-#   make OSX=OSX
+# -*- Mode: Makefile -*-
 
-OPTFLAGS = -O3 -finline-functions
+.DEFAULT_GOAL= build
+TOKUROOT=../../
+INCLUDEDIRS=-I. -I$(TOKUROOT)newbrt
+DEPEND_COMPILE+= \
+	*.h \
+#end
 
-LIBNAME=libtokurange
+SKIP_RANGETREERULE=1
 
-VISIBILITY = #-fvisibility=hidden
+include $(TOKUROOT)include/Makefile.include
 
-ifneq ($(GCOV),)
- GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-else
- GCOV_FLAGS =
-endif
+RANGETREE        = rangetree.$(AEXT)
+RANGETREE_LINEAR = rangetree_linear.$(AEXT)
+RANGETREE_TLOG   = rangetree_tlog.$(AEXT)
+RANGETREE_LOG    = rangetree_log.$(AEXT)
 
-CFLAGS = -Werror -Wall -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
-ifneq ($(CC),icc)
- CFLAGS += -W -Wextra -g3 -ggdb3
- CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
- CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
-else
- CFLAGS += -g
- CFLAGS += -diag-disable  589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
-endif
-CPPFLAGS = -I. -I../../include -I../../newbrt
-CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
-CFLAGS += $(VISIBILITY) $(PROF_FLAGS)
-LDFLAGS += -lpthread
 
-ifneq ($(OSX),)
-CFLAGS+=-fno-common
-endif
+#This line is so we can have a \ at the end of the previous.
 
-BINS = linear.o log_nooverlap.o rangetree.o #log.o 
+RANGETREE       =rangetree.$(AEXT)
 
-build: $(BINS)
-	cd tests;$(MAKE) build
+LIBRARIES=$(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE) # $(RANGETREE_LOG)
 
-check:
-	cd tests;$(MAKE) check
+$(RANGETREE_TLOG):   log_nooverlap.$(OEXT)
+$(RANGETREE_LINEAR): linear.$(OEXT)
+$(RANGETREE_LOG):    log.$(OEXT)
 
-.PHONY: install
-install: $(BINS)
+$(RANGETREE): $(RANGETREE_TLOG)
+	$(MAYBEATSIGN)cp $< $@
 
-clean:
-	rm -rf *.o *.gcno *.gcda *.gcov
-	cd tests && $(MAKE) clean
+.PHONY: build check
+build: $(LIBRARIES)
 
-rangetree.o: log_nooverlap.o
-	cp $< $@
-
-HEADERS=rangetree.h rangetree-internal.h
-
-linear.o: linear.c                  $(HEADERS)
-
-log.o: log.c                        $(HEADERS)
-
-log_nooverlap.o: log_nooverlap.c    $(HEADERS)
+build check clean:
+	$(MAYBEATSIGN)cd tests;$(MAKE) $@
 

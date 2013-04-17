@@ -2,9 +2,6 @@
 
 #include "test.h"
 
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
-toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
-
 int r;
 toku_lock_tree* lt  = NULL;
 toku_ltm*       ltm = NULL;
@@ -13,14 +10,14 @@ u_int32_t max_locks = 10;
 BOOL duplicates = FALSE;
 int  nums[10000];
 
-DBT _key_left[2];
-DBT _key_right[2];
-DBT _data_left[2];
-DBT _data_right[2];
-DBT* key_left[2]   ;
-DBT* key_right[2]  ;
-DBT* data_left [2] ;
-DBT* data_right[2] ;
+DBT _keys_left[2];
+DBT _keys_right[2];
+DBT _datas_left[2];
+DBT _datas_right[2];
+DBT* keys_left[2]   ;
+DBT* keys_right[2]  ;
+DBT* datas_left [2] ;
+DBT* datas_right[2] ;
 
 toku_point qleft, qright;
 toku_interval query;
@@ -28,7 +25,7 @@ toku_range* buf;
 unsigned buflen;
 unsigned numfound;
 
-void init_query(BOOL dups) {  
+static void init_query(BOOL dups) {  
     init_point(&qleft,  lt);
     init_point(&qright, lt);
     
@@ -45,7 +42,7 @@ void init_query(BOOL dups) {
     query.right = &qright;
 }
 
-void setup_tree(BOOL dups) {
+static void setup_tree(BOOL dups) {
     assert(!lt && !ltm);
     r = toku_ltm_create(&ltm, max_locks, dbpanic,
                         get_compare_fun_from_db, get_dup_compare_from_db,
@@ -60,7 +57,7 @@ void setup_tree(BOOL dups) {
     init_query(dups);
 }
 
-void close_tree(void) {
+static void close_tree(void) {
     assert(lt && ltm);
     r = toku_lt_close(lt);
         CKERR(r);
@@ -72,7 +69,7 @@ void close_tree(void) {
 
 typedef enum { null = -1, infinite = -2, neg_infinite = -3 } lt_infty;
 
-DBT* set_to_infty(DBT *dbt, lt_infty value) {
+static DBT* set_to_infty(DBT *dbt, int value) {
     if (value == infinite) return (DBT*)toku_lt_infinity;
     if (value == neg_infinite) return (DBT*)toku_lt_neg_infinity;
     if (value == null) return dbt_init(dbt, NULL, 0);
@@ -81,8 +78,8 @@ DBT* set_to_infty(DBT *dbt, lt_infty value) {
 }
 
 
-void lt_insert(BOOL dups, int r_expect, char txn, int key_l, int data_l, 
-               int key_r, int data_r, BOOL read_flag) {
+static void lt_insert(BOOL dups, int r_expect, char txn, int key_l, int data_l, 
+                      int key_r, int data_r, BOOL read_flag) {
     DBT _key_left;
     DBT _key_right;
     DBT _data_left;
@@ -118,88 +115,22 @@ void lt_insert(BOOL dups, int r_expect, char txn, int key_l, int data_l,
     CKERR2(r, r_expect);
 }
 
-void lt_insert_read(BOOL dups, int r_expect, char txn, int key_l, int data_l, 
-                    int key_r, int data_r) {
+static void lt_insert_read(BOOL dups, int r_expect, char txn, int key_l, int data_l, 
+                           int key_r, int data_r) {
     lt_insert(dups, r_expect, txn, key_l, data_l, key_r, data_r, TRUE);
 }
 
-void lt_insert_write(BOOL dups, int r_expect, char txn, int key_l, int data_l) {
+static void lt_insert_write(BOOL dups, int r_expect, char txn, int key_l, int data_l) {
     lt_insert(dups, r_expect, txn, key_l, data_l, 0, 0, FALSE);
 }
 
-
-void setup_payload_len(void** payload, u_int32_t* len, int val) {
-    assert(payload && len);
-
-    DBT temp;
-
-    *payload = set_to_infty(&temp, val);
-    
-    if (val < 0) {
-        *len = 0;
-    }
-    else {
-        *len = sizeof(nums[0]);
-        *payload = temp.data;
-    }
-}
-
-void temporarily_fake_comparison_functions(void) {
-    assert(!lt->db && !lt->compare_fun && !lt->dup_compare);
-    lt->db = db;
-    lt->compare_fun = get_compare_fun_from_db(db);
-    lt->dup_compare = get_dup_compare_from_db(db);
-}
-
-void stop_fake_comparison_functions(void) {
-    assert(lt->db && lt->compare_fun && lt->dup_compare);
-    lt->db = NULL;
-    lt->compare_fun = NULL;
-    lt->dup_compare = NULL;
-}
-
-void lt_find(BOOL dups, toku_range_tree* rt,
-                        unsigned k, int key_l, int data_l,
-                                    int key_r, int data_r,
-                                    char char_txn) {
-temporarily_fake_comparison_functions();
-    r = toku_rt_find(rt, &query, 0, &buf, &buflen, &numfound);
-    CKERR(r);
-    assert(numfound==k);
-
-    TXNID find_txn = (TXNID) (size_t) char_txn;
-
-    toku_point left, right;
-    init_point(&left, lt);
-    setup_payload_len(&left.key_payload, &left.key_len, key_l);
-    if (dups) {
-        if (key_l < null) left.data_payload = left.key_payload;
-        else setup_payload_len(&left.data_payload, &left.data_len, data_l);
-    }
-    init_point(&right, lt);
-    setup_payload_len(&right.key_payload, &right.key_len, key_r);
-    if (dups) {
-        if (key_r < null) right.data_payload = right.key_payload;
-        else setup_payload_len(&right.data_payload, &right.data_len, data_r);
-    }
-    unsigned i;
-    for (i = 0; i < numfound; i++) {
-        if (toku__lt_point_cmp(buf[i].ends.left,  &left ) == 0 &&
-            toku__lt_point_cmp(buf[i].ends.right, &right) == 0 &&
-            buf[i].data == find_txn) { goto cleanup; }
-    }
-    assert(FALSE);  //Crash since we didn't find it.
-cleanup:
-    stop_fake_comparison_functions();
-}
-
-void lt_unlock(char ctxn) {
-  int r;
-  r = toku_lt_unlock(lt, (TXNID) (size_t) ctxn);
-  CKERR(r);
+static void lt_unlock(char ctxn) {
+  int retval;
+  retval = toku_lt_unlock(lt, (TXNID) (size_t) ctxn);
+  CKERR(retval);
 }
               
-void run_escalation_test(BOOL dups) {
+static void run_escalation_test(BOOL dups) {
     int i = 0;
 /* ******************** */
 /* 1 transaction request 1000 write locks, make sure it succeeds*/
@@ -439,7 +370,7 @@ void run_escalation_test(BOOL dups) {
 /* ******************** */
 }
 
-void init_test(void) {
+static void init_test(void) {
     unsigned i;
     for (i = 0; i < sizeof(nums)/sizeof(nums[0]); i++) nums[i] = i;
 
@@ -449,9 +380,9 @@ void init_test(void) {
     dup_compare = intcmp;
 }
 
-
-
-
+static void close_test(void) {
+    toku_free(buf);
+}
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
@@ -460,6 +391,8 @@ int main(int argc, const char *argv[]) {
 
     run_escalation_test(FALSE);
     run_escalation_test(TRUE);
+
+    close_test();
 
     return 0;
 }

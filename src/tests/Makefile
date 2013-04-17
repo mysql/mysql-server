@@ -1,39 +1,170 @@
-# On OSX do:
-#   make OSX=OSX
+# -*- Mode: Makefile -*-
 
-# For verbose output do
-#   make VERBOSE=1
-# For very verbose output do 
-#   make VERBOSE=2
+.DEFAULT_GOAL= build
+TOKUROOT=../../
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I../range_tree -I../lock_tree
+DEPEND_COMPILE += \
+	../*.h \
+	../range_tree/*.h \
+	../lock_tree/*.h \
+	test.h \
+#end
+SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
+include $(TOKUROOT)include/Makefile.include
+CPPFLAGS += -D_GNU_SOURCE
+LIBTDB=../libtokudb.$(SOEXT)
+TLIBTDB=../libtokudbtrace.$(SOEXT)
 
+ifeq ($(CC),icc)
+SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.
+endif
+
+$(LIBTDB) $(TLIBTDB):
+	$(MAYBEATSIGN)cd $(@D) && $(MAKE) $(@F)
+
+$(notdir $(LIBTDB)): $(LIBTDB)
+	$(MAYBEATSIGN)cp $< $@
+
+$(notdir $(TLIBTDB)): $(TLIBTDB)
+	$(MAYBEATSIGN)cp $< $@
+
+SRCS = $(sort $(wildcard *.c))
+
+TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
+BDB_DONTRUN_TESTS = \
+	bug627 \
+	test_abort1 \
+	keyrange \
+	keyrange-unflat \
+	keyrange-dupsort \
+	keyrange-dupsort-unflat \
+	manyfiles \
+	test938c \
+#\ ends prev line
+
+BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
+
+TDB_TESTS_THAT_SHOULD_FAIL= \
+	test_groupcommit_count \
+	test-recover1 \
+	test-recover2 \
+	test-recover3 \
+	test_txn_recover3 \
+	test944 \
+	test_truncate_txn_abort \
+	test_truncate_subdb \
+	test_txn_nested_abort3 \
+	test_txn_nested_abort4 \
+#\ ends prev line
+
+TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
+	test_log2.recover \
+	test_log3.recover \
+	test_log4.recover \
+	test_log5.recover \
+	test_log6.recover \
+	test_log7.recover \
+	test_log8.recover \
+	test_log9.recover \
+	test_log10.recover \
+#\ ends prev line
+
+ALL_TESTS  = $(TDB_TESTS)
+
+#Skip all BDB tests for CYGWIN+ICC
+ifeq ($(CYGWIN),)
+ALL_TESTS += $(BDB_TESTS)
+else ifneq ($(CC),icc)
+ALL_TESTS += $(BDB_TESTS)
+endif
+
+TLRECOVER = 2 3 4 5 6 7 8 9 10
+
+EXTRA_TDB_TESTS = \
+	test_db_assoc3.tdbrun_wasbad \
+	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
+#\ ends prev line
+
+RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS)
+RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
+RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
+
+.PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
+
+default all build: $(ALL_TESTS)
+
+check: check.tdb check.bdb ;
+tests: tests.bdb tests.tdb ;
+tests.bdb: $(BDB_TESTS) ;
+check.bdb: $(RUN_BDB_TESTS) ;
+tests.tdb: $(TDB_TESTS) ;
+check.tdb: $(RUN_TDB_TESTS) ;
+
+foo:
+	$(MAYBEATSIGN)echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
+	$(MAYBEATSIGN)echo ALL_TESTS: $(ALL_TESTS)
+
+#TODO: What is this for? TODO: Port this if necessary.
+#traces: test_env_open_flags.tdbt$(BINSUF)
+traces: $(patsubst %.tdb$(BINSUF),%.tdbt$(BINSUF),$(TDB_TESTS))
+
+.PHONY: %.bdbrun %.run %.tdbrun
+# STUFF!!!!
+
+%.run: %.bdbrun %.tdbrun
+
+SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL))
+# Any test that should fail, we invert the result by using MAYBEINVERTER
+$(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
+$(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
+
+# Use -s on the command line to make things quiet.
+%.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(MAYBEATSIGN)          ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+%.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
+	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+%.recover: %.tdb$(BINSUF)
+	$(MAYBEATSIGN)$(VGRIND) ./$< && \
+	rm -rf dir.$*.c.tdb.recover && \
+	mkdir dir.$*.c.tdb.recover && \
+	(cd dir.$*.c.tdb.recover && $(VGRIND) ../../../newbrt/tdb-recover ../dir.$*.c.tdb ) && \
+	diff dir.$*.c.tdb dir.$*.c.tdb.recover/foo.db \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+%.recoverwc: %.tdb$(BINSUF)
+	$(MAYBEATSIGN) (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+
+.PHONY: %.recover
+all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) ;
+
+#DISABLE standard tdbrun for recover tests.
+$(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
+
+#TODO: PORT
 ifdef BDBDIR
-BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb
+%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include
+%.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
 endif
+%.bdb$(BINSUF): DLINK_FILES=db.$(SOEXT)
 
-ifneq ($(OSX),)
-#Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
- CFLAGS = -DOSX
- LIBEXT=dylib
- VGRIND=
- HGRIND=
-# SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
-# UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
-else
- CFLAGS =
-# SETTOKUENV=
-# UNSETTOKUENV=
- LIBEXT=so
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes --suppressions=../../newbrt/valgrind.suppressions
- HGRIND=valgrind --quiet --tool=helgrind
-endif
+%.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
 
- ifdef BDBDIR
-  BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib
- endif
- BDB_LDFLAGS += -lpthread
- TDB_LOADLIBES = -L.. -ltokudb -Wl,-rpath,.. -lpthread -lz
- TDB_TRACELOADLIBES = -L.. -ltokudbtrace -Wl,-rpath,.. -lpthread -lz
+%.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+
+%.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
+%.tdb$(BINSUF):  RPATH_DIRS+=$(dir LIBTDB)
+%.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
+%.tdbt$(BINSUF): RPATH_DIRS+=$(dir TLIBTDB)
+%.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
+
+%.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_C_FLAGS)
+
+clean:
+	$(MAYBEATSIGN)rm -f $(ALL_TESTS)
+	$(MAYBEATSIGN)rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
@@ -43,51 +174,6 @@ endif
 
 # VERBOSE=true
 
-LIBNAME=libdb.$(LIBEXT)
-# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS += -Werror -Wall $(OPTFLAGS) $(GCOV_FLAGS)
-ifneq ($(CC),icc)
- CFLAGS += -g3 -ggdb3
-else
- CFLAGS += -g
- CFLAGS += -diag-disable  128    # Don't complain that loops are not reachable from preceeding code.
- CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
-endif
-TDB_CPPFLAGS = -I../../include
-
-SRCS = $(sort $(wildcard *.c))
-
-TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
-BDB_DONTRUN = bug627 test_abort1 keyrange keyrange-unflat keyrange-dupsort keyrange-dupsort-unflat manyfiles test938c
-BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
-
-TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count test-recover1 test-recover2 test-recover3 test_txn_recover3 test944 test_truncate_txn_abort test_truncate_subdb
-TDB_TESTS_THAT_SHOULD_FAIL_LIT = test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover test_log8.recover test_log9.recover test_log10.recover
-
-ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
-
-RUN_TDB_TESTS = $(patsubst %.tdb,%.tdbrun,$(TDB_TESTS))
-RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
-MORE_TESTS = test_v6_v7_assoc3.tdbrun
-RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS) $(MORE_TESTS)
-
-all build: $(ALL_TESTS)
-
-#traces: test_env_open_flags.tdbt
-traces: $(patsubst %.tdb,%.tdbt,$(TDB_TESTS))
-
-foo:
-	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
-	echo ALL_TESTS: $(ALL_TESTS)
-
-.PHONY: check check.bdb check.tdb
-check: check.tdb test_db_assoc3.tdbrun_wasbad check.bdb
-tests: tests.bdb tests.tdb
-tests.bdb: $(BDB_TESTS)
-check.bdb: $(RUN_BDB_TESTS)
-tests.tdb: $(TDB_TESTS)
-check.tdb: $(RUN_TDB_TESTS) all.recover
-
 # Need these rule so that Make knows about all the file names
 .PHONY: %.run
 $(RUN_ALL_TESTS):
@@ -96,38 +182,11 @@ $(ALL_TESTS):
 %.run: %.bdbrun %.tdbrun
 	@ echo ok
 
-ifeq ($(VERBOSE),2)
-VERBVERBOSE=-v
-VERBQUIET=
-else
- ifeq ($(VERBOSE),1)
-  VERBVERBOSE=
-  VERBQUIET=
- else
-  VERBVERBOSE=
-  VERBQUIET=--quiet
- endif
-endif
 
 
-SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL))
-
-# Any test that should fail, we invert the result by using MAYBEINVERTER
-$(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
 
 HERE = src/tests
-ifeq ($(SUMMARIZE),1)
-SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
-$(SHOULD_FAIL): SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
-else
-SUMMARIZE_CMD =
-endif
 
-# Use -s on the command line to make things quiet.
-%.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
-	$(UNSETTOKUENV) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
-%.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
-	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # Don't include log2 log3 log4 log5 etc since they are covered by all.recover
 
@@ -136,85 +195,55 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 # Use helgrind on the group commit count test
 # helgrind is too flakey, so I'm removing it from the tests. -Bradley
 #test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
-#	$(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
+#	$(MAYBEATSIGN)$(HGRIND) ./$< $(VERBVERBOSE)
 
 
 
 libs:
 	cd ..;$(MAKE)
 
-%.bdb: %.c
-	$(UNSETTOKUENV) $(CC) -DENVDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
-%.tdb: %.c
-	$(SETTOKUENV) $(CC) -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
-%.tdbt: %.c
-	$(SETTOKUENV) $(CC) -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_TRACELOADLIBES) $< -o $@
-
-.PHONY: %.recover
-TLRECOVER = 2 3 4 5 6 7 8 9 10
-all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER))
-$(patsubst %,test_log%.tdbrun,$(TLRECOVER)):
-	@echo -n
-%.recover: %.tdb
-	$(SETTOKUENV) $(VGRIND) ./$< && \
-	$(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover && \
-	$(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover && \
-	($(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/tdb-recover ../dir.$(patsubst %.tdb,%.c.tdb,$<) ) && \
-	$(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db \
-	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-%.recoverwc: %.tdb
-	$(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
 
-.PHONY: clean cleanall
 
-clean:
-	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov 
-	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
-
-cleanall: clean
-	rm -f *.tdbrun
-
-test_db_curs4.tdb: trace.h
-test_db_curs4.bdb: trace.h
-test_db_assoc3.tdb test_db_assoc3.bdb: test.h
+test_db_curs4.tdb$(BINSUF): trace.h
+test_db_curs4.bdb$(BINSUF): trace.h
+test_db_assoc3.tdb$(BINSUF) test_db_assoc3.bdb$(BINSUF): test.h
 
 
 # This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
-test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb$(BINSUF)
+	$(MAYBEATSIGN)./$< --seed=1 --count=200
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
+	$(MAYBEATSIGN)./$< --seed=1 --count=200 --more
 # serialize these two tests since they use the same directory
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
 
 
 .phony: build_primary_db build_name_db  build_expire_db
-test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb:
-	mkdir $@
-build_primary_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
-build_name_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
-build_expire_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
-	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
+test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF):
+	$(MAYBEATSIGN)mkdir $@
+build_primary_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
+	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
+build_name_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
+	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
+build_expire_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb$(BINSUF)
+	$(MAYBEATSIGN)gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
 
-test_v6v7_assoc3.tdbrun: test_db_assoc3.tdb build_primary_db  build_name_db build_expire_db
-	$(SETTOKUENV) (cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
+test_v6v7_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF) build_primary_db  build_name_db build_expire_db
+	$(MAYBEATSIGN)(cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb$(BINSUF) --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
 
-test_db_assoc3.tdbrun: test_db_assoc3.tdb
-	$(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE) && \
-	$(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
+test_db_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF)
+	$(MAYBEATSIGN)$(VGRIND) ./$< --seed=2 --count=100000 $(VERBVERBOSE) && \
+	              $(VGRIND) ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # Give up on VGRIND for bdbrun
-test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	$(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000        $(VERBVERBOSE) && \
-	$(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
+test_db_assoc3.bdbrun: test_db_assoc3.bdb$(BINSUF)
+	$(MAYBEATSIGN)./$< --seed=2 --count=100000        $(VERBVERBOSE) && \
+	              ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # a bunch of little tests designed to run in parallel
 test_get_both_range.tdbrun: \
@@ -228,20 +257,20 @@ test_get_both_range.tdbrun: \
  tgbr_2_a.tdbrun   tgbr_2_b.tdbrun   tgbr_2_c.tdbrun \
  tgbr_1_a.tdbrun   tgbr_1_b.tdbrun   tgbr_1_c.tdbrun \
  # intentionally blank line
-	# echo Did $@
+	$(MAYBEATSIGN)true $(SUMMARIZE_CMD) #State that this has passed.
 
-tgbr_%_a.tdbrun: test_get_both_range.tdb
-	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_a.tdbrun,%,$@) -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-tgbr_%_b.tdbrun: test_get_both_range.tdb
-	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_b.tdbrun,%,$@) -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-tgbr_%_c.tdbrun: test_get_both_range.tdb
-	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_c.tdbrun,%,$@) -c $(MAYBEINVERTER)  $(SUMMARIZE_CMD)
+tgbr_%_a.tdbrun: test_get_both_range.tdb$(BINSUF)
+	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
+	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
+	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
 
 # test on small stacks
-test_thread_stack.%run: test_thread_stack.%
-	$(UNSETTOKUENV) ./$< -a -thread_stack 16384         && \
-	$(UNSETTOKUENV) ./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
+test_thread_stack.%run: test_thread_stack.%$(BINSUF)
+	$(MAYBEATSIGN)./$< -a -thread_stack 16384         && \
+	$(MAYBEATSIGN)./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 

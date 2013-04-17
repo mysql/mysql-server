@@ -1,135 +1,73 @@
-# On OSX do:
-#   make OSX=OSX
+# -*- Mode: Makefile -*-
 
-# For verbose output do
-#   make VERBOSE=1
-# For very verbose output do 
-#   make VERBOSE=2
+.DEFAULT_GOAL= build
+TOKUROOT=../../../
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I$(TOKUROOT)src/range_tree
+DEPEND_COMPILE += \
+	../*.h \
+	test.h \
+#end
+DEPEND_COMPILE+= $(NEWBRT)
 
-OPTFLAGS = -O0
-ifeq ($(OSX),)
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
-endif
+LINK_FILES=$(NEWBRT)
+include $(TOKUROOT)include/Makefile.include
 
-ifeq ($(GCOV),GCOV)
- GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-else
- GCOV_FLAGS =
-endif
 ifeq ($(CC),icc)
-CFLAGS = -Wall $(OPTFLAGS) $(GCOV_FLAGS)
-else
-CFLAGS = -W -Wall -Wextra $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
-CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
+SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.
 endif
-CPPFLAGS += -L../ -L../../range_tree 
-CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include
-LDFLAGS = -lpthread -lz
 
 SRCS = $(wildcard *.c)
 
-LOG_TESTS  = $(patsubst %.c,%.log,$(SRCS))
-TLOG_TESTS = $(patsubst %.c,%.tlog,$(SRCS))
-LIN_TESTS  = $(patsubst %.c,%.lin,$(SRCS))
-TLIN_TESTS = $(patsubst %.c,%.tlin,$(SRCS))
+LOG_TESTS =  $(patsubst %.c,%.log$(BINSUF),$(SRCS))
+TLOG_TESTS = $(patsubst %.c,%.tlog$(BINSUF),$(SRCS))
+LIN_TESTS =  $(patsubst %.c,%.lin$(BINSUF),$(SRCS))
 
-ALL_TESTS = $(LIN_TESTS) $(TLIN_TESTS) $(TLOG_TESTS) #$(LOG_TESTS)
+ALL_TESTS = $(LIN_TESTS) $(TLOG_TESTS) #$(LOG_TESTS)
 
-RUN_LOG_TESTS  = $(patsubst %.log,%.logrun,$(LOG_TESTS))
-RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
-RUN_LIN_TESTS  = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
-RUN_TLIN_TESTS = $(patsubst %.tlin,%.tlinrun,$(TLIN_TESTS))
-RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
+RUN_LOG_TESTS  = $(patsubst %.log$(BINSUF),%.logrun,$(LOG_TESTS))
+RUN_TLOG_TESTS = $(patsubst %.tlog$(BINSUF),%.tlogrun,$(TLOG_TESTS))
+RUN_LIN_TESTS  = $(patsubst %.lin$(BINSUF),%.linrun,$(LIN_TESTS))
+RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) #$(RUN_LOG_TESTS)
 
-.PHONY: check tests default all check.lin check.tlin check.log check.tlog tests.lin tests.tlin tests.tlog tests.log
+.PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
-default: build
+default all build: $(ALL_TESTS)
 
-build all: $(ALL_TESTS)
-
-check: check.lin check.tlin check.tlog #check.log
-	@ echo $@ ok
-tests: tests.lin tests.tlin tests.tlog #tests.log
-	@ echo $@ ok
-tests.lin: make_libs $(LIN_TESTS)
-	@ echo $@ ok
+check: $(RUN_ALL_TESTS)
+tests: $(ALL_TESTS)
+tests.lin: $(LIN_TESTS)
 check.lin: $(RUN_LIN_TESTS)
-	@ echo $@ ok
-tests.tlin: $(TLIN_TESTS)
-	@ echo $@ ok
-check.tlin: $(RUN_TLIN_TESTS)
-	@ echo $@ ok
 tests.tlog: $(TLOG_TESTS)
-	@ echo $@ ok
 check.tlog: $(RUN_TLOG_TESTS)
-	@ echo $@ ok
-tests.log: $(LOG_TESTS)
-	@ echo $@ ok
-check.log: $(RUN_LOG_TESTS)
-	@ echo $@ ok
+tests.log:  $(LOG_TESTS)
+check.log:  $(RUN_LOG_TESTS)
 
-# Need these rule so that Make knows about all the file names
-.PHONY: %.linrun %.tlinrun %.tlogrun %.logrun %.run
+.PHONY: %.linrun %.logrun %.run %.tlogrun
+# STUFF!!!!
 
-%.run: %.linrun %.tlinrun %.tlogrun %.logrun
-	@ echo ok
+%.run: %.linrun %.tlogrun #%.logrun
 
-ifeq ($(VERBOSE),2)
-VERBVERBOSE=-v
-MAYBEATSIGN= 
-VERBQUIET=
-else
- ifeq ($(VERBOSE),1)
-  VERBVERBOSE=
-  MAYBEATSIGN=
-  VERBQUIET=
- else
-  VERBVERBOSE=
-  MAYBEATSIGN=@
-  VERBQUIET=--quiet
- endif
-endif
+%.linrun: %.lin$(BINSUF)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+%.tlogrun: %.tlog$(BINSUF)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+%.logrun: %.log$(BINSUF)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
-# The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
-%.linrun: %.lin
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
-%.tlinrun: %.tlin
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
-%.tlinrun: %.tlin
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
-%.logrun: %.log
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
-%.tlogrun: %.tlog
-	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
+A_LINEAR=$(LOCKTREE_LINEAR) $(RANGETREE_LINEAR)
+A_TLOG  =$(LOCKTREE_TLOG)   $(RANGETREE_TLOG)
+A_LOG   =$(LOCKTREE_LOG)    $(RANGETREE_LOG)
 
-NEWBRT_BINS     = ../../../newbrt/newbrt.o
+%.lin$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LINEAR)
+	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.lin\"  $< $(A_LINEAR) $(BIN_FROM_C_FLAGS)
 
-RT_LINEAR_BINS  = ../../range_tree/linear.o
-RT_TLINEAR_BINS = ../../range_tree/linear.o
-RT_TLOG_BINS    = ../../range_tree/log_nooverlap.o 
-RT_LOG_BINS     = ../../range_tree/log.o
+%.tlog$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_TLOG)
+	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.tlog\" $< $(A_TLOG) $(BIN_FROM_C_FLAGS) -DTOKU_RT_NOOVERLAPS
 
-LT_BINS        = ../lth.o ../rth.o ../idlth.o ../db_id.o
-LT_OVERLAP     = ../locktree_global_readset.o
-LT_NOOVERLAP   = ../locktree_no_global_readset.o
-LT_LINEAR      = $(LT_OVERLAP)   $(LT_BINS) $(RT_LINEAR_BINS)
-LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS)
-LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)
-LT_LOG         = $(LT_OVERLAP)   $(LT_BINS) $(RT_LOG_BINS)
-
-foo:
-	echo ../locktree.h test.h $(LT_LINEAR)
-
-%.lin: %.c ../locktree.h test.h $(LT_LINEAR)
-	$(CC) -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS) $(LDFLAGS)
-%.tlin: %.c ../locktree.h test.h $(LT_TLINEAR)
-	$(CC) -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS $(LDFLAGS)
-%.tlog: %.c ../locktree.h test.h $(LT_TLOG)
-	$(CC) -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS $(LDFLAGS)
-%.log: %.c ../locktree.h test.h  $(LT_LOG)
-	$(CC) -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS) $(LDFLAGS)
+%.log$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LOG)
+	$(MAYBEATSIGN)$(CC) -DTESTDIR=\"dir.$<.log\"  $< $(A_LOG) $(BIN_FROM_C_FLAGS)
 
 clean:
-	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
-	rm -rf dir.*
+	$(MAYBEATSIGN)rm -f $(ALL_TESTS)
+	$(MAYBEATSIGN)rm -rf dir.*.lin dir.*.tlog dir.*.log
+

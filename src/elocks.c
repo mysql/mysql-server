@@ -11,41 +11,19 @@
    every call (including methods) into the tokudb library gets the lock 
    no internal function should invoke a method through an object */
 
+#include "portability.h"
+#include "ydb-internal.h"
 #include <assert.h>
-#include <pthread.h>
+#include <toku_pthread.h>
 #include <sys/types.h>
 
-#ifdef __CYGWIN__
-#include <windows.h>
-#include <winbase.h>
-CRITICAL_SECTION ydb_big_lock;
+static toku_pthread_mutex_t ydb_big_lock = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
 void toku_ydb_lock(void) {
-    static int initialized = 0;
-    if (!initialized) {
-        initialized=1;
-        InitializeCriticalSection(&ydb_big_lock);
-    }
-    EnterCriticalSection(&ydb_big_lock);
+    int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
 }
 
 void toku_ydb_unlock(void) {
-    LeaveCriticalSection(&ydb_big_lock);
+    int r = toku_pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
 }
-
-#else //Not Cygwin
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
-#else
-static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
-
-void toku_ydb_lock(void) {
-    int r = pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
-}
-
-void toku_ydb_unlock(void) {
-    int r = pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
-}
-#endif
 
