@@ -43,7 +43,7 @@ int main() {
 	dbenv->close(dbenv,0); // free memory
 	
 	system("rm -rf " ENVDIR);
-	mkdir(ENVDIR, 0777);
+	toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
 	r = dbenv->open(dbenv, ENVDIR, private_flags|DB_INIT_MPOOL, 0);
@@ -62,7 +62,7 @@ int main() {
     // Now make sure that if we have a non-private DB that we can tell if it opened or not.
     DB *db;
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&dbenv, 0);
     CKERR(r);
     r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL, 0);

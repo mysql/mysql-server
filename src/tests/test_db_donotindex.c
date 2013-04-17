@@ -130,7 +130,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     for (i = 0; i < (1<<3); i++) {
         system("rm -rf " ENVDIR);
-        mkdir(ENVDIR, 0777);
+        toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
         second_setup();
 
         check_secondary(DB_NOTFOUND);

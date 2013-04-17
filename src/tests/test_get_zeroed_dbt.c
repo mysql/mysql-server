@@ -34,7 +34,7 @@ test_get (int dup_mode) {
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_get(0);
     test_get(DB_DUP + DB_DUPSORT);

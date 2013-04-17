@@ -19,13 +19,13 @@ test_truncate (int n) {
     DBC *cursor;
 
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, 0777); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     int i;
 
     // populate the tree
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->open(db, 0, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    r = db->open(db, 0, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     for (i=0; i<n; i++) {
         int k = htonl(i); int v = i;
@@ -36,7 +36,7 @@ test_truncate (int n) {
     r = db->close(db, 0); assert(r == 0);
 
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->open(db, 0, "test.db", 0, DB_UNKNOWN, 0, 0777); assert(r == 0);
+    r = db->open(db, 0, "test.db", 0, DB_UNKNOWN, 0, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     // walk the tree - expect n rows
     i = 0;
@@ -69,7 +69,7 @@ test_truncate (int n) {
     r = db->close(db, 0); assert(r == 0);
 
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->open(db, 0, "test.db", 0, DB_UNKNOWN, 0, 0777); assert(r == 0);
+    r = db->open(db, 0, "test.db", 0, DB_UNKNOWN, 0, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     // walk the tree - expect 0 rows
     i = 0;
@@ -95,7 +95,7 @@ int main(int argc, const char *argv[]) {
     int leafentry = 25;
     int n = (nodesize/leafentry) * 2;
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     int r = test_truncate(n);
     return r;
 }

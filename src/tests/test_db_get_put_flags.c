@@ -59,7 +59,7 @@ setup (u_int32_t flags) {
     int r;
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors

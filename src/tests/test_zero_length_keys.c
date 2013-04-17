@@ -144,7 +144,7 @@ int main(int argc, const char *argv[]) {
     SET_TRACE_FILE(TFILE);
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_insert_zero_length(32, 0, "test0");
     test_insert_zero_length_keys(32, 0, "test0keys");

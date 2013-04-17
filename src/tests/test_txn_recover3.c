@@ -18,8 +18,8 @@ test_txn_recover3 (int nrows) {
     if (verbose) printf("test_txn_recover1:%d\n", nrows);
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
-    mkdir(ENVDIR "/" "t.tokudb", 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_mkdir(ENVDIR "/" "t.tokudb", S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     DB *mdb, *sdb;
@@ -30,7 +30,7 @@ test_txn_recover3 (int nrows) {
 
     r = db_env_create(&env, 0);        assert(r == 0);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE | DB_RECOVER, 0777); CKERR(r);
+    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE | DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     r = db_create(&mdb, env, 0); assert(r == 0);
     mdb->set_errfile(mdb,stderr); // Turn off those annoying errors
@@ -84,7 +84,7 @@ test_txn_recover3 (int nrows) {
 
     r = db_env_create(&env, 0);        assert(r == 0);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE | DB_RECOVER, 0777); CKERR(r);
+    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE | DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->close(env, 0); assert(r == 0);
 }
 

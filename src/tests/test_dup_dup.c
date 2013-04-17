@@ -227,7 +227,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_put_00_01_01(0, 0); 
     test_put_00_01_01(0, DB_NOOVERWRITE); 

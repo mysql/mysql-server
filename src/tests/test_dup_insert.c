@@ -255,7 +255,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
   
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     
     /* nodup tests */
     for (i = 1; i <= (1<<16); i *= 2) {

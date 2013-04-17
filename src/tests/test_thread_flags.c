@@ -47,7 +47,7 @@ test_db_create (void) {
     unlink(dbfile);
     r = db_create(&db, 0, 0); assert(r == 0);
     db->set_errfile(db,0); // Turn off those annoying errors
-    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
     r = db_get(db, htonl(1), 1, 0); assert(r == 0);
     r = db_get(db, htonl(1), 1, DB_DBT_USERMEM); assert(r == 0);
@@ -62,7 +62,7 @@ test_db_thread (void) {
     unlink(dbfile);
     r = db_create(&db, 0, 0); assert(r == 0);
     db->set_errfile(db,0); // Turn off those annoying errors
-    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, 0777); assert(r == 0);
+    r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
     r = db_get(db, htonl(1), 1, 0); assert(r == EINVAL);
     r = db_get(db, htonl(1), 1, DB_DBT_MALLOC); assert(r == 0);
@@ -74,7 +74,7 @@ test_db_thread (void) {
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     test_db_create();
     test_db_thread();
     return 0;

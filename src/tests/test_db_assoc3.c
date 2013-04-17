@@ -557,7 +557,7 @@ int main (int argc, const char *argv[]) {
     switch (mode) {
     case MODE_DEFAULT:
 	system("rm -rf " ENVDIR);
-	mkdir(ENVDIR, 0777); 
+	toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); 
 	create_databases();
 	{
 	    int i;

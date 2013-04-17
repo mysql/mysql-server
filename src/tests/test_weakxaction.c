@@ -17,13 +17,13 @@ test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {
     DB *db;
     int r;
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create (&env, 0);           CKERR(r);
     env->set_errfile(env, stderr);
     r = env->set_flags(env, env_flags, 1); CKERR(r);
     r = env->open(env, ENVDIR, 
                   DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | 
-                  DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); CKERR(r);
+                  DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);
     CKERR(r);
     {

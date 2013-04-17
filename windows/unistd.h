@@ -2,6 +2,7 @@
 #define _TOKUWIN_UNISTD_H
 #include <io.h>
 #include <stdio.h>
+#include <stdint.h>
 
 int
 ftruncate(int fildes, int64_t offset);

@@ -133,7 +133,7 @@ int main(int argc, const char *argv[]) {
     }
   
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     for (i = 1; i <= 65536; i = testlevel ? i+1 : i*2) {
         test_dup_next(i, DB_DUP + DB_DUPSORT);

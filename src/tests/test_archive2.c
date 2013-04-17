@@ -13,21 +13,21 @@ int main (int argc, const char *argv[]) {
     int r;
 
     system("rm -rf " ENVDIR);
-    r=mkdir(ENVDIR, 0777);       assert(r==0);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); CKERR(r);
     env->set_errfile(env, stderr);
     r=env->set_lg_max(env, 20000); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=txn->commit(txn, 0);    CKERR(r);
 
     r=db_create(&db2, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    r=db->open(db2, txn, "foo2.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    r=db->open(db2, txn, "foo2.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=txn->commit(txn, 0);    CKERR(r);
 
     r=env->txn_begin(env, 0, &txn2, 0); CKERR(r);

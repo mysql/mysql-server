@@ -12,7 +12,7 @@ seqinsert (int n, float p) {
     if (verbose) printf("%s %d %f\n", __FUNCTION__, n, p);
 
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int r;
     DB_ENV *env;
@@ -23,7 +23,7 @@ seqinsert (int n, float p) {
     DB *db;
     r = db_create(&db, env, 0); assert(r == 0);
 
-    r = db->open(db, 0, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    r = db->open(db, 0, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     int i;
     for (i = 2; i <= 2*n; i += 2) {
