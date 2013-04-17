@@ -89,7 +89,8 @@ TXNID toku_txn_get_txnid (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
-int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
+void toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
+
 //int toku_logger_log_checkpoint (TOKULOGGER);
 //int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);

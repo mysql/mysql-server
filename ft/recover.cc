@@ -461,8 +461,7 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
     // lookup the parent
     TOKUTXN parent = NULL;
     if (parentxid != TXNID_NONE) {
-        r = toku_txnid2txn(logger, parentxid, &parent);
-        assert(r == 0);
+        toku_txnid2txn(logger, parentxid, &parent);
         assert(parent!=NULL);
     }
 
@@ -470,8 +469,7 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
     TOKUTXN txn = NULL;
     {
         //Verify it does not yet exist.
-        r = toku_txnid2txn(logger, xid, &txn);
-        assert(r == 0);
+        toku_txnid2txn(logger, xid, &txn);
         assert(txn==NULL);
     }
     r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL, true);
@@ -549,8 +547,7 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
     case FORWARD_NEWER_CHECKPOINT_END: {
         // assert that the transaction exists
         TOKUTXN txn = NULL;
-        r = toku_txnid2txn(renv->logger, xid, &txn);
-        assert(r == 0 && txn != NULL);
+        toku_txnid2txn(renv->logger, xid, &txn);
         r = 0;
         *txnp = txn;
         break;
@@ -633,8 +630,7 @@ static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(
     if (r==0) {
         //File is open
         TOKUTXN txn = NULL;
-        r = toku_txnid2txn(renv->logger, l->xid, &txn);
-        assert(r == 0);
+        toku_txnid2txn(renv->logger, l->xid, &txn);
         assert(txn!=NULL);
         FT ft = tuple->ft_handle->ft;
         toku_ft_suppress_rollbacks(ft, txn);
@@ -660,16 +656,13 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *UU(l), RECOVER_E
 }
 
 static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
-    int r;
-
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
 
     // commit the transaction
-    r = toku_txn_commit_with_lsn(txn, true, l->lsn,
+    int r = toku_txn_commit_with_lsn(txn, true, l->lsn,
                                  NULL, NULL);
     assert(r == 0);
 
@@ -685,12 +678,9 @@ static int toku_recover_backward_xcommit (struct logtype_xcommit *UU(l), RECOVER
 }
 
 static int toku_recover_xprepare (struct logtype_xprepare *l, RECOVER_ENV renv) {
-    int r;
-
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
 
     // Save the transaction
@@ -711,8 +701,7 @@ static int toku_recover_xabort (struct logtype_xabort *l, RECOVER_ENV renv) {
 
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
 
     // abort the transaction
@@ -735,8 +724,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     int r;
 
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
 
     // assert that filenum is closed
     struct file_map_tuple *tuple = NULL;
@@ -804,8 +792,7 @@ static int toku_recover_change_fdescriptor (struct logtype_change_fdescriptor *l
     if (r==0) {
         TOKUTXN txn = NULL;
         //Maybe do the descriptor (lsn filter)
-        r = toku_txnid2txn(renv->logger, l->xid, &txn);
-        assert(r == 0);
+        toku_txnid2txn(renv->logger, l->xid, &txn);
         DBT old_descriptor, new_descriptor;
         toku_fill_dbt(
             &old_descriptor, 
@@ -860,8 +847,7 @@ static int toku_recover_backward_fclose (struct logtype_fclose *UU(l), RECOVER_E
 // fdelete is a transactional file delete.
 static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
     TOKUTXN txn = NULL;
-    int r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn != NULL);
 
     // if the forward scan in recovery found this file and opened it, we
@@ -869,7 +855,7 @@ static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
     // not found and not opened, we don't need to do anything - the ft
     // is already gone, so we're happy.
     struct file_map_tuple *tuple;
-    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    int r = file_map_find(&renv->fmap, l->filenum, &tuple);
     if (r == 0) {
         toku_ft_unlink_on_commit(tuple->ft_handle, txn);
     }
@@ -884,8 +870,7 @@ static int toku_recover_backward_fdelete (struct logtype_fdelete *UU(l), RECOVER
 static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -908,8 +893,7 @@ static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), R
 static int toku_recover_enq_insert_no_overwrite (struct logtype_enq_insert_no_overwrite *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -931,8 +915,7 @@ static int toku_recover_backward_enq_insert_no_overwrite (struct logtype_enq_ins
 static int toku_recover_enq_delete_any (struct logtype_enq_delete_any *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -953,8 +936,7 @@ static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *
 static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     DB *src_db = NULL;
     bool do_inserts = true;
@@ -1014,8 +996,7 @@ static int toku_recover_backward_enq_insert_multiple (struct logtype_enq_insert_
 static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     DB *src_db = NULL;
     bool do_deletes = true;
@@ -1069,8 +1050,7 @@ static int toku_recover_backward_enq_delete_multiple (struct logtype_enq_delete_
 static int toku_recover_enq_update(struct logtype_enq_update *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn != NULL);
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -1087,8 +1067,7 @@ static int toku_recover_enq_update(struct logtype_enq_update *l, RECOVER_ENV ren
 static int toku_recover_enq_updatebroadcast(struct logtype_enq_updatebroadcast *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn != NULL);
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -1144,8 +1123,7 @@ static int toku_recover_backward_shutdown (struct logtype_shutdown *UU(l), RECOV
 
 static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
     TOKUTXN txn = NULL;
-    int r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     char *new_iname = fixup_fname(&l->new_iname);
 
@@ -1163,8 +1141,7 @@ static int toku_recover_backward_load(struct logtype_load *UU(l), RECOVER_ENV UU
 // #2954
 static int toku_recover_hot_index(struct logtype_hot_index *UU(l), RECOVER_ENV UU(renv)) {
     TOKUTXN txn = NULL;
-    int r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
+    toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(txn!=NULL);
     // just make an entry in the rollback log 
     //   - set do_log = 0 -> don't write to recovery log
