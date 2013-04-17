@@ -344,6 +344,7 @@ struct __toku_db {
   void *app_private;
   DB_ENV *dbenv;
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
+  int (*pre_acquire_fileops_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;

@@ -370,6 +370,7 @@ struct __toku_db {
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
+  int (*pre_acquire_fileops_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
@@ -379,7 +380,7 @@ struct __toku_db {
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
-  void* __toku_dummy0[23];
+  void* __toku_dummy0[22];
   char __toku_dummy1[96];
   void *api_internal; /* 32-bit offset=248 size=4, 64=bit offset=400 size=8 */
   void* __toku_dummy2[5];
