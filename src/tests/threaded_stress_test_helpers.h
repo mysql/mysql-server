@@ -210,6 +210,21 @@ static int UU() loader_op(DB_ENV *env, DB** UU(dbp), DB_TXN* txn, ARG UU(arg)) {
     return 0;
 }
 
+static int UU() keyrange_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
+    int r;
+    DB* db = *dbp;
+    int rand_key = random();
+    if (arg->bounded_update_range) {
+        rand_key = rand_key % arg->n;
+    }
+    DBT key;
+    dbt_init(&key, &rand_key, sizeof rand_key);
+    u_int64_t less,equal,greater;
+    int is_exact;
+    r = db->key_range64(db, txn, &key, &less, &equal, &greater, &is_exact);
+    assert(r == 0);
+    return r;
+}
 
 static int UU() scan_op(DB_ENV *env, DB **dbp, DB_TXN *txn, ARG arg) {
     return scan_op_and_maybe_check_sum(env, dbp, txn, arg, true);
