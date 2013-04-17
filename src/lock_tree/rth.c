@@ -19,7 +19,7 @@
 const u_int32_t __toku_rth_init_size = 521;
 
 static inline u_int32_t toku__rth_hash(toku_rth* rth, TXNID key) {
-    size_t tmp = (size_t)key;
+    u_int64_t tmp = (u_int64_t)key;
     return tmp % rth->num_buckets;
 }
 
