@@ -256,7 +256,7 @@ main (int argc, const char *argv[]) {
     while (argc>0) {
 	if (strcmp(argv[0], "--nodata") == 0) {
 	    dump_data = 0;
-        } else if (strcmp(argv[0], "--interactive") == 0) {
+        } else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
             interactive = 1;
         } else if (strcmp(argv[0], "--help") == 0) {
             return usage(arg0);
