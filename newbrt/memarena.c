@@ -91,7 +91,7 @@ void memarena_close(MEMARENA *map) {
 }
 
 void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
-    REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, dest->other_bufs);
+    REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, dest->other_bufs); assert(dest->other_bufs);
     int i;
     for (i=0; i<source->n_other_bufs; i++) {
 	dest->other_bufs[dest->n_other_bufs++] = source->other_bufs[i];
