@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 #include <zlib.h>
 
+#if 0
 static u_int64_t ntohll(u_int64_t v) {
     union u {
 	u_int32_t l[2];
@@ -24,7 +25,7 @@ static u_int64_t ntohll(u_int64_t v) {
     uv.ll = v;
     return (((u_int64_t)uv.l[0])<<32) + uv.l[1];
 }
-
+#endif
 
 // Don't include the compressed data size or the uncompressed data size.
 
@@ -664,26 +665,41 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     h->free_blocks   = rbuf_blocknum(&rc);
     h->unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
-    h->block_allocation_vector_length   = rbuf_blocknum(&rc);
-    h->block_allocation_vector_location = rbuf_diskoff(&rc);
-    {
-	u_int64_t *block_locations_and_lengths = 0;
-	if (h->block_allocation_vector_length.b > 0) {
-	    MALLOC_N(h->block_allocation_vector_length.b * 2, block_locations_and_lengths);
-	    assert(block_locations_and_lengths);
-	    u_int64_t len = h->block_allocation_vector_length.b * 16 + 4;
-	    ssize_t r = pread(fd, block_locations_and_lengths, len, h->block_allocation_vector_location);
-	    assert(r==(ssize_t)len);
-	    u_int32_t x1764 = x1764_memory(block_locations_and_lengths, len-4); // compute a checksum
-	    assert(x1764 == *(u_int32_t*)(block_locations_and_lengths+h->block_allocation_vector_length.b*2));
-	    int i;
-	    for (i=0; i<h->block_allocation_vector_length.b * 2; i++) {
-		block_locations_and_lengths[i] = ntohll(block_locations_and_lengths[i]);
-	    }
+    h->max_blocknum_translated = rbuf_diskoff(&rc);
+    h->block_translation_size_on_disk    = 4 + 8 * h->max_blocknum_translated;
+    h->block_translation_address_on_disk = rbuf_diskoff(&rc);
+    // Set up the the block translation buffer.
+    create_block_allocator(&h->block_allocator, h->nodesize);
+    if (h->max_blocknum_translated == 0) {
+	h->block_translation = 0;
+    } else {
+	// 
+	block_allocator_alloc_block_at(h->block_allocator, h->block_translation_address_on_disk, h->block_translation_size_on_disk);
+	XMALLOC_N(h->max_blocknum_translated, h->block_translation);
+	unsigned char *XMALLOC_N(h->block_translation_size_on_disk, tbuf);
+	{
+	    ssize_t r = pread(fd, tbuf, h->block_translation_size_on_disk, h->block_translation_address_on_disk);
+	    assert(r==(ssize_t)h->block_translation_size_on_disk);
 	}
-	int r = create_block_allocator(&h->block_allocator, h->block_allocation_vector_length.b, block_locations_and_lengths, h->nodesize);
-	assert(r==0);
-	if (block_locations_and_lengths) free(block_locations_and_lengths);
+	{
+	    // check the checksum
+	    u_int32_t x1764 = x1764_memory(tbuf, h->block_translation_size_on_disk - 4);
+	    u_int32_t stored_x1764 = ntohl(*(int*)(tbuf + h->block_translation_size_on_disk - 4));
+	    assert(x1764 == stored_x1764);
+	}
+	// now read all that data.
+	u_int64_t i;
+	struct rbuf rt;
+	rt.buf = tbuf;
+	rt.ndone = 0;
+	rt.size = h->block_translation_size_on_disk-4;
+	assert(rt.size>0);
+	for (i=0; i<h->max_blocknum_translated; i++) {
+	    h->block_translation[i].diskoff = rbuf_diskoff(&rt);
+	    h->block_translation[i].size    = rbuf_diskoff(&rt);
+	    block_allocator_alloc_block_at(h->block_allocator, h->block_translation[i].diskoff, h->block_translation[i].size);
+	}
+	toku_free(tbuf);
     }
     if (h->n_named_roots>=0) {
 	int i;
