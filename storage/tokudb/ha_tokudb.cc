@@ -6626,6 +6626,10 @@ bool ha_tokudb::is_auto_inc_singleton(){
 }
 
 //
+// Internal function called by ha_tokudb::add_index and ha_tokudb::alter_table_phase2
+// With a transaction, drops dictionaries associated with indexes in key_num
+//
+//
 // Adds indexes to the table. Takes the array of KEY passed in key_info, and creates
 // DB's that will go at the end of share->key_file. THE IMPLICIT ASSUMPTION HERE is
 // that the table will be modified and that these added keys will be appended to the end
@@ -6939,6 +6943,10 @@ To add indexes, make sure no transactions touch the table.", share->table_name);
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
+//
+// Internal function called by ha_tokudb::add_index and ha_tokudb::alter_table_phase2
+// Closes added indexes in case of error in error path of add_index and alter_table_phase2
+//
 void ha_tokudb::restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs) {
     uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
     uint curr_index = 0;
@@ -6995,8 +7003,10 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     
 cleanup:
     if (error) {
-        restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
-        abort_txn(txn);
+        if (txn) {
+            restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
+            abort_txn(txn);
+        }
     }
     else {
       commit_txn(txn, 0);
@@ -7004,6 +7014,10 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// Internal function called by ha_tokudb::prepare_drop_index and ha_tokudb::alter_table_phase2
+// With a transaction, drops dictionaries associated with indexes in key_num
+//
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
     int error;
@@ -7037,6 +7051,10 @@ To drop indexes, make sure no transactions touch the table.", share->table_name)
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// Internal function called by ha_tokudb::prepare_drop_index and ha_tokudb::alter_table_phase2
+// Restores dropped indexes in case of error in error path of prepare_drop_index and alter_table_phase2
+//
 void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys) {
     //
     // reopen closed dictionaries
@@ -7407,6 +7425,12 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
     last_dup_key = primary_key;
 }
 
+//
+// MySQL sets the null_bit as a number that you can bit-wise AND a byte to
+// to evaluate whether a field is NULL or not. This value is a power of 2, from
+// 2^0 to 2^7. We return the position of the bit within the byte, which is
+// lg null_bit
+//
 inline u_int32_t get_null_bit_position(u_int32_t null_bit) {
     u_int32_t retval = 0;
     switch(null_bit) {
@@ -7440,6 +7464,9 @@ inline u_int32_t get_null_bit_position(u_int32_t null_bit) {
     return retval;
 }
 
+//
+// checks whether the bit at index pos in data is set or not
+//
 inline bool is_overall_null_position_set(uchar* data, u_int32_t pos) {
     u_int32_t offset = pos/8;
     uchar remainder = pos%8; 
@@ -7447,6 +7474,9 @@ inline bool is_overall_null_position_set(uchar* data, u_int32_t pos) {
     return ((data[offset] & null_bit) != 0);
 }
 
+//
+// sets the bit at index pos in data to 1 if is_null, 0 otherwise
+// 
 inline void set_overall_null_position(uchar* data, u_int32_t pos, bool is_null) {
     u_int32_t offset = pos/8;
     uchar remainder = pos%8;
@@ -7459,7 +7489,9 @@ inline void set_overall_null_position(uchar* data, u_int32_t pos, bool is_null) 
     }
 }
 
-
+//
+// returns the index of the null bit of field. 
+//
 inline u_int32_t get_overall_null_bit_position(TABLE* table, Field* field) {
     u_int32_t offset = get_null_offset(table, field);
     u_int32_t null_bit = field->null_bit;
@@ -7717,15 +7749,15 @@ int find_changed_columns(
         Field* curr_field_in_new = bigger_table->field[curr_new_col_index];
         Field* curr_field_in_orig = smaller_table->field[i];
         while (!fields_have_same_name(curr_field_in_orig, curr_field_in_new)) {
+            changed_columns[curr_num_changed_columns] = curr_new_col_index;
+            curr_num_changed_columns++;
+            curr_new_col_index++;
+            curr_field_in_new = bigger_table->field[curr_new_col_index];
             if (curr_new_col_index >= bigger_table->s->fields) {
                 sql_print_error("error in determining changed columns");
                 retval = 1;
                 goto cleanup;
             }
-            changed_columns[curr_num_changed_columns] = curr_new_col_index;
-            curr_num_changed_columns++;
-            curr_new_col_index++;
-            curr_field_in_new = bigger_table->field[curr_new_col_index];
         }
         // at this point, curr_field_in_orig and curr_field_in_new should be the same, let's verify
         // make sure the two fields that have the same name are ok
@@ -7766,6 +7798,11 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     }
     bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
     bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
+    //
+    // We do not check for changes to foreign keys or primary keys. They are not supported
+    // Changing the primary key implies changing keys in all dictionaries. that is why we don't
+    // try to make it fast
+    //
     bool has_indexing_changes = alter_flags->is_set(HA_DROP_INDEX) || 
                                 alter_flags->is_set(HA_DROP_UNIQUE_INDEX) ||
                                 alter_flags->is_set(HA_ADD_INDEX) ||
