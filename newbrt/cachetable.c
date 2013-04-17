@@ -3165,8 +3165,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             assert(r==0);
         }
 	cachetable_lock(ct);
-	ct->checkpoint_is_beginning = TRUE;         // detect threadsafety bugs, must set checkpoint_is_beginning ...
-	invariant(ct->checkpoint_prohibited == 0);  // ... before testing checkpoint_prohibited
 	//Initialize accountability counters
 	ct->checkpoint_num_files = 0;
 	ct->checkpoint_num_txns  = 0;
@@ -3241,6 +3239,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 
         unsigned int npending = 0;
         rwlock_write_lock(&ct->pending_lock, ct->mutex);
+        ct->checkpoint_is_beginning = TRUE;         // detect threadsafety bugs, must set checkpoint_is_beginning ...
+        invariant(ct->checkpoint_prohibited == 0);  // ... before testing checkpoint_prohibited
         for (i=0; i < ct->table_size; i++) {
             PAIR p;
             for (p = ct->table[i]; p; p=p->hash_chain) {
