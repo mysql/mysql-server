@@ -55,7 +55,7 @@ static void table_destroy_dbt(DBT *dbt) {
 }
 #endif
 
-static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, size_t val_length) {
+static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length __attribute__((unused)), size_t val_length __attribute__((unused))) {
     t->ndbs = ndbs;
     t->dbs = dbs;
 #if defined(TOKUDB)
@@ -69,9 +69,6 @@ static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, s
     t->mult_flags = calloc(ndbs, sizeof (uint32_t));
     for (i = 0; i < ndbs; i++) 
         t->mult_flags[i] = 0;
-#else
-    key_length = key_length;
-    val_length = val_length;
 #endif
 }
 
