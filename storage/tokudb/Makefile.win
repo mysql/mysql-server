@@ -9,7 +9,8 @@ CMakeLists.txt: CMakeLists.in
 	false #Need to define TOKUDB_DIR
 else
 CMakeLists.txt: CMakeLists.in
-	sed "s?TOKUDB_DIR_REPLACE_ME?$(TOKUDB_DIR)?g" < $< > $@
+	sed -e "s?TOKUDB_DIR_REPLACE_ME?$(TOKUDB_DIR)?g" \
+	    -e "s?TOKUDB_VERSION_REPLACE_ME?$(TOKUDB_VERSION)?g" < $< > $@
 endif
 
 clean:
