@@ -396,8 +396,7 @@ struct __toku_db {
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=384 size=4, 64=bit offset=672 size=8 */
   void* __toku_dummy9[2];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=396 size=4, 64=bit offset=696 size=8 */
-  int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=400 size=4, 64=bit offset=704 size=8 */
-  void* __toku_dummy10[15]; /* Padding at the end */ 
+  void* __toku_dummy10[16]; /* Padding at the end */ 
   char __toku_dummy11[8];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {

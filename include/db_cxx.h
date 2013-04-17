@@ -119,8 +119,10 @@ class Db {
 
     int remove(const char *file, const char *database, u_int32_t flags);
 
+#if 0
     int set_bt_compare(bt_compare_fcn_type bt_compare_fcn);
     int set_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
+#endif
 
     int set_dup_compare(dup_compare_fcn_type dup_compare_fcn);
     int set_dup_compare(int (*)(Db *, const Dbt *, const Dbt *));
@@ -134,8 +136,10 @@ class Db {
 
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
     int (*associate_callback_cxx)(Db *, const Dbt *, const Dbt *, Dbt*);
-    int (*bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
     int (*dup_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
+
+    //int (do_bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
+
 
  private:
     DB *the_db;
@@ -172,6 +176,10 @@ class DbEnv {
     void set_error_stream(std::ostream *);
     int get_flags(u_int32_t *flagsp);
 
+    int set_default_bt_compare(bt_compare_fcn_type bt_compare_fcn);
+    // Don't support this one for now.  It's a little tricky.
+    // int set_default_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
+
     // locking
 #if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
     // set_lk_max is only defined for versions up to 4.4
@@ -184,6 +192,8 @@ class DbEnv {
     int do_no_exceptions; // This should be private!!!
     void (*errcall)(const DbEnv *, const char *, const char *);
     std::ostream *_error_stream;
+
+    //int (*bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
 
  private:
     DB_ENV *the_env;

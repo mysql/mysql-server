@@ -17,13 +17,13 @@ void test_db(void) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
     DbEnv env(0);
-    { int r = env.set_redzone(0); assert(r==0); }
+    { int r = env.set_redzone(0);              assert(r==0); }
+    { int r = env.set_default_bt_compare(cmp); assert(r == 0); }
     env.open(DIR, DB_CREATE|DB_PRIVATE, 0666);
     Db db(&env, 0);
     
     int r;
     
-    r = db.set_bt_compare(cmp);                 assert(r == 0);
     try {
 	r = db.remove("DoesNotExist.db", NULL, 0);
 	abort(); // must not make it here.

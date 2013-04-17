@@ -410,10 +410,8 @@ struct __toku_db {
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=452 size=4, 64=bit offset=808 size=8 */
   void* __toku_dummy11[3];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=468 size=4, 64=bit offset=840 size=8 */
-  void* __toku_dummy12[1];
-  int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=476 size=4, 64=bit offset=856 size=8 */
-  void* __toku_dummy13[23]; /* Padding at the end */ 
-  char __toku_dummy14[8];  /* Padding at the end */ 
+  void* __toku_dummy12[25]; /* Padding at the end */ 
+  char __toku_dummy13[8];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */

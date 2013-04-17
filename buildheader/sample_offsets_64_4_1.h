@@ -65,7 +65,6 @@ struct fieldinfo db_fields64[] = {
   {"int (*set_pagesize) (DB *, u_int32_t)", 656, 8},
   {"int (*stat) (DB *, void *, u_int32_t)", 672, 8},
   {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 696, 8},
-  {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 704, 8},
   {0, 840, 840} /* size of whole struct */
 };
 struct fieldinfo db_txn_active_fields64[] = {

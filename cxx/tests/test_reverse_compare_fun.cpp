@@ -30,8 +30,8 @@ int keycompare (const void *key1, unsigned int key1len, const void *key2, unsign
     }
 }
 
-int reverse_compare(Db *db __attribute__((__unused__)), const Dbt *a, const Dbt*b) {
-    return -keycompare(a->get_data(), a->get_size(), b->get_data(), b->get_size());
+extern "C" int reverse_compare(DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+    return -keycompare(a->data, a->size, b->data, b->size);
 }
 
 void expect(Dbc *cursor, int k, int v) {
@@ -69,12 +69,12 @@ void test_reverse_compare(int n) {
     /* create the dup database file */
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
     r = env.set_redzone(0); assert(r==0);
+    r = env.set_default_bt_compare(reverse_compare);
+    assert(r == 0);
     r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     db = new Db(&env, DB_CXX_NO_EXCEPTIONS);
     assert(db);
     r = db->set_pagesize(4096);
-    assert(r == 0);
-    r = db->set_bt_compare(reverse_compare);
     assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
@@ -98,8 +98,6 @@ void test_reverse_compare(int n) {
     db = new Db(&env, 0);
     assert(db);
     r = db->set_pagesize(4096);
-    assert(r == 0);
-    r = db->set_bt_compare(reverse_compare);
     assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, 0, 0666);
     assert(r == 0);

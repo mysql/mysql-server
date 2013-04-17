@@ -168,6 +168,11 @@ static int mysql_key_compare(DB *mydb __attribute__((unused)),
 static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
+#ifdef TOKUDB
+    if (do_mysql) {
+        r = env->set_default_bt_compare(env, mysql_key_compare); assert(r == 0);
+    }
+#endif
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
     if (log_dir) {
         r = env->set_lg_dir(env, log_dir);                                                assert(r==0);
@@ -178,9 +183,11 @@ static void scanscan_setup (void) {
     if (verbose)
         printf("env open %f seconds\n", tend-tstart);
     r = db_create(&db, env, 0);                                                           assert(r==0);
+#ifndef TOKUDB
     if (do_mysql) {
         r = db->set_bt_compare(db, mysql_key_compare); assert(r == 0);
     }
+#endif
     if (do_txns) {
 	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }

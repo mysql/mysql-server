@@ -366,7 +366,6 @@ struct __toku_db {
   int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t);
   int (*remove) (DB *, const char *, const char *, u_int32_t);
   int (*rename) (DB *, const char *, const char *, const char *, u_int32_t);
-  int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *));
   void (*set_errfile) (DB *, FILE*);
   int (*set_flags) (DB *, u_int32_t);
   int (*set_pagesize) (DB *, u_int32_t);
