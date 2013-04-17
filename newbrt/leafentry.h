@@ -88,6 +88,7 @@ u_int32_t toku_le_crc(LEAFENTRY v);
 size_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.
 size_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LEAFENTRY.  The size of a leafentry on disk.
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
+void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_is_provdel(LEAFENTRY le); // Return true if it is a provisional delete.

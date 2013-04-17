@@ -1172,9 +1172,6 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     putbuf_int64_at(&lbuf->dbuf, lbuf->dsize_p,             lbuf->dsize);
     putbuf_int32_at(&lbuf->dbuf, lbuf->n_in_buf_p,          lbuf->n_in_buf);
 
-    u_int32_t checksum = x1764_memory(lbuf->dbuf.buf, lbuf->dbuf.off);
-    putbuf_int32(&lbuf->dbuf, checksum);
-
     //print_bytestring(lbuf->dbuf.buf, lbuf->dbuf.off, 200);
 
     int n_uncompressed_bytes_at_beginning = (8 // tokuleaf
@@ -1184,30 +1181,42 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     int n_extra_bytes_for_compression = (+4 // n_sub blocks
 					 +4 // compressed size
 					 +4 // compressed size
+                                         +4 // sub block checksum
+                                         +4 // header checksum
 					 );
+    int header_len = n_uncompressed_bytes_at_beginning + n_extra_bytes_for_compression;
     int compression_level = 5;
     int uncompressed_len = lbuf->dbuf.off - n_uncompressed_bytes_at_beginning;
     int bound = compressBound(uncompressed_len);
-    unsigned char *MALLOC_N(bound + n_uncompressed_bytes_at_beginning  + n_extra_bytes_for_compression, compressed_buf);
+    unsigned char *MALLOC_N(header_len + bound, compressed_buf);
     uLongf real_compressed_len = bound;
     {
-	int r = compress2((Bytef*)(compressed_buf + n_uncompressed_bytes_at_beginning + n_extra_bytes_for_compression), &real_compressed_len,
+	int r = compress2((Bytef*)(compressed_buf + header_len), &real_compressed_len,
 			  (Bytef*)(lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning), uncompressed_len,
 			  compression_level);
 	assert(r==Z_OK);
     }
+    
+    // checksum the sub block
+    u_int32_t xsum0 = x1764_memory(compressed_buf + header_len, real_compressed_len);
+
     memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);
     int compressed_len = real_compressed_len;
     int n_compressed_blocks = 1;
     memcpy(compressed_buf+16, &n_compressed_blocks, 4);
     memcpy(compressed_buf+20, &compressed_len, 4);
     memcpy(compressed_buf+24, &uncompressed_len, 4);
+    memcpy(compressed_buf+28, &xsum0, 4);
+
+    // compute the header checksum and serialize it
+    u_int32_t header_xsum = x1764_memory(compressed_buf, header_len - sizeof (u_int32_t));
+    memcpy(compressed_buf+32, &header_xsum, 4);
 
 //#ifndef CILK_STUB
 //    ttable_and_write_lock->lock();
 //#endif
     long long off_of_leaf = out->current_off;
-    int size = real_compressed_len + n_uncompressed_bytes_at_beginning + n_extra_bytes_for_compression;
+    int size = real_compressed_len + header_len;
     if (0) {
 	fprintf(stderr, "uncompressed buf size=%d (amount of data compressed)\n", uncompressed_len);
 	fprintf(stderr, "compressed buf size=%lu, off=%lld\n", real_compressed_len, off_of_leaf);

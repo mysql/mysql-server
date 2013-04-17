@@ -543,6 +543,29 @@ static void *decompress_worker_10(void *arg) {
 #endif
 
 static int
+verify_decompressed_brtnode_checksum (struct rbuf *rb) {
+    int r = 0;
+
+    if (rb->size >= 4) {
+        uint32_t verify_size = rb->size - 4; //Not counting the checksum
+
+        toku_trace("x1764");
+        uint32_t crc = x1764_memory(rb->buf, verify_size);
+        toku_trace("x1764 done");
+
+        uint32_t *crcp = (uint32_t*)(((uint8_t*)rb->buf) + verify_size);
+        uint32_t storedcrc = toku_dtoh32(*crcp);
+        if (crc!=storedcrc) {
+            printf("Bad CRC\n");
+            printf("%s:%d crc=%08x stored=%08x\n", __FILE__, __LINE__, crc, storedcrc);
+            r = toku_db_badformat();
+        }
+    }
+    else r = toku_db_badformat();
+    return r;
+}
+
+static int
 decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
     int r;
     int i;
