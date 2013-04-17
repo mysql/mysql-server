@@ -188,10 +188,13 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h mempool.h leafentry.h
+BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h mempool.h leafentry.h log_header.h
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
 logformat: logformat.c
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
+
+$(OFILES): $(BRT_INTERNAL_H_INCLUDES)
+
 
 test_toku_malloc_plain_free: newbrt.o
 

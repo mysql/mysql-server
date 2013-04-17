@@ -114,7 +114,7 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
     int r;
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     if ((r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL,
-					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, (void*)(long)brt->h->nodesize)))
+					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h)))
 	return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
@@ -177,5 +177,8 @@ int toku_verify_brt (BRT brt) {
     assert(brt->h);
     u_int32_t root_hash;
     rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
-    return toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1);
+    int n_pinned = toku_cachefile_count_pinned(brt->cf, 0);
+    int r = toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1);
+    assert(n_pinned ==  toku_cachefile_count_pinned(brt->cf, 0));
+    return r;
 }

@@ -447,7 +447,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	MALLOC_N(result->u.n.n_children+1,   result->u.n.childinfos);
 	MALLOC_N(result->u.n.n_children, result->u.n.childkeys);
 	//printf("n_children=%d\n", result->n_children);
-	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
+	assert(result->u.n.n_children>=0);
 	for (i=0; i<result->u.n.n_children; i++) {
 	    u_int32_t childfp = rbuf_int(&rc);
 	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
