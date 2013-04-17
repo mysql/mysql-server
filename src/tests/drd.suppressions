@@ -100,3 +100,8 @@
    fun:pthread_cond_signal@*
    fun:_ZN7evictor22signal_eviction_threadEv
 }
+{
+   locktree_single_txn_optimization_unsafe_read_txn_is_valid
+   drd:ConflictingAccess
+   fun:_ZNK4toku8locktree25sto_txnid_is_valid_unsafeEv
+}
