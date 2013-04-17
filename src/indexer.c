@@ -25,6 +25,7 @@
 #include <ft/ule.h>
 #include <ft/xids.h>
 #include <ft/log-internal.h>
+#include <ft/checkpoint.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -179,7 +180,6 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->close                 = close_indexer;
     indexer->abort                 = abort_indexer;
 
-    toku_ydb_unlock();
     //
     // create and close a dummy loader to get redirection going for the hot indexer
     // This way, if the hot index aborts, but other transactions have references to the
@@ -197,7 +197,6 @@ toku_indexer_create_indexer(DB_ENV *env,
             goto create_exit;
         }
     }
-    toku_ydb_lock();
     
     // create and initialize the leafentry cursor
     rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);
@@ -207,8 +206,10 @@ toku_indexer_create_indexer(DB_ENV *env,
     LSN hot_index_lsn; // not used (yet)
     TOKUTXN      ttxn = db_txn_struct_i(txn)->tokutxn;
     FILENUMS filenums = indexer->i->filenums;
+    toku_multi_operation_client_lock();
     rval = toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
-
+    toku_multi_operation_client_unlock();
+    
     if (rval == 0) {
         rval = associate_indexer_with_hot_dbs(indexer, dest_dbs, N);
     }
