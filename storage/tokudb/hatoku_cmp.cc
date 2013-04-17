@@ -378,7 +378,7 @@ uchar* pack_field(
     case (toku_type_float):
         assert(field->pack_length() == sizeof(float));
         assert(key_part_length == sizeof(float));
-        new_pos = pack_toku_double(to_tokudb, from_mysql);
+        new_pos = pack_toku_float(to_tokudb, from_mysql);
         goto exit;
     case (toku_type_decimal):
     case (toku_type_bitstream):
