@@ -88,7 +88,7 @@ static void scan(DB *db, DB_TXN *txn,
     memset(&val, 0, sizeof(val));
     key.flags = DB_DBT_MALLOC;
     val.flags = DB_DBT_MALLOC;
-    int n;
+    int n=0;
     while (0==(r = cursor->c_get(cursor, &key, &val, DB_NEXT))) {
 	reduce(&key, &val, extra);
 	n++;
