@@ -254,10 +254,9 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx)
         invariant(fi->n_files_open>0);   // loader-cleanup-test failure
         fi->n_files_open--;
         fi->file_infos[idx.idx].is_open = FALSE;
-        int r = toku_os_fclose(fi->file_infos[idx.idx].file);
-        if (r == 0) 
-            cleanup_big_buffer(&fi->file_infos[idx.idx]);
-        else
+        result = toku_os_fclose(fi->file_infos[idx.idx].file);
+        cleanup_big_buffer(&fi->file_infos[idx.idx]);
+        if (result)
             result = errno;
     } else 
         result = EINVAL;
@@ -286,11 +285,17 @@ int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     return result;
 }
 
-void brtloader_fi_close_all(struct file_infos *fi) {
+static int
+brtloader_fi_close_all(struct file_infos *fi) {
+    int rval = 0;
     for (int i = 0; i < fi->n_files; i++) {
+	int r;
         FIDX idx = { i };
-        (void ) brtloader_fi_close(fi, idx);
+        r = brtloader_fi_close(fi, idx);
+	if (rval == 0 && r)
+	    rval = r;  // capture first error
     }
+    return rval;
 }
 
 int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
@@ -1031,8 +1036,11 @@ static int loader_do_put(BRTLOADER bl,
     return result;
 }
 
-static int finish_extractor (BRTLOADER bl) {
+static int 
+finish_extractor (BRTLOADER bl) {
     //printf("%s:%d now finishing extraction\n", __FILE__, __LINE__);
+
+    int rval;
 
     BL_TRACE(blt_do_put);
     if (bl->primary_rowset.n_rows>0) {
@@ -1060,10 +1068,10 @@ static int finish_extractor (BRTLOADER bl) {
 	invariant(r==0);
     }
 
-    brtloader_fi_close_all(&bl->file_infos);
+    rval = brtloader_fi_close_all(&bl->file_infos);
 
    //printf("%s:%d joined\n", __FILE__, __LINE__);
-    return 0;
+    return rval;
 }
 
 static const DBT zero_dbt = {0,0,0,0};
