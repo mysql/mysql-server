@@ -131,6 +131,7 @@ int toku_brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, T
 
 extern int toku_brt_debug_mode;
 int toku_verify_brt (BRT brt)  __attribute__ ((warn_unused_result));
+int toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
 
 //int show_brt_blocknumbers(BRT);
 

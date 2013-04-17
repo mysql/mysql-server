@@ -5346,7 +5346,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     fprintf(file, "%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
     lazy_assert(node->fullhash==fullhash);
-    result=toku_verify_brtnode(brt, blocknum, -1, lorange, hirange, 0);
+    result=toku_verify_brtnode(brt, blocknum, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
     fprintf(file, "%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
         fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",

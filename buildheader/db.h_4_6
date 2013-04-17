@@ -72,9 +72,9 @@ typedef struct __toku_engine_status {
   u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */
   u_int32_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */
   u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */
-  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held.                                                                              */
-  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock                                                                           */
-  u_int64_t        total_time_since_start;  /* Total time since the lock was created.  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
+  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held (tokutime_t).                                                                 */
+  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock (really tokutime_t, convert to seconds with tokutime_to_seconds())        */
+  u_int64_t        total_time_since_start;  /* Total time since the lock was created (tokutime_t).  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
   u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
   u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
   char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
@@ -278,6 +278,8 @@ typedef enum {
 #define TOKUDB_MVCC_DICTIONARY_TOO_NEW -100010
 #define TOKUDB_UPGRADE_FAILURE -100011
 #define TOKUDB_TRY_AGAIN -100012
+#define TOKUDB_NEEDS_REPAIR -100013
+#define TOKUDB_FINGERPRINT_ERROR -100014
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);
@@ -430,7 +432,8 @@ struct __toku_db {
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
   int (*set_indexer)(DB*, DB_INDEXER*);
   void (*get_indexer)(DB*, DB_INDEXER**);
-  void* __toku_dummy1[28];
+  int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);
+  void* __toku_dummy1[27];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[5];

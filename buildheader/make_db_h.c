@@ -74,6 +74,8 @@ enum {
         TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
         TOKUDB_UPGRADE_FAILURE         = -100011,
 	TOKUDB_TRY_AGAIN               = -100012,
+	TOKUDB_NEEDS_REPAIR            = -100013,
+	TOKUDB_FINGERPRINT_ERROR       = -100014,
 };
 
 static void print_defines (void) {
@@ -224,6 +226,8 @@ static void print_defines (void) {
     dodefine(TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     dodefine(TOKUDB_UPGRADE_FAILURE);
     dodefine(TOKUDB_TRY_AGAIN);
+    dodefine(TOKUDB_NEEDS_REPAIR);
+    dodefine(TOKUDB_FINGERPRINT_ERROR);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
@@ -677,6 +681,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
                              "int (*set_indexer)(DB*, DB_INDEXER*)",
                              "void (*get_indexer)(DB*, DB_INDEXER**)",
+                             "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }
