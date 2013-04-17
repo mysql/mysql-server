@@ -1,6 +1,11 @@
 // read the processor time stamp register
 
-#if defined __i386__
+#if defined __ICC
+
+#define USE_RDTSC 1
+#define rdtsc _rdtsc
+
+#elif defined __i386__
 
 #define USE_RDTSC 1
 
@@ -12,8 +17,7 @@ static inline unsigned long long rdtsc() {
     return ((unsigned long long) hi << 32ULL) + (unsigned long long) lo;
 }
 
-#else
-#if defined __x86_64__
+#elif defined __x86_64__
 
 #define USE_RDTSC 1
 
@@ -26,9 +30,6 @@ static inline unsigned long long rdtsc() {
     return r;
 }
 
-#else
-
 #define USE_RDTSC 0
 
-#endif
 #endif
