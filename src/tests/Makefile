@@ -878,6 +878,20 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 preload-db-nested.tdbrun: VGRIND=
 upgrade-test-4.tdbrun: VGRIND=
 
+ROOT_FIFO_41_RUNS = $(foreach num, $(shell seq 1 100), root_fifo_41_$(num)_populate.tdbrun root_fifo_41_$(num)_nopopulate.tdbrun)
+root_fifo_41.tdbrun: $(ROOT_FIFO_41_RUNS)
+	@echo -n
+root_fifo_41_%_populate.tdbrun: root_fifo_41.tdb
+	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_populate.tdbrun, %, $@)   -h $(patsubst %.tdbrun, %.tdbdir, $@) -populate $(SUMMARIZE_CMD)
+	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
+root_fifo_41_%_nopopulate.tdbrun: root_fifo_41.tdb
+	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_nopopulate.tdbrun, %, $@) -h $(patsubst %.tdbrun, %.tdbdir, $@)           $(SUMMARIZE_CMD)
+	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
+
+test3039.tdbrun: test3039.tdb
+	( ($(VGRIND) ./$< -v -n 1000 ) && ./$< -v ) $(SUMMARIZE_CMD)
+
+# loader tests
 # re-enable loader-stress-test3 when upgrade is complete
 #loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
@@ -925,32 +939,22 @@ loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
 loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
 	$(VGRIND) ./$< -s -r 8000 -p -e 1 $(SUMMARIZE_CMD)
 
-ROOT_FIFO_41_RUNS = $(foreach num, $(shell seq 1 100), root_fifo_41_$(num)_populate.tdbrun root_fifo_41_$(num)_nopopulate.tdbrun)
-root_fifo_41.tdbrun: $(ROOT_FIFO_41_RUNS)
-	@echo -n
-root_fifo_41_%_populate.tdbrun: root_fifo_41.tdb
-	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_populate.tdbrun, %, $@)   -h $(patsubst %.tdbrun, %.tdbdir, $@) -populate $(SUMMARIZE_CMD)
-	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
-root_fifo_41_%_nopopulate.tdbrun: root_fifo_41.tdb
-	$(VGRIND) ./$< -n $(patsubst root_fifo_41_%_nopopulate.tdbrun, %, $@) -h $(patsubst %.tdbrun, %.tdbdir, $@)           $(SUMMARIZE_CMD)
-	@rm -rf $(patsubst %.tdbrun, %.dir, $@) 
-
 LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stress-test tpch-load
 
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
 
+# hot indexer tests
 HOTINDEXER_UNDO_TESTS = $(wildcard hotindexer-undo-do-tests/*.test)
 CHECK_HOTINDEXER_UNDO_TESTS = $(patsubst %.test,%.run,$(HOTINDEXER_UNDO_TESTS))
 
 hotindexer-undo-do-test.tdbrun: $(CHECK_HOTINDEXER_UNDO_TESTS)
 	true
 
-test3039.tdbrun: test3039.tdb
-	( ($(VGRIND) ./$< -v -n 1000 ) && ./$< -v ) $(SUMMARIZE_CMD)
+$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF) 
+	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
-$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF) ./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
-
+# blocking lock tree tests
 BLOCKING_SRCS = $(wildcard blocking-*.c)
 BLOCKING_TDB_TESTS = $(patsubst %.c,%.tdbrun,$(BLOCKING_SRCS))
 BLOCKING_BDB_TESTS = $(patsubst %.c,%.bdbrun,$(BLOCKING_SRCS))
@@ -959,6 +963,7 @@ check_blocking_tdb: $(BLOCKING_TDB_TESTS)
 
 check_blocking_bdb: $(BLOCKING_BDB_TESTS)
 
+# stress tests with drd
 STRESS_TEST_SRCS = $(wildcard test_stress*.c)
 STRESS_TESTS = $(patsubst %.c,%,$(STRESS_TEST_SRCS))
 TINY_STRESS_TESTS = $(patsubst %,tiny_%.drdrun,$(STRESS_TESTS))
@@ -984,6 +989,7 @@ large_%.drdrun: %.tdb
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+# upgrade tests
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
 UPGRADE_TESTS = $(patsubst %.c,%,$(UPGRADE_TEST_SRCS))
 UPGRADE_TESTS_VALGRIND = $(patsubst upgrade-test-%,upgrade-test-%.valgrind,$(UPGRADE_TESTS))
