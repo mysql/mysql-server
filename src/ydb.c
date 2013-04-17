@@ -464,30 +464,33 @@ static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
 static int toku_c_close(DBC * c);
 
 static void
-env_setup_real_data_dir(DB_ENV *env) {
-    toku_free(env->i->real_data_dir);
-    env->i->real_data_dir = NULL;
+env_setup_real_dir(DB_ENV *env, char **real_dir, const char *nominal_dir) {
+    toku_free(*real_dir);
+    *real_dir = NULL;
 
     assert(env->i->dir);
-    if (env->i->data_dir) 
-        env->i->real_data_dir = toku_construct_full_name(2, env->i->dir, env->i->data_dir);
+    if (nominal_dir) 
+	*real_dir = toku_construct_full_name(2, env->i->dir, nominal_dir);
     else
-        env->i->real_data_dir = toku_strdup(env->i->dir);
+        *real_dir = toku_strdup(env->i->dir);
+}
+
+
+static void
+env_setup_real_data_dir(DB_ENV *env) {
+    env_setup_real_dir(env, &env->i->real_data_dir, env->i->data_dir);
 }
 
 static void
 env_setup_real_log_dir(DB_ENV *env) {
-    toku_free(env->i->real_log_dir);
-    env->i->real_log_dir = NULL;
-
-    if (env->i->lg_dir) {
-        assert(env->i->dir);
-        env->i->real_log_dir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
-    } else {
-        assert(env->i->dir);
-        env->i->real_log_dir = toku_strdup(env->i->dir);
-    }
+    env_setup_real_dir(env, &env->i->real_log_dir, env->i->lg_dir);
 }
+
+static void
+env_setup_real_tmp_dir(DB_ENV *env) {
+    env_setup_real_dir(env, &env->i->real_tmp_dir, env->i->tmp_dir);
+}
+
 
 static int 
 ydb_do_recovery (DB_ENV *env) {
@@ -783,6 +786,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     env_setup_real_data_dir(env);
     env_setup_real_log_dir(env);
+    env_setup_real_tmp_dir(env);
 
     BOOL need_rollback_cachefile = FALSE;
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
