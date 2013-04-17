@@ -209,14 +209,20 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             !tables_have_same_keys(table, altered_table, false, false) &&
             is_disjoint_add_drop(ha_alter_info)) {
 
-            result = HA_ALTER_INPLACE_SHARED_LOCK;
+            if (ctx->handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
+                // the fractal tree can not handle dropping an index concurrent with querying with the index.
+                // we grab an exclusive MDL for the drop index.
+                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+            } else {
+                result = HA_ALTER_INPLACE_SHARED_LOCK;
 
-            // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
-            // for now, hot indexing is only supported via session variable with the create index sql command
-            if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 && 
-                get_create_index_online(thd) && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) {
-                // external_lock set WRITE_ALLOW_WRITE which allows writes concurrent with the index creation
-                result = HA_ALTER_INPLACE_NO_LOCK; 
+                // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
+                // for now, hot indexing is only supported via session variable with the create index sql command
+                if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 && 
+                    get_create_index_online(thd) && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) {
+                    // external_lock set WRITE_ALLOW_WRITE which allows writes concurrent with the index creation
+                    result = HA_ALTER_INPLACE_NO_LOCK; 
+                }
             }
         }
     } else
