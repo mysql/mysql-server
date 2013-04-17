@@ -15,19 +15,26 @@
 
 #include "includes.h"
 
-static void verify_local_fingerprint (BRTNODE node) {
+static int verify_local_fingerprint (BRTNODE node) __attribute__ ((warn_unused_result));
+
+static int verify_local_fingerprint (BRTNODE node) {
     u_int32_t fp=0;
     int i;
+    int r = 0;
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++)
 	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 			      {
 				  fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 			      });
-	assert(fp==node->local_fingerprint);
+	if (fp!=node->local_fingerprint) {
+	    fprintf(stderr, "%s:%d local fingerprints don't match\n", __FILE__, __LINE__);
+	    r = -200001;
+	}
     } else {
 	toku_verify_or_set_counts(node, FALSE);
     }
+    return r;
 }
 
 static int compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
@@ -68,27 +75,48 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
     }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
-    assert(node->fullhash==fullhash);
+    if (node->fullhash!=fullhash) {
+	fprintf(stderr, "%s:%d fullhash does not match\n", __FILE__, __LINE__);
+	return -200001;
+    }
     if (height==-1) {
 	height = node->height;
     }
-    assert(node->height  ==height);
-    verify_local_fingerprint(node);
+    if (node->height  !=height) {
+	fprintf(stderr, "%s:%d node->height=%d height=%d\n", __FILE__, __LINE__, node->height, height);
+	return -200001;
+    }
+    {
+	int r = verify_local_fingerprint(node);
+	if (r) result=r;
+    }
     if (node->height>0) {
 	// Verify that all the pivot keys are in order.
 	for (int i=0; i<node->u.n.n_children-2; i++) {
 	    int compare = compare_pairs(brt, node->u.n.childkeys[i], node->u.n.childkeys[i+1]);
-	    assert(compare<0);
+	    if (compare>=0) {
+		fprintf(stderr, "%s:%d The %dth value is >= the %dth value in block %" PRId64 "\n", __FILE__, __LINE__,
+			i, i+1, blocknum.b);
+		result = -200001;
+	    }
 	}
 	// Verify that all the pivot keys are lesser_pivot < pivot <= greatereq_pivot
 	for (int i=0; i<node->u.n.n_children-1; i++) {
 	    if (lesser_pivot) {
 		int compare = compare_pairs(brt, lesser_pivot, node->u.n.childkeys[i]);
-		assert(compare < 0);
+		if (compare>=0) {
+		    fprintf(stderr, "%s:%d The %dth pivot is >= the previous in block %" PRId64 "\n", __FILE__, __LINE__,
+			    i, blocknum.b);
+		    result = -200001;
+		}
 	    }
 	    if (greatereq_pivot) {
 		int compare = compare_pairs(brt, greatereq_pivot, node->u.n.childkeys[i]);
-		assert(compare >= 0);
+		if (compare < 0) {
+		    fprintf(stderr, "%s:%d The %dth pivot is < the next in block %" PRId64 "\n", __FILE__, __LINE__,
+			    i, blocknum.b);
+		    result = -200001;
+		}
 	    }
 	}
 
@@ -102,7 +130,7 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
 					    (i==0)                      ? lesser_pivot        : node->u.n.childkeys[i-1],
 					    (i==node->u.n.n_children-1) ? greatereq_pivot     : node->u.n.childkeys[i],
 					    recurse);
-		assert(r==0);
+		if (r) result=r;
 	    }
 	}
     } else {
@@ -111,17 +139,29 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
 	    OMTVALUE le_v;
 	    {
 		int r = toku_omt_fetch(node->u.l.buffer, i, &le_v, NULL);
-		assert(r==0);
+		if (r) {
+		    fprintf(stderr, "%s:%d Could not fetch value from OMT, r=%d\n", __FILE__, __LINE__, r);
+		    result = r;
+		}
 	    }
 	    LEAFENTRY le = le_v;
 
 	    if (lesser_pivot) {
 		int compare = compare_pair_to_leafentry(brt, lesser_pivot, le);
-		assert(compare < 0);
+		if (compare>=0) {
+		    fprintf(stderr, "%s:%d The %dth leafentry key is >= the previous pivot in block %" PRId64 "\n", __FILE__, __LINE__,
+			    i, blocknum.b);
+		    result = -200001;
+		}
 	    }
 	    if (greatereq_pivot) {
 		int compare = compare_pair_to_leafentry(brt, greatereq_pivot, le);
-		assert(compare >= 0);
+		if (compare<0) {
+		    fprintf(stderr, "%s:%d The %dth leafentry key is < the next pivot in block %" PRId64 "\n", __FILE__, __LINE__,
+			    i, blocknum.b);
+		    result = -200001;
+		}
+
 	    }
 	    if (0<i) {
 		OMTVALUE prev_le_v;
@@ -129,13 +169,20 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
 		assert(r==0);
 		LEAFENTRY prev_le = prev_le_v;
 		int compare = compare_leafentries(brt, prev_le, le);
-		assert(compare<0);
+		if (compare>=0) {
+		    fprintf(stderr, "%s:%d The %dth leafentry key is >= the previous leafentry block %" PRId64 "\n", __FILE__, __LINE__,
+			    i, blocknum.b);
+		    result = -200001;
+		}
 	    }
 	}
     }
     {
 	int r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0);
-	if (r) return r;
+	if (r) {
+	    fprintf(stderr, "%s:%d could not unpin\n", __FILE__, __LINE__);
+	    result = r;
+	}
     }
     return result;
 }
@@ -148,7 +195,9 @@ int toku_verify_brt (BRT brt) {
     int n_pinned_before = toku_cachefile_count_pinned(brt->cf, 0);
     int r = toku_verify_brtnode(brt, *rootp, -1, NULL, NULL, 1);
     int n_pinned_after  = toku_cachefile_count_pinned(brt->cf, 0);
-    assert(n_pinned_before==n_pinned_after); // this may stop working if we release the ydb lock (in some future version of the code).
+    if (n_pinned_before!=n_pinned_after) {// this may stop working if we release the ydb lock (in some future version of the code).
+	fprintf(stderr, "%s:%d n_pinned_before=%d n_pinned_after=%d\n", __FILE__, __LINE__, n_pinned_before, n_pinned_after);
+    }
     return r;
 }
 
