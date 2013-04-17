@@ -14,14 +14,14 @@ toku_pthread_mutex_t attr_mutex;
 #define STATUS_VALUE(x) ct_status.status[x].value.num
 
 const PAIR_ATTR attrs[] = {
-    { .size = 20, .nonleaf_size = 13, .leaf_size = 900, .rollback_size = 123, .cache_pressure_size = 403 },
-    { .size = 21, .nonleaf_size = 16, .leaf_size = 910, .rollback_size = 113, .cache_pressure_size = 401 },
-    { .size = 22, .nonleaf_size = 17, .leaf_size = 940, .rollback_size = 133, .cache_pressure_size = 402 },
-    { .size = 23, .nonleaf_size = 18, .leaf_size = 931, .rollback_size = 153, .cache_pressure_size = 404 },
-    { .size = 25, .nonleaf_size = 19, .leaf_size = 903, .rollback_size = 173, .cache_pressure_size = 413 },
-    { .size = 26, .nonleaf_size = 10, .leaf_size = 903, .rollback_size = 193, .cache_pressure_size = 423 },
-    { .size = 20, .nonleaf_size = 11, .leaf_size = 902, .rollback_size = 103, .cache_pressure_size = 433 },
-    { .size = 29, .nonleaf_size = 12, .leaf_size = 909, .rollback_size = 113, .cache_pressure_size = 443 }
+    { .size = 20, .nonleaf_size = 13, .leaf_size = 900, .rollback_size = 123, .cache_pressure_size = 403, .is_valid = TRUE },
+    { .size = 21, .nonleaf_size = 16, .leaf_size = 910, .rollback_size = 113, .cache_pressure_size = 401, .is_valid = TRUE },
+    { .size = 22, .nonleaf_size = 17, .leaf_size = 940, .rollback_size = 133, .cache_pressure_size = 402, .is_valid = TRUE },
+    { .size = 23, .nonleaf_size = 18, .leaf_size = 931, .rollback_size = 153, .cache_pressure_size = 404, .is_valid = TRUE },
+    { .size = 25, .nonleaf_size = 19, .leaf_size = 903, .rollback_size = 173, .cache_pressure_size = 413, .is_valid = TRUE },
+    { .size = 26, .nonleaf_size = 10, .leaf_size = 903, .rollback_size = 193, .cache_pressure_size = 423, .is_valid = TRUE },
+    { .size = 20, .nonleaf_size = 11, .leaf_size = 902, .rollback_size = 103, .cache_pressure_size = 433, .is_valid = TRUE },
+    { .size = 29, .nonleaf_size = 12, .leaf_size = 909, .rollback_size = 113, .cache_pressure_size = 443, .is_valid = TRUE }
 };
 const int n_pairs = (sizeof attrs) / (sizeof attrs[0]);
 

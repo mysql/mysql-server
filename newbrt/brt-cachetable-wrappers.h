@@ -122,6 +122,9 @@ toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node);
 void
 toku_unpin_brtnode(BRT brt, BRTNODE node);
 
+void
+toku_unpin_brtnode_read_only(BRT brt, BRTNODE node);
+
 C_END
 
 #endif

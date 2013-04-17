@@ -172,7 +172,8 @@ static PAIR_ATTR const zero_attr = {
     .nonleaf_size = 0, 
     .leaf_size = 0, 
     .rollback_size = 0, 
-    .cache_pressure_size = 0
+    .cache_pressure_size = 0,
+    .is_valid = TRUE
 };
 
 static void maybe_flush_some (CACHETABLE ct, long size, BOOL ct_locked);
@@ -1276,6 +1277,7 @@ pending_pairs_remove (CACHETABLE ct, PAIR p) {
 
 static void
 cachetable_remove_pair_attr (CACHETABLE ct, PAIR_ATTR attr) {
+    assert(attr.is_valid);
     ct->size_current -= attr.size;
     ct->size_nonleaf -= attr.nonleaf_size;
     ct->size_leaf -= attr.leaf_size;
@@ -1286,6 +1288,7 @@ cachetable_remove_pair_attr (CACHETABLE ct, PAIR_ATTR attr) {
 
 static void
 cachetable_add_pair_attr(CACHETABLE ct, PAIR_ATTR attr) {
+    assert(attr.is_valid);
     ct->size_current += attr.size;
     if (ct->size_current > ct->size_max) {
         ct->size_max = ct->size_current;
@@ -2432,10 +2435,12 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
             assert(!p->cq);
             nb_mutex_write_unlock(&p->nb_mutex);
 	    if (dirty) p->dirty = CACHETABLE_DIRTY;
-            PAIR_ATTR old_attr = p->attr;
-            PAIR_ATTR new_attr = attr;
-            cachetable_change_pair_attr(ct, old_attr, new_attr);
-            p->attr = attr;
+            if (attr.is_valid) {
+                PAIR_ATTR old_attr = p->attr;
+                PAIR_ATTR new_attr = attr;
+                cachetable_change_pair_attr(ct, old_attr, new_attr);
+                p->attr = attr;
+            }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
                 if (flush) {
