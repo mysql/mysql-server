@@ -356,7 +356,7 @@ static int smart_dbt_ai_callback (DBT const *key, DBT const *row, void *context)
 // want to actually do anything with the data, hence
 // callback does nothing
 //
-static int smart_dbt_opt_callback (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
   return 0;
 }
 
@@ -869,8 +869,8 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_updated_rows_in_stmt = 0;
     blob_buff = NULL;
     num_blob_bytes = 0;
-    delay_auto_inc_update = false;
-    auto_inc_update_req = false;
+    delay_updating_ai_metadata = false;
+    ai_metadata_update_required = false;
 }
 
 //
@@ -2146,6 +2146,11 @@ DBT *ha_tokudb::pack_key(
     DBUG_RETURN(key);
 }
 
+//
+// There can only be one auto-inc field, so if the first field of any key is
+// auto-inc, This returns true. If true, it sets keynr to be the value of the
+// index that has the auto inc field as the first column of the key.
+//
 bool ha_tokudb::is_auto_inc_first_column (uint* keynr) {
     bool ret_val = false;
     for (uint i = 0; i < table->s->keys; i++) {
@@ -2161,7 +2166,10 @@ bool ha_tokudb::is_auto_inc_first_column (uint* keynr) {
     return ret_val;
 }
 
-
+//
+// Reads the last element of dictionary of index keynr, and places
+// the data into table->record[1].
+//
 int ha_tokudb::read_last(uint keynr) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_last");
     int do_commit = 0;
@@ -2367,25 +2375,41 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
     return COMPATIBLE_DATA_YES;
 }
 
-
+//
+// Method that is called before the beginning of many calls
+// to insert rows (ha_tokudb::write_row). There is no guarantee
+// that start_bulk_insert is called, however there is a guarantee
+// that if start_bulk_insert is called, then end_bulk_insert may be
+// called as well.
+// Parameters:
+//      [in]    rows - an estimate of the number of rows that will be inserted
+//                     if number of rows is unknown (such as if doing 
+//                     "insert into foo select * from bar), then rows 
+//                     will be 0
+//
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
     //
-    // make sure delay_auto_inc_update is true, iff the auto inc column
+    // make sure delay_updating_ai_metadata is true, iff the auto inc column
     // is the first column of a key
     //
-    delay_auto_inc_update = share->ai_first_col ? true : false;
-    auto_inc_update_req = false;
+    delay_updating_ai_metadata = share->ai_first_col;
+    ai_metadata_update_required = false;
 }
 
+//
+// Method that is called at the end of many calls to insert rows
+// (ha_tokudb::write_row). If start_bulk_insert is called, then
+// this is guaranteed to be called.
+//
 int ha_tokudb::end_bulk_insert() {
     int error = 0;
-    if (auto_inc_update_req) {
+    if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
         error = update_max_auto_inc(share->status_block, share->last_auto_increment);
         pthread_mutex_unlock(&share->mutex);
     }
-    delay_auto_inc_update = false;
-    auto_inc_update_req = false;
+    delay_updating_ai_metadata = false;
+    ai_metadata_update_required = false;
     return error;
 }
 
@@ -2445,8 +2469,8 @@ int ha_tokudb::write_row(uchar * record) {
             );
         if (curr_auto_inc > share->last_auto_increment) {
             share->last_auto_increment = curr_auto_inc;
-            if (delay_auto_inc_update) {
-                auto_inc_update_req = true;
+            if (delay_updating_ai_metadata) {
+                ai_metadata_update_required = true;
             }
             else {
                 update_max_auto_inc(share->status_block, share->last_auto_increment);
@@ -2481,7 +2505,7 @@ int ha_tokudb::write_row(uchar * record) {
     }
     //
     // optimization for "REPLACE INTO..." command
-    // if we the command is "REPLACE INTO" and the only table
+    // if the command is "REPLACE INTO" and the only table
     // is the main table, then we can simply insert the element
     // with DB_YESOVERWRITE. If the element does not exist,
     // it will act as a normal insert, and if it does exist, it 
@@ -2494,7 +2518,7 @@ int ha_tokudb::write_row(uchar * record) {
           ) && 
          (curr_num_DBs == 1)
         ) {
-        put_flags = DB_YESOVERWRITE;
+        put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
     }
  
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
@@ -4002,7 +4026,12 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
-
+//
+// Prelock range if possible, start_key is leftmost, end_key is rightmost
+// whether scanning forward or backward.  This function is called by MySQL
+// for backward range queries (in QUICK_SELECT_DESC::get_next). 
+// Forward scans use read_range_first()/read_range_next().
+//
 int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
     int error = prelock_range(start_key, end_key);
     if (!error) {
@@ -5064,7 +5093,9 @@ cleanup:
 
 
 //
-// initializes the auto increment data needed
+// Initializes the auto-increment data in the local "share" object to the
+// greater of two values: what's stored in the metadata or the last inserted
+// auto-increment field (if auto-increment field is the first field of a key).
 //
 void ha_tokudb::init_auto_increment() {
     DBT key;
@@ -5168,8 +5199,8 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         nr = share->last_auto_increment + increment;
     }
     share->last_auto_increment = nr + (nb_desired_values - 1)*increment;
-    if (delay_auto_inc_update) {
-        auto_inc_update_req = true;
+    if (delay_updating_ai_metadata) {
+        ai_metadata_update_required = true;
     }
     else {
         update_max_auto_inc(share->status_block, share->last_auto_increment);
@@ -5486,7 +5517,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         error = 0;
         num_processed = 0;
         while (error != DB_NOTFOUND) {
-            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
+            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_do_nothing, NULL);
             if (error && error != DB_NOTFOUND) {
                 tmp_cursor->c_close(tmp_cursor);
                 tmp_cursor = NULL;
@@ -5735,7 +5766,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
             goto cleanup;
         }
         while (error != DB_NOTFOUND) {
-            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
+            error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_do_nothing, NULL);
             if (error && error != DB_NOTFOUND) {
                 goto cleanup;
             }
