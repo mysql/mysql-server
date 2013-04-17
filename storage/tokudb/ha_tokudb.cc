@@ -314,6 +314,12 @@ typedef struct smart_dbt_info {
     uint keynr; // index into share->key_file that represents DB we are currently operating on
 } *SMART_DBT_INFO;
 
+typedef struct index_read_info {
+    struct smart_dbt_info smart_dbt_info;
+    int cmp;
+    DBT* orig_key;
+} *INDEX_READ_INFO;
+
 //
 // struct that will be used as a context for smart DBT callbacks
 // ONLY for the function add_index
@@ -392,10 +398,38 @@ smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *context) {
 }
 
 //
+// Smart DBT callback function in case where we have a covering index
+//
+static int
+smart_dbt_callback_ir_keyread(DBT const *key, DBT  const *row, void *context) {
+    INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
+    ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
+    if (ir_info->cmp) {
+        return 0;
+    }
+    return smart_dbt_callback_keyread(key, row, &ir_info->smart_dbt_info);
+}
+
+//
+// Smart DBT callback function in case where we do NOT have a covering index
+//
+static int
+smart_dbt_callback_ir_rowread(DBT const *key, DBT  const *row, void *context) {
+    int cmp;
+    INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
+    ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
+    if (ir_info->cmp) {
+        return 0;
+    }
+    return smart_dbt_callback_rowread(key, row, &ir_info->smart_dbt_info);
+}
+
+//
 // macro for Smart DBT callback function, 
 // so we do not need to put this long line of code in multiple places
 //
 #define SMART_DBT_CALLBACK ( this->key_read ? smart_dbt_callback_keyread : smart_dbt_callback_rowread ) 
+#define SMART_DBT_IR_CALLBACK ( this->key_read ? smart_dbt_callback_ir_keyread : smart_dbt_callback_ir_rowread ) 
 
 
 //
@@ -3407,6 +3441,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     int error;    
     u_int32_t flags = 0;
     struct smart_dbt_info info;
+    struct index_read_info ir_info;
 
     HANDLE_INVALID_CURSOR();
 
@@ -3417,17 +3452,16 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     info.buf = buf;
     info.keynr = active_index;
 
+    ir_info.smart_dbt_info = info;
+
     flags = SET_READ_FLAG(0);
     switch (find_flag) {
     case HA_READ_KEY_EXACT: /* Find first record else error */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-        if (error == 0) {
-            DBT orig_key;
-            pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key)) {
-                error = DB_NOTFOUND;
-            }
+        ir_info.orig_key = &lookup_key;
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+        if (ir_info.cmp) {
+            error = DB_NOTFOUND;
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
@@ -3447,16 +3481,13 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     //
     case HA_READ_KEY_OR_PREV: /* Record or previous */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-        if (error == 0) {
-            DBT orig_key; 
-            pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key) != 0) {
-                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
-            }
-        }
-        else if (error == DB_NOTFOUND) {
+        ir_info.orig_key = &lookup_key;
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+        if (error == DB_NOTFOUND) {
             error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
+        }
+        else if (ir_info.cmp) {
+            error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
         }
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
@@ -3465,13 +3496,10 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST:
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
-        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-        if (error == 0) {
-            DBT orig_key;
-            pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &lookup_key)) {
-                error = DB_NOTFOUND;
-            }
+        ir_info.orig_key = &lookup_key;
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
+        if (ir_info.cmp) {
+            error = DB_NOTFOUND;
         }
         break;
     default:
