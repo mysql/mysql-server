@@ -140,8 +140,7 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         }
         // Logging is on again, but we must pass the right LSN into close.
         if (tuple->ft_handle) { // it's a DB, not a rollback file
-            r = toku_ft_handle_close(tuple->ft_handle, true, oplsn);
-            lazy_assert_zero(r);
+            toku_ft_handle_close_recovery(tuple->ft_handle, oplsn);
         } else {
             assert(tuple->ft_handle==NULL);
         }
@@ -308,9 +307,8 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     r = toku_ft_handle_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, filenum, max_acceptable_lsn);
     if (r != 0) {
         //Note:  If ft_handle_open fails, then close_ft will NOT write a header to disk.
-        //No need to provide lsn
-        int r2 = toku_ft_handle_close(brt, FALSE, ZERO_LSN);
-        assert_zero(r2);
+        //No need to provide lsn, so use the regular toku_ft_handle_close function
+        toku_ft_handle_close(brt);
         toku_free(iname);
         if (r == ENOENT) //Not an error to simply be missing.
             r = 0;
@@ -848,8 +846,7 @@ static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
 
         if (0!=strcmp(iname, ROLLBACK_CACHEFILE_NAME)) {
             //Rollback cachefile is closed manually at end of recovery, not here
-            r = toku_ft_handle_close(tuple->ft_handle, true, l->lsn);
-            lazy_assert_zero(r);
+            toku_ft_handle_close_recovery(tuple->ft_handle, l->lsn);
         }
         file_map_remove(&renv->fmap, l->filenum);
         toku_free(iname);

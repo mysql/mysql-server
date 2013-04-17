@@ -728,8 +728,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     assert(toku_ft_needed_unlocked(src_h));
     toku_ft_release_reflock(src_h);
 
-    r = toku_ft_handle_close(tmp_dst_ft, FALSE, ZERO_LSN);
-    assert_zero(r);
+    toku_ft_handle_close(tmp_dst_ft);
 
     *dst_hp = dst_h;
     return r;
@@ -997,6 +996,12 @@ toku_ft_remove_reference(FT ft, bool oplsn_valid, LSN oplsn, remove_ft_ref_callb
         remove_ref(ft, extra);
         bool needed = toku_ft_needed_unlocked(ft);
         toku_ft_release_reflock(ft);
+
+        // if we're running during recovery, we must close the underlying ft.
+        // we know we're running in recovery if we were passed a valid lsn.
+        if (oplsn_valid) {
+            assert(!needed);
+        }
         if (!needed) {
             // close header
             char *error_string = NULL;
