@@ -1245,6 +1245,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.search_tries_gt_heightplus3);
       STATPRINT("search_tries_gt_heightplus3", buf);
 
+      showval(cleaner_executions);
     showval(cleaner_total_nodes);
     showval(cleaner_h1_nodes);
     showval(cleaner_hgt1_nodes);
