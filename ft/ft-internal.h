@@ -556,32 +556,15 @@ void
 just_decompress_sub_block(struct sub_block *sb);
 
 /* Beginning of ft-node-deserialize.c helper functions. */
-
-//
-void
-initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
-
-//
-int
-read_and_check_magic(struct rbuf *rb);
-
-//
-int
-read_and_check_version(FTNODE node, struct rbuf *rb);
-
-//
-void
-read_node_info(FTNODE node, struct rbuf *rb, int version);
-
-//
-void
-allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
-
-//
-int
-check_node_info_checksum(struct rbuf *rb);
-
-//////////////// <CER>
+void initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
+int read_and_check_magic(struct rbuf *rb);
+int read_and_check_version(FTNODE node, struct rbuf *rb);
+void read_node_info(FTNODE node, struct rbuf *rb, int version);
+void allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
+int check_node_info_checksum(struct rbuf *rb);
+void read_legacy_node_info(FTNODE node, struct rbuf *rb, int version);
+int check_legacy_end_checksum(struct rbuf *rb);
+/* End of ft-node-deserialization.c helper functions. */
 
 unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);

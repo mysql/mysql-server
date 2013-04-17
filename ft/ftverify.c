@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 // vim: expandtab:ts=8:sw=4:softtabstop=4:
-#ident "$Id: ft-serialize.c 43686 2012-05-18 23:21:00Z leifwalsh $"
+#ident "$Id: ftverify.c 43686 2012-05-18 23:21:00Z leifwalsh $"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -166,6 +166,26 @@ struct check_block_table_extra {
     struct ft *h;
 };
 
+// Check non-upgraded (legacy) node.
+// NOTE: These nodes have less checksumming than more 
+// recent nodes.  This effectively means that we are 
+// skipping over these nodes.
+static int
+check_old_node(FTNODE node, struct rbuf *rb, int version)
+{
+    int r = 0;
+    read_legacy_node_info(node, rb, version);
+    // For version 14 nodes, advance the buffer to the end
+    // and verify the checksum.
+    if (version == FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
+        // Advance the buffer to the end.
+        rb->ndone = rb->size - 4;
+        r = check_legacy_end_checksum(rb);
+    }
+    
+    return r;
+}
+
 // Read, decompress, and check the given block.
 static int
 check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void *extra)
@@ -184,10 +204,10 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     struct rbuf rb = RBUF_INITIALIZER;
     r = read_block_from_fd_into_rbuf(fd, blocknum, ft, &rb);
     if (r != 0) {
-	// This is impossible without setting the panic member in
-	// the ft, let's just pretend that it is not and exit.
-	printf(" Read block failed.\n");
-	failure++;
+        // This is impossible without setting the panic member in
+        // the ft, let's just pretend that it is not and exit.
+        printf(" Read block failed.\n");
+        failure++;
     }
 
     // Allocate the node.
@@ -197,14 +217,14 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     
     r = read_and_check_magic(&rb);
     if (r == DB_BADFORMAT) {
-	printf(" Magic failed.\n");
-	failure++;
+        printf(" Magic failed.\n");
+        failure++;
     }
 
     r = read_and_check_version(node, &rb);
     if (r != 0) {
        	printf(" Version check failed.\n");
-	failure++;
+        failure++;
     }
 
     int version = node->layout_version_read_from_disk;
@@ -212,6 +232,19 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
       ////////////////////////////
      // UPGRADE FORK GOES HERE //
     ////////////////////////////
+    
+    // Check nodes before major layout changes in version 15.
+    // All newer versions should follow the same layout, for now.
+    // This predicate would need to be changed if the layout
+    // of the nodes on disk does indeed change in the future.
+    if (version < FT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES)
+    {
+        r = check_old_node(node, &rb, version);
+        if (r != 0) {
+            failure++;
+        }
+        goto cleanup;
+    }
 
     read_node_info(node, &rb, version);
 
@@ -221,7 +254,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     r = check_node_info_checksum(&rb);
     if (r == TOKUDB_BAD_CHECKSUM) {
        	printf(" Node info checksum failed.\n");
-	failure++;
+        failure++;
     }
 
     // Get the partition info sub block.
@@ -230,7 +263,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     r = read_compressed_sub_block(&rb, &sb);
     if (r != 0) {
        	printf(" Partition info checksum failed.\n");
-	failure++;
+        failure++;
     }
 
     just_decompress_sub_block(&sb);
@@ -242,30 +275,31 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     // Using the node info, decompress all the keys and pivots to
     // detect any corruptions.
     for (int i = 0; i < node->n_children; ++i) {
-	u_int32_t curr_offset = BP_START(ndd,i);
+        u_int32_t curr_offset = BP_START(ndd,i);
         u_int32_t curr_size   = BP_SIZE(ndd,i);
-	struct rbuf curr_rbuf = {.buf = NULL, .size = 0, .ndone = 0};
-	rbuf_init(&curr_rbuf, rb.buf + curr_offset, curr_size);
-	struct sub_block curr_sb;
+        struct rbuf curr_rbuf = {.buf = NULL, .size = 0, .ndone = 0};
+        rbuf_init(&curr_rbuf, rb.buf + curr_offset, curr_size);
+        struct sub_block curr_sb;
         sub_block_init(&curr_sb);
 
-	r = read_compressed_sub_block(&rb, &sb);
-	if (r != 0) {
-	    printf(" Compressed child partition %d checksum failed.\n", i);
-	    failure++;
-	}
-	just_decompress_sub_block(&sb);
+        r = read_compressed_sub_block(&rb, &sb);
+        if (r != 0) {
+            printf(" Compressed child partition %d checksum failed.\n", i);
+            failure++;
+        }
+        just_decompress_sub_block(&sb);
 	
-	r = verify_ftnode_sub_block(&sb);
-	if (r != 0) {
-	    printf(" Uncompressed child partition %d checksum failed.\n", i);
-	    failure++;
-	}
+        r = verify_ftnode_sub_block(&sb);
+        if (r != 0) {
+            printf(" Uncompressed child partition %d checksum failed.\n", i);
+            failure++;
+        }
 
 	// <CER> If needed, we can print row and/or pivot info at this
 	// point.
     }
 
+cleanup:
     // Cleanup and error incrementing.
     if (failure) {
        	cbte->blocks_failed++;
@@ -274,7 +308,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     cbte->blocks_done++;
 
     if (node) {
-	toku_free(node);
+        toku_free(node);
     }
 
     // Print the status of this block to the console.
