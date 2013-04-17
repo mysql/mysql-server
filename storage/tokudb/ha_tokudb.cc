@@ -3740,7 +3740,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     //
     prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
     row_descriptor.data = row_desc_buff;
-    row_descriptor.size = create_toku_descriptor(
+    row_descriptor.size = create_toku_key_descriptor(
         row_desc_buff, 
         hidden_primary_key,
         false,
@@ -3770,7 +3770,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             //
             // setup the row descriptor
             //
-            row_descriptor.size = create_toku_descriptor(
+            row_descriptor.size = create_toku_key_descriptor(
                 row_desc_buff,
                 false,
                 form->key_info[i].flags & HA_CLUSTERING,
@@ -4334,7 +4334,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         //
         // setup the row descriptor
         //
-        row_descriptor.size = create_toku_descriptor(
+        row_descriptor.size = create_toku_key_descriptor(
             row_desc_buff,
             false,
             key_info[i].flags & HA_CLUSTERING,

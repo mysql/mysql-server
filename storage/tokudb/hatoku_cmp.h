@@ -100,9 +100,7 @@ int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb);
 //TODO: QQQ Only do one direction for prefix.
 int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
-int create_toku_key_descriptor(KEY* key, uchar* buf);
-
-int create_toku_descriptor(
+int create_toku_key_descriptor(
     uchar* buf, 
     bool is_first_hpk, 
     bool is_clustering_key, 
