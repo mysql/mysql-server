@@ -223,28 +223,49 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
 }
 
 
-static int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * saved_key) {
-    ulonglong a = hpk_char_to_num((uchar *) new_key->data);
-    ulonglong b = hpk_char_to_num((uchar *) saved_key->data);
+static inline int tokudb_compare_two_hidden_keys(
+    const void* new_key_data, 
+    const u_int32_t new_key_size, 
+    const void*  saved_key_data,
+    const u_int32_t saved_key_size
+    ) {
+    assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
+    ulonglong a = hpk_char_to_num((uchar *) new_key_data);
+    ulonglong b = hpk_char_to_num((uchar *) saved_key_data);
     return a < b ? -1 : (a > b ? 1 : 0);
 }
 
+static int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * saved_key) {
+    return tokudb_compare_two_hidden_keys(
+        new_key->data, 
+        new_key->size,
+        saved_key->data,
+        saved_key->size
+        );
+}
 
-static int tokudb_compare_two_keys(KEY *key, const DBT * new_key, const DBT * saved_key, bool cmp_prefix) {
-    uchar new_key_inf_val = *(uchar *) new_key->data;
-    uchar saved_key_inf_val = *(uchar *) saved_key->data;
+static int tokudb_compare_two_keys(
+    KEY *key, 
+    const void* new_key_data, 
+    const u_int32_t new_key_size, 
+    const void*  saved_key_data,
+    const u_int32_t saved_key_size,
+    bool cmp_prefix
+    ) {
+    uchar new_key_inf_val = *(uchar *) new_key_data;
+    uchar saved_key_inf_val = *(uchar *) saved_key_data;
     //
     // first byte is "infinity" byte
     //
-    uchar *new_key_ptr = (uchar *)(new_key->data) + 1;
-    uchar *saved_key_ptr = (uchar *)(saved_key->data) + 1;
+    uchar *new_key_ptr = (uchar *)(new_key_data) + 1;
+    uchar *saved_key_ptr = (uchar *)(saved_key_data) + 1;
     KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
     int ret_val;
     //
     // do not include the inf val at the beginning
     //
-    uint new_key_length = new_key->size - sizeof(uchar);
-    uint saved_key_length = saved_key->size - sizeof(uchar);
+    uint new_key_length = new_key_size - sizeof(uchar);
+    uint saved_key_length = saved_key_size - sizeof(uchar);
 
     //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
     for (; key_part != end && (int) new_key_length > 0 && (int) saved_key_length > 0; key_part++) {
@@ -252,8 +273,8 @@ static int tokudb_compare_two_keys(KEY *key, const DBT * new_key, const DBT * sa
         uint new_key_field_length;
         uint saved_key_field_length;
         if (key_part->field->null_bit) {
-            assert(new_key_ptr   < (uchar *) new_key->data   + new_key->size);
-            assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
+            assert(new_key_ptr   < (uchar *) new_key_data   + new_key_size);
+            assert(saved_key_ptr < (uchar *) saved_key_data + saved_key_size);
             if (*new_key_ptr != *saved_key_ptr) {
                 return ((int) *new_key_ptr - (int) *saved_key_ptr); }
             saved_key_ptr++;
@@ -409,20 +430,20 @@ static int tokudb_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
     if (key->flags & HA_CLUSTERING) {
         return tokudb_compare_two_clustered_keys(key, primary_key, keya, keyb);
     }
-    return tokudb_compare_two_keys(key, keya, keyb, false);
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, false);
 }
 
 static int tokudb_cmp_primary_key(DB *file, const DBT *keya, const DBT *keyb) {
     assert(file->app_private != 0);
     KEY *key = (KEY *) file->api_internal;
-    return tokudb_compare_two_keys(key, keya, keyb, false);
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, false);
 }
 
 //TODO: QQQ Only do one direction for prefix.
 static int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
     assert(file->app_private != 0);
     KEY *key = (KEY *) file->app_private;
-    return tokudb_compare_two_keys(key, keya, keyb, true);
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, true);
 }
 
 int primary_key_part_compare (const void* left, const void* right) {
@@ -1873,30 +1894,40 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
     DBUG_RETURN(share->rows + HA_TOKUDB_EXTRA_ROWS);
 }
 
+//
+// Function that compares two primary keys that were saved as part of rnd_pos
+// and ::position
+//
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
-    if (hidden_primary_key) {
-        return memcmp(ref1, ref2, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
-    }    
-    int result;
-    Field *field;
-    KEY *key_info = table->key_info + table_share->primary_key;
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + key_info->key_parts;
-    //
-    // HACK until we get refactoring in. manually move up by infinity byte
-    //
-    ref1++;
-    ref2++;
-    for (; key_part != end; key_part++) {
-        field = key_part->field;
-        result = field->pack_cmp((const uchar *) ref1, (const uchar *) ref2, key_part->length, 0);
-        if (result)
-            return result;
-        ref1 += field->packed_col_length((const uchar *) ref1, key_part->length);
-        ref2 += field->packed_col_length((const uchar *) ref2, key_part->length);
-    }
+    int ret_val = 0;
+    KEY *key_info = NULL;
 
-    return 0;
+    if (hidden_primary_key) {
+        ret_val =  tokudb_compare_two_hidden_keys(
+            (void *)ref1, 
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
+            (void *)ref2, 
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
+            );
+        goto exit;
+    }    
+    //
+    // setting the cmp_prefix to true, because we all the fields should be there
+    // but there might still be junk at the end of ref1 and ref2. The proper way to do it
+    // would be to store the size of the data in the first four bytes of ref1 and ref2, but
+    // that is a change for another day
+    //
+    key_info = &table->key_info[table_share->primary_key];
+    ret_val = tokudb_compare_two_keys(
+        key_info,
+        (void *)ref1,
+        ref_length,
+        ref2,
+        ref_length,
+        true
+        );
+exit:
+    return ret_val;
 }
 
 bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes) {
