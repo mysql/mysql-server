@@ -102,6 +102,21 @@ BDB_DONTRUN_TESTS = \
 checkpoint_1.tdb$(BINSUF) checkpoint_stress.tdb$(BINSUF): checkpoint_test.h
 # dependency only, not a rule (do not insert a tab at this line)
 
+BDB_TESTS_THAT_SHOULD_FAIL= \
+#\ ends prev line
+ifeq ($(OS_CHOICE),windows)
+    #The following are nondeterministic test failures in windows.  Just get rid of them in BDB.
+    BDB_TESTS_THAT_SHOULD_FAIL += \
+	test_archive2 \
+	test_cursor_stickyness \
+	test_dup_search \
+	test_dupsort_set \
+	test_unused_memory_crash \
+	test_dupsort_get_both_range \
+	test_db_dbt_mem_behavior \
+#\ ends prev line
+endif
+
 
 ifeq ($(OS_CHOICE),windows)
     BDB_DONTRUN_TESTS+=$(WINDOWS_BDB_DONTRUN_TESTS)
@@ -125,18 +140,6 @@ endif
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 #\ ends prev line
 
-BDB_TESTS_THAT_SHOULD_FAIL= \
-#\ ends prev line
-ifneq ($(OS_CHOICE),windows)
-    BDB_TESTS_THAT_SHOULD_FAIL += \
-	test_unused_memory_crash \
-	test_dupsort_set \
-	test_dupsort_get_both_range \
-	test_db_dbt_mem_behavior \
-	test_archive2 \
-#\ ends prev line
-endif
-
 ifeq ($(OS_CHOICE),windows)
     #Tests that fail in windows but shouldn't.  TODO: Fix each one of these and remove from the list!
     TDB_TESTS_THAT_SHOULD_FAIL += \
@@ -148,8 +151,11 @@ ifeq ($(OS_CHOICE),windows)
 	test_log4.recover \
 	test_log5.recover \
 	test_log7.recover \
+	test_log8.recover \
+	test_log9.recover \
 	test_log10.recover \
 #\ ends prev line
+    #NOTE:  test_log[89].recover is non-deterministic.  Sometimes passes/fails
 endif
 
 ALL_TESTS  = $(TDB_TESTS)
