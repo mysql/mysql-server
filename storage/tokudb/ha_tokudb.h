@@ -244,6 +244,8 @@ private:
     //
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
 
+    ulonglong read_lock_wait_time;
+
     bool fix_rec_buff_for_blob(ulong length);
     void fix_mult_rec_buff();
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
