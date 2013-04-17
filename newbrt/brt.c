@@ -1431,7 +1431,7 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     else
 	STATUS_VALUE(BRT_CREATE_NONLEAF)++;
 
-    n->max_msn_applied_to_node_on_disk = MIN_MSN;    // correct value for root node, harmless for others
+    n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
     n->h = h;
     n->nodesize = nodesize;
     n->flags = flags;

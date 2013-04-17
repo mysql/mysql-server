@@ -574,7 +574,7 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, num_orig_basements - 1);
 
     // choose the max msn applied to any basement as the max msn applied to all new basements
-    MSN max_msn = MIN_MSN;
+    MSN max_msn = ZERO_MSN;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
         MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
         max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
