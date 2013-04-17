@@ -492,11 +492,6 @@ void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey
 // append a cmd to a nonleaf node child buffer
 void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
-// Mark a node as dirty and update statistics in header.
-// Other than the node's constructor, this should be the ONLY place
-// a brt node is marked as dirty.
-void toku_mark_node_dirty(FTNODE node);
-
 STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 
 
@@ -845,8 +840,6 @@ typedef enum {
     FT_CREATE_NONLEAF,                         // number of nonleaf nodes created
     FT_DESTROY_LEAF,                           // number of leaf nodes destroyed
     FT_DESTROY_NONLEAF,                        // number of nonleaf nodes destroyed
-    FT_DIRTY_LEAF,                             // number of times leaf nodes are dirtied when previously clean
-    FT_DIRTY_NONLEAF,                          // number of times nonleaf nodes are dirtied when previously clean
     FT_MSG_BYTES_IN,                           // how many bytes of messages injected at root (for all trees)
     FT_MSG_BYTES_OUT,                          // how many bytes of messages flushed from h1 nodes to leaves
     FT_MSG_BYTES_CURR,                         // how many bytes of messages currently in trees (estimate)
