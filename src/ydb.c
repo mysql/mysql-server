@@ -4172,6 +4172,21 @@ db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTY
     return r;
 }
 
+static inline char
+rot13(char c) {
+    char r;
+    char a;
+    if (isupper(c)) {
+        a = 'A';
+    }
+    else {
+        assert(islower(c));
+        a = 'a';
+    }
+    r = (c - a + 13) % 26 + a;
+    return r;
+}
+
 static void
 create_iname_hint(const char *dname, char *hint) {
     //Requires: size of hint array must be > strlen(dname)
@@ -4180,7 +4195,11 @@ create_iname_hint(const char *dname, char *hint) {
     BOOL underscored = FALSE;
     while (*dname) {
         if (isalnum(*dname)) {
-            *hint++ = *dname++;
+            char c = *dname++;
+            if (isupper(c) || islower(c)) {
+                c = rot13(c);
+            }
+            *hint++ = c;
             underscored = FALSE;
         }
         else {
