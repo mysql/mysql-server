@@ -3253,6 +3253,23 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar tmp_record[table_arg->s->rec_buff_length];
     bzero((void *) &current_primary_key, sizeof(current_primary_key));
     bzero((void *) &row, sizeof(row));
+
+
+    //
+    // The files for secondary tables are derived from the name of keys
+    // If we try to add a key with the same name as an already existing key,
+    // We can crash. So here we check if any of the keys added has the same
+    // name of an existing key, and if so, we fail gracefully
+    //
+    for (uint i = 0; i < num_of_keys; i++) {
+        for (uint j = 0; j < table_arg->s->keys; j++) {
+            if (strcmp(key_info[i].name, table_arg->s->key_info[j].name) == 0) {
+                error = HA_ERR_WRONG_COMMAND;
+                goto cleanup;
+            }
+        }
+    }
+    
     //
     // first create all the DB's files
     //
