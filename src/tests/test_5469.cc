@@ -21,7 +21,7 @@ static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *dest_key,
 }
 
 static void
-test_loader_abort (bool use_puts, bool abort_loader) {
+test_loader_abort (bool use_puts, bool abort_loader, bool abort_txn) {
     DB_ENV * env;
     DB *db;
     DB_TXN *txn;
@@ -77,29 +77,37 @@ test_loader_abort (bool use_puts, bool abort_loader) {
     k = num_elements;
     v = num_elements;
     r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-    r = txn->commit(txn, 0);
-    CKERR(r);
 
+    if (abort_txn) {
+        r = txn->abort(txn);
+        CKERR(r);
+    }
+    else {
+        r = txn->commit(txn, 0);
+        CKERR(r);
+    }
     
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
     r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
     DBT k1; memset(&k1, 0, sizeof k1);
     DBT v1; memset(&v1, 0, sizeof v1);
-    if (!abort_loader) {
-        for (uint32_t i = 0; i < num_elements; i++) {
-            r = cursor->c_get(cursor, &k1, &v1, DB_NEXT); assert(r == 0);
-            assert(k1.size == sizeof(uint32_t));
-            assert(v1.size == sizeof(uint32_t));
-            assert(*(uint32_t *)k1.data == i);
-            assert(*(uint32_t *)v1.data == i);
+    if (!abort_txn) {
+        if (!abort_loader) {
+            for (uint32_t i = 0; i < num_elements; i++) {
+                r = cursor->c_get(cursor, &k1, &v1, DB_NEXT); assert(r == 0);
+                assert(k1.size == sizeof(uint32_t));
+                assert(v1.size == sizeof(uint32_t));
+                assert(*(uint32_t *)k1.data == i);
+                assert(*(uint32_t *)v1.data == i);
+            }
         }
+        r = cursor->c_get(cursor, &k1, &v1, DB_NEXT); assert(r == 0);
+        assert(k1.size == sizeof(uint32_t));
+        assert(v1.size == sizeof(uint32_t));
+        assert(*(uint32_t *)k1.data == num_elements);
+        assert(*(uint32_t *)v1.data == num_elements);
     }
-    r = cursor->c_get(cursor, &k1, &v1, DB_NEXT); assert(r == 0);
-    assert(k1.size == sizeof(uint32_t));
-    assert(v1.size == sizeof(uint32_t));
-    assert(*(uint32_t *)k1.data == num_elements);
-    assert(*(uint32_t *)v1.data == num_elements);
     r = cursor->c_get(cursor, &k1, &v1, DB_NEXT); assert(r == DB_NOTFOUND);
 
     r = cursor->c_close(cursor); assert(r == 0);
@@ -113,9 +121,13 @@ test_loader_abort (bool use_puts, bool abort_loader) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    test_loader_abort(false, false);
-    test_loader_abort(false, true);
-    test_loader_abort(true, false);
-    test_loader_abort(true, true);
+    test_loader_abort(false, false, true);
+    test_loader_abort(false, true, true);
+    test_loader_abort(true, false, true);
+    test_loader_abort(true, true, true);
+    test_loader_abort(false, false, false);
+    test_loader_abort(false, true, false);
+    test_loader_abort(true, false, false);
+    test_loader_abort(true, true, false);
     return 0;
 }
