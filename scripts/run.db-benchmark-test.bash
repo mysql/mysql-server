@@ -111,8 +111,8 @@ fi
 
 # build it
 if [ $testresult = "PASS" ] ; then
-    pushd $testdir/src
-        make local -s CC=$cc GCCVERSION=$gccversion BRTLOADER=$brtloader >>$runfile 2>&1
+    pushd $testdir
+        make release -s CC=$cc GCCVERSION=$gccversion BRTLOADER=$brtloader >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
     popd
