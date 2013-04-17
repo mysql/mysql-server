@@ -152,7 +152,7 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &fields, List<Item> &values, Ite
     if (share->num_DBs > table->s->keys + test(hidden_primary_key)) // hot index in progress
         error = ENOTSUP; // run on the slow path
 
-    if (error == 0 && (thd->is_strict_mode() || !transaction || !check_fast_update(thd, fields, values, conds)))
+    if (error == 0 && !check_fast_update(thd, fields, values, conds))
         error = ENOTSUP;
 
     if (error == 0)
@@ -410,6 +410,17 @@ static bool clustering_keys_exist(TABLE *table) {
 
 // Check if an update operation can be handled by this storage engine.  Return true if it can.
 bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds) {
+    // fast upserts disabled
+    if (!get_enable_fast_update(thd))
+        return false;
+
+    if (!transaction)
+        return false;
+
+    // avoid strict mode arithmetic overflow issues
+    if (thd->is_strict_mode())
+        return false;
+
     // no triggers
     if (table->triggers) 
         return false;
@@ -629,7 +640,7 @@ int ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<I
     if (share->num_DBs > table->s->keys + test(hidden_primary_key)) // hot index in progress
         error = ENOTSUP; // run on the slow path
 
-    if (error == 0 && (thd->is_strict_mode() || !transaction || !check_upsert(thd, update_fields, update_values)))
+    if (error == 0 && !check_upsert(thd, update_fields, update_values))
         error = ENOTSUP;
     
     if (error == 0) 
@@ -648,6 +659,17 @@ int ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<I
 
 // Check if an upsert can be handled by this storage engine.  Return trus if it can.
 bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values) {
+    // fast upserts disabled
+    if (!get_enable_fast_upsert(thd))
+        return false;
+
+    if (!transaction)
+        return false;
+
+    // avoid strict mode arithmetic overflow issues
+    if (thd->is_strict_mode())
+        return false;
+
     // no triggers
     if (table->triggers) 
         return false;
@@ -657,15 +679,11 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &up
         return false;
 
     // primary key must exist
-    // no auto increment?
     if (table->s->primary_key >= table->s->keys)
         return false;
 
     // no clustering keys (need to broadcast an increment into the clustering keys since we are selecting with the primary key)
     if (clustering_keys_exist(table)) 
-        return false;
-
-    if (!get_enable_fast_upsert(thd))
         return false;
 
     if (!check_all_update_expressions(update_fields, update_values, table))
