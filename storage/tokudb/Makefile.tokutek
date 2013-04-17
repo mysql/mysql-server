@@ -1,0 +1,38 @@
+MYSQL_SRC = $(HOME)/mysql-5.1.23-rc
+MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
+TOKUDB = /usr/local/tokudb-4.4
+
+SRCS = $(wildcard *.cc)
+OBJS = $(patsubst %.cc,%.o,$(SRCS))
+TARGET = $(patsubst %.o,%.so,$(OBJS))
+
+OPTFLAGS = -O0
+# GCOV_FLAGS = -ftest-coverage -fprofile-arcs
+
+MYSQL_FLAGS = -DHAVE_CONFIG_H -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX
+MYSQL_FLAGS += -DMYSQL_DYNAMIC_PLUGIN
+MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
+
+CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I$(TOKUDB)/include
+# CPPFLAGS += -DMT -DMD -DMP -DMF
+CPPFLAGS += $(MYSQL_FLAGS)
+CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
+CXXFLAGS += -fPIC
+LDFLAGS = -shared -nostdlib -Wl,-soname -Wl,libtokudb_engine.so
+LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
+
+# LIBDIR = /usr/lib
+# GCCLIBDIR = /usr/lib/gcc/i386-redhat-linux/4.1.1
+# BEGINLIBS = $(LIBDIR)/crti.o $(GCCLIBDIR)/crtbeginS.o 
+# ENDLIBS = $(GCCLIBDIR)/crtendS.o $(LIBDIR)/crtn.o
+
+all: $(TARGET)
+
+%.so: %.o
+	$(CXX) $(LDFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS) $(BEGINLIBS) $< $(LIBS) $(ENDLIBS) -o $@
+
+clean:
+	rm -rf $(TARGET) $(OBJS)
+
+install: $(TARGET)
+	cp $(TARGET) $(MYSQL_LIBDIR)/libtokudb_engine.so

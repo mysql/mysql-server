@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# create the Makefile from the Makefile.tokutek template and some
+# command line parameters
+
+tokudb=/usr/local/tokudb
+mysql=/usr/local/mysql
+libdir=/usr/local/mysql/lib
+
+while [ $# -gt 0 ] ; do
+    arg=$1; shift
+    if [[ $arg =~ "--with-tokudb=(.*)" ]] ; then
+	tokudb=${BASH_REMATCH[1]}
+    fi
+    if [[ $arg =~ "--with-mysql=(.*)" ]] ; then
+        mysql=${BASH_REMATCH[1]}
+    fi
+    if [[ $arg =~ "--libdir=(.*)" ]] ; then
+        libdir=${BASH_REMATCH[1]}
+    fi
+done
+
+error=0
+if [ ! -d $tokudb ] ; then
+    echo $tokudb missing
+    # error=1
+fi
+if [ ! -d $mysql ] ; then
+    echo $mysql missing
+    error=1
+fi
+if [ ! -d $libdir ] ; then
+    echo $libdir missing
+    error=1
+fi
+if [ $error -ne 0 ] ; then exit 1 ; fi
+
+# escape the path names so that the sed works
+# note: i was not smart enough to get this right without a sequence of experiments
+tokudb=`echo $tokudb | sed -e s/\\\//\\\\\\\\\\\//g`
+# echo $tokudb
+mysql=`echo $mysql | sed -e s/\\\//\\\\\\\\\\\//g`
+# echo $mysql
+libdir=`echo $libdir | sed -e s/\\\//\\\\\\\\\\\//g`
+# echo $libdir
+
+sed -e "s/^TOKUDB =\(.*\)$/TOKUDB = $tokudb/" \
+    -e "s/^MYSQL_SRC = \(.*\)/MYSQL_SRC = $mysql/" \
+    -e "s/^MYSQL_LIBDIR = \(.*\)/MYSQL_LIBDIR = $libdir/" <Makefile.tokutek >Makefile
