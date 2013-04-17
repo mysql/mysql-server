@@ -269,6 +269,9 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
         r = lc_open_logfile(lc, lc->cur_logfiles_index);
         if (r!=0) 
             return r;
+        // seek to end
+        r = fseek(lc->cur_fp, 0, SEEK_END);
+        assert(0==r);
         r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
     }
     if (r!=0) {
