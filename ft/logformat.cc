@@ -382,7 +382,7 @@ generate_get_timestamp(void) {
     fprintf(cf, "  return tv.tv_sec * 1000000ULL + tv.tv_usec;\n");
     fprintf(cf, "}\n");
 }
-                
+
 static void
 generate_log_writer (void) {
     generate_get_timestamp();
@@ -455,7 +455,7 @@ generate_log_writer (void) {
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
                         fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
-                        fprintf(cf, "  toku_logger_maybe_fsync(logger, logger->lsn, do_fsync);\n");
+                        fprintf(cf, "  toku_logger_maybe_fsync(logger, logger->lsn, do_fsync, true);\n");
                         fprintf(cf, "}\n\n");
                     });
 }
