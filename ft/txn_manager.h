@@ -13,25 +13,10 @@ extern "C" {
 
 struct txn_manager;
 
-typedef enum {
-    TXN_OLDEST_LIVE,       // xid of oldest live transaction
-    TXN_OLDEST_STARTTIME,  // start time of oldest live txn
-    TXN_MANAGER_STATUS_NUM_ROWS
-} txn_manager_status_entry;
-
-typedef struct {
-    BOOL initialized;
-    TOKU_ENGINE_STATUS_ROW_S status[TXN_MANAGER_STATUS_NUM_ROWS];
-} TXN_MANAGER_STATUS_S, *TXN_MANAGER_STATUS;
-
-
-
-void toku_txn_manager_get_status(TOKULOGGER logger, TXN_MANAGER_STATUS s);
-
 void toku_txn_manager_init(TXN_MANAGER* txn_manager);
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 
-TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager, time_t * oldest_living_starttime);
+TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager);
 
 // Assign a txnid. Log the txn begin in the recovery log. Initialize the txn live lists.
 // Also, create the txn.

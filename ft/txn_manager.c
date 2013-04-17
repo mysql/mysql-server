@@ -20,8 +20,6 @@ struct txn_manager {
     // Contains 3-tuples: (TXNID begin_id, TXNID end_id, uint64_t num_live_list_references)
     //                    for committed root transaction ids that are still referenced by a live list.
     OMT referenced_xids;
-    TXNID oldest_living_xid;
-    time_t oldest_living_starttime;   // timestamp in seconds of when txn with oldest_living_xid started
     struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
     struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
 
@@ -29,27 +27,8 @@ struct txn_manager {
     TXNID last_xid;
 };
 
-static TXN_MANAGER_STATUS_S txn_manager_status;
 BOOL garbage_collection_debug = FALSE;
 
-
-#define STATUS_INIT(k,t,l) { \
-    txn_manager_status.status[k].keyname = #k; \
-    txn_manager_status.status[k].type    = t;  \
-    txn_manager_status.status[k].legend  = "txn: " l; \
-    }
-
-static void
-status_init(void) {
-    // Note, this function initializes the keyname, type, and legend fields.
-    // Value fields are initialized to zero by compiler.
-    STATUS_INIT(TXN_OLDEST_LIVE,      UINT64,   "xid of oldest live transaction");
-    STATUS_INIT(TXN_OLDEST_STARTTIME, UNIXTIME, "start time of oldest live transaction");
-    txn_manager_status.initialized = true;
-}
-#undef STATUS_INIT
-
-#define STATUS_VALUE(x) txn_manager_status.status[x].value.num
 
 static BOOL is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
     TOKUTXN result = NULL;
@@ -230,26 +209,6 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
     }
 }
 
-static TXNID txn_manager_get_oldest_living_xid_unlocked(
-    TXN_MANAGER txn_manager, 
-    time_t * oldest_living_starttime
-    );
-
-void toku_txn_manager_get_status(TOKULOGGER logger, TXN_MANAGER_STATUS s) {
-    if (!txn_manager_status.initialized) {
-        status_init();
-    }
-    {
-        if (logger) {
-            time_t oldest_starttime;
-            STATUS_VALUE(TXN_OLDEST_LIVE) = txn_manager_get_oldest_living_xid_unlocked(logger->txn_manager, &oldest_starttime);
-            STATUS_VALUE(TXN_OLDEST_STARTTIME) = (uint64_t) oldest_starttime;
-        }
-    }
-    *s = txn_manager_status;
-}
-
-
 void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     int r = 0;
     TXN_MANAGER XCALLOC(txn_manager);
@@ -262,8 +221,6 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     assert_zero(r);
     r = toku_omt_create(&txn_manager->referenced_xids);
     assert_zero(r);
-    txn_manager->oldest_living_xid = TXNID_NONE_LIVING;
-    txn_manager->oldest_living_starttime = 0;
     txn_manager->last_xid = 0;
     toku_list_init(&txn_manager->prepared_txns);
     toku_list_init(&txn_manager->prepared_and_returned_txns);
@@ -282,23 +239,19 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
     toku_free(txn_manager);
 }
 
-static TXNID txn_manager_get_oldest_living_xid_unlocked(
-    TXN_MANAGER txn_manager,
-    time_t * oldest_living_starttime
-    )
-{
-    TXNID rval = 0;
-    rval = txn_manager->oldest_living_xid;
-    if (oldest_living_starttime) {
-        *oldest_living_starttime = txn_manager->oldest_living_starttime;
-    }
-    return rval;
-}
-
-TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager, time_t * oldest_living_starttime) {
-    TXNID rval = 0;
+TXNID
+toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
+    TXNID rval = TXNID_NONE_LIVING;
     toku_mutex_lock(&txn_manager->txn_manager_lock);
-    rval = txn_manager_get_oldest_living_xid_unlocked(txn_manager, oldest_living_starttime);    
+    
+    if (toku_omt_size(txn_manager->live_root_txns) > 0) {
+        OMTVALUE txnidv;
+        // We use live_root_txns because roots are always older than children,
+        // and live_root_txns stores TXNIDs directly instead of TOKUTXNs in live_txns
+        int r = toku_omt_fetch(txn_manager->live_root_txns, 0, &txnidv);
+        invariant_zero(r);
+        rval = (TXNID)txnidv;
+    }
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
     return rval;
 }
@@ -389,6 +342,7 @@ int toku_txn_manager_start_txn(
     }
     if (xid == TXNID_NONE) {
         invariant(!for_recovery);
+        // The transaction manager maintains the latest transaction id.
         xid = ++txn_manager->last_xid;
         invariant(logger);
     }
@@ -402,21 +356,6 @@ int toku_txn_manager_start_txn(
     xids_finalize_with_child(txn->xids, xid);
 
     toku_txn_update_xids_in_txn(txn, xid);
-
-    if (!for_recovery) {
-        // TODO(leif): this would be WRONG during recovery.  We cannot
-        // assume that the first xbegin we see is the oldest, because it's
-        // just the txn that *did a write* first.  Right now, this cached
-        // value is only used for engine status, so we're not too worried.
-        // Maybe we just kill this (txn_manager->oldest_living_*).  Also
-        // see comment on txn_manager_get_oldest_living_xid_unlocked.
-        if (toku_omt_size(txn_manager->live_txns) == 0) {
-            assert(txn_manager->oldest_living_xid == TXNID_NONE_LIVING);
-            txn_manager->oldest_living_xid = txn->txnid64;
-            txn_manager->oldest_living_starttime = txn->starttime;
-        }
-        assert(txn_manager->oldest_living_xid <= txn->txnid64);
-    }
 
     //Add txn to list (omt) of live transactions
     omt_insert_at_end_unless_recovery(txn_manager->live_txns, find_by_xid, txn, (OMTVALUE) txn, for_recovery);
@@ -638,25 +577,6 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         }
     }
 
-    assert(txn_manager->oldest_living_xid <= txn->txnid64);
-    if (txn->txnid64 == txn_manager->oldest_living_xid) {
-        // oldest_living_xid is always zero during recovery
-        OMTVALUE oldest_txnv;
-        r = toku_omt_fetch(txn_manager->live_txns, 0, &oldest_txnv);
-        if (r==0) {
-            TOKUTXN oldest_txn = oldest_txnv;
-            assert(oldest_txn != txn); // We just removed it
-            assert(oldest_txn->txnid64 > txn_manager->oldest_living_xid); //Must be newer than the previous oldest
-            txn_manager->oldest_living_xid = oldest_txn->txnid64;
-            txn_manager->oldest_living_starttime = oldest_txn->starttime;
-        }
-        else {
-            //No living transactions
-            assert(r==EINVAL);
-            txn_manager->oldest_living_xid = TXNID_NONE_LIVING;
-            txn_manager->oldest_living_starttime = 0;
-        }
-    }
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
     }
@@ -924,4 +844,3 @@ toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment) {
     toku_mutex_unlock(&mgr->txn_manager_lock);
 }
 
-#undef STATUS_VALUE
