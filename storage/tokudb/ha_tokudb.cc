@@ -996,10 +996,10 @@ int generate_row_for_put(
         }
         dest_key->data = src_key->data;
         dest_key->size = src_key->size;
-        dest_key->flags = DB_DBT_TEMPMEMORY;
+        dest_key->flags = 0;
         dest_val->data = src_val->data;
         dest_val->size = src_val->size;
-        dest_val->flags = DB_DBT_TEMPMEMORY;
+        dest_val->flags = 0;
         error = 0;
         goto cleanup;
     }
