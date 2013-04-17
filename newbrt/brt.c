@@ -1940,6 +1940,8 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, struct kv_pair *pare
     } else {
 	// we are merging them.
 	*did_merge = TRUE;
+	*splitk = 0;
+	toku_free(parent_splitk); // if we are merging, the splitk gets freed.
 	return merge_leaf_nodes(a, b);
     }
 }
