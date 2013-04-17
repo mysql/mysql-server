@@ -197,8 +197,16 @@ static int poll_function (void *extra, float progress) {
     return 0;
 }
 
+static struct timeval starttime;
+static double elapsed_time (void) {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now.tv_sec - starttime.tv_sec + 1e-6*(now.tv_usec - starttime.tv_usec);
+}
+
 static void test_loader(DB **dbs)
 {
+    gettimeofday(&starttime, NULL);
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
@@ -237,12 +245,15 @@ static void test_loader(DB **dbs)
     poll_count=0;
 
     // close the loader
-    printf("closing"); fflush(stdout);
+    printf("%9.6fs closing", elapsed_time()); fflush(stdout);
     r = loader->close(loader);
     printf(" done\n");
     CKERR(r);
 
-    assert(poll_count>0);
+    if ( USE_PUTS == 0 ) {
+        if (poll_count == 0) printf("%s:%d\n", __FILE__, __LINE__);
+        assert(poll_count>0);
+    }
 
     r = txn->commit(txn, 0);
     CKERR(r);
