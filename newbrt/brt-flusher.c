@@ -148,7 +148,12 @@ update_flush_status(BRTNODE child, int cascades) {
 static void
 maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
 {
-    if (child->height == 0 && !child->dirty) {
+    // If the node is already fully in memory, as in upgrade, we don't
+    // need to destroy the basement nodes because they are all equally
+    // up to date.
+    if (!is_entire_node_in_memory(child) && 
+        child->height == 0 && 
+        !child->dirty) {
         for (int i = 0; i < child->n_children; ++i) {
             if (BP_STATE(child, i) == PT_AVAIL &&
                 node->max_msn_applied_to_node_on_disk.msn < BLB_MAX_MSN_APPLIED(child, i).msn) {
