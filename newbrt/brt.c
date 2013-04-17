@@ -113,6 +113,14 @@ Lookup:
 
 static const uint32_t this_version = BRT_LAYOUT_VERSION;
 
+static BRT_STATUS_S brt_status;
+
+void 
+toku_brt_get_status(BRT_STATUS s) {
+    *s = brt_status;
+}
+
+
 
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
@@ -1657,8 +1665,11 @@ brt_leaf_apply_cmd_once (
 	    workdone_this_le = newlen;
         }
     }
-    if (workdone)  // test programs may call with NULL
+    if (workdone) {  // test programs may call with NULL
 	*workdone += workdone_this_le;
+	if (*workdone > brt_status.max_workdone)
+	    brt_status.max_workdone = *workdone;
+    }
 
     // brt_leaf_check_leaf_stats(node);
 
@@ -1716,13 +1727,6 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
     svextra->made_change = TRUE;
 }
 
-static UPDATE_STATUS_S update_status;
-
-void 
-toku_update_get_status(UPDATE_STATUS s) {
-    *s = update_status;
-}
-
 // We are already past the msn filter (in brt_leaf_put_cmd(), which calls do_update()),
 // so capturing the msn in the setval_extra_s is not strictly required.	 The alternative
 // would be to put a dummy msn in the messages created by setval_fun(), but preserving
@@ -1741,7 +1745,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
     if (cmd->type == BRT_UPDATE) {
 	// key is passed in with command (should be same as from le)
 	// update function extra is passed in with command
-	update_status.updates++;
+	brt_status.updates++;
 	keyp = cmd->u.id.key;
 	update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -1750,7 +1754,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
 	assert(le);  // for broadcast updates, we just hit all leafentries
 		     // so this cannot be null
 	assert(cmd->u.id.key->size == 0);
-	update_status.updates_broadcast++;
+	brt_status.updates_broadcast++;
 	keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
 	update_function_extra = cmd->u.id.val;
     } else {
@@ -1806,7 +1810,7 @@ brt_leaf_put_cmd (
     LEAFENTRY storeddata;
     OMTVALUE storeddatav=NULL;
     if (cmd->msn.msn <= bn->max_msn_applied.msn) {
-	// TODO3514  add accountability counter here
+	brt_status.msn_discards++;
 	return;
     }
     else {
@@ -2836,6 +2840,7 @@ partition_requires_msg_application(BRTNODE node, int childnum, ANCESTORS ancesto
     {
         if (curr_ancestors->node->dsn.dsn > BLB_MAX_DSN_APPLIED(node,childnum).dsn) {
             requires_msg_application = TRUE;
+	    brt_status.dsn_gap++;
             break;
         }
     }
@@ -3847,7 +3852,7 @@ toku_brt_change_descriptor(
     fd = toku_cachefile_get_and_pin_fd (t->cf);
     r = toku_update_descriptor(t->h, &new_d, fd);
     if (r == 0)	 // very infrequent operation, worth precise threadsafe count
-	(void) toku_sync_fetch_and_increment_uint64(&update_status.descriptor_set);
+	(void) toku_sync_fetch_and_increment_uint64(&brt_status.descriptor_set);
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 

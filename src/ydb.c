@@ -1925,11 +1925,11 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->directory_write_locks_fail = directory_write_locks_fail;
 	}
 	{
-	    UPDATE_STATUS_S update_stat;
-	    toku_update_get_status(&update_stat);
-	    engstat->le_updates = update_stat.updates;
-	    engstat->le_updates_broadcast = update_stat.updates_broadcast;
-	    engstat->descriptor_set = update_stat.descriptor_set;
+	    BRT_STATUS_S brt_stat;
+	    toku_brt_get_status(&brt_stat);
+	    engstat->le_updates = brt_stat.updates;
+	    engstat->le_updates_broadcast = brt_stat.updates_broadcast;
+	    engstat->descriptor_set = brt_stat.descriptor_set;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
