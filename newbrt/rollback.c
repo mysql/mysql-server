@@ -843,8 +843,8 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
         r = toku_cachefile_prefetch(cf, name, hash,
                                     get_write_callbacks_for_rollback_log(h),
                                     toku_rollback_fetch_callback,
-                                    toku_brtnode_pf_req_callback,
-                                    toku_brtnode_pf_callback,
+                                    toku_rollback_pf_req_callback,
+                                    toku_rollback_pf_callback,
                                     h,
                                     &doing_prefetch);
         assert(r==0);
