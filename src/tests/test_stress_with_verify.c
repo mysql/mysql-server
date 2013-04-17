@@ -49,16 +49,16 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[1].sleep_ms = 3000; // maybe make this a runtime param at some point
     myargs[1].operation = verify_op;
 
+    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     for (int i = 2; i < 2 + cli_args->num_update_threads; ++i) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
+        myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
 
     // make the guy that does point queries
-    struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     for (int i = 2 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
-        myargs[i].operation_extra = &uoe;
         myargs[i].operation = ptquery_op;
     }
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
