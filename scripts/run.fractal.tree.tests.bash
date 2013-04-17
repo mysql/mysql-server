@@ -224,7 +224,8 @@ cp -r Testing/$tag $resultsdir
 cf=$(my_mktemp ftresult)
 cat "$resultsdir/trace" | awk '
 BEGIN {
-    leaks=0;
+    errs=0;
+    look=0;
     ORS=" ";
 }
 /[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
@@ -232,11 +233,21 @@ BEGIN {
     total=$9;
     pass=total-fail;
 }
-/^Memory Leak - [0-9]+/ {
-    leaks=$4;
+/^Memory checking results:/ {
+    look=1;
+    FS=" - ";
+}
+/Errors while running CTest/ {
+    look=0;
+    FS=" ";
+}
+{
+    if (look) {
+        errs+=$2;
+    }
 }
 END {
-    print "LEAKS=" leaks;
+    print "ERRORS=" errs;
     if (fail>0) {
         print "FAIL=" fail
     }
