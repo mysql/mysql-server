@@ -977,18 +977,21 @@ int toku_cachetable_close (CACHETABLE *tp) {
 }
 
 // this is broken. needs to wait for writebacks to complete
-int toku_cachetable_upnin_and_remove (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, int write_me) {
+int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
     /* Removing something already present is OK. */
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
     cachetable_lock(t);
+    u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
-	    flush_and_remove(t, p, write_me);
-            if ((4 * t->n_in_table < t->table_size) && (t->table_size>4))
-                cachetable_rehash(t, t->table_size/2);
+	    p->dirty = 0; // clear the dirty bit.  We're just supposed to remove it.
+	    assert(p->rwlock.pinned==1);
+            ctpair_read_unlock(&p->rwlock);
+	    assert(ctpair_users(&p->rwlock)==0);
+	    cachetable_maybe_remove_and_free_pair(t, p);
 	    goto done;
 	}
     }
