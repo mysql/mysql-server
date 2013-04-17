@@ -1812,11 +1812,11 @@ ule_verify_xids(ULE ule, uint32_t interesting, TXNID *xids) {
 // Parameters:
 //    le - leafentry to iterate over
 //    f - callback function that checks if a TXNID in le is accepted, and its associated value should be examined.
-//    is_emptyp - output parameter that returns answer
+//    is_delp - output parameter that returns answer
 //    context - parameter for f
 //
 int
-le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_emptyp, TOKUTXN context) {
+le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_delp, TOKUTXN context) {
 #if ULE_DEBUG
     ULE_S ule;
     le_unpack(&ule, le);
@@ -1825,7 +1825,7 @@ le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_emptyp, TOKUTX
     //Read the keylen
     uint8_t type = le->type;
     int r;
-    BOOL is_empty = FALSE;
+    BOOL is_del = FALSE;
     switch (type) {
         case LE_CLEAN: {
             r = 0;
@@ -1857,13 +1857,13 @@ le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_emptyp, TOKUTX
 
             uint32_t *length_and_bits  = (uint32_t*)p;
             uint32_t my_length_and_bit = toku_dtoh32(length_and_bits[index]);
-            is_empty = !IS_INSERT(my_length_and_bit);
+            is_del = !IS_INSERT(my_length_and_bit);
 #if ULE_DEBUG
             {
                 uint32_t has_p = (ule.num_puxrs != 0);
                 uint32_t ule_index = (index==0) ? ule.num_cuxrs + ule.num_puxrs - 1 : ule.num_cuxrs - 1 + has_p - index;
                 UXR uxr = ule.uxrs + ule_index;
-                invariant(uxr_is_delete(uxr) == is_empty);
+                invariant(uxr_is_delete(uxr) == is_del);
             }
 #endif
             break;
@@ -1874,7 +1874,7 @@ cleanup:
 #if ULE_DEBUG
     ule_cleanup(&ule);
 #endif
-    if (!r) *is_emptyp = is_empty;
+    if (!r) *is_delp = is_del;
     return r;
 }
 
