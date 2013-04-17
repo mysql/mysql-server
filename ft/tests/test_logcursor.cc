@@ -167,7 +167,7 @@ int create_logfiles() {
 
     LSN lsn = {0};
     TXNID_PAIR txnid = {.parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE};
-    TXNID_PAIR cp_txnid = {.parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE};
+    LSN begin_checkpoint_lsn;
 
     uint32_t num_fassociate = 0;
     uint32_t num_xstillopen = 0;
@@ -185,23 +185,26 @@ int create_logfiles() {
 
     // use old x1.tdb test log as basis
     //xbegin                    'b': lsn=1 parenttxnid=0 crc=00005f1f len=29
-    toku_log_xbegin(logger, &lsn, 1, TXNID_PAIR_NONE, TXNID_PAIR_NONE); txnid.parent_id64= lsn.lsn;
+    txnid.parent_id64 = 1;
+    toku_log_xbegin(logger, &lsn, NO_FSYNC, txnid, TXNID_PAIR_NONE);
     //fcreate                   'F': lsn=2 txnid=1 filenum=0 fname={len=4 data="a.db"} mode=0777 treeflags=0 crc=18a3d525 len=49
     toku_log_fcreate(logger, &lsn, NO_FSYNC, NULL, txnid, fn_aname, bs_aname, 0x0777, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 0);
     //commit                    'C': lsn=3 txnid=1 crc=00001f1e len=29
     toku_log_xcommit(logger, &lsn, FSYNC, NULL, txnid);
     //xbegin                    'b': lsn=4 parenttxnid=0 crc=00000a1f len=29
-    toku_log_xbegin(logger, &lsn, 2, TXNID_PAIR_NONE, TXNID_PAIR_NONE); txnid.parent_id64= lsn.lsn;
+    txnid.parent_id64 = 4; // Choosing ids based on old test instead of what should happen now.
+    toku_log_xbegin(logger, &lsn, NO_FSYNC, txnid, TXNID_PAIR_NONE);
     //fcreate                   'F': lsn=5 txnid=4 filenum=1 fname={len=4 data="b.db"} mode=0777 treeflags=0 crc=14a47925 len=49
     toku_log_fcreate(logger, &lsn, NO_FSYNC, NULL, txnid, fn_bname, bs_bname, 0x0777, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 0);
     //commit                    'C': lsn=6 txnid=4 crc=0000c11e len=29
     toku_log_xcommit(logger, &lsn, FSYNC, NULL, txnid);
     //xbegin                    'b': lsn=7 parenttxnid=0 crc=0000f91f len=29
-    toku_log_xbegin(logger, &lsn, 3, TXNID_PAIR_NONE, TXNID_PAIR_NONE); txnid.parent_id64= lsn.lsn;
+    txnid.parent_id64 = 7; // Choosing ids based on old test instead of what should happen now.
+    toku_log_xbegin(logger, &lsn, NO_FSYNC, txnid, TXNID_PAIR_NONE);
     //enq_insert                'I': lsn=8 filenum=0 xid=7 key={len=2 data="a\000"} value={len=2 data="b\000"} crc=40b863e4 len=45
     toku_log_enq_insert(logger, &lsn, NO_FSYNC, NULL, fn_aname, txnid, bs_a, bs_b);
     //begin_checkpoint          'x': lsn=9 timestamp=1251309957584197 crc=cd067878 len=29
-    toku_log_begin_checkpoint(logger, &lsn, NO_FSYNC, 1251309957584197, 0); cp_txnid.parent_id64= lsn.lsn;
+    toku_log_begin_checkpoint(logger, &begin_checkpoint_lsn, NO_FSYNC, 1251309957584197, 0);
     //fassociate                'f': lsn=11 filenum=1 fname={len=4 data="b.db"} crc=a7126035 len=33
     toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_bname, 0, bs_bname, 0);
     num_fassociate++;
@@ -217,7 +220,7 @@ int create_logfiles() {
     }
     num_xstillopen++;
     //end_checkpoint            'X': lsn=13 txnid=9 timestamp=1251309957586872 crc=cd285c30 len=37
-    toku_log_end_checkpoint(logger, &lsn, FSYNC, (LSN){cp_txnid.parent_id64}, 1251309957586872, num_fassociate, num_xstillopen);
+    toku_log_end_checkpoint(logger, &lsn, FSYNC, begin_checkpoint_lsn, 1251309957586872, num_fassociate, num_xstillopen);
     //enq_insert                'I': lsn=14 filenum=1 xid=7 key={len=2 data="b\000"} value={len=2 data="a\000"} crc=40388be4 len=45
     toku_log_enq_insert(logger, &lsn, NO_FSYNC, NULL, fn_bname, txnid, bs_b, bs_a);
     //commit                    'C': lsn=15 txnid=7 crc=00016d1e len=29
