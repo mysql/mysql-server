@@ -33,12 +33,6 @@ static inline int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-toku_dbt_cmp compare_fun = dbcmp;
-
-static inline toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* db) {
-    return compare_fun;
-}
-
 bool panicked = false;
 
 static inline int dbpanic(DB* db, int r) {

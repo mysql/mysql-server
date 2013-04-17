@@ -215,8 +215,6 @@ toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     insert_range = toku_xmalloc(sizeof *insert_range);
     *insert_range = *range;
     size_t start_omt_size = toku_omt_memory_size(tree->i.omt);
-    static int count = 0;
-    count++;
     r = toku_omt_insert_at(tree->i.omt, insert_range, index);
     assert_zero(r);
     size_t end_omt_size = toku_omt_memory_size(tree->i.omt);

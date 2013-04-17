@@ -20,7 +20,7 @@ int main(int argc, const char *argv[]) {
     int r;
 
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, MAX_LOCKS, MAX_LOCK_MEMORY, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, MAX_LOCKS, MAX_LOCK_MEMORY, dbpanic);
     CKERR(r);
     do_ltm_status(ltm);
 #if 0
@@ -63,17 +63,17 @@ int main(int argc, const char *argv[]) {
     /* create tests. */
     {
         r = toku_lt_create(NULL, dbpanic, ltm,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
 
         r = toku_lt_create(&lt,  NULL,    ltm,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
 
         r = toku_lt_create(&lt,  dbpanic, NULL,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
 
@@ -83,15 +83,15 @@ int main(int argc, const char *argv[]) {
         CKERR2(r, EINVAL);
 
         r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            NULL,        toku_free, toku_realloc);
         CKERR2(r, EINVAL);
         r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            toku_malloc, NULL,      toku_realloc);
         CKERR2(r, EINVAL);
         r = toku_lt_create(&lt,  dbpanic, ltm,
-                           get_compare_fun_from_db,
+                           dbcmp,
                            toku_malloc, toku_free, NULL);
         CKERR2(r, EINVAL);
     }

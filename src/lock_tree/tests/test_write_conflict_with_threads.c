@@ -27,7 +27,7 @@ static void *writer_thread(void *arg) {
     int r = write_lock(writer_arg->lt, writer_arg->id, writer_arg->name); assert(r == 0);
     printf("%lu locked\n", writer_arg->id);
     sleep(1);
-    toku_lt_unlock(writer_arg->lt, writer_arg->id);
+    toku_lt_unlock_txn(writer_arg->lt, writer_arg->id);
     printf("%lu unlocked\n", writer_arg->id);
     return arg;
 }
@@ -65,11 +65,11 @@ int main(int argc, const char *argv[]) {
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -84,7 +84,7 @@ int main(int argc, const char *argv[]) {
         r = toku_pthread_create(&tids[i], NULL, writer_thread, writer_arg); assert(r == 0);
     }
     sleep(10);
-    r = toku_lt_unlock(lt, txn_a);  assert(r == 0);
+    r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);
     printf("main unlocked\n");
 
     for (int i = 0; i < max_threads; i++) {

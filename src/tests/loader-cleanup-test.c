@@ -1004,8 +1004,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = LOADER_USE_PUTS;
-	    printf("Using puts\n");
+            USE_PUTS = 0;
+	    printf("DISABLED Using puts as part of #4503\n");
         } else if (strcmp(argv[0], "-k")==0) {
 	    test_only_abort_via_poll = 1;
 	    printf("Perform only abort_via_poll test\n");

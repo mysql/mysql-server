@@ -21,6 +21,11 @@ endif
 OBJS_RAW = \
 	ydb_lib \
 	ydb \
+	ydb_cursor \
+	ydb_row_lock \
+	ydb_env_func \
+	ydb_write \
+	ydb_db \
 	errors \
 	dlmalloc \
 	loader \

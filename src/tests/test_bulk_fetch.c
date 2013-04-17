@@ -102,7 +102,10 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r=env->set_default_bt_compare(env, int64_dbt_cmp); CKERR(r);
-    r = env->set_cachesize(env, 0, (u_int32_t)n, 1); assert(r == 0);
+    // arbitrarily have cachetable size be 4*n
+    // goal is to make it small enough such that all of data 
+    // does not fit in cachetable, but not so small that we get thrashing
+    r = env->set_cachesize(env, 0, (u_int32_t)4*n, 1); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;

@@ -60,18 +60,6 @@ cget(BOOL success, BOOL find, char txn, int _key, int _data,
 }
 
 static void
-cdel (BOOL success, BOOL find, char txn) {
-    int r;
-
-    r = cursors[(int)txn]->c_del(cursors[(int)txn], 0);
-    if (success) {
-        if (find) CKERR(r);
-        else      CKERR2(r, DB_NOTFOUND);
-    }
-    else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
-}
-
-static void
 dbdel (BOOL success, BOOL find, char txn, int _key) {
     int r;
     DBT key;
@@ -458,30 +446,6 @@ test_prev (u_int32_t next_type) {
 }
 
 static void
-test_cdel (void) {
-    /* ********************************************************************** */
-    setup_dbs();
-    put(TRUE, 'c', 1, 1);
-    early_commit('c');
-    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_SET);
-    cdel(TRUE, TRUE, 'a');
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    cget(FALSE, FALSE, 'b', 1, 2, 1, 2, DB_SET);
-    cget(FALSE, FALSE, 'b', 1, 0, 1, 0, DB_SET);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
-    close_dbs();
-    /* ********************************************************************** */
-    setup_dbs();
-    put(TRUE, 'c', 1, 1);
-    early_commit('c');
-    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_SET);
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    cdel(FALSE, TRUE, 'a');
-    close_dbs();
-}
-
-static void
 test_dbdel (void) {
     /* If DB_DELETE_ANY changes to 0, then find is meaningful and 
        has to be fixed in test_dbdel*/
@@ -524,8 +488,6 @@ test_current (void) {
     early_commit('a');
     cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
     cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_CURRENT);
-    cdel(TRUE, TRUE, 'b');
-    cget(TRUE, FALSE, 'b', 1, 1, 1, 1, DB_CURRENT);
     close_dbs();
 }
 
@@ -581,8 +543,6 @@ test (void) {
     /* ********************************************************************** */
     test_prev( DB_PREV);
     test_prev( DB_PREV_NODUP);
-    /* ********************************************************************** */
-    test_cdel();
     /* ********************************************************************** */
     test_dbdel();
     /* ********************************************************************** */

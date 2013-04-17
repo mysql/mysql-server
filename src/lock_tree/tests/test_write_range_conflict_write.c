@@ -36,10 +36,10 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
+    r = toku_lt_create(&lt, ltm, dbcmp);
     CKERR(r);
     assert(lt);
     init_query();
@@ -102,7 +102,7 @@ static void lt_insert_write_range(int r_expect, char txn, int key_l, int key_r) 
 static void lt_unlock(char ctxn) UU();
 static void lt_unlock(char ctxn) {
     int retval;
-    retval = toku_lt_unlock(lt, (TXNID) (size_t) ctxn);
+    retval = toku_lt_unlock_txn(lt, (TXNID) (size_t) ctxn);
     CKERR(retval);
 }
               

@@ -2492,10 +2492,10 @@ int toku_cachetable_get_and_pin_nonblocking (
 	    note_hash_count(count);
 
             //
-            // In Dr. No, the ydb lock ensures that only one client may be successfully
-            // doing a query on a dictionary at any given time. This function
-            // is called with the ydb lock held. This implies that only ONE client can ever be
-            // in get_and_pin_nonblocking while the ydb lock is held. 
+            // In Doofenshmirts, we keep the root to leaf path pinned
+            // as we perform a quiry on a dictionary at any given time.
+            // This implies that only ONE query client can ever be
+            // in get_and_pin_nonblocking for this dictionary. 
             // So, if there is a write lock grabbed
             // on the PAIR that we want to lock, then some expensive operation 
             // MUST be happening (read from disk, write to disk, flush, etc...), 
@@ -2516,13 +2516,9 @@ int toku_cachetable_get_and_pin_nonblocking (
                 if (partial_fetch_required) {
                     p->state = CTPAIR_READING;
                     run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
-                    if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
-                    // Now wait for the I/O to occur.
-    
+                    // Now wait for the I/O to occur.    
                     do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, FALSE);
-    
                     cachetable_unlock(ct);
-                    if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                     return TOKUDB_TRY_AGAIN;
                 }
                 pair_touch(p);
@@ -2535,7 +2531,6 @@ int toku_cachetable_get_and_pin_nonblocking (
             }
             else {
                 run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
-                if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                 // Now wait for the I/O to occur.
                 // We need to obtain the lock (waiting for the write to finish), but then we only waited so we could wake up again
                 if (p->checkpoint_pending) {
@@ -2578,7 +2573,6 @@ int toku_cachetable_get_and_pin_nonblocking (
                     }
                 }
                 cachetable_unlock(ct);
-                if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                 return TOKUDB_TRY_AGAIN;
             }
         }
@@ -2600,13 +2594,11 @@ int toku_cachetable_get_and_pin_nonblocking (
     assert(p);
     nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
     run_unlockers(unlockers); // we hold the ct mutex.
-    if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
     u_int64_t t0 = get_tnow();
     cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, FALSE);
     cachetable_miss++;
     cachetable_misstime += get_tnow() - t0;
     cachetable_unlock(ct);
-    if (ct->ydb_lock_callback) ct->ydb_lock_callback();
     return TOKUDB_TRY_AGAIN;
 }
 

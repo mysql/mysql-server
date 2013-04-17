@@ -45,7 +45,7 @@ test_insert_delete_insert (void) {
     assert(r == 0);
     toku_free(val.data);
 
-    r = cursor->c_del(cursor, 0); 
+    r = db->del(db, null_txn, &key, DB_DELETE_ANY); assert(r == 0);
     assert(r == 0);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);

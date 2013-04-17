@@ -60,7 +60,7 @@ test_main (int UU(argc), char UU(*const argv[])) {
     assert(*(int*)val.data == v1); // Will bring up valgrind error.
 
 
-    r = cursor->c_del(cursor, 0); 
+    r = db->del(db, null_txn, &ckey, DB_DELETE_ANY); assert(r == 0);
         CKERR(r);
 
     assert(*(int*)val.data == v1); // Will bring up valgrind error.

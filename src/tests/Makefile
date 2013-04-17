@@ -178,6 +178,7 @@ BDB_DONTRUN_TESTS = \
 	perf_malloc_free \
 	perf_nop \
 	perf_ptquery \
+	perf_ptquery2 \
 	perf_xmalloc_free \
 	prelock-read-read \
 	prelock-read-write \

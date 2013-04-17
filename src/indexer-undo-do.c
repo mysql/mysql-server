@@ -20,6 +20,7 @@
 #include "leafentry.h"
 #include "ule.h"
 #include "xids.h"
+#include "ydb_row_lock.h"
 
 #include "indexer-internal.h"
 

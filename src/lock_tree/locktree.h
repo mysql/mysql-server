@@ -59,26 +59,26 @@ typedef struct __toku_ltm toku_ltm;
 
 /** \brief The lock tree structure */
 struct __toku_lock_tree {
+    /** Lock tree manager */
+    toku_ltm* mgr;
     /** The database for which this locktree will be handling locks */
     DB*                 db;
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;         /**< Stores local(read|write)set tables */
-    /**
-        Stores a list of transactions to unlock when it is safe.
-        When we get a PUT or a GET, the comparison function is valid
-        and we can delete locks held in txns_to_unlock, even if txns_still_locked
-        is nonempty.
-    */
-    toku_rth*           txns_to_unlock; 
-    /** Stores a list of transactions that hold locks. txns_still_locked = rth - txns_to_unlock
-        rth != txns_still_locked + txns_to_unlock, we may get an unlock call for a txn that has
-        no locks in rth.
-        When txns_still_locked becomes empty, we can throw away the contents of the lock tree
-        quickly. */
-    toku_rth*           txns_still_locked;
+    /** Whether lock escalation is allowed. */
+    bool                lock_escalation_allowed;
+    /** Function to retrieve the key compare function from the database. */
+    toku_dbt_cmp compare_fun;
+    /** The number of references held by DB instances and transactions to this lock tree*/
+    uint32_t          ref_count;
+    /** DICTIONARY_ID associated with the lock tree */
+    DICTIONARY_ID      dict_id;
+    OMT                dbs; //The extant dbs using this lock tree.
+    OMT                lock_requests;
+    toku_pthread_mutex_t mutex;
+
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns 
-
     Memory ownership: 
      - tree->buf is an array of toku_range's, which the lt owns
        The contents of tree->buf are volatile (this is a buffer space
@@ -98,25 +98,7 @@ struct __toku_lock_tree {
     uint32_t            bw_buflen;
     toku_range*         verify_buf;
     uint32_t            verify_buflen;
-    /** Whether lock escalation is allowed. */
-    bool                lock_escalation_allowed;
-    /** Lock tree manager */
-    toku_ltm* mgr;
-    /** Function to retrieve the key compare function from the database. */
-    toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
-    /** The key compare function */
-    toku_dbt_cmp compare_fun;
-    /** The panic function */
-    int               (*panic)(DB*, int);
-    /** The number of references held by DB instances and transactions to this lock tree*/
-    uint32_t          ref_count;
-    /** DICTIONARY_ID associated with the lock tree */
-    DICTIONARY_ID      dict_id;
-    OMT                dbs; //The extant dbs using this lock tree.
-
-    OMT                lock_requests;
 };
-
 
 typedef enum {
     LTM_LOCKS_LIMIT,                // number of locks allowed (obsolete)
@@ -162,13 +144,10 @@ struct __toku_ltm {
         is retrieved from this list, otherwise, a new lock tree is created
         and the new mapping of DB and Lock tree is stored here */
     toku_idlth*        idlth;
-    /** Function to retrieve the key compare function from the database. */
-    toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
     /** The panic function */
     int               (*panic)(DB*, int);
 
-    toku_pthread_mutex_t lock;
-    toku_pthread_mutex_t *use_lock;
+    toku_pthread_mutex_t mutex;
     struct timeval lock_wait_time;
 };
 
@@ -203,10 +182,6 @@ typedef struct __toku_point toku_point;
    Create a lock tree.  Should be called only inside DB->open.
 
    \param ptree          We set *ptree to the newly allocated tree.
-   \param get_compare_fun_from_db    Accessor for the key compare function.
-   \param panic          The function to cause the db to panic.  
-                         i.e., godzilla_rampage()
-   \param payload_capacity The maximum amount of memory to use for dbt payloads.
    
    \return
    - 0       Success
@@ -222,17 +197,8 @@ typedef struct __toku_point toku_point;
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree,
-                   int   (*panic)(DB*, int), 
                    toku_ltm* mgr,
-                   toku_dbt_cmp (*get_compare_fun_from_db)(DB*));
-
-/**
-    Gets a lock tree for a given DB with id dict_id
-*/
-int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    DICTIONARY_ID dict_id, DB *db);
-
-void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
+                   toku_dbt_cmp compare_fun);
 
 /**
    Closes and frees a lock tree.
@@ -398,11 +364,28 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
    - EINVAL      If (tree == NULL || txn == NULL).
    - EINVAL      If panicking.
  */
-int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
+int toku_lt_unlock_txn(toku_lock_tree* tree, TXNID txn);
+
+void toku_lt_retry_lock_requests(toku_lock_tree *tree);
+
+void toku_lt_add_ref(toku_lock_tree* tree);
+
+int toku_lt_remove_ref(toku_lock_tree* tree);
+
+void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db);
+
+toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
+
+toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+
+void toku_lt_verify(toku_lock_tree *tree, DB *db);
+
+int toku_lt_point_cmp(const toku_point* x, const toku_point* y);
 
 /* Lock tree manager functions begin here */
+
 /**
-    Creates a lock tree manager..
+    Creates a lock tree manager.
     
     \param pmgr      A buffer for the new lock tree manager.
     \param locks_limit    The maximum number of locks.
@@ -415,8 +398,10 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
 int toku_ltm_create(toku_ltm** pmgr,
                     uint32_t locks_limit,
                     uint64_t lock_memory_limit,
-                    int   (*panic)(DB*, int), 
-                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*));
+                    int   (*panic)(DB*, int));
+
+/** Open the lock tree manager */
+int toku_ltm_open(toku_ltm *mgr);
 
 /**
     Closes and frees a lock tree manager..
@@ -444,30 +429,29 @@ int toku_ltm_close(toku_ltm* mgr);
 */
 int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t locks_limit);
 
-int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* lock_memory_limit);
+int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* locks_limit);
 
 int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t lock_memory_limit);
 
+int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* lock_memory_limit);
+
 void toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s);
 
-int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* locks_limit);
+// set the default lock timeout. units are milliseconds
+void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec);
+
+// get the default lock timeout
+void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec);
+
+/**
+    Gets a lock tree for a given DB with id dict_id
+*/
+int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB *dbp, toku_dbt_cmp compare_fun);
+
+void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
 void toku_ltm_incr_lock_memory(void *extra, size_t s);
 void toku_ltm_decr_lock_memory(void *extra, size_t s);
-
-void toku_lt_add_ref(toku_lock_tree* tree);
-
-int toku_lt_remove_ref(toku_lock_tree* tree);
-
-void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db);
-
-int toku_lt_point_cmp(const toku_point* x, const toku_point* y);
-
-toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
-
-toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
-
-void toku_lt_verify(toku_lock_tree *tree, DB *db);
 
 typedef enum {
     LOCK_REQUEST_INIT = 0,
@@ -524,17 +508,10 @@ void toku_lock_request_destroy(toku_lock_request *lock_request);
 // returns 0 (success), DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK
 int toku_lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted);
 
-// try to acquire a lock described by a lock request.
-// if the lock is not granted and copy_keys_if_not_granted is true, then make a copy of the keys in the key range.
-// this is necessary when used in the ydb cursor callbacks where the keys are only valid when in the callback function.
-// called with the lock tree already locked.
-int toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted);
-
 // sleep on the lock request until it becomes resolved or the wait time occurs.
 // if the wait time is not specified, then wait for as long as it takes.
 int toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time);
 
-// use the default timeouts set in the ltm
 int toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, toku_lock_tree *tree);
 
 // wakeup any threads that are waiting on a lock request.
@@ -543,45 +520,13 @@ void toku_lock_request_wakeup(toku_lock_request *lock_request, toku_lock_tree *t
 // returns the lock request state
 toku_lock_request_state toku_lock_request_get_state(toku_lock_request *lock_request);
 
-// a lock request tree contains pending lock requests. 
-// initialize a lock request tree.
-void toku_lock_request_tree_init(toku_lock_tree *tree);
-
-// destroy a lock request tree.
-// the tree must be empty when destroyed.
-void toku_lock_request_tree_destroy(toku_lock_tree *tree);
-
-// insert a lock request into the tree.
-void toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_request);
-
-// delete a lock request from the tree.
-void toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_request);
-
-// find a lock request for a given transaction id.
-toku_lock_request *toku_lock_request_tree_find(toku_lock_tree *tree, TXNID id);
-
-// retry all pending lock requests. 
-// for all lock requests, if the lock request is resolved, then wakeup any threads waiting on the lock request.
-// called with the lock tree already locked.
-void toku_lt_retry_lock_requests_locked(toku_lock_tree *tree);
-
 // try to acquire a lock described by a lock request. if the lock is granted then return success.
 // otherwise wait on the lock request until the lock request is resolved (either granted or
 // deadlocks), or the given timer has expired.
 // returns 0 (success), DB_LOCK_NOTGRANTED
 int toku_lt_acquire_lock_request_with_timeout(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time);
 
-// called with the lock tree already locked
-int toku_lt_acquire_lock_request_with_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time);
-
-// call acquire_lock_request_with_timeout with the default lock wait timeout
 int toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_lock_request *lock_request);
-
-// called with the lock tree already locked
-int toku_lt_acquire_lock_request_with_default_timeout_locked (toku_lock_tree *tree, toku_lock_request *lock_request);
-
-// check if a given lock request could deadlock with any granted locks.
-void toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *lock_request);
 
 #include "txnid_set.h"
 
@@ -594,23 +539,6 @@ void toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *lock_reques
 // adds all of the conflicting transactions to the conflicts transaction set
 // returns an error code (0 == success)
 int toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock_request, txnid_set *conflicts);
-
-// set the ltm mutex (used to override the internal mutex) and use a user supplied mutex instead to protect the
-// lock tree).  the first use is to use the ydb mutex to protect the lock tree.  eventually, the ydb code will
-// be refactored to use the ltm mutex instead.
-void toku_ltm_set_mutex(toku_ltm *ltm, toku_pthread_mutex_t *use_lock);
-
-// lock the lock tree
-void toku_ltm_lock_mutex(toku_ltm *mgr);
-
-// unlock the lock tree
-void toku_ltm_unlock_mutex(toku_ltm *mgr);
-
-// set the default lock timeout. units are milliseconds
-void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec);
-
-// get the default lock timeout
-void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec);
 
 #if defined(__cplusplus)
 }

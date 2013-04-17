@@ -7,13 +7,11 @@ int main(void) {
     uint32_t max_locks = 1000;
     uint64_t max_lock_memory = max_locks*64;
 
-    r = toku_ltm_create(&mgr, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db);
+    r = toku_ltm_create(&mgr, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     
     {
-        r = toku_lt_create(&lt, dbpanic, mgr,
-                           get_compare_fun_from_db);
+        r = toku_lt_create(&lt, mgr, dbcmp);
         CKERR(r);
         assert(lt);
         r = toku_lt_close(lt);

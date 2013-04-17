@@ -84,7 +84,7 @@ run (int choice) {
 	i=0;
 	while (0==(r=(c->c_get(c, &kdbt, &vdbt, DB_FIRST)))) {
 	    i++;
-	    r=c->c_del(c, 0);
+	    r = db->del(db, txn, &kdbt, DB_DELETE_ANY);
 	    CKERR(r);
 	}
 	assert(r==DB_NOTFOUND);
