@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+ggg/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -1643,7 +1643,7 @@ int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct d
 	assert(r==0);
     }
 
-    assert(sts.n_subtrees=1);
+    assert(sts.n_subtrees==1);
     BLOCKNUM root_block = make_blocknum(sts.subtrees[0].block);
     toku_free(sts.subtrees);
 
