@@ -1397,7 +1397,6 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     *ptree = tree;
     r = 0;
 cleanup:
-    ltm_mutex_unlock(mgr);
     if (r == 0) {
         mgr->STATUS_VALUE(LTM_LT_CREATE)++;
         mgr->STATUS_VALUE(LTM_LT_NUM)++;
@@ -1406,16 +1405,15 @@ cleanup:
     }
     else {
         if (tree != NULL) {
-            ltm_mutex_lock(mgr);
             if (added_to_ltm)
                 ltm_remove_lt(mgr, tree);
             if (added_to_idlth)
                 toku_idlth_delete(mgr->idlth, dict_id);
             toku_lt_close(tree); 
-            ltm_mutex_unlock(mgr);
         }
         mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
     }
+    ltm_mutex_unlock(mgr);
     return r;
 }
 
@@ -2117,14 +2115,12 @@ toku_lt_add_ref(toku_lock_tree* tree) {
 }
 
 static void 
-ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
-    ltm_mutex_lock(mgr);
+ltm_stop_managing_lt_unlocked(toku_ltm* mgr, toku_lock_tree* tree) {
     ltm_remove_lt(mgr, tree);
     toku_lt_map* map = toku_idlth_find(mgr->idlth, tree->dict_id);
     if (map && map->tree == tree) {
         toku_idlth_delete(mgr->idlth, tree->dict_id);
     }
-    ltm_mutex_unlock(mgr);
 }
 
 int 
@@ -2134,15 +2130,22 @@ toku_lt_remove_ref(toku_lock_tree* tree) {
     assert(tree->ref_count > 0);
     uint32_t ref_count = __sync_sub_and_fetch(&tree->ref_count, 1);
     if (ref_count > 0) { 
-        r = 0; goto cleanup; 
+        r = 0; 
+        goto cleanup; 
     }
-    assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    ltm_stop_managing_lt(tree->mgr, tree);
-    r = toku_lt_close(tree);
-    if (r != 0) 
-        goto cleanup;
-
-    r = 0;    
+    ltm_mutex_lock(tree->mgr);
+    // Once the last reference was removed, only toku_ltm_get_lt could add a reference
+    // and requires the ltm_mutex_lock.  Prevent race condition by checking again.
+    ref_count = tree->ref_count;
+    if (ref_count == 0) { 
+        assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+        ltm_stop_managing_lt_unlocked(tree->mgr, tree);
+        r = 0;
+    }
+    ltm_mutex_unlock(tree->mgr);
+    if (ref_count == 0) {
+        r = toku_lt_close(tree);
+    }
 cleanup:
     return r;
 }
