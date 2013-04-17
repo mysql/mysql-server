@@ -43,6 +43,55 @@ static void filenum_map_init(struct filenum_map *fmap) {
     fmap->n_cf_pairs = fmap->max_cf_pairs = 0;
 }
 
+static void filenum_map_close_dictionaries(struct filenum_map *fmap) {
+    int r;
+
+    int i;
+    for (i=0; i<fmap->n_cf_pairs; i++) {
+	if (fmap->cf_pairs[i].brt) {
+	    r = toku_close_brt(fmap->cf_pairs[i].brt, 0, 0);
+	    //r = toku_cachefile_close(&cf_pairs[i].cf);
+	    assert(r == 0);
+	}
+    }
+    fmap->n_cf_pairs = 0;
+    if (fmap->cf_pairs) {
+        toku_free(fmap->cf_pairs);
+        fmap->cf_pairs = NULL;
+    }
+}
+
+static int filenum_map_add (struct filenum_map *fmap, FILENUM fnum, CACHEFILE cf, BRT brt) {
+    if (fmap->max_cf_pairs==0) {
+	fmap->n_cf_pairs=1;
+	fmap->max_cf_pairs=2;
+	MALLOC_N(fmap->max_cf_pairs, fmap->cf_pairs);
+	if (fmap->cf_pairs==0) return errno;
+    } else {
+	if (fmap->n_cf_pairs >= fmap->max_cf_pairs) {
+	    fmap->cf_pairs = toku_realloc(fmap->cf_pairs, 2*fmap->max_cf_pairs*sizeof(struct cf_pair));
+            assert(fmap->cf_pairs);
+	    fmap->max_cf_pairs*=2;
+	}
+	fmap->n_cf_pairs++;
+    }
+    fmap->cf_pairs[fmap->n_cf_pairs-1].filenum = fnum;
+    fmap->cf_pairs[fmap->n_cf_pairs-1].cf      = cf;
+    fmap->cf_pairs[fmap->n_cf_pairs-1].brt     = brt;
+    return 0;
+}
+
+static int find_cachefile (struct filenum_map *fmap, FILENUM fnum, struct cf_pair **cf_pair) {
+    int i;
+    for (i=0; i<fmap->n_cf_pairs; i++) {
+	if (fnum.fileid==fmap->cf_pairs[i].filenum.fileid) {
+	    *cf_pair = fmap->cf_pairs+i;
+	    return 0;
+	}
+    }
+    return 1;
+}
+
 struct recover_env {
     CACHETABLE ct;
     TOKULOGGER logger;
@@ -71,28 +120,10 @@ int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_
     return r;
 }
 
-static void recover_close_dictionaries(struct filenum_map *fmap) {
-    int r;
-
-    int i;
-    for (i=0; i<fmap->n_cf_pairs; i++) {
-	if (fmap->cf_pairs[i].brt) {
-	    r = toku_close_brt(fmap->cf_pairs[i].brt, 0, 0);
-	    //r = toku_cachefile_close(&cf_pairs[i].cf);
-	    assert(r == 0);
-	}
-    }
-    fmap->n_cf_pairs = 0;
-    if (fmap->cf_pairs) {
-        toku_free(fmap->cf_pairs);
-        fmap->cf_pairs = NULL;
-    }
-}
-
 void recover_env_cleanup (RECOVER_ENV env) {
     int r;
 
-    recover_close_dictionaries(&env->fmap);
+    filenum_map_close_dictionaries(&env->fmap);
 
     r = toku_logger_close(&env->logger);
     assert(r == 0);
@@ -177,37 +208,6 @@ static void create_dir_from_file (const char *fname) {
     toku_free(tmp);
 }
 
-static int toku_recover_note_cachefile (struct filenum_map *fmap, FILENUM fnum, CACHEFILE cf, BRT brt) {
-    if (fmap->max_cf_pairs==0) {
-	fmap->n_cf_pairs=1;
-	fmap->max_cf_pairs=2;
-	MALLOC_N(fmap->max_cf_pairs, fmap->cf_pairs);
-	if (fmap->cf_pairs==0) return errno;
-    } else {
-	if (fmap->n_cf_pairs >= fmap->max_cf_pairs) {
-	    fmap->cf_pairs = toku_realloc(fmap->cf_pairs, 2*fmap->max_cf_pairs*sizeof(struct cf_pair));
-            assert(fmap->cf_pairs);
-	    fmap->max_cf_pairs*=2;
-	}
-	fmap->n_cf_pairs++;
-    }
-    fmap->cf_pairs[fmap->n_cf_pairs-1].filenum = fnum;
-    fmap->cf_pairs[fmap->n_cf_pairs-1].cf      = cf;
-    fmap->cf_pairs[fmap->n_cf_pairs-1].brt     = brt;
-    return 0;
-}
-
-static int find_cachefile (struct filenum_map *fmap, FILENUM fnum, struct cf_pair **cf_pair) {
-    int i;
-    for (i=0; i<fmap->n_cf_pairs; i++) {
-	if (fnum.fileid==fmap->cf_pairs[i].filenum.fileid) {
-	    *cf_pair = fmap->cf_pairs+i;
-	    return 0;
-	}
-    }
-    return 1;
-}
-
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV env, int flags, int mode, char *fixedfname, FILENUM filenum, u_int32_t treeflags) {
     {
@@ -253,7 +253,7 @@ static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV env, int flags, 
     if (r==TOKUDB_DICTIONARY_NO_HEADER) {
 	r = toku_brt_alloc_init_header(brt);
     }
-    toku_recover_note_cachefile(&env->fmap, filenum, cf, brt);
+    filenum_map_add(&env->fmap, filenum, cf, brt);
 }
 
 static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FILENUM filenum, RECOVER_ENV env) {
@@ -676,7 +676,7 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     varray_destroy(&live_txns);
 
     // close the open dictionaries
-    recover_close_dictionaries(&env->fmap);
+    filenum_map_close_dictionaries(&env->fmap);
 
     // write a recovery log entry
     BYTESTRING recover_comment = { strlen("recover"), "recover" };
