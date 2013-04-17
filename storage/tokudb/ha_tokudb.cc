@@ -9780,6 +9780,7 @@ ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     }
 }
 
+volatile int ha_tokudb_check_verbose = 0; // debug
 volatile int ha_tokudb_check_wait = 0; // debug
 
 int
@@ -9794,14 +9795,11 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     int result = HA_ADMIN_OK;
     int r;
 
-    int verbose = 0;
     int keep_going = 1;
-
     if (check_opt->flags & T_QUICK) {
         keep_going = 0;
     }
     if (check_opt->flags & T_EXTEND) {
-        verbose = 1;
         keep_going = 1;
     }
 
@@ -9813,7 +9811,7 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         time_t now;
         char timebuf[32];
         snprintf(write_status_msg, sizeof write_status_msg, "%s primary=%d num=%d", share->table_name, primary_key, num_DBs);
-        if (verbose) {
+        if (ha_tokudb_check_verbose) {
             ha_tokudb_check_info(thd, table, write_status_msg);
             now = time(0);
             fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
@@ -9826,16 +9824,16 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 kname = "primary"; // hidden primary key does not set name
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u", share->table_name, kname, i);
             thd_proc_info(thd, write_status_msg);
-            if (verbose) {
+            if (ha_tokudb_check_verbose) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 now = time(0);
                 fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
             }
             struct check_context check_context = { thd };
-            r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, verbose, keep_going);
+            r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, ha_tokudb_check_verbose, keep_going);
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u result=%d", share->table_name, kname, i, r);
             thd_proc_info(thd, write_status_msg);
-            if (verbose) {
+            if (ha_tokudb_check_verbose) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 now = time(0);
                 fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
