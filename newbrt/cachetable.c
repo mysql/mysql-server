@@ -100,11 +100,12 @@ struct ctpair {
     PAIR     pending_next;
     PAIR     pending_prev;
 
-    struct rwlock rwlock; // multiple get's, single writer
+    struct rwlock rwlock;        // multiple get's, single writer
     struct workqueue *cq;        // writers sometimes return ctpair's using this queue
     struct workitem asyncwork;   // work item for the worker threads
-    u_int32_t refs;  //References that prevent descruction
-    int already_removed;  //If a pair is removed from the cachetable, but cannot be freed because refs>0, this is set.
+    u_int32_t refs;              // References that prevent destruction
+    int already_removed;         // If a pair is removed from the cachetable, but cannot be freed because refs>0, this is set.
+    struct toku_list next_for_cachefile; // link in the cachefile list
 };
 
 static void * const zero_value = 0;
@@ -207,6 +208,7 @@ enum cachefile_checkpoint_state {
 struct cachefile {
     CACHEFILE next;
     CACHEFILE next_in_checkpoint;
+    struct toku_list pairs_for_cachefile; // list of pairs for this cachefile
     BOOL for_checkpoint; //True if part of the in-progress checkpoint
     u_int64_t refcount; /* CACHEFILEs are shared. Use a refcount to decide when to really close it.
 			 * The reference count is one for every open DB.
@@ -621,6 +623,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
 
 	r = toku_pthread_cond_init(&newcf->openfd_wait, NULL); resource_assert_zero(r);
 	r = toku_pthread_cond_init(&newcf->closefd_wait, NULL); resource_assert_zero(r);
+        toku_list_init(&newcf->pairs_for_cachefile);
 	*cfptr = newcf;
 	r = 0;
     }
@@ -849,6 +852,7 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
             rwlock_write_lock(&cf->checkpoint_lock, ct->mutex); //Just to make sure we can get it
             rwlock_write_unlock(&cf->checkpoint_lock);
             rwlock_destroy(&cf->checkpoint_lock);
+            assert(toku_list_empty(&cf->pairs_for_cachefile));
 	    toku_free(cf);
 	    *cfp = NULL;
 	    cachetable_unlock(ct);
@@ -900,6 +904,7 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
         rwlock_write_lock(&cf->checkpoint_lock, ct->mutex); //Just to make sure we can get it
         rwlock_write_unlock(&cf->checkpoint_lock);
         rwlock_destroy(&cf->checkpoint_lock);
+        assert(toku_list_empty(&cf->pairs_for_cachefile));
         cachetable_unlock(ct);
 
 	r = close(cf->fd);
@@ -1048,6 +1053,7 @@ pending_pairs_remove (CACHETABLE ct, PAIR p) {
 static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
     lru_remove(ct, p);
     pending_pairs_remove(ct, p);
+    toku_list_remove(&p->next_for_cachefile);
 
     assert(ct->n_in_table>0);
     ct->n_in_table--;
@@ -1307,6 +1313,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     rwlock_init(&p->rwlock);
     p->cq = 0;
     lru_add_to_list(ct, p);
+    toku_list_push(&cachefile->pairs_for_cachefile, &p->next_for_cachefile);
     u_int32_t h = fullhash & (ct->table_size-1);
     p->hash_chain = ct->table[h];
     ct->table[h] = p;
@@ -1885,19 +1892,30 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
 
     //Make a list of pairs that belong to this cachefile.
     //Add a reference to them.
-    for (i=0; i < ct->table_size; i++) {
-	PAIR p;
-	for (p = ct->table[i]; p; p = p->hash_chain) {
- 	    if (cf == 0 || p->cachefile==cf) {
-                ctpair_add_ref(p);
-                list[num_pairs] = p;
-                num_pairs++;
-                if (num_pairs == list_size) {
-                    list_size *= 2;
-                    XREALLOC_N(list_size, list);
+    if (cf == NULL) {
+        for (i=0; i < ct->table_size; i++) {
+            PAIR p;
+            for (p = ct->table[i]; p; p = p->hash_chain) {
+                if (cf == 0 || p->cachefile==cf) {
+                    ctpair_add_ref(p);
+                    if (num_pairs == list_size) {
+                        list_size *= 2;
+                        XREALLOC_N(list_size, list);
+                    }
+                    list[num_pairs++] = p;
                 }
             }
-	}
+        }
+    } else {
+        for (struct toku_list *next_pair = cf->pairs_for_cachefile.next; next_pair != &cf->pairs_for_cachefile; next_pair = next_pair->next) {
+            PAIR p = toku_list_struct(next_pair, struct ctpair, next_for_cachefile);
+            ctpair_add_ref(p);
+            if (num_pairs == list_size) {
+                list_size *= 2;
+                XREALLOC_N(list_size, list);
+            }
+            list[num_pairs++] = p;
+        }
     }
     //Loop through the list.
     //It is safe to access the memory (will not have been freed).
@@ -1939,7 +1957,10 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
             assert(0);
     }
     workqueue_destroy(&cq);
-    assert_cachefile_is_flushed_and_removed(ct, cf);
+    if (cf)
+        assert(toku_list_empty(&cf->pairs_for_cachefile));
+    else
+        assert_cachefile_is_flushed_and_removed(ct, cf);
 
     if ((4 * ct->n_in_table < ct->table_size) && (ct->table_size>4))
         cachetable_rehash(ct, ct->table_size/2);
@@ -1965,7 +1986,7 @@ toku_cachetable_close (CACHETABLE *ctp) {
     }
     int r;
     cachetable_lock(ct);
-    if ((r=cachetable_flush_cachefile(ct, 0))) {
+    if ((r=cachetable_flush_cachefile(ct, NULL))) {
         cachetable_unlock(ct);
         return r;
     }
@@ -2433,19 +2454,17 @@ int toku_cachetable_assert_all_unpinned (CACHETABLE ct) {
 }
 
 int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
-    u_int32_t i;
+    assert(cf != NULL);
     int n_pinned=0;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
-    for (i=0; i<ct->table_size; i++) {
-	PAIR p;
-	for (p=ct->table[i]; p; p=p->hash_chain) {
-	    assert(rwlock_readers(&p->rwlock)>=0);
-	    if (rwlock_readers(&p->rwlock) && (cf==0 || p->cachefile==cf)) {
-		if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
-		n_pinned++;
-	    }
-	}
+    for (struct toku_list *next_pair = cf->pairs_for_cachefile.next; next_pair != &cf->pairs_for_cachefile; next_pair = next_pair->next) {
+        PAIR p = toku_list_struct(next_pair, struct ctpair, next_for_cachefile);
+        assert(rwlock_readers(&p->rwlock) >= 0);
+        if (rwlock_readers(&p->rwlock)) {
+            if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
+            n_pinned++;
+        }
     }
     cachetable_unlock(ct);
     return n_pinned;
