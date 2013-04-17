@@ -49,7 +49,7 @@ static int tokudb_hton_initialized;
 
 // grab a write lock when changing the
 // hton_init flag
-tokudb_hton_init_func() {
+tokudb_init_func() {
     grab_hton_init_writelock();
     ...
     tokudb_hton_initialized = 1;
@@ -67,24 +67,15 @@ tokudb_end() {
 
 // grab a read lock while assuming
 // the handlerton is usable
-
+//
+// same thing for user_data_exact
 tokudb_user_data_fill() {
     grab_hton_init_readlock();
     if (!tokudb_hton_initialized) {
-        goto error;
+        // error
+    } else {
+        // fill the user data table
     }
-    ...
-error:
-    release_hton_init_readlock();
-}
-
-tokudb_user_data_exact_fill() {
-    grab_hton_init_readlock();
-    if (!tokudb_hton_initialized) {
-        goto error;
-    }
-    ...
-error:
     release_hton_init_readlock();
 }
 
