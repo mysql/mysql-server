@@ -250,10 +250,6 @@ static int tokudb_init_func(void *p) {
         goto error; 
     }
 
-    // config directories
-#if 0
-#endif
-
     {
     char *tmp_dir = tokudb_tmp_dir;
     char *data_dir = tokudb_data_dir;
@@ -890,30 +886,6 @@ cleanup:
     return error;
 }
 
-#if TOKU_INCLUDE_SHOW_DATA_AMOUNT
-
-static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool exact) {
-    TOKUDB_DBUG_ENTER("tokudb_show_data_size");
-    uint64_t data_size = 0;
-    int error = tokudb_get_user_data_size(thd, exact, &data_size);
-    if (error == 0) {
-        char data_amount_msg[50] = {0};
-        sprintf(data_amount_msg, "Number of bytes in database: %" PRIu64, data_size);
-        stat_print(thd, 
-                   tokudb_hton_name, 
-                   tokudb_hton_name_length, 
-                   "Data in tables", 
-                   strlen("Data in tables"), 
-                   data_amount_msg,
-                   strlen(data_amount_msg)
-                   );
-    }
-    if (error) { my_errno = error; }
-    TOKUDB_DBUG_RETURN(error);
-}
-
-#endif
-
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
                                           tokudb_hton_name_length, \
@@ -1208,14 +1180,6 @@ cleanup:
 
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
-#if TOKU_INCLUDE_SHOW_DATA_AMOUNT
-    case HA_ENGINE_DATA_AMOUNT:
-        return tokudb_show_data_size(thd, stat_print, false);
-        break;
-    case HA_ENGINE_DATA_EXACT_AMOUNT:
-        return tokudb_show_data_size(thd, stat_print, true);
-        break;
-#endif
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
         break;
