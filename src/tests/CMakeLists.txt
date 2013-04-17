@@ -462,8 +462,8 @@ if(BUILD_TESTING)
             foreach(size 2000 200000 50000000)
               add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${src})
               add_test(
-                NAME ydb/${test}/upgrade/${oldver}/${p_or_s}
-                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.c.tdb ${size} 600)
+                NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
+                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.tdb ${size} 600)
             endforeach(size)
           endif ()
         endforeach(p_or_s)
