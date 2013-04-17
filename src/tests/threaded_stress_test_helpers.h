@@ -140,6 +140,7 @@ struct cli_args {
     bool nocrashstatus; // do not print engine status upon crash
     bool prelock_updates; // update threads perform serial updates on a prelocked range
     bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
+    bool direct_io; // use direct I/O
 };
 
 struct arg {
@@ -1961,6 +1962,7 @@ static struct cli_args UU() get_default_args(void) {
         .nocrashstatus = false,
         .prelock_updates = false,
         .disperse_keys = false,
+        .direct_io = false,
         };
     return DEFAULT_ARGS;
 }
@@ -2346,6 +2348,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("nocrashstatus",                     nocrashstatus),
         BOOL_ARG("prelock_updates",                   prelock_updates),
         BOOL_ARG("disperse_keys",                     disperse_keys),
+        BOOL_ARG("direct_io",                         direct_io),
 
         STRING_ARG("--envdir",                        env_args.envdir),
 
@@ -2536,6 +2539,7 @@ test_main(struct cli_args *args, bool fill_with_zeroes)
     DB* dbs[args->num_DBs];
     memset(dbs, 0, sizeof(dbs));
     db_env_enable_engine_status(args->nocrashstatus ? false : true);
+    db_env_set_direct_io(args->direct_io ? true : false);
     if (!args->only_stress) {
         create_tables(
             &env,
