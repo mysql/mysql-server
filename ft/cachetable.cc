@@ -3616,6 +3616,7 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
 //
 void evictor::destroy() {    
     assert(m_size_evicting == 0);
+    assert(m_size_current == 0);
 
     // Stop the eviction thread.
     toku_mutex_lock(&m_ev_thread_lock);
@@ -3666,7 +3667,6 @@ void evictor::remove_pair_attr(PAIR_ATTR attr) {
     increment_partitioned_counter(m_size_leaf, 0 - attr.leaf_size);
     increment_partitioned_counter(m_size_rollback, 0 - attr.rollback_size);
     increment_partitioned_counter(m_size_cachepressure, 0 - attr.cache_pressure_size);
-    assert(m_size_current >= 0);
 }
 
 //
