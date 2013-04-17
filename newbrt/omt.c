@@ -330,9 +330,9 @@ static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int
     // the other is to take ceil(n/2)
     u_int32_t weight_left  = nweight(omt, n->left)  + leftmod;
     u_int32_t weight_right = nweight(omt, n->right) + rightmod;
-    return ((1+weight_left < (1+1+weight_right)/2)
-            ||
-            (1+weight_right < (1+1+weight_left)/2));
+    return (BOOL)((1+weight_left < (1+1+weight_right)/2)
+		  ||
+		  (1+weight_right < (1+1+weight_left)/2));
 } 
 
 static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index, node_idx **rebalance_idx) {

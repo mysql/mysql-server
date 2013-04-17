@@ -238,14 +238,15 @@ static void __attribute__((format (printf, 3, 4))) fprintf2 (FILE *f1, FILE *f2,
 
 FILE *hf=0, *cf=0;
 
-void generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype *lts) {
+static void
+generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype *lts) {
     char used_cmds[256];
     int count=0;
     memset(used_cmds, 0, 256);
     fprintf(hf, "enum %s {", enum_name);
     DO_STRUCTS(lt, lts,
 		({
-		    unsigned char cmd = lt->command_and_flags&0xff;
+		    unsigned char cmd = (unsigned char)(lt->command_and_flags&0xff);
 		    if (count!=0) fprintf(hf, ",");
 		    count++;
 		    fprintf(hf, "\n");
@@ -257,12 +258,14 @@ void generate_enum_internal (char *enum_name, char *enum_prefix, const struct lo
    
 }
 
-void generate_enum (void) {
+static void
+generate_enum (void) {
     generate_enum_internal("lt_cmd", "LT", logtypes);
     generate_enum_internal("rt_cmd", "RT", rollbacks);
 }
 
-void generate_log_struct (void) {
+static void
+generate_log_struct (void) {
     DO_LOGTYPES(lt,
 		({  fprintf(hf, "struct logtype_%s {\n", lt->name);
 		    fprintf(hf, "  %-16s lsn;\n", "LSN");
@@ -305,7 +308,8 @@ void generate_log_struct (void) {
 
 }
 
-void generate_dispatch (void) {
+static void
+generate_dispatch (void) {
     fprintf(hf, "#define rolltype_dispatch(s, funprefix) ({ switch((s)->cmd) {\\\n");
     DO_ROLLBACKS(lt, fprintf(hf, "  case RT_%s: funprefix ## %s (&(s)->u.%s); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
@@ -338,7 +342,8 @@ void generate_dispatch (void) {
     fprintf(hf, " }})\n");
 }
 		
-void generate_log_writer (void) {
+static void
+generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
@@ -357,7 +362,7 @@ void generate_log_writer (void) {
 			fprintf(cf, "  if (lbytes==0) return errno;\n");
 			fprintf(cf, "  wbuf_init(&wbuf, &lbytes->bytes[0], buflen);\n");
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
-			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", 0xff&lt->command_and_flags);
+			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
 			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
 			fprintf(cf, "  logger->lsn.lsn++;\n");
 			fprintf(cf, "  LSN lsn = logger->lsn;\n");
@@ -373,7 +378,8 @@ void generate_log_writer (void) {
 		    }));
 }
 
-void generate_log_reader (void) {
+static void
+generate_log_reader (void) {
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
 			fprintf(cf, " {\n");
@@ -399,9 +405,9 @@ void generate_log_reader (void) {
     fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n"); 
     fprintf(cf, "  int cmd=fgetc(infile);\n");
     fprintf(cf, "  if (cmd==EOF) return EOF;\n");
-    fprintf(cf, "  char cmdchar = cmd;\n");
+    fprintf(cf, "  char cmdchar = (char)cmd;\n");
     fprintf(cf, "  x1764_add(&checksum, &cmdchar, 1);\n");
-    fprintf(cf, "  le->cmd=cmd;\n");
+    fprintf(cf, "  le->cmd=(enum lt_cmd)cmd;\n");
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "  case LT_%s:\n", lt->name);
@@ -412,7 +418,8 @@ void generate_log_reader (void) {
     fprintf(cf, "}\n\n");
 }
 
-void generate_logprint (void) {
+static void
+generate_logprint (void) {
     unsigned maxnamelen=0;
     fprintf2(cf, hf, "int toku_logprint_one_record(FILE *outf, FILE *f)");
     fprintf(hf, ";\n");
@@ -427,15 +434,15 @@ void generate_logprint (void) {
     fprintf(cf, "    cmd=fgetc(f);\n");
     fprintf(cf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
     fprintf(cf, "    u_int32_t len_in_file, len=1+4; // cmd + len1\n");
-    fprintf(cf, "    char charcmd = cmd;\n");
+    fprintf(cf, "    char charcmd = (char)cmd;\n");
     fprintf(cf, "    x1764_add(&checksum, &charcmd, 1);\n");
     fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({ if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); }));
     DO_LOGTYPES(lt, ({
-		unsigned char cmd = 0xff&lt->command_and_flags;
+		unsigned char cmd = (unsigned char)(0xff&lt->command_and_flags);
 		fprintf(cf, "    case LT_%s: \n", lt->name);
 		// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-		fprintf(cf, "        fprintf(outf, \"%%-%ds \", \"%s\");\n", maxnamelen, lt->name);
+		fprintf(cf, "        fprintf(outf, \"%%-%us \", \"%s\");\n", maxnamelen, lt->name);
 		if (isprint(cmd)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", cmd);
 		else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", cmd);
 		fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &checksum, &len, 0);     if (r!=0) return r;\n", "LSN");
@@ -451,8 +458,8 @@ void generate_logprint (void) {
 		fprintf(cf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
 		fprintf(cf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" actual_fingerprint=%%08x\", actual_murmur);\n");
 		fprintf(cf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(cf, "          fprintf(outf, \" len=%%d\", len_in_file);\n");
-		fprintf(cf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
+		fprintf(cf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
+		fprintf(cf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
 		fprintf(cf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
 		fprintf(cf, "        };\n");
 		fprintf(cf, "        fprintf(outf, \"\\n\");\n");
@@ -464,7 +471,8 @@ void generate_logprint (void) {
     fprintf(cf, "}\n\n");
 }
 
-void generate_rollbacks (void) {
+static void
+generate_rollbacks (void) {
     DO_ROLLBACKS(lt, ({
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
@@ -478,7 +486,7 @@ void generate_rollbacks (void) {
 		    }
 		    fprintf(cf, "  struct roll_entry *v = toku_malloc_in_rollback(txn, sizeof(*v));\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
-		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
+		    fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
 		    fprintf(cf, "  v->prev = txn->newest_logentry;\n");
 		    fprintf(cf, "  v->next = 0;\n");
@@ -496,7 +504,7 @@ void generate_rollbacks (void) {
 		fprintf(hf, ";\n");
 		fprintf(cf, " {\n");
 		fprintf(cf, "  u_int32_t ndone_at_start = wbuf->ndone;\n");
-		fprintf(cf, "  wbuf_char(wbuf, '%c');\n", 0xff&lt->command_and_flags);
+		fprintf(cf, "  wbuf_char(wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
 		DO_FIELDS(ft, lt, fprintf(cf, "  wbuf_%s(wbuf, %s);\n", ft->type, ft->name));
 		fprintf(cf, "  wbuf_int(wbuf, 4+wbuf->ndone - ndone_at_start);\n");
 		fprintf(cf, "}\n");
@@ -537,7 +545,7 @@ void generate_rollbacks (void) {
 
     fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
     fprintf(hf, ";\n");
-    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = malloc_in_memarena(ma, sizeof(*item));\n  item->cmd=buf[0];\n");
+    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = malloc_in_memarena(ma, sizeof(*item));\n  item->cmd=(enum rt_cmd)(buf[0]);\n");
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
     fprintf(cf, "  switch(item->cmd) {\n");
     DO_ROLLBACKS(lt, ({

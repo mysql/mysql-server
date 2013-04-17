@@ -133,9 +133,12 @@ static u_int32_t disksize_le_provpair (TXNID txnid __attribute__((__unused__)),
     return 1 + 8 + 4 + 4 + klen + plen;
 }
 
-u_int32_t leafentry_disksize_internal (LEAFENTRY le) {
+
+static u_int32_t
+leafentry_disksize_internal (LEAFENTRY le) {
     LESWITCHCALL(le, disksize);
 }
+
 u_int32_t leafentry_disksize (LEAFENTRY le) {
     u_int32_t m = leafentry_memsize(le);
     u_int32_t d = leafentry_disksize_internal(le);
@@ -206,7 +209,7 @@ static int print_le_committed (u_int32_t keylen, void *key, u_int32_t vallen, vo
 
 static int print_le_both (TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval, FILE *outf) {
     fprintf(outf, "{B: ");
-    fprintf(outf, " xid=%" PRId64, xid);
+    fprintf(outf, " xid=%" PRIu64, xid);
     fprintf(outf, " key=");
     toku_print_BYTESTRING(outf, klen, kval);
     toku_print_BYTESTRING(outf, clen, cval);
@@ -218,7 +221,7 @@ static int print_le_both (TXNID xid, u_int32_t klen, void *kval, u_int32_t clen,
 
 static int print_le_provdel (TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, FILE *outf) {
     fprintf(outf, "{D: ");
-    fprintf(outf, " xid=%" PRId64, xid);
+    fprintf(outf, " xid=%" PRIu64, xid);
     fprintf(outf, " key=");
     toku_print_BYTESTRING(outf, klen, kval);
     fprintf(outf, " committed=");
@@ -229,7 +232,7 @@ static int print_le_provdel (TXNID xid, u_int32_t klen, void *kval, u_int32_t cl
 
 static int print_le_provpair (TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval, FILE *outf) {
     fprintf(outf, "{P: ");
-    fprintf(outf, " xid=%" PRId64, xid);
+    fprintf(outf, " xid=%" PRIu64, xid);
     fprintf(outf, " key=");
     toku_print_BYTESTRING(outf, klen, kval);
     fprintf(outf, " provisional=");

@@ -38,7 +38,7 @@ static struct cf_pair {
     CACHEFILE cf;
     BRT       brt; // set to zero on an fopen, but filled in when an fheader is seen.
 } *cf_pairs;
-static int n_cf_pairs=0, max_cf_pairs=0;;
+static int n_cf_pairs=0, max_cf_pairs=0;
 
 int toku_recover_init (void) {
     int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
@@ -61,12 +61,15 @@ void toku_recover_cleanup (void) {
     }
 }
 
-void toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
+static void
+toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 }
-void toku_recover_xabort (LSN UU(lsn), TXNID UU(txnid)) {
+static void
+toku_recover_xabort (LSN UU(lsn), TXNID UU(txnid)) {
 }
 
-void create_dir_from_file (const char *fname) {
+static void
+create_dir_from_file (const char *fname) {
     int i;
     char *tmp=toku_strdup(fname);
     char ch;
@@ -88,7 +91,8 @@ void create_dir_from_file (const char *fname) {
     toku_free(tmp);
 }
 
-void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32_t mode) {
+static void
+toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32_t mode) {
     char *fixed_fname = fixup_fname(&fname);
     create_dir_from_file(fixed_fname);
     int fd = creat(fixed_fname, mode);
@@ -97,7 +101,8 @@ void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32
     toku_free_BYTESTRING(fname);
 }
 
-int toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
+static int
+toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     if (max_cf_pairs==0) {
 	n_cf_pairs=1;
 	max_cf_pairs=2;
@@ -169,7 +174,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close);
 }
 
-void toku_recover_newbrtnode (LSN lsn, FILENUM filenum, BLOCKNUM blocknum,u_int32_t height,u_int32_t nodesize,u_int8_t is_dup_sort,u_int32_t rand4fingerprint) {
+static void
+toku_recover_newbrtnode (LSN lsn, FILENUM filenum, BLOCKNUM blocknum,u_int32_t height,u_int32_t nodesize,u_int8_t is_dup_sort,u_int32_t rand4fingerprint) {
     int r;
     struct cf_pair *pair = NULL;
     r = find_cachefile(filenum, &pair);
@@ -251,7 +257,8 @@ static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILE
     //assert(r==0);
 }
 
-void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
+static void
+toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -273,7 +280,8 @@ void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM fil
     toku_free(val.data);
 }
 
-void toku_recover_brtdeq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum) {
+static void
+toku_recover_brtdeq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum) {
     CACHEFILE cf;
     BRTNODE node;
     int r;
@@ -297,7 +305,8 @@ void toku_recover_brtdeq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t
     assert(r==0);
 }
 
-void toku_recover_brtenq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING data) {
+static void
+toku_recover_brtenq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING data) {
     CACHEFILE cf;
     BRTNODE node;
     int r;
@@ -317,7 +326,8 @@ void toku_recover_brtenq (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t
     toku_free(data.data);
 }
 
-void toku_recover_addchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM child, u_int32_t childfingerprint) {
+static void
+toku_recover_addchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM child, u_int32_t childfingerprint) {
     CACHEFILE cf;
     BRTNODE node;
     recover_setup_node(filenum, blocknum, &cf, &node);
@@ -346,7 +356,8 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32
     assert(r==0);
 }
 
-void toku_recover_delchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM child, u_int32_t childfingerprint, BYTESTRING pivotkey) {
+static void
+toku_recover_delchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM child, u_int32_t childfingerprint, BYTESTRING pivotkey) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -383,7 +394,8 @@ void toku_recover_delchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32
     toku_free(pivotkey.data);
 }
 
-void toku_recover_setchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM UU(oldchild), BLOCKNUM newchild) {
+static void
+toku_recover_setchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BLOCKNUM UU(oldchild), BLOCKNUM newchild) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -401,7 +413,8 @@ void toku_recover_setchild (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32
     r = toku_cachetable_unpin(pair->cf, blocknum, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
-void toku_recover_setpivot (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BYTESTRING pivotkey) {
+static void
+toku_recover_setpivot (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, BYTESTRING pivotkey) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -426,7 +439,8 @@ void toku_recover_setpivot (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32
     toku_free(pivotkey.data);
 }
 
-void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, u_int32_t UU(oldfingerprint), u_int32_t newfingerprint) {
+static void
+toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, u_int32_t UU(oldfingerprint), u_int32_t newfingerprint) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -446,7 +460,8 @@ void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, BLOCKNUM blo
     
 }
 
-void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
+static void
+toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
     char *fixedfname = fixup_fname(&fname);
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR, 0);
@@ -468,7 +483,8 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     toku_free_BYTESTRING(fname);
 }
 
-void toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
+static void
+toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -480,7 +496,8 @@ void toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) 
     toku_free_BYTESTRING(fname);
 }
 
-void toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
+static void
+toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (filenum.fileid==cf_pairs[i].filenum.fileid) {
@@ -503,7 +520,8 @@ static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
 
 
 // The memory for the new node should have already been allocated.
-void toku_recover_leafsplit (LSN lsn, FILENUM filenum, BLOCKNUM old_blocknum, BLOCKNUM new_blocknum, u_int32_t old_n, u_int32_t new_n, u_int32_t new_node_size, u_int32_t new_rand4, u_int8_t is_dup_sort) {
+static void
+toku_recover_leafsplit (LSN lsn, FILENUM filenum, BLOCKNUM old_blocknum, BLOCKNUM new_blocknum, u_int32_t old_n, u_int32_t new_n, u_int32_t new_node_size, u_int32_t new_rand4, u_int8_t is_dup_sort) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     void *nodeA_v;
@@ -590,7 +608,8 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, BLOCKNUM old_blocknum, BL
     assert(r==0);
 }
 
-void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t idx, LEAFENTRY newleafentry) {
+static void
+toku_recover_insertleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t idx, LEAFENTRY newleafentry) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -619,7 +638,8 @@ void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, 
     toku_free_LEAFENTRY(newleafentry);
 }
 
-void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t idx) {
+static void
+toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t idx) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -650,7 +670,8 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, 
     assert(r==0);
 }
 
-void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroot), BLOCKNUM newroot) {
+static void
+toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroot), BLOCKNUM newroot) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -659,9 +680,11 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(o
     pair->brt->h->roots[0] = newroot;
     pair->brt->h->root_hashes[0].valid = FALSE;
 }
-void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
+static void
+toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
 
-void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldunused), BLOCKNUM newunused) {
+static void
+toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldunused), BLOCKNUM newunused) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);

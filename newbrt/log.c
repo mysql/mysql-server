@@ -1,7 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#define _XOPEN_SOURCE 500
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -39,7 +38,8 @@ char *toku_strdup_in_rollback(TOKUTXN txn, const char *s) {
     return toku_memdup_in_rollback(txn, s, strlen(s)+1);
 }
 
-int toku_logger_fsync_null(int fd __attribute__((__unused__))) {
+static int
+toku_logger_fsync_null(int fd __attribute__((__unused__))) {
     return 0;
 }
 
@@ -51,7 +51,7 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     while ((de=readdir(d))) {
 	if (de==0) return errno;
 	long long thisl;
-	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
+	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
 	if (r==1 && thisl>max) max=thisl;
     }
     *result=max+1;
@@ -59,7 +59,8 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     return r;
 }
 
-int logfilenamecompare (const void *ap, const void *bp) {
+static int
+logfilenamecompare (const void *ap, const void *bp) {
     char *a=*(char**)ap;
     char *b=*(char**)bp;
     return strcmp(a,b);
@@ -79,7 +80,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp) {
     while ((de=readdir(d))) {
 	if (de==0) return errno;
 	long long thisl;
-	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
+	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
 	if (r!=1) continue; // Skip over non-log files.
 	if (n_results+1>=result_limit) {
 	    result_limit*=2;
@@ -155,7 +156,7 @@ static int open_logfile (TOKULOGGER logger) {
     int r;
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
-    snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
+    snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, logger->next_log_file_number);
     if (logger->write_log_files) {
         logger->fd = creat(fname, O_EXCL | 0700);        if (logger->fd==-1) return errno;
     } else {
@@ -548,10 +549,11 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     return toku_log_fopen (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, filenum);
 }
 
-int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
+static int
+toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
-    u_int8_t vc=vi;
+    u_int8_t vc=(u_int8_t)vi;
     *v = vc;
     return 0;
 }
@@ -559,7 +561,7 @@ int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
 int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
-    u_int8_t vc=vi;
+    u_int8_t vc=(u_int8_t)vi;
     x1764_add(mm, &vc, 1);
     (*len)++;
     *v = vc;
@@ -592,7 +594,9 @@ int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *checksum, u_int32
 	  (c3<<0));
     return 0;
 }
-int toku_fread_int32_t (FILE *f, int32_t *v, struct x1764 *checksum, u_int32_t *len) {
+
+static int
+toku_fread_int32_t (FILE *f, int32_t *v, struct x1764 *checksum, u_int32_t *len) {
     u_int32_t uv;
     int r = toku_fread_u_int32_t(f, &uv, checksum, len);
     int32_t rv = uv;
@@ -600,7 +604,8 @@ int toku_fread_int32_t (FILE *f, int32_t *v, struct x1764 *checksum, u_int32_t *
     return r;
 }
 
-int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32_t *len) {
+static int
+toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32_t *len) {
     u_int32_t v1,v2;
     int r;
     r=toku_fread_u_int32_t(f, &v1, checksum, len);    if (r!=0) return r;
@@ -673,14 +678,14 @@ int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x176
     LSN v;
     int r = toku_fread_LSN(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%" PRId64, fieldname, v.lsn);
+    fprintf(outf, " %s=%" PRIu64, fieldname, v.lsn);
     return 0;
 }
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
     TXNID v;
     int r = toku_fread_TXNID(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%" PRId64, fieldname, v);
+    fprintf(outf, " %s=%" PRIu64, fieldname, v);
     return 0;
 }
 
@@ -708,7 +713,7 @@ int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struc
 }
 
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
-    fprintf(outf, "{len=%d data=\"", len);
+    fprintf(outf, "{len=%u data=\"", len);
     u_int32_t i;
     for (i=0; i<len; i++) {
 	switch (data[i]) {
@@ -756,7 +761,7 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     LOGGEDBRTHEADER v;
     int r = toku_fread_LOGGEDBRTHEADER(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s={size=%d flags=%d nodesize=%d free_blocks=%" PRId64 " unused_memory=%" PRId64 " n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b, v.n_named_roots);
+    fprintf(outf, " %s={size=%u flags=%u nodesize=%u free_blocks=%" PRId64 " unused_memory=%" PRId64 " n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b, v.n_named_roots);
     return 0;
     
 }
@@ -766,10 +771,10 @@ int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, st
     u_int32_t i;
     int r = toku_fread_INTPAIRARRAY(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s={size=%d array={", fieldname, v.size);
+    fprintf(outf, " %s={size=%u array={", fieldname, v.size);
     for (i=0; i<v.size; i++) {
 	if (i!=0) fprintf(outf, " ");
-	fprintf(outf, "{%d %d}", v.array[i].a, v.array[i].b);
+	fprintf(outf, "{%u %u}", v.array[i].a, v.array[i].b);
     }
     toku_free(v.array);
     return 0;
@@ -817,7 +822,8 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
-int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn) {
+static int
+toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn) {
     toku_logger_panic(txn->logger, EINVAL);
     return EINVAL;
 }
@@ -994,7 +1000,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	    assert(txn->rollentry_filename==0);
 	    txn->rollentry_filename = toku_malloc(fnamelen);
 	    if (txn->rollentry_filename==0) return errno;
-	    snprintf(txn->rollentry_filename, fnamelen, "%s/__rolltmp.XXXXXX", txn->logger->directory);
+	    snprintf(txn->rollentry_filename, fnamelen, "%s%s", txn->logger->directory, filenamepart);
 	    txn->rollentry_fd = mkstemp(txn->rollentry_filename);
 	    if (txn->rollentry_fd==-1) return errno;
 	}

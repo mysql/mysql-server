@@ -11,7 +11,8 @@
 
 static int dump_data = 1;
 
-void print_item (bytevec val, ITEMLEN len) {
+static void
+print_item (bytevec val, ITEMLEN len) {
     printf("\"");
     ITEMLEN i;
     for (i=0; i<len; i++) {
@@ -25,7 +26,8 @@ void print_item (bytevec val, ITEMLEN len) {
     printf("\"");
 }
 
-void dump_header (int f, struct brt_header **header) {
+static void
+dump_header (int f, struct brt_header **header) {
     struct brt_header *h;
     int r;
     r = toku_deserialize_brtheader_from (f, header_blocknum, &h); assert(r==0);
@@ -33,19 +35,19 @@ void dump_header (int f, struct brt_header **header) {
     if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
     else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
-    printf(" nodesize=%d\n", h->nodesize);
+    printf(" nodesize=%u\n", h->nodesize);
     printf(" free_blocks=%" PRId64 "\n", h->free_blocks.b);
     printf(" unused_memory=%" PRId64 "\n", h->unused_blocks.b);
     if (h->n_named_roots==-1) {
 	printf(" unnamed_root=%" PRId64 "\n", h->roots[0].b);
-	printf(" flags=%d\n", h->flags_array[0]);
+	printf(" flags=%u\n", h->flags_array[0]);
     } else {
 	printf(" n_named_roots=%d\n", h->n_named_roots);
 	if (h->n_named_roots>=0) {
 	    int i;
 	    for (i=0; i<h->n_named_roots; i++) {
 		printf("  %s -> %" PRId64 "\n", h->names[i], h->roots[i].b);
-		printf(" flags=%d\n", h->flags_array[i]);
+		printf(" flags=%u\n", h->flags_array[i]);
 	    }
 	}
     }
@@ -77,24 +79,26 @@ void dump_header (int f, struct brt_header **header) {
     }
 }
 
-int print_le(OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
+static int
+print_le (OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
     LEAFENTRY le=lev;
     print_leafentry(stdout, le);
     printf("\n");
     return 0;
 }
 
-void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
+static void
+dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     BRTNODE n;
     int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
     printf(" nodesize    =%u\n", n->nodesize);
-    printf(" sizeonddisk =%d\n", toku_serialize_brtnode_size(n));
+    printf(" sizeonddisk =%u\n", toku_serialize_brtnode_size(n));
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
-    printf(" disk_lsn    =%" PRId64 "\n", n->disk_lsn.lsn);
+    printf(" disk_lsn    =%" PRIu64 "\n", n->disk_lsn.lsn);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
     printf(" layout_version=%d\n", n->layout_version);
@@ -114,7 +118,7 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	printf(" subleafentry_estimates={");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    if (i>0) printf(" ");
-	    printf("%lld", (unsigned long long)(BNC_SUBTREE_LEAFENTRY_ESTIMATE(n, i)));
+	    printf("%llu", (unsigned long long)(BNC_SUBTREE_LEAFENTRY_ESTIMATE(n, i)));
 	}
 	printf("}\n");
 	printf(" pivots:\n");
@@ -130,7 +134,7 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	printf(" children:\n");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
-	    printf("   buffer contains %d bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
+	    printf("   buffer contains %u bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
 	    if (dump_data) {
 		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
 			     ({
@@ -147,7 +151,7 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 }
 				 printf("HUH?");
 			     ok:
-				 printf(" xid=%"PRId64" ", xid);
+				 printf(" xid=%"PRIu64" ", xid);
 				 print_item(key, keylen);
 				 if (datalen>0) {
 				     printf(" ");
@@ -159,23 +163,25 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	    }
 	}
     } else {
-	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
-	printf(" items_in_buffer  =%d\n", toku_omt_size(n->u.l.buffer));
+	printf(" n_bytes_in_buffer=%u\n", n->u.l.n_bytes_in_buffer);
+	printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.buffer));
 	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
     }
     toku_brtnode_free(&n);
 }
 
-void readline(char *line, int maxline) {
+static void
+readline (char *line, int maxline) {
     int i = 0;
     int c;
     while ((c = getchar()) != EOF && c != '\n' && i < maxline) {
-        line[i++] = c;
+        line[i++] = (char)c;
     }
     line[i++] = 0;
 }
 
-int split_fields(char *line, char *fields[], int maxfields) {
+static int
+split_fields (char *line, char *fields[], int maxfields) {
     int i;
     for (i=0; i<maxfields; i++, line=NULL) {
         fields[i] = strtok(line, " ");
@@ -221,7 +227,6 @@ int main (int argc, const char *argv[]) {
                 toku_brtheader_free(h);
                 dump_header(f, &h);
             } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
-                long long strtoll(char *, char **, int);
                 BLOCKNUM off = make_blocknum(strtoll(fields[1], NULL, 10));
                 dump_node(f, off, h);
             } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {

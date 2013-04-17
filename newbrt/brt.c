@@ -941,7 +941,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     /* Keep pushing to the children, but not if the children would require a pushdown */
     FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid, ({
         DBT skd, svd;
-        BRT_CMD_S brtcmd = { type, xid, .u.id= {toku_fill_dbt(&skd, skey, skeylen),
+        BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xid, .u.id= {toku_fill_dbt(&skd, skey, skeylen),
 						toku_fill_dbt(&svd, sval, svallen)} };
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
 	int pusha = 0, pushb = 0;
@@ -1101,8 +1101,8 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	    DBT hk,hv;
 	    DBT childsplitk;
 
-	    BRT_CMD_S brtcmd = { type, xid, .u.id= {toku_fill_dbt(&hk, key, keylen),
-						    toku_fill_dbt(&hv, val, vallen)} };
+	    BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xid, .u.id= {toku_fill_dbt(&hk, key, keylen),
+								       toku_fill_dbt(&hv, val, vallen)} };
 
 	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
 	    toku_init_dbt(&childsplitk);
@@ -1116,7 +1116,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 		unsigned int sum=0;
 		FIFO_ITERATE(BNC_BUFFER(node,childnum), subhk __attribute__((__unused__)), hkl, hd __attribute__((__unused__)), hdl, subtype __attribute__((__unused__)), subxid __attribute__((__unused__)),
                              sum+=hkl+hdl+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD);
-		printf("%s:%d sum=%d\n", __FILE__, __LINE__, sum);
+		printf("%s:%d sum=%u\n", __FILE__, __LINE__, sum);
 		assert(sum==BNC_NBYTESINBUF(node, childnum));
 	    }
 	    if (BNC_NBYTESINBUF(node, childnum)>0) assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
@@ -1186,9 +1186,10 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
-int leafval_bessel_le_committed (u_int32_t klen, void *kval,
-				 u_int32_t dlen, void *dval,
-				 struct cmd_leafval_bessel_extra *be) {
+static int
+leafval_bessel_le_committed (u_int32_t klen, void *kval,
+			     u_int32_t dlen, void *dval,
+			     struct cmd_leafval_bessel_extra *be) {
     BRT t = be->t;
     DBT dbt;
     int cmp = t->compare_fun(t->db,
@@ -1203,25 +1204,28 @@ int leafval_bessel_le_committed (u_int32_t klen, void *kval,
     }
 }
 
-int leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
-			    u_int32_t klen, void *kval,
-			    u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
-			    u_int32_t plen, void *pval,
-			    struct cmd_leafval_bessel_extra *be) {
+static int
+leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
+			u_int32_t klen, void *kval,
+			u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
+			u_int32_t plen, void *pval,
+			struct cmd_leafval_bessel_extra *be) {
     return leafval_bessel_le_committed(klen, kval, plen, pval, be);
 }
 
-int leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
-			       u_int32_t klen, void *kval,
-			       u_int32_t clen, void *cval,
-			       struct cmd_leafval_bessel_extra *be) {
+static int
+leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
+			   u_int32_t klen, void *kval,
+			   u_int32_t clen, void *cval,
+			   struct cmd_leafval_bessel_extra *be) {
     return leafval_bessel_le_committed(klen, kval, clen, cval, be);
 }
 
-int leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
-				u_int32_t klen, void *kval,
-				u_int32_t plen, void *pval,
-			       struct cmd_leafval_bessel_extra *be) {
+static int
+leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
+			    u_int32_t klen, void *kval,
+			    u_int32_t plen, void *pval,
+			    struct cmd_leafval_bessel_extra *be) {
     return leafval_bessel_le_committed(klen, kval, plen, pval, be);
 }
 
@@ -1454,7 +1458,8 @@ static int apply_cmd_to_leaf (BRT_CMD cmd,
     
 }
 
-int should_compare_both_keys (BRTNODE node, BRT_CMD cmd) {
+static int
+should_compare_both_keys (BRTNODE node, BRT_CMD cmd) {
     switch (cmd->type) {
     case BRT_INSERT:
 	return node->flags & TOKU_DB_DUPSORT;
@@ -2018,7 +2023,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum, TOKULOGGER log
 	return r;
     }
 //    verify_local_fingerprint_nonleaf(node);
-    toku_log_newbrtnode(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), blocknum, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
+    toku_log_newbrtnode(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), blocknum, 0, t->h->nodesize, (unsigned char)((t->flags&TOKU_DB_DUPSORT)!=0), node->rand4fingerprint);
     r = toku_unpin_brtnode(t, node);
     if (r!=0) {
 	toku_free(node);
@@ -2514,7 +2519,7 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     BNC_SUBTREE_LEAFENTRY_ESTIMATE(newroot, 1)=0; 
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
-    r=toku_log_newbrtnode(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
+    r=toku_log_newbrtnode(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (unsigned char)((brt->flags&TOKU_DB_DUPSORT)!=0), newroot->rand4fingerprint);
     if (r!=0) return r;
     r=toku_log_addchild(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, nodea->thisnodename, 0);
     if (r!=0) return r;
@@ -2684,7 +2689,8 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     return r;
 }
 
-int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
+static int
+toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -2699,7 +2705,7 @@ int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, I
     result=toku_verify_brtnode(brt, blocknum, lorange, lolen, hirange, hilen, 0);
     printf("%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
-	printf("%*sNode %"PRId64" nodesize=%d height=%d n_children=%d  n_bytes_in_buffers=%d keyrange=%s %s\n",
+	printf("%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",
 	       depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)lorange, (char*)hirange);
 	//printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
 	{
@@ -2709,7 +2715,7 @@ int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, I
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
 				      data=data; datalen=datalen; keylen=keylen;
-				      printf("%*s xid=%"PRId64" %d (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
+				      printf("%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
 				      //assert(strlen((char*)key)+1==keylen);
 				      //assert(strlen((char*)data)+1==datalen);
 				  }));
@@ -2717,7 +2723,7 @@ int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, I
 	    for (i=0; i<node->u.n.n_children; i++) {
 		printf("%*schild %d\n", depth, "", i);
 		if (i>0) {
-		    printf("%*spivot %d len=%d %d\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
+		    printf("%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
 		}
 		toku_dump_brtnode(brt, BNC_BLOCKNUM(node, i), depth+4,
 				  (i==0) ? lorange : node->u.n.childkeys[i-1],
@@ -2728,7 +2734,7 @@ int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, I
 	    }
 	}
     } else {
-	printf("%*sNode %" PRId64 " nodesize=%d height=%d n_bytes_in_buffer=%d keyrange=%d %d\n",
+	printf("%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange=%u %u\n",
 	       depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
 	//GPMA_ITERATE(node->u.l.buffer, idx, len, data,
 	//	     printf(" (%d)%u ", len, *(int*)le_any_key(data)));
@@ -2870,9 +2876,10 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
     return brt_search_child(brt, node, child[c], search, newkey, newval, split, logger, omtcursor);
 }
 
-int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
-				      u_int32_t dlen, void *dval,
-				      brt_search_t *search) {
+static int
+pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
+				  u_int32_t dlen, void *dval,
+				  brt_search_t *search) {
     DBT x,y;
     int cmp = search->compare(search,
 			      search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
@@ -2887,25 +2894,28 @@ int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
 }
 
 
-int pair_leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
-				 u_int32_t klen, void *kval,
-				 u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
-				 u_int32_t plen, void *pval,
-				 brt_search_t *search) {
+static int
+pair_leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
+			     u_int32_t klen, void *kval,
+			     u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
+			     u_int32_t plen, void *pval,
+			     brt_search_t *search) {
     return pair_leafval_bessel_le_committed(klen, kval, plen, pval, search);
 }
 
-int pair_leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
-				    u_int32_t klen, void *kval,
-				    u_int32_t clen, void *cval,
-				    brt_search_t *be) {
+static int
+pair_leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
+				u_int32_t klen, void *kval,
+				u_int32_t clen, void *cval,
+				brt_search_t *be) {
     return pair_leafval_bessel_le_committed(klen, kval, clen, cval, be);
 }
 
-int pair_leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
-				     u_int32_t klen, void *kval,
-				     u_int32_t plen, void *pval,
-				     brt_search_t *be) {
+static int
+pair_leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
+				 u_int32_t klen, void *kval,
+				 u_int32_t plen, void *pval,
+				 brt_search_t *be) {
     return pair_leafval_bessel_le_committed(klen, kval, plen, pval, be);
 }
 
@@ -2999,7 +3009,8 @@ static int brt_search_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *new
         return brt_search_leaf_node(brt, node, search, newkey, newval, logger, omtcursor);
 }
 
-int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor, u_int64_t *root_put_counter)
+static int
+toku_brt_search (BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor, u_int64_t *root_put_counter)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
 {
     int r, rr;
@@ -3062,7 +3073,7 @@ static inline int brt_cursor_not_set(BRT_CURSOR cursor) {
 }
 
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
-    return brt_cursor_not_set(c);
+    return (BOOL)(brt_cursor_not_set(c));
 }
 
 static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {

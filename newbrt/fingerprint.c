@@ -29,7 +29,7 @@ u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp) {
 #endif
 
 u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {
-    unsigned char type_c = type;
+    unsigned char type_c = (unsigned char)type;
     unsigned int a = htonl(xid>>32);
     unsigned int b = htonl(xid&0xffffffff);
     struct x1764 mm;

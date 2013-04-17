@@ -7,7 +7,7 @@
 // performance: we trade speed for size by not compressing the trace
 // entries.
 
-void toku_add_trace_mem(const char *str, int n);
+void toku_add_trace_mem(const char *str, int n) __attribute__((__visibility__("default")));
 // add an entry to the end of the trace which consists of a string
 // pointer, a number, and the processor timestamp
 

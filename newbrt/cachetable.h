@@ -181,4 +181,7 @@ void toku_cachetable_verify (CACHETABLE t);
 // Not for use in production, but useful for testing.
 void print_hash_histogram (void) __attribute__((__visibility__("default")));
 
+// Useful for debugging.
+static unsigned long toku_get_maxrss(void) __attribute__((__visibility__("default")));
+
 #endif

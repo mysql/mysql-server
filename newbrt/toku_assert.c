@@ -4,9 +4,10 @@
 
 int toku_continue_on_assert_failure=0;
 
-void toku_assert_failed_but_continue_anyway (void) __attribute__((noinline));
+static void toku_assert_failed_but_continue_anyway (void) __attribute__((noinline));
 
-void toku_assert_failed_but_continue_anyway (void) {
+static void
+toku_assert_failed_but_continue_anyway (void) {
     printf("Assertion failed, but continuing anyway\n");
 }
 
