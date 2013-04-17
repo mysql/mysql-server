@@ -640,13 +640,23 @@ static int generate_row_for_put(
     return 0;
 }
 
-template <typename integer_t>
-static integer_t breverse(integer_t v)
+// How Keys Work:
+//
+// Keys are either
+// - 4 byte little endian non-negative integers
+// - 8 byte little endian non-negative integers
+// - 8 byte little endian non-negative integers, padded with zeroes.
+//
+// The comparison function treats the key as a 4 byte
+// int if the key size is exactly 4, and it treats
+// the key as an 8 byte int if the key size is 8 or more.
+
+static uint64_t breverse(uint64_t v)
 // Effect: return the bits in i, reversed
 // Notes: implementation taken from http://graphics.stanford.edu/~seander/bithacks.html#BitReverseObvious
 // Rationale: just a hack to spread out the keys during loading, doesn't need to be fast but does need to be correct.
 {
-    integer_t r = v; // r will be reversed bits of v; first get LSB of v
+    uint64_t r = v; // r will be reversed bits of v; first get LSB of v
     int s = sizeof(v) * CHAR_BIT - 1; // extra shift needed at end
 
     for (v >>= 1; v; v >>= 1) {
@@ -658,52 +668,58 @@ static integer_t breverse(integer_t v)
     return r;
 }
 
-template <typename integer_t>
 static void
-fill_key_buf(integer_t key, uint8_t *data, struct cli_args *args) {
-// Effect: Fill data with a little-endian integer with the given integer_t type
-//         If the data buf is bigger than the integer's size, pad with zeroes.
-// Requires: *data is at least sizeof(integer_t)
-// Note: If you want to store 4 bytes, pass a 4 byte type. 8 bytes? 8 byte type.
-//       to store an 8-byte integer valued 5:
-//          int k = 5; fill_key_buf(k, ...) // WRONG
-//          int64_t k = 5; fill_key_buf(k, ...) // RIGHT
-    invariant(sizeof(integer_t) >= min_key_size);
-    invariant(sizeof(integer_t) <= args->key_size);
-    integer_t *k = reinterpret_cast<integer_t *>(data);
+fill_key_buf(int64_t key, uint8_t *data, struct cli_args *args) {
+// Effect: Fill data with a specific little-endian integer, 4 or 8 bytes long
+//         depending on args->key_size, possibly padded with zeroes.
+// Requires: *data is at least sizeof(uint64_t)
+    invariant(key >= 0);
     if (args->disperse_keys) {
-        *k = static_cast<integer_t>(breverse(key));
-    } else {
-        *k = key;
+        key = breverse(key);
     }
-    if (args->key_size > sizeof(integer_t)) {
-        memset(data + sizeof(integer_t), 0, args->key_size - sizeof(integer_t));
+    if (args->key_size == sizeof(int)) {
+        const int key32 = key;
+        memcpy(data, &key32, sizeof(key32));
+    } else {
+        invariant(args->key_size >= sizeof(key));
+        memcpy(data, &key, sizeof(key));
+        memset(data + sizeof(key), 0, args->key_size - sizeof(key));
     }
 }
 
-template <typename integer_t>
 static void
 fill_key_buf_random(struct random_data *random_data, uint8_t *data, ARG arg) {
-// Effect: Fill data with a random little-endian integer with the given integer_t type,
-//         possibly bounded by the size of the table, possibly padded with zeroes.
+// Effect: Fill data with a random, little-endian, 4 or 8 byte integer, possibly
+// bounded by the size of the table, and padded with zeroes until key_size.
 // Requires, Notes: see fill_key_buf()
-    invariant(sizeof(integer_t) <= arg->cli->key_size);
-    integer_t key = static_cast<integer_t>(myrandom_r(random_data));
+    int64_t key = myrandom_r(random_data);
     if (arg->bounded_element_range && arg->cli->num_elements > 0) {
         key = key % arg->cli->num_elements;
     }
     fill_key_buf(key, data, arg->cli);
 }
 
-template <typename integer_t>
+// How Vals Work:
+//
+// Values are either
+// - 4 byte little endian integers
+// - 4 byte little endian integers, padded with zeroes
+// - X bytes random values, Y bytes zeroes, where X and Y
+// are derived from the desired compressibility;
+//
+// Correctness tests use integer values, perf tests use random bytes.
+// Both support padding out values > 4 bytes with zeroes.
+
 static void
-fill_val_buf(integer_t val, uint8_t *data, uint32_t val_size) {
+fill_val_buf(int64_t val, uint8_t *data, uint32_t val_size) {
 // Effect, Requires, Notes: see fill_key_buf().
-    invariant(sizeof(integer_t) <= val_size);
-    integer_t *v = reinterpret_cast<integer_t *>(data);
-    *v = val;
-    if (val_size > sizeof(integer_t)) {
-        memset(data + sizeof(integer_t), 0, val_size - sizeof(integer_t));
+    if (val_size == sizeof(int)) {
+        const int val32 = val;
+        memcpy(data, &val32, sizeof(val32));
+    } else {
+        invariant(val_size >= sizeof(val));
+        memcpy(data, &val, sizeof(val));
+        memset(data + sizeof(val), 0, val_size - sizeof(val));
     }
 }
 
@@ -748,7 +764,7 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, bool ignore_errors, vo
 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
-        fill_key_buf_random<uint64_t>(arg->random_data, keybuf, arg);
+        fill_key_buf_random(arg->random_data, keybuf, arg);
         fill_val_buf_random(arg->random_data, valbuf, arg->cli);
         r = db->put(db, txn, &key, &val, put_flags);
         if (!ignore_errors && r != 0) {
@@ -868,7 +884,7 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
 
     DBT key;
     dbt_init(&key, keybuf, sizeof keybuf);
-    fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+    fill_key_buf_random(arg->random_data, keybuf, arg);
 
     uint64_t less,equal,greater;
     int is_exact;
@@ -959,7 +975,7 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, bool ch
     DBT key, val;
     dbt_init(&key, keybuf, sizeof keybuf);
     dbt_init(&val, nullptr, 0);
-    fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+    fill_key_buf_random(arg->random_data, keybuf, arg);
 
     r = db->getf_set(
         db, 
@@ -1100,7 +1116,7 @@ static int UU() update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void
     dbt_init(&val, &extra, sizeof extra);
 
     for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
-        fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+        fill_key_buf_random(arg->random_data, keybuf, arg);
         extra.u.d.diff = 1;
         curr_val_sum += extra.u.d.diff;
         r = db->update(
@@ -1222,7 +1238,7 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
             fill_key_buf(update_key, keybuf, arg->cli);
         } else {
             // just do a usual, random point update without locking first
-            fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+            fill_key_buf_random(arg->random_data, keybuf, arg);
         }
 
 
@@ -1295,7 +1311,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     dbt_init(&val, &extra, sizeof extra);
 
     for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
-        fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+        fill_key_buf_random(arg->random_data, keybuf, arg);
         int *rkp = (int *) keybuf;
         rand_key = *rkp;
         invariant(rand_key < arg->cli->num_elements);
@@ -1729,16 +1745,13 @@ static void fill_single_table(DB_ENV *env, DB *db, struct cli_args *args, bool f
     }
 
     for (int i = 0; i < args->num_elements; i++) {
+        fill_key_buf(i, keybuf, args);
+
+        // Correctness tests map every key to zeroes. Perf tests fill
+        // values with random bytes, based on compressibility.
         if (fill_with_zeroes) {
-            // Legacy test, 4 byte signed keys and 4 byte zero values.
-            const int k = i;
-            const int zero = 0;
-            fill_key_buf(k, keybuf, args);
-            fill_val_buf(zero, valbuf, args->val_size);
+            fill_val_buf(0, valbuf, args->val_size);
         } else {
-            // Modern test, >= 8 byte unsigned keys, >= 8 byte random values.
-            const uint64_t k = i;
-            fill_key_buf(k, keybuf, args);
             fill_val_buf_random(&random_data, valbuf, args);
         }
 
@@ -2413,8 +2426,10 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
 static void
 stress_table(DB_ENV *, DB **, struct cli_args *);
 
-template<typename integer_t>
-static int int_cmp(integer_t x, integer_t y) {
+static int
+stress_dbt_cmp_legacy(const DBT *a, const DBT *b) {
+    int x = *(int *) a->data;
+    int y = *(int *) b->data;
     if (x < y) {
         return -1;
     } else if (x > y) {
@@ -2425,20 +2440,19 @@ static int int_cmp(integer_t x, integer_t y) {
 }
 
 static int
-stress_dbt_cmp_legacy(const DBT *a, const DBT *b) {
-    int x = *(int *) a->data;
-    int y = *(int *) b->data;
-    return int_cmp(x, y);
-}
-
-static int
 stress_dbt_cmp(const DBT *a, const DBT *b) {
     // Keys are only compared by their first 8 bytes,
     // interpreted as a little endian 64 bit integers.
     // The rest of the key is just padding.
     uint64_t x = *(uint64_t *) a->data;
     uint64_t y = *(uint64_t *) b->data;
-    return int_cmp(x, y);
+    if (x < y) {
+        return -1;
+    } else if (x > y) {
+        return +1;
+    } else {
+        return 0;
+    }
 }
 
 static int
@@ -2510,6 +2524,12 @@ UU() stress_recover(struct cli_args *args) {
 static void
 test_main(struct cli_args *args, bool fill_with_zeroes)
 {
+    if ((args->key_size < 8 && args->key_size != 4) ||
+        (args->val_size < 8 && args->val_size != 4)) {
+        fprintf(stderr, "The only valid key/val sizes are 4, 8, and > 8.\n");
+        return;
+    }
+
     { char *loc = setlocale(LC_NUMERIC, "en_US.UTF-8"); assert(loc); }
     DB_ENV* env = nullptr;
     DB* dbs[args->num_DBs];

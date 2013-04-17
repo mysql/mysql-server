@@ -106,8 +106,8 @@ struct __toku_loader_internal {
 static void free_loader_resources(DB_LOADER *loader) 
 {
     if ( loader->i ) {
-        if (loader->i->err_key.data)       toku_free(loader->i->err_key.data);
-        if (loader->i->err_val.data)       toku_free(loader->i->err_val.data);
+        toku_destroy_dbt(&loader->i->err_key);
+        toku_destroy_dbt(&loader->i->err_val);
 
         if (loader->i->inames_in_env) {
             for (int i=0; i<loader->i->N; i++) {
@@ -194,8 +194,8 @@ toku_loader_create_loader(DB_ENV *env,
         goto create_exit;
     }
 
-    memset(&loader->i->err_key, 0, sizeof(loader->i->err_key));
-    memset(&loader->i->err_val, 0, sizeof(loader->i->err_val));
+    toku_init_dbt(&loader->i->err_key);
+    toku_init_dbt(&loader->i->err_val);
     loader->i->err_i      = 0;
     loader->i->err_errno  = 0;
 
@@ -335,13 +335,8 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     if ( r != 0 ) {
         // spec says errors all happen on close
         //   - have to save key, val, errno (r) and i for duplicate callback
-        loader->i->err_key.size = key->size;
-        loader->i->err_key.data = toku_malloc(key->size);
-        memcpy(loader->i->err_key.data, key->data, key->size);
-
-        loader->i->err_val.size = val->size;
-        loader->i->err_val.data = toku_malloc(val->size);
-        memcpy(loader->i->err_val.data, val->data, val->size);
+        toku_clone_dbt(&loader->i->err_key, *key);
+        toku_clone_dbt(&loader->i->err_val, *val);
 
         loader->i->err_i = i;
         loader->i->err_errno = r;

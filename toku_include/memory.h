@@ -28,8 +28,6 @@ void *toku_xmalloc(size_t size);
 void *toku_xrealloc(void*, size_t size) __attribute__((__visibility__("default")));
 
 void toku_free(void*) __attribute__((__visibility__("default")));
-/* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
-void toku_free_n(void*, size_t size);
 void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default")));
 
 size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")));

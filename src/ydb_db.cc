@@ -54,13 +54,6 @@ ydb_db_layer_get_status(YDB_DB_LAYER_STATUS statp) {
     *statp = ydb_db_layer_status;
 }
 
-static inline DBT*
-init_dbt_realloc(DBT *dbt) {
-    memset(dbt, 0, sizeof(*dbt));
-    dbt->flags = DB_DBT_REALLOC;
-    return dbt;
-}
-
 static void
 create_iname_hint(const char *dname, char *hint) {
     //Requires: size of hint array must be > strlen(dname)
@@ -260,7 +253,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds iname_in_env
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
-    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    toku_init_dbt_flags(&iname_dbt, DB_DBT_REALLOC);
     r = toku_db_get(db->dbenv->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = (char *) iname_dbt.data;
     if (r == DB_NOTFOUND && !is_db_create) {

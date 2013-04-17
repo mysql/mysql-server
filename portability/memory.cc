@@ -216,11 +216,6 @@ toku_free(void *p) {
     }
 }
 
-void
-toku_free_n(void* p, size_t size __attribute__((unused))) {
-    toku_free(p);
-}
-
 void *
 toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
