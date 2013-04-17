@@ -1,17 +1,9 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <errno.h>
-#include <sys/types.h>
+#include "includes.h"
 
-typedef struct value *OMTVALUE;
+//typedef struct value *OMTVALUE;
 typedef OMTVALUE TESTVALUE;
-#include "omt.h"
-#include "../newbrt/memory.h"
-#include "../newbrt/toku_assert.h"
-#include "../include/db.h"
-#include "../newbrt/brttypes.h"
-#include <stdlib.h>
-#include <stdint.h>
 
 /* Things that would go in a omt-tests.h if we split to multiple files later. */
 int verbose=0;
@@ -47,6 +39,7 @@ parse_args (int argc, const char *argv[]) {
 struct value {
     u_int32_t number;
 };
+#define V(x) ((struct value *)(x))
 
 enum rand_type {
     TEST_RANDOM,
@@ -150,33 +143,33 @@ init_globals (void) {
 }
 
 static void
-test_close (enum close_when_done close) {
-    if (close == KEEP_WHEN_DONE) return;
-    assert(close == CLOSE_WHEN_DONE);
+test_close (enum close_when_done do_close) {
+    if (do_close == KEEP_WHEN_DONE) return;
+    assert(do_close == CLOSE_WHEN_DONE);
     toku_omt_destroy(&omt);
     assert(omt==NULL);
 }
 
 static void
-test_create (enum close_when_done close) {
+test_create (enum close_when_done do_close) {
     int r;
     omt = NULL;
 
     r = toku_omt_create(&omt);
     CKERR(r);
     assert(omt!=NULL);
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_size (enum close_when_done close) {
+test_create_size (enum close_when_done do_close) {
     test_create(KEEP_WHEN_DONE);
     assert(toku_omt_size(omt) == 0);
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_insert_at_almost_random (enum close_when_done close) {
+test_create_insert_at_almost_random (enum close_when_done do_close) {
     u_int32_t i;
     int r;
     u_int32_t size = 0;
@@ -200,11 +193,11 @@ test_create_insert_at_almost_random (enum close_when_done close) {
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
     CKERR2(r, EINVAL);
     assert(size==toku_omt_size(omt));
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_insert_at_sequential (enum close_when_done close) {
+test_create_insert_at_sequential (enum close_when_done do_close) {
     u_int32_t i;
     int r;
     u_int32_t size = 0;
@@ -225,11 +218,11 @@ test_create_insert_at_sequential (enum close_when_done close) {
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
     CKERR2(r, EINVAL);
     assert(size==toku_omt_size(omt));
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_from_sorted_array (enum create_type create_choice, enum close_when_done close) {
+test_create_from_sorted_array (enum create_type create_choice, enum close_when_done do_close) {
     int r;
     omt = NULL;
 
@@ -246,14 +239,14 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
     else assert(FALSE);
 
     assert(omt!=NULL);
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_from_sorted_array_size (enum create_type create_choice, enum close_when_done close) {
+test_create_from_sorted_array_size (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     assert(toku_omt_size(omt)==length);
-    test_close(close);
+    test_close(do_close);
 }    
 
 static void
@@ -277,15 +270,14 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
-        assert(v->number == val[i]->number);
-
+        assert(V(v)->number == V(val[i])->number);
         v = oldv;
         r = toku_omt_fetch(omtree, i, &v, c);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
-        assert(v->number == val[i]->number);
+        assert(V(v)->number == V(val[i])->number);
         assert(toku_omt_cursor_is_valid(c));
  
         v = oldv;
@@ -294,7 +286,7 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
-        assert(v->number == val[i]->number);
+        assert(V(v)->number == V(val[i])->number);
         assert(toku_omt_cursor_is_valid(c));
 
         v = oldv;
@@ -304,7 +296,7 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
             assert(v != NULL);
             assert(v != oldv);
             assert(v == val[j]);
-            assert(v->number == val[j]->number);
+            assert(V(v)->number == V(val[j])->number);
             j++;
             v = oldv;
         }
@@ -318,7 +310,7 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
-        assert(v->number == val[i]->number);
+        assert(V(v)->number == V(val[i])->number);
 
         v = oldv;
         j = i - 1;
@@ -327,7 +319,7 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
             assert(v != NULL);
             assert(v != oldv);
             assert(v == val[j]);
-            assert(v->number == val[j]->number);
+            assert(V(v)->number == V(val[j])->number);
             j--;
             v = oldv;
         }
@@ -351,10 +343,10 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
 }
 
 static void
-test_create_fetch_verify (enum create_type create_choice, enum close_when_done close) {
+test_create_fetch_verify (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     test_fetch_verify(omt, values, length);
-    test_close(close);
+    test_close(do_close);
 }
 
 static int iterate_helper_error_return = 1;
@@ -365,7 +357,7 @@ iterate_helper (TESTVALUE v, u_int32_t idx, void* extra) {
     TESTVALUE* vals = (TESTVALUE *)extra;
     assert(v != NULL);
     assert(v == vals[idx]);
-    assert(v->number == vals[idx]->number);
+    assert(V(v)->number == V(vals[idx])->number);
     return 0;
 }
 
@@ -386,10 +378,10 @@ test_iterate_verify (OMT omtree, TESTVALUE* vals, u_int32_t len) {
 }
 
 static void
-test_create_iterate_verify (enum create_type create_choice, enum close_when_done close) {
+test_create_iterate_verify (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     test_iterate_verify(omt, values, length);
-    test_close(close);
+    test_close(do_close);
 }
 
 
@@ -414,7 +406,7 @@ permute_array (u_int32_t* arr, u_int32_t len) {
 }
 
 static void
-test_create_set_at (enum create_type create_choice, enum close_when_done close) {
+test_create_set_at (enum create_type create_choice, enum close_when_done do_close) {
     u_int32_t i = 0;
 
     struct value*   old_nums   = NULL;
@@ -463,7 +455,7 @@ test_create_set_at (enum create_type create_choice, enum close_when_done close) 
     toku_free(old_values);
     toku_free(old_nums);
 
-    test_close(close);
+    test_close(do_close);
 }
 
 static int
@@ -471,13 +463,13 @@ insert_helper (TESTVALUE value, void* extra_insert) {
     TESTVALUE to_insert = (OMTVALUE)extra_insert;
     assert(to_insert);
 
-    if (value->number < to_insert->number) return -1;
-    if (value->number > to_insert->number) return +1;
+    if (V(value)->number < V(to_insert)->number) return -1;
+    if (V(value)->number > V(to_insert)->number) return +1;
     return 0;
 }
 
 static void
-test_create_insert (enum close_when_done close) {
+test_create_insert (enum close_when_done do_close) {
     u_int32_t i = 0;
 
     u_int32_t* perm = NULL;
@@ -500,10 +492,10 @@ test_create_insert (enum close_when_done close) {
         CKERR(r);
         assert(idx <= length);
         if (idx > 0) {
-            assert(to_insert->number > values[idx-1]->number);
+            assert(V(to_insert)->number > V(values[idx-1])->number);
         }
         if (idx < length) {
-            assert(to_insert->number < values[idx]->number);
+            assert(V(to_insert)->number < V(values[idx])->number);
         }
         length++;
         assert(length==toku_omt_size(omt));
@@ -519,7 +511,7 @@ test_create_insert (enum close_when_done close) {
         r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
         CKERR2(r, DB_KEYEXIST);
         assert(idx < length);
-        assert(values[idx]->number == to_insert->number);
+        assert(V(values[idx])->number == V(to_insert)->number);
         assert(length==toku_omt_size(omt));
 
         test_iterate_verify(omt, values, length);
@@ -528,11 +520,11 @@ test_create_insert (enum close_when_done close) {
 
     toku_free(perm);
 
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_create_delete_at (enum create_type create_choice, enum close_when_done close) {
+test_create_delete_at (enum create_type create_choice, enum close_when_done do_close) {
     u_int32_t i = 0;
     int r = ENOSYS;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
@@ -562,11 +554,11 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done clos
     assert(length == toku_omt_size(omt));
     r = toku_omt_delete_at(omt, length+1);
     CKERR2(r, EINVAL);
-    test_close(close);
+    test_close(do_close);
 }
 
 static void
-test_split_merge (enum create_type create_choice, enum close_when_done close) {
+test_split_merge (enum create_type create_choice, enum close_when_done do_close) {
     int r = ENOSYS;
     u_int32_t i = 0;
     OMT left_split = NULL;
@@ -623,7 +615,7 @@ test_split_merge (enum create_type create_choice, enum close_when_done close) {
         test_fetch_verify(omt, values, length);
         test_iterate_verify(omt, values, length);
     }
-    test_close(close);
+    test_close(do_close);
 }
 
 
@@ -681,7 +673,7 @@ test_heaviside (OMTVALUE v_omt, void* x) {
     assert(v && x);
     assert(extra->first_zero <= extra->first_pos);
 
-    u_int32_t value = v->number;
+    u_int32_t value = V(v)->number;
     if (value < extra->first_zero) return -1;
     if (value < extra->first_pos) return 0;
     return 1;
@@ -726,7 +718,7 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
         found = FALSE;
     }
     else {
-        assert(omt_val->number == number_expect);
+        assert(V(omt_val)->number == number_expect);
         found = TRUE;
     }
  
@@ -743,8 +735,8 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
         if (found) assert(tmp==omt_val);
         assert(omt_val_curs != NULL);
         assert(omt_val_curs == tmp);
-        assert(omt_val_curs->number == tmp->number);
-        if (found) assert(omt_val_curs->number==number_expect);
+        assert(V(omt_val_curs)->number == V(tmp)->number);
+        if (found) assert(V(omt_val_curs)->number==number_expect);
     }
 
     toku_omt_cursor_invalidate(c);
@@ -784,7 +776,7 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
         assert(omt_val == NULL);
     }
     else {
-        assert(omt_val->number == number_expect);
+        assert(V(omt_val)->number == number_expect);
     }
 
     /* Verify we can pass NULL both. */
@@ -802,7 +794,7 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
 }
 
 static void
-test_find (enum create_type create_choice, enum close_when_done close) {
+test_find (enum create_type create_choice, enum close_when_done do_close) {
     h_extra extra;
     init_identity_values(random_seed, 100);
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
@@ -872,7 +864,7 @@ test_find (enum create_type create_choice, enum close_when_done close) {
     test_find_dir(0,  &extra, test_heaviside, 0, TRUE,   length/3,     length/3,   TRUE);
 
     /* Cleanup */
-    test_close(close);
+    test_close(do_close);
 }
 
 static void

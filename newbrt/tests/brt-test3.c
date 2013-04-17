@@ -1,20 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "brt.h"
-#include "key.h"
-#include "brt-internal.h"
-#include "memory.h"
-#include "toku_assert.h"
-
-#include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
+#include "includes.h"
 #include "test.h"
 
 static const char fname[]= __FILE__ ".brt";

@@ -2,6 +2,9 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Dump the log from stdin to stdout. */
+
+#include "includes.h"
+
 #include "brttypes.h"
 #include "log-internal.h"
 #include "log_header.h"

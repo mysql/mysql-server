@@ -1,5 +1,4 @@
-#include "brt-internal.h"
-#include "toku_assert.h"
+#include "includes.h"
 
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;

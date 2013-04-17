@@ -24,7 +24,9 @@ struct ctpair_rwlock {
 
 // initialize a read write lock
 
-static void ctpair_rwlock_init(CTPAIR_RWLOCK rwlock) {
+static __attribute__((__unused__))
+void
+ctpair_rwlock_init(CTPAIR_RWLOCK rwlock) {
     int r;
     rwlock->pinned = rwlock->want_pin = 0;
     r = pthread_cond_init(&rwlock->wait_pin, 0); assert(r == 0);
@@ -34,7 +36,9 @@ static void ctpair_rwlock_init(CTPAIR_RWLOCK rwlock) {
 
 // destroy a read write lock
 
-static void ctpair_rwlock_destroy(CTPAIR_RWLOCK rwlock) {
+static __attribute__((__unused__))
+void
+ctpair_rwlock_destroy(CTPAIR_RWLOCK rwlock) {
     int r;
     assert(rwlock->pinned == 0 && rwlock->want_pin == 0);
     assert(rwlock->writer == 0 && rwlock->want_write == 0);
