@@ -203,8 +203,6 @@ struct   __attribute__((__packed__)) brtnode_partition {
     // the following three variables are used for nonleaf nodes
     // for leaf nodes, they are meaningless
     BLOCKNUM     blocknum; // blocknum of child 
-    BOOL         have_fullhash;     // do we have the full hash?
-    u_int32_t    fullhash;          // the fullhash of the child
 
     //estimates for a child, for leaf nodes, are estimates of basement nodes
     struct subtree_estimates subtree_estimates; 

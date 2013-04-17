@@ -265,21 +265,7 @@ int toku_brt_debug_mode = 0;
 
 static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
     assert(node->height>0 && childnum<node->n_children);
-    switch (BP_HAVE_FULLHASH(node, childnum)) {
-    case TRUE:
-        {
-            assert(BP_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum)));
-            return BP_FULLHASH(node, childnum);
-        }
-    case FALSE: 
-        {
-	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum));
-	    BP_HAVE_FULLHASH(node, childnum) = TRUE;
-	    BP_FULLHASH(node, childnum) = child_fullhash;
-	    return child_fullhash;
-        }
-    }
-    abort(); return 0;
+    return toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum));
 }
 
 static void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds);
@@ -994,8 +980,6 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
         XMALLOC_N(num_children-1, n->childkeys);
         XMALLOC_N(num_children, n->bp);
 	for (int i = 0; i < num_children; i++) {
-            BP_FULLHASH(n,i)=0;
-            BP_HAVE_FULLHASH(n,i)=FALSE;
             BP_BLOCKNUM(n,i).b=0;
             BP_STATE(n,i) = PT_INVALID;
             BP_OFFSET(n,i) = 0;
@@ -1088,7 +1072,6 @@ toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
 static void
 init_childinfo(BRTNODE node, int childnum, BRTNODE child) {
     BP_BLOCKNUM(node,childnum) = child->thisnodename;
-    BP_HAVE_FULLHASH(node,childnum) = FALSE;
     BP_STATE(node,childnum) = PT_AVAIL;
     BP_OFFSET(node,childnum) = 0;
     BP_SUBTREE_EST(node,childnum) = zero_estimates;
@@ -1280,8 +1263,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                 BP_STATE(B,i) = PT_AVAIL;
                 BP_OFFSET(B,i) = 0;
                 BP_BLOCKNUM(B,i).b = 0;
-                BP_FULLHASH(B,i) = 0;
-                BP_HAVE_FULLHASH(B,i) = FALSE;
                 BP_SUBTREE_EST(B,i)= zero_estimates;
 		BP_WORKDONE(B,i) = 0;
 		set_BLB(B, i, toku_create_empty_bn());
@@ -1498,8 +1479,6 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     assert(BP_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
 
     BP_BLOCKNUM(node, childnum+1) = childb->thisnodename;
-    BP_HAVE_FULLHASH(node, childnum+1) = TRUE;
-    BP_FULLHASH(node, childnum+1) = childb->fullhash;
     BP_SUBTREE_EST(node,childnum+1) = zero_estimates;
     BP_WORKDONE(node, childnum+1)  = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;

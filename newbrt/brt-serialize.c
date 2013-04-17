@@ -1041,8 +1041,6 @@ deserialize_brtnode_info(
     if (node->height > 0) {
         for (int i = 0; i < node->n_children; i++) {
             BP_BLOCKNUM(node,i) = rbuf_blocknum(&rb);
-            BP_HAVE_FULLHASH(node, i) = FALSE;            
-            BP_FULLHASH(node,i) = 0;
 	    BP_WORKDONE(node, i) = 0;
         }        
     }
