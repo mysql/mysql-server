@@ -472,6 +472,13 @@ int main (int argc, const char *argv[]) {
                 env_open_flags |= DB_INIT_LOCK;
             else
                 env_open_flags &= ~DB_INIT_LOCK;
+        } else if (strcmp(arg, "--unique_checks") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            int unique_checks = atoi(argv[++i]);
+            if (unique_checks)
+                put_flags = DB_NOOVERWRITE;
+            else
+                put_flags = DB_YESOVERWRITE;
         } else {
 	    return print_usage(argv[0]);
 	}
