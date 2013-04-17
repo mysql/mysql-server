@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../include/rdtsc.h"
+#include "trace_mem.h"
 
 // customize this as required
 #define NTRACE 0
@@ -25,8 +26,7 @@ void toku_add_trace_mem(const char *str __attribute__((unused)),
 #endif
 }
 
-void toku_print_trace_mem() __attribute__((__visibility__("default")));
-void toku_print_trace_mem() {
+void toku_print_trace_mem(void) {
 #if NTRACE
     int i = toku_next_trace;
     do {

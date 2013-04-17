@@ -74,7 +74,7 @@ unlock_for_pwrite (void) {
     assert(r==0);
 }
 
-ssize_t
+static ssize_t
 toku_pwrite (int fd, const void *buf, size_t count, off_t offset)
 // requires that the pwrite has been locked
 {
@@ -99,7 +99,8 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 
 static int deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
 
-int addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
+static int
+addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
     LEAFENTRY le=lev;
     unsigned int *ip=vp;
     (*ip) += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
@@ -160,14 +161,15 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=node->u.l.n_bytes_in_buffer;
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
-	    if (result!=slowresult) printf("%s:%d result=%d slowresult=%d\n", __FILE__, __LINE__, result, slowresult);
+	    if (result!=slowresult) printf("%s:%d result=%u slowresult=%u\n", __FILE__, __LINE__, result, slowresult);
 	    assert(result==slowresult);
 	}
     }
     return result;
 }
 
-int wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
+static int
+wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
     LEAFENTRY le=lev;
     struct wbuf *thisw=v;
     wbuf_LEAFENTRY(thisw, le);
@@ -248,7 +250,8 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
-				      wbuf_char(&w, type);
+				      assert(type>0 && type<256);
+				      wbuf_char(&w, (unsigned char)type);
 				      wbuf_TXNID(&w, xid);
 				      wbuf_bytes(&w, key, keylen);
 				      wbuf_bytes(&w, data, datalen);
@@ -276,7 +279,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 #endif
 
     if (calculated_size!=w.ndone)
-	printf("%s:%d w.done=%d calculated_size=%d\n", __FILE__, __LINE__, w.ndone, calculated_size);
+	printf("%s:%d w.done=%u calculated_size=%u\n", __FILE__, __LINE__, w.ndone, calculated_size);
     assert(calculated_size==w.ndone);
 
     // The uncompressed part of the header is
@@ -302,7 +305,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 	assert(r==Z_OK);
     }
 
-    if (0) printf("Size before compressing %d, after compression %ld\n", calculated_size-uncompressed_magic_len, compressed_len);
+    if (0) printf("Size before compressing %u, after compression %lu\n", calculated_size-uncompressed_magic_len, compressed_len);
 
     ((int32_t*)(compressed_buf+uncompressed_magic_len))[0] = htonl(compressed_len);
     ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = htonl(uncompressed_len);
@@ -380,7 +383,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (compressed_size<=0   || compressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
 	uncompressed_size = ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
 	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
-	if (0) printf("Compressed size = %d, uncompressed size=%d\n", compressed_size, uncompressed_size);
+	if (0) printf("Compressed size = %u, uncompressed size=%u\n", compressed_size, uncompressed_size);
     }
     
     unsigned char *MALLOC_N(compressed_size, compressed_data);
@@ -566,7 +569,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (actual_sum!=result->local_fingerprint) {
 	    //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
 	    return DB_BADFORMAT;
-	    goto died_21;
+	    // goto died_21;
 	} else {
 	    //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
 	}
@@ -605,7 +608,8 @@ struct sum_info {
     u_int32_t    fp;
 };
 
-int sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+static int
+sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     LEAFENTRY le=lev;
     struct sum_info *si = vsi;
     si->count++;
@@ -736,7 +740,8 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 }
 
 // We only deserialize brt header once and then share everything with all the brts.
-int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **brth) {
+static int
+deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **brth) {
     // We already know the first 8 bytes are "tokudata", and we read in the size.
     struct brt_header *MALLOC(h);
     if (h==0) return errno;
@@ -895,7 +900,8 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
 		     assert(buf!=0);
 		     struct wbuf w;
 		     wbuf_init(&w, buf, size);
-		     wbuf_char(&w, type);
+		     assert(type>=0 && type<256);
+		     wbuf_char(&w, (unsigned char)type);
 		     wbuf_TXNID(&w, xid);
 		     wbuf_bytes(&w, key, keylen);
 		     //printf("%s:%d Writing %d bytes: %s\n", __FILE__, __LINE__, vallen, (char*)val); 
@@ -914,7 +920,8 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
     return 0;
 }
 
-int read_int (int fd, off_t *at, u_int32_t *result) {
+static int
+read_int (int fd, off_t *at, u_int32_t *result) {
     int v;
     ssize_t r = pread(fd, &v, 4, *at);
     if (r<0) return errno;
@@ -924,7 +931,8 @@ int read_int (int fd, off_t *at, u_int32_t *result) {
     return 0;
 }
 
-int read_char (int fd, off_t *at, char *result) {
+static int
+read_char (int fd, off_t *at, char *result) {
     ssize_t r = pread(fd, result, 1, *at);
     if (r<0) return errno;
     assert(r==1);
@@ -932,7 +940,8 @@ int read_char (int fd, off_t *at, char *result) {
     return 0;
 }
 
-int read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
+static int
+read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
     u_int32_t v1=0,v2=0;
     int r;
     if ((r = read_int(fd, at, &v1))) return r;
@@ -941,7 +950,8 @@ int read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
     return 0;
 }
 
-int read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
+static int
+read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
     char *result = toku_malloc(len);
     if (result==0) return errno;
     ssize_t r = pread(fd, result, len, *at);
