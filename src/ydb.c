@@ -5053,7 +5053,7 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
         DB *dbs[1] = {db};
         uint32_t db_flags[1]  = {DB_NOOVERWRITE};
         uint32_t dbt_flags[1] = {0};
-        uint32_t loader_flags = 0;
+        uint32_t loader_flags = DB_PRELOCKED_WRITE; //Don't recursively prelock
         DB_ENV *env = db->dbenv;
 
         toku_ydb_unlock(); //Cannot hold ydb lock when creating loader
