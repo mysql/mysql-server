@@ -92,9 +92,9 @@ REGRESSION_TESTS_RAW = \
 	minicron-test \
 	omt-cursor-test \
 	omt-test \
-	recovery-begin-checkpoint \
-	recovery-begin-end-checkpoint \
-	recovery-begin-end-checkpoint-hello \
+	recovery-cbegin \
+	recovery-cbegin-cend \
+	recovery-cbegin-cend-hello \
 	recovery-empty \
 	recovery-fopen-missing-file \
 	recovery-hello \
