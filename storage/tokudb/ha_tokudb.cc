@@ -853,7 +853,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         char newname[strlen(name) + 32];
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-        if ((error = file->open(file, 0, name_buff, "main", DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
+        if ((error = file->open(file, 0, name_buff, NULL, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
             my_free(alloc_ptr, MYF(0));
@@ -886,7 +886,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
                 }
-                if ((error = (*ptr)->open(*ptr, 0, name_buff, part, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
+                if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
                     __close(1);
                     my_errno = error;
                     TOKUDB_DBUG_RETURN(1);
@@ -1206,7 +1206,7 @@ void ha_tokudb::get_status() {
             if (tokudb_debug & TOKUDB_DEBUG_OPEN)
                 printf("%d:%s:%d:open:%s\n", my_tid(), __FILE__, __LINE__, newname);
             if (!db_create(&share->status_block, db_env, 0)) {
-                if (share->status_block->open(share->status_block, NULL, name_buff, "status", DB_BTREE, open_mode, 0)) {
+                if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
                     share->status_block->close(share->status_block, 0);
                     share->status_block = 0;
                 }
@@ -1282,7 +1282,7 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
             if (db_create(&share->status_block, db_env, 0))
                 goto end;
             share->status_block->set_flags(share->status_block, 0);
-            if (share->status_block->open(share->status_block, NULL, name_buff, "status", DB_BTREE, DB_THREAD | DB_CREATE, my_umask))
+            if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask))
                 goto end;
         }
         {
@@ -2373,7 +2373,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(name_buff, "main", DB_BTREE, 0);
+    error = create_sub_table(name_buff, NULL, DB_BTREE, 0);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN)
         printf("%d:%s:%d:create:%s:error=%d\n", my_tid(), __FILE__, __LINE__, newname, error);
     if (error) {
@@ -2391,7 +2391,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             sprintf(part, "key%d", index++);
             make_name(newname, name, part);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            error = create_sub_table(name_buff, part, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT);
+            error = create_sub_table(name_buff, NULL, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT);
             if (tokudb_debug & TOKUDB_DEBUG_OPEN)
                 printf("%d:%s:%d:create:%s:flags=%ld:error=%d\n", my_tid(), __FILE__, __LINE__, newname, form->key_info[i].flags, error);
             if (error) {
@@ -2410,7 +2410,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         make_name(newname, name, "status");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
-        if (!(error = (status_block->open(status_block, NULL, name_buff, "status", DB_BTREE, DB_CREATE, 0)))) {
+        if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
             char rec_buff[4 + MAX_KEY * 4];
             uint length = 4 + form->s->keys * 4;
             bzero(rec_buff, length);
