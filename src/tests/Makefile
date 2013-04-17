@@ -205,7 +205,7 @@ endif
 	echo dump and compare &&\
 	../../utils/tokudb_dump -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
 	../../utils/tokudb_dump -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
-	diff dir.$*.c.tdb/foo.dump dir.$*.c.tdb.recover/foo.dump                                   \
+	diff -q dir.$*.c.tdb/foo.dump dir.$*.c.tdb.recover/foo.dump                                   \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recoverwc: %.tdb$(BINSUF)
@@ -361,7 +361,7 @@ test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	 ./test1426.bdb -q && \
 	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426 && \
 	 ../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
-	 diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
+	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
@@ -373,7 +373,7 @@ helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
 
 dumpit:
-	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
+	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%$(BINSUF)
