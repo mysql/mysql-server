@@ -128,13 +128,11 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     }
 
     r = toku_cachetable_end_checkpoint(
-    ct, 
-    NULL, 
-    fake_ydb_lock,
-    fake_ydb_unlock,
-    NULL,
-    NULL
-    );
+        ct, 
+        NULL, 
+        NULL,
+        NULL
+        );
     assert_zero(r);
     
     check_flush = FALSE;

@@ -75,12 +75,10 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
     usleep(2*1024*1024);
     r = toku_cachetable_end_checkpoint(
-    ct, 
-    NULL, 
-    fake_ydb_lock,
-    fake_ydb_unlock,
-    NULL,
-    NULL
+        ct, 
+        NULL, 
+        NULL,
+        NULL
     );
     assert_zero(r);
     
