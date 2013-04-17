@@ -311,6 +311,7 @@ bdb="4.6"
 makejobs=`get_ncpus`
 revision=0
 dovalgrind=1
+VALGRIND=valgrind
 docommit=1
 docoverage=0
 dowindows=0
@@ -362,6 +363,7 @@ if [ $revision -eq 0 ] ; then revision=`get_latest_svn_revision`; fi
 
 # setup GCCVERSION
 export GCCVERSION=`$CC --version|head -1|cut -f3 -d" "`
+export VALGRIND=$VALGRIND
 
 build $bdb
 exitcode=$?
