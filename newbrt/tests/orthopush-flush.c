@@ -546,6 +546,15 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
         maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds);
+
+        FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
+                     {
+                         key = key; keylen = keylen; val = val; vallen = vallen; type = type; msn = msn; xids = xids;
+                         assert(!is_fresh);
+                     });
+        assert(toku_omt_size(parent_bnc->fresh_message_tree) == 0);
+        assert(toku_omt_size(parent_bnc->stale_message_tree) == (u_int32_t) num_parent_messages);
+
         toku_brtnode_free(&parentnode);
     }
 
@@ -684,7 +693,6 @@ test_main (int argc, const char *argv[]) {
         flush_to_internal(t);
         flush_to_internal_multiple(t);
         flush_to_leaf(t, true, false);
-        flush_to_leaf(t, true, true);
     } else {
         for (int i = 0; i < 10; ++i) {
             flush_to_internal(t);
