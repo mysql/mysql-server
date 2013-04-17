@@ -2063,16 +2063,34 @@ static void
 stress_table(DB_ENV *, DB **, struct cli_args *);
 
 static int
-stress_int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
-  assert(db && a && b);
-  assert(a->size >= sizeof(int));
-  assert(b->size >= sizeof(int));
+UU() stress_int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
+    assert(db && a && b);
+    assert(a->size >= sizeof(int));
+    assert(b->size >= sizeof(int));
 
-  int x = *(int *) a->data;
-  int y = *(int *) b->data;
+    int x = *(int *) a->data;
+    int y = *(int *) b->data;
 
     if (x<y) return -1;
     if (x>y) return 1;
+    return 0;
+}
+
+static int
+UU() stress_uint64_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
+    assert(db && a && b);
+    assert(a->size >= sizeof(uint64_t));
+    assert(b->size >= sizeof(uint64_t));
+
+    int x = *(uint64_t *) a->data;
+    int y = *(uint64_t *) b->data;
+
+    if (x < y) {
+        return -1;
+    }
+    if (x > y) {
+        return +1;
+    }
     return 0;
 }
 
@@ -2096,7 +2114,7 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
 }
 
 static void
-stress_test_main(struct cli_args *args)
+UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, const DBT *, const DBT *))
 {
     { char *loc = setlocale(LC_NUMERIC, "en_US.UTF-8"); assert(loc); }
     DB_ENV* env = NULL;
@@ -2107,7 +2125,7 @@ stress_test_main(struct cli_args *args)
             &env,
             dbs,
             args->num_DBs,
-            stress_int_dbt_cmp,
+            bt_compare,
             args->env_args
             );
         { int chk_r = fill_tables_with_zeroes(dbs, args->num_DBs, args->num_elements, args->key_size, args->val_size); CKERR(chk_r); }
@@ -2117,7 +2135,7 @@ stress_test_main(struct cli_args *args)
         { int chk_r = open_tables(&env,
                                   dbs,
                                   args->num_DBs,
-                                  stress_int_dbt_cmp,
+                                  bt_compare,
                                   args->env_args); CKERR(chk_r); }
         if (args->warm_cache) {
             do_warm_cache(env, dbs, args);
@@ -2125,6 +2143,12 @@ stress_test_main(struct cli_args *args)
         stress_table(env, dbs, args);
         { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
+}
+
+static void
+UU() stress_test_main(struct cli_args *args)
+{
+    stress_test_main_with_cmp(args, stress_int_dbt_cmp);
 }
 
 static void
