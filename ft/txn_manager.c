@@ -751,6 +751,13 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
 }
 
 void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
+    if (!txn->begin_was_logged) {
+        //Read only transaction
+        invariant(txn->state==TOKUTXN_LIVE);
+        invariant(txn->num_pin==0);
+        txn->state = TOKUTXN_ABORTING;
+        goto done;
+    }
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     if (txn->state==TOKUTXN_PREPARING) {
         invalidate_xa_xid(&txn->xa_xid);
@@ -762,15 +769,24 @@ void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     // hot index is done with that leafentry
     while (txn->num_pin > 0) {
         toku_cond_wait(
-            &txn_manager->wait_for_unpin_of_txn, 
+            &txn_manager->wait_for_unpin_of_txn,
             &txn_manager->txn_manager_lock
             );
     }
     txn->state = TOKUTXN_ABORTING;
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
+done:
+    return;
 }
 
 void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
+    if (!txn->begin_was_logged) {
+        //Read only transaction
+        invariant(txn->state==TOKUTXN_LIVE);
+        invariant(txn->num_pin==0);
+        txn->state = TOKUTXN_COMMITTING;
+        goto done;
+    }
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     if (txn->state==TOKUTXN_PREPARING) {
         invalidate_xa_xid(&txn->xa_xid);
@@ -788,6 +804,8 @@ void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     }
     txn->state = TOKUTXN_COMMITTING;
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
+done:
+    return;
 }
 
 int toku_txn_manager_recover_txn (

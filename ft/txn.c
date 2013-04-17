@@ -402,8 +402,8 @@ void toku_txn_close_txn(TOKUTXN txn) {
 }
 
 static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
-// Effect:  This function is called on every open BRT that a transaction used.
-//  This function removes the transaction from that BRT.
+// Effect:  This function is called on every open FT that a transaction used.
+//  This function removes the transaction from that FT.
 {
     FT h = hv;
     TOKUTXN txn = txnv;
