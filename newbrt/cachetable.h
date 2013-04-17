@@ -5,6 +5,7 @@
 
 #include <fcntl.h>
 #include "brttypes.h"
+#include "workqueue.h"
 
 // Maintain a cache mapping from cachekeys to values (void*)
 // Some of the keys can be pinned.  Don't pin too many or for too long.
@@ -49,6 +50,10 @@ int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int fl
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char */*fname (used for logging)*/);
 
+// Get access to the asynchronous work queue
+// Returns: a pointer to the work queue
+WORKQUEUE toku_cachetable_get_workqueue(CACHETABLE);
+
 // The flush callback is called when a key value pair is being written to storage and possibly removed from the cachetable.
 // When write_me is true, the value should be written to storage.
 // When keep_me is false, the value should be freed.
@@ -65,6 +70,7 @@ void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userd
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().
 // If userdata is already non-NULL, then we simply overwrite it.
+
 void *toku_cachefile_get_userdata(CACHEFILE);
 // Effect: Get the user dataa.
 
@@ -97,8 +103,10 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
 // cachetable object state WRT external memory
-#define CACHETABLE_CLEAN 0
-#define CACHETABLE_DIRTY 1
+enum cachetable_object_state {
+    CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
+    CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
+};
 
 // Unpin a memory object
 // Effects: If the memory object is in the cachetable, then OR the dirty flag, 
@@ -109,6 +117,13 @@ int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, int dirty, lo
 int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing something already present is OK. */
 // Effect: Remove an object from the cachetable.  Don't write it back.
 // Requires: The object must be pinned exactly once.
+
+// Prefetch a memory object for a given key into the cachetable
+// Returns: 0 if success
+int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
+                            CACHETABLE_FLUSH_CALLBACK flush_callback, 
+                            CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                            void *extraargs);
 
 int toku_cachetable_assert_all_unpinned (CACHETABLE);
 

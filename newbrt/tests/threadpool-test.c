@@ -1,7 +1,3 @@
-#include "toku_portability.h"
-#include "toku_os.h"
-
-#include "test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,14 +5,20 @@
 #include <string.h>
 #include <errno.h>
 #include <malloc.h>
-#include <toku_pthread.h>
+
+#include "toku_portability.h"
+#include "toku_os.h"
+#include "toku_pthread.h"
 #include "threadpool.h"
+
+int verbose;
 
 struct my_threadpool {
     THREADPOOL threadpool;
     toku_pthread_mutex_t mutex;
     toku_pthread_cond_t wait;
     int closed;
+    int counter;
 };
 
 static void
@@ -27,10 +29,11 @@ my_threadpool_init (struct my_threadpool *my_threadpool, int max_threads) {
     r = toku_pthread_mutex_init(&my_threadpool->mutex, 0); assert(r == 0);
     r = toku_pthread_cond_init(&my_threadpool->wait, 0); assert(r == 0);
     my_threadpool->closed = 0;
+    my_threadpool->counter = 0;
 }
 
 static void
-my_threadpool_destroy (struct my_threadpool *my_threadpool) {
+my_threadpool_destroy (struct my_threadpool *my_threadpool, int max_threads) {
     int r;
     r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
     my_threadpool->closed = 1;
@@ -39,30 +42,18 @@ my_threadpool_destroy (struct my_threadpool *my_threadpool) {
 
     if (verbose) printf("current %d\n", threadpool_get_current_threads(my_threadpool->threadpool));
     threadpool_destroy(&my_threadpool->threadpool); assert(my_threadpool->threadpool == 0);
+    assert(my_threadpool->counter == max_threads);
     r = toku_pthread_mutex_destroy(&my_threadpool->mutex); assert(r == 0);
     r = toku_pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
 }
 
 static void *
-fbusy (void *arg) {
+my_thread_f (void *arg) {
     struct my_threadpool *my_threadpool = arg;
     int r;
     
     r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
-    while (!my_threadpool->closed) {
-        r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
-    }
-    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", (unsigned long)toku_os_gettid(), __FUNCTION__); 
-    return arg;
-}
-
-static void *
-fidle (void *arg) {
-    struct my_threadpool *my_threadpool = arg;
-    int r;
-    
-    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    my_threadpool->counter++;
     while (!my_threadpool->closed) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
@@ -92,7 +83,7 @@ usage (void) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+main(int argc, const char *argv[]) {
     int max_threads = 1;
 #if defined(__linux__)
     int do_malloc_fail = 0;
@@ -121,29 +112,16 @@ test_main(int argc, const char *argv[]) {
     struct my_threadpool my_threadpool;
     THREADPOOL threadpool;
 
-    // test threadpool busy causes no threads to be created
     my_threadpool_init(&my_threadpool, max_threads);
     threadpool = my_threadpool.threadpool;
     if (verbose) printf("test threadpool_set_busy\n");
     for (i=0; i<2*max_threads; i++) {
-        threadpool_maybe_add(threadpool, fbusy, &my_threadpool);
-        assert(threadpool_get_current_threads(threadpool) == 1);
-    }
-    assert(threadpool_get_current_threads(threadpool) == 1);
-    my_threadpool_destroy(&my_threadpool);
-    
-    // test threadpool idle causes up to max_threads to be created
-    my_threadpool_init(&my_threadpool, max_threads);
-    threadpool = my_threadpool.threadpool;
-    if (verbose) printf("test threadpool_set_idle\n");
-    for (i=0; i<2*max_threads; i++) {
-        threadpool_maybe_add(threadpool, fidle, &my_threadpool);
-        sleep(1);
-        assert(threadpool_get_current_threads(threadpool) <= max_threads);
+        assert(threadpool_get_current_threads(threadpool) == (i >= max_threads ? max_threads : i));
+        threadpool_maybe_add(threadpool, my_thread_f, &my_threadpool);
     }
     assert(threadpool_get_current_threads(threadpool) == max_threads);
-    my_threadpool_destroy(&my_threadpool);
-
+    my_threadpool_destroy(&my_threadpool, max_threads);
+    
 #if DO_MALLOC_HOOK
     if (do_malloc_fail) {
         if (verbose) printf("test threadpool_create with malloc failure\n");
