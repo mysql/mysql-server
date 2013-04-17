@@ -5563,6 +5563,8 @@ int ha_tokudb::info(uint flag) {
                 );
             if (error) { goto cleanup; }
             
+            stats.create_time = dict_stats.bt_create_time_sec;
+            stats.update_time = dict_stats.bt_modify_time_sec;
             stats.data_file_length = dict_stats.bt_dsize;
             if (hidden_primary_key) {
                 //
