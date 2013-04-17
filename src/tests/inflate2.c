@@ -99,15 +99,20 @@ doit (void)
     u_int32_t N=46;
     u_int32_t BIG=1<<16;
     for (u_int32_t i=0; i<2*N; i++) {
-	insert_n(i);
+	insert_n(i<<8);
     }
     insert_n(BIG);
     insert_n(BIG+1);
     reopen_em();
     for (u_int32_t i=0; i<N; i++) {
-	insert_n(2*N+i);
+	insert_n((2*N+i)<<8);
     }
     delete_n_now(BIG+1);
+    reopen_em();
+    for (u_int32_t i=0; i<N; i++) {
+	insert_n((48<<8) + i);
+    }
+    insert_n((48<<8) + N);
     return;
     for (u_int32_t i=N-1; i<N; i++) {
 	delete_n_now(i<<16);
