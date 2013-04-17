@@ -583,10 +583,10 @@ dump_translation(FILE *f, struct translation *t) {
         fprintf(f, " smallest_never_used_blocknum[%"PRId64"]", t->smallest_never_used_blocknum.b);
         fprintf(f, " blocknum_free_list_head[%"PRId64"]", t->blocknum_freelist_head.b);
         fprintf(f, " size_on_disk[%"PRId64"]", t->block_translation[b.b].size);
-        fprintf(f, " location_on_disk[%"PRId64"]", t->block_translation[b.b].u.diskoff);
+        fprintf(f, " location_on_disk[%"PRId64"]\n", t->block_translation[b.b].u.diskoff);
         int64_t i;
         for (i=0; i<t->length_of_array; i++) {
-            fprintf(f, " %"PRId64": %"PRId64" %"PRId64"", i, t->block_translation[i].u.diskoff, t->block_translation[i].size);
+            fprintf(f, " %"PRId64": %"PRId64" %"PRId64"\n", i, t->block_translation[i].u.diskoff, t->block_translation[i].size);
         }
         fprintf(f, "\n");
     }
