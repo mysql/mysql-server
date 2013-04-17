@@ -2758,8 +2758,8 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
         if (r!=0) return r;
     }
 
-    LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
+    LSN treelsn;
+    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
         r = 0;
     } else {
         BRT_MSG_S brtcmd = { type, message_xids, .u.id={key,val}};
@@ -2825,8 +2825,8 @@ int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN 
         if (r!=0) return r;
     }
     
-    LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
+    LSN treelsn;
+    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
         r = 0;
     } else {
         DBT val;
@@ -5377,8 +5377,8 @@ int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL op
         if (r!=0) return r;
     }
 
-    LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
+    LSN treelsn;
+    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
         r = 0;
     } else {
         BRT_MSG_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
