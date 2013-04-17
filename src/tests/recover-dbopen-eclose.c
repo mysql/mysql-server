@@ -15,7 +15,9 @@ static void run_test (void) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
+#if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
+#endif
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     DB *db;
@@ -31,7 +33,9 @@ static void run_recover (void) {
 
     // run recovery
     r = db_env_create(&env, 0);                                                         CKERR(r);
+#if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
+#endif
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r);
     r = env->close(env, 0);                                                             CKERR(r);
     exit(0);
@@ -42,7 +46,9 @@ static void run_no_recover (void) {
     int r;
 
     r = db_env_create(&env, 0);                                                         CKERR(r);
+#if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
+#endif
     r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
     r = env->close(env, 0);                                                             CKERR(r);
     exit(0);
