@@ -152,11 +152,15 @@ brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
 ../brtloader.$(OEXT): ../brtloader.c ../brtloader-internal.h 
 	cd $(@D) && $(MAKE) $(@F)
 
-check_brtloader-tests:  check_brtloader-test-bad-generate check_brtloader-test-extractor check_brtloader-test-extractor-errors check_brtloader-test-merge-files-dbufio check_brtloader-test-open check_brtloader-test-writer check_brtloader-test-writer-errors
+check_brtloader:  check_brtloader-test-bad-generate check_brtloader-test-extractor check_brtloader-test-extractor-errors check_brtloader-test-merge-files-dbufio check_brtloader-test-open check_brtloader-test-writer check_brtloader-test-writer-errors
 
+cilkscreen_brtloader-tests: cilkscreen_brtloader-test-1
+	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-1: brtloader-test$(BINSUF)
 	cilkscreen ./$< dir.$@ $(SUMMARIZE_CMD)
 
+cilkscreen_brtloader-extractor-tests: $(patsubst %,cilkscreen_brtloader-test-extractor-%, 1 2 3)
+	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
 	cilkscreen ./$< dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
@@ -164,6 +168,8 @@ cilkscreen_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
 cilkscreen_brtloader-test-extractor-3: brtloader-test-extractor$(BINSUF)
 	cilkscreen ./$< -s -r 100 --rowsets 100 dir.$@ $(SUMMARIZE_CMD)
 
+cilkscreen_brtloader-writer-tests: $(patsubst %,cilkscreen_brtloader-test-writer-%, 1 2 3)
+	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
 	cilkscreen ./$< -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
@@ -171,6 +177,8 @@ cilkscreen_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
 cilkscreen_brtloader-test-writer-3: brtloader-test-writer$(BINSUF)
 	cilkscreen ./$< -s -r 100000 dir.$@ $(SUMMARIZE_CMD)
 
+cilkscreen_brtloader-writer-error-tests: $(patsubst %,cilkscreen_brtloader-test-writer-errors-%, 1 2 3 4)
+	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-1: brtloader-test-writer-errors$(BINSUF)
 	cilkscreen ./$< -v -s -r 10000 -u dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-2: brtloader-test-writer-errors$(BINSUF)
@@ -179,6 +187,8 @@ cilkscreen_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
 	cilkscreen ./$< -v -s -r 10000 -m dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 	cilkscreen ./$< -v -s -r 10000 --realloc_errors dir.$@ $(SUMMARIZE_CMD)
+
+cilkscreen_brtloader: cilkscreen_brtloader-tests cilkscreen_brtloader-extractor-tests cilkscreen_brtloader-writer-tests cilkscreen_brtloader-writer-error-tests
 
 clean:
 	rm -rf log-test7.c.dir_*
