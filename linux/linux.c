@@ -176,11 +176,16 @@ toku_os_get_max_process_data_size(uint64_t *maxdata) {
 
     r = getrlimit(RLIMIT_DATA, &rlimit);
     if (r == 0) {
-        *maxdata = rlimit.rlim_max;
+        uint64_t d;
+        d = rlimit.rlim_max;
+	// with the "right" macros defined, the rlimit is a 64 bit number on a
+	// 32 bit system.  getrlimit returns 2**64-1 which is clearly wrong.
+
         // for 32 bit processes, we assume that 1/2 of the address space is
-        // used for mapping the kernel.
-        if (sizeof (rlimit.rlim_max) == 4 && rlimit.rlim_max == 0xffffffff)
-            *maxdata /= 2;
+        // used for mapping the kernel.  this may be pessimistic.
+        if (sizeof (void *) == 4 && d > (1ULL << 31))
+            d = 1ULL << 31;
+	*maxdata = d;
     } else
         r = errno;
     return r;
