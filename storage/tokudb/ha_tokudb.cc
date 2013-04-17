@@ -2737,6 +2737,22 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     TOKUDB_DBUG_RETURN(read_row(share->file->get(share->file, transaction, key, &current_row, 0), buf, primary_key, &current_row, key, 0));
 }
 
+
+int ha_tokudb::read_range_first(
+    const key_range *start_key,
+    const key_range *end_key,
+    bool eq_range, 
+    bool sorted) 
+{
+    return handler::read_range_first(start_key, end_key, eq_range, sorted);
+}
+int ha_tokudb::read_range_next()
+{
+    return handler::read_range_next();
+}
+
+
+
 /*
   Set a reference to the current record in (ref,ref_length).
 
@@ -2982,7 +2998,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
 */
 
 THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::store_lock");
+    TOKUDB_DBUG_ENTER("ha_tokudb::store_lock, lock_type=%d", lock_type);
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
         if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables)

@@ -222,6 +222,12 @@ public:
     int rnd_next(uchar * buf);
     int rnd_pos(uchar * buf, uchar * pos);
 
+    int read_range_first(const key_range *start_key,
+                                 const key_range *end_key,
+                                 bool eq_range, bool sorted);
+    int read_range_next();
+
+
     void position(const uchar * record);
     int info(uint);
     int extra(enum ha_extra_function operation);
