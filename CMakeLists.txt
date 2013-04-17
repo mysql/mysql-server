@@ -7,13 +7,13 @@ include(TokuSetupIntelCompiler)
 
 project(TokuDB)
 
+set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
+set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+
 include(TokuFeatureDetection)
 include(TokuSetupCompiler)
 include(TokuSetupCTest)
 include(TokuThirdParty)
-
-## everything needs these libraries
-link_libraries(dl pthread z)
 
 ## need a way to change the name of libs we build
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")

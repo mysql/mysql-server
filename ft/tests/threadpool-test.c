@@ -84,9 +84,7 @@ usage (void) {
 int
 test_main (int argc, const char *argv[]) {
     int max_threads = 1;
-#if defined(__linux__) || defined(DARWIN)
     int do_malloc_fail = 0;
-#endif
 
     int i;
     for (i=1; i<argc; i++) {
@@ -99,11 +97,9 @@ test_main (int argc, const char *argv[]) {
         } else if (strcmp(arg, "-q") == 0) {
             verbose = 0;
             continue;
-#if defined(__linux__) || defined(DARWIN)
         } else if (strcmp(arg, "-malloc-fail") == 0) {
             do_malloc_fail = 1;
             continue;
-#endif
         } else
             max_threads = atoi(arg);
     }

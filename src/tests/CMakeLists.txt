@@ -319,6 +319,8 @@ if(BUILD_TESTING)
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.tdb")
+    add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+    add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS -pie)
   endforeach(bin)
 
   if(BDB_FOUND)
@@ -351,8 +353,10 @@ if(BUILD_TESTING)
     add_executable(${prefix}_${binary} ${source})
     target_link_libraries(${prefix}_${binary} ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_target_properties(${prefix}_${binary} PROPERTIES
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB")
+      COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
+    add_space_separated_property(TARGET ${prefix}_${binary} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+    add_space_separated_property(TARGET ${prefix}_${binary} COMPILE_FLAGS -pie)
   endfunction(add_custom_executable)
 
   declare_custom_tests(test1426.tdb)

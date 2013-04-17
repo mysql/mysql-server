@@ -8,6 +8,8 @@ set_source_files_properties(
   PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.c)
+add_space_separated_property(TARGET logformat COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+add_space_separated_property(TARGET logformat LINK_FLAGS -pie)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
 
 add_custom_command(
@@ -81,22 +83,20 @@ set(FT_SOURCES
 add_library(ft SHARED ${FT_SOURCES})
 add_library(ft_static STATIC ${FT_SOURCES})
 ## we're going to link this into libtokudb.so so it needs to have PIC
-set_property(TARGET ft_static APPEND PROPERTY COMPILE_FLAGS "-fPIC")
+add_space_separated_property(TARGET ft_static COMPILE_FLAGS -fPIC)
 maybe_add_gcov_to_libraries(ft ft_static)
 
 ## depend on other generated targets
 add_dependencies(ft install_tdb_h build_lzma)
 add_dependencies(ft_static install_tdb_h build_lzma)
 
-## link with tokuportability, and lzma (which should be static)
-target_link_libraries(ft ${LIBTOKUPORTABILITY} lzma)
-target_link_libraries(ft_static ${LIBTOKUPORTABILITY} lzma)
+## link with lzma (which should be static) and link dependers with zlib
+target_link_libraries(ft LINK_PRIVATE lzma)
+target_link_libraries(ft LINK_INTERFACE_LIBRARIES ${ZLIB_LIBRARIES})
+target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 if (CMAKE_C_COMPILER_ID STREQUAL Intel)
-  ## don't link with default libs, those come with tokuportability, but we
-  ## do need libc and we need the intel libirc (and it should be static to
-  ## be redistributable)
-  target_link_libraries(ft -nodefaultlibs c -Bstatic irc -Bdynamic)
+  target_link_libraries(ft LINK_PRIVATE -nodefaultlibs)
 endif ()
 
 ## conditionally use cilk
@@ -117,11 +117,15 @@ set(bins
 foreach(bin ${bins})
   add_executable(${bin} ${bin}.c)
   add_dependencies(${bin} install_tdb_h)
+  add_space_separated_property(TARGET ${bin} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+  add_space_separated_property(TARGET ${bin} LINK_FLAGS -pie)
   target_link_libraries(${bin} ft ${LIBTOKUPORTABILITY})
 
   add_executable(${bin}_static ${bin}.c)
-  add_dependencies(${bin} install_tdb_h)
-  target_link_libraries(${bin}_static ft_static ${LIBTOKUPORTABILITY_STATIC})
+  add_dependencies(${bin}_static install_tdb_h)
+  add_space_separated_property(TARGET ${bin}_static COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+  add_space_separated_property(TARGET ${bin}_static LINK_FLAGS -pie)
+  target_link_libraries(${bin}_static ft_static ${ZLIB_LIBRARIES} ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
 endforeach(bin)
 
 # link in math.h library just for this tool.

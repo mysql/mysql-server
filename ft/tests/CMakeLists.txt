@@ -30,6 +30,8 @@ if(BUILD_TESTING)
       get_filename_component(base ${src} NAME_WE)
       add_executable(${base} ${src})
       target_link_libraries(${base} ft ${LIBTOKUPORTABILITY})
+      add_space_separated_property(TARGET ${base} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+      add_space_separated_property(TARGET ${base} LINK_FLAGS -pie)
       set_property(TARGET ${base} APPEND PROPERTY
         COMPILE_DEFINITIONS "__SRCFILE__=\"${src}\";TOKUSVNROOT=\"${toku_svn_root}\"")
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${src}.ft_handle")

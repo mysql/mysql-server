@@ -30,5 +30,7 @@ foreach(tokudb_bin ${both_bins} ${tokudbonly_bins})
   add_executable(${tokudb_bin}-tokudb ${tokudb_bin}.c)
   set_property(TARGET ${tokudb_bin}-tokudb APPEND PROPERTY
     COMPILE_DEFINITIONS "TOKUDB;ENVDIR=\"${tokudb_bin}.c.tdb\"")
+  add_space_separated_property(TARGET ${tokudb_bin}-tokudb COMPILE_FLAGS "-fvisibility=hidden -fPIE")
+  add_space_separated_property(TARGET ${tokudb_bin}-tokudb LINK_FLAGS -pie)
   target_link_libraries(${tokudb_bin}-tokudb ${LIBTOKUPORTABILITY} ${LIBTOKUDB})
 endforeach(tokudb_bin)

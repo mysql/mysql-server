@@ -9,7 +9,7 @@ endfunction(add_c_defines)
 if (CMAKE_SYSTEM_NAME MATCHES Darwin)
   add_c_defines(DARWIN=1 _DARWIN_C_SOURCE)
 elseif (CMAKE_SYSTEM_NAME MATCHES Linux)
-  add_c_defines(__linux__=1)
+#  add_c_defines(__linux__=1)
 endif ()
 
 ## preprocessor definitions we want everywhere
@@ -32,29 +32,6 @@ if (USE_GCOV)
     message(FATAL_ERROR "Must use the GNU compiler to compile for test coverage.")
   endif ()
 endif (USE_GCOV)
-
-## this function makes sure that the libraries passed to it get compiled
-## with gcov-needed flags, we only add those flags to our libraries
-## because we don't really care whether our tests get covered
-function(maybe_add_gcov_to_libraries)
-  if (USE_GCOV)
-    foreach(lib ${ARGN})
-      get_target_property(lib_compile_flags ${lib} COMPILE_FLAGS)
-      if (lib_compile_flags MATCHES lib_compile_flags-NOTFOUND)
-        set(lib_compile_flags "")
-      endif ()
-      get_target_property(lib_link_flags ${lib} LINK_FLAGS)
-      if (lib_link_flags MATCHES lib_link_flags-NOTFOUND)
-        set(lib_link_flags "")
-      endif ()
-      set_target_properties(${lib} PROPERTIES
-        COMPILE_FLAGS "${lib_compile_flags} --coverage"
-        LINK_FLAGS "${lib_link_flags} --coverage"
-        )
-      target_link_libraries(${lib} gcov)
-    endforeach(lib)
-  endif (USE_GCOV)
-endfunction(maybe_add_gcov_to_libraries)
 
 include(CheckCCompilerFlag)
 
@@ -138,13 +115,32 @@ set_cflags_if_supported(${WARN_CFLAGS})
 ## always want these
 set(CMAKE_C_FLAGS "-Wall -Werror ${CMAKE_C_FLAGS}")
 
-## function for adding -fvisibility=hidden to targets
-function(set_targets_visibility_hidden)
-  if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
-    foreach(target ${ARGN})
-      get_target_property(flags ${target} COMPILE_FLAGS)
-      set_target_properties(${target} PROPERTIES
-        COMPILE_FLAGS "${COMPILE_FLAGS} -fvisibility=hidden")
-    endforeach(target)
+function(add_space_separated_property type obj propname val)
+  get_property(oldval ${type} ${obj} PROPERTY ${propname})
+  if (oldval MATCHES NOTFOUND)
+    set_property(${type} ${obj} PROPERTY ${propname} "${val}")
+  else ()
+    set_property(${type} ${obj} PROPERTY ${propname} "${oldval} ${val}")
   endif ()
-endfunction(set_targets_visibility_hidden)
+endfunction(add_space_separated_property)
+
+function(set_targets_need_intel_libs)
+  if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+    foreach(tgt ${ARGN})
+      target_link_libraries(${tgt} LINK_PUBLIC -Bstatic irc -Bdynamic c)
+    endforeach(tgt)
+  endif ()
+endfunction(set_targets_need_intel_libs)
+
+## this function makes sure that the libraries passed to it get compiled
+## with gcov-needed flags, we only add those flags to our libraries
+## because we don't really care whether our tests get covered
+function(maybe_add_gcov_to_libraries)
+  if (USE_GCOV)
+    foreach(lib ${ARGN})
+      add_space_separated_property(TARGET ${lib} COMPILE_FLAGS --coverage)
+      add_space_separated_property(TARGET ${lib} LINK_FLAGS --coverage)
+      target_link_libraries(${lib} gcov)
+    endforeach(lib)
+  endif (USE_GCOV)
+endfunction(maybe_add_gcov_to_libraries)
