@@ -227,7 +227,7 @@ TDBVGRIND=$(VGRIND)
 
 ifeq ($(OS_CHOICE),windows)
 ifdef BDBDIR
-%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include
+%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include -I$(TOKUROOT)newbrt
 %.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
 endif
 ifeq ($(DEBUG),0)
