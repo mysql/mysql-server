@@ -1265,8 +1265,7 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
 
 
 
-u_int32_t ha_tokudb::place_key_into_mysql_buff(uchar * record, uchar* data, uint index) {
-    KEY *key_info = table->key_info + index;
+u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data) {
     KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
     uchar *pos = data;
 
@@ -1304,12 +1303,20 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(uchar * record, uchar* data, uint
 void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
     u_int32_t bytes_read;
     uchar *pos = (uchar *) key->data + 1;
-    bytes_read = place_key_into_mysql_buff(record,pos,index);
+    bytes_read = place_key_into_mysql_buff(
+        &table->key_info[index], 
+        record, 
+        pos
+        );
     if((table->key_info[index].flags & HA_CLUSTERING) && !hidden_primary_key) {
         //
         // also unpack primary key
         //
-        place_key_into_mysql_buff(record,pos+bytes_read,primary_key);
+        place_key_into_mysql_buff(
+            &table->key_info[primary_key], 
+            record, 
+            pos+bytes_read
+            );
     }
 }
 
@@ -1329,8 +1336,7 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
         //
         if (key_part->field->null_bit) {
             /* Store 0 if the key part is a NULL part */
-            uint null_offset = (uint) ((char*) key_part->field->null_ptr
-                            - (char*) table->record[0]);
+            uint null_offset = get_null_offset(table, key_part->field);
             if (record[null_offset] & key_part->field->null_bit) {
                 *curr_buff++ = NULL_COL_VAL;
                 *has_null = true;

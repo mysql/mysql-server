@@ -201,7 +201,7 @@ private:
 
     ulong max_row_length(const uchar * buf);
     int pack_row(DBT * row, const uchar * record, bool strip_pk);
-    u_int32_t place_key_into_mysql_buff(uchar * record, uchar* data, uint index);
+    u_int32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
     void unpack_key(uchar * record, DBT const *key, uint index);
     u_int32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
