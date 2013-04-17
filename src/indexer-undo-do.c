@@ -6,6 +6,8 @@
  * State University of New York at Stony Brook under United States of America 
  * Serial No. 11/760379 and to the patents and/or patent applications resulting from it.
  */
+#ident "$Id$"
+
 
 #include <stdio.h>
 #include <string.h>
