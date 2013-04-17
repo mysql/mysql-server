@@ -6243,29 +6243,21 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
             }
 	    BRTNODE childnode;
 	    {
-		void *node_v;
 		BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
 		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
                 struct brtnode_fetch_extra bfe;
                 fill_bfe_for_full_read(&bfe, brt->h);
-		int rr = toku_cachetable_get_and_pin(
-                    brt->cf, 
-                    childblocknum, 
-                    fullhash, 
-                    &node_v, 
-                    NULL, 
-                    toku_brtnode_flush_callback, 
-                    toku_brtnode_fetch_callback, 
-                    toku_brtnode_pe_est_callback,
-                    toku_brtnode_pe_callback, 
-                    toku_brtnode_pf_req_callback,
-                    toku_brtnode_pf_callback,
-                    toku_brtnode_cleaner_callback,
-                    &bfe, 
-                    brt->h
+                // don't need to pass in dependent nodes as we are not 
+                // modifying nodes we are pinning
+                toku_pin_brtnode_off_client_thread(
+                    brt->h,
+                    childblocknum,
+                    fullhash,
+                    &bfe,
+                    0,
+                    NULL,
+                    &childnode
                     );
-		assert(rr ==0);
-		childnode = node_v;
 	    }
 	    int child_is_empty = is_empty_fast_iter(brt, childnode);
 	    toku_unpin_brtnode(brt, childnode);
@@ -6294,27 +6286,17 @@ BOOL toku_brt_is_empty_fast (BRT brt)
         toku_brtheader_grab_treelock(brt->h);
 
         CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-	void *node_v;
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt->h);
-	int rr = toku_cachetable_get_and_pin(
-            brt->cf,
+        toku_pin_brtnode_off_client_thread(
+            brt->h,
             *rootp,
             fullhash,
-            &node_v,
-            NULL,
-            toku_brtnode_flush_callback,
-            toku_brtnode_fetch_callback,
-            toku_brtnode_pe_est_callback,
-            toku_brtnode_pe_callback,
-            toku_brtnode_pf_req_callback,
-            toku_brtnode_pf_callback,
-            toku_brtnode_cleaner_callback,
             &bfe,
-            brt->h
+            0,
+            NULL,
+            &node
             );
-	assert_zero(rr);
-	node = node_v;
 
         toku_brtheader_release_treelock(brt->h);
     }
