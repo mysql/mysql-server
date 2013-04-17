@@ -26,13 +26,13 @@ static int get_int(void *p) {
 #if !defined(BDB)
 static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
     if (old_val == NULL) {
-        // new_val = extra
+        // insert new_val = extra
         set_val(extra, set_extra);
     } else {
         if (verbose) {
             printf("u"); fflush(stdout);
         }
-        // new_val = old_val + extra
+        // update new_val = old_val + extra
         assert(old_val->size == 8 && extra->size == 8);
         char new_val_buffer[8];
         memcpy(new_val_buffer, old_val->data, sizeof new_val_buffer);
@@ -71,28 +71,20 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     } else
 #endif
     {
-        DBT key = { .data = key_buffer, .size = sizeof key_buffer };
-        DBT value = { .data = val_buffer, .size = sizeof val_buffer };
-        r = db->put(db, txn, &key, &value, DB_NOOVERWRITE);
-
-        // if key exists then update and put overwrite
-        if (r == DB_KEYEXIST) {
-            if (verbose) {
-                printf("k"); fflush(stdout);
-            }
-
-            DBT oldkey = { .data = key_buffer, .size = sizeof key_buffer };
-            DBT oldvalue; memset(&oldvalue, 0, sizeof oldvalue);
-            r = db->get(db, txn, &oldkey, &oldvalue, 0);
-            assert(r == 0);
-
+	DBT key = { .data = key_buffer, .size = sizeof key_buffer };
+	DBT value = { .data = val_buffer, .size = sizeof val_buffer };
+        DBT oldvalue; memset(&oldvalue, 0, sizeof oldvalue);
+        r = db->get(db, txn, &key, &oldvalue, 0);
+	if (r == 0) { 
             // update it
             int oldc = get_int(oldvalue.data);
             newc = htonl(oldc + c); // newc = oldc + newc
             memcpy(val_buffer, &newc, sizeof newc);
             r = db->put(db, txn, &key, &value, DB_YESOVERWRITE);
-        }
-        assert(r == 0);
+	} else if (r == DB_NOTFOUND) {
+            r = db->put(db, txn, &key, &value, DB_YESOVERWRITE);
+	}
+	assert(r == 0);
     }
 }
 
@@ -130,7 +122,9 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
         if (((rowi + 1) % rows_per_report) == 0) {
             struct timeval tnow;
             r = gettimeofday(&tnow, NULL); assert(r == 0);
-            printf("%.3f %.0f/s %.0f/s\n", tdiff(&tnow, &tlast), rows_per_report/tdiff(&tnow, &tlast), rowi/tdiff(&tnow, &tstart)); fflush(stdout);
+            float last_time = tdiff(&tnow, &tlast);
+            float total_time = tdiff(&tnow, &tstart);
+            printf("%ld %.3f %.0f/s %.0f/s\n", rowi + 1, last_time, rows_per_report/last_time, rowi/total_time); fflush(stdout);
             tlast = tnow;
         }
     }
@@ -140,7 +134,7 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
     }
     struct timeval tnow;
     r = gettimeofday(&tnow, NULL); assert(r == 0);
-    printf("total %.3f %.0f/s\n", tdiff(&tnow, &tstart), nrows/tdiff(&tnow, &tstart)); fflush(stdout);
+    printf("total %ld %.3f %.0f/s\n", nrows, tdiff(&tnow, &tstart), nrows/tdiff(&tnow, &tstart)); fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {
@@ -153,6 +147,7 @@ int main(int argc, char *argv[]) {
     int key_range = 100000;
     bool do_update_callback = false;
     bool do_txn = true;
+    u_int32_t pagesize = 0;
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -179,6 +174,10 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(arg, "--txn") == 0 && i+1 < argc) {
             do_txn = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(arg, "--pagesize") == 0 && i+1 < argc) {
+            pagesize = atoi(argv[++i]);
             continue;
         }
         if (strcmp(arg, "--update_callback") == 0) {
@@ -212,6 +211,9 @@ int main(int argc, char *argv[]) {
     DB_TXN *create_txn = NULL;
     if (do_txn) {
         r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert(r == 0);
+    }
+    if (pagesize) {
+        r = db->set_pagesize(db, pagesize); assert(r == 0);
     }
     r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
     if (do_txn) {
