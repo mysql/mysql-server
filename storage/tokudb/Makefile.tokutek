@@ -32,9 +32,7 @@ MYSQL_FLAGS += -DMYSQL_DYNAMIC_PLUGIN
 MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
 
 CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I$(TOKUDB)/include -I$(TOKUDB)/toku_include -I$(TOKUDB)/src
-ifeq ($(SYSTEM),linux)
-CPPFLAGS += -I$(TOKUDB)/linux
-endif
+CPPFLAGS += -I$(TOKUDB)/$(SYSTEM)
 CPPFLAGS += $(MYSQL_FLAGS)
 CPPFLAGS += -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\"
 CXXFLAGS += -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
