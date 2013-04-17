@@ -22,7 +22,8 @@ int main(void) {
     int r;
     int fd;
 
-    system("rm -rf test-open-unlink-file");
+    r = system("rm -rf " TESTFILE); assert(r==0);
+    r = system("rm -rf " NEWNAME); assert(r==0);
     
     fd = open(TESTFILE, O_CREAT+O_RDWR, S_IRUSR+S_IWUSR);
     assert(fd != -1);
