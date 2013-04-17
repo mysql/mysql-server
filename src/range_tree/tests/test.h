@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <rangetree.h>
 #include <errno.h>
-#include "../../../newbrt/memory.h"
+#include "memory.h"
 int verbose=0;
 
 #define CKERR(r) do { if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); } while (0)
