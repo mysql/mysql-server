@@ -86,6 +86,15 @@ static void run_recover (void) {
     int r;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r);
+    // recover the prepared transaction and commit it
+    DB_PREPLIST l[1];
+    long count=-1;
+    CKERR(env->txn_recover(env, l, 1, &count, DB_FIRST));
+    printf("%s:%d count=%ld\n", __FILE__, __LINE__, count);
+    assert(count==1);
+    assert(l[0].gid[0]==42);
+    r = l->txn->commit(l->txn, 0);
+    CKERR(r);
     r = env->close(env, 0);                                                             CKERR(r);
     exit(0);
 

@@ -612,10 +612,24 @@ static int toku_recover_xstillopenprepared (struct logtype_xstillopenprepared *l
                                          l->crc,
                                          l->len,
                                          renv);
-    if (r==0)
-        return toku_txn_prepare_txn(txn, l->xa_xid);
-    else
-        return r;
+    if (r != 0) {
+        goto exit;
+    }
+    switch (renv->ss.ss) {
+        case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END: {
+            r = toku_txn_prepare_txn(txn, l->xa_xid);
+            break;
+        }
+        case FORWARD_NEWER_CHECKPOINT_END: {
+            assert(txn->state == TOKUTXN_PREPARING);
+            break;
+        }
+        default: {
+            assert(0);
+        }
+    }
+exit:
+    return r;
 }
 
 static int toku_recover_backward_xstillopen (struct logtype_xstillopen *UU(l), RECOVER_ENV UU(renv)) {
