@@ -1397,7 +1397,8 @@ static void checkpoint_pair_and_dependent_pairs(
 // on output, the pair's mutex is not held.
 // if true, we must try again, and pair is not pinned
 // if false, we succeeded, the pair is pinned
-// NOTE: On entry and exit, the read list lock is held.
+// NOTE: On entry, the read list lock may be held (and have_read_list_lock must be set accordingly).
+//       On exit, the read list lock is held.
 static bool try_pin_pair(
     PAIR p,
     CACHETABLE ct,
@@ -1426,6 +1427,7 @@ static bool try_pin_pair(
     nb_mutex_lock(&p->value_nb_mutex, &p->mutex);
     pair_touch(p);
     pair_unlock(p);
+    // reacquire the read list lock here, we hold it for the rest of the function.
     if (reacquire_lock) {
         ct->list.read_list_lock();
     }
@@ -1542,8 +1544,8 @@ beginning:
     PAIR p = ct->list.find_pair(cachefile, key, fullhash);
     if (p) {
         pair_lock(p);
-        // on entry, holds p->mutex,
-        // on exit, does not hold p->mutex
+        // on entry, holds p->mutex and read list lock
+        // on exit, does not hold p->mutex, holds read list lock
         bool try_again = try_pin_pair(
             p,
             ct,
@@ -1585,7 +1587,7 @@ beginning:
             // we will gain the read_list_lock again before exiting try_pin_pair
 
             // on entry, holds p->mutex,
-            // on exit, does not hold p->mutex
+            // on exit, does not hold p->mutex, holds read list lock
             bool try_again = try_pin_pair(
                 p,
                 ct,
