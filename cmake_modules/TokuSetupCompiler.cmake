@@ -58,7 +58,6 @@ endfunction(maybe_add_gcov_to_libraries)
 
 include(CheckCCompilerFlag)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 ## adds a compiler flag if the compiler supports it
 macro(set_cflags_if_supported)
   foreach(flag ${ARGN})
@@ -115,13 +114,11 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -debug all")
 
   ## set icc warnings
-  set(WARN_CFLAGS
-    -Wcheck  ## icc version of -Wextra
-    )
+  set(CMAKE_C_FLAGS "-Wcheck ${CMAKE_C_FLAGS}")
 else()
   ## set gcc warnings
+  set(CMAKE_C_FLAGS "-Wextra ${CMAKE_C_FLAGS}")
   set(WARN_CFLAGS
-    -Wextra
     -Wcast-align
     -Wbad-function-cast
     -Wno-missing-noreturn
@@ -135,6 +132,8 @@ else()
 endif()
 
 set_cflags_if_supported(${WARN_CFLAGS})
+## always want these
+set(CMAKE_C_FLAGS "-Wall -Werror ${CMAKE_C_FLAGS}")
 
 ## function for adding -fvisibility=hidden to targets
 function(set_targets_visibility_hidden)
