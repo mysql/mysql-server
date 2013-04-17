@@ -32,7 +32,9 @@ checkpoint1 (void)
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&env, 0);                                                     CKERR(r);
+#ifdef TOKUDB
     r = env->set_redzone(env, 0);                                                   CKERR(r);
+#endif
 
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);                                                     CKERR(r);
