@@ -1,4 +1,4 @@
-The Tokutek Fractal Tree Engine library is not publicly available software. 
+The Tokutek Fractal Tree Index library is not publicly available software. 
 This software product is Tokutek commercial software and use of this software
 is governed by your applicable license agreement with Tokutek.
 
@@ -25,11 +25,11 @@ case you will need to arrange for the loader to be able to find it
 
 If you do not have root access you can put it into a directory in your home directory.  You may need to help the loader find it, using something like:
    mkdir ~/lib
-   cp libtokufractaltreeindex-2.1.0-15000.so ~/lib/
+   cp libtokufractaltreeindex-RELEASE.so ~/lib/
    export LD_LIBRARY_PATH=~/lib/
 
 Examples
 
-To use the Fractal Tree index as an embedded database, please read the
+To use the Fractal Tree Index as an embedded database, please read the
 README.examples file in the examples directory.
 
