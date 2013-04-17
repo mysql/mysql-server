@@ -51,7 +51,7 @@ cachetable_unpin_and_remove_test (int n) {
     // put the keys into the cachetable
     for (i=0; i<n; i++) {
         u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(keys[i].b));
-        r = toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *) keys[i].b, 1, flush, fetch, 0);
+        r = toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *)(long) keys[i].b, 1, flush, fetch, 0);
         assert(r == 0);
     }
     
