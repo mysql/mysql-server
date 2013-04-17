@@ -2,7 +2,6 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Insert a bunch of stuff */
-
 #include <toku_portability.h>
 #include <assert.h>
 #include <errno.h>
@@ -55,6 +54,8 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 #if !defined(NO_DB_PRELOCKED)
         int r = db->pre_acquire_table_lock(db, txn);
         assert(r==0);
+#else
+	db = db; txn = txn;
 #endif
     }
 }
