@@ -648,22 +648,15 @@ int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32
     *v = (((u_int64_t)v1)<<32 ) | ((u_int64_t)v2);
     return 0;
 }
+
 int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int64_t (f, &lsn->lsn, checksum, len);
 }
+
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int32_t (f, &filenum->fileid, checksum, len);
 }
-int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct x1764 *checksum, u_int32_t *len) {
-    int r = toku_fread_u_int64_t (f, (u_int64_t*)diskoff, checksum, len); // sign conversion will be OK.
-    return r;
-}
-int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *blocknum, struct x1764 *checksum, u_int32_t *len) {
-    u_int64_t b = 0;
-    int r = toku_fread_u_int64_t (f, &b, checksum, len); // sign conversion will be OK.
-    blocknum->b=b;
-    return r;
-}
+
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int64_t (f, txnid, checksum, len);
 }
@@ -692,6 +685,7 @@ int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x176
     fprintf(outf, " %s=%" PRIu64, fieldname, v.lsn);
     return 0;
 }
+
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
     TXNID v;
     int r = toku_fread_TXNID(inf, &v, checksum, len);
@@ -761,21 +755,6 @@ int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct 
     return toku_logprint_u_int32_t(outf, inf, fieldname, checksum, len, format);
 
 }
-int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    DISKOFF v;
-    int r = toku_fread_DISKOFF(inf, &v, checksum, len);
-    if (r!=0) return r;
-    fprintf(outf, " %s=%" PRId64, fieldname, v);
-    return 0;
-}
-int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    BLOCKNUM v;
-    int r = toku_fread_BLOCKNUM(inf, &v, checksum, len);
-    if (r!=0) return r;
-    fprintf(outf, " %s=%"PRId64, fieldname, v.b);
-    return 0;
-}
-
 
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
     {
