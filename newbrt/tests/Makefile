@@ -131,8 +131,6 @@ ifeq ($(CIL),1)
 endif
 
 build: $(BINS)
-foo:
-	echo $(BINS)
 check: $(patsubst %,check_%,$(CHECKS))
 
 check_fail:
@@ -199,3 +197,5 @@ test-inc-split test-del-inorder: ../brt-test-helpers.o
 clean:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt *.dir *.tdb *.dat *.out
+
+foo: ../cachetable.o ../fifo.o ../fingerprint.o ../key.o ../memory.o ../memarena.o ../mempool.o ../omt.o ../toku_assert.o ../ybt.o ../x1764.o ../trace_mem.o ../threadpool.o

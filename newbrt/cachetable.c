@@ -313,9 +313,9 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
 	assert(r == 0);
         cf->fd = -1;
 	if (logger) {
-	    assert(cf->fname);
-	    BYTESTRING bs = {.len=strlen(cf->fname), .data=cf->fname};
-	    r = toku_log_cfclose(logger, 0, 0, bs, cf->filenum);
+	    //assert(cf->fname);
+	    //BYTESTRING bs = {.len=strlen(cf->fname), .data=cf->fname};
+	    //r = toku_log_cfclose(logger, 0, 0, bs, cf->filenum);
 	}
 	if (cf->fname)
 	    toku_free(cf->fname);
