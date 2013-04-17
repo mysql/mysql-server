@@ -149,8 +149,8 @@ check_db_create_4: db_create
 	$(VGRIND) ./db_create -s &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
-	rm -f crezvffvbaf_gqo_*.tokudb && \
+	rm -f permissions_tdb_*.tokudb && \
 	./db_create permissions.tdb 1 1 && \
-	chmod -w crezvffvbaf_gqo_*.tokudb && \
+	chmod -w permissions_tdb_*.tokudb && \
 	(./db_create permissions.tdb 2 2 &> check_permissions.out 2>&1 ; test $$? -ne 0) \
 	$(SUMMARIZE_CMD)
