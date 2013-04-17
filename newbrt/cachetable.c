@@ -163,7 +163,8 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     r = threadpool_create(&t->threadpool, nprocs); assert(r == 0);
 
 #if DO_WRITER_THREAD
-    threadpool_maybe_add(t->threadpool, cachetable_writer, t);
+    for (i=0; i < (u_int32_t)nprocs; i++) 
+        threadpool_maybe_add(t->threadpool, cachetable_writer, t);
 #endif
     *result = t;
     return 0;
@@ -566,7 +567,6 @@ static void flush_and_remove (CACHETABLE ct, PAIR p, int write_me) {
         // evictions without a write can be run in the current thread
         cachetable_write_pair(ct, p);
     } else {
-        threadpool_maybe_add(ct->threadpool, cachetable_writer, ct);
         writequeue_enq(&ct->wq, p);
     }
 #else
@@ -1117,12 +1117,10 @@ static void *cachetable_writer(void *arg) {
     int r;
     cachetable_lock(ct);
     while (1) {
-        threadpool_set_thread_idle(ct->threadpool);
         PAIR p = 0;
         r = writequeue_deq(&ct->wq, &ct->mutex, &p);
         if (r != 0)
             break;
-        threadpool_set_thread_busy(ct->threadpool);
         cachetable_write_pair(ct, p);
     }
     cachetable_unlock(ct);

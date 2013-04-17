@@ -4,6 +4,28 @@
 #include "includes.h"
 #include "test.h"
 
+// this mutex is used by some of the tests to serialize access to some
+// global data, especially between the test thread and the cachetable
+// writeback threads
+
+toku_pthread_mutex_t  test_mutex;
+
+static inline void test_mutex_init() {
+    int r = toku_pthread_mutex_init(&test_mutex, 0); assert(r == 0);
+}
+
+static inline void test_mutex_destroy() {
+    int r = toku_pthread_mutex_destroy(&test_mutex); assert(r == 0);
+}
+
+static inline void test_mutex_lock() {
+    int r = toku_pthread_mutex_lock(&test_mutex); assert(r == 0);
+}
+
+static inline void test_mutex_unlock() {
+    int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
+}
+
 // hook my_malloc_always_fails into malloc to control malloc and verify
 // the correct recovery from malloc failures
 #if defined(__linux__)
@@ -517,7 +539,9 @@ static void test_size_flush_callback(CACHEFILE f,
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
     if (keep) {
         assert(do_write != 0);
+        test_mutex_lock();
         test_size_flush_key = key;
+        test_mutex_unlock();
     }
 }
 
@@ -595,7 +619,9 @@ static void test_size_flush() {
     assert(r == 0);
 
     /* put 2*n keys into the table, ensure flushes occur in key order */
+    test_mutex_lock();
     test_size_flush_key = make_blocknum(-1);
+    test_mutex_unlock();
     
     int i;
     CACHEKEY expect_flush_key = make_blocknum(0);
@@ -623,11 +649,13 @@ static void test_size_flush() {
         assert(entry_value == value);
         assert(entry_size == size);
 
+        test_mutex_lock();
         if (test_size_flush_key.b != -1) {
             assert(test_size_flush_key.b == expect_flush_key.b);
             assert(expect_flush_key.b == i-n);
             expect_flush_key.b += 1;
         }
+        test_mutex_unlock();
 
         r = toku_cachetable_unpin(f, key, hkey, CACHETABLE_CLEAN, size);
         assert(r == 0);
@@ -663,6 +691,8 @@ test_main (int argc, const char *argv[]) {
 #endif
     }
 
+    test_mutex_init();
+
     // run tests
 #if !defined(_WIN32)
     test_multi_filehandles();
@@ -682,6 +712,8 @@ test_main (int argc, const char *argv[]) {
         test_size_resize();
         test_size_flush();
     }
+
+    test_mutex_destroy();
     toku_malloc_cleanup();
     if (verbose) printf("ok\n");
     return 0;

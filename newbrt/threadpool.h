@@ -34,16 +34,6 @@ void threadpool_destroy(THREADPOOL *threadpoolptr);
 
 void threadpool_maybe_add(THREADPOOL theadpool, void *(*f)(void *), void *arg);
 
-// Set the current thread busy
-// Effects: the threadpool keeps a count of the number of idle threads.  It 
-// uses this count to control the creation of additional threads. 
-
-void threadpool_set_thread_busy(THREADPOOL);
-
-// Set the current thread idle
-
-void threadpool_set_thread_idle(THREADPOOL);
-
 // get the current number of threads
 
 int threadpool_get_current_threads(THREADPOOL);
