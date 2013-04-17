@@ -5062,17 +5062,17 @@ toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, v
     case DB_LAST:
         return toku_ft_cursor_last(cursor, getf, getf_v);
     case DB_NEXT:
-    case DB_NEXT_NODUP:
-        if (ft_cursor_not_set(cursor))
+        if (ft_cursor_not_set(cursor)) {
             return toku_ft_cursor_first(cursor, getf, getf_v);
-        else
+        } else {
             return toku_ft_cursor_next(cursor, getf, getf_v);
+        }
     case DB_PREV:
-    case DB_PREV_NODUP:
-        if (ft_cursor_not_set(cursor))
+        if (ft_cursor_not_set(cursor)) {
             return toku_ft_cursor_last(cursor, getf, getf_v);
-        else
+        } else {
             return toku_ft_cursor_prev(cursor, getf, getf_v);
+        }
     case DB_SET:
         return toku_ft_cursor_set(cursor, key, getf, getf_v);
     case DB_SET_RANGE:

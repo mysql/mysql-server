@@ -185,18 +185,10 @@ static void print_defines (void) {
     printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb
 
     dodefine(DB_FIRST);
-    //dodefine(DB_GET_BOTH);          No longer supported #2862.
-    //dodefine(DB_GET_BOTH_RANGE);  No longer supported because we only support NODUP. #2862.
     dodefine(DB_LAST);
     dodefine(DB_CURRENT);
     dodefine(DB_NEXT);
-    //dodefine(DB_NEXT_DUP); No longer supported #2862
-    dodefine(DB_NEXT_NODUP);
     dodefine(DB_PREV);
-#if defined(DB_PREV_DUP)
-    //dodefine(DB_PREV_DUP);  
-#endif
-    dodefine(DB_PREV_NODUP);
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
