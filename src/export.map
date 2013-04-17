@@ -53,11 +53,6 @@
    toku_strdup;
    toku_pthread_yield;
 
-   dlmalloc;
-   dlrealloc;
-   dlfree;
-   setup_dlmalloc;
-
    toku_cachetable_print_hash_histogram;
    toku_set_lsn_increment;
 

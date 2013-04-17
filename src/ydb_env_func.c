@@ -7,7 +7,6 @@
 #include <db.h>
 #include "brt-internal.h"
 #include "brt-flusher.h"
-#include "dlmalloc.h"
 #include "checkpoint.h"
 #include "brtloader.h"
 #include "ydb_env_func.h"
@@ -93,15 +92,6 @@ int
 db_env_set_func_free (void (*f)(void*)) {
     toku_set_func_free(f);
     return 0;
-}
-
-
-// Got to call dlmalloc, or else it won't get included.
-void 
-setup_dlmalloc (void) {
-    db_env_set_func_malloc(dlmalloc);
-    db_env_set_func_realloc(dlrealloc);
-    db_env_set_func_free(dlfree);
 }
 
 // For test purposes only.
