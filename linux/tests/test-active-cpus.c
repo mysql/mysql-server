@@ -14,6 +14,8 @@ static void set_cpuset(cpu_set_t *cpuset, int ncpus) {
 
 int main(void) {
     int r;
+    r = unsetenv("TOKU_NCPUS"); 
+    assert(r == 0);
 
     int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
     assert(toku_os_get_number_active_processors() == max_cpus);
