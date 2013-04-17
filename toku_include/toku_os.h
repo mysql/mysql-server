@@ -19,10 +19,10 @@ int toku_os_get_number_processors(void);
 // Returns: the number of active processors in the system
 int toku_os_get_number_active_processors(void);
 
-// Returns: the system page size
+// Returns: the system page size (in bytes)
 int toku_os_get_pagesize(void);
 
-// Returns: the total number of bytes of physical memory
+// Returns: the size of physical memory (in bytes)
 uint64_t toku_os_get_phys_memory_size(void);
 
 // Returns: 0 on success
@@ -50,6 +50,11 @@ int toku_os_get_rss(int64_t *rss);
 
 // Get the maximum in memory size (in bytes) of the current process
 int toku_os_get_max_rss(int64_t *maxrss);
+
+// Get the maximum size of the process data size (in bytes)
+// Success: returns 0 and sets *maxdata to the data size
+// Fail: returns an error number
+int toku_os_get_max_process_data_size(uint64_t *maxdata);
 
 int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("default")));
 
