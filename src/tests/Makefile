@@ -184,19 +184,19 @@ BDB_DONTRUN_TESTS = \
 	recover-update-multiple \
 	recover-update-multiple-abort \
 	recover-update_aborts \
-	recover-update_aborts2 \
-	recover-update_aborts3 \
 	recover-update_aborts_before_checkpoint \
 	recover-update_aborts_before_close \
 	recover-update_changes_values \
-	recover-update_changes_values2 \
-	recover-update_changes_values3 \
 	recover-update_changes_values_before_checkpoint \
 	recover-update_changes_values_before_close \
 	recover-update_broadcast_aborts \
+	recover-update_broadcast_aborts2 \
+	recover-update_broadcast_aborts3 \
 	recover-update_broadcast_aborts_before_checkpoint \
 	recover-update_broadcast_aborts_before_close \
 	recover-update_broadcast_changes_values \
+	recover-update_broadcast_changes_values2 \
+	recover-update_broadcast_changes_values3 \
 	recover-update_broadcast_changes_values_before_checkpoint \
 	recover-update_broadcast_changes_values_before_close \
 	recover-update_changes_values_before_close \
