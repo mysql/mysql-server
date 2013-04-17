@@ -297,7 +297,7 @@ count_temp(char * dirname) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
+	if ((ent->d_type==DT_REG || ent->d_type==DT_UNKNOWN) && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
 	    n++;
 	    if (verbose >= 3) {
 		printf("Temp files\n");
@@ -319,7 +319,7 @@ verify_file(char * dirname, char * filename) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strcmp(ent->d_name, filename)==0) {
+	if ((ent->d_type==DT_REG || ent->d_type==DT_UNKNOWN) && strcmp(ent->d_name, filename)==0) {
 	    n++;
 	}
     }

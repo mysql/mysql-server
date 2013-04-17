@@ -89,7 +89,7 @@ count_temp(char * dirname) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
+	if ((ent->d_type==DT_REG || ent->d_type==DT_UNKNOWN) && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
 	    n++;
 	    if (verbose) {
 		printf("Temp files (%d)\n", n);

@@ -116,7 +116,7 @@ verify_file(char const * const dirname, char const * const filename) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strcmp(ent->d_name, filename)==0) {
+	if ((ent->d_type==DT_REG || ent->d_type==DT_UNKNOWN) && strcmp(ent->d_name, filename)==0) {
 	    n++;
 	}
     }
