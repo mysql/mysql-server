@@ -58,7 +58,7 @@ static void test_flat (void) {
 	assert(equal==0);
 	assert(less+equal+greater == limit);
     }
-    r = toku_close_brt(t, 0);          assert(r==0);
+    r = toku_close_brt(t, 0, 0);          assert(r==0);
     r = toku_cachetable_close(&ct);    assert(r==0);
 }
 

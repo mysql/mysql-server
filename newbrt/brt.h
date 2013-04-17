@@ -30,7 +30,7 @@ int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v);
 int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
 int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
-int toku_close_brt (BRT, TOKULOGGER);
+int toku_close_brt (BRT, TOKULOGGER, char **error_string);
 
 int toku_dump_brt (FILE *,BRT brt);
 
@@ -118,7 +118,7 @@ void toku_brt_destroy(void);
 void toku_pwrite_lock_init(void);
 void toku_pwrite_lock_destroy(void);
 
-void maybe_preallocate_in_file (int fd, u_int64_t size);
+int maybe_preallocate_in_file (int fd, u_int64_t size);
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
 int toku_brt_note_table_lock (BRT brt, TOKUTXN txn);

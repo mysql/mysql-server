@@ -81,7 +81,7 @@ static void benchmark_setup (void) {
     int r;
    
     {
-	char unlink_cmd[strlen(dbdir) + strlen("rf -rf ") + 1];
+	char unlink_cmd[strlen(dbdir) + strlen("rm -rf ") + 1];
 	snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
 	//printf("unlink_cmd=%s\n", unlink_cmd);
 	system(unlink_cmd);

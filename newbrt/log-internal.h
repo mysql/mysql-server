@@ -74,6 +74,7 @@ struct tokulogger {
     char buf[LOGGER_BUF_SIZE]; // used to marshall logbytes so we can use only a single write
     int n_in_file;
 
+    u_int32_t write_block_size;       // How big should the blocks be written to various logs?
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);

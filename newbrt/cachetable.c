@@ -134,7 +134,7 @@ struct cachefile {
     char *fname;
 
     void *userdata;
-    int (*close_userdata)(CACHEFILE cf, void *userdata); // when closing the last reference to a cachefile, first call this function.
+    int (*close_userdata)(CACHEFILE cf, void *userdata, char **error_string); // when closing the last reference to a cachefile, first call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, void *userdata); // when checkpointing a cachefile, call this function.
 };
 
@@ -254,7 +254,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
     if (r != 0) { 
         r=errno; close(fd); return r; 
     }
-    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata))) {
+    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, 0))) {
         return r;
     }
     cf->close_userdata = NULL;
@@ -299,29 +299,30 @@ void toku_cachefile_refup (CACHEFILE cf) {
     cf->refcount++;
 }
 
-int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
+int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string) {
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
     assert(cf->refcount>0);
     cf->refcount--;
     if (cf->refcount==0) {
-	int r;
+	int r = 0;
 	if ((r = cachefile_write_maybe_remove(ct, cf, TRUE))) {
             cachetable_unlock(ct);
             return r;
         }
-	if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata))) {
-	    cachetable_unlock(ct);
-	    return r;
+	if (cf->close_userdata) {
+	    r = cf->close_userdata(cf, cf->userdata, error_string);
 	}
 	cf->close_userdata = NULL;
 	cf->checkpoint_userdata = NULL;
 	cf->userdata = NULL;
         cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
         cachetable_unlock(ct);
-	r = close(cf->fd);
-	assert(r == 0);
+	{
+	    int r2 = close(cf->fd);
+	    assert(r2 == 0);
+	}
         cf->fd = -1;
 	if (logger) {
 	    //assert(cf->fname);
@@ -1309,7 +1310,7 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
 void
 toku_cachefile_set_userdata (CACHEFILE cf,
 			     void *userdata,
-			     int (*close_userdata)(CACHEFILE, void*),
+			     int (*close_userdata)(CACHEFILE, void*, char**/*error_string*/),
 			     int (*checkpoint_userdata)(CACHEFILE, void*))
 {
     cf->userdata = userdata;

@@ -52,6 +52,7 @@ static void test_serialize(void) {
     struct block_translation_pair *XMALLOC_N(21, btps);
     memset(btps, 0, sizeof(btps));
     brt->h = brt_h;
+    brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->translated_blocknum_limit = 1;
     brt_h->block_translation = btps;
     brt_h->block_translation[20].diskoff = 4096;

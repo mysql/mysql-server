@@ -89,7 +89,7 @@ static void readit (void) {
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, 0, BLOCKSIZE);                                      assert(r==0);
     }
-    r = toku_cachefile_close(&f, 0);    assert(r == 0);
+    r = toku_cachefile_close(&f, 0, 0);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
     toku_os_get_process_times(&end_usertime, &end_systime);

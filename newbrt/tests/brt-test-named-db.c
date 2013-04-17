@@ -22,7 +22,7 @@ static void test_named_db (void) {
 
     toku_brt_insert(t0, toku_fill_dbt(&k, "good", 5), toku_fill_dbt(&v, "day", 4), null_txn); assert(r==0);
 
-    r = toku_close_brt(t0, 0); assert(r==0);
+    r = toku_close_brt(t0, 0, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     toku_memory_check_all_free();
 
@@ -37,7 +37,7 @@ static void test_named_db (void) {
 	assert(strcmp(v.data,"day")==0);
     }
 
-    r = toku_close_brt(t0, 0); assert(r==0);
+    r = toku_close_brt(t0, 0, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     toku_memory_check_all_free();
 }

@@ -23,9 +23,10 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
     return ((a+b-1)/b)*b;
 }
 
-void
+int
 maybe_preallocate_in_file (int fd, u_int64_t size)
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
+// Return 0 on success, otherwise an error number.
 {
     int64_t file_size;
     {
@@ -39,10 +40,16 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
 	memset(wbuf, 0, N);
 	toku_off_t start_write = alignup(file_size, 4096);
 	assert(start_write >= file_size);
-	ssize_t r = pwrite(fd, wbuf, N, start_write);
-	assert(r==N);
+	ssize_t r = toku_os_pwrite(fd, wbuf, N, start_write);
+	if (r==-1) {
+	    int e=errno; // must save errno before calling toku_free.
+	    toku_free(wbuf);
+	    return e;
+	}
 	toku_free(wbuf);
+	assert(r==N);  // We don't handle short writes properly, which is the case where 0<= r < N.
     }
+    return 0;
 }
 
 // This mutex protects pwrite from running in parallel, and also protects modifications to the block allocator.
@@ -72,13 +79,30 @@ unlock_for_pwrite (void) {
     assert(r==0);
 }
 
-static ssize_t
-toku_pwrite (int fd, const void *buf, size_t count, toku_off_t offset)
+static int
+toku_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offset, ssize_t *num_wrote)
 // requires that the pwrite has been locked
+// Returns 0 on success (and fills in *num_wrote for how many bytes are written)
+// Returns nonzero error number problems.
 {
     assert(pwrite_is_locked);
-    maybe_preallocate_in_file(fd, offset+count);
-    return pwrite(fd, buf, count, offset);
+    {
+	int r = maybe_preallocate_in_file(fd, offset+count);
+	if (r!=0) {
+	    *num_wrote = 0;
+	    return r;
+	}
+    }
+    {
+	*num_wrote = toku_os_pwrite(fd, buf, count, offset);
+	if (*num_wrote < 0) {
+	    int r = errno;
+	    *num_wrote = 0;
+	    return r;
+	} else {
+	    return 0;
+	}
+    }
 }
 
 // Don't include the compressed data size or the uncompressed data size.
@@ -184,7 +208,7 @@ enum { compression_header_len = (4   // compressed_len
 				 +4 // uncompressed_len
 				 ) };
 
-void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
+int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
     struct wbuf w;
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size(node) - 8; // don't include the compressed or uncompressed sizes
@@ -311,6 +335,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
     ((int32_t*)(compressed_buf+uncompressed_magic_len))[1] = toku_htonl(uncompressed_len);
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
+    int r;
     {
 	lock_for_pwrite();
 	// If the node has never been written, then write the whole buffer, including the zeros
@@ -331,9 +356,13 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 	block_allocator_alloc_block(h->block_allocator, n_to_write, &offset);
 	h->block_translation[blocknum.b].diskoff = offset;
 	h->block_translation[blocknum.b].size = n_to_write;
-	ssize_t r=toku_pwrite(fd, compressed_buf, n_to_write, offset);
-	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
-	assert(r==(ssize_t)n_to_write);
+	ssize_t n_wrote;
+	r=toku_pwrite_extend(fd, compressed_buf, n_to_write, offset, &n_wrote);
+	if (r) {
+	    fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
+	} else {
+	    r=0;
+	}
 	unlock_for_pwrite();
     }
 
@@ -341,10 +370,12 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
     assert(w.ndone==calculated_size);
     toku_free(buf);
     toku_free(compressed_buf);
+    return r;
 }
 
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
+    if (h->panic) return h->panic;
     assert(0 <= blocknum.b && (u_int64_t)blocknum.b < h->translated_blocknum_limit);
     DISKOFF offset = h->block_translation[blocknum.b].diskoff;
     TAGMALLOC(BRTNODE, result);
@@ -697,18 +728,31 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
 }
 
 int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
+    int rr = 0;
+    if (h->panic) return h->panic;
     lock_for_pwrite();
     {
 	struct wbuf w;
 	unsigned int size = toku_serialize_brt_header_size (h);
 	wbuf_init(&w, toku_malloc(size), size);
-	int r=toku_serialize_brt_header_to_wbuf(&w, h);
-	assert(r==0);
+	{
+	    int r=toku_serialize_brt_header_to_wbuf(&w, h);
+	    assert(r==0);
+	}
 	assert(w.ndone==size);
-	ssize_t nwrote = toku_pwrite(fd, w.buf, w.ndone, 0);
-	if (nwrote<0) perror("pwrite");
-	assert((size_t)nwrote==w.ndone);
+	ssize_t nwrote;
+	rr = toku_pwrite_extend(fd, w.buf, w.ndone, 0, &nwrote);
 	toku_free(w.buf);
+	if (rr) {
+	    if (h->panic==0) {
+		char s[200];
+		h->panic=rr;
+		snprintf(s, sizeof(s), "%s:%d: Error writing header to data file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, strerror(rr));
+		h->panic_string = toku_strdup(s);
+	    }
+	    goto finish;
+	}
+	assert((u_int64_t)nwrote==size);
     }
     {
 	struct wbuf w;
@@ -723,12 +767,18 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	}
 	u_int32_t checksum = x1764_finish(&w.checksum);
 	wbuf_int(&w, checksum);
-	ssize_t nwrote = toku_pwrite(fd, w.buf, size, h->block_translation_address_on_disk);
-	assert((u_int64_t)nwrote==size);
+	ssize_t nwrote;
+	rr = toku_pwrite_extend(fd, w.buf, size, h->block_translation_address_on_disk, &nwrote);
 	toku_free(w.buf);
-    };
+	if (rr) {
+	    fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, rr, strerror(rr));
+	    goto finish;
+	}
+	assert((u_int64_t)nwrote==size);
+    }
+ finish:
     unlock_for_pwrite();
-    return 0;
+    return rr;
 }
 
 // We only deserialize brt header once and then share everything with all the brts.
@@ -750,6 +800,8 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
 	if (r!=(ssize_t)size-12) { ret = EINVAL; goto died1; }
     }
     h->dirty=0;
+    h->panic = 0;
+    h->panic_string = 0;
     h->layout_version = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
     assert(h->layout_version==BRT_LAYOUT_VERSION_9);
@@ -882,8 +934,13 @@ int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
 	struct wbuf w;
 	wbuf_init(&w, buf, size);
 	wbuf_int(&w, toku_fifo_n_entries(fifo));
-	ssize_t r = toku_pwrite(fd, w.buf, size, freeoff);
-	if (r!=size) return errno;
+	ssize_t nwrote;
+	int r = toku_pwrite_extend(fd, w.buf, size, freeoff, &nwrote);
+	if (r) {
+	    unlock_for_pwrite();
+	    return r;
+	}
+	assert(nwrote==size);
 	freeoff+=size;
     }
     FIFO_ITERATE(fifo, key, keylen, val, vallen, type, xid,
@@ -900,10 +957,11 @@ int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo) {
 		     //printf("%s:%d Writing %d bytes: %s\n", __FILE__, __LINE__, vallen, (char*)val); 
 		     wbuf_bytes(&w, val, vallen);
 		     assert(w.ndone==size);
-		     ssize_t r = toku_pwrite(fd, w.buf, (size_t)size, freeoff);
-		     if (r<0) {
+		     ssize_t nwrote;
+		     int r = toku_pwrite_extend(fd, w.buf, (size_t)size, freeoff, &nwrote);
+		     if (r) {
 			 unlock_for_pwrite();
-			 return errno;
+			 return r;
 		     }
 		     assert(r==(ssize_t)size);
 		     freeoff+=size;

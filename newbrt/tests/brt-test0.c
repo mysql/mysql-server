@@ -23,7 +23,7 @@ static void test0 (void) {
     assert(r==0);
     //printf("%s:%d test0\n", __FILE__, __LINE__);
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
-    r = toku_close_brt(t, 0);     assert(r==0);
+    r = toku_close_brt(t, 0, 0);     assert(r==0);
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
     r = toku_cachetable_close(&ct);
     assert(r==0);

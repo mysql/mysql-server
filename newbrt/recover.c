@@ -36,7 +36,7 @@ void toku_recover_cleanup (void) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (cf_pairs[i].brt) {
-	    int r = toku_close_brt(cf_pairs[i].brt, 0);
+	    int r = toku_close_brt(cf_pairs[i].brt, 0, 0);
 	    //r = toku_cachefile_close(&cf_pairs[i].cf);
 	    assert(r==0);
 	}
@@ -132,6 +132,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     struct brt_header *MALLOC(h);
     assert(h);
     h->dirty=0;
+    h->panic=0;
+    h->panic_string=0;
     XMALLOC(h->flags_array);
     h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
@@ -485,7 +487,7 @@ toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     assert(r==0);
     // Bump up the reference count
     toku_cachefile_refup(pair->cf);
-    r = toku_close_brt(pair->brt, 0);
+    r = toku_close_brt(pair->brt, 0, 0);
     assert(r==0);
     pair->brt=0;
     toku_free_BYTESTRING(fname);
@@ -496,7 +498,7 @@ toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (filenum.fileid==cf_pairs[i].filenum.fileid) {
-	    int r = toku_cachefile_close(&cf_pairs[i].cf, 0);
+	    int r = toku_cachefile_close(&cf_pairs[i].cf, 0, 0);
 	    assert(r==0);
 	    cf_pairs[i] = cf_pairs[n_cf_pairs-1];
 	    n_cf_pairs--;

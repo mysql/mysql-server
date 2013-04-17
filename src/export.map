@@ -9,6 +9,8 @@
    db_env_set_func_malloc;
    db_env_set_func_realloc;
    db_env_set_func_free;
+   db_env_set_func_pwrite;
+   db_env_set_func_write;
 
    toku_os_get_max_rss;
 
