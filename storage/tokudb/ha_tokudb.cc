@@ -6031,6 +6031,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
                  thd_sql_command(thd)== SQLCOM_ALTER_TABLE ||
                  thd_sql_command(thd)== SQLCOM_DROP_INDEX) {
             lock_type = TL_WRITE;
+            lock.type = lock_type;
         }
         else {
             // If we are not doing a LOCK TABLE, then allow multiple writers
