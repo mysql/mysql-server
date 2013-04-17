@@ -44,6 +44,28 @@ static const char *ha_tokudb_exts[] = {
     NullS
 };
 
+// XXX 4530 get read or write locks on the key file array,
+// so that functions not synchronized by mysql table locks
+// don't race. 
+//
+// ha_tokudb::info() does not take any table locks
+// so it needs to grab a read lock. any other function writing
+// to the key file array needs to grab a write lock.
+static void share_key_file_rdlock(TOKUDB_SHARE * share)
+{
+    rw_rdlock(&share->key_file_lock);
+}
+
+static void share_key_file_wrlock(TOKUDB_SHARE * share)
+{
+    rw_wrlock(&share->key_file_lock);
+}
+
+static void share_key_file_unlock(TOKUDB_SHARE * share)
+{
+    rw_unlock(&share->key_file_lock);
+}
+
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
@@ -157,6 +179,8 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         }
         thr_lock_init(&share->lock);
         pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+        // XXX 4530 initialize the key file lock
+        my_rwlock_init(&share->key_file_lock, 0);
         my_rwlock_init(&share->num_DBs_lock, 0);
     }
 
@@ -5583,6 +5607,7 @@ void ha_tokudb::position(const uchar * record) {
 int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, (long long) share->rows);
     int error;
+    bool key_file_lock_taken = false;
     DB_TXN* txn = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     DB_BTREE_STAT64 dict_stats;
@@ -5600,6 +5625,12 @@ int ha_tokudb::info(uint flag) {
 
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
+
+            // XXX 4530 lock the key file lock for reading
+            share_key_file_rdlock(share);
+            key_file_lock_taken = true;
+            // we should always have a primary key
+            assert(share->file != NULL);
 
             error = estimate_num_rows(share->file,&num_rows, txn);
             if (error == 0) {
@@ -5648,8 +5679,20 @@ int ha_tokudb::info(uint flag) {
 
             stats.mean_rec_length = stats.records ? (ulong)(stats.data_file_length/stats.records) : 0;
             stats.index_file_length = 0;
+            // curr_num_DBs is the number of keys we have, according
+            // to the mysql layer. if drop index is running concurrently
+            // with info() (it can, because info does not take table locks),
+            // then it could be the case that one of the dbs was dropped
+            // and set to NULL before mysql was able to set table->s->keys
+            // accordingly. 
+            //
+            // we should just ignore any DB * that is NULL. 
+            //
+            // this solution is much simpler than trying to maintain an 
+            // accurate number of valid keys at the handlerton layer.
             for (uint i = 0; i < curr_num_DBs; i++) {
-                if (i == primary_key) {
+                // skip the primary key, skip dropped indexes
+                if (i == primary_key || share->key_file[i] == NULL) {
                     continue;
                 }
                 error = share->key_file[i]->stat64(
@@ -5686,6 +5729,10 @@ int ha_tokudb::info(uint flag) {
     }
     error = 0;
 cleanup:
+    // XXX 4530 unlock the key file lock if it was taken
+    if (key_file_lock_taken) {
+        share_key_file_unlock(share);
+    }
     if (txn != NULL) {
         commit_txn(txn, DB_TXN_NOSYNC);
         txn = NULL;
@@ -7564,10 +7611,12 @@ volatile int ha_tokudb_drop_indexes_wait = 0; // debug
 int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
 
+    // XXX 4530 lock the key file lock for writing.
+    share_key_file_wrlock(share);
+
     while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
 
     int error = 0;
-    
     for (uint i = 0; i < num_of_keys; i++) {
         uint curr_index = key_num[i];
         error = share->key_file[curr_index]->pre_acquire_fileops_lock(share->key_file[curr_index],txn);
@@ -7594,6 +7643,8 @@ cleanup:
 another transaction has accessed the table. \
 To drop indexes, make sure no transactions touch the table.", share->table_name);
     }
+    // XXX 4530 unlock the key file lock
+    share_key_file_unlock(share);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7602,6 +7653,9 @@ To drop indexes, make sure no transactions touch the table.", share->table_name)
 // Restores dropped indexes in case of error in error path of prepare_drop_index and alter_table_phase2
 //
 void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys) {
+    // XXX 4530 lock the key file lock for writing
+    share_key_file_wrlock(share);
+
     //
     // reopen closed dictionaries
     //
@@ -7619,6 +7673,8 @@ void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_o
             assert(!r);
         }
     }            
+    // XXX 4530 unlock the key file lock
+    share_key_file_unlock(share);
 }
 
 volatile int ha_tokudb_prepare_drop_index_wait = 0; //debug
@@ -7878,6 +7934,9 @@ int ha_tokudb::delete_all_rows() {
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
 
+    // XXX 4530 lock the key file array for writing
+    share_key_file_wrlock(share);
+
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
@@ -7921,11 +7980,11 @@ cleanup:
         }
     }
 
-            if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
-                sql_print_error("Could not truncate table %s because \
-another transaction has accessed the table. \
-To truncate the table, make sure no transactions touch the table.", share->table_name);
-            }
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
+        sql_print_error("Could not truncate table %s because another transaction has accessed the \
+        table. To truncate the table, make sure no transactions touch the table.", 
+        share->table_name);
+    }
     //
     // regardless of errors, need to reopen the DB's
     //    
@@ -7952,6 +8011,8 @@ To truncate the table, make sure no transactions touch the table.", share->table
             }
         }
     }
+    // XXX 4530 unlock the key file lock
+    share_key_file_unlock(share);
     TOKUDB_DBUG_RETURN(error);
 }
 
