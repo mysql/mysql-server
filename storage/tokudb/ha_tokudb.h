@@ -180,8 +180,8 @@ private:
     //
     // individual key buffer for each index
     //
-    uchar* mult_key_buff[MAX_KEY];
-    uchar* mult_rec_buff[MAX_KEY];
+    uchar* mult_key_buff[MAX_KEY + 1];
+    uchar* mult_rec_buff[MAX_KEY + 1];
     DBT mult_key_dbt[MAX_KEY + 1];
     DBT mult_rec_dbt[MAX_KEY + 1];
     u_int32_t mult_put_flags[MAX_KEY + 1];
