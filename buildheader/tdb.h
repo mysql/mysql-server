@@ -388,7 +388,8 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */;
   void *app_private;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
-  int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
+  int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);;
+  int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
   int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
   int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags);
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
