@@ -8,6 +8,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <config.h>
+#include <toku_race_tools.h>
 
 // Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
 // BUILD_ID of 1000 indicates development build of main, not a release build.  
