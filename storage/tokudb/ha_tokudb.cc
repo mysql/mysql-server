@@ -2855,7 +2855,7 @@ int ha_tokudb::reset(void) {
 //      error otherwise
 //
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::external_lock");
+    TOKUDB_DBUG_ENTER("ha_tokudb::external_lock %d", thd_sql_command(thd));
     // QQQ this is here to allow experiments without transactions
     if ((tokudb_init_flags & DB_INIT_TXN) == 0) 
         TOKUDB_DBUG_RETURN(0);
