@@ -26,7 +26,7 @@ static void setup_ltm(void) {
 
 static void setup_tree(size_t index, DICTIONARY_ID dict_id) {
     assert(!lt[index] && ltm);
-    r = toku_ltm_get_lt(ltm, &lt[index], dict_id, NULL, intcmp);
+    r = toku_ltm_get_lt(ltm, &lt[index], dict_id, NULL, intcmp, NULL, NULL, NULL);
     CKERR(r);
     assert(lt[index]);
 }

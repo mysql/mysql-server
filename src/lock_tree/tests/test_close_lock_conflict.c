@@ -45,7 +45,7 @@ int main(int argc, const char *argv[]) {
 
 
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp, NULL, NULL, NULL);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -76,7 +76,7 @@ int main(int argc, const char *argv[]) {
     toku_lt_remove_ref(lt);
 
     // reopen the lock tree
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp, NULL, NULL, NULL);
     assert(r == 0 && lt);
 
     // txn_b gets W(L)

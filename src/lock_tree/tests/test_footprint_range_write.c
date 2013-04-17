@@ -126,7 +126,7 @@ int main(int argc, const char *argv[]) {
     assert(s.curr_lock_memory == 0);
 
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp, NULL, NULL, NULL);
     assert(r == 0 && lt);
 
     TXNID txn_a = 1;

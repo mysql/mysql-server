@@ -66,7 +66,7 @@ int main(int argc, const char *argv[])
     r = toku_ltm_create(&ltm, MAX_LOCKS, MAX_LOCK_MEMORY, dbpanic);
     CKERR(r);
     current_descriptor = NULL;
-    toku_ltm_get_lt(ltm, &tree, (DICTIONARY_ID) {1}, current_descriptor, cmp_function);
+    toku_ltm_get_lt(ltm, &tree, (DICTIONARY_ID) {1}, current_descriptor, cmp_function, NULL, NULL, NULL);
     CKERR(r);
 
     for (int d = 0; d < num_descriptors; d++) {

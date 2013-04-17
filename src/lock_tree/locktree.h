@@ -43,6 +43,11 @@ char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */)
 typedef struct __toku_lock_tree toku_lock_tree;
 #endif
 
+// called by toku_ltm_get_lt if the lt needed to be created
+typedef void (*toku_lt_on_create_cb)(toku_lock_tree *tree, void *extra);
+// called by toku_lt_close when there are no more references to the lt
+typedef void (*toku_lt_on_close_cb)(toku_lock_tree *tree);
+
 #if !defined(TOKU_LTH_DEFINE)
 #define TOKU_LTH_DEFINE
 typedef struct __toku_lth toku_lth;
@@ -114,9 +119,12 @@ void
 toku_lt_update_descriptor(toku_lock_tree* tree, DESCRIPTOR desc);
 
 /**
-    Gets a lock tree for a given DB with id dict_id
+    Gets a lock tree for a given DB with id dict_id. If the locktree is created,
+    the on_create_callback will be called with a pointer to the new tree and extra.
 */
-int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, toku_dbt_cmp compare_fun);
+int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, 
+        toku_dbt_cmp compare_fun, toku_lt_on_create_cb on_create_callback, void *on_create_extra,
+        toku_lt_on_close_cb on_close_callback);
 
 void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
@@ -319,6 +327,10 @@ int toku_lt_remove_ref(toku_lock_tree* tree);
 void toku_lt_remove_db_ref(toku_lock_tree* tree);
 
 void toku_lt_verify(toku_lock_tree *tree);
+
+void toku_lt_set_userdata(toku_lock_tree *tree, void *userdata);
+
+void *toku_lt_get_userdata(toku_lock_tree *tree);
 
 typedef enum {
     LOCK_REQUEST_INIT = 0,

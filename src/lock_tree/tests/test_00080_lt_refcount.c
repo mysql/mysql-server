@@ -32,7 +32,7 @@ static void db_open_tree(size_t index, size_t db_id_index) {
            (lt_refs[index] > 0 && lts[index]));
     assert(ltm);
     lt_refs[index]++;
-    r = toku_ltm_get_lt(ltm, &lts[index], dict_ids[db_id_index], NULL, intcmp);
+    r = toku_ltm_get_lt(ltm, &lts[index], dict_ids[db_id_index], NULL, intcmp, NULL, NULL, NULL);
     CKERR(r);
     assert(lts[index]);
 }

@@ -99,6 +99,9 @@ int toku_ft_handle_open(FT_HANDLE, const char *fname_in_env,
 int toku_ft_handle_open_recovery(FT_HANDLE, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, 
 			   FILENUM use_filenum, LSN max_acceptable_lsn)  __attribute__ ((warn_unused_result));
 
+// clone an ft handle. the cloned handle has a new dict_id but refers to the same fractal tree
+int toku_ft_handle_clone(FT_HANDLE *cloned_ft_handle, FT_HANDLE ft_handle, TOKUTXN txn);
+
 // close an ft handle during normal operation. the underlying ft may or may not close,
 // depending if there are still references. an lsn for this close will come from the logger.
 void toku_ft_handle_close(FT_HANDLE ft_handle);
