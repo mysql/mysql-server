@@ -25,7 +25,7 @@ struct my_threadpool {
 static void
 my_threadpool_init (struct my_threadpool *my_threadpool, int max_threads) {
     int r;
-    r = threadpool_create(&my_threadpool->threadpool, max_threads); assert(r == 0);
+    r = toku_thread_pool_create(&my_threadpool->threadpool, max_threads); assert(r == 0);
     assert(my_threadpool != 0);
     r = toku_pthread_mutex_init(&my_threadpool->mutex, 0); assert(r == 0);
     r = toku_pthread_cond_init(&my_threadpool->wait, 0); assert(r == 0);
@@ -41,8 +41,8 @@ my_threadpool_destroy (struct my_threadpool *my_threadpool, int max_threads) {
     r = toku_pthread_cond_broadcast(&my_threadpool->wait); assert(r == 0);
     r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
 
-    if (verbose) printf("current %d\n", threadpool_get_current_threads(my_threadpool->threadpool));
-    threadpool_destroy(&my_threadpool->threadpool); assert(my_threadpool->threadpool == 0);
+    if (verbose) printf("current %d\n", toku_thread_pool_get_current_threads(my_threadpool->threadpool));
+    toku_thread_pool_destroy(&my_threadpool->threadpool); assert(my_threadpool->threadpool == 0);
     assert(my_threadpool->counter == max_threads);
     r = toku_pthread_mutex_destroy(&my_threadpool->mutex); assert(r == 0);
     r = toku_pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
@@ -117,10 +117,11 @@ test_main (int argc, const char *argv[]) {
     threadpool = my_threadpool.threadpool;
     if (verbose) printf("test threadpool_set_busy\n");
     for (i=0; i<2*max_threads; i++) {
-        assert(threadpool_get_current_threads(threadpool) == (i >= max_threads ? max_threads : i));
-        threadpool_maybe_add(threadpool, my_thread_f, &my_threadpool);
+        assert(toku_thread_pool_get_current_threads(threadpool) == (i >= max_threads ? max_threads : i));
+        int n = 1;
+        toku_thread_pool_run(threadpool, 0, &n, my_thread_f, &my_threadpool);
     }
-    assert(threadpool_get_current_threads(threadpool) == max_threads);
+    assert(toku_thread_pool_get_current_threads(threadpool) == max_threads);
     my_threadpool_destroy(&my_threadpool, max_threads);
     
 #if DO_MALLOC_HOOK
@@ -133,8 +134,8 @@ test_main (int argc, const char *argv[]) {
         void *(*orig_malloc_hook) (size_t, const __malloc_ptr_t) = __malloc_hook;
         __malloc_hook = my_malloc_always_fails;
         int r;
-        r = threadpool_create(&threadpool, 0); assert(r == ENOMEM);
-        r = threadpool_create(&threadpool, 1); assert(r == ENOMEM);
+        r = toku_thread_pool_create(&threadpool, 0); assert(r == ENOMEM);
+        r = toku_thread_pool_create(&threadpool, 1); assert(r == ENOMEM);
         __malloc_hook = orig_malloc_hook;
     }
 #endif

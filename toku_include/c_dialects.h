@@ -6,7 +6,7 @@
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 #define C_BEGIN extern "C" {
-#define C_END };
+#define C_END }
 #else
 #define C_BEGIN
 #define C_END
@@ -15,7 +15,7 @@
 
 #if defined(__cilkplusplus)
 #define CILK_BEGIN extern "Cilk++" {
-#define CILK_END };
+#define CILK_END }
 #else
 #define CILK_BEGIN
 #define CILK_END

@@ -30,13 +30,13 @@ test_sub_block_compression(void *buf, int total_size, int my_max_sub_blocks, int
     void *cbuf = toku_malloc(cbuf_size_bound);
     assert(cbuf);
 
-    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, buf, cbuf, n_cores);
+    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, buf, cbuf, n_cores, NULL);
     assert(cbuf_size <= cbuf_size_bound);
 
     void *ubuf = toku_malloc(total_size);
     assert(ubuf);
 
-    r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores);
+    r = decompress_all_sub_blocks(n_sub_blocks, sub_blocks, cbuf, ubuf, n_cores, NULL);
     assert(r == 0);
 
     assert(memcmp(buf, ubuf, total_size) == 0);

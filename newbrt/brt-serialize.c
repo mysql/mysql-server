@@ -5,6 +5,7 @@
 
 #include "includes.h"
 #include "toku_atomic.h"
+#include "threadpool.h"
 
 static BRT_UPGRADE_STATUS_S upgrade_status;  // accountability, used in backwards_x.c
 
@@ -12,9 +13,6 @@ void
 toku_brt_get_upgrade_status (BRT_UPGRADE_STATUS s) {
     *s = upgrade_status;
 }
-
-
-
 
 // performance tracing
 #define DO_TOKU_TRACE 0
@@ -30,15 +28,18 @@ static inline void do_toku_trace(const char *cp, int len) {
 #endif
 
 static int num_cores = 0; // cache the number of cores for the parallelization
+static struct toku_thread_pool *brt_pool = NULL;
 
 int 
 toku_brt_serialize_init(void) {
-    num_cores = toku_os_get_number_processors();
+    num_cores = toku_os_get_number_active_processors();
+    int r = toku_thread_pool_create(&brt_pool, num_cores); assert(r == 0);
     return 0;
 }
 
 int 
 toku_brt_serialize_destroy(void) {
+    toku_thread_pool_destroy(&brt_pool);
     return 0;
 }
 
@@ -440,7 +441,7 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
     // compress all of the sub blocks
     char *uncompressed_ptr = uncompressed_buf + node_header_overhead;
     char *compressed_ptr = compressed_buf + header_len;
-    compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr, num_cores);
+    compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr, num_cores, brt_pool);
 
     //if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %"PRIu64"\n", blocknum.b, calculated_size-node_header_overhead, (uint64_t) compressed_len);
 
@@ -596,6 +597,7 @@ deserialize_child_buffer_worker(void *arg) {
             break;
         deserialize_child_buffer(dw->node, dw->cnum, &dw->rb, &dw->local_fingerprint);
     }
+    workset_release_ref(ws);
     return arg;
 }
 
@@ -626,11 +628,11 @@ deserialize_all_child_buffers(BRTNODE result, struct rbuf *rbuf, struct sub_bloc
 
     // deserialize the fifos
     if (0) printf("%s:%d T=%d N=%d %d\n", __FUNCTION__, __LINE__, T, result->u.n.n_children, n_nonempty_fifos);
-    toku_pthread_t tids[T];
-    threadset_create(tids, &T, deserialize_child_buffer_worker, &ws);
+    toku_thread_pool_run(brt_pool, 0, &T, deserialize_child_buffer_worker, &ws);
+    workset_add_ref(&ws, T);
     deserialize_child_buffer_worker(&ws);
+    workset_join(&ws);
 
-    threadset_join(tids, T);
     // combine the fingerprints and update the buffer counts
     uint32_t check_local_fingerprint = 0;
     for (int i = 0; i < result->u.n.n_children; i++) {
@@ -915,7 +917,7 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
     unsigned char *uncompressed_data = rb->buf + node_header_overhead;    
 
     // decompress all the compressed sub blocks into the uncompressed buffer
-    r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores);
+    r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores, brt_pool);
     assert(r == 0);
 
     toku_trace("decompress done");

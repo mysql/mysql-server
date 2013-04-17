@@ -1,55 +1,59 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ifndef THREADPOOL_H
-#define THREADPOOL_H
+#ifndef TOKU_THREADPOOL_H
+#define TOKU_THREADPOOL_H
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include "c_dialects.h"
 
+C_BEGIN
 
-// A threadpool is a limited set of threads that can be used to apply a
-// function to work contained in a work queue.  The work queue is outside
-// of the scope of the threadpool; the threadpool merely provides
-// mechanisms to grow the number of threads in the threadpool on demand.
+// A toku_thread is toku_pthread that can be cached.
+struct toku_thread;
 
-typedef struct threadpool *THREADPOOL;
+// Run a function f on a thread
+// This function setups up the thread to run function f with argument arg and then wakes up
+// the thread to run it.
+void toku_thread_run(struct toku_thread *thread, void *(*f)(void *arg), void *arg);
+
+// A toku_thread_pool is a pool of toku_threads.  These threads can be allocated from the pool
+// and can run an arbitrary function.
+struct toku_thread_pool;
+
+typedef struct toku_thread_pool *THREADPOOL;
 
 // Create a new threadpool
-// Effects: a new threadpool is allocated and initialized. the number of
-// threads in the threadpool is limited to max_threads.  initially, there
-// are no threads in the pool.
-// Returns: if there are no errors, the threadpool is set and zero is returned.
-// Otherwise, an error number is returned.
-
-int threadpool_create(THREADPOOL *threadpoolptr, int max_threads);
+// Effects: a new threadpool is allocated and initialized. the number of threads in the threadpool is limited to max_threads.  
+// If max_threads == 0 then there is no limit on the number of threads in the pool.
+// Initially, there are no threads in the pool. Threads are allocated by the _get or _run functions.
+// Returns: if there are no errors, the threadpool is set and zero is returned.  Otherwise, an error number is returned.
+int toku_thread_pool_create(struct toku_thread_pool **threadpoolptr, int max_threads);
 
 // Destroy a threadpool
 // Effects: the calling thread joins with all of the threads in the threadpool.
 // Effects: the threadpool memory is freed.
 // Returns: the threadpool is set to null.
+void toku_thread_pool_destroy(struct toku_thread_pool **threadpoolptr);
 
-void threadpool_destroy(THREADPOOL *threadpoolptr);
+// Get the current number of threads in the thread pool
+int toku_thread_pool_get_current_threads(struct toku_thread_pool *pool);
 
-// Maybe add a thread to the threadpool.
-// Effects: the number of threads in the threadpool is expanded by 1 as long
-// as the current number of threads in the threadpool is less than the max
-// and there are no idle threads.
-// Effects: if the thread is create, it calls the function f with argument arg
-// Expects: external serialization on this function; only one thread may
-// execute this function
+// Get one or more threads from the thread pool
+// dowait indicates whether or not the caller blocks waiting for threads to free up
+// nthreads on input determines the number of threads that are wanted
+// nthreads on output indicates the number of threads that were allocated
+// toku_thread_return on input supplies an array of thread pointers (all NULL).  This function returns the threads
+// that were allocated in the array.
+int toku_thread_pool_get(struct toku_thread_pool *pool, int dowait, int *nthreads, struct toku_thread **toku_thread_return);
 
-void threadpool_maybe_add(THREADPOOL theadpool, void *(*f)(void *), void *arg);
+// Run a function f on one or more threads allocated from the thread pool
+int toku_thread_pool_run(struct toku_thread_pool *pool, int dowait, int *nthreads, void *(*f)(void *arg), void *arg);
 
-// get the current number of threads
+// Print the state of the thread pool
+void toku_thread_pool_print(struct toku_thread_pool *pool, FILE *out);
 
-int threadpool_get_current_threads(THREADPOOL);
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
+C_END
 
 
 #endif

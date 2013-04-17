@@ -2842,7 +2842,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
             // compress and checksum the sub blocks
             int compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, 
                                                          (char *) (lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning),
-                                                         (char *) (compressed_buf + header_len), 1);
+                                                         (char *) (compressed_buf + header_len), 1, NULL);
 
             // cppy the uncompressed header to the compressed buffer
             memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);

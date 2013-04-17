@@ -78,8 +78,8 @@ BRT_SOURCES = \
   sub_block \
   ule \
   threadpool \
-  toku_worker \
   txn \
+  workqueue \
   x1764 \
   xids \
   ybt \
