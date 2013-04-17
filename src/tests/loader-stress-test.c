@@ -180,9 +180,19 @@ static void check_results(DB **dbs)
 static void *expect_poll_void = &expect_poll_void;
 static int poll_count=0;
 static int poll_function (void *extra, float progress) {
-    //printf("progress: %5.1f%%\n", progress*100);
+    if (0) {
+	static int did_one=0;
+	static struct timeval start;
+	struct timeval now;
+	gettimeofday(&now, 0);
+	if (!did_one) {
+	    start=now;
+	    did_one=1;
+	}
+	printf("%6.6f %5.1f%%\n", now.tv_sec - start.tv_sec + 1e-6*(now.tv_usec - start.tv_usec), progress*100);
+    }
     assert(extra==expect_poll_void);
-    assert(0.0<=progress && progress<1.0);
+    assert(0.0<=progress && progress<=1.0);
     poll_count++;
     return 0;
 }

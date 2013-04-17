@@ -259,14 +259,14 @@ static void test_merge_files (char *template) {
 
     struct error_callback_s cb;
     cb.error_callback = err_cb;
-    r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints, &cb);  CKERR(r);
-    r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints, &cb);  CKERR(r);
+    r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
+    r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     destroy_rowset(&aset);
     destroy_rowset(&bset);
     for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1 && fs.idx_fidxs[i].idx != -1);
 
-    r = merge_files(&fs, &bl, dest_db, compare_ints, &cb); CKERR(r);
+    r = merge_files(&fs, &bl, dest_db, compare_ints, &cb, 0); CKERR(r);
 
     assert(fs.n_temp_files==1);
 
@@ -278,7 +278,7 @@ static void test_merge_files (char *template) {
     fprintf(stderr, "Final data in %s\n", name);
     assert(r>=0);
     struct descriptor desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
-    r = write_file_to_dbfile(fd, inf, &bl, &desc);
+    r = write_file_to_dbfile(fd, inf, &bl, &desc, 1);
     CKERR(r);
     r = brtloader_fi_close(&bl.file_infos, inf);
     CKERR(r);
