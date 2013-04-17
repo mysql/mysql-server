@@ -82,9 +82,9 @@ int print_le(OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
     return 0;
 }
 
-void dump_node (int f, BLOCKNUM blocknum, int tree_node_size) {
+void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, tree_node_size);
+    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
@@ -181,7 +181,7 @@ int main (int argc, const char *argv[]) {
     dump_header(f, &h);
     BLOCKNUM blocknum;
     for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
-	dump_node(f, blocknum, h->nodesize);
+	dump_node(f, blocknum, h);
     }
     toku_brtheader_free(h);
     toku_malloc_cleanup();

@@ -189,7 +189,7 @@ int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32
     assert(extraargs);
     BRT brt = extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, fullhash, result, brt->nodesize);
+    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, fullhash, result, brt->h);
     if (r == 0) {
         *sizep = brtnode_memory_size(*result);
 	*written_lsn = (*result)->disk_lsn;
@@ -2157,7 +2157,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     t->h->block_translation = 0;
     t->h->block_translation_size_on_disk = 0;
     t->h->block_translation_address_on_disk = 0;
-    printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
+    // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
     create_block_allocator(&t->h->block_allocator, t->nodesize);
     toku_fifo_create(&t->h->fifo);
     t->root_put_counter = global_root_put_counter++; 
@@ -2431,7 +2431,7 @@ int toku_close_brt (BRT brt, TOKULOGGER logger) {
 	}
         assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero.
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
-	printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
+	// printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
         if ((r = toku_cachefile_close(&brt->cf, logger))!=0) return r;
     }
     if (brt->database_name) toku_free(brt->database_name);
