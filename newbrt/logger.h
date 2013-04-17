@@ -16,12 +16,8 @@ enum {
     TOKU_LOG_VERSION_2 = 2,
     //After 2 we linked the log version to the BRT_LAYOUT VERSION.
     //So it went from 2 to 13 (3-12 do not exist)
-    TOKU_LOG_VERSION   = BRT_LAYOUT_VERSION, //Linked
-#if BRT_LAYOUT_MIN_SUPPORTED_VERSION > BRT_LAYOUT_VERSION_12 //linked once we remove support for 12
-    TOKU_LOG_MIN_SUPPORTED_VERSION = BRT_LAYOUT_MIN_SUPPORTED_VERSION,
-#else
+    TOKU_LOG_VERSION   = BRT_LAYOUT_VERSION, 
     TOKU_LOG_MIN_SUPPORTED_VERSION = TOKU_LOG_VERSION_2,
-#endif
 };
 #define ROLLBACK_CACHEFILE_NAME "tokudb.rollback"
 
