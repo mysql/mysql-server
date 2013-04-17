@@ -73,6 +73,34 @@ int toku_logger_create (TOKULOGGER *resultp) {
     return r;
 }
 
+static int fsync_logdir(TOKULOGGER logger) {
+    return toku_file_fsync_without_accounting( dirfd(logger->dir) );
+}
+
+static int open_logdir(TOKULOGGER logger, const char *directory) {
+    if (toku_os_is_absolute_name(directory)) {
+        logger->directory = toku_strdup(directory);
+    } else {
+        char *cwd = getcwd(NULL, 0);
+        if (cwd == NULL)
+            return -1;
+        char *new_log_dir = toku_malloc(strlen(cwd) + strlen(directory) + 2);
+        if (new_log_dir == NULL)
+            return -2;
+        sprintf(new_log_dir, "%s/%s", cwd, directory);
+        logger->directory = new_log_dir;
+    }
+    if (logger->directory==0) return errno;
+
+    logger->dir = opendir(logger->directory);
+    if ( logger->dir == NULL ) return -1;
+    return 0;
+}
+
+static int close_logdir(TOKULOGGER logger) {
+    return closedir(logger->dir);
+}
+
 int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->is_open) return EINVAL;
     if (logger->is_panicked) return EINVAL;
@@ -87,23 +115,14 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     logger->inbuf.max_lsn_in_buf  = logger->lsn;
     logger->outbuf.max_lsn_in_buf = logger->lsn;
 
-    long long nexti;
-    r = toku_logger_find_next_unused_log_file(directory, &nexti);
+    // open directory, save pointer for fsyncing t:2445
+    r = open_logdir(logger, directory);
     if (r!=0) return r;
-    if (toku_os_is_absolute_name(directory)) {
-        logger->directory = toku_strdup(directory);
-    } else {
-        char *cwd = getcwd(NULL, 0);
-        if (cwd == NULL)
-            return -1;
-        char *new_log_dir = toku_malloc(strlen(cwd) + strlen(directory) + 2);
-        if (new_log_dir == NULL)
-            return -2;
-        sprintf(new_log_dir, "%s/%s", cwd, directory);
-        logger->directory = new_log_dir;
-        toku_free(cwd);
-    }
-    if (logger->directory==0) return errno;
+
+    long long nexti;
+    r = toku_logger_find_next_unused_log_file(logger->directory, &nexti);
+    if (r!=0) return r;
+
     logger->next_log_file_number = nexti;
     open_logfile(logger);
 
@@ -129,6 +148,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
         }
 	r = close(logger->fd);                                    if (r!=0) { r=errno; goto panic; }
     }
+    r = close_logdir(logger);  if (r!=0) { r=errno; goto panic; }
     logger->fd=-1;
     release_output(logger, fsynced_lsn);
 
@@ -479,6 +499,7 @@ static int open_logfile (TOKULOGGER logger)
     if (logger->write_log_files) {
         logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
         if (logger->fd==-1) return errno;
+        int r = fsync_logdir(logger);   if (r!=0) return r; // t:2445
         logger->next_log_file_number++;
     } else {
         logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);
