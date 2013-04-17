@@ -64,6 +64,7 @@ static inline struct toku_list *toku_list_pop_head(struct toku_list *head) {
     return toku_list;
 }
 
+//What does this do?
 static inline void toku_list_move(struct toku_list *newhead, struct toku_list *oldhead) {
     struct toku_list *first = oldhead->next;
     struct toku_list *last = oldhead->prev;

@@ -87,7 +87,7 @@ do_update (void *UU(ignore))
 static void*
 do_checkpoint (void *UU(v))
 {
-    int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     return 0;
 }
@@ -98,6 +98,10 @@ do_checkpoint (void *UU(v))
 // make sure that the stuff that was checkpointed includes only the old versions
 // then do a flush and make sure the new items are written
 
+static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
+    return 0;
+}
+
 static void checkpoint_pending(void) {
     if (verbose) printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N);
     const int test_limit = N;
@@ -106,6 +110,8 @@ static void checkpoint_pending(void) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     r = toku_cachetable_openf(&cf, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL,
+                                dummy_pin_unpin, dummy_pin_unpin);
 
     // Insert items into the cachetable. All dirty.
     int i;
@@ -136,14 +142,14 @@ static void checkpoint_pending(void) {
     //printf("E43\n");
     n_flush = n_write_me = n_keep_me = n_fetch = 0; expect_value = 43;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == N && n_write_me == N && n_keep_me == N);
 
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

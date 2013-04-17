@@ -49,11 +49,13 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
 // What is the cachefile that goes with a particular iname?
 // During a transaction, we cannot reuse an iname.
-int toku_cachefile_of_iname_and_add_reference (CACHETABLE ct, const char *iname, CACHEFILE *cf);
+int toku_cachefile_of_iname (CACHETABLE ct, const char *iname, CACHEFILE *cf);
 
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
-int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*testcallback_f)(void*),  void * testextra);
+int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 
+                                   void (*ydb_lock)(void), void (*ydb_unlock)(void),
+                                   void (*testcallback_f)(void*),  void * testextra);
 
 // Shuts down checkpoint thread
 // Requires no locks be held that are taken by the checkpoint function
@@ -102,7 +104,14 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, 
 // associated with the key are returned.
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
 
-void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*log_fassociate_during_checkpoint)(CACHEFILE, void*), int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN), int (*checkpoint_userdata)(CACHEFILE, void*), int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*), int (*end_checkpoint_userdata)(CACHEFILE, void*));
+void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
+    int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
+    int (*close_userdata)(CACHEFILE, void*, char **/*error_string*/, BOOL, LSN),
+    int (*checkpoint_userdata)(CACHEFILE, void*),
+    int (*begin_checkpoint_userdata)(CACHEFILE, LSN, void*),
+    int (*end_checkpoint_userdata)(CACHEFILE, void*),
+    int (*note_pin_by_checkpoint)(CACHEFILE, void*),
+    int (*note_unpin_by_checkpoint)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
 // Before starting a checkpoint, we call checkpoint_prepare_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().

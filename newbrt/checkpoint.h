@@ -54,7 +54,7 @@ int toku_checkpoint_destroy(void);
 // Take a checkpoint of all currently open dictionaries
 // Callbacks are called during checkpoint procedure while checkpoint_safe lock is still held.
 // Callbacks are primarily intended for use in testing.
-int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, 
+int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 		    void (*callback_f)(void*),  void * extra,
 		    void (*callback2_f)(void*), void * extra2);
 

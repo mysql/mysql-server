@@ -893,7 +893,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     assert(r == 0);
 
     // checkpoint 
-    r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(renv->ct, renv->logger, NULL, NULL, NULL, NULL);
     assert(r == 0);
 
     r = chdir(org_wd); 

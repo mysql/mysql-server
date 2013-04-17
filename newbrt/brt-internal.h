@@ -196,8 +196,9 @@ struct brt {
     DB *db;           // To pass to the compare fun, and close once transactions are done.
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
+    int pinned_by_checkpoint;  //Keep this brt around for checkpoint, like a transaction
 
-    int was_closed; //True when this brt was closed, but is being kept around for transactions.
+    int was_closed; //True when this brt was closed, but is being kept around for transactions (or checkpoint).
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
 

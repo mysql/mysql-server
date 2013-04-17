@@ -2867,6 +2867,9 @@ brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
 }
 
 
+static int brtheader_note_pin_by_checkpoint (CACHEFILE cachefile, void *header_v);
+static int brtheader_note_unpin_by_checkpoint (CACHEFILE cachefile, void *header_v);
+
 static int 
 brt_init_header_partial (BRT t) {
     int r;
@@ -2904,7 +2907,15 @@ brt_init_header_partial (BRT t) {
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
-    toku_cachefile_set_userdata(t->cf, t->h, brtheader_log_fassociate_during_checkpoint, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
+    toku_cachefile_set_userdata(t->cf,
+                                t->h,
+                                brtheader_log_fassociate_during_checkpoint,
+                                toku_brtheader_close,
+                                toku_brtheader_checkpoint,
+                                toku_brtheader_begin_checkpoint,
+                                toku_brtheader_end_checkpoint,
+                                brtheader_note_pin_by_checkpoint,
+                                brtheader_note_unpin_by_checkpoint);
 
     return r;
 }
@@ -2968,7 +2979,15 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     if (r!=0) return r;
     h->cf = cf;
     h->root_put_counter = global_root_put_counter++;
-    toku_cachefile_set_userdata(cf, (void*)h, brtheader_log_fassociate_during_checkpoint, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
+    toku_cachefile_set_userdata(cf,
+                                (void*)h,
+                                brtheader_log_fassociate_during_checkpoint,
+                                toku_brtheader_close,
+                                toku_brtheader_checkpoint,
+                                toku_brtheader_begin_checkpoint,
+                                toku_brtheader_end_checkpoint,
+                                brtheader_note_pin_by_checkpoint,
+                                brtheader_note_unpin_by_checkpoint);
     *header = h;
     return 0;
 }
@@ -3247,6 +3266,84 @@ toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, vo
     return r;
 }
 
+int
+toku_brt_zombie_needed(BRT zombie) {
+    return toku_omt_size(zombie->txns) != 0 || zombie->pinned_by_checkpoint;
+}
+
+//Must be protected by ydb lock.
+//Is only called by checkpoint begin, which holds it
+static int
+brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
+{
+    //Set arbitrary brt (for given header) as pinned by checkpoint.
+    //Only one can be pinned (only one checkpoint at a time), but not worth verifying.
+    struct brt_header *h = header_v;
+    BRT brt_to_pin;
+    if (!toku_list_empty(&h->live_brts)) {
+        brt_to_pin = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
+    }
+    else {
+        //Header exists, so at least one brt must.  No live means at least one zombie.
+        assert(!toku_list_empty(&h->zombie_brts));
+        brt_to_pin = toku_list_struct(toku_list_head(&h->zombie_brts), struct brt, zombie_brt_link);
+    }
+    assert(!brt_to_pin->pinned_by_checkpoint);
+    brt_to_pin->pinned_by_checkpoint = 1;
+
+    return 0;
+}
+
+//Must be protected by ydb lock.
+//Called by end_checkpoint, which grabs ydb lock around note_unpin
+static int
+brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
+{
+    //Must find which brt for this header is pinned, and unpin it.
+    //Once found, we might have to close it if it was user closed and no txns touch it.
+    //
+    //HOW do you loop through a 'list'????
+    struct brt_header *h = header_v;
+    BRT brt_to_unpin = NULL;
+
+    if (!toku_list_empty(&h->live_brts)) {
+        struct toku_list *list;
+        for (list = h->live_brts.next; list != &h->live_brts; list = list->next) {
+            BRT candidate;
+            candidate = toku_list_struct(list, struct brt, live_brt_link);
+            if (candidate->pinned_by_checkpoint) {
+                brt_to_unpin = candidate;
+                break;
+            }
+        }
+    }
+    if (!brt_to_unpin) {
+        //Header exists, something is pinned, so exactly one zombie must be pinned
+        assert(!toku_list_empty(&h->zombie_brts));
+        struct toku_list *list;
+        for (list = h->zombie_brts.next; list != &h->zombie_brts; list = list->next) {
+            BRT candidate;
+            candidate = toku_list_struct(list, struct brt, zombie_brt_link);
+            if (candidate->pinned_by_checkpoint) {
+                brt_to_unpin = candidate;
+                break;
+            }
+        }
+    }
+    assert(brt_to_unpin);
+    assert(brt_to_unpin->pinned_by_checkpoint);
+    brt_to_unpin->pinned_by_checkpoint = 0; //Unpin
+    int r = 0;
+    //Close if necessary
+    if (brt_to_unpin->was_closed && !toku_brt_zombie_needed(brt_to_unpin)) {
+        //Close immediately.
+        assert(brt_to_unpin->close_db);
+        r = brt_to_unpin->close_db(brt_to_unpin->db, brt_to_unpin->close_flags);
+    }
+    return r;
+
+}
+
 // Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
 int
 toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
@@ -3379,7 +3476,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
         zombie->close_flags = close_flags;
         zombie->was_closed  = 1;
         if (!zombie->db) zombie->db = db;
-        if (toku_omt_size(zombie->txns) == 0) {
+        if (!toku_brt_zombie_needed(zombie)) {
             //Close immediately.
             r = zombie->close_db(zombie->db, zombie->close_flags);
         }
@@ -3408,7 +3505,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
 }
 
 int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn) {
-    assert(toku_omt_size(brt->txns)==0);
+    assert(!toku_brt_zombie_needed(brt));
     int r;
     while (!toku_list_empty(&brt->cursors)) {
         BRT_CURSOR c = toku_list_struct(toku_list_pop(&brt->cursors), struct brt_cursor, cursors_link);
@@ -5102,12 +5199,24 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
     CACHEFILE cf = NULL;
     u_int8_t was_open = 0;
     FILENUM filenum   = {0};
-    //We need to hold a reference (to cf) for an fdelete because brt might not be open (and only cf is open).
-    //Normal txn operations grab reference to brt instead.
-    r = toku_cachefile_of_iname_and_add_reference(txn->logger->ct, iname, &cf);
+
+    r = toku_cachefile_of_iname(txn->logger->ct, iname, &cf);
     if (r == 0) {
         was_open = TRUE;
         filenum = toku_cachefile_filenum(cf);
+        struct brt_header *h = toku_cachefile_get_userdata(cf);
+        BRT brt;
+        //Any arbitrary brt of that header is fine.
+        if (!toku_list_empty(&h->live_brts)) {
+            brt = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
+        }
+        else {
+            //Header exists, so at least one brt must.  No live means at least one zombie.
+            assert(!toku_list_empty(&h->zombie_brts));
+            brt = toku_list_struct(toku_list_head(&h->zombie_brts), struct brt, zombie_brt_link);
+        }
+        r = toku_txn_note_brt(txn, brt);
+        if (r!=0) return r;
     }
     else 
 	assert(r==ENOENT);
@@ -5136,13 +5245,10 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_d
     int r;
     const char *iname = iname_dbt_p->data;
     CACHEFILE cf;
-    r = toku_cachefile_of_iname_and_add_reference(ct, iname, &cf);
+    r = toku_cachefile_of_iname(ct, iname, &cf);
     if (r == 0) {
-	char *error_string = NULL;
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
-	r = toku_cachefile_close(&cf, &error_string, FALSE, ZERO_LSN);
-	assert(r==0);
     }
     else
 	assert(r==ENOENT);

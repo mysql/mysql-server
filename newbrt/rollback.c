@@ -361,6 +361,13 @@ static int swap_brt (OMTVALUE txnv, u_int32_t UU(idx), void *extra) {
 }
 
 int toku_txn_note_swap_brt (BRT live, BRT zombie) {
+    if (zombie->pinned_by_checkpoint) {
+        //Swap checkpoint responsibility.
+        assert(!live->pinned_by_checkpoint);
+        live->pinned_by_checkpoint = 1;
+        zombie->pinned_by_checkpoint = 0;
+    }
+
     struct swap_brt_extra swap = {.live = live, .zombie = zombie};
     int r = toku_omt_iterate(zombie->txns, swap_brt, &swap);
     assert(r==0);
@@ -368,6 +375,7 @@ int toku_txn_note_swap_brt (BRT live, BRT zombie) {
 
     //Close immediately.
     assert(zombie->close_db);
+    assert(!toku_brt_zombie_needed(zombie));
     r = zombie->close_db(zombie->db, zombie->close_flags);
     return r;
 }
@@ -406,7 +414,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
         brt->h->txnid_that_created_or_locked_when_empty = 0;
     }
-    if (toku_omt_size(brt->txns)==0 && brt->was_closed) {
+    if (!toku_brt_zombie_needed(brt) && brt->was_closed) {
         //Close immediately.
         assert(brt->close_db);
         r = brt->close_db(brt->db, brt->close_flags);
