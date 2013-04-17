@@ -1513,7 +1513,7 @@ parse_uint64(struct arg_type *type, int *extra_args_consumed, int argc, char *co
     char *endptr;
     unsigned long long int result = strtoull(argv[2], &endptr, 0);
     if (*endptr != '\0') {
-        return errno;
+        return EINVAL;
     }
     if (result < type->min.u64 || result > type->max.u64) {
         return ERANGE;
@@ -1537,7 +1537,7 @@ parse_int64(struct arg_type *type, int *extra_args_consumed, int argc, char *con
     char *endptr;
     long long int result = strtoll(argv[2], &endptr, 0);
     if (*endptr != '\0') {
-        return errno;
+        return EINVAL;
     }
     if (result < type->min.i64 || result > type->max.i64) {
         return ERANGE;
@@ -1561,7 +1561,7 @@ parse_uint32(struct arg_type *type, int *extra_args_consumed, int argc, char *co
     char *endptr;
     unsigned long int result = strtoul(argv[2], &endptr, 0);
     if (*endptr != '\0') {
-        return errno;
+        return EINVAL;
     }
     if (result < type->min.u32 || result > type->max.u32) {
         return ERANGE;
@@ -1585,7 +1585,7 @@ parse_int32(struct arg_type *type, int *extra_args_consumed, int argc, char *con
     char *endptr;
     long int result = strtol(argv[2], &endptr, 0);
     if (*endptr != '\0') {
-        return errno;
+        return EINVAL;
     }
     if (result < type->min.i32 || result > type->max.i32) {
         return ERANGE;
@@ -1609,7 +1609,7 @@ parse_double(struct arg_type *type, int *extra_args_consumed, int argc, char *co
     char *endptr;
     double result = strtod(argv[2], &endptr);
     if (*endptr != '\0') {
-        return errno;
+        return EINVAL;
     }
     if (result < type->min.d || result > type->max.d) {
         return ERANGE;
@@ -1760,6 +1760,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
                     int extra_args_consumed;
                     resultcode = ARG_PARSE(type, &extra_args_consumed, argc, argv);
                     if (resultcode) {
+                        fprintf(stderr, "ERROR PARSING [%s]\n", argv[1]);
                         do_usage(argv0, num_arg_types, arg_types);
                         exit(resultcode);
                     }
