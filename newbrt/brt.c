@@ -2995,7 +2995,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     assert(t->h);
     if (t->did_set_descriptor) {
-        if (t->h->descriptor.dbt.size!=t->temp_descriptor.dbt.size ||
+        if (t->h->descriptor.version!=t->temp_descriptor.version ||
+            t->h->descriptor.dbt.size!=t->temp_descriptor.dbt.size ||
             memcmp(t->h->descriptor.dbt.data, t->temp_descriptor.dbt.data, t->temp_descriptor.dbt.size)) {
             if (t->temp_descriptor.version <= t->h->descriptor.version) {
                 //Changing descriptor requires upping the version.
