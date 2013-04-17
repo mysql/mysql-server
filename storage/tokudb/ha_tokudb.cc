@@ -2629,7 +2629,7 @@ cleanup:
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     int error;
-    u_int32_t flags = lock_grabbed ? (DB_PREV | DB_PRELOCKED) : DB_NEXT;
+    u_int32_t flags = lock_grabbed ? (DB_PREV | DB_PRELOCKED) : DB_PREV;
     CHECK_VALID_CURSOR();
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
