@@ -3639,6 +3639,8 @@ void ha_tokudb::set_main_dict_put_flags(
     ) 
 {
     u_int32_t old_prelock_flags = (*put_flags)&(DB_PRELOCKED_FILE_READ);
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    bool in_hot_index = share->num_DBs > curr_num_DBs;
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
@@ -3661,13 +3663,13 @@ void ha_tokudb::set_main_dict_put_flags(
         *put_flags = DB_YESOVERWRITE|old_prelock_flags;
     }
     else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_replace_into(thd)
+        is_replace_into(thd)  && !in_hot_index
         ) 
     {
         *put_flags = DB_YESOVERWRITE|old_prelock_flags;
     }
     else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_insert_ignore(thd) && no_overwrite_no_error_allowed
+        is_insert_ignore(thd) && no_overwrite_no_error_allowed && !in_hot_index
         ) 
     {
         *put_flags = DB_NOOVERWRITE_NO_ERROR|old_prelock_flags;
