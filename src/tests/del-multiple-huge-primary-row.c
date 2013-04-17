@@ -139,11 +139,13 @@ run_test(int ndbs, int nrows) {
     for (int dbnum = 0; dbnum < ndbs; dbnum++) {
         r = db_create(&db[dbnum], env, 0); assert_zero(r);
 
-        DBT dbt_dbnum; dbt_init(&dbt_dbnum, &dbnum, sizeof dbnum);
-        r = db[dbnum]->set_descriptor(db[dbnum], 1, &dbt_dbnum); assert_zero(r);
-
         char dbname[32]; sprintf(dbname, "%d.tdb", dbnum);
         r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+
+        DBT dbt_dbnum; dbt_init(&dbt_dbnum, &dbnum, sizeof dbnum);
+        IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+            CHK(db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0));
+        });
     }
 
     for (int dbnum = 0; dbnum < ndbs; dbnum++) {

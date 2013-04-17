@@ -132,12 +132,16 @@ typedef struct __toku_engine_status {
   u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ 
   u_int64_t        updates;                 /* ydb row update operations              */ 
   u_int64_t        updates_fail;            /* ydb row update operations that failed  */ 
+  u_int64_t        updates_broadcast;       /* ydb row update broadcast operations              */ 
+  u_int64_t        updates_broadcast_fail;  /* ydb row update broadcast operations that failed  */ 
   u_int64_t        multi_inserts;           /* ydb multi_row insert operations, dictionaray count             */ 
   u_int64_t        multi_inserts_fail;      /* ydb multi_row insert operations that failed, dictionary count  */ 
   u_int64_t        multi_deletes;           /* ydb multi_row delete operations, dictionary count              */ 
   u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ 
   u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ 
   u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ 
+  u_int64_t        le_updates;              /* leafentry update operations                        */ 
+  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
@@ -245,6 +249,7 @@ typedef enum {
 #define DB_CURRENT_BINDING 253
 #define DB_SET_RANGE_REVERSE 252
 #define DB_RMW 1073741824
+#define DB_IS_RESETTING_OP 0x01000000
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
 #define DB_PRELOCKED_FILE_READ 0x00200000
@@ -323,6 +328,7 @@ struct __toku_db_env {
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
   int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max);
+  void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);
@@ -366,7 +372,6 @@ struct __toku_dbt {
   u_int32_t flags;
 };
 typedef struct __toku_descriptor {
-    u_int32_t version;
     DBT       dbt;
 } *DESCRIPTOR, DESCRIPTOR_S;
 //One header is included in 'data'
@@ -395,7 +400,7 @@ struct __toku_db {
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
-  int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */;
+  int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
@@ -403,6 +408,8 @@ struct __toku_db {
   int (*set_indexer)(DB*, DB_INDEXER*);
   void (*get_indexer)(DB*, DB_INDEXER**);
   int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);
+  int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags);
+  int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags);
   void *api_internal;
   int (*close) (DB*, u_int32_t);
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t);

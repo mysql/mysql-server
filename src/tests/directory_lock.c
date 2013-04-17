@@ -16,6 +16,15 @@ del_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribut
     return 0;
 }
 
+static int update_fun(DB *UU(db),
+                      const DBT *UU(key),
+                      const DBT *UU(old_val), const DBT *UU(extra),
+                      void UU((*set_val)(const DBT *new_val,
+                                      void *set_extra)),
+                      void *UU(set_extra)) {
+    return 0;
+}
+
 static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     int r;
     DB_TXN* txn = NULL;
@@ -126,17 +135,53 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
+    
+    DBT extra_up;
+    dbt_init(&extra_up, NULL, 0);
+
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->update(
+        db, 
+        txn, 
+        &key, 
+        &extra_up, 
+        0
+        ); 
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->update_broadcast(db, txn, &extra_up, 0);
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->update_broadcast(db, txn, &extra_up, DB_IS_RESETTING_OP);
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
+
 }
 
 static void verify_excl_ops_fail(DB_ENV* env, DB* db) {
     DB_TXN* txn = NULL;
     int r; 
+    DBT extra_up;
+    dbt_init(&extra_up, NULL, 0);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = db->pre_acquire_fileops_lock(db, txn);
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->update_broadcast(db, txn, &extra_up, DB_IS_RESETTING_OP);
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->change_descriptor(db, txn, &extra_up, 0);
+    CKERR2(r, DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
 }
 
 
@@ -171,6 +216,7 @@ int test_main (int argc, char * const argv[]) {
     CKERR(r);
     r = env->set_generate_row_callback_for_del(env, del_multiple_callback);
     CKERR(r);
+    env->set_update(env, update_fun);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
     DB* db;
@@ -249,7 +295,7 @@ int test_main (int argc, char * const argv[]) {
     r = db->put(db, txna, &key, &val, 0);       CKERR(r);
     dbt_init(&key, "b", 4);
     dbt_init(&val, "b", 4);
-    r = db->put(db, txna, &key, &val, 0);       CKERR(r);
+    r = db->put(db, txnb, &key, &val, 0);       CKERR(r);
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
@@ -259,10 +305,38 @@ int test_main (int argc, char * const argv[]) {
     dbt_init(&key, "a", 4);
     r = db->del(db, txna, &key, DB_DELETE_ANY); CKERR(r);
     dbt_init(&key, "b", 4);
-    r = db->del(db, txna, &key, DB_DELETE_ANY); CKERR(r);
+    r = db->del(db, txnb, &key, DB_DELETE_ANY); CKERR(r);
     verify_excl_ops_fail(env,db);
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
+
+
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
+    dbt_init(&key, "a", 4);
+    r = db->update(db, txna, &key, &val, 0); CKERR(r);
+    dbt_init(&key, "b", 4);
+    r = db->update(db, txnb, &key, &val, 0); CKERR(r);
+    verify_excl_ops_fail(env,db);
+    r = txna->abort(txna); CKERR(r);
+    r = txnb->abort(txnb); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = db->update_broadcast(db, txna, &val, 0); CKERR(r);
+    verify_excl_ops_fail(env,db);
+    r = txna->abort(txna); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = db->update_broadcast(db, txna, &val, DB_IS_RESETTING_OP); CKERR(r);
+    verify_shared_ops_fail(env,db);
+    r = txna->abort(txna); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = db->change_descriptor(db, txna, &val, 0); CKERR(r);
+    verify_shared_ops_fail(env,db);
+    r = txna->abort(txna); CKERR(r);
+
+
 
     u_int32_t flags = DB_YESOVERWRITE;
 

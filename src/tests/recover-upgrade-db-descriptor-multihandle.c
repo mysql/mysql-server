@@ -20,10 +20,7 @@ uint32_t forced_version = 2;
 static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     assert(db);
     assert(db->descriptor);
-    uint32_t version = db->descriptor->version;
-    assert(version > 0);
-    assert(version == forced_version);
-    uint32_t which = version-1;
+    uint32_t which = forced_version-1;
     size_t len = strlen(descriptor_contents[which])+1;
 
     assert(db->descriptor->dbt.size == len);
@@ -37,12 +34,14 @@ static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
 #endif
 
 static void
-set_descriptor(DB* db, int which) {
+change_descriptor(DB* db, int which, DB_ENV* env) {
 #if USE_TDB
     DBT descriptor;
     size_t len = strlen(descriptor_contents[which])+1;
     dbt_init(&descriptor, descriptor_contents[which], len);
-    int r = db->set_descriptor(db, which+1, &descriptor);  CKERR(r);
+    IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+        CHK(db->change_descriptor(db, txn_desc, &descriptor, 0));
+    });
 #endif
 }
 
@@ -62,12 +61,12 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
-    set_descriptor(dba, 0);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    change_descriptor(dba, 0, env);
 
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    set_descriptor(dbb, 1);
     r = dbb->open(dbb, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    change_descriptor(dbb, 1, env);
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {

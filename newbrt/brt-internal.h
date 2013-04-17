@@ -209,25 +209,10 @@ struct brt {
     unsigned int nodesize;
     unsigned int flags;
     BOOL did_set_flags;
-    BOOL did_set_descriptor;
-    DESCRIPTOR_S temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
 
-    // When an upsert message arrives it contains a key, a value (upserted_val), and an extra DBT (upserted_extra).
-    // If there is no such key in the database, then the upserted value is inserted.
-    // If there is such a key in the database, then there is associated with that key another value (prev_val).
-    // The system calls upsert_fun(DB, upserted_value, upserted_extra, prev_val, set_val, set_extra)
-    // where set_val and set_extra are provided by the system.
-    // The upsert_fun can look at the DBTs and the DB (to get the db descriptor) and perform one of the following actions:
-    //  a) It can return DB_DELETE_UPSERT (which is defined in db.h).  In this case, the system deletes the key-value pair.
-    //  b) OR it can return call set_val(new_val, set_extra),
-    //     where new_val is the dbt that was passed in.  The set_val function will copy anything it needs out of new_val, so the memory pointed
-    //     to by new_val may be stack allocated by upsert_fun (or it may be malloced, in which case upsert_fun should free that memory).
-    // Notes: 
-    //   1) The DBTs passed to upsert_fun may point to memory that will be freed after the upsert_fun returns.
-    //   2) Furtheremore, there is likely to be some sort of lock held when upsert_fun is called.
-    // Those notes should not matter, since the upsert_fun should essentially be a pure function of the DBTs and DB descriptor passed in.
-    int (*upsert_fun)(DB*, const DBT*key, const DBT *upserted_val, const DBT *upserted_extra, const DBT *prev_val,
+    int (*update_fun)(DB*,
+		      const DBT*key, const DBT *old_val, const DBT *extra,
 		      void (*set_val)(const DBT *new_val, void*set_extra), void *set_extra);
 
     DB *db;           // To pass to the compare fun, and close once transactions are done.
@@ -271,7 +256,7 @@ void toku_brtnode_free (BRTNODE *node);
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
 
 // append a cmd to a nonleaf node child buffer
-void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, DBT *key, DBT *val);
+void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, const DBT *key, const DBT *val);
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
@@ -333,7 +318,7 @@ struct brt_cursor {
 // logs the memory allocation, but not the creation of the new node
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize);
 int toku_unpin_brtnode (BRT brt, BRTNODE node);
-unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t);
+unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t);
 
 /* Stuff for testing */
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
@@ -398,7 +383,20 @@ typedef struct le_status {
 
 void toku_le_get_status(LE_STATUS);
 
+typedef struct update_status {
+    u_int64_t updates;
+    u_int64_t updates_broadcast;
+} UPDATE_STATUS_S, *UPDATE_STATUS;
+
+void toku_update_get_status(UPDATE_STATUS);
+
+
 int brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd, u_int32_t idx, LEAFENTRY le, TOKULOGGER logger);
+
+void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
+// Reset the root_xid_that_created field to the given value.  
+// This redefines which xid created the dictionary.
+
 
 C_END
 

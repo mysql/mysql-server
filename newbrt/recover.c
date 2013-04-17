@@ -177,6 +177,7 @@ struct recover_env {
     CACHETABLE ct;
     TOKULOGGER logger;
     brt_compare_func bt_compare;
+    brt_update_func update_function;
     generate_row_for_put_func generate_row_for_put;
     generate_row_for_del_func generate_row_for_del;
     struct scan_state ss;
@@ -186,6 +187,7 @@ struct recover_env {
 typedef struct recover_env *RECOVER_ENV;
 
 static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare,
+                             brt_update_func update_function,
                              generate_row_for_put_func generate_row_for_put,
                              generate_row_for_del_func generate_row_for_del,
                              size_t cachetable_size) {
@@ -198,6 +200,7 @@ static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare,
     toku_logger_write_log_files(renv->logger, FALSE);
     toku_logger_set_cachetable(renv->logger, renv->ct);
     renv->bt_compare = bt_compare;
+    renv->update_function = update_function;
     renv->generate_row_for_put = generate_row_for_put;
     renv->generate_row_for_del = generate_row_for_del;
     file_map_init(&renv->fmap);
@@ -238,7 +241,7 @@ static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags, 
-                                              u_int32_t descriptor_version, BYTESTRING* descriptor, TOKUTXN txn, uint32_t nodesize, LSN max_acceptable_lsn) {
+                                               TOKUTXN txn, uint32_t nodesize, LSN max_acceptable_lsn) {
     int r;
     char *iname = fixup_fname(bs_iname);
 
@@ -260,21 +263,18 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
 	assert(r == 0);
     }
 
+    if (renv->update_function) {
+        r = toku_brt_set_update(brt, renv->update_function);
+        assert(r == 0);
+    }
+
     // TODO mode (FUTURE FEATURE)
     mode = mode;
 
     //Create fake DB for comparison functions.
     DB *XCALLOC(fake_db);
-    if (descriptor_version > 0) {
-        DBT descriptor_dbt;
-        toku_fill_dbt(&descriptor_dbt, descriptor->data, descriptor->len);
-        r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt);
-        if (r != 0) goto close_brt;
-    }
     r = toku_brt_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, fake_db, filenum, max_acceptable_lsn);
     if (r != 0) {
-    close_brt:
-        ;
         //Note:  If brt_open fails, then close_brt will NOT write a header to disk.
         //No need to provide lsn
         int rr = toku_close_brt(brt, NULL); assert(rr == 0);
@@ -417,7 +417,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
 	    LSN max_acceptable_lsn = MAX_LSN;
 	    if (rollback_file)
 		max_acceptable_lsn = renv->ss.checkpoint_begin_lsn;
-	    r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, 0, NULL, NULL, 0, max_acceptable_lsn);
+	    r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, max_acceptable_lsn);
 	    if (r==0 && rollback_file) {
 		//Load rollback cachefile
 		r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -646,7 +646,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     toku_free(iname);
 
     BOOL must_create = TRUE;
-    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, l->nodesize, MAX_LSN);
+    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, txn, l->nodesize, MAX_LSN);
     return r;
 }
 
@@ -666,14 +666,12 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     assert(r==DB_NOTFOUND);
 
     BOOL must_create = FALSE;
-    uint32_t descriptor_version = 0;
-    BYTESTRING *descriptor = NULL;
     TOKUTXN txn = NULL;
     char *fname = fixup_fname(&l->iname);
 
     if (strcmp(fname, ROLLBACK_CACHEFILE_NAME)) {
         //Rollback cachefile can only be opened via fassociate.
-        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, descriptor_version, descriptor, txn, 0, MAX_LSN);
+        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, txn, 0, MAX_LSN);
     }
     toku_free(fname);
     return r;
@@ -684,28 +682,39 @@ static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), RECOVER_ENV
     return 0;
 }
 
-static int toku_recover_fdescriptor (struct logtype_fdescriptor *l, RECOVER_ENV renv) {
+static int toku_recover_change_fdescriptor (struct logtype_change_fdescriptor *l, RECOVER_ENV renv) {
     int r;
     struct file_map_tuple *tuple = NULL;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
     if (r==0) {
+        TOKUTXN txn = NULL;
         //Maybe do the descriptor (lsn filter)
-        LSN treelsn = toku_brt_checkpoint_lsn(tuple->brt);
-        if (l->lsn.lsn > treelsn.lsn) {
-            //Upgrade descriptor.
-            assert(tuple->brt->h->descriptor.version < l->descriptor_version); //Must be doing an upgrade.
-            DESCRIPTOR_S d;
-            d.version = l->descriptor_version;
-            toku_fill_dbt(&d.dbt, toku_xmemdup(l->descriptor.data, l->descriptor.len), l->descriptor.len);
-            r = toku_maybe_upgrade_descriptor(tuple->brt, &d, FALSE, NULL);
-            assert(r==0);
-        }
+        r = toku_txnid2txn(renv->logger, l->xid, &txn);
+        assert(r == 0);
+        DBT old_descriptor, new_descriptor;
+        toku_fill_dbt(
+            &old_descriptor, 
+            l->old_descriptor.data, 
+            l->old_descriptor.len
+            );
+        toku_fill_dbt(
+            &new_descriptor, 
+            l->new_descriptor.data, 
+            l->new_descriptor.len
+            );
+        r = toku_change_descriptor(
+            tuple->brt, 
+            &old_descriptor, 
+            &new_descriptor, 
+            FALSE, 
+            txn
+            );
+        assert(r==0);
     }    
     return 0;
 }
 
-static int toku_recover_backward_fdescriptor (struct logtype_fdescriptor *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
+static int toku_recover_backward_change_fdescriptor (struct logtype_change_fdescriptor *UU(l), RECOVER_ENV UU(renv)) {
     return 0;
 }
 
@@ -952,6 +961,55 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
 }
 
 static int toku_recover_backward_enq_delete_multiple (struct logtype_enq_delete_multiple *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_enq_update(struct logtype_enq_update *l, RECOVER_ENV renv) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    assert(txn != NULL);
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    if (r == 0) {
+        // Maybe do the update if we found the cachefile.
+        DBT key, extra;
+        toku_fill_dbt(&key, l->key.data, l->key.len);
+        toku_fill_dbt(&extra, l->extra.data, l->extra.len);
+        r = toku_brt_maybe_update(tuple->brt, &key, &extra, txn, TRUE, l->lsn,
+                                  FALSE);
+        assert(r == 0);
+    }
+    return 0;
+}
+
+static int toku_recover_enq_updatebroadcast(struct logtype_enq_updatebroadcast *l, RECOVER_ENV renv) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    assert(txn != NULL);
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    if (r == 0) {
+        // Maybe do the update broadcast if we found the cachefile.
+        DBT extra;
+        toku_fill_dbt(&extra, l->extra.data, l->extra.len);
+        r = toku_brt_maybe_update_broadcast(tuple->brt, &extra, txn, TRUE,
+                                            l->lsn, FALSE, l->is_resetting_op);
+        assert(r == 0);
+    }
+    return 0;
+}
+
+static int toku_recover_backward_enq_update(struct logtype_enq_update *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_backward_enq_updatebroadcast(struct logtype_enq_updatebroadcast *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }
@@ -1338,6 +1396,7 @@ toku_recover_unlock(int lockfd) {
 
 int tokudb_recover(const char *env_dir, const char *log_dir,
                    brt_compare_func bt_compare,
+                   brt_update_func update_function,
                    generate_row_for_put_func generate_row_for_put,
                    generate_row_for_del_func generate_row_for_del,
                    size_t cachetable_size) {
@@ -1352,6 +1411,7 @@ int tokudb_recover(const char *env_dir, const char *log_dir,
     if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
         r = recover_env_init(&renv, bt_compare,
+                             update_function,
                              generate_row_for_put,
                              generate_row_for_del,
                              cachetable_size);

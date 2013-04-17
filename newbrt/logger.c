@@ -854,13 +854,12 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 }
 
 // fname is the iname
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, DESCRIPTOR descriptor_p, u_int32_t nodesize) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, u_int32_t nodesize) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs_fname = { .len=strlen(fname), .data = (char *) fname };
-    BYTESTRING bs_descriptor = { .len=descriptor_p->dbt.size, .data = descriptor_p->dbt.data };
     // fsync log on fcreate
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, descriptor_p->version, bs_descriptor, nodesize);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize);
     return r;
 }
 
@@ -872,15 +871,6 @@ int toku_logger_log_fdelete (TOKUTXN txn, const char *fname) {
     BYTESTRING bs = { .len=strlen(fname), .data = (char *) fname };
     //No fsync.
     int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs);
-    return r;
-}
-
-// fname is the iname
-int toku_logger_log_descriptor (TOKUTXN txn, FILENUM filenum, DESCRIPTOR descriptor_p) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs_descriptor = { .len=descriptor_p->dbt.size, .data = descriptor_p->dbt.data };
-    int r = toku_log_fdescriptor (txn->logger, (LSN*)0, 1, filenum, descriptor_p->version, bs_descriptor);
     return r;
 }
 

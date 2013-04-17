@@ -25,11 +25,13 @@ static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
 #endif
 
 static void
-set_descriptor(DB* db) {
+change_descriptor(DB_ENV* env, DB* db) {
 #if USE_TDB
     DBT descriptor;
     dbt_init(&descriptor, descriptor_contents, sizeof(descriptor_contents));
-    int r = db->set_descriptor(db, 1, &descriptor);                 CKERR(r);
+    IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+        CHK(db->change_descriptor(db, txn_desc, &descriptor, 0));
+      });
 #endif
 }
 
@@ -48,12 +50,12 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
 #endif
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     r = db_create(&dba, env, 0);                                                        CKERR(r);
-    set_descriptor(dba);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    change_descriptor(env, dba);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    set_descriptor(dbb);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
+    change_descriptor(env, dbb);
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
 	DBT a={.data="a", .size=2};

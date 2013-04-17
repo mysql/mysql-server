@@ -21,6 +21,7 @@ extern "C" {
 // Returns 0 if success
 int tokudb_recover (const char *env_dir, const char *log_dir,
                     brt_compare_func bt_compare,
+                    brt_update_func update_function,
                     generate_row_for_put_func       generate_row_for_put,
                     generate_row_for_del_func       generate_row_for_del,
                     size_t cachetable_size);

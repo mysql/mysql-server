@@ -332,19 +332,19 @@ fixup_child_estimates (BRTNODE node, int childnum_of_node, BRTNODE child)
     if (child->height>0) {
         int i;
         for (i=0; i<child->u.n.n_children; i++) {
-	    struct subtree_estimates *child_se = &BNC_SUBTREE_ESTIMATES(child,i);
-	    estimates.nkeys += child_se->nkeys;
-	    estimates.ndata += child_se->ndata;
-	    estimates.dsize += child_se->dsize;
-	    if (!child_se->exact) estimates.exact = FALSE;
-	    if (toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) estimates.exact=FALSE;
+            struct subtree_estimates *child_se = &BNC_SUBTREE_ESTIMATES(child,i);
+            estimates.nkeys += child_se->nkeys;
+            estimates.ndata += child_se->ndata;
+            estimates.dsize += child_se->dsize;
+            if (!child_se->exact) estimates.exact = FALSE;
+            if (toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) estimates.exact=FALSE;
         }
     } else {
-	estimates = child->u.l.leaf_stats;
+        estimates = child->u.l.leaf_stats;
 #ifdef SLOWSLOW
-	lazy_assert(estimates.ndata == child->u.l.leaf_stats.ndata);
-	struct fill_leafnode_estimates_state s = {&estimates, (OMTVALUE)NULL};
-	toku_omt_iterate(child->u.l.buffer, fill_leafnode_estimates, &s);
+        lazy_assert(estimates.ndata == child->u.l.leaf_stats.ndata);
+        struct fill_leafnode_estimates_state s = {&estimates, (OMTVALUE)NULL};
+        toku_omt_iterate(child->u.l.buffer, fill_leafnode_estimates, &s);
 #endif
     }
     // We only call this function if we have reason to believe that the child changed.
@@ -363,7 +363,7 @@ toku_verify_estimates (BRT t, BRTNODE node) {
             int r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &childnode_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
             lazy_assert_zero(r);
             BRTNODE childnode = childnode_v;
-	    // we'll just do this estimate
+            // we'll just do this estimate
             u_int64_t child_estimate = 0;
             if (childnode->height==0) {
                 child_estimate = toku_omt_size(childnode->u.l.buffer);
@@ -441,21 +441,21 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     lazy_assert(brtnode->thisnodename.b==nodename.b);
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
-	    int n_workitems, n_threads; 
-	    toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
-	    int r = toku_serialize_brtnode_to(fd, brtnode->thisnodename, brtnode, h, n_workitems, n_threads, for_checkpoint);
-	    if (r) {
-		if (h->panic==0) {
-		    char *e = strerror(r);
-		    int   l = 200 + strlen(e);
-		    char s[l];
-		    h->panic=r;
-		    snprintf(s, l-1, "While writing data to disk, error %d (%s)", r, e);
-		    h->panic_string = toku_strdup(s);
-		}
-	    }
-	}
+        if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
+            int n_workitems, n_threads; 
+            toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
+            int r = toku_serialize_brtnode_to(fd, brtnode->thisnodename, brtnode, h, n_workitems, n_threads, for_checkpoint);
+            if (r) {
+                if (h->panic==0) {
+                    char *e = strerror(r);
+                    int   l = 200 + strlen(e);
+                    char s[l];
+                    h->panic=r;
+                    snprintf(s, l-1, "While writing data to disk, error %d (%s)", r, e);
+                    h->panic_string = toku_strdup(s);
+                }
+            }
+        }
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -466,14 +466,14 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 
 //fd is protected (must be holding fdlock)
 int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, 
-				 void **brtnode_pv, long *sizep, int *dirtyp, void *extraargs) {
+                                 void **brtnode_pv, long *sizep, int *dirtyp, void *extraargs) {
     lazy_assert(extraargs);
     struct brt_header *h = extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, h);
     if (r == 0) {
         *sizep = brtnode_memory_size(*result);
-	*dirtyp = (*result)->dirty;
+        *dirtyp = (*result)->dirty;
     }
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
@@ -486,8 +486,8 @@ leafval_heaviside_le (u_int32_t klen, void *kval,
     BRT t = be->t;
     DBT dbt;
     return t->compare_fun(t->db,
-			  toku_fill_dbt(&dbt, kval, klen),
-			  be->cmd->u.id.key);
+                          toku_fill_dbt(&dbt, kval, klen),
+                          be->cmd->u.id.key);
 }
 
 //TODO: #1125 optimize
@@ -502,7 +502,7 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
 }
 
 static int
-brt_compare_pivot(BRT brt, DBT *key, bytevec ck)
+brt_compare_pivot(BRT brt, const DBT *key, bytevec ck)
 {
     int cmp;
     DBT mydbt;
@@ -638,8 +638,8 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
         n->u.n.childinfos=0;
         n->u.n.childkeys=0;
     } else {
-	n->u.l.leaf_stats = zero_estimates;
-	n->u.l.optimized_for_upgrade = 0;
+        n->u.l.leaf_stats = zero_estimates;
+        n->u.l.optimized_for_upgrade = 0;
         int r;
         r = toku_omt_create(&n->u.l.buffer);
         lazy_assert_zero(r);
@@ -847,31 +847,31 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         {
             u_int32_t i;
             u_int32_t diff_size = 0;
-	    struct subtree_estimates diff_est = zero_estimates;
-	    LEAFENTRY *MALLOC_N(n_leafentries-split_at, free_us);
+            struct subtree_estimates diff_est = zero_estimates;
+            LEAFENTRY *MALLOC_N(n_leafentries-split_at, free_us);
             for (i=split_at; i<n_leafentries; i++) {
                 LEAFENTRY oldle = leafentries[i];
                 LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
                 lazy_assert(newle!=0); // it's a fresh mpool, so this should always work.
-		diff_est.nkeys++;
-		diff_est.ndata++;
-		diff_est.dsize += le_keylen(oldle) + le_latest_vallen(oldle);
-		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_latest_vallen(oldle), diff_est.dsize);
+                diff_est.nkeys++;
+                diff_est.ndata++;
+                diff_est.dsize += le_keylen(oldle) + le_latest_vallen(oldle);
+                //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_latest_vallen(oldle), diff_est.dsize);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
-		free_us[i-split_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
+                free_us[i-split_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
                 leafentries[i] = newle;
-	    }
+            }
             for (i=split_at; i<n_leafentries; i++) {
-		LEAFENTRY oldle = free_us[i-split_at];
+                LEAFENTRY oldle = free_us[i-split_at];
                 toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
-	    }
-	    toku_free(free_us);
+            }
+            toku_free(free_us);
             node->u.l.n_bytes_in_buffer -= diff_size;
             B   ->u.l.n_bytes_in_buffer += diff_size;
-	    subtract_estimates(&node->u.l.leaf_stats, &diff_est);
-	    add_estimates     (&B->u.l.leaf_stats,    &diff_est);
-	    //printf("%s:%d After subtracint and adding got %lu and %lu\n", __FILE__, __LINE__, node->u.l.leaf_stats.dsize, B->u.l.leaf_stats.dsize);
+            subtract_estimates(&node->u.l.leaf_stats, &diff_est);
+            add_estimates     (&B->u.l.leaf_stats,    &diff_est);
+            //printf("%s:%d After subtracint and adding got %lu and %lu\n", __FILE__, __LINE__, node->u.l.leaf_stats.dsize, B->u.l.leaf_stats.dsize);
         }
         if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+split_at, n_leafentries-split_at))) return r;
         if ((r = toku_omt_create_steal_sorted_array(&node->u.l.buffer, &leafentries,          split_at, n_leafentries))) return r;
@@ -882,8 +882,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 
         toku_omt_destroy(&old_omt);
 
-	node->u.l.leaf_stats = calc_leaf_stats(node);
-	B   ->u.l.leaf_stats = calc_leaf_stats(B   );
+        node->u.l.leaf_stats = calc_leaf_stats(node);
+        B   ->u.l.leaf_stats = calc_leaf_stats(B   );
     }
 
     //toku_verify_gpma(node->u.l.buffer);
@@ -894,8 +894,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev, NULL);
         lazy_assert_zero(r); // that fetch should have worked.
         LEAFENTRY le=lev;
-	splitk->size = le_keylen(le);
-	splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
+        splitk->size = le_keylen(le);
+        splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
         splitk->flags=0;
     }
     lazy_assert(r == 0);
@@ -1042,7 +1042,7 @@ static int
 handle_split_of_child (BRT t, BRTNODE node, int childnum,
                        BRTNODE childa, BRTNODE childb,
                        DBT *splitk /* the data in the childsplitk is alloc'd and is consumed by this call. */
-		       )
+                       )
 {
     lazy_assert(node->height>0);
     lazy_assert(0 <= childnum && childnum < node->u.n.n_children);
@@ -1143,18 +1143,18 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
         if (re != RE_FISSIBLE) return 0;
     }
     {
-	void *childnode_v;
-	int r = toku_cachetable_get_and_pin(t->cf,
-					    BNC_BLOCKNUM(node, childnum),
-					    compute_child_fullhash(t->cf, node, childnum),
-					    &childnode_v,
-					    NULL,
-					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback,
-					    t->h);
-	if (r!=0) return r;
-	child = childnode_v;
-	lazy_assert(child->thisnodename.b!=0);
-	VERIFY_NODE(t,child);
+        void *childnode_v;
+        int r = toku_cachetable_get_and_pin(t->cf,
+                                            BNC_BLOCKNUM(node, childnum),
+                                            compute_child_fullhash(t->cf, node, childnum),
+                                            &childnode_v,
+                                            NULL,
+                                            toku_brtnode_flush_callback, toku_brtnode_fetch_callback,
+                                            t->h);
+        if (r!=0) return r;
+        child = childnode_v;
+        lazy_assert(child->thisnodename.b!=0);
+        VERIFY_NODE(t,child);
     }
 
     BRTNODE nodea, nodeb;
@@ -1188,60 +1188,6 @@ maybe_bump_nkeys (BRTNODE node, int direction) {
     int keybump=direction;
     node->u.l.leaf_stats.nkeys += keybump;;
     lazy_assert(node->u.l.leaf_stats.exact);
-}
-
-static void
-brt_leaf_apply_clean_xids_once (BRTNODE node, LEAFENTRY le)
-// Effect: fully promote leafentry
-//   le is old leafentry (and new one)
-// Requires: is not a provdel
-// Requires: is not fully promoted already
-// Requires: outermost uncommitted xid represented in le HAS been committed (le is out of date)
-// This is equivalent (faster) to brt_leaf_apply_cmd_once where the message is a commit message
-// with an XIDS representing the outermost uncommitted xid in the leafentry.
-{
-    // See brt_leaf_apply_cmd_once().  This function should be similar except that some
-    // meta-data updates are unnecessary.
-
-    // brt_leaf_check_leaf_stats(node);
-
-    //le is being reused.  Statistics about original must be gotten before promotion
-    size_t oldmemsize  = leafentry_memsize(le);
-    size_t olddisksize = oldmemsize;
-#if ULE_DEBUG
-    olddisksize = leafentry_disksize(le);
-    lazy_assert(oldmemsize == olddisksize);
-#endif
-
-    size_t newmemsize;
-    size_t newdisksize;
-    // This function is guaranteed not to malloc nor free anything.
-    // le will be reused, and memory is guaranteed to be reduced.
-    le_clean_xids(le, &newmemsize, &newdisksize);
-
-#if ULE_DEBUG
-    lazy_assert(newmemsize  == leafentry_memsize(le));
-    lazy_assert(newdisksize == leafentry_disksize(le));
-#endif
-
-    //le_keylen + le_latest_vallen(le); does not change.  No need to update leaf stats
-
-    lazy_assert(newmemsize < oldmemsize);
-    size_t size_reclaimed = oldmemsize - newmemsize;
-    u_int8_t *p = NULL;
-#if ULE_DEBUG
-    p = ((u_int8_t*)le) + size_reclaimed; //passing in pointer runs additional verification
-#endif
-    toku_mempool_mfree(&node->u.l.buffer_mempool, p, size_reclaimed);
-
-    node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + olddisksize;
-    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-
-    //le_* functions (accessors) would return same key/keylen/val/vallen.
-    //Therefore no cursor invalidation is needed.
-
-    // brt_leaf_check_leaf_stats(node);
-    node->dirty = 1;
 }
 
 #if DO_IMPLICIT_PROMOTION_ON_QUERY
@@ -1396,20 +1342,20 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
 
     if (le && new_le) {
 
-	// If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
-	{
-	    u_int32_t oldlen = le_keylen(le) + le_latest_vallen(le);
-	    lazy_assert(node->u.l.leaf_stats.dsize >= oldlen);
-	    lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
-	    node->u.l.leaf_stats.dsize -= oldlen;
-	    node->u.l.leaf_stats.dsize += le_keylen(new_le) + le_latest_vallen(new_le); // add it in two pieces to avoid ugly overflow
-	    lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
-	}
+        // If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
+        {
+            u_int32_t oldlen = le_keylen(le) + le_latest_vallen(le);
+            lazy_assert(node->u.l.leaf_stats.dsize >= oldlen);
+            lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+            node->u.l.leaf_stats.dsize -= oldlen;
+            node->u.l.leaf_stats.dsize += le_keylen(new_le) + le_latest_vallen(new_le); // add it in two pieces to avoid ugly overflow
+            lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+        }
 
         node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
         
-	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
-	// the ndata and nkeys remains unchanged
+        //printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
+        // the ndata and nkeys remains unchanged
 
         u_int32_t size = leafentry_memsize(le);
 
@@ -1433,11 +1379,11 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
 
             node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
 
-	    node->u.l.leaf_stats.dsize += le_latest_vallen(new_le) + le_keylen(new_le);
-	    lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
-	    node->u.l.leaf_stats.ndata ++;
-	    // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
-	    maybe_bump_nkeys(node, +1);
+            node->u.l.leaf_stats.dsize += le_latest_vallen(new_le) + le_keylen(new_le);
+            lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+            node->u.l.leaf_stats.ndata ++;
+            // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
+            maybe_bump_nkeys(node, +1);
         }
     }
     r=0;
@@ -1447,6 +1393,115 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
 
     // brt_leaf_check_leaf_stats(node);
 
+    return r;
+}
+
+static const uint32_t setval_tag = 0xee0ccb99; // this was gotten by doing "cat /dev/random|head -c4|od -x" to get a random number.  We want to make sure that the user actually passes us the setval_extra_s that we passed in.
+struct setval_extra_s {
+    u_int32_t  tag;
+    BOOL did_set_val;
+    int  setval_r;    // any error code that setval_fun wants to return goes here.
+    // need arguments for brt_leaf_apply_cmd_once
+    BRTNODE node;
+    XIDS xids;
+    const DBT *key;
+    u_int32_t idx;
+    LEAFENTRY le;
+    TOKULOGGER logger;
+};
+
+/*
+ * If new_val == NULL, we send a delete message instead of an insert.
+ * This happens here instead of in do_delete() for consistency.
+ */
+static void setval_fun (const DBT *new_val, void *svextra_v) {
+    struct setval_extra_s *svextra = svextra_v;
+    assert(svextra->tag==setval_tag);
+    assert(!svextra->did_set_val);
+    svextra->did_set_val = TRUE;
+
+    {
+        // can't leave scope until brt_leaf_apply_cmd_once if
+        // this is a delete
+        DBT val;
+        BRT_MSG_S msg = { BRT_NONE, svextra->xids,
+                          .u.id={svextra->key, NULL} };
+        if (new_val) {
+            msg.type = BRT_INSERT;
+            msg.u.id.val = new_val;
+        } else {
+            msg.type = BRT_DELETE_ANY;
+            toku_init_dbt(&val);
+            msg.u.id.val = &val;
+        }
+        svextra->setval_r = brt_leaf_apply_cmd_once(svextra->node, &msg,
+                                                    svextra->idx, svextra->le,
+                                                    svextra->logger);
+    }
+    svextra->node->dirty = TRUE;
+}
+
+static UPDATE_STATUS_S update_status;
+
+void 
+toku_update_get_status(UPDATE_STATUS s) {
+    *s = update_status;
+}
+
+
+static int do_update(BRT t, BRTNODE node, BRT_MSG cmd, int idx,
+                     LEAFENTRY le, TOKULOGGER logger) {
+    LEAFENTRY le_for_update;
+    DBT key;
+    const DBT *keyp;
+    const DBT *update_function_extra;
+    DBT vdbt;
+    const DBT *vdbtp;
+
+    // the location of data depends whether this is a regular or
+    // broadcast update
+    if (cmd->type == BRT_UPDATE) {
+        // key is passed in with command (should be same as from le)
+        // update function extra is passed in with command
+        (void) toku_sync_fetch_and_increment_uint64(&update_status.updates);
+        keyp = cmd->u.id.key;
+        update_function_extra = cmd->u.id.val;
+    } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
+        // key is not passed in with broadcast, it comes from le
+        // update function extra is passed in with command
+        assert(le);  // for broadcast updates, we just hit all leafentries
+                     // so this cannot be null
+        assert(cmd->u.id.key->size == 0);
+        (void) toku_sync_fetch_and_increment_uint64(&update_status.updates_broadcast);
+        keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
+        update_function_extra = cmd->u.id.val;
+    } else {
+        assert(FALSE);
+    }
+
+    if (le && !le_latest_is_del(le)) {
+        // if the latest val exists, use it, and we'll use the leafentry later
+        u_int32_t vallen;
+        void *valp = le_latest_val_and_len(le, &vallen);
+        vdbtp = toku_fill_dbt(&vdbt, valp, vallen);
+        le_for_update = le;
+    } else {
+        // otherwise, the val and leafentry are both going to be null
+        vdbtp = NULL;
+        le_for_update = NULL;
+    }
+
+    struct setval_extra_s setval_extra = {setval_tag, FALSE, 0, node, cmd->xids,
+                                          keyp, idx, le_for_update, logger};
+    int r = t->update_fun(t->db,
+                          keyp,
+                          vdbtp,
+                          update_function_extra,
+                          setval_fun, &setval_extra);
+
+    // TODO(leif): ensure that really bad return codes actually cause a
+    // crash higher up the stack somewhere
+    if (r == 0) { r = setval_extra.setval_r; }
     return r;
 }
 
@@ -1465,7 +1520,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     LEAFENTRY storeddata;
     OMTVALUE storeddatav=NULL;
 
-    u_int32_t idx;
     u_int32_t omt_size;
     int r;
     struct cmd_leafval_heaviside_extra be = {t, cmd};
@@ -1479,8 +1533,9 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
 
     switch (cmd->type) {
     case BRT_INSERT_NO_OVERWRITE:
-    case BRT_INSERT:
-	node->dirty = 1;
+    case BRT_INSERT: {
+        u_int32_t idx;
+        node->dirty = 1;
         if (doing_seqinsert) {
             idx = toku_omt_size(node->u.l.buffer);
             r = toku_omt_fetch(node->u.l.buffer, idx-1, &storeddatav, NULL);
@@ -1519,10 +1574,11 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
             node->u.l.seqinsert = doing_seqinsert + 1;
         }
         break;
-
+    }
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
-    case BRT_COMMIT_ANY:
+    case BRT_COMMIT_ANY: {
+        u_int32_t idx;
         // Apply to all the matches
 
         r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be,
@@ -1568,50 +1624,16 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
         }
 
         break;
-    case BRT_COMMIT_BROADCAST_ALL:
-        idx = 0;
-        omt_size = toku_omt_size(node->u.l.buffer);
-        for (idx = 0; idx < omt_size; ) {
-            r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL); 
-            lazy_assert_zero(r);
-            storeddata=storeddatav;
-            int deleted = 0;
-            if (!le_is_clean(storeddata)) {
-                // Apply to all leafentries
-                if (le_latest_is_del(storeddata)) {
-                    brt_leaf_delete_leafentry(node, idx, storeddata);
-                    deleted = 1;
-                }
-                else {
-                    //  What this is supposed to do
-                    //  is remove all TXNIDs from the leafentry.  That means
-                    //  it either becomes a clean leafentry (committed insert of txnid 0)
-                    //  or the leafentry is deleted.
-                    //  The first case needs to be implemented, which
-                    //  is somewhat similar to garbage collection, without the algorithm.
-                    //  We just take the newest value (which is an insert since it isn't a provdel)
-                    //  and make a clean leafentry out of that.
-                    brt_leaf_apply_clean_xids_once(node, storeddata);
-                }
-                node->dirty = 1;
-            }
-            if (deleted)
-                omt_size--;
-            else
-                idx++;
-        }
-        lazy_assert(toku_omt_size(node->u.l.buffer) == omt_size);
-
-        break;
+    }
     case BRT_OPTIMIZE_FOR_UPGRADE:
-	node->dirty = 1;
-	node->u.l.optimized_for_upgrade = *((uint32_t*)(cmd->u.id.val->data)); // record version of software that sent the optimize_for_upgrade message
-	// fall through so that optimize_for_upgrade performs rest of the optimize logic
+        node->dirty = 1;
+        node->u.l.optimized_for_upgrade = *((uint32_t*)(cmd->u.id.val->data)); // record version of software that sent the optimize_for_upgrade message
+        // fall through so that optimize_for_upgrade performs rest of the optimize logic
+    case BRT_COMMIT_BROADCAST_ALL:
     case BRT_OPTIMIZE:
         // Apply to all leafentries
-        idx = 0;
         omt_size = toku_omt_size(node->u.l.buffer);
-        for (idx = 0; idx < omt_size; ) {
+        for (u_int32_t idx = 0; idx < omt_size; ) {
             r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL);
             lazy_assert_zero(r);
             storeddata=storeddatav;
@@ -1638,9 +1660,8 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
         // Apply to all leafentries if txn is represented
-        idx = 0;
         omt_size = toku_omt_size(node->u.l.buffer);
-        for (idx = 0; idx < omt_size; ) {
+        for (u_int32_t idx = 0; idx < omt_size; ) {
             r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL); 
             lazy_assert_zero(r);
             storeddata=storeddatav;
@@ -1664,13 +1685,43 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
         lazy_assert(toku_omt_size(node->u.l.buffer) == omt_size);
 
         break;
+    case BRT_UPDATE: {
+        u_int32_t idx;
+        r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be,
+                               &storeddatav, &idx, NULL);
+        if (r==DB_NOTFOUND) {
+            r = do_update(t, node, cmd, idx, NULL, logger);
+        } else if (r==0) {
+            storeddata=storeddatav;
+            r = do_update(t, node, cmd, idx, storeddata, logger);
+        } // otherwise, a worse error, just return it
+        break;
+    }
+    case BRT_UPDATE_BROADCAST_ALL: {
+        // apply to all leafentries.
+        u_int32_t idx = 0;
+        u_int32_t num_leafentries_before;
+        while (idx < (num_leafentries_before = toku_omt_size(node->u.l.buffer))) {
+            r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL);
+            assert(r==0);
+            storeddata=storeddatav;
+            r = do_update(t, node, cmd, idx, storeddata, logger);
+            // TODO(leif): This early return means get_leaf_reactivity()
+            // and VERIFY_NODE() never get called.  Is this a problem?
+            if (r != 0) return r;
 
+            if (num_leafentries_before == toku_omt_size(node->u.l.buffer)) {
+                // we didn't delete something, so increment the index.
+                idx++;
+            }
+        }
+        break;
+    }
     case BRT_NONE: return EINVAL;
     }
     /// All done doing the work
 
     // node->dirty = 1;
-        
 
     *re = get_leaf_reactivity(node);
     VERIFY_NODE(t, node);
@@ -1711,7 +1762,7 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
 
 // append a cmd to a nonleaf node's child buffer
 void
-toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, DBT *key, DBT *val) {
+toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, const DBT *key, const DBT *val) {
     int diff = key->size + val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
     int r = toku_fifo_enq(BNC_BUFFER(node,childnum), key->data, key->size, val->data, val->size, type, xids);
     lazy_assert_zero(r);
@@ -1722,7 +1773,7 @@ toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids,
 
 
 /* find the leftmost child that may contain the key */
-unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t) {
+unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t) {
     lazy_assert(node->height>0);
 #define DO_PIVOT_SEARCH_LR 0
 #if DO_PIVOT_SEARCH_LR
@@ -1827,12 +1878,14 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
+    case BRT_UPDATE:
         return brt_nonleaf_cmd_once(t, node, cmd, re_array, did_io);
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
     case BRT_OPTIMIZE:
     case BRT_OPTIMIZE_FOR_UPGRADE:
+    case BRT_UPDATE_BROADCAST_ALL:
         return brt_nonleaf_cmd_all (t, node, cmd, re_array, did_io);  // send message to all children
     case BRT_NONE:
         break;
@@ -1859,28 +1912,28 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size, 0);
             lazy_assert(new_le);
             memcpy(new_le, le, le_size);
-	    int idx = toku_omt_size(a->u.l.buffer);
+            int idx = toku_omt_size(a->u.l.buffer);
             int r = toku_omt_insert_at(omta, new_le, idx);
             lazy_assert_zero(r);
             a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size; //This should be disksize
 
-	    a->u.l.leaf_stats.ndata++;
-	    maybe_bump_nkeys(a, +1);
-	    a->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), a->u.l.leaf_stats.dsize);
+            a->u.l.leaf_stats.ndata++;
+            maybe_bump_nkeys(a, +1);
+            a->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
+            //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), a->u.l.leaf_stats.dsize);
         }
         {
-	    maybe_bump_nkeys(b, -1);
+            maybe_bump_nkeys(b, -1);
             int r = toku_omt_delete_at(omtb, 0);
             lazy_assert_zero(r);
             b->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
 
-	    b->u.l.leaf_stats.ndata--;
-	    b->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), b->u.l.leaf_stats.dsize);
-	    lazy_assert(b->u.l.leaf_stats.ndata < 1U<<31);
-	    lazy_assert(b->u.l.leaf_stats.nkeys < 1U<<31);
-	    lazy_assert(b->u.l.leaf_stats.dsize < 1U<<31);
+            b->u.l.leaf_stats.ndata--;
+            b->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
+            //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_latest_vallen(le), b->u.l.leaf_stats.dsize);
+            lazy_assert(b->u.l.leaf_stats.ndata < 1U<<31);
+            lazy_assert(b->u.l.leaf_stats.nkeys < 1U<<31);
+            lazy_assert(b->u.l.leaf_stats.dsize < 1U<<31);
 
             toku_mempool_mfree(&b->u.l.buffer_mempool, 0, le_size);
         }
@@ -1903,9 +1956,9 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
     OMT  omtto   = to  ->u.l.buffer;
     lazy_assert(toku_serialize_brtnode_size(to) <= toku_serialize_brtnode_size(from)); // Could be equal in some screwy cases.
     while (toku_serialize_brtnode_size(to) <  toku_serialize_brtnode_size(from)
-	   &&
-	   toku_omt_size(omtfrom)>1 // don't keep rebalancing if there's only one key in the from.
-	   ) {
+           &&
+           toku_omt_size(omtfrom)>1 // don't keep rebalancing if there's only one key in the from.
+           ) {
         int from_idx = move_from_right ? 0                    : toku_omt_size(omtfrom)-1;
         int to_idx   = move_from_right ? toku_omt_size(omtto) : 0;
         LEAFENTRY le = fetch_from_buf(omtfrom, from_idx);
@@ -1916,24 +1969,24 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             memcpy(new_le, le, le_size);
             int r = toku_omt_insert_at(omtto, new_le, to_idx);
             lazy_assert_zero(r);
-	    maybe_bump_nkeys(to, +1);
+            maybe_bump_nkeys(to, +1);
             to  ->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
 
-	    to->u.l.leaf_stats.ndata++;
-	    to->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), to->u.l.leaf_stats.dsize);
+            to->u.l.leaf_stats.ndata++;
+            to->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
+            //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), to->u.l.leaf_stats.dsize);
         }
         {
-	    maybe_bump_nkeys(from, -1);
+            maybe_bump_nkeys(from, -1);
             int r = toku_omt_delete_at(omtfrom, from_idx);
             lazy_assert_zero(r);
             from->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
 
-	    from->u.l.leaf_stats.ndata--;
-	    from->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
-	    lazy_assert(from->u.l.leaf_stats.ndata < 1U<<31);
-	    lazy_assert(from->u.l.leaf_stats.nkeys < 1U<<31);
-	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), from->u.l.leaf_stats.dsize);
+            from->u.l.leaf_stats.ndata--;
+            from->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
+            lazy_assert(from->u.l.leaf_stats.ndata < 1U<<31);
+            lazy_assert(from->u.l.leaf_stats.nkeys < 1U<<31);
+            //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_latest_vallen(le), from->u.l.leaf_stats.dsize);
 
             toku_mempool_mfree(&from->u.l.buffer_mempool, 0, le_size);
         }
@@ -1942,7 +1995,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
     lazy_assert(toku_omt_size(a->u.l.buffer)>0);
     {
         LEAFENTRY le = fetch_from_buf(a->u.l.buffer, toku_omt_size(a->u.l.buffer)-1);
-	*splitk = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
+        *splitk = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
     }
     a->dirty = 1; // make them dirty even if nothing actually happened.
     b->dirty = 1;
@@ -1953,7 +2006,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 
 static int
 maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
-			       BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, 
+                               BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, 
                                BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    
 //         (We do this if the resulting node is not fissible)
@@ -1975,7 +2028,7 @@ maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
         toku_free(parent_splitk); // We don't need the parent_splitk any more.  If we need a splitk (if we don't merge) we'll malloc a new one.
         *did_rebalance = TRUE;
         int r = balance_leaf_nodes(a, b, splitk);
-	if (r != 0) return r;
+        if (r != 0) return r;
     } else {
         // we are merging them.
         *did_merge = TRUE;
@@ -1983,7 +2036,7 @@ maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
         *splitk = 0;
         toku_free(parent_splitk); // if we are merging, the splitk gets freed.
         int r = merge_leaf_nodes(a, b);
-	if (r != 0) return r;
+        if (r != 0) return r;
     }
     fixup_child_estimates(parent, childnum_of_parent,   a);
     fixup_child_estimates(parent, childnum_of_parent+1, b);
@@ -2143,8 +2196,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
             REALLOC_N(node->u.n.n_children-1, node->u.n.childkeys);
             fixup_child_estimates(node, childnuma, childa);
             lazy_assert(node->u.n.childinfos[childnuma].blocknum.b == childa->thisnodename.b);
-	    childa->dirty = 1; // just to make sure
-	    childb->dirty = 1; // just to make sure
+            childa->dirty = 1; // just to make sure
+            childb->dirty = 1; // just to make sure
         } else {
             lazy_assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
@@ -2266,7 +2319,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
 
             //TODO: Factor out (into a function) conversion of fifo_entry to message
             BRT_MSG_S brtcmd = { (enum brt_msg_type)type, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
-									toku_fill_dbt(&hv, val, vallen)} };
+                                                                        toku_fill_dbt(&hv, val, vallen)} };
 
             int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
 
@@ -2326,7 +2379,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd, enum reactivity *re, BOOL *di
         { int i; for (i=0; i<node->u.n.n_children; i++) child_re[i]=RE_STABLE; }
         int r = brt_nonleaf_put_cmd(t, node, cmd, child_re, did_io);
         if (r!=0) goto return_r;
-        // Now we may have overfilled node.  So we'll flush the heaviest child until we are happy.
+        // Now we may have overfilled node.  So we'll flush the heaviest child until we are happy. 
         while (!*did_io                              // Don't flush if we've done I/O.
                && nonleaf_node_is_gorged(node)       // Don't flush if the node is small enough.
                && (node->u.n.n_bytes_in_buffers > 0) // Don't try to flush if everything is flushed.
@@ -2443,29 +2496,12 @@ int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd)
     brt_verify_flags(brt, node);
 
     if ((r = push_something_at_root(brt, &node, rootp, cmd))) {
-	toku_unpin_brtnode(brt, node); // ignore any error code on the unpin.
-	return r;
+        toku_unpin_brtnode(brt, node); // ignore any error code on the unpin.
+        return r;
     }
     r = toku_unpin_brtnode(brt, node);
     lazy_assert(r == 0);
     return 0;
-}
-
-//If this function is ever used for anything other than format upgrade,
-//you MAY need to add a log entry.  If this log entry causes you to re-do the broadcast on
-//recovery, you must NOT log it for the purpose of format upgrade, or it will be sent multiple times.
-int
-toku_brt_broadcast_commit_all (BRT brt)
-// Effect: Commit all leafentries in the brt.
-{
-    int r;
-    XIDS message_xids = xids_get_root_xids();
-    static DBT zero; //Want a zeroed DBT for key, val.  Never changes so can be re-used.
-
-    BRT_MSG_S brtcmd = { BRT_COMMIT_BROADCAST_ALL, message_xids, .u.id={&zero,&zero}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd);
-    if (r!=0) return r;
-    return r;
 }
 
 // Effect: Insert the key-val pair into brt.
@@ -2533,8 +2569,8 @@ brt_optimize (BRT brt, BOOL upgrade) {
 
     TXNID oldest = TXNID_NONE_LIVING;
     if (!upgrade) {
-	TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-	oldest = toku_logger_get_oldest_living_xid(logger, NULL);
+        TOKULOGGER logger = toku_cachefile_logger(brt->cf);
+        oldest = toku_logger_get_oldest_living_xid(logger, NULL);
     }
 
     XIDS root_xids = xids_get_root_xids();
@@ -2552,8 +2588,8 @@ brt_optimize (BRT brt, BOOL upgrade) {
     toku_init_dbt(&key);
     toku_init_dbt(&val);
     if (upgrade) {
-	// maybe there's a better place than the val dbt to put the version, but it seems harmless and is convenient
-	toku_fill_dbt(&val, &this_version, sizeof(this_version));  
+        // maybe there's a better place than the val dbt to put the version, but it seems harmless and is convenient
+        toku_fill_dbt(&val, &this_version, sizeof(this_version));  
         BRT_MSG_S brtcmd = { BRT_OPTIMIZE_FOR_UPGRADE, message_xids, .u.id={&key,&val}};
         r = toku_brt_root_put_cmd(brt, &brtcmd);
     }
@@ -2670,6 +2706,99 @@ toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_vali
     } else {
         r = toku_brt_send_insert(brt, key, val, message_xids, type);
     }
+    return r;
+}
+
+static int
+brt_send_update_msg(BRT brt, BRT_MSG_S *msg, TOKUTXN txn) {
+    msg->xids = (txn
+                 ? toku_txn_get_xids(txn)
+                 : xids_get_root_xids());
+    int r = toku_brt_root_put_cmd(brt, msg);
+    return r;
+}
+
+int
+toku_brt_maybe_update(BRT brt, const DBT *key, const DBT *update_function_extra,
+                      TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
+                      BOOL do_logging) {
+    int r = 0;
+
+    TXNID xid = toku_txn_get_txnid(txn);
+    if (txn) {
+        BYTESTRING keybs = { key->size, key->data };
+        r = toku_logger_save_rollback_cmdupdate(
+            txn, toku_cachefile_filenum(brt->cf), &keybs);
+        if (r != 0) { goto cleanup; }
+        r = toku_txn_note_brt(txn, brt);
+        if (r != 0) { goto cleanup; }
+    }
+
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (do_logging && logger &&
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING extrabs = {.len=update_function_extra->size,
+                              .data=update_function_extra->data};
+        r = toku_log_enq_update(logger, NULL, 0,
+                                toku_cachefile_filenum(brt->cf),
+                                xid, keybs, extrabs);
+        if (r != 0) { goto cleanup; }
+    }
+
+    LSN treelsn;
+    if (oplsn_valid &&
+        oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
+        r = 0;
+    } else {
+        BRT_MSG_S msg = { BRT_UPDATE, NULL,
+                          .u.id = { key, update_function_extra }};
+        r = brt_send_update_msg(brt, &msg, txn);
+    }
+
+cleanup:
+    return r;
+}
+
+int
+toku_brt_maybe_update_broadcast(BRT brt, const DBT *update_function_extra,
+                                TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
+                                BOOL do_logging, BOOL is_resetting_op) {
+    int r = 0;
+
+    TXNID xid = toku_txn_get_txnid(txn);
+    u_int8_t  resetting = is_resetting_op ? 1 : 0;
+    if (txn) {
+        r = toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(brt->cf), resetting);
+        if (r != 0) { goto cleanup; }
+        r = toku_txn_note_brt(txn, brt);
+        if (r != 0) { goto cleanup; }
+    }
+
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (do_logging && logger &&
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING extrabs = {.len=update_function_extra->size,
+                              .data=update_function_extra->data};
+        r = toku_log_enq_updatebroadcast(logger, NULL, 0,
+                                         toku_cachefile_filenum(brt->cf),
+                                         xid, extrabs, resetting);
+        if (r != 0) { goto cleanup; }
+    }
+
+    LSN treelsn;
+    if (oplsn_valid &&
+        oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
+        r = 0;
+    } else {
+        DBT nullkey;
+        const DBT *nullkeyp = toku_init_dbt(&nullkey);
+        BRT_MSG_S msg = { BRT_UPDATE_BROADCAST_ALL, NULL,
+                          .u.id = { nullkeyp, update_function_extra }};
+        r = brt_send_update_msg(brt, &msg, txn);
+    }
+
+cleanup:
     return r;
 }
 
@@ -3019,7 +3148,7 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
 
     t->h->layout_version = BRT_LAYOUT_VERSION;
     t->h->layout_version_original = BRT_LAYOUT_VERSION;
-    t->h->layout_version_read_from_disk = BRT_LAYOUT_VERSION;	// fake, prevent unnecessary upgrade logic
+    t->h->layout_version_read_from_disk = BRT_LAYOUT_VERSION;        // fake, prevent unnecessary upgrade logic
 
     t->h->build_id = BUILD_ID;
     t->h->build_id_original = BUILD_ID;
@@ -3112,40 +3241,74 @@ verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     return 0;
 }
 
-
-//if r==0, then frees/takes over descriptor_dbt.data
-int
-toku_maybe_upgrade_descriptor(BRT t, DESCRIPTOR d, BOOL do_log, TOKUTXN txn) {
+int 
+toku_write_descriptor_to_disk(struct brt_header * h, DESCRIPTOR d, int fd) {
     int r = 0;
-    //txn is only for access to logger
-    if (t->h->descriptor.version!=d->version ||
-        t->h->descriptor.dbt.size!=d->dbt.size ||
-        memcmp(t->h->descriptor.dbt.data, d->dbt.data, d->dbt.size)) {
-        if (d->version <= t->h->descriptor.version) {
-            //Changing descriptor requires upping the version.
-            r = EINVAL;
-            goto cleanup;
-        }
-        if (do_log) {
-            //If we didn't log fcreate (which contains descriptor)
-            //we need to log descriptor now.
-            r = toku_logger_log_descriptor(txn, toku_cachefile_filenum(t->cf), d);
-            if (r!=0) goto cleanup;
-        }
-        DISKOFF offset;
-        //4 for checksum
-        toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, t->h);
-        {
-            int fd = toku_cachefile_get_and_pin_fd (t->cf);
-            r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
-            toku_cachefile_unpin_fd(t->cf);
-        }
-        if (r!=0) goto cleanup;
-        if (t->h->descriptor.dbt.data) toku_free(t->h->descriptor.dbt.data);
-        t->h->descriptor = *d;
+    DISKOFF offset;
+    //4 for checksum
+    toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
+    r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+    return r;
+}
+
+void
+update_descriptor_in_memory(BRT t, const DBT* new_descriptor) {
+    if (t->h->descriptor.dbt.data) {
+        toku_free(t->h->descriptor.dbt.data);
     }
-    else toku_free(d->dbt.data);
-    d->dbt.data = NULL;
+    t->h->descriptor.dbt.size = new_descriptor->size;
+    t->h->descriptor.dbt.data = toku_memdup(new_descriptor->data, new_descriptor->size);
+}
+
+int
+toku_change_descriptor(
+    BRT t, 
+    const DBT* old_descriptor, 
+    const DBT* new_descriptor, 
+    BOOL do_log, 
+    TOKUTXN txn
+    ) 
+{
+    int r = 0;
+    int fd;
+    DESCRIPTOR_S new_d;
+    BYTESTRING old_desc_bs = { old_descriptor->size, old_descriptor->data };
+    BYTESTRING new_desc_bs = { new_descriptor->size, new_descriptor->data };
+    if (!txn) {
+        r = EINVAL;
+        goto cleanup;
+    }
+    // put information into rollback file
+    r = toku_logger_save_rollback_change_fdescriptor(
+        txn, 
+        toku_cachefile_filenum(t->cf), 
+        &old_desc_bs
+        );
+    if (r != 0) { goto cleanup; }
+    r = toku_txn_note_brt(txn, t);
+    if (r != 0) { goto cleanup; }
+
+    if (do_log) {
+        TOKULOGGER logger = toku_txn_logger(txn);
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_change_fdescriptor(
+            logger, NULL, 0, 
+            toku_cachefile_filenum(t->cf),
+            xid,
+            old_desc_bs,
+            new_desc_bs
+            );
+        if (r != 0) { goto cleanup; }
+    }
+
+    // write new_descriptor to header
+    new_d.dbt = *new_descriptor;
+    fd = toku_cachefile_get_and_pin_fd (t->cf);
+    r = toku_write_descriptor_to_disk(t->h, &new_d, fd);
+    toku_cachefile_unpin_fd(t->cf);
+    if (r!=0) goto cleanup;
+
+    update_descriptor_in_memory(t, new_descriptor);    
 cleanup:
     return r;
 }
@@ -3194,17 +3357,17 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
                 if (r != 0) goto died1;
             }
             txn_created = (BOOL)(txn!=NULL);
-            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, &(t->temp_descriptor), t->nodesize);
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize);
             if (r!=0) goto died1;
             r = brt_create_file(t, fname_in_cwd, &fd);
         }
         toku_free(fname_in_cwd);
         fname_in_cwd = NULL;
         if (r != 0) goto died1;
-	// TODO: #2090
+        // TODO: #2090
         r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, 
-					      fname_in_env,
-					      use_reserved_filenum||did_create, reserved_filenum, did_create);
+                                              fname_in_env,
+                                              use_reserved_filenum||did_create, reserved_filenum, did_create);
         if (r != 0) goto died1;
     }
     if (r!=0) {
@@ -3251,22 +3414,14 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     }
 
     if (!was_already_open) {
-	if (!did_create) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
-	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
-	    if (r!=0) goto died_after_read_and_pin;
-	}
-    }
-    if (t->did_set_descriptor) {
-        r = toku_maybe_upgrade_descriptor(t, &t->temp_descriptor, !did_create, txn);
-        if (r!=0) {
-            toku_free(t->temp_descriptor.dbt.data);
-            goto died_after_read_and_pin;
+        if (!did_create) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
+            r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
+            if (r!=0) goto died_after_read_and_pin;
         }
-        t->did_set_descriptor = FALSE;
     }
     int use_reserved_dict_id = use_dictionary_id.dictid != DICTIONARY_ID_NONE.dictid;
     if (!was_already_open) {
-	DICTIONARY_ID dict_id;
+        DICTIONARY_ID dict_id;
         if (use_reserved_dict_id)
             dict_id = use_dictionary_id;
         else
@@ -3282,7 +3437,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     lazy_assert(t->h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     lazy_assert(t->h->dict_id.dictid < dict_id_serial);
 
-    r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
+    r = toku_maybe_upgrade_brt(t);        // possibly do some work to complete the version upgrade of brt
     if (r!=0) goto died_after_read_and_pin;
 
     // brtheader_note_brt_open must be after all functions that can fail.
@@ -3338,18 +3493,13 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
     lazy_assert_zero(r);
     r = toku_brt_set_bt_compare(t, old_brt->compare_fun);
     lazy_assert_zero(r);
+    r = toku_brt_set_update(t, old_brt->update_fun);
+    lazy_assert_zero(r);
     r = toku_brt_set_nodesize(t, old_brt->nodesize);
     lazy_assert_zero(r);
-    if (old_h->descriptor.version>0) {
-        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt);
-        lazy_assert_zero(r);
-    }
     CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
     r = brt_open(t, fname_in_env, 0, 0, ct, txn, old_brt->db, FILENUM_NONE, old_h->dict_id, MAX_LSN);
     lazy_assert_zero(r);
-    if (old_h->descriptor.version==0) {
-        lazy_assert(t->h->descriptor.version == 0);
-    }
     lazy_assert(t->h->dict_id.dictid == old_h->dict_id.dictid);
     lazy_assert(t->db == old_brt->db);
 
@@ -3444,8 +3594,8 @@ dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *sr
     struct brt_header *dst_h = NULL;
     struct toku_list *list;
     for (list = src_h->live_brts.next; list != &src_h->live_brts; list = list->next) {
-	BRT src_brt;
-	src_brt = toku_list_struct(list, struct brt, live_brt_link);
+        BRT src_brt;
+        src_brt = toku_list_struct(list, struct brt, live_brt_link);
         lazy_assert(!src_brt->was_closed);
 
         BRT dst_brt;
@@ -3572,7 +3722,7 @@ toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn
             goto cleanup;
         }
         lazy_assert(r==ENOENT);
-	r = 0;	
+        r = 0;        
     }
 
     if (txn) {
@@ -3647,9 +3797,10 @@ int toku_brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const D
     return 0;
 }
 
-int toku_brt_set_upsert(BRT brt, int (*upsert)(DB *, const DBT *key, const DBT *upserted_val, const DBT *upserted_extra, const DBT *prev_val,
-					       void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
-    brt->upsert_fun = upsert;
+int toku_brt_set_update(BRT brt, int (*update_fun)(DB *,
+                                                   const DBT *key, const DBT *old_val, const DBT *extra,
+                                                   void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
+    brt->update_fun = update_fun;
     return 0;
 }
 
@@ -3779,19 +3930,19 @@ toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v)
     lazy_assert(ch);
     if (ch->panic!=0) goto handle_error;
     lazy_assert(ch->type == BRTHEADER_CHECKPOINT_INPROGRESS);
-    if (ch->dirty) {	// this is only place this bit is tested (in checkpoint_header)
+    if (ch->dirty) {        // this is only place this bit is tested (in checkpoint_header)
         TOKULOGGER logger = toku_cachefile_logger(cf);
         if (logger) {
             r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
             if (r!=0) goto handle_error;
         }
-	{
-	    ch->checkpoint_count++;
-	    // write translation and header to disk (or at least to OS internal buffer)
-	    r = toku_serialize_brt_header_to(fd, ch);
-	    if (r!=0) goto handle_error;
-	}
-	ch->dirty = 0;		// this is only place this bit is cleared (in checkpoint_header)
+        {
+            ch->checkpoint_count++;
+            // write translation and header to disk (or at least to OS internal buffer)
+            r = toku_serialize_brt_header_to(fd, ch);
+            if (r!=0) goto handle_error;
+        }
+        ch->dirty = 0;                // this is only place this bit is cleared (in checkpoint_header)
     }
     else toku_block_translation_note_skipped_checkpoint(ch->blocktable);
     if (0) {
@@ -3818,17 +3969,17 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) {
     int r = h->panic;
     if (r==0) {
         lazy_assert(h->type == BRTHEADER_CURRENT);
-	struct brt_header *ch = h->checkpoint_header;
-	BOOL checkpoint_success_so_far = (BOOL)(ch->checkpoint_count==h->checkpoint_count+1 && ch->dirty==0);
-	if (checkpoint_success_so_far) {
+        struct brt_header *ch = h->checkpoint_header;
+        BOOL checkpoint_success_so_far = (BOOL)(ch->checkpoint_count==h->checkpoint_count+1 && ch->dirty==0);
+        if (checkpoint_success_so_far) {
             r = toku_cachefile_fsync(cachefile);
-	    if (r!=0) 
-		toku_block_translation_note_failed_checkpoint(h->blocktable);
-	    else {
-		h->checkpoint_count++;	// checkpoint succeeded, next checkpoint will save to alternate header location
+            if (r!=0) 
+                toku_block_translation_note_failed_checkpoint(h->blocktable);
+            else {
+                h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
                 h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
             }
-	}
+        }
         toku_block_translation_note_end_checkpoint(h->blocktable, fd, h);
     }
     if (h->checkpoint_header) {  // could be NULL only if panic was true at begin_checkpoint
@@ -3873,7 +4024,7 @@ toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloc
                 if (r!=0) return r;
             }
         }
-        if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
+        if (h->dirty) {        // this is the only place this bit is tested (in currentheader)
             if (logger) { //Rollback cachefile MUST NOT BE CLOSED DIRTY
                           //It can be checkpointed only via 'checkpoint'
                 lazy_assert(logger->rollback_cachefile != cachefile);
@@ -3886,12 +4037,12 @@ toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloc
             if (r==0) r = r2;
             r2 = toku_brtheader_end_checkpoint(cachefile, fd, header_v);
             if (r==0) r = r2;
-            if (!h->panic) lazy_assert(!h->dirty);	// dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+            if (!h->panic) lazy_assert(!h->dirty);        // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
         }
     }
     if (malloced_error_string) *malloced_error_string = h->panic_string;
     if (r == 0) {
-	r = h->panic;
+        r = h->panic;
     }
     toku_brtheader_free(h);
     return r;
@@ -3958,15 +4109,14 @@ int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN opls
     brtheader_note_brt_close(brt);
 
     if (brt->cf) {
-	if (!brt->h->panic)
-	    lazy_assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero (but if panic, don't worry)
+        if (!brt->h->panic)
+            lazy_assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero (but if panic, don't worry)
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         // printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
-	if (error_string) lazy_assert(*error_string == 0);
+        if (error_string) lazy_assert(*error_string == 0);
         r = toku_cachefile_close(&brt->cf, error_string, oplsn_valid, oplsn);
-	if (r==0 && error_string) lazy_assert(*error_string == 0);
+        if (r==0 && error_string) lazy_assert(*error_string == 0);
     }
-    if (brt->temp_descriptor.dbt.data) toku_free(brt->temp_descriptor.dbt.data);
     toku_free(brt);
     return r;
 }
@@ -3976,7 +4126,7 @@ int toku_close_brt (BRT brt, char **error_string) {
 }
 
 int toku_brt_create(BRT *brt_ptr) {
-    BRT brt = toku_malloc(sizeof *brt);
+    BRT MALLOC(brt);
     if (brt == 0)
         return ENOMEM;
     memset(brt, 0, sizeof *brt);
@@ -3985,33 +4135,15 @@ int toku_brt_create(BRT *brt_ptr) {
     toku_list_init(&brt->cursors);
     brt->flags = 0;
     brt->did_set_flags = FALSE;
-    brt->did_set_descriptor = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_builtin_compare_fun;
+    brt->update_fun = NULL;
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
     return 0;
 }
 
-int
-toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor) {
-    int r;
-    if (t->did_set_descriptor)             r = EINVAL;
-    else if (version==0)                   r = EINVAL; //0 is reserved for default (no descriptor).
-    else {
-        void *copy = toku_memdup(descriptor->data, descriptor->size);
-        if (!copy) r = ENOMEM;
-        else {
-            t->temp_descriptor.version = version;
-            lazy_assert(!t->temp_descriptor.dbt.data);
-            toku_fill_dbt(&t->temp_descriptor.dbt, copy, descriptor->size);
-            t->did_set_descriptor = TRUE;
-            r = 0;
-        }
-    }
-    return r;
-}
 
 int toku_brt_flush (BRT brt) {
     return toku_cachefile_flush(brt->cf);
@@ -4111,13 +4243,13 @@ brt_cursor_invalidate_callback(OMTCURSOR UU(omt_c), void *extra) {
     if (cursor->current_in_omt) {
         DBT key,val;
         load_dbts_from_omt(cursor, toku_init_dbt(&key), toku_init_dbt(&val));
-	cursor->key.data = toku_memdup(key.data, key.size);
-	cursor->val.data = toku_memdup(val.data, val.size);
-	cursor->key.size = key.size;
-	cursor->val.size = val.size;
+        cursor->key.data = toku_memdup(key.data, key.size);
+        cursor->val.data = toku_memdup(val.data, val.size);
+        cursor->key.size = key.size;
+        cursor->val.size = val.size;
         //TODO: Find some way to deal with ENOMEM here.
         //Until then, just assert that the memdups worked.
-	lazy_assert(cursor->key.data && cursor->val.data);
+        lazy_assert(cursor->key.data && cursor->val.data);
         cursor->current_in_omt = FALSE;
     }
 }
@@ -4375,8 +4507,8 @@ got_a_good_value:
             // Leave the omtcursor alone above (pass NULL to omt_find/fetch)
             // This prevents the omt from calling associate(), which would
             // require a lock to keep the list of cursors safe when the omt
-	    // is used by the brt.  (We don't want to impose the locking requirement
-	    // on the omt for non-brt uses.)
+            // is used by the brt.  (We don't want to impose the locking requirement
+            // on the omt for non-brt uses.)
             //
             // Instead, all associating of omtcursors with omts (for leaf nodes)
             // is done in brt_cursor_update.
@@ -4460,7 +4592,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
     {
         int rr = toku_cachetable_get_and_pin_nonblocking(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h, unlockers);
-	if (rr==TOKUDB_TRY_AGAIN) return rr;
+        if (rr==TOKUDB_TRY_AGAIN) return rr;
         lazy_assert_zero(rr);
     }
 
@@ -4659,17 +4791,17 @@ brt_cursor_current_getf(ITEMLEN keylen,          bytevec key,
     struct brt_cursor_search_struct *bcss = v;
     int r;
     if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
+        r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
     } else {
-	BRT_CURSOR cursor = bcss->cursor;
-	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
+        BRT_CURSOR cursor = bcss->cursor;
+        DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
         //Safe to access cursor->key/val because current_in_omt is FALSE
-	if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v); // This was once DB_KEYEMPTY
+        if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
+            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v); // This was once DB_KEYEMPTY
             if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
         }
-	else
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
+        else
+            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
     }
     return r;
 }
@@ -4681,7 +4813,7 @@ toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION get
         return EINVAL;
     if (op == DB_CURRENT) {
         brt_cursor_invalidate(cursor);
-	struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
+        struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
         brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
         return toku_brt_search(cursor->brt, &search, brt_cursor_current_getf, &bcss, cursor, &cursor->root_put_counter);
     }
@@ -4802,10 +4934,10 @@ brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
                                                    &leafv);
     lazy_assert_zero(r);
     if (r == 0) {
-	brtcursor->leaf_info.node = leafv;
-	lazy_assert(brtcursor->leaf_info.node->height == 0);	// verify that returned node is leaf...
-	lazy_assert(brtcursor->leaf_info.node->u.l.buffer == toku_omt_cursor_get_omt(brtcursor->omtcursor));  // ... and has right omt
-	*leafp = brtcursor->leaf_info.node;
+        brtcursor->leaf_info.node = leafv;
+        lazy_assert(brtcursor->leaf_info.node->height == 0);        // verify that returned node is leaf...
+        lazy_assert(brtcursor->leaf_info.node->u.l.buffer == toku_omt_cursor_get_omt(brtcursor->omtcursor));  // ... and has right omt
+        *leafp = brtcursor->leaf_info.node;
     }
     return r;
 }
@@ -4836,13 +4968,13 @@ brt_cursor_next_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, voi
     int r;
     int r2;
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
-	BRTNODE leaf;
-	r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
-	if (r == 0) {
-	    u_int32_t limit = toku_omt_size(toku_omt_cursor_get_omt(cursor->omtcursor)) - 1;
-	    r = brt_cursor_shortcut(cursor, 1, limit, getf, getf_v);
-	    r2 = brt_cursor_unpin_leaf(cursor, leaf);
-	}
+        BRTNODE leaf;
+        r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
+        if (r == 0) {
+            u_int32_t limit = toku_omt_size(toku_omt_cursor_get_omt(cursor->omtcursor)) - 1;
+            r = brt_cursor_shortcut(cursor, 1, limit, getf, getf_v);
+            r2 = brt_cursor_unpin_leaf(cursor, leaf);
+        }
     }
     else r = EINVAL;
     return r ? r : r2;
@@ -4853,7 +4985,7 @@ toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *ge
 {
     int r;
     if (brt_cursor_next_shortcut(cursor, getf, getf_v)==0) {
-	r = 0;
+        r = 0;
     } else {
         brt_search_t search; brt_search_init(&search, brt_cursor_compare_next, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
         r = brt_cursor_search(cursor, &search, getf, getf_v);
@@ -4871,14 +5003,14 @@ brt_cursor_search_eq_k_x_getf(ITEMLEN keylen,          bytevec key,
     if (key==NULL) {
         r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
     } else {
-	BRT_CURSOR cursor = bcss->cursor;
-	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
-	if (compare_k_x(cursor->brt, bcss->search->k, &newkey) == 0) {
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
-	} else {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
+        BRT_CURSOR cursor = bcss->cursor;
+        DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
+        if (compare_k_x(cursor->brt, bcss->search->k, &newkey) == 0) {
+            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
+        } else {
+            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
             if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-	}
+        }
     }
     return r;
 }
@@ -4902,12 +5034,12 @@ brt_cursor_prev_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, voi
     int r;
     int r2;
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
-	BRTNODE leaf;
-	r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
-	if (r == 0) {
-	    r = brt_cursor_shortcut(cursor, -1, 0, getf, getf_v);
-	    r2 = brt_cursor_unpin_leaf(cursor, leaf);
-	}
+        BRTNODE leaf;
+        r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
+        if (r == 0) {
+            r = brt_cursor_shortcut(cursor, -1, 0, getf, getf_v);
+            r2 = brt_cursor_unpin_leaf(cursor, leaf);
+        }
     }
     else r = EINVAL;
     return r ? r : r2;
@@ -4924,7 +5056,7 @@ int
 toku_brt_cursor_prev(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     if (brt_cursor_prev_shortcut(cursor, getf, getf_v)==0)
-	return 0;
+        return 0;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev, BRT_SEARCH_RIGHT, &cursor->key, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
@@ -5137,11 +5269,11 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fu
         u_int32_t idx;
         int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, 0, &idx, NULL);
         *less += idx;
-	*greater += toku_omt_size(node->u.l.buffer)-idx;
-	if (r==0) {
-	    (*greater)--;
-	    (*equal)++;
-	}
+        *greater += toku_omt_size(node->u.l.buffer)-idx;
+        if (r==0) {
+            (*greater)--;
+            (*equal)++;
+        }
     }
     {
         int rr = toku_unpin_brtnode(brt, node);
@@ -5161,12 +5293,12 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
 
 int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     {
-	int64_t file_size;
+        int64_t file_size;
         int fd = toku_cachefile_get_and_pin_fd(brt->cf);
-	int r = toku_os_get_file_size(fd, &file_size);
+        int r = toku_os_get_file_size(fd, &file_size);
         toku_cachefile_unpin_fd(brt->cf);
-	lazy_assert_zero(r);
-	s->fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
+        lazy_assert_zero(r);
+        s->fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
     }
 
     lazy_assert(brt->h);
@@ -5175,24 +5307,24 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     CACHEKEY root = *rootp;
     void *node_v;
     int r = toku_cachetable_get_and_pin(brt->cf, root, fullhash,
-					&node_v, NULL,
-					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+                                        &node_v, NULL,
+                                        toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
     if (r!=0) return r;
     BRTNODE node = node_v;
 
     if (node->height==0) {
-	s->nkeys = node->u.l.leaf_stats.nkeys;
-	s->ndata = node->u.l.leaf_stats.ndata;
-	s->dsize = node->u.l.leaf_stats.dsize;
+        s->nkeys = node->u.l.leaf_stats.nkeys;
+        s->ndata = node->u.l.leaf_stats.ndata;
+        s->dsize = node->u.l.leaf_stats.dsize;
     } else {
-	s->nkeys = s->ndata = s->dsize = 0;
-	int i;
-	for (i=0; i<node->u.n.n_children; i++) {
-	    struct subtree_estimates *se = &BNC_SUBTREE_ESTIMATES(node, i);
-	    s->nkeys += se->nkeys;
-	    s->ndata += se->ndata;
-	    s->dsize += se->dsize;
-	}
+        s->nkeys = s->ndata = s->dsize = 0;
+        int i;
+        for (i=0; i<node->u.n.n_children; i++) {
+            struct subtree_estimates *se = &BNC_SUBTREE_ESTIMATES(node, i);
+            s->nkeys += se->nkeys;
+            s->ndata += se->ndata;
+            s->dsize += se->dsize;
+        }
     }
     
     r = toku_cachetable_unpin(brt->cf, root, fullhash, CACHETABLE_CLEAN, 0);
@@ -5229,12 +5361,12 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
             }
             for (i=0; i< node->u.n.n_children; i++) {
                 fprintf(file, "%*schild %d buffered (%d entries):", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
-		{
-		    struct subtree_estimates *e = &BNC_SUBTREE_ESTIMATES(node, i);
-		    fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
-			    e->ndata, e->nkeys, e->dsize, (int)e->exact);
-		}
-		fprintf(file, "\n");
+                {
+                    struct subtree_estimates *e = &BNC_SUBTREE_ESTIMATES(node, i);
+                    fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
+                            e->ndata, e->nkeys, e->dsize, (int)e->exact);
+                }
+                fprintf(file, "\n");
                 FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
                                   {
                                       data=data; datalen=datalen; keylen=keylen;
@@ -5246,7 +5378,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
             for (i=0; i<node->u.n.n_children; i++) {
                 fprintf(file, "%*schild %d\n", depth, "", i);
                 if (i>0) {
-		    char *key = node->u.n.childkeys[i-1]->key;
+                    char *key = node->u.n.childkeys[i-1]->key;
                     fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, (unsigned)toku_dtoh32(*(int*)key));
                 }
                 toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
@@ -5259,12 +5391,12 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
                 depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer);
         if (lorange) { toku_print_BYTESTRING(file, kv_pair_keylen(lorange), kv_pair_key(lorange)); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
         if (hirange) { toku_print_BYTESTRING(file, kv_pair_keylen(hirange), kv_pair_key(hirange)); } else { fprintf(file, "\\infty"); }
-	fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
-		node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, (int)node->u.l.leaf_stats.exact);
-	fprintf(file, "\n");
+        fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
+                node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, (int)node->u.l.leaf_stats.exact);
+        fprintf(file, "\n");
         int size = toku_omt_size(node->u.l.buffer);
         int i;
-	if (0)
+        if (0)
         for (i=0; i<size; i++) {
             OMTVALUE v = 0;
             r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);
@@ -5356,7 +5488,7 @@ int toku_brt_destroy(void) {
     if (r==0) 
         r = toku_brt_lock_destroy();
     if (r==0)
-	r = toku_checkpoint_destroy();
+        r = toku_checkpoint_destroy();
     //Portability must be cleaned up last
     if (r==0) 
         r = toku_portability_destroy();
@@ -5448,18 +5580,18 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_in_env_dbt_p) {
         if (r!=0) return r;
     }
     else 
-	lazy_assert(r==ENOENT);
+        lazy_assert(r==ENOENT);
 
     toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
                                      //before the file is actually unlinked
     {
         BYTESTRING iname_in_env_bs = { .len=strlen(iname_in_env), .data = (char*)iname_in_env };
-	// make entry in rollback log
+        // make entry in rollback log
         r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, &iname_in_env_bs);
         lazy_assert_zero(r); //On error we would need to remove the CF reference, which is complicated.
     }
     if (r==0)
-	// make entry in recovery log
+        // make entry in recovery log
         r = toku_logger_log_fdelete(txn, iname_in_env);
     return r;
 }
@@ -5476,7 +5608,7 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_in_env_dbt_p) {
         lazy_assert_zero(r);
     }
     else
-	lazy_assert(r==ENOENT);
+        lazy_assert(r==ENOENT);
     char *iname_in_cwd = toku_cachetable_get_fname_in_cwd(ct, iname_in_env_dbt_p->data);
     
     r = unlink(iname_in_cwd);  // we need a pathname relative to cwd
@@ -5513,34 +5645,34 @@ static int
 walk_tree_nonleaf (BRT brt, BRTNODE node, BOOL f(BRT brt, BRTNODE node, void *v), void *v, BOOL modifies_node, BOOL *exit_now, enum reactivity *parent_re, BOOL *try_again) {
     int r = 0;
     for (int childnum=0; childnum<node->u.n.n_children; childnum++) {
-	if (BNC_NBYTESINBUF(node, childnum) > 0) {
-	    BOOL did_io = FALSE;
-	    enum reactivity child_re = RE_STABLE;
-	    int rr = flush_this_child(brt, node, childnum, &child_re, &did_io);
-	    lazy_assert_zero(rr);
-	}
-	BRTNODE childnode;
-	{
-	    void *node_v;
-	    BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
-	    u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
-	    int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
-	    lazy_assert(rr ==0);
-	    childnode = node_v;
-	}
-	enum reactivity child_re = RE_STABLE;
-	r = walk_tree_iter(brt, childnode, f, v, modifies_node, exit_now, &child_re, try_again);
-	if (r==0) {
-	    BOOL did_io = FALSE;
-	    BOOL did_react = FALSE;
-	    r = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, &did_react);
-	    if (did_react) *try_again = TRUE;
-	}
-	{
-	    int rr = toku_unpin_brtnode(brt, childnode);
-	    lazy_assert_zero(rr);
-	}
-	if (r!=0 || *exit_now || *try_again) break; // if we changed the shape of the tree then we're going to have to try again
+        if (BNC_NBYTESINBUF(node, childnum) > 0) {
+            BOOL did_io = FALSE;
+            enum reactivity child_re = RE_STABLE;
+            int rr = flush_this_child(brt, node, childnum, &child_re, &did_io);
+            lazy_assert_zero(rr);
+        }
+        BRTNODE childnode;
+        {
+            void *node_v;
+            BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
+            u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
+            int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+            lazy_assert(rr ==0);
+            childnode = node_v;
+        }
+        enum reactivity child_re = RE_STABLE;
+        r = walk_tree_iter(brt, childnode, f, v, modifies_node, exit_now, &child_re, try_again);
+        if (r==0) {
+            BOOL did_io = FALSE;
+            BOOL did_react = FALSE;
+            r = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, &did_react);
+            if (did_react) *try_again = TRUE;
+        }
+        {
+            int rr = toku_unpin_brtnode(brt, childnode);
+            lazy_assert_zero(rr);
+        }
+        if (r!=0 || *exit_now || *try_again) break; // if we changed the shape of the tree then we're going to have to try again
     }
     *parent_re = get_nonleaf_reactivity(node);
     return r;
@@ -5551,10 +5683,10 @@ walk_tree_iter (BRT brt, BRTNODE node, BOOL f(BRT brt, BRTNODE node, void *v), v
     if (node->height > 0) {
         return walk_tree_nonleaf(brt, node, f, v, modifies_node, exit_now, re, try_again);
     } else {
-	int now = f(brt, node, v);
-	if (now) *exit_now = TRUE;
-	*re = get_leaf_reactivity(node);
-	return 0;
+        int now = f(brt, node, v);
+        if (now) *exit_now = TRUE;
+        *re = get_leaf_reactivity(node);
+        return 0;
     }
 }
 
@@ -5584,11 +5716,11 @@ walk_tree (BRT brt, BOOL f(BRT brt, BRTNODE node, void *v), void *v, BOOL modifi
     BRTNODE node;
     //lazy_assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
-	void *node_v;
-	int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
-					     &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
-	lazy_assert_zero(rr);
-	node = node_v;
+        void *node_v;
+        int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
+                                             &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+        lazy_assert_zero(rr);
+        node = node_v;
     }
     enum reactivity re = RE_STABLE;
     BOOL exit_now = FALSE;
@@ -5597,8 +5729,8 @@ walk_tree (BRT brt, BOOL f(BRT brt, BRTNODE node, void *v), void *v, BOOL modifi
     r = brt_handle_maybe_reactive_child_at_root(brt, rootp, &node, re);
  return_r:
     {
-	int rr = toku_unpin_brtnode(brt, node);
-	lazy_assert_zero(rr);
+        int rr = toku_unpin_brtnode(brt, node);
+        lazy_assert_zero(rr);
     }
     return r;
 }
@@ -5614,10 +5746,10 @@ check_if_node_is_empty (BRT brt, BRTNODE node, void *v) {
     enum reactivity re = RE_STABLE;
     int r = brt_leaf_put_cmd(brt, node, is_empty_struct->optimize_message, &re);
     if (toku_omt_size(node->u.l.buffer)>0) {
-	is_empty_struct->is_empty_so_far = FALSE;
-	return 1; // shortcut return.
+        is_empty_struct->is_empty_so_far = FALSE;
+        return 1; // shortcut return.
     } else {
-	return 0; // keep going
+        return 0; // keep going
     }
     return r;
 }
@@ -5658,28 +5790,28 @@ toku_brt_is_empty (BRT brt, /*out*/BOOL *try_again) {
 
 static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
     if (node->height > 0) {
-	if (node->u.n.n_bytes_in_buffers!=0) return 0; // it's not empty if there are bytes in buffers
-	for (int childnum=0; childnum<node->u.n.n_children; childnum++) {
-	    BRTNODE childnode;
-	    {
-		void *node_v;
-		BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
-		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
-		int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
-		lazy_assert(rr ==0);
-		childnode = node_v;
-	    }
-	    int child_is_empty = is_empty_fast_iter(brt, childnode);
-	    {
-		int rr = toku_unpin_brtnode(brt, childnode);
-		lazy_assert_zero(rr);
-	    }
-	    if (!child_is_empty) return 0;
-	}
-	return 1;
+        if (node->u.n.n_bytes_in_buffers!=0) return 0; // it's not empty if there are bytes in buffers
+        for (int childnum=0; childnum<node->u.n.n_children; childnum++) {
+            BRTNODE childnode;
+            {
+                void *node_v;
+                BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
+                u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
+                int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+                lazy_assert(rr ==0);
+                childnode = node_v;
+            }
+            int child_is_empty = is_empty_fast_iter(brt, childnode);
+            {
+                int rr = toku_unpin_brtnode(brt, childnode);
+                lazy_assert_zero(rr);
+            }
+            if (!child_is_empty) return 0;
+        }
+        return 1;
     } else {
-	// leaf:  If the omt is empty, we are happy.
-	return toku_omt_size(node->u.l.buffer)==0;	
+        // leaf:  If the omt is empty, we are happy.
+        return toku_omt_size(node->u.l.buffer)==0;        
     }
 }
 
@@ -5692,16 +5824,16 @@ BOOL toku_brt_is_empty_fast (BRT brt)
     BRTNODE node;
     //lazy_assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
-	void *node_v;
-	int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
-					     &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
-	lazy_assert_zero(rr);
-	node = node_v;
+        void *node_v;
+        int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
+                                             &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+        lazy_assert_zero(rr);
+        node = node_v;
     }
     BOOL r = is_empty_fast_iter(brt, node);
     {
-	int rr = toku_unpin_brtnode(brt, node);
-	lazy_assert_zero(rr);
+        int rr = toku_unpin_brtnode(brt, node);
+        lazy_assert_zero(rr);
     }
     return r;
 }
@@ -5709,19 +5841,35 @@ BOOL toku_brt_is_empty_fast (BRT brt)
 int toku_brt_strerror_r(int error, char *buf, size_t buflen)
 {
     if (error>=0) {
-	return strerror_r(error, buf, buflen);
+        return strerror_r(error, buf, buflen);
     } else {
-	switch (error) {
-	case DB_KEYEXIST:
-	    snprintf(buf, buflen, "Key exists");
-	    return 0;
-	case TOKUDB_CANCELED:
-	    snprintf(buf, buflen, "User canceled operation");
-	    return 0;
-	default:
-	    snprintf(buf, buflen, "Unknown error %d", error);
-	    errno = EINVAL;
-	    return -1;
-	}
+        switch (error) {
+        case DB_KEYEXIST:
+            snprintf(buf, buflen, "Key exists");
+            return 0;
+        case TOKUDB_CANCELED:
+            snprintf(buf, buflen, "User canceled operation");
+            return 0;
+        default:
+            snprintf(buf, buflen, "Unknown error %d", error);
+            errno = EINVAL;
+            return -1;
+        }
     }
+}
+
+
+void 
+toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created) {
+    // Reset the root_xid_that_created field to the given value.  
+    // This redefines which xid created the dictionary.
+
+    struct brt_header *h = brt->h;    
+
+    // hold lock around setting and clearing of dirty bit
+    // (see cooperative use of dirty bit in toku_brtheader_begin_checkpoint())
+    toku_brtheader_lock (h);
+    h->root_xid_that_created = new_root_xid_that_created;
+    h->dirty = 1;
+    toku_brtheader_unlock (h);
 }

@@ -56,7 +56,7 @@ run_test(void) {
         else
             break;
         // run recovery
-        r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, 0); 
+        r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, 0, NULL, 0); 
         assert(r == 0);
         
         trim += 1;

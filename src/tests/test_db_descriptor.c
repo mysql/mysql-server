@@ -47,14 +47,12 @@ verify_db_matches(void) {
 
             if (last_open_descriptor<0) {
                 assert(dbt->size == 0 && dbt->data == NULL);
-                assert(db->descriptor->version == 0);
             }
             else {
                 assert(last_open_descriptor < NUM);
                 assert(dbt->size == descriptors[last_open_descriptor].size);
                 assert(!memcmp(dbt->data, descriptors[last_open_descriptor].data, dbt->size));
                 assert(dbt->data != descriptors[last_open_descriptor].data);
-                assert(db->descriptor->version == (uint32_t)last_open_descriptor+1);
             }
         }
     }
@@ -84,15 +82,20 @@ open_db(int descriptor, int which) {
             CKERR(r);
         last_open_descriptor = -1; //DB was destroyed at end of last close, did not hang around.
     }
-    if (descriptor >= 0) {
-        assert(descriptor < NUM);
-        u_int32_t descriptor_version = descriptor+1;
-        r = db->set_descriptor(db, descriptor_version, &descriptors[descriptor]);
-        CKERR(r);
-        last_open_descriptor = descriptor;
-    }
     r = db->open(db, txn, FNAME, name, DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
+    if (descriptor >= 0) {
+        assert(descriptor < NUM);
+        if (txn) {
+            CHK(db->change_descriptor(db, txn, &descriptors[descriptor], 0));
+        }
+        else {
+            IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+                CHK(db->change_descriptor(db, txn_desc, &descriptors[descriptor], 0));
+            });
+        }
+        last_open_descriptor = descriptor;
+    }
     verify_db_matches();
     if (abort_type!=2 && !txn) {
         r = env->txn_begin(env, null_txn, &txn, 0);

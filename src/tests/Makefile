@@ -99,6 +99,7 @@ BDB_DONTRUN_TESTS = \
         diskfull \
         env-put-multiple \
         env_startup \
+	execute-updates \
         filesize \
         helgrind1 \
         helgrind2 \
@@ -155,6 +156,9 @@ BDB_DONTRUN_TESTS = \
         recover-del-multiple-srcdb-fdelete-all \
         recover-delboth-after-checkpoint \
         recover-delboth-checkpoint \
+        recover-descriptor \
+        recover-descriptor2 \
+        recover-descriptor3 \
         recover-fclose-in-checkpoint \
         recover-loader-test \
         recover-lsn-filter-multiple \
@@ -171,6 +175,19 @@ BDB_DONTRUN_TESTS = \
 	recover-upgrade-db-descriptor \
 	recover-update-multiple \
 	recover-update-multiple-abort \
+	recover-update_aborts \
+	recover-update_aborts_before_checkpoint \
+	recover-update_aborts_before_close \
+	recover-update_changes_values \
+	recover-update_changes_values_before_checkpoint \
+	recover-update_changes_values_before_close \
+	recover-update_broadcast_aborts \
+	recover-update_broadcast_aborts_before_checkpoint \
+	recover-update_broadcast_aborts_before_close \
+	recover-update_broadcast_changes_values \
+	recover-update_broadcast_changes_values_before_checkpoint \
+	recover-update_broadcast_changes_values_before_close \
+	recover-update_changes_values_before_close \
         recovery_fileops_stress \
         recovery_fileops_unit \
         recovery_stress \
@@ -195,6 +212,7 @@ BDB_DONTRUN_TESTS = \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
         test_logflush \
+        test_transactional_descriptor \
         test_txn_abort6 \
         test_txn_abort8 \
         test_txn_abort9 \
@@ -205,12 +223,35 @@ BDB_DONTRUN_TESTS = \
         test_txn_nested3 \
         test_txn_nested4 \
         test_txn_nested5 \
+	test_update_abort_works \
+	test_update_calls_back \
+	test_update_can_delete_elements \
+	test_update_changes_values \
+	test_update_nonexistent_keys \
+	test_update_previously_deleted \
+	test_update_stress \
+	test_update_txn_snapshot_works_concurrently \
+	test_update_txn_snapshot_works_correctly_with_deletes \
+	test_update_broadcast_abort_works \
+	test_update_broadcast_calls_back \
+	test_update_broadcast_can_delete_elements \
+	test_update_broadcast_changes_values \
+	test_update_broadcast_previously_deleted \
+	test_update_broadcast_stress \
+	test_update_broadcast_update_fun_has_choices \
+	test_update_broadcast_with_empty_table \
+        test_update_broadcast_indexer \
+	test_update_broadcast_loader \
+	test_update_broadcast_nested_updates \
+	test_update_nested_updates \
+	test_update_with_empty_table \
 	txn-ignore \
         transactional_fileops \
 	update-multiple-data-diagonal \
 	update-multiple-key0 \
 	update-multiple-nochange \
 	update-multiple-with-indexer \
+	update \
         upgrade_simple \
 	upgrade-test-1 \
 	upgrade-test-2 \
@@ -518,6 +559,8 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 diskfull.tdbrun: VGRIND=
 stress-gc.tdbrun: VGRIND=
 insert-dup-prelock: VGRIND=
+test_update_broadcast_stress.tdbrun: VGRIND=
+test_update_stress.tdbrun: VGRIND=
 
 
 libs:

@@ -889,10 +889,16 @@ toku_blocktable_internal_fragmentation (BLOCK_TABLE bt, int64_t *total_sizep, in
 }
 
 void
-toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h) {
-    lock_for_blocktable(bt);
+toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h) {
+    invariant(bt->is_locked);
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_DESCRIPTOR);
     blocknum_realloc_on_disk_internal(bt, b, size, offset, h, FALSE);
+}
+
+void
+toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h) {
+    lock_for_blocktable(bt);
+    toku_realloc_descriptor_on_disk_unlocked(bt, size, offset, h);
     unlock_for_blocktable(bt);
 }
 

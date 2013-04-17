@@ -42,6 +42,7 @@ void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
 void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h);
+void toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h);
 void toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size);
 
 //Blocks and Blocknums

@@ -98,6 +98,7 @@ static void ule_apply_insert(ULE ule, XIDS xids, u_int32_t vallen, void * valp);
 static void ule_apply_delete(ULE ule, XIDS xids);
 static void ule_prepare_for_new_uxr(ULE ule, XIDS xids);
 static void ule_apply_abort(ULE ule, XIDS xids);
+static void ule_apply_broadcast_commit_all (ULE ule);
 static void ule_apply_commit(ULE ule, XIDS xids);
 static void ule_push_insert_uxr(ULE ule, BOOL is_committed, TXNID xid, u_int32_t vallen, void * valp);
 static void ule_push_delete_uxr(ULE ule, BOOL is_committed, TXNID xid);
@@ -277,13 +278,12 @@ done:;
 // calls into the next lower layer (msg_xxx) which handles messages.
 //
 // NOTE: This is the only function (at least in this body of code) that modifies
-//        a leafentry.
+//       a leafentry.
 //
-// Return 0 if ???  (looking at original code, it seems that it always returns 0).
-// ??? How to inform caller that leafentry is to be destroyed?
-// 
-// Temporarily declared as static until we are ready to remove wrapper apply_cmd_to_leaf().
-// 
+// Return 0 on success.  
+//   If the leafentry is destroyed it sets *new_leafentry_p to NULL.
+//   Otehrwise the new_leafentry_p points at the new leaf entry.
+// As of September 2010, the only possible error returned is ENOMEM.
 int 
 apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       LEAFENTRY old_leafentry, // NULL if there was no stored data.
@@ -350,18 +350,22 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
         //else it is just an insert, so
         //fall through to BRT_INSERT on purpose.
     }
-    case BRT_INSERT: ;
+    case BRT_INSERT: {
         u_int32_t vallen = brt_msg_get_vallen(msg);
         invariant(IS_VALID_LEN(vallen));
         void * valp      = brt_msg_get_val(msg);
         ule_apply_insert(ule, xids, vallen, valp);
         break;
+    }
     case BRT_DELETE_ANY:
         ule_apply_delete(ule, xids);
         break;
     case BRT_ABORT_ANY:
     case BRT_ABORT_BROADCAST_TXN:
         ule_apply_abort(ule, xids);
+        break;
+    case BRT_COMMIT_BROADCAST_ALL:
+        ule_apply_broadcast_commit_all(ule);
         break;
     case BRT_COMMIT_ANY:
     case BRT_COMMIT_BROADCAST_TXN:
@@ -370,6 +374,10 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
     case BRT_OPTIMIZE:
     case BRT_OPTIMIZE_FOR_UPGRADE:
         ule_optimize(ule, xids);
+        break;
+    case BRT_UPDATE:
+    case BRT_UPDATE_BROADCAST_ALL:
+        assert(FALSE); // These messages don't get this far.  Instead they get translated (in setval_fun in do_update) into BRT_INSERT messages.
         break;
     default:
         assert(FALSE /* illegal BRT_MSG.type */);
@@ -918,55 +926,6 @@ leafentry_disksize (LEAFENTRY le) {
     return leafentry_memsize(le);
 }
 
-
-// le is normally immutable.  This is the only exception.
-void
-le_clean_xids(LEAFENTRY le,
-              size_t *new_leafentry_memorysize, 
-              size_t *new_leafentry_disksize) {
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    LEAFENTRY le_copy;
-    UXR uxr = ule_get_innermost_uxr(&ule);
-    invariant(ule.num_cuxrs > 1 || ule.num_puxrs > 0);
-    ule.num_cuxrs = 0;
-    ule.num_puxrs = 0;
-    ule_push_insert_uxr(&ule, TRUE,
-                        TXNID_NONE,
-                        uxr->vallen,
-                        uxr->valp);
-    size_t memsize_old = leafentry_memsize(le);
-    size_t memsize_verify;
-    int r_tmp = le_pack(&ule, &memsize_verify, &memsize_verify,
-                        &le_copy, NULL, NULL, NULL);
-    invariant(r_tmp==0);
-    ule_cleanup(&ule);
-#endif
-
-    invariant(le->type != LE_CLEAN);
-    uint32_t keylen;
-    uint32_t vallen;
-    void *keyp = le_key_and_len(le, &keylen);
-    void *valp = le_latest_val_and_len(le, &vallen);
-    invariant(valp);
-    
-    //le->keylen unchanged
-    le->type = LE_CLEAN;
-    le->u.clean.vallen = toku_htod32(vallen);
-    memmove(le->u.clean.key_val, keyp, keylen);
-    memmove(le->u.clean.key_val + keylen, valp, vallen);
-
-    size_t memsize = leafentry_memsize(le);
-    *new_leafentry_disksize = *new_leafentry_memorysize = memsize;
-
-#if ULE_DEBUG
-    invariant(memsize_verify == memsize);
-    invariant(memsize_old    >= memsize);
-    invariant(!memcmp(le, le_copy, memsize));
-#endif
-}
-
 BOOL
 le_is_clean(LEAFENTRY le) {
     uint8_t  type = le->type;
@@ -1027,7 +986,14 @@ int le_latest_is_del(LEAFENTRY le) {
     return rval;
 }
 
-int
+
+//
+// returns true if the outermost provisional transaction id on the leafentry's stack matches
+// the outermost transaction id in xids
+// It is used to determine if a broadcast commit/abort message (look in brt.c)  should be applied to this leafentry
+// If the outermost transactions match, then the broadcast commit/abort should be applied
+//
+BOOL
 le_has_xids(LEAFENTRY le, XIDS xids) {
     //Read num_uxrs
     uint32_t num_xids = xids_get_num_xids(xids);
@@ -1035,7 +1001,7 @@ le_has_xids(LEAFENTRY le, XIDS xids) {
     TXNID xid = xids_get_xid(xids, 0);
     invariant(xid!=TXNID_NONE);
 
-    int rval = le_outermost_uncommitted_xid(le) == xid;
+    BOOL rval = (le_outermost_uncommitted_xid(le) == xid);
     return rval;
 }
 
@@ -1508,6 +1474,14 @@ ule_apply_abort(ULE ule, XIDS xids) {
         ule_remove_innermost_placeholders(ule); 
     }
     invariant(ule->num_cuxrs > 0);
+}
+
+static void 
+ule_apply_broadcast_commit_all (ULE ule) {
+    ule->uxrs[0] = ule->uxrs[ule->num_puxrs + ule->num_cuxrs - 1];
+    ule->uxrs[0].xid = TXNID_NONE;
+    ule->num_puxrs = 0;
+    ule->num_cuxrs = 1;
 }
 
 // Purpose is to apply a commit message to this leafentry.

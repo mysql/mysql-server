@@ -76,6 +76,15 @@ const struct logtype rollbacks[] = {
     {"dictionary_redirect", 'R', FA{{"FILENUM", "old_filenum", 0},
                                     {"FILENUM", "new_filenum", 0},
                                     NULLFIELD}},
+    {"cmdupdate", 'u', FA{{"FILENUM", "filenum", 0},
+                          {"BYTESTRING", "key", 0},
+                          NULLFIELD}},
+    {"cmdupdatebroadcast", 'B', FA{{"FILENUM", "filenum", 0},
+                                   {"u_int8_t", "is_resetting_op", 0},
+                                   NULLFIELD}},
+    {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
+                            {"BYTESTRING", "old_descriptor", 0},
+                            NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
@@ -119,8 +128,6 @@ const struct logtype logtypes[] = {
 			{"BYTESTRING", "iname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
                         {"u_int32_t",  "treeflags", 0},
-			{"u_int32_t",  "descriptor_version", 0},
-			{"BYTESTRING", "descriptor", 0},
                         {"u_int32_t", "nodesize", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
@@ -128,11 +135,6 @@ const struct logtype logtypes[] = {
 			{"FILENUM",    "filenum", 0},
                         {"u_int32_t",  "treeflags", 0},
 			NULLFIELD}},
-    //TODO: #2037 Add dname
-    {"fdescriptor", 'd', FA{{"FILENUM",    "filenum", 0},
-                            {"u_int32_t",  "descriptor_version", 0},
-                            {"BYTESTRING", "descriptor", 0},
-                            NULLFIELD}},
     //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
@@ -180,6 +182,21 @@ const struct logtype logtypes[] = {
     {"hot_index", 'h', FA{{"TXNID",     "xid", 0},
                           {"FILENUMS",  "hot_index_filenums", 0},
                           NULLFIELD}},
+    {"enq_update", 'u', FA{{"FILENUM",    "filenum", 0},
+                           {"TXNID",      "xid", 0},
+                           {"BYTESTRING", "key", 0},
+                           {"BYTESTRING", "extra", 0},
+                           NULLFIELD}},
+    {"enq_updatebroadcast", 'B', FA{{"FILENUM",    "filenum", 0},
+                                    {"TXNID",      "xid", 0},
+                                    {"BYTESTRING", "extra", 0},
+                                    {"u_int8_t", "is_resetting_op", 0},
+                                    NULLFIELD}},
+    {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
+                            {"TXNID",      "xid", 0},
+                            {"BYTESTRING", "old_descriptor", 0},
+                            {"BYTESTRING", "new_descriptor", 0},
+                            NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
