@@ -2262,7 +2262,9 @@ toku_bnc_flush_to_child(
                 &stats_delta
                 );
         }));
-    update_header_stats(&h->in_memory_stats, &stats_delta);
+    if (stats_delta.numbytes || stats_delta.numrows) {
+        update_header_stats(&h->in_memory_stats, &stats_delta);
+    }
     // Run garbage collection, if we are a leaf entry.
     TOKULOGGER logger = toku_cachefile_logger(h->cf);
     if (child->height == 0 && logger) {
