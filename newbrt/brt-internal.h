@@ -42,7 +42,7 @@ struct subtree_estimates {
     // estimate number of rows in the tree by counting the number of rows
     // in the leaves.  The stuff in the internal nodes is likely to be off O(1).
     u_int64_t nkeys;  // number of distinct keys.
-    u_int64_t ndata;; // number of key-data pairs (previously leafentry_estimate)
+    u_int64_t ndata; // number of key-data pairs (previously leafentry_estimate)
     u_int64_t dsize;  // total size of leafentries
     BOOL      exact;  // are the estimates exact?
 };
