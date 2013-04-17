@@ -66,6 +66,7 @@ if(BUILD_TESTING)
       hotindexer-put-commit.c
       hotindexer-put-multiple.c
       hotindexer-simple-abort.c
+      hotindexer-simple-abort-put.c
       hotindexer-undo-do-test.c
       hotindexer-with-queries.c
       hot-optimize-table-tests.c
@@ -142,6 +143,7 @@ if(BUILD_TESTING)
       recover-flt8.c
       recover-flt9.c
       recover-flt10.c
+      recover-hotindexer-simple-abort-put.c
       recover-loader-test.c
       recover-lsn-filter-multiple.c
       recover-put-multiple.c
