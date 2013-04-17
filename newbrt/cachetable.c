@@ -981,12 +981,6 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
 }
 
 
-// TODO #1398  Get rid of this entire straddle_callback hack
-// Man is this ugly.  
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-extern int STRADDLE_HACK_INSIDE_CALLBACK;
-#endif
-
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
