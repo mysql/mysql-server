@@ -33,9 +33,9 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     DBT key={.size=4, .data="foo"};
     CKERR(db->put(db, txn, &key, &key, 0));
     CHK(db->close(db, 0));
-    XID x = {.formatID = myformatid,
-	     .gtrid_length = 8,
-	     .bqual_length = 9};
+    TOKU_XA_XID x = {.formatID = myformatid,
+		     .gtrid_length = 8,
+		     .bqual_length = 9};
     for (int i=0; i<8+9; i++) x.data[i] = 42+i;
     CKERR(txn->xa_prepare(txn, &x));
     if (commit)
@@ -49,7 +49,7 @@ static void test1 (void) {
 	DB_ENV *env;
 	setup_env_and_prepare(&env, ENVDIR, false);
 	{
-	    XID l[1];
+	    TOKU_XA_XID l[1];
 	    long count=-1;
 	    CKERR(env->txn_xa_recover(env, l, 1, &count, DB_FIRST));
 	    printf("%s:%d count=%ld\n", __FILE__, __LINE__, count);
@@ -78,7 +78,7 @@ static void test1 (void) {
     setup_env(&env, ENVDIR);
 
     {
-	XID l[1];
+	TOKU_XA_XID l[1];
 	long count=-1;
 	{
 	    int r = env->txn_xa_recover(env, l, 1, &count, DB_FIRST);

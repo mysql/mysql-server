@@ -181,7 +181,7 @@ struct tokutxn {
     TOKUTXN_STATE state;
     LSN        do_fsync_lsn;
     BOOL       do_fsync;
-    XID        xa_xid; // for prepared transactions
+    TOKU_XA_XID        xa_xid; // for prepared transactions
     struct toku_list prepared_txns_link; // list of prepared transactions
 };
 

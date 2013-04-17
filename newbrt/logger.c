@@ -975,7 +975,7 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t
 
 int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, u_int32_t *len) {
     // These reads are verbose because XA defined the fields as "long", but we use 4 bytes, 1 byte and 1 byte respectively.
-    XID *XMALLOC(xid);
+    TOKU_XA_XID *XMALLOC(xid);
     {
         u_int32_t formatID;
         toku_fread_u_int32_t(f, &formatID,     checksum, len);

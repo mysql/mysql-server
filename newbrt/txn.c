@@ -187,7 +187,7 @@ live_list_reverse_note_txn_start(TOKUTXN txn) {
     return r;
 }
 
-static void invalidate_xa_xid (XID *xid) {
+static void invalidate_xa_xid (TOKU_XA_XID *xid) {
     ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
@@ -503,7 +503,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     return r;
 }
 
-static void copy_xid (XID *dest, XID *source) {
+static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
     ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
     dest->formatID     = source->formatID;
     dest->gtrid_length = source->gtrid_length;
@@ -511,7 +511,7 @@ static void copy_xid (XID *dest, XID *source) {
     memcpy(dest->data, source->data, source->gtrid_length+source->bqual_length);
 }
 
-int toku_txn_prepare_txn (TOKUTXN txn, XID *xa_xid) {
+int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     assert(txn->state==TOKUTXN_LIVE);
     txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint.  Right now it uses the ydb lock.
     if (txn->parent) return 0; // nothing to do if there's a parent.
@@ -523,11 +523,11 @@ int toku_txn_prepare_txn (TOKUTXN txn, XID *xa_xid) {
     return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, xa_xid);
 }
 
-void toku_txn_get_prepared_xa_xid (TOKUTXN txn, XID *xid) {
+void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
     copy_xid(xid, &txn->xa_xid);
 }
 
-int toku_logger_get_txn_from_xid (TOKULOGGER logger, XID *xid, DB_TXN **txnp) {
+int toku_logger_get_txn_from_xid (TOKULOGGER logger, TOKU_XA_XID *xid, DB_TXN **txnp) {
     int num_live_txns = toku_omt_size(logger->live_txns);
     for (int i = 0; i < num_live_txns; i++) {
         OMTVALUE v;
