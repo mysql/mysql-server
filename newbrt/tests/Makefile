@@ -49,6 +49,7 @@ endif
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
+	block_allocator_test \
 	bread-test \
 	brt-serialize-test \
 	brt-test \

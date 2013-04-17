@@ -22,6 +22,10 @@ enum typ_tag { TYP_BRTNODE = 0xdead0001,
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
 void *toku_calloc(size_t nmemb, size_t size);
 void *toku_malloc(size_t size);
+
+// xmalloc aborts instead of return NULL if we run out of memory
+void *toku_xmalloc(size_t size);
+
 /* toku_tagmalloc() performs a malloc(size), but fills in the first 4 bytes with typ.
  * This "tag" is useful if you are debugging and run across a void* that is
  * really a (struct foo *), and you want to figure out what it is.
@@ -52,6 +56,11 @@ void *toku_realloc(void *, size_t size);
 #define MALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
 
 #define REALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
+
+// XMALLOC macros are like MALLOC except they abort if the operatoin fails
+#define XMALLOC(v) v = toku_xmalloc(sizeof(*v))
+#define XMALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
+#define XREALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
 
 /* If you have a type such as 
  *    struct pma *PMA;

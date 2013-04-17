@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "toku_assert.h"
+#include "block_allocator.h"
 #include "cachetable.h"
 #include "fifo.h"
 #include "brt.h"
@@ -131,6 +132,14 @@ struct brt_header {
     //struct block_descriptor *blocks;
     BLOCKNUM free_blocks; // free list for blocks.  Use -1 to indicate that there are no free blocks
     BLOCKNUM unused_blocks; // first unused block
+
+    // Where and how big is the block allocation vector?
+    // The block allocation vector translates block numbers to offsets (DISKOFF) in the file.
+    // We use a DISKOFF for the vector location, because we cannot use block numbers to bootstrap the indirection table.
+    BLOCKNUM  block_allocation_vector_length; // It's a blocknum because the block allocation vector is indexed by blocknums.
+    DISKOFF   block_allocation_vector_location; // Remember this so we can free the block before writing a new one.
+    // The in-memory data structure  for block allocation
+    BLOCK_ALLOCATOR block_allocator;
 };
 
 struct brt {

@@ -741,7 +741,7 @@ int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, struct 
     DISKOFF v;
     int r = toku_fread_DISKOFF(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%lld", fieldname, v);
+    fprintf(outf, " %s=%" PRId64, fieldname, v);
     return 0;
 }
 int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
