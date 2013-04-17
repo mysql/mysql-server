@@ -524,7 +524,7 @@ struct __toku_dbc {
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_pre_acquire_read_lock)(DBC*, const DBT*, const DBT*);
+  int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*);
   void* __toku_dummy0[8];
   char __toku_dummy1[112];
   int (*c_close) (DBC *); /* 32-bit offset=188 size=4, 64=bit offset=264 size=8 */

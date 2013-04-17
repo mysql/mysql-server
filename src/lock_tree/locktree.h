@@ -34,8 +34,7 @@ extern "C" {
 
 /** Errors returned by lock trees */
 typedef enum {
-    TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent 
-                                   state */
+    TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent state */
 } TOKU_LT_ERROR;
 
 typedef int (*toku_dbt_cmp)(DB*,const DBT*,const DBT*);
@@ -54,6 +53,7 @@ typedef struct __toku_lock_tree toku_lock_tree;
 typedef struct __toku_lth toku_lth;
 #endif
 
+#define TOKU_LT_USE_BORDERWRITE 1
 
 typedef struct __toku_ltm toku_ltm;
 
@@ -61,7 +61,6 @@ typedef struct __toku_ltm toku_ltm;
 struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
     DB*                 db;
-    toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;         /**< Stores local(read|write)set tables */
     /**
@@ -94,7 +93,9 @@ struct __toku_lock_tree {
        the lt, we made copies from the DB at some point
     */
     toku_range*         buf;      
-    uint32_t           buflen;      /**< The length of buf */
+    uint32_t            buflen;      /**< The length of buf */
+    toku_range*         bw_buf;
+    uint32_t            bw_buflen;
     /** Whether lock escalation is allowed. */
     BOOL                lock_escalation_allowed;
     /** Lock tree manager */
@@ -349,10 +350,6 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
  //this.
 /*
- * ***************NOTE: This will not be implemented before Feb 1st because
- * ***************      MySQL does not use DB->del on DB_DUPSORT dbs.
- * ***************      The only operation that requires a write range lock is
- * ***************      DB->del on DB_DUPSORT dbs.
  * Acquires a write lock on a key range (or key/data range).  (Closed range).
  * Params:
  *      tree            The lock tree for the db.
@@ -474,6 +471,8 @@ int toku_lt_point_cmp(const toku_point* x, const toku_point* y);
 toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
 
 toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+
+void toku_lt_verify(toku_lock_tree *tree, DB *db);
 
 #if defined(__cplusplus)
 }

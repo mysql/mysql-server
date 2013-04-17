@@ -731,7 +731,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-			     "int (*c_pre_acquire_read_lock)(DBC*, const DBT*, const DBT*)",
+			     "int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);

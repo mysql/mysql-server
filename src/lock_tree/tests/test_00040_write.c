@@ -111,6 +111,16 @@ static void lt_unlock(char ctxn) {
 }
               
 static void runtest(void) {
+    setup_tree();
+    lt_insert_write(0, 'a', 1);
+    toku_lt_verify(lt, NULL);
+    lt_insert_write(0, 'a', 5);
+    toku_lt_verify(lt, NULL);
+    lt_insert_write(0, 'a', 20);
+    toku_lt_verify(lt, NULL);
+    lt_insert_write(0, 'b', 10);
+    toku_lt_verify(lt, NULL);
+    close_tree();
     
     /* ********************* */
     setup_tree();

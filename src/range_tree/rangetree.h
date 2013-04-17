@@ -241,6 +241,8 @@ int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
 
 int toku_rt_iterate(toku_range_tree* tree, int (*f)(toku_range*,void*), void* extra);
 
+void toku_rt_verify(toku_range_tree *tree);
+
 #if defined(__cplusplus)
 }
 #endif

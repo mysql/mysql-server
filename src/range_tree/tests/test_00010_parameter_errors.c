@@ -15,7 +15,6 @@ int main(int argc, const char *argv[]) {
 
     r = toku_rt_create(&tree, NULL,    TXNID_cmp,   FALSE, toku_malloc, toku_free, toku_realloc);
     CKERR2(r, EINVAL);
-    
     assert(tree == NULL);
 
     r = toku_rt_create(&tree, int_cmp, NULL,      FALSE, toku_malloc, toku_free, toku_realloc);
@@ -29,7 +28,6 @@ int main(int argc, const char *argv[]) {
 
     r = toku_rt_create(&tree, int_cmp, TXNID_cmp,   FALSE, toku_malloc, toku_free, NULL);
     CKERR2(r, EINVAL);
-
     assert(tree == NULL);
 
     /* Close tests */
@@ -178,6 +176,20 @@ int main(int argc, const char *argv[]) {
 
     r = toku_rt_close(tree);                                CKERR(r);
     tree = NULL;
+
+    /* size tests */
+    r = toku_rt_create(&tree, int_cmp,   TXNID_cmp,   FALSE, toku_malloc, toku_free, toku_realloc);
+    CKERR(r);
+    assert(tree != NULL);
+
+    r = toku_rt_get_size(NULL, NULL); CKERR2(r, EINVAL);
+    r = toku_rt_get_size(tree, NULL); CKERR2(r, EINVAL);
+    u_int32_t tree_size;
+    r = toku_rt_get_size(NULL, &tree_size); CKERR2(r, EINVAL);
+    r = toku_rt_get_size(tree, &tree_size); CKERR(r);
+
+    r = toku_rt_close(tree);                                CKERR(r);
+    tree = NULL;    
 
     /* That's it: clean up and go home */
     toku_free(buf);

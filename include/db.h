@@ -472,7 +472,7 @@ struct __toku_dbc {
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_pre_acquire_read_lock)(DBC*, const DBT*, const DBT*);
+  int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*);
   int (*c_close) (DBC *);
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);

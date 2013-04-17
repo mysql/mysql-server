@@ -218,13 +218,17 @@ struct __toku_dbc_internal {
     TOKU_ISOLATION iso;
     struct simple_dbt skey_s,sval_s;
     struct simple_dbt *skey,*sval;
+
+    // if the rmw flag is asserted, cursor operations (like set) grab write locks instead of read locks
+    // the rmw flag is set when the cursor is created with the DB_RMW flag set
+    BOOL rmw;
 };
 
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
 
-int toku_grab_write_lock (DB* db, DBT* key, TOKUTXN tokutxn);
+int toku_grab_write_lock(DB *db, DBT *key, TOKUTXN tokutxn);
 
-int toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn);
+int toku_grab_read_lock_on_directory(DB *db, DB_TXN *txn);
 
 #if defined(__cplusplus)
 }

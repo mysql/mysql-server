@@ -102,6 +102,17 @@ static void tests(BOOL allow_overlaps) {
     setup_tree(allow_overlaps, TRUE, 0, 3, 0);
     runinsert((allow_overlaps ? 0 : EDOM), init_range(&toinsert, 0, 3, 1));
     close_tree();
+
+    /* Tree: {(|1-3|,0),(|5-6|,0)} */
+    setup_tree(allow_overlaps, TRUE, 1, 3, 0);
+    runinsert(0, init_range(&toinsert, 5, 6, 0));
+    runsearch(0, init_query(&query, 3, 4), init_range(&expect, 1, 3, 0));
+    runsearch(0, init_query(&query, 4, 5), init_range(&expect, 5, 6, 0));
+    runsearch(0, init_query(&query, 4, 6), init_range(&expect, 5, 6, 0));
+    runsearch(0, init_query(&query, 4, 7), init_range(&expect, 5, 6, 0));
+    toku_range expect1, expect2;
+    runsearch2(0, init_query(&query, 3, 7), init_range(&expect1, 1, 3, 0), init_range(&expect2, 5, 6, 0));
+    close_tree();
 }
 
 int main(int argc, const char *argv[]) {

@@ -30,7 +30,7 @@ static int increment_update (DB *db __attribute__((__unused__)),
         set_val(NULL, set_extra);
         return 0;
     }
-    assert(0); // enumeration failed.
+    assert(0); return 0; // enumeration failed.
 }
 
 static void setup (void) {
