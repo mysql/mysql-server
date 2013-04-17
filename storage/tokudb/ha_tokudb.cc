@@ -6195,7 +6195,7 @@ static inline enum toku_compression_method
 row_type_to_compression_method(enum row_type type)
 {
     switch (type) {
-#if defined(ROW_TUYPE_TOKU_UNCOMPRESSED)
+#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
     case ROW_TYPE_TOKU_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
     case ROW_TYPE_TOKU_ZLIB:
