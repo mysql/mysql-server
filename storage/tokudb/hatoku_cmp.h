@@ -27,7 +27,7 @@ int compare_field(uchar* a_buf, Field* a_field, uchar* b_buf, Field* b_field);
 
 uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes);
 uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes);
-int cmp_toku_int (uchar* a, uchar* b, bool is_signed, u_int32_t num_bytes);
+int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes);
 
 
 //
