@@ -142,8 +142,11 @@ int toku_os_write (int fd, const void *buf, size_t len) __attribute__((__visibil
 int toku_file_fsync_without_accounting(int fd);
 int toku_file_fsync(int fd);
 
-// get the number of fsync calls and the fsync times
+// get the number of fsync calls and the fsync times (total)
 void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
+
+// get the number of fsync calls and the fsync times for use by scheduler (subset of total)
+void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time);
 
 // set a new fsync function (for debugging)
 int toku_set_func_fsync (int (*fsync_function)(int));
