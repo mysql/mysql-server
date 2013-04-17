@@ -279,7 +279,6 @@ int tokudb_cmp_dbt_key(DB* db, const DBT *keya, const DBT *keyb);
 //TODO: QQQ Only do one direction for prefix.
 int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
-#if TOKU_INCLUDE_ANALYZE
 static int tokudb_compare_two_key_parts(
     const void* new_key_data, 
     const uint32_t new_key_size, 
@@ -291,7 +290,6 @@ static int tokudb_compare_two_key_parts(
     );
 
 static int tokudb_cmp_dbt_key_parts(DB *file, const DBT *keya, const DBT *keyb, uint max_parts);
-#endif
 
 int create_toku_key_descriptor(
     uchar* buf, 
