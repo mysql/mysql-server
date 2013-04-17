@@ -320,6 +320,12 @@ indexer_fill_prov_info(DB_INDEXER *indexer, struct ule_prov_info *prov_info) {
     TOKUTXN_STATE *prov_states = prov_info->prov_states;
     TOKUTXN *prov_txns = prov_info->prov_txns;
 
+    // don't both grabbing the txn manager lock if we don't
+    // have any provisional txns to record
+    if (num_provisional == 0) {
+        return;
+    }
+
     // hold the txn manager lock while we inspect txn state
     // and pin some live txns
     DB_ENV *env = indexer->i->env;
