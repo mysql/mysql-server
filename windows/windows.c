@@ -222,26 +222,6 @@ toku_os_gettid(void) {
     return GetCurrentThreadId();
 }
 
-int 
-gettimeofday(struct timeval *tv, struct timezone *tz) {
-    FILETIME ft;
-    ULARGE_INTEGER t;
-
-    GetSystemTimeAsFileTime(&ft);
-    t.u.LowPart = ft.dwLowDateTime;
-    t.u.HighPart = ft.dwHighDateTime;
-    t.QuadPart -= 116444736000000000i64;
-    t.QuadPart /= 10;
-    if (tv) {
-        tv->tv_sec = t.QuadPart / 1000000;
-        tv->tv_usec = t.QuadPart % 1000000;
-    }
-    if (tz) {
-        assert(0);
-    }
-    return 0;
-}
-
 int
 toku_os_lock_file(char *name) {
     int fd = _sopen(name, O_CREAT, _SH_DENYRW, S_IREAD|S_IWRITE);
