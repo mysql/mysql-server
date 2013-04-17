@@ -88,6 +88,11 @@ BDB_DONTRUN_TESTS = \
 	checkpoint_1 \
 #\ ends prev line
 
+# checkpoint tests depend on this header file, 
+checkpoint_1.tdb$(BINSUF) checkpoint_stress.tdb$(BINSUF): checkpoint_test.h
+# dependency only, not a rule (do not insert a tab at this line)
+
+
 ifeq ($(OS_CHOICE),windows)
     BDB_DONTRUN_TESTS+=$(WINDOWS_BDB_DONTRUN_TESTS)
 endif
