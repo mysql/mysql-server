@@ -2811,7 +2811,7 @@ int ha_tokudb::write_row(uchar * record) {
     }
 
     if (using_ignore) {
-        error = db_env->txn_begin(db_env, transaction, &sub_trans, 0);
+        error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
@@ -3068,7 +3068,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     }
 
     if (using_ignore) {
-        error = db_env->txn_begin(db_env, transaction, &sub_trans, 0);
+        error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
