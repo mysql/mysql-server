@@ -105,6 +105,7 @@ test_main (int argc, const char *argv[]) {
     struct my_threadpool my_threadpool;
     THREADPOOL threadpool;
 
+    ZERO_STRUCT(my_threadpool);
     my_threadpool_init(&my_threadpool, max_threads);
     threadpool = my_threadpool.threadpool;
     if (verbose) printf("test threadpool_set_busy\n");

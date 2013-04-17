@@ -115,11 +115,10 @@ toku_thread_run_internal(void *arg) {
 int 
 toku_thread_pool_create(struct toku_thread_pool **pool_return, int max_threads) {
     int r;
-    struct toku_thread_pool *MALLOC(pool);
+    struct toku_thread_pool *CALLOC(pool);
     if (pool == NULL) {
         r = get_error_errno();
     } else {
-        memset(pool, 0, sizeof *pool);
         toku_mutex_init(&pool->lock, NULL);
         toku_list_init(&pool->free_threads);
         toku_list_init(&pool->all_threads);

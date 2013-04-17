@@ -218,6 +218,7 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
             T = T - 1;     // threads in addition to the running thread
 
         struct workset ws;
+        ZERO_STRUCT(ws);
         workset_init(&ws);
 
         struct compress_work work[n_sub_blocks];
@@ -317,6 +318,7 @@ decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsign
 
         // init the decompression work set
         struct workset ws;
+        ZERO_STRUCT(ws);
         workset_init(&ws);
 
         // initialize the decompression work and add to the work set
