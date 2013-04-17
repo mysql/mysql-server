@@ -20,7 +20,6 @@ static void print_dbtype(void) {
     printf(" DB_UNKNOWN=%d\n", DB_UNKNOWN);
     printf("} DBTYPE;\n");
 }
-
 #if 0
 void print_db_notices (void) {
     printf("typedef enum { /* This appears to be a mysql-specific addition to the api. */ \n");
@@ -60,22 +59,23 @@ void print_db_notices (void) {
     printf("#define %s %d\n", #name, which);    \
 } while (0)
 
+
 enum {
-    TOKUDB_OUT_OF_LOCKS            = -100000,
-    TOKUDB_SUCCEEDED_EARLY         = -100001,
-    TOKUDB_FOUND_BUT_REJECTED      = -100002,
-    TOKUDB_USER_CALLBACK_ERROR     = -100003,
-    TOKUDB_DICTIONARY_TOO_OLD      = -100004,
-    TOKUDB_DICTIONARY_TOO_NEW      = -100005,
-    TOKUDB_DICTIONARY_NO_HEADER    = -100006,
-    TOKUDB_CANCELED                = -100007,
-    TOKUDB_NO_DATA                 = -100008,
-    TOKUDB_ACCEPT                  = -100009,
-    TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
-    TOKUDB_UPGRADE_FAILURE         = -100011,
-    TOKUDB_TRY_AGAIN               = -100012,
-    TOKUDB_NEEDS_REPAIR            = -100013,
-    TOKUDB_CURSOR_CONTINUE         = -100014,
+        TOKUDB_OUT_OF_LOCKS            = -100000,
+        TOKUDB_SUCCEEDED_EARLY         = -100001,
+        TOKUDB_FOUND_BUT_REJECTED      = -100002,
+        TOKUDB_USER_CALLBACK_ERROR     = -100003,
+        TOKUDB_DICTIONARY_TOO_OLD      = -100004,
+        TOKUDB_DICTIONARY_TOO_NEW      = -100005,
+        TOKUDB_DICTIONARY_NO_HEADER    = -100006,
+        TOKUDB_CANCELED                = -100007,
+        TOKUDB_NO_DATA                 = -100008,
+        TOKUDB_ACCEPT                  = -100009,
+        TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
+        TOKUDB_UPGRADE_FAILURE         = -100011,
+        TOKUDB_TRY_AGAIN               = -100012,
+	TOKUDB_NEEDS_REPAIR            = -100013,
+        TOKUDB_CURSOR_CONTINUE         = -100014,
 };
 
 static void print_defines (void) {
@@ -260,11 +260,7 @@ struct fieldinfo {
 #error
 #endif
 
-enum need_internal_type { 
-    NO_INTERNAL = 0, 
-    INTERNAL_NAMED = 1, 
-    INTERNAL_AT_END = 2
-};
+enum need_internal_type { NO_INTERNAL=0, INTERNAL_NAMED=1, INTERNAL_AT_END=2};
 
 static void print_struct (const char *structname, enum need_internal_type need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
     unsigned int i;
@@ -277,96 +273,96 @@ static void print_struct (const char *structname, enum need_internal_type need_i
     assert(need_internal==NO_INTERNAL || need_internal==INTERNAL_NAMED || need_internal==INTERNAL_AT_END);
     printf("struct __toku_%s {\n", structname);
     for (i=0; i<N-1; i++) {
-        unsigned int this_32 = fields32[i].off;
-        unsigned int this_64 = fields64[i].off;
-        //fprintf(stderr, "this32=%d current32=%d this64=%d current64=%d\n", this_32, current_32, this_64, current_64);
-        if (this_32 > current_32 || this_64 > current_64) {
-            unsigned int diff32 = this_32-current_32;
-            unsigned int diff64 = this_64-current_64;
-            assert(this_32 > current_32 && this_64 > current_64);
-            if (diff32!=diff64) {
-                unsigned int diff = diff64-diff32;
-                unsigned int n_dummys = diff/4;
-                if (need_internal==INTERNAL_NAMED && !did_toku_internal) {
-                    if (TDB_NATIVE &&
-                        (strcmp(structname, "dbc")==0 ||
-                         strcmp(structname, "db_txn")==0)) {
-                        printf("  struct __toku_%s_internal ii;\n", structname);
-                        printf("#define %s_struct_i(x) (&(x)->ii)\n", structname);
-                    } else {
-                        printf("  struct __toku_%s_internal *i;\n", structname);
-                        printf("#define %s_struct_i(x) ((x)->i)\n", structname);
-                    }
-                    n_dummys--;
-                    did_toku_internal=1;
-                }
-                while (n_dummys>0 && extra_decls && *extra_decls) {
-                    printf("  %s;\n", *extra_decls);
-                    extra_decls++;
-                    n_dummys--;
-                }
-                if (n_dummys>0) {
-                    if (!TDB_NATIVE)
-                        printf("  void* __toku_dummy%d[%d];\n", dummy_counter, n_dummys);
-                    dummy_counter++;
-                }
-                diff64-=diff*2;
-                diff32-=diff;
-                
-            }
-            assert(diff32==diff64);
-            if (diff32>0) {
-                if (!TDB_NATIVE)
-                    printf("  char __toku_dummy%d[%d];\n", dummy_counter, diff32);
-                dummy_counter++;
-            }
-            current_32 = this_32;
-            current_64 = this_64;
-        }
-        if (this_32<current_32 || this_64<current_64) {
-            printf("Whoops this_32=%d this_64=%d\n", this_32, this_64);
-        }
-        if (i+1<N) {
-            assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
-            printf("  %s;", fields32[i].decl);
-            if (!TDB_NATIVE)
-                printf(" /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */", fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
-            printf("\n");
-        } else {
-            assert(fields32[i].decl==0);
-            assert(fields64[i].decl==0);
-        }
-        current_32 += fields32[i].size;
-        current_64 += fields64[i].size;
+	unsigned int this_32 = fields32[i].off;
+	unsigned int this_64 = fields64[i].off;
+	//fprintf(stderr, "this32=%d current32=%d this64=%d current64=%d\n", this_32, current_32, this_64, current_64);
+	if (this_32 > current_32 || this_64 > current_64) {
+	    unsigned int diff32 = this_32-current_32;
+	    unsigned int diff64 = this_64-current_64;
+	    assert(this_32 > current_32 && this_64 > current_64);
+	    if (diff32!=diff64) {
+		unsigned int diff = diff64-diff32;
+		unsigned int n_dummys = diff/4;
+		if (need_internal==INTERNAL_NAMED && !did_toku_internal) {
+		    if (TDB_NATIVE &&
+			(strcmp(structname, "dbc")==0 ||
+			 strcmp(structname, "db_txn")==0)) {
+			printf("  struct __toku_%s_internal ii;\n", structname);
+			printf("#define %s_struct_i(x) (&(x)->ii)\n", structname);
+		    } else {
+			printf("  struct __toku_%s_internal *i;\n", structname);
+			printf("#define %s_struct_i(x) ((x)->i)\n", structname);
+		    }
+		    n_dummys--;
+		    did_toku_internal=1;
+		}
+		while (n_dummys>0 && extra_decls && *extra_decls) {
+		    printf("  %s;\n", *extra_decls);
+		    extra_decls++;
+		    n_dummys--;
+		}
+		if (n_dummys>0) {
+		    if (!TDB_NATIVE)
+			printf("  void* __toku_dummy%d[%d];\n", dummy_counter, n_dummys);
+		    dummy_counter++;
+		}
+		diff64-=diff*2;
+		diff32-=diff;
+		
+	    }
+	    assert(diff32==diff64);
+	    if (diff32>0) {
+		if (!TDB_NATIVE)
+		    printf("  char __toku_dummy%d[%d];\n", dummy_counter, diff32);
+		dummy_counter++;
+	    }
+	    current_32 = this_32;
+	    current_64 = this_64;
+	}
+	if (this_32<current_32 || this_64<current_64) {
+	    printf("Whoops this_32=%d this_64=%d\n", this_32, this_64);
+	}
+	if (i+1<N) {
+	    assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
+	    printf("  %s;", fields32[i].decl);
+	    if (!TDB_NATIVE)
+		printf(" /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */", fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	    printf("\n");
+	} else {
+	    assert(fields32[i].decl==0);
+	    assert(fields64[i].decl==0);
+	}
+	current_32 += fields32[i].size;
+	current_64 += fields64[i].size;
     }
     if (extra_decls) assert(NULL==*extra_decls); // make sure that the extra decls all got used up.
     {
-        unsigned int this_32 = fields32[N-1].off;
-        unsigned int this_64 = fields64[N-1].off;
-        unsigned int diff32  = this_32-current_32;
-        unsigned int diff64  = this_64-current_64;
-        if (diff32>0 && diff32<diff64) {
-            unsigned int diff = diff64-diff32;
-            if (!TDB_NATIVE)
-                printf("  void* __toku_dummy%d[%d]; /* Padding at the end */ \n", dummy_counter, diff/4);
-            dummy_counter++;
-            diff64-=diff*2;
-            diff32-=diff;
-        }
-        if (diff32>0) {
-            if (!TDB_NATIVE)
-                printf("  char __toku_dummy%d[%d];  /* Padding at the end */ \n", dummy_counter, diff32);
-            dummy_counter++;
-            diff64-=diff32;
-            diff32=0;
-        }
-        if (diff64>0)
-            if (!TDB_NATIVE)
-                printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
-        assert(diff64<8); /* there could be a few left from alignment. */ 
+	unsigned int this_32 = fields32[N-1].off;
+	unsigned int this_64 = fields64[N-1].off;
+	unsigned int diff32  = this_32-current_32;
+	unsigned int diff64  = this_64-current_64;
+	if (diff32>0 && diff32<diff64) {
+	    unsigned int diff = diff64-diff32;
+	    if (!TDB_NATIVE)
+		printf("  void* __toku_dummy%d[%d]; /* Padding at the end */ \n", dummy_counter, diff/4);
+	    dummy_counter++;
+	    diff64-=diff*2;
+	    diff32-=diff;
+	}
+	if (diff32>0) {
+	    if (!TDB_NATIVE)
+		printf("  char __toku_dummy%d[%d];  /* Padding at the end */ \n", dummy_counter, diff32);
+	    dummy_counter++;
+	    diff64-=diff32;
+	    diff32=0;
+	}
+	if (diff64>0)
+	    if (!TDB_NATIVE)
+		printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
+	assert(diff64<8); /* there could be a few left from alignment. */ 
     }
     if (need_internal==INTERNAL_AT_END) {
-        did_toku_internal = 1;
+	did_toku_internal = 1;
     }
     printf("};\n");
     assert(did_toku_internal || !need_internal);
@@ -398,10 +394,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("#endif\n");
 
     if (0) {
-        printf("#ifndef __BIT_TYPES_DEFINED__\n");
-        printf("/* Define some int types if not provided by the system.  BIND does this, so we do it too. */\n");
-        printf("typedef unsigned int u_int32_t;\n");
-        printf("#endif\n");
+	printf("#ifndef __BIT_TYPES_DEFINED__\n");
+	printf("/* Define some int types if not provided by the system.  BIND does this, so we do it too. */\n");
+	printf("typedef unsigned int u_int32_t;\n");
+	printf("#endif\n");
     }
 
     //Typedef toku_off_t
@@ -716,7 +712,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();
-    // print_db_notices();
+//    print_db_notices();
     print_defines();
 
     printf("typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
@@ -729,47 +725,46 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     //print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]), 0);
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
     {
-        const char *extra[]= {
-            "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
-            "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
-            "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
-            "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
-            "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
-            "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
-            "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
-            "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
-            "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
-            "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
-            "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
-            "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */",
-            "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
-            "int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);",
-            "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
-            "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
-            "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
-            "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-            "                                             const DBT *src_key, const DBT *src_val,\n"
-            "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) /* insert into multiple DBs */",
-            "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
-            "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-            "                                             const DBT *src_key, const DBT *src_val,\n"
-            "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) /* delete from multiple DBs */",
-            "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
-            "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
-            "                                             DBT *old_src_key, DBT *old_src_data,\n"
-            "                                             DBT *new_src_key, DBT *new_src_data,\n"
-            "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
-            "                                             uint32_t num_keys, DBT *keys,\n"
-            "                                             uint32_t num_vals, DBT *vals) /* update multiple DBs */",
-            "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
-            "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
-            "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
-            "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
-            "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
-            "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
-            "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
-            NULL
-        };
+	const char *extra[]={
+                             "int (*checkpointing_set_period)             (DB_ENV*, u_int32_t) /* Change the delay between automatic checkpoints.  0 means disabled. */",
+                             "int (*checkpointing_get_period)             (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic checkpoints.  0 means disabled. */",
+                             "int (*cleaner_set_period)                   (DB_ENV*, u_int32_t) /* Change the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_get_period)                   (DB_ENV*, u_int32_t*) /* Retrieve the delay between automatic cleaner attempts.  0 means disabled. */",
+                             "int (*cleaner_set_iterations)               (DB_ENV*, u_int32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
+                             "int (*cleaner_get_iterations)               (DB_ENV*, u_int32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
+                             "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
+                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
+                             "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
+                             "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
+                             "int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
+			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */",
+			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
+			     "int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);",
+			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
+                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
+                             "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
+                             "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+                             "                                             const DBT *src_key, const DBT *src_val,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) /* insert into multiple DBs */",
+                             "int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put)",
+                             "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+                             "                                             const DBT *src_key, const DBT *src_val,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) /* delete from multiple DBs */",
+                             "int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del)",
+                             "int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+                             "                                             DBT *old_src_key, DBT *old_src_data,\n"
+                             "                                             DBT *new_src_key, DBT *new_src_data,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, uint32_t *flags_array,\n"
+                             "                                             uint32_t num_keys, DBT *keys,\n"
+                             "                                             uint32_t num_vals, DBT *vals) /* update multiple DBs */",
+                             "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
+                             "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
+                             "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
+                             "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
+			     "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
+                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
+                             "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
+			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }
 
@@ -778,8 +773,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 
     assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
     {
-        //const char *extra[] = {"u_int64_t lsn", NULL};
-        print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
+	//const char *extra[] = {"u_int64_t lsn", NULL};
+	print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
     }
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
@@ -814,7 +809,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                  "int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
-                             "void (*get_max_row_size)(DB*, u_int32_t *max_key_size, u_int32_t *max_row_size) /* Test whether a row size is supported. */",
+                             "void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size)",
                              "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
                              "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
@@ -846,35 +841,36 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
         printf("} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;\n");
         printf("typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);\n");
 
-        printf("struct txn_stat {\n  u_int64_t rollback_raw_count;\n};\n");
-        const char *extra[] = {
+	printf("struct txn_stat {\n  u_int64_t rollback_raw_count;\n};\n");
+	const char *extra[] = {
             "int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
             "struct { void *next, *prev; } open_txns",
             "int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
             "int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
             NULL,
         };
-        print_struct("db_txn", INTERNAL_AT_END, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
+	print_struct("db_txn", INTERNAL_AT_END, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
     }
 
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
     print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]), 0);
+
     {
-        const char *extra[]= {
-             "int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
-             "int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*)",
-             NULL
-        };
-        assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
-        print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
+	const char *extra[]={
+			     "int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+                             "int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *)",
+
+			     "int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
+			     "int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*)",
+			     NULL};
+	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
+	print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
     }
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");

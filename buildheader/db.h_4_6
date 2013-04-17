@@ -561,7 +561,7 @@ struct __toku_db {
   int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
-  void (*get_max_row_size)(DB*, u_int32_t *max_key_size, u_int32_t *max_row_size) /* Test whether a row size is supported. */;
+  void (*get_max_row_size) (DB*, u_int32_t *max_key_size, u_int32_t *max_row_size);
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
