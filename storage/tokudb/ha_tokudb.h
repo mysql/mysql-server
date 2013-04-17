@@ -22,6 +22,14 @@ typedef struct loader_context {
     ha_tokudb* ha;
 } *LOADER_CONTEXT;
 
+typedef struct hot_optimize_context {
+    THD *thd;
+    char write_status_msg[200];
+    ha_tokudb *ha;
+    uint current_table;
+    uint num_tables;
+} *HOT_OPTIMIZE_CONTEXT;
+
 //
 // This object stores table information that is to be shared
 // among all ha_tokudb objects.
