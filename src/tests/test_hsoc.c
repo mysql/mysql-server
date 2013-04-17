@@ -109,6 +109,7 @@ test_hsoc (int pagesize, int dup_mode) {
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int
