@@ -57,8 +57,8 @@ extern "C" {
 #endif
 #endif
 
-#define lazy_assert(a) assert(a) // indicates code is incomplete 
-#define invariant(a) assert(a) // indicates a code invariant that must be true
+#define lazy_assert(a)     assert(a) // indicates code is incomplete 
+#define invariant(a)       assert(a) // indicates a code invariant that must be true
 #define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
@@ -127,7 +127,7 @@ static void cleanup_big_buffer(struct file_info *file) {
 }
 
 int brtloader_init_file_infos (struct file_infos *fi) {
-    int r = toku_pthread_mutex_init(&fi->lock, NULL); lazy_assert(r == 0);
+    int r = toku_pthread_mutex_init(&fi->lock, NULL); resource_assert(r == 0);
     fi->n_files = 0;
     fi->n_files_limit = 1;
     fi->n_files_open = 0;
@@ -143,7 +143,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 // If !is_error then requires that all the temp files have been closed and destroyed
 // No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
 {
-    int r = toku_pthread_mutex_destroy(&fi->lock); lazy_assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&fi->lock); resource_assert(r == 0);
     if (!is_error) {
 	invariant(fi->n_files_open==0);
 	invariant(fi->n_files_extant==0);
@@ -276,7 +276,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 }
 
 static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
-    int r = toku_pthread_mutex_destroy(&bl->mutex); lazy_assert(r == 0);
+    int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
@@ -298,7 +298,7 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     toku_free(bl->fs);
 
     for (int i=0; i<bl->N; i++) {
-	lazy_assert(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
+	invariant(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
     }
     toku_free(bl->fractal_threads);
     toku_free(bl->fractal_queues);
