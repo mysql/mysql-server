@@ -2770,8 +2770,16 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     if (error && (tokudb_debug & TOKUDB_DEBUG_ERROR))
         TOKUDB_TRACE("error:%d:%d\n", error, find_flag);
 cleanup:
-    if (last_key.data && last_key.flags==DB_DBT_REALLOC) free(last_key.data);
-    if (row.data && row.flags==DB_DBT_REALLOC) free(row.data);
+    if (last_key.data && last_key.flags==DB_DBT_REALLOC) {
+        free(last_key.data);
+        last_key.data = NULL;
+        last_key.flags = 0;
+    }
+    if (row.data && row.flags==DB_DBT_REALLOC) {
+        free(row.data);
+        row.data = NULL;
+        row.flags = 0;
+    }
     //
     // Using dbt_copy_heavi (used with c_getf_heavi) will set
     // flags==DB_DBT_REALLOC.
