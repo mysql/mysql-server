@@ -61,7 +61,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 }
 
 static void
-cachetable_test (BOOL write_first, BOOL write_second) {
+cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
@@ -93,10 +93,12 @@ cachetable_test (BOOL write_first, BOOL write_second) {
     enum cachetable_dirty cd[2];
     cd[0] = write_first ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
     cd[1] = write_second ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
-    //
-    // should mark the v1 and v2 as pending
-    //
-    r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r==0);
+    if (start_checkpoint) {
+        //
+        // should mark the v1 and v2 as pending
+        //
+        r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r==0);
+    }
     //
     // This call should cause a flush for both
     //
@@ -118,24 +120,30 @@ cachetable_test (BOOL write_first, BOOL write_second) {
         dependent_fullhash,
         cd
         );
-    assert(v1_written == write_first);
-    assert(v2_written == write_second);
-        
+    if (start_checkpoint) {
+        assert(v1_written == write_first);
+        assert(v2_written == write_second);
+    }
+    else {
+        assert(!v1_written);
+        assert(!v2_written);
+    }
     check_me = FALSE;
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(8));
     r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
 
-    r = toku_cachetable_end_checkpoint(
-        ct, 
-        NULL, 
-        fake_ydb_lock,
-        fake_ydb_unlock,
-        NULL,
-        NULL
-        );
-    assert(r==0);
-
+    if (start_checkpoint) {
+        r = toku_cachetable_end_checkpoint(
+            ct, 
+            NULL, 
+            fake_ydb_lock,
+            fake_ydb_unlock,
+            NULL,
+            NULL
+            );
+        assert(r==0);
+    }
 
     toku_cachetable_verify(ct);
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
@@ -147,9 +155,13 @@ cachetable_test (BOOL write_first, BOOL write_second) {
 int
 test_main(int argc, const char *argv[]) {
   default_parse_args(argc, argv);
-  cachetable_test(FALSE,FALSE);
-  cachetable_test(FALSE,TRUE);
-  cachetable_test(TRUE,FALSE);
-  cachetable_test(TRUE,TRUE);
+  cachetable_test(FALSE,FALSE,TRUE);
+  cachetable_test(FALSE,TRUE,TRUE);
+  cachetable_test(TRUE,FALSE,TRUE);
+  cachetable_test(TRUE,TRUE,TRUE);
+  cachetable_test(FALSE,FALSE,FALSE);
+  cachetable_test(FALSE,TRUE,FALSE);
+  cachetable_test(TRUE,FALSE,FALSE);
+  cachetable_test(TRUE,TRUE,FALSE);
   return 0;
 }
