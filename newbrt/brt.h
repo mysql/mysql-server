@@ -13,10 +13,9 @@
 #include "cachetable.h"
 #include "log.h"
 #include "brt-search.h"
+#include "c_dialects.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 // A callback function is invoked with the key, and the data.
 // The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
@@ -230,8 +229,6 @@ BOOL toku_brt_is_recovery_logging_suppressed (BRT);
 #define TOKU_MULTIPLE_MAIN_THREADS 0
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
+C_END
 
 #endif

@@ -6,9 +6,9 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include "c_dialects.h"
+
+C_BEGIN
 
 // The loader callbacks are C functions and need to be defined as such
 
@@ -51,8 +51,6 @@ int toku_brt_loader_finish_extractor(BRTLOADER bl);
 
 int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
+C_END
 
 #endif // BRTLOADER_H

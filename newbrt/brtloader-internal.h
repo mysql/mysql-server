@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ifndef _TOKU_BRTLOADER_INTERNAL_H
 #define _TOKU_BRTLOADER_INTERNAL_H
-#ident "$Id: pqueue.c$"
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
 #include <db.h>
@@ -9,10 +9,10 @@
 #include "brtloader.h"
 #include "queue.h"
 #include "toku_pthread.h"
+#include "dbufio.h"
+#include "c_dialects.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 /* These functions are exported to allow the tests to compile. */
 
@@ -186,18 +186,17 @@ int merge_row_arrays_base (struct row dest[/*an+bn*/], struct row a[/*an*/], int
 
 int merge_files (struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func, int progress_allocation, QUEUE);
 
-#if defined(__cilkplusplus)
-extern "Cilk++" {
-#endif
+CILK_BEGIN
 int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func,
 			 int progress_allocation);
 
 int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
 
+int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation);
+
 //int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation);
-#if defined(__cilkplusplus)
-};
-#endif
+CILK_END
+
 int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func,
 				    int progress_allocation);
 
@@ -217,9 +216,17 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx);
 int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode);
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx);
 
-#if defined(__cplusplus)
-};
-#endif
+int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
+				   CACHETABLE cachetable,
+				   generate_row_for_put_func g,
+				   DB *src_db,
+				   int N, DB*dbs[/*N*/],
+				   const struct descriptor *descriptors[/*N*/],
+				   const char *new_fnames_in_env[/*N*/],
+				   brt_compare_func bt_compare_functions[/*N*/],
+				   const char *temp_file_template,
+				   LSN load_lsn);
 
+C_END
 
 #endif

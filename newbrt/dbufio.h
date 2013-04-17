@@ -6,10 +6,9 @@
 
 #include <toku_portability.h>
 #include <toku_pthread.h>
+#include "c_dialects.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 /* Maintain a set of files for reading, with double buffering for the reads. */
 
@@ -23,9 +22,6 @@ int destroy_dbufio_fileset(DBUFIO_FILESET);
 
 int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t count, size_t *n_read);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
-
+C_END
 
 #endif
