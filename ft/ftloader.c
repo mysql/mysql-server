@@ -2221,6 +2221,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
         result = errno;
         dbout_destroy(&out);
         drain_writer_q(q);
+        toku_free(ft.h);
         return result;
     }
 
@@ -2236,6 +2237,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
         subtrees_info_destroy(&sts);
         dbout_destroy(&out);
         drain_writer_q(q);
+        toku_free(ft.h);
         return result;
     }
 
@@ -2438,6 +2440,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     subtrees_info_destroy(&sts);
     dbout_destroy(&out);
     drain_writer_q(q);
+    toku_free(ft.h);
 
     return result;
 }
