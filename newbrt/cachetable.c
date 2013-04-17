@@ -163,24 +163,24 @@ struct cachetable {
 
 // Lock the cachetable
 static inline void cachefiles_lock(CACHETABLE ct) {
-    int r = toku_pthread_mutex_lock(&ct->cachefiles_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_lock(&ct->cachefiles_mutex); resource_assert_zero(r);
 }
 
 // Unlock the cachetable
 static inline void cachefiles_unlock(CACHETABLE ct) {
-    int r = toku_pthread_mutex_unlock(&ct->cachefiles_mutex); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&ct->cachefiles_mutex); resource_assert_zero(r);
 }
 
 // Lock the cachetable
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
-    int r = toku_pthread_mutex_lock(ct->mutex); assert(r == 0);
+    int r = toku_pthread_mutex_lock(ct->mutex); resource_assert_zero(r);;
     cachetable_lock_taken++;
 }
 
 // Unlock the cachetable
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
     cachetable_lock_released++;
-    int r = toku_pthread_mutex_unlock(ct->mutex); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(ct->mutex); resource_assert_zero(r);
 }
 
 // Wait for cache table space to become available 
@@ -282,8 +282,8 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->logger = logger;
     toku_init_workers(&ct->wq, &ct->threadpool);
     ct->mutex = workqueue_lock_ref(&ct->wq);
-    int r = toku_pthread_mutex_init(&ct->openfd_mutex, NULL); assert(r == 0);
-    r = toku_pthread_mutex_init(&ct->cachefiles_mutex, 0); assert(r == 0);
+    int r = toku_pthread_mutex_init(&ct->openfd_mutex, NULL); resource_assert_zero(r);
+    r = toku_pthread_mutex_init(&ct->cachefiles_mutex, 0); resource_assert_zero(r);
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     r = toku_leaflock_create(&ct->leaflock_pool); assert(r==0);
     r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
@@ -354,8 +354,7 @@ restart:
                 //Cachefile is closing, wait till finished.
                 assert(extant->closefd_waiting==0); //Single client thread (any more and this needs to be re-analyzed).
                 extant->closefd_waiting++;
-		int rwait = toku_pthread_cond_wait(&extant->closefd_wait, ct->mutex);
-		assert(rwait == 0);
+		int rwait = toku_pthread_cond_wait(&extant->closefd_wait, ct->mutex); resource_assert_zero(rwait);
                 restarted = TRUE;
                 goto restart; //Restart and verify that it is not found in the second loop.
             }
@@ -534,7 +533,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         return r;
     }
     r = toku_pthread_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
-    assert(r==0);
+    resource_assert_zero(r);
     cachetable_lock(ct);
     cachefiles_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
@@ -544,8 +543,8 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
 	    if (extant->is_closing) {
 		// if another thread is closing this file, wait until the close is fully complete
                 cachefiles_unlock(ct); //Cannot hold cachefiles lock over the cond_wait
-		r = toku_pthread_cond_wait(&extant->openfd_wait, ct->mutex);
-		assert(r == 0);
+		r = toku_pthread_cond_wait(&extant->openfd_wait, ct->mutex); 
+                resource_assert_zero(r);
                 cachefiles_lock(ct);
 		goto try_again;    // other thread has closed this file, go create a new cachefile
 	    }	    
@@ -608,8 +607,8 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         newcf->for_local_checkpoint = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
 
-	r = toku_pthread_cond_init(&newcf->openfd_wait, NULL); assert(r == 0);
-	r = toku_pthread_cond_init(&newcf->closefd_wait, NULL); assert(r == 0);
+	r = toku_pthread_cond_init(&newcf->openfd_wait, NULL); resource_assert_zero(r);
+	r = toku_pthread_cond_init(&newcf->closefd_wait, NULL); resource_assert_zero(r);
 	*cfptr = newcf;
 	r = 0;
     }
@@ -617,7 +616,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     cachefiles_unlock(ct);
     {
 	int rm = toku_pthread_mutex_unlock(&ct->openfd_mutex);
-	assert (rm == 0);
+	resource_assert_zero(rm);
     } 
     cachetable_unlock(ct);
     return r;
@@ -808,7 +807,7 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
 		assert(cf->refcount == 1);       // toku_cachetable_openfd() is single-threaded
                 assert(!cf->next_in_checkpoint); //checkpoint cannot run on a closing file
                 assert(!cf->for_checkpoint);     //checkpoint cannot run on a closing file
-		rs = toku_pthread_cond_signal(&cf->openfd_wait); assert(rs == 0);
+		rs = toku_pthread_cond_signal(&cf->openfd_wait); resource_assert_zero(rs);
 	    }
             if (cf->closefd_waiting > 0) {
                 int rs;
@@ -819,9 +818,9 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
             {
                 int rd;
                 rd = toku_pthread_cond_destroy(&cf->openfd_wait);
-                assert(rd == 0);
+                resource_assert_zero(rd);
                 rd = toku_pthread_cond_destroy(&cf->closefd_wait);
-                assert(rd == 0);
+                resource_assert_zero(rd);
             }
 	    if (cf->fname_in_env) toku_free(cf->fname_in_env);
 
@@ -860,20 +859,20 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
 	if (cf->refcount > 0) {
             int rs;
 	    assert(cf->refcount == 1);   // toku_cachetable_openfd() is single-threaded
-	    rs = toku_pthread_cond_signal(&cf->openfd_wait); assert(rs == 0);
+	    rs = toku_pthread_cond_signal(&cf->openfd_wait); resource_assert_zero(rs);
 	}
         if (cf->closefd_waiting > 0) {
             int rs;
             assert(cf->closefd_waiting == 1);
-            rs = toku_pthread_cond_signal(&cf->closefd_wait); assert(rs == 0);
+            rs = toku_pthread_cond_signal(&cf->closefd_wait); resource_assert_zero(rs);
         }
         // we can destroy the condition variables because if there was another thread waiting, it was already signalled
         {
             int rd;
             rd = toku_pthread_cond_destroy(&cf->openfd_wait);
-            assert(rd == 0);
+            resource_assert_zero(rd);
             rd = toku_pthread_cond_destroy(&cf->closefd_wait);
-            assert(rd == 0);
+            resource_assert_zero(rd);
         }
         rwlock_write_lock(&cf->fdlock, ct->mutex); //Just make sure we can get it.
         cachetable_unlock(ct);
@@ -1869,12 +1868,12 @@ toku_cachetable_close (CACHETABLE *ctp) {
     }
     assert(ct->size_writing == 0);
     rwlock_destroy(&ct->pending_lock);
-    r = toku_pthread_mutex_destroy(&ct->openfd_mutex); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&ct->openfd_mutex); resource_assert_zero(r);
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
-    r = toku_leaflock_destroy(&ct->leaflock_pool); assert(r==0);
+    r = toku_leaflock_destroy(&ct->leaflock_pool); assert_zero(r);
     toku_omt_destroy(&ct->reserved_filenums);
-    r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); resource_assert_zero(r);
     toku_free(ct->table);
     toku_free(ct->env_dir);
     toku_free(ct);

@@ -19,42 +19,56 @@ static void *backtrace_pointers[N_POINTERS];
 
 void (*do_assert_hook)(void) = NULL;
 
-void toku_do_assert_fail (const char* expr_as_string,const char *function,const char*file,int line, int caller_errno)
-{
-        fprintf(stderr, "%s:%d %s: Assertion `%s' failed (errno=%d)\n", file,line,function,expr_as_string, caller_errno);
+static void toku_do_backtrace_abort(void) __attribute__((noreturn));
 
-	// backtrace
+static void 
+toku_do_backtrace_abort(void) {
+
+    // backtrace
 #if !TOKU_WINDOWS
-	int n = backtrace(backtrace_pointers, N_POINTERS);
-	fprintf(stderr, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(stderr);
-	backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
+    int n = backtrace(backtrace_pointers, N_POINTERS);
+    fprintf(stderr, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(stderr);
+    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
 #endif
 
-	fflush(stderr);
+    fflush(stderr);
 
 #if TOKU_WINDOWS
-	//Following commented methods will not always end the process (could hang).
-	//They could be unacceptable for other reasons as well (popups,
-	//flush buffers before quitting, etc)
-	//  abort()
-	//  assert(FALSE) (assert.h assert)
-	//  raise(SIGABRT)
-	//  divide by 0
-	//  null dereference
-	//  _exit
-	//  exit
-	//  ExitProcess
-	TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
-	//Terminate the process
+    //Following commented methods will not always end the process (could hang).
+    //They could be unacceptable for other reasons as well (popups,
+    //flush buffers before quitting, etc)
+    //  abort()
+    //  assert(FALSE) (assert.h assert)
+    //  raise(SIGABRT)
+    //  divide by 0
+    //  null dereference
+    //  _exit
+    //  exit
+    //  ExitProcess
+    TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
+    //Terminate the process
 #endif
 
-	if (do_assert_hook) do_assert_hook();
+    if (do_assert_hook) do_assert_hook();
 
-	abort();
+    abort();
 }
 
-void toku_do_assert(int expr,const char* expr_as_string,const char *function,const char*file,int line, int caller_errno) {
-    if (expr==0) {
-      toku_do_assert_fail(expr_as_string, function, file, line, caller_errno);
-    }
+void 
+toku_do_assert_fail (const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
+    fprintf(stderr, "%s:%d %s: Assertion `%s' failed (errno=%d)\n", file, line, function, expr_as_string, caller_errno);
+    toku_do_backtrace_abort();
 }
+
+void 
+toku_do_assert_zero_fail (uintptr_t expr, const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
+    fprintf(stderr, "%s:%d %s: Assertion `%s == 0' failed (errno=%d) (%s=%"PRIuPTR")\n", file, line, function, expr_as_string, caller_errno, expr_as_string, expr);
+    toku_do_backtrace_abort();
+}
+
+void 
+toku_do_assert(int expr, const char *expr_as_string, const char *function, const char* file, int line, int caller_errno) {
+    if (expr == 0)
+        toku_do_assert_fail(expr_as_string, function, file, line, caller_errno);
+}
+
