@@ -287,7 +287,6 @@ struct cachefile {
     int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     int (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     LSN most_recent_global_checkpoint_that_finished_early;
-    LSN for_local_checkpoint;
     enum cachefile_checkpoint_state checkpoint_state;
     BACKGROUND_JOB_MANAGER bjm;
 };
@@ -557,7 +556,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         ct->cachefiles = newcf;
 
         newcf->most_recent_global_checkpoint_that_finished_early = ZERO_LSN;
-        newcf->for_local_checkpoint = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
 
         bjm_init(&newcf->bjm);
