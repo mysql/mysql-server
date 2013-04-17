@@ -5105,13 +5105,13 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
 
     /* First table lock, start transaction */
-    if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && 
+    if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) && 
          !trx->all &&
          (thd_sql_command(thd) != SQLCOM_CREATE_TABLE) &&
          (thd_sql_command(thd) != SQLCOM_DROP_TABLE) &&
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
-        DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
+        // DBUG_PRINT("trans", ("starting transaction all "));
         if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
             trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
