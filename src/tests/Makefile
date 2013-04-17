@@ -117,6 +117,7 @@ BDB_DONTRUN_TESTS = \
 	mvcc-create-table \
         mvcc-many-committed \
         powerfail \
+	preload-db \
 	preload-3.1-db \
         progress \
 	put-multiple \
