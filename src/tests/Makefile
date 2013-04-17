@@ -89,6 +89,8 @@ BDB_DONTRUN_TESTS = \
 	test_txn_commit8 \
 	test_db_descriptor \
 	test_db_descriptor_named_db \
+	test_db_txn_locks_heaviside \
+	test_heaviside_rh_1756 \
 	test_heaviside_straddle_1622 \
 	test_dbremove_old \
 	root_fifo_2 \
