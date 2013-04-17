@@ -3,6 +3,7 @@
 struct memarena {
     char *buf;
     size_t buf_used, buf_size;
+    size_t size_of_other_bufs; // the buf_size of all the other bufs.
     char **other_bufs;
     int n_other_bufs;
 };
@@ -12,6 +13,7 @@ MEMARENA memarena_create (void) {
     result->buf_size = 1024;
     result->buf_used = 0;
     result->other_bufs = NULL;
+    result->size_of_other_bufs = 0;
     result->n_other_bufs = 0;
     result->buf = toku_malloc(result->buf_size);  assert(result->buf);
     return result;
@@ -27,6 +29,7 @@ void memarena_clear (MEMARENA ma) {
     ma->n_other_bufs=0;
     // But reuse the main buffer
     ma->buf_used = 0;
+    ma->size_of_other_bufs = 0;
 }
 
 static size_t
@@ -114,6 +117,10 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
  	printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
     }
 #endif
+
+    dest  ->size_of_other_bufs += source->size_of_other_bufs + source->buf_size;
+    source->size_of_other_bufs = 0;
+
     assert(other_bufs);
     dest->other_bufs = other_bufs;
     for (i=0; i<source->n_other_bufs; i++) {
@@ -126,4 +133,17 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     source->buf = 0;
     source->buf_size = 0;
     source->buf_used = 0;
+
 }
+
+size_t
+memarena_total_memory_size (MEMARENA m)
+{
+    return m->size_of_other_bufs + m->buf_size + sizeof(m);
+}
+
+size_t
+memarena_size_in_use (MEMARENA m)
+{
+    return m->buf_used;
+}    

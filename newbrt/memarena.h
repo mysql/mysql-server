@@ -34,4 +34,9 @@ void memarena_close(MEMARENA *ma);
 void memarena_move_buffers(MEMARENA dest, MEMARENA source);
 // Effect: Move all the memory from SOURCE into DEST.  When SOURCE is closed the memory won't be freed.  When DEST is closed, the memory will be freed.  (Unless DEST moves its memory to another memarena...)
 
+size_t memarena_total_memory_size (MEMARENA);
+// Effect: Calculate the amount of memory used by a memory arena.
+
+size_t memarena_size_in_use (MEMARENA);
+
 #endif
