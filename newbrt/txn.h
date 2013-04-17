@@ -9,5 +9,6 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv);
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv);
 void toku_txn_close_txn(TOKUTXN txn);
+XIDS toku_txn_get_xids (TOKUTXN);
 
 #endif //TOKUTXN_H

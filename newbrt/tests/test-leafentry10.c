@@ -19,7 +19,7 @@ static void test_leafentry_1 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_committed(4, "abc", 3, "xy", &msize, &dsize, &l, 0, 0, 0);
+    r = le10_committed(4, "abc", 3, "xy", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_COMMITTED,
                      UINT32TOCHAR(4), 
@@ -36,7 +36,7 @@ static void test_leafentry_2 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_both(0x0123456789abcdef0LL, 3, "ab", 4, "xyz", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
+    r = le10_both(0x0123456789abcdef0LL, 3, "ab", 4, "xyz", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_BOTH,
                      UINT64TOCHAR(0x0123456789abcdef0LL),
@@ -53,7 +53,7 @@ static void test_leafentry_3 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provdel(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
+    r = le10_provdel(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVDEL,
                      UINT64TOCHAR(0x0123456789abcdef0LL),
@@ -69,7 +69,7 @@ static void test_leafentry_4 (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provpair(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
+    r = le10_provpair(0x0123456789abcdef0LL, 3, "ab", 5, "lmno", &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     char expect[] = {LE_PROVPAIR,
                      UINT64TOCHAR(0x0123456789abcdef0LL),
@@ -101,7 +101,7 @@ static void test_leafentry_3long (void) {
     LEAFENTRY l;
     int r;
     u_int32_t msize, dsize;
-    r = le_provdel(0x0123456789abcdef0LL, 301, zeros, 1025, zeros, &msize, &dsize, &l, 0, 0, 0);
+    r = le10_provdel(0x0123456789abcdef0LL, 301, zeros, 1025, zeros, &msize, &dsize, &l, 0, 0, 0);
     assert(r==0);
     assert(sizeof(expect_3long)==msize);
     assert(msize==dsize);

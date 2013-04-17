@@ -105,6 +105,7 @@ struct tokutxn {
     toku_off_t      rollentry_filesize;   // How many bytes are in the rollentry file (this is the uncompressed bytes.  If the file is compressed it may actually be smaller (or even larger with header information))
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
+    XIDS       xids;      //Represents the xid list
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync);

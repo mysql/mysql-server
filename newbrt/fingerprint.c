@@ -28,15 +28,12 @@ u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp) {
 }
 #endif
 
-u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {
+u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {
     unsigned char type_c = (unsigned char)type;
-    unsigned int a = toku_htod32(xid>>32);
-    unsigned int b = toku_htod32(xid&0xffffffff);
     struct x1764 mm;
     x1764_init(&mm);
     x1764_add(&mm, &type_c, 1);
-    x1764_add(&mm, &a, 4);
-    x1764_add(&mm, &b, 4);
+    toku_calc_more_murmur_xids(&mm, xids);
     toku_calc_more_murmur_kvpair(&mm, key, keylen, val, vallen);
     return x1764_finish(&mm);
 }

@@ -26,10 +26,8 @@ typedef void *OMTVALUE;
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { OMT_ITEM_OVERHEAD = 0 }; /* No overhead for the OMT item.  The PMA needed to know the idx, but the OMT doesn't. */
-enum { BRT_CMD_OVERHEAD = (1     // the type
-			   + 8)  // the xid
+enum { BRT_CMD_OVERHEAD = (1)     // the type
 };
-enum { LE_OVERHEAD_BOUND = 9 }; // the type and xid
 
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 22 };
 
@@ -246,7 +244,7 @@ static const BRTNODE null_brtnode=0;
 
 //extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 //extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
-extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
+extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
 extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_CMD cmd);
 
 // How long is the pivot key?
@@ -322,6 +320,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
     BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
     BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
+    BRT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  BRT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
     BRT_ANTEULTIMATE_VERSION,   // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };

@@ -90,10 +90,12 @@ enum brt_cmd_type {
     BRT_COMMIT_BOTH = 7
 };
 
+typedef struct xids_t *XIDS;
+typedef struct fifo_msg_t *FIFO_MSG;
 /* tree commands */
 struct brt_cmd {
     enum brt_cmd_type type;
-    TXNID xid;
+    XIDS         xids;
     union {
         /* insert or delete */
         struct brt_cmd_insert_delete {
@@ -104,17 +106,15 @@ struct brt_cmd {
 };
 typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
 
-#if !defined(__cplusplus)
-static inline
-BRT_CMD_S
-build_brt_cmd (enum brt_cmd_type type, TXNID xid, DBT *key, DBT *val) {
-    BRT_CMD_S result = {type, xid, .u.id={key,val}};
-    return result;
-}
-#endif
+// TODO: replace brt_cmd_type when ready
+typedef enum brt_cmd_type brt_msg_type;
+// Message sent into brt to implement command (insert, delete, etc.)
+// This structure supports nested transactions, and obsoletes brt_cmd.
+typedef struct brt_cmd BRT_MSG_S, *BRT_MSG;
+
+
 
 #define UU(x) x __attribute__((__unused__))
 
-typedef struct leafentry *LEAFENTRY;
-
 #endif
+

@@ -46,12 +46,25 @@ static void test_serialize(void) {
     BNC_SUBTREE_ESTIMATES(&sn, 1).exact = (BOOL)(random()%2 != 0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,0)); assert(r==0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,1)); assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, (TXNID)0);   assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, (TXNID)0, "a", 2, "aval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, (TXNID)123); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, (TXNID)123,  "b", 2, "bval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, (TXNID)234); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, (TXNID)234, "x", 2, "xval", 5);
-    BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
-    BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
-    sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
+    //Create XIDS
+    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_123;
+    XIDS xids_234;
+    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    CKERR(r);
+    r = xids_create_child(xids_123, &xids_234, (TXNID)234);
+    CKERR(r);
+
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, xids_0);   assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_0, "a", 2, "aval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, xids_123); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_123,  "b", 2, "bval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, xids_234); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_234, "x", 2, "xval", 5);
+    BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
+    BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
+    sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123) + xids_get_serialize_size(xids_234);
+    //Cleanup:
+    xids_destroy(&xids_0);
+    xids_destroy(&xids_123);
+    xids_destroy(&xids_234);
 
     struct brt *XMALLOC(brt);
     struct brt_header *XCALLOC(brt_h);

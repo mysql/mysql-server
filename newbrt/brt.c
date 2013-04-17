@@ -181,6 +181,10 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 #include "includes.h"
 #include "leaflock.h"
 #include "checkpoint.h"
+// Access to nested transaction logic
+#include "ule.h"
+#include "xids.h"
+#include "roll.h"
 
 // We invalidate all the OMTCURSORS any time we push into the root of the BRT for that OMT.
 // We keep a counter on each brt header, but if the brt header is evicted from the cachetable
@@ -269,12 +273,12 @@ fill_leafnode_estimates (OMTVALUE val, u_int32_t UU(idx), void *vs)
 {
     LEAFENTRY le = val;
     struct fill_leafnode_estimates_state *s = vs;
-    s->e->dsize += le_any_keylen(le) + le_any_vallen(le);
+    s->e->dsize += le_keylen(le) + le_innermost_inserted_vallen(le);
     s->e->ndata++;
     if ((s->prevval == NULL) ||
 	(0 == (s->node->flags & TOKU_DB_DUPSORT)) ||
-	(le_any_keylen(le) != le_any_keylen(s->prevval)) ||
-	(memcmp(le_any_key(le), le_any_key(s->prevval), le_any_keylen(le))!=0)) { // really should use comparison function
+	(le_keylen(le) != le_keylen(s->prevval)) ||
+	(memcmp(le_key(le), le_key(s->prevval), le_keylen(le))!=0)) { // really should use comparison function
 	s->e->nkeys++;
     }
     s->prevval = le;
@@ -351,8 +355,8 @@ verify_local_fingerprint_nonleaf (BRTNODE node)
         int i;
         if (node->height==0) return;
         for (i=0; i<node->u.n.n_children; i++)
-            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-                         fp += toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
+                         fp += toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
                          );
         fp *= node->rand4fingerprint;
         assert(fp==node->local_fingerprint);
@@ -478,9 +482,9 @@ int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32
 }
 
 static int
-leafval_heaviside_le_committed (u_int32_t klen, void *kval,
-                             u_int32_t dlen, void *dval,
-                             struct cmd_leafval_heaviside_extra *be) {
+leafval_heaviside_le (u_int32_t klen, void *kval,
+                      u_int32_t dlen, void *dval,
+                      struct cmd_leafval_heaviside_extra *be) {
     BRT t = be->t;
     DBT dbt;
     int cmp = t->compare_fun(t->db,
@@ -495,36 +499,18 @@ leafval_heaviside_le_committed (u_int32_t klen, void *kval,
     }
 }
 
-static int
-leafval_heaviside_le_both (TXNID xid __attribute__((__unused__)),
-                        u_int32_t klen, void *kval,
-                        u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
-                        u_int32_t plen, void *pval,
-                        struct cmd_leafval_heaviside_extra *be) {
-    return leafval_heaviside_le_committed(klen, kval, plen, pval, be);
-}
-
-static int
-leafval_heaviside_le_provdel (TXNID xid __attribute__((__unused__)),
-                           u_int32_t klen, void *kval,
-                           u_int32_t clen, void *cval,
-                           struct cmd_leafval_heaviside_extra *be) {
-    return leafval_heaviside_le_committed(klen, kval, clen, cval, be);
-}
-
-static int
-leafval_heaviside_le_provpair (TXNID xid __attribute__((__unused__)),
-                            u_int32_t klen, void *kval,
-                            u_int32_t plen, void *pval,
-                            struct cmd_leafval_heaviside_extra *be) {
-    return leafval_heaviside_le_committed(klen, kval, plen, pval, be);
-}
-
-int toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
+//TODO: #1125 optimize
+int
+toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
     LEAFENTRY le=lev;
     struct cmd_leafval_heaviside_extra *be = extra;
-    LESWITCHCALL(le, leafval_heaviside, be);
-    abort(); return 0; // make certain compilers happy
+    u_int32_t keylen;
+    void*     key = le_key_and_len(le, &keylen);
+    u_int32_t vallen;
+    void*     val = le_innermost_inserted_val_and_len(le, &vallen);
+    return leafval_heaviside_le(keylen, key,
+                                vallen, val,
+                                be);
 }
 
 // If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
@@ -846,6 +832,9 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                     }
                 }
             }
+//TODO: #1125 REMOVE DEBUG
+            assert(             sumsofar <= toku_mempool_get_size(&B   ->u.l.buffer_mempool));
+            assert(sumlesizes - sumsofar <= toku_mempool_get_size(&node->u.l.buffer_mempool));
         }
         // Now we know where we are going to break it
         OMT old_omt = node->u.l.buffer;
@@ -867,8 +856,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 		    if (t->flags & TOKU_DB_DUPSORT) key_is_unique=TRUE;
 		    else if (prevle==NULL)          key_is_unique=TRUE;
 		    else if (t->compare_fun(t->db,
-					    toku_fill_dbt(&xdbt, le_any_key(prevle), le_any_keylen(prevle)),
-					    toku_fill_dbt(&ydbt, le_any_key(oldle),   le_any_keylen(oldle)))
+					    toku_fill_dbt(&xdbt, le_key(prevle), le_keylen(prevle)),
+					    toku_fill_dbt(&ydbt, le_key(oldle),   le_keylen(oldle)))
 			     ==0) {
 			key_is_unique=FALSE;
 		    } else {
@@ -877,8 +866,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 		}
 		if (key_is_unique) diff_est.nkeys++;
 		diff_est.ndata++;
-		diff_est.dsize += le_any_keylen(oldle) + le_any_vallen(oldle);
-		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(oldle)+ le_any_vallen(oldle), diff_est.dsize);
+		diff_est.dsize += le_keylen(oldle) + le_innermost_inserted_vallen(oldle);
+		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_innermost_inserted_vallen(oldle), diff_est.dsize);
                 diff_fp += toku_le_crc(oldle);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
@@ -920,11 +909,11 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         assert(r==0); // that fetch should have worked.
         LEAFENTRY le=lev;
         if (node->flags&TOKU_DB_DUPSORT) {
-            splitk->size = le_any_keylen(le)+le_any_vallen(le);
-            splitk->data = kv_pair_malloc(le_any_key(le), le_any_keylen(le), le_any_val(le), le_any_vallen(le));
+            splitk->size = le_keylen(le)+le_innermost_inserted_vallen(le);
+            splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), le_innermost_inserted_val(le), le_innermost_inserted_vallen(le));
         } else {
-            splitk->size = le_any_keylen(le);
-            splitk->data = kv_pair_malloc(le_any_key(le), le_any_keylen(le), 0, 0);
+            splitk->size = le_keylen(le);
+            splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
         }
         splitk->flags=0;
     }
@@ -1004,15 +993,15 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
                 bytevec key, data;
                 unsigned int keylen, datalen;
                 u_int32_t type;
-                TXNID xid;
-                int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type, &xid);
+                XIDS xids;
+                int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type, &xids);
                 if (fr!=0) break;
-                int n_bytes_moved = keylen+datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+                int n_bytes_moved = keylen+datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
                 u_int32_t old_from_fingerprint = node->local_fingerprint;
-                u_int32_t delta = toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+                u_int32_t delta = toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
                 u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		B->local_fingerprint += B->rand4fingerprint*delta;
-                int r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
+                int r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xids);
                 if (r!=0) return r;
                 toku_fifo_deq(from_htab);
                 // key and data will no longer be valid
@@ -1248,6 +1237,7 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
     }
 }
 
+//TODO: Rename this function
 static int
 should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
 // Effect: Return nonzero if we need to compare both the key and the value.
@@ -1269,245 +1259,15 @@ should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
     abort(); return 0;
 }
 
-static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
-                                      u_int32_t dlen, void *dval,
-                                      BRT_CMD cmd,
-                                      u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
-                                      OMT omt, struct mempool *mp, void **maybe_free) {
-    //assert(cmd->u.id.key->size == klen);
-    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
-    switch (cmd->type) {
-    case BRT_INSERT:
-        return le_both(cmd->xid,
-                       klen, kval,
-                       dlen, dval, 
-                       cmd->u.id.val->size, cmd->u.id.val->data,
-                       newlen, disksize, new_data,
-                       omt, mp, maybe_free);
-    case BRT_DELETE_ANY:
-    case BRT_DELETE_BOTH:
-        return le_provdel(cmd->xid,
-                          klen, kval,
-                          dlen, dval,
-                          newlen, disksize, new_data,
-                          omt, mp, maybe_free);
-    case BRT_ABORT_BOTH:
-    case BRT_ABORT_ANY:
-    case BRT_COMMIT_BOTH:
-    case BRT_COMMIT_ANY:
-        // Just return the original committed record
-        return le_committed(klen, kval, dlen, dval,
-                            newlen, disksize, new_data,
-                            omt, mp, maybe_free);
-    case BRT_NONE: break;
-    }
-    abort(); return 0;
-}
-
-static int apply_cmd_to_le_both (TXNID xid,
-                                 u_int32_t klen, void *kval,
-                                 u_int32_t clen, void *cval,
-                                 u_int32_t plen, void *pval,
-                                 BRT_CMD cmd,
-                                 u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
-                                 OMT omt, struct mempool *mp, void *maybe_free) {
-    u_int32_t prev_len;
-    void     *prev_val;
-    if (xid==cmd->xid) {
-        // The xids match, so throw away the provisional value.
-        prev_len = clen;  prev_val = cval;
-    } else {
-        // If the xids don't match, then we are moving the provisional value to committed status.
-        prev_len = plen;  prev_val = pval;
-    }
-    // keep the committed value for rollback.
-    //assert(cmd->u.id.key->size == klen);
-    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
-    switch (cmd->type) {
-    case BRT_INSERT:
-        return le_both(cmd->xid,
-                       klen, kval,
-                       prev_len, prev_val,
-                       cmd->u.id.val->size, cmd->u.id.val->data,
-                       newlen, disksize, new_data,
-                       omt, mp, maybe_free);
-    case BRT_DELETE_ANY:
-    case BRT_DELETE_BOTH:
-        return le_provdel(cmd->xid,
-                          klen, kval,
-                          prev_len, prev_val,
-                          newlen, disksize, new_data,
-                          omt, mp, maybe_free);
-    case BRT_ABORT_BOTH:
-    case BRT_ABORT_ANY:
-        // I don't see how you could have an abort where the xids don't match.  But do it anyway.
-        return le_committed(klen, kval,
-                            prev_len, prev_val,
-                            newlen, disksize, new_data,
-                            omt, mp, maybe_free);
-    case BRT_COMMIT_BOTH:
-    case BRT_COMMIT_ANY:
-        // In the future we won't even have these commit messages.
-        return le_committed(klen, kval,
-                            plen, pval,
-                            newlen, disksize, new_data,
-                            omt, mp, maybe_free);
-    case BRT_NONE: break;
-    }
-    abort(); return 0;
-}
-
-static int apply_cmd_to_le_provdel (TXNID xid,
-                                    u_int32_t klen, void *kval,
-                                    u_int32_t clen, void *cval,
-                                    BRT_CMD cmd,
-                                    u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
-                                    OMT omt, struct mempool *mp, void *maybe_free)
-{
-    // keep the committed value for rollback
-    //assert(cmd->u.id.key->size == klen);
-    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
-    switch (cmd->type) {
-    case BRT_INSERT:
-        if (cmd->xid == xid) {
-            return le_both(cmd->xid,
-                           klen, kval,
-                           clen, cval,
-                           cmd->u.id.val->size, cmd->u.id.val->data,
-                           newlen, disksize, new_data,
-                           omt, mp, maybe_free);
-        } else {
-            // It's an insert, but the committed value is deleted (since the xids don't match, we assume the delete took effect)
-            return le_provpair(cmd->xid,
-                               klen, kval,
-                               cmd->u.id.val->size, cmd->u.id.val->data,
-                               newlen, disksize, new_data,
-                               omt, mp, maybe_free);
-        }
-    case BRT_DELETE_ANY:
-    case BRT_DELETE_BOTH:
-        if (cmd->xid == xid) {
-            // A delete of a delete could conceivably return the identical value, saving a malloc and a free, but to simplify things we just reallocate it
-            // because othewise we have to notice not to free() the olditem.
-            return le_provdel(cmd->xid,
-                              klen, kval,
-                              clen, cval,
-                              newlen, disksize, new_data,
-                              omt, mp, maybe_free);
-        } else {
-            // The commited value is deleted, and we are deleting, so treat as a delete.
-            *new_data = 0;
-            return 0;
-        }
-    case BRT_ABORT_BOTH:
-    case BRT_ABORT_ANY:
-        // I don't see how the xids could not match...
-        return le_committed(klen, kval,
-                            clen, cval,
-                            newlen, disksize, new_data,
-                            omt, mp, maybe_free);
-    case BRT_COMMIT_BOTH:
-    case BRT_COMMIT_ANY:
-        *new_data = 0;
-        return 0;
-    case BRT_NONE: break;
-    }
-    abort(); return 0;
-}
-
-static int apply_cmd_to_le_provpair (TXNID xid,
-                                     u_int32_t klen, void *kval,
-                                     u_int32_t plen , void *pval,
-                                     BRT_CMD cmd,
-                                     u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
-                                     OMT omt, struct mempool *mp, void **maybe_free) {
-    //assert(cmd->u.id.key->size == klen);
-    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
-    switch (cmd->type) {
-    case BRT_INSERT:
-        if (cmd->xid == xid) {
-            // it's still a provpair (the old prov value is lost)
-            return le_provpair(cmd->xid,
-                               klen, kval,
-                               cmd->u.id.val->size, cmd->u.id.val->data,
-                               newlen, disksize, new_data,
-                               omt, mp, maybe_free);
-        } else {
-            // the old prov was actually committed.
-            return le_both(cmd->xid,
-                           klen, kval,
-                           plen, pval,
-                           cmd->u.id.val->size, cmd->u.id.val->data,
-                           newlen, disksize, new_data,
-                           omt, mp, maybe_free);
-        }
-    case BRT_DELETE_BOTH:
-    case BRT_DELETE_ANY:
-        if (cmd->xid == xid) {
-            // A delete of a provisional pair is nothign
-            *new_data = 0;
-            return 0;
-        } else {
-            // The prov pair is actually a committed value.
-            return le_provdel(cmd->xid,
-                              klen, kval,
-                              plen, pval,
-                              newlen, disksize, new_data,
-                              omt, mp, maybe_free);
-        }
-    case BRT_ABORT_BOTH:
-    case BRT_ABORT_ANY:
-        // An abort of a provisional pair is nothing.
-        *new_data = 0;
-        return 0;
-    case BRT_COMMIT_ANY:
-    case BRT_COMMIT_BOTH:
-        return le_committed(klen, kval,
-                            plen, pval,
-                            newlen, disksize, new_data,
-                            omt, mp, maybe_free);
-    case BRT_NONE: break;
-    }
-    abort(); return 0;
-}
-
+//TODO: #1125 remove scaffolding
 static int
-apply_cmd_to_leaf (BRT_CMD cmd,
-                   void *stored_data, // NULL if there was no stored data.
-                   u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data,
-                   OMT omt, struct mempool *mp, void **maybe_free)
-{
-    if (stored_data==0) {
-        switch (cmd->type) {
-        case BRT_INSERT:
-            {
-                LEAFENTRY le;
-                int r = le_provpair(cmd->xid,
-                                    cmd->u.id.key->size, cmd->u.id.key->data,
-                                    cmd->u.id.val->size, cmd->u.id.val->data,
-                                    newlen, disksize, &le,
-                                    omt, mp, maybe_free);
-                if (r==0) *new_data=le;
-                return r;
-            }
-        case BRT_DELETE_BOTH:
-        case BRT_DELETE_ANY:
-        case BRT_ABORT_BOTH:
-        case BRT_ABORT_ANY:
-        case BRT_COMMIT_BOTH:
-        case BRT_COMMIT_ANY:
-            *new_data = 0;
-            return 0; // Don't have to insert anything.
-        case BRT_NONE:
-            break;
-        }
-        abort();
-    } else {
-        LESWITCHCALL(stored_data, apply_cmd_to, cmd,
-                     newlen, disksize, new_data,
-                     omt, mp, maybe_free);
-    }
-    abort(); return 0;
+apply_cmd_to_leaf(BRT_CMD cmd,
+		   void *stored_data, // NULL if there was no stored data.
+		   size_t *newlen, size_t *disksize, LEAFENTRY *new_data,
+		   OMT omt, struct mempool *mp, void **maybe_free) {
+    int r = apply_msg_to_leafentry(cmd, stored_data, newlen, disksize, new_data,
+                                       omt, mp, maybe_free);
+    return r;
 }
 
 static int
@@ -1517,9 +1277,9 @@ other_key_matches (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     int r = toku_omt_fetch(node->u.l.buffer, idx, &other_lev, (OMTCURSOR)NULL);
     assert(r==0);
     LEAFENTRY other_le = other_lev;
-    u_int32_t other_keylen = le_any_keylen(other_le);
-    if (other_keylen == le_any_keylen(le)
-	&& memcmp(le_any_key(other_le), le_any_key(le), other_keylen)==0)   // really should use comparison function
+    u_int32_t other_keylen = le_keylen(other_le);
+    if (other_keylen == le_keylen(le)
+	&& memcmp(le_key(other_le), le_key(le), other_keylen)==0)   // really should use comparison function
 	return 1;
     else
 	return 0;
@@ -1550,7 +1310,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 {
     // brt_leaf_check_leaf_stats(node);
 
-    u_int32_t newlen=0, newdisksize=0;
+    size_t newlen=0, newdisksize=0;
     LEAFENTRY new_le=0;
     void *maybe_free = 0;
     // This function may call mempool_malloc_dont_release() to allocate more space.
@@ -1572,18 +1332,18 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 
 	// If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
 	{
-	    u_int32_t oldlen = le_any_vallen(le);
+	    u_int32_t oldlen = le_innermost_inserted_vallen(le);
 	    assert(node->u.l.leaf_stats.dsize >= oldlen);
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	    node->u.l.leaf_stats.dsize -= oldlen;
-	    node->u.l.leaf_stats.dsize += le_any_vallen(new_le); // add it in two pieces to avoid ugly overflow
+	    node->u.l.leaf_stats.dsize += le_innermost_inserted_vallen(new_le); // add it in two pieces to avoid ugly overflow
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	}
 
         node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
         node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
         
-	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_any_keylen(new_le), le_any_vallen(le), node->u.l.leaf_stats.dsize);
+	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_innermost_inserted_vallen(le), node->u.l.leaf_stats.dsize);
 	// the ndata and nkeys remains unchanged
 
         u_int32_t size = leafentry_memsize(le);
@@ -1610,7 +1370,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
             node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
 
 	    {
-		u_int32_t oldlen = le_any_vallen(le) + le_any_keylen(le);
+		u_int32_t oldlen = le_innermost_inserted_vallen(le) + le_keylen(le);
 		assert(node->u.l.leaf_stats.dsize >= oldlen);
 		node->u.l.leaf_stats.dsize -= oldlen;
 	    }
@@ -1628,7 +1388,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
             node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
             node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 
-	    node->u.l.leaf_stats.dsize += le_any_vallen(new_le) + le_any_keylen(new_le);
+	    node->u.l.leaf_stats.dsize += le_innermost_inserted_vallen(new_le) + le_keylen(new_le);
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	    node->u.l.leaf_stats.ndata ++;
 	    // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
@@ -1736,35 +1496,45 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
-        // Delete all the matches
+        // Apply to all the matches
 
         r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be,
                                &storeddatav, &idx, NULL);
         if (r == DB_NOTFOUND) break;
         if (r != 0) return r;
         storeddata=storeddatav;
-            
+
         while (1) {
-            int   vallen   = le_any_vallen(storeddata);
-            void *save_val = toku_memdup(le_any_val(storeddata), vallen);
+            u_int32_t num_leafentries_before = toku_omt_size(node->u.l.buffer);
 
             r = brt_leaf_apply_cmd_once(node, cmd, idx, storeddata);
             if (r!=0) return r;
+            node->dirty = 1;
 
-            // Now we must find the next one.
-            DBT valdbt;
-            BRT_CMD_S ncmd = { cmd->type, cmd->xid, .u.id={cmd->u.id.key, toku_fill_dbt(&valdbt, save_val, vallen)}};
-            struct cmd_leafval_heaviside_extra nbe = {t, &ncmd, 1};
-            r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_heaviside,  &nbe, +1,
-                              &storeddatav, &idx, NULL);
-            
-            toku_free(save_val);
-            if (r!=0) break;
+            { 
+                // Now we must find the next leafentry. 
+                u_int32_t num_leafentries_after = toku_omt_size(node->u.l.buffer); 
+                //idx is the index of the leafentry we just modified.
+                //If the leafentry was deleted, we will have one less leafentry in 
+                //the omt than we started with and the next leafentry will be at the 
+                //same index as the deleted one. Otherwise, the next leafentry will 
+                //be at the next index (+1). 
+                assert(num_leafentries_before   == num_leafentries_after || 
+                       num_leafentries_before-1 == num_leafentries_after); 
+                if (num_leafentries_after==num_leafentries_before) idx++; //Not deleted, advance index.
+
+                assert(idx <= num_leafentries_after);
+                if (idx == num_leafentries_after) break; //Reached the end of the leaf
+                r = toku_omt_fetch(node->u.l.buffer, idx, &storeddatav, NULL); 
+                assert(r==0);
+            } 
             storeddata=storeddatav;
             {   // Continue only if the next record that we found has the same key.
                 DBT adbt;
+                u_int32_t keylen;
+                void *keyp = le_key_and_len(storeddata, &keylen);
                 if (t->compare_fun(t->db,
-                                   toku_fill_dbt(&adbt, le_any_key(storeddata), le_any_keylen(storeddata)),
+                                   toku_fill_dbt(&adbt, keyp, keylen),
                                    cmd->u.id.key) != 0)
                     break;
             }
@@ -1822,13 +1592,14 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
  put_in_fifo:
 
     {
+        //TODO: Determine if we like direct access to type, to key, to val, 
         int type = cmd->type;
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
 
-	node->local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, cmd->xid, k->data, k->size, v->data, v->size);
-        int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	node->local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, cmd->xids, k->data, k->size, v->data, v->size);
+        int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(cmd->xids);
+        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xids);
         assert(r==0);
         node->u.n.n_bytes_in_buffers += diff;
         BNC_NBYTESINBUF(node, childnum) += diff;
@@ -1908,6 +1679,7 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 
     verify_local_fingerprint_nonleaf(node);
     /* find the right subtree */
+    //TODO: accesses key, val directly
     unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
 
     int r = brt_nonleaf_cmd_once_to_child (t, node, childnum, cmd, re_array, did_io);
@@ -1931,6 +1703,7 @@ brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
         if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
     unsigned int i;
     for (i = 0; i+1 < (unsigned int)node->u.n.n_children; i++) {
+        //TODO: Is touching key directly
         int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
         if (cmp > 0) {
             continue;
@@ -1975,6 +1748,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
     verify_local_fingerprint_nonleaf(node);
 
+    //TODO: Accessing type directly
     switch (cmd->type) {
     case BRT_INSERT:
     case BRT_DELETE_BOTH:
@@ -2016,13 +1790,13 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
 	    int idx = toku_omt_size(a->u.l.buffer);
             int r = toku_omt_insert_at(omta, new_le, idx);
             assert(r==0);
-            a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
+            a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size; //This should be disksize
             a->local_fingerprint     += a->rand4fingerprint * le_crc;
 
 	    a->u.l.leaf_stats.ndata++;
 	    maybe_bump_nkeys(a, idx, new_le, +1);
-	    a->u.l.leaf_stats.dsize+= le_any_keylen(le) + le_any_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+le_any_vallen(le), a->u.l.leaf_stats.dsize);
+	    a->u.l.leaf_stats.dsize+= le_keylen(le) + le_innermost_inserted_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_innermost_inserted_vallen(le), a->u.l.leaf_stats.dsize);
         }
         {
 	    maybe_bump_nkeys(b, 0, le, -1);
@@ -2032,8 +1806,8 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             b->local_fingerprint     -= b->rand4fingerprint * le_crc;
 
 	    b->u.l.leaf_stats.ndata--;
-	    b->u.l.leaf_stats.dsize-= le_any_keylen(le) + le_any_vallen(le);
-	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+le_any_vallen(le), b->u.l.leaf_stats.dsize);
+	    b->u.l.leaf_stats.dsize-= le_keylen(le) + le_innermost_inserted_vallen(le);
+	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_innermost_inserted_vallen(le), b->u.l.leaf_stats.dsize);
 	    assert(b->u.l.leaf_stats.ndata < 1U<<31);
 	    assert(b->u.l.leaf_stats.nkeys < 1U<<31);
 	    assert(b->u.l.leaf_stats.dsize < 1U<<31);
@@ -2075,8 +1849,8 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
 
 	    to->u.l.leaf_stats.ndata++;
-	    to->u.l.leaf_stats.dsize+= le_any_keylen(le) + le_any_vallen(le);
-	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+ le_any_vallen(le), to->u.l.leaf_stats.dsize);
+	    to->u.l.leaf_stats.dsize+= le_keylen(le) + le_innermost_inserted_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_innermost_inserted_vallen(le), to->u.l.leaf_stats.dsize);
         }
         {
 	    maybe_bump_nkeys(from, from_idx, le, -1);
@@ -2086,10 +1860,10 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             from->local_fingerprint     -= from->rand4fingerprint * le_crc;
 
 	    from->u.l.leaf_stats.ndata--;
-	    from->u.l.leaf_stats.dsize-= le_any_keylen(le) + le_any_vallen(le);
+	    from->u.l.leaf_stats.dsize-= le_keylen(le) + le_innermost_inserted_vallen(le);
 	    assert(from->u.l.leaf_stats.ndata < 1U<<31);
 	    assert(from->u.l.leaf_stats.nkeys < 1U<<31);
-	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_any_keylen(le)+ le_any_vallen(le), from->u.l.leaf_stats.dsize);
+	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_innermost_inserted_vallen(le), from->u.l.leaf_stats.dsize);
 
             toku_mempool_mfree(&from->u.l.buffer_mempool, 0, le_size);
         }
@@ -2099,9 +1873,9 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
     {
         LEAFENTRY le = fetch_from_buf(a->u.l.buffer, toku_omt_size(a->u.l.buffer)-1);
         if (a->flags&TOKU_DB_DUPSORT) {
-            *splitk = kv_pair_malloc(le_any_key(le), le_any_keylen(le), le_any_val(le), le_any_vallen(le));
+            *splitk = kv_pair_malloc(le_key(le), le_keylen(le), le_innermost_inserted_val(le), le_innermost_inserted_vallen(le));
         } else {
-            *splitk = kv_pair_malloc(le_any_key(le), le_any_keylen(le), 0, 0);
+            *splitk = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
         }
     }
     a->dirty = 1; // make them dirty even if nothing actually happened.
@@ -2459,16 +2233,17 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
         //printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
         assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
         u_int32_t type;
-        TXNID xid;
-        while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type, &xid)) {
+        XIDS xids;
+        while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type, &xids)) {
             DBT hk,hv;
 
-            BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xid, .u.id= {toku_fill_dbt(&hk, key, keylen),
+            //TODO: Factor out (into a function) conversion of fifo_entry to message
+            BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
                                                                        toku_fill_dbt(&hv, val, vallen)} };
 
-            int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD);
+            int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
             u_int32_t old_from_fingerprint = node->local_fingerprint;
-            u_int32_t delta = toku_calc_fingerprint_cmd(type, xid, key, keylen, val, vallen);
+            u_int32_t delta = toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
             u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 
             //printf("%s:%d random_picked\n", __FILE__, __LINE__);
@@ -2668,19 +2443,26 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 // Effect: Insert the key-val pair into brt.
 {
     int r;
+    XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
         if (need_data) {
             BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
-            r = toku_logger_save_rollback_cmdinsertboth(txn, xid, toku_cachefile_filenum(brt->cf), keybs, databs);
+            r = toku_logger_save_rollback_cmdinsertboth(txn, toku_cachefile_filenum(brt->cf), keybs, databs);
         } else {
-            r = toku_logger_save_rollback_cmdinsert    (txn, xid, toku_cachefile_filenum(brt->cf), keybs);
+            r = toku_logger_save_rollback_cmdinsert    (txn, toku_cachefile_filenum(brt->cf), keybs);
         }
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
+        message_xids = toku_txn_get_xids(txn);
+    }
+    else {
+        //Treat this insert as a commit-immediately insert.
+        //It will never be given an abort message (will be truncated on abort).
+        message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
@@ -2690,7 +2472,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
         if (r!=0) return r;
     }
 
-    BRT_CMD_S brtcmd = { BRT_INSERT, xid, .u.id={key,val}};
+    BRT_CMD_S brtcmd = { BRT_INSERT, message_xids, .u.id={key,val}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     if (r!=0) return r;
     return r;
@@ -2698,13 +2480,20 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
+    XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
-        r = toku_logger_save_rollback_cmddelete(txn, xid, toku_cachefile_filenum(brt->cf), keybs);
+        r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(brt->cf), keybs);
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
+        message_xids = toku_txn_get_xids(txn);
+    }
+    else {
+        //Treat this delete as a commit-immediately insert.
+        //It will never be given an abort message (will be truncated on abort).
+        message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
@@ -2714,7 +2503,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
         if (r!=0) return r;
     }
     DBT val;
-    BRT_CMD_S brtcmd = { BRT_DELETE_ANY, xid, .u.id={key, toku_init_dbt(&val)}};
+    BRT_CMD_S brtcmd = { BRT_DELETE_ANY, message_xids, .u.id={key, toku_init_dbt(&val)}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
@@ -3397,12 +3186,10 @@ static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {
     int r = toku_omt_cursor_current(c->omtcursor, &le);
     assert(r==0);
     if (key) {
-        key->data = le_latest_key(le);
-        key->size = le_latest_keylen(le);
+        key->data = le_latest_key_and_len(le, &key->size);
     }
     if (val) {
-        val->data = le_latest_val(le);
-        val->size = le_latest_vallen(le);
+        val->data = le_latest_val_and_len(le, &val->size);
     }
 }
 
@@ -3501,9 +3288,9 @@ brt_cursor_not_set(BRT_CURSOR cursor) {
 }
 
 static int
-pair_leafval_heaviside_le_committed (u_int32_t klen, void *kval,
-                                  u_int32_t dlen, void *dval,
-                                  brt_search_t *search) {
+pair_leafval_heaviside_le (u_int32_t klen, void *kval,
+                           u_int32_t dlen, void *dval,
+                           brt_search_t *search) {
     DBT x,y;
     int cmp = search->compare(search,
                               search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
@@ -3518,36 +3305,19 @@ pair_leafval_heaviside_le_committed (u_int32_t klen, void *kval,
 
 
 static int
-pair_leafval_heaviside_le_both (TXNID xid __attribute__((__unused__)),
-                             u_int32_t klen, void *kval,
-                             u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
-                             u_int32_t plen, void *pval,
-                             brt_search_t *search) {
-    return pair_leafval_heaviside_le_committed(klen, kval, plen, pval, search);
-}
-
-static int
-pair_leafval_heaviside_le_provdel (TXNID xid __attribute__((__unused__)),
-                                u_int32_t klen, void *kval,
-                                u_int32_t clen, void *cval,
-                                brt_search_t *be) {
-    return pair_leafval_heaviside_le_committed(klen, kval, clen, cval, be);
-}
-
-static int
-pair_leafval_heaviside_le_provpair (TXNID xid __attribute__((__unused__)),
-                                 u_int32_t klen, void *kval,
-                                 u_int32_t plen, void *pval,
-                                 brt_search_t *be) {
-    return pair_leafval_heaviside_le_committed(klen, kval, plen, pval, be);
-}
-
-static int heaviside_from_search_t (OMTVALUE lev, void *extra) {
-    LEAFENTRY leafval=lev;
+heaviside_from_search_t (OMTVALUE lev, void *extra) {
+    LEAFENTRY le=lev;
     brt_search_t *search = extra;
-    LESWITCHCALL(leafval, pair_leafval_heaviside, search);
-    abort(); return 0;
+    u_int32_t keylen;
+    void* key = le_key_and_len(le, &keylen);
+    u_int32_t vallen;
+    void* val = le_innermost_inserted_val_and_len(le, &vallen);
+
+    return pair_leafval_heaviside_le (keylen, key,
+                                      vallen, val,
+                                      search);
 }
+
 
 // This is the only function that associates a brt cursor (and its contained
 // omt cursor) with a brt node (and its associated omt).  This is different
@@ -3577,7 +3347,7 @@ brt_cursor_update(BRT_CURSOR brtcursor) {
 
 // This is a bottom layer of the search functions.
 static int
-brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
+brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
 {
     // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
@@ -3601,43 +3371,27 @@ brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADD
 
     LEAFENTRY le = datav;
     if (le_is_provdel(le)) {
-        TXNID xid = le_any_xid(le);
-        TOKUTXN txn = 0;
-        toku_txn_find_by_xid(brt, xid, &txn);
-
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
         while (1) {
-            // see if the transaction is alive
-            TXNID newxid = le_any_xid(le);
-            if (newxid != xid) {
-                xid = newxid;
-                txn = 0;
-                toku_txn_find_by_xid(brt, xid, &txn);
-            }
-
+#if !TOKU_DO_COMMIT_CMD_DELETE || !TOKU_DO_COMMIT_CMD_DELETE_BOTH 
+//Implicit promotions on delete is not necessary since we have explicit commits for deletes.
+//However, if we ever turn that off, we need to deal with the implicit commits.
+// TODO: (if this error gets hit.. deal with this)
+#error Need to add implicit promotions on deletes
+#endif
             switch (search->direction) {
             case BRT_SEARCH_LEFT:
-                if (txn) {
-                    // printf("xid %llu -> %p\n", (unsigned long long) xid, txn);
-                    idx++;
-                } else {
-                    // apply a commit message for this leafentry to the node
-                    // printf("apply commit_both %llu\n", (unsigned long long) xid);
-                    DBT key, val;
-                    BRT_CMD_S brtcmd = { BRT_COMMIT_BOTH, xid, .u.id= {toku_fill_dbt(&key, le_latest_key(le), le_latest_keylen(le)),
-                                                                       toku_fill_dbt(&val, le_latest_val(le), le_latest_vallen(le))} };
-                    r = brt_leaf_apply_cmd_once(node, &brtcmd, idx, le);
-                    assert(r == 0);
-                }
+                idx++;
                 if (idx>=toku_omt_size(node->u.l.buffer)) return DB_NOTFOUND;
                 break;
             case BRT_SEARCH_RIGHT:
                 if (idx==0) return DB_NOTFOUND;
                 idx--;
                 break;
+            default:
+                assert(FALSE);
             }
-            if (idx>=toku_omt_size(node->u.l.buffer)) continue;
             r = toku_omt_fetch(node->u.l.buffer, idx, &datav, NULL);
             assert(r==0); // we just validated the index
             le = datav;
@@ -3646,10 +3400,10 @@ brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADD
     }
 got_a_good_value:
     {
-        u_int32_t keylen = le_latest_keylen(le);
-        bytevec   key    = le_latest_key(le);
-        u_int32_t vallen = le_latest_vallen(le);
-        bytevec   val    = le_latest_val(le);
+        u_int32_t keylen;
+        bytevec   key    = le_latest_key_and_len(le, &keylen);
+        u_int32_t vallen;
+        bytevec   val    = le_latest_val_and_len(le, &vallen);
 
         assert(brtcursor->current_in_omt == FALSE);
         r = getf(keylen, key,
@@ -3816,7 +3570,7 @@ brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_C
     if (node->height > 0)
         return brt_search_nonleaf_node(brt, node, search, getf, getf_v, re, doprefetch, brtcursor);
     else {
-        return brt_search_leaf_node(brt, node, search, getf, getf_v, re, doprefetch, brtcursor);
+        return brt_search_leaf_node(node, search, getf, getf_v, re, doprefetch, brtcursor);
     }
 }
 
@@ -4056,10 +3810,10 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             assert(r==0);
 
             if (!le_is_provdel(le)) {
-                u_int32_t keylen = le_latest_keylen(le);
-                bytevec   key    = le_latest_key(le);
-                u_int32_t vallen = le_latest_vallen(le);
-                bytevec   val    = le_latest_val(le);
+                u_int32_t keylen;
+                bytevec   key    = le_latest_key_and_len(le, &keylen);
+                u_int32_t vallen;
+                bytevec   val    = le_latest_val_and_len(le, &vallen);
 
                 r = getf(keylen, key, vallen, val, getf_v);
                 if (r==0) {
@@ -4543,14 +4297,21 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
+    XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
-        r = toku_logger_save_rollback_cmddeleteboth(txn, xid, toku_cachefile_filenum(brt->cf), keybs, databs);
+        r = toku_logger_save_rollback_cmddeleteboth(txn, toku_cachefile_filenum(brt->cf), keybs, databs);
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
+        message_xids = toku_txn_get_xids(txn);
+    }
+    else {
+        //Treat this delete as a commit-immediately delete.
+        //It will never be given an abort message (will be truncated on abort).
+        message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
@@ -4560,7 +4321,7 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
         if (r!=0) return r;
     }
 
-    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, xid, .u.id={key,val}};
+    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
@@ -4754,10 +4515,10 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
 			    e->ndata, e->nkeys, e->dsize, (int)e->exact);
 		}
 		fprintf(file, "\n");
-                FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
+                FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
                                   {
                                       data=data; datalen=datalen; keylen=keylen;
-                                      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, (unsigned)toku_dtoh32(*(int*)key), type);
+                                      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xids_get_innermost_xid(xids), (unsigned)toku_dtoh32(*(int*)key), type);
                                       //assert(strlen((char*)key)+1==keylen);
                                       //assert(strlen((char*)data)+1==datalen);
                                   });
@@ -4794,7 +4555,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
             print_leafentry(file, v);
             fprintf(file, "\n");
         }
-        //             printf(" (%d)%u ", len, *(int*)le_any_key(data)));
+        //             printf(" (%d)%u ", len, *(int*)le_key(data)));
         fprintf(file, "\n");
     }
     r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0);

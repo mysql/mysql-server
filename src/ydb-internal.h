@@ -92,6 +92,21 @@ void toku_ydb_unlock(void);
 /** Handle a panicked database: return EINVAL if the database env is panicked */
 #define HANDLE_PANICKED_DB(db) HANDLE_PANICKED_ENV(db->dbenv)
 
+
+/** Handle a transaction that has a child: return EINVAL if the transaction tries to do any work.
+    Only commit/abort/prelock (which are used by handlerton) are allowed when a child exists.  */
+#define HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn) \
+        RAISE_COND_EXCEPTION(((txn) && db_txn_struct_i(txn)->child), \
+                             toku_ydb_do_error((env),                \
+                                               EINVAL,               \
+                                               "%s: Transaction cannot do work when child exists", __FUNCTION__))
+
+#define HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn) \
+        HANDLE_ILLEGAL_WORKING_PARENT_TXN((db)->dbenv, txn)
+
+#define HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c)   \
+        HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN((c)->dbp, dbc_struct_i(c)->txn)
+
 /* */
 void toku_ydb_error_all_cases(const DB_ENV * env, 
                               int error, 

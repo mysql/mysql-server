@@ -46,18 +46,26 @@ test_fifo_enq (int n) {
     for (i=0; i<n; i++) {
         buildkey(i);
         buildval(i);
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, (TXNID)i); assert(r == 0);
+        XIDS xids;
+        if (i==0)
+            xids = xids_get_root_xids();
+        else {
+            r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
+            assert(r==0);
+        }
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, xids); assert(r == 0);
+        xids_destroy(&xids);
     }
 
     i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, xid, {
+    FIFO_ITERATE(f, key, keylen, val, vallen, type, xids, {
         if (verbose) printf("checkit %d %d\n", i, type);
         buildkey(i);
         buildval(i);
         assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
         assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
         assert(i % 256 == type);
-	assert((TXNID)i==xid);
+	assert((TXNID)i==xids_get_innermost_xid(xids));
         i += 1;
     });
     assert(i == n);

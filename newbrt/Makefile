@@ -42,10 +42,12 @@ BRT_SOURCES = \
   brt-serialize \
   brt-verify \
   brt \
+  brt_msg \
   brt-test-helpers \
   cachetable \
   checkpoint \
   fifo \
+  fifo_msg \
   fingerprint \
   key \
   leafentry \
@@ -60,11 +62,13 @@ BRT_SOURCES = \
   recover \
   roll \
   rollback \
+  ule \
   threadpool \
   toku_worker \
   trace_mem \
   txn \
   x1764 \
+  xids \
   ybt \
 # keep this line so I can have a \ on the previous line
 

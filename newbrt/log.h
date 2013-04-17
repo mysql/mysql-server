@@ -32,7 +32,6 @@ struct roll_entry;
 #include "recover.h"
 #include "txn.h"
 
-// needed by logformat.c
 static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     target->len = val.len;
     target->data = toku_memdup(val.data, (size_t)val.len);

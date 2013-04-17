@@ -1035,22 +1035,18 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     int r_child_first = 0;
-    while (db_txn_struct_i(txn)->child) {
+    if (db_txn_struct_i(txn)->child) {
+        //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags);
         if (!r_child_first) r_child_first = r_child;
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
+    assert(!db_txn_struct_i(txn)->child);
     //Remove from parent
     if (txn->parent) {
-        if (db_txn_struct_i(txn->parent)->child==txn) db_txn_struct_i(txn->parent)->child=db_txn_struct_i(txn)->next;
-        if (db_txn_struct_i(txn->parent)->child==txn) {
-            db_txn_struct_i(txn->parent)->child=NULL;
-        }
-        else {
-	    db_txn_struct_i(db_txn_struct_i(txn)->next)->prev = db_txn_struct_i(txn)->prev;
-            db_txn_struct_i(db_txn_struct_i(txn)->prev)->next = db_txn_struct_i(txn)->next;
-        }
+        assert(db_txn_struct_i(txn->parent)->child == txn);
+        db_txn_struct_i(txn->parent)->child=NULL;
     }
     //toku_ydb_notef("flags=%d\n", flags);
     int nosync = (flags & DB_TXN_NOSYNC)!=0 || (db_txn_struct_i(txn)->flags&DB_TXN_NOSYNC);
@@ -1092,24 +1088,20 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    //Recursively kill off children
+    //Recursively kill off children (abort or commit are both correct)
     int r_child_first = 0;
-    while (db_txn_struct_i(txn)->child) {
-        int r_child = toku_txn_abort(db_txn_struct_i(txn)->child);
+    if (db_txn_struct_i(txn)->child) {
+        //commit of child sets the child pointer to NULL
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC);
         if (!r_child_first) r_child_first = r_child;
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
+    assert(!db_txn_struct_i(txn)->child);
     //Remove from parent
     if (txn->parent) {
-        if (db_txn_struct_i(txn->parent)->child==txn) db_txn_struct_i(txn->parent)->child=db_txn_struct_i(txn)->next;
-        if (db_txn_struct_i(txn->parent)->child==txn) {
-            db_txn_struct_i(txn->parent)->child=NULL;
-        }
-        else {
-            db_txn_struct_i(db_txn_struct_i(txn)->next)->prev = db_txn_struct_i(txn)->prev;
-            db_txn_struct_i(db_txn_struct_i(txn)->prev)->next = db_txn_struct_i(txn)->next;
-        }
+        assert(db_txn_struct_i(txn->parent)->child == txn);
+        db_txn_struct_i(txn->parent)->child=NULL;
     }
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
@@ -1159,6 +1151,7 @@ static int locked_txn_abort(DB_TXN *txn) {
 
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
+    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, stxn); //Cannot create child while child already exists.
     if (!toku_logger_is_open(env->i->logger)) return toku_ydb_do_error(env, EINVAL, "Environment does not have logging enabled\n");
     if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
     u_int32_t txn_flags = 0;
@@ -1217,17 +1210,8 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         return r;
     //Add to the list of children for the parent.
     if (result->parent) {
-        if (!db_txn_struct_i(result->parent)->child) {
-            db_txn_struct_i(result->parent)->child = result;
-            db_txn_struct_i(result)->next = result;
-            db_txn_struct_i(result)->prev = result;
-        }
-        else {
-            db_txn_struct_i(result)->prev = db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev;
-            db_txn_struct_i(result)->next = db_txn_struct_i(result->parent)->child;
-            db_txn_struct_i(db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev)->next = result;
-            db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev = result;
-        }
+        assert(!db_txn_struct_i(result->parent)->child);
+        db_txn_struct_i(result->parent)->child = result;
     }
     *txn = result;
     return 0;
@@ -1418,7 +1402,9 @@ c_db_is_nodup(DBC *c) {
 
 static int
 toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
-    //OW!! SCALDING!
+    //This function exists for legacy (test compatibility) purposes/parity with bdb.
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     u_int32_t main_flag       = get_main_cursor_flag(flag);
     u_int32_t remaining_flags = get_nonmain_cursor_flags(flag);
@@ -1693,6 +1679,7 @@ static int c_del_callback(DBT const *key, DBT const *val, void *extra);
 static int
 toku_c_del(DBC * c, u_int32_t flags) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
@@ -1748,6 +1735,7 @@ static int c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, by
 static int
 toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
@@ -1802,6 +1790,7 @@ static int c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, byt
 static int
 toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
@@ -1857,6 +1846,7 @@ static int
 toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (c_db_is_nodup(c))             r = toku_c_getf_next_nodup(c, flag, f, extra);
     else if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
     else {
@@ -1912,6 +1902,7 @@ static int
 toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
@@ -1929,6 +1920,7 @@ static int c_getf_next_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen,
 static int
 toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (toku_c_uninitialized(c)) return EINVAL;
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
@@ -1983,6 +1975,7 @@ static int
 toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (c_db_is_nodup(c))             r = toku_c_getf_prev_nodup(c, flag, f, extra);
     else if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
     else {
@@ -2038,6 +2031,7 @@ static int
 toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
@@ -2055,6 +2049,7 @@ static int c_getf_prev_dup_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen,
 static int
 toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     if (toku_c_uninitialized(c)) return EINVAL;
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
@@ -2108,6 +2103,7 @@ static int c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, 
 static int
 toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
@@ -2143,6 +2139,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
 static int
 toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
@@ -2158,6 +2155,7 @@ static int c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, byte
 static int
 toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
@@ -2215,6 +2213,7 @@ static int c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen
 static int
 toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
@@ -2273,6 +2272,7 @@ static int c_getf_get_both_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen,
 static int
 toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, val, f, extra); 
@@ -2323,6 +2323,7 @@ static int c_getf_get_both_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN v
 static int
 toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     int r;
     if (c_db_is_nodup(c)) r = toku_c_getf_get_both(c, flag, key, val, f, extra);
     else {
@@ -2417,6 +2418,7 @@ toku_c_getf_heaviside(DBC *c, u_int32_t flag,
                       int direction) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     HEAVI_WRAPPER_S wrapper;
     heavi_wrapper_init(&wrapper, h, extra_h, direction);
     QUERY_CONTEXT_HEAVISIDE_S context; //Describes the context of this query.
@@ -2557,6 +2559,8 @@ tmp_cleanup:
 }
 
 static int toku_c_close(DBC * c) {
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     int r = toku_brt_cursor_close(dbc_struct_i(c)->c);
     toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
     toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
@@ -2576,6 +2580,8 @@ static inline int keyeq(DBC *c, DBT *a, DBT *b) {
 // pointed to by the brt cursor.  
 static int 
 toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
+    HANDLE_PANICKED_DB(cursor->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(cursor);
     int r;
     DBC *count_cursor = 0;
     DBT currentkey;
@@ -2651,6 +2657,7 @@ db_getf_get_both(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, DBT *val, YDB_C
 static int
 toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
@@ -2701,6 +2708,7 @@ static int locked_c_del(DBC * c, u_int32_t flags) {
 
 static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     if (flags != 0)
         return EINVAL;
     DBC *MALLOC(result);
@@ -2753,6 +2761,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
 static int
 toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
@@ -2788,6 +2797,7 @@ static inline int db_thread_need_flags(DBT *dbt) {
 
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
 
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
@@ -2810,6 +2820,7 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
 #if 0
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     txn=txn; dbt=dbt; kr=kr; flags=flags;
     toku_ydb_barf();
     abort();
@@ -2988,6 +2999,7 @@ cleanup:
 
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     if (dbname!=NULL) 
         return multiple_db_open(db, txn, fname, dbname, dbtype, flags, mode);
 
@@ -3187,6 +3199,7 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key, DBT *UU(val),
 static int
 toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
 
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
@@ -3389,6 +3402,7 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 
 static int toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     return toku_brt_stat64(db->i->brt, db_txn_struct_i(txn)->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize, &s->bt_fsize);
 }
 static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
@@ -3401,6 +3415,7 @@ static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
 
 static int toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
     // note that toku_brt_keyrange does not have a txn param
     // this will be fixed later
@@ -3549,6 +3564,7 @@ static int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 // effect: remove all of the rows from a database
 static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
 
     u_int32_t unhandled_flags = flags;

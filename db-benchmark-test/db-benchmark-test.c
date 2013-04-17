@@ -45,6 +45,8 @@ int prelock  = 0;
 int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
+int finish_child_first = 0;  // Commit or abort child first (before doing so to the parent).  No effect if child does not exist.
+int singlex_child = 0;  // Do a single transaction, but do all work with a child
 int singlex = 0;  // Do a single transaction
 int singlex_create = 0;  // Create the db using the single transaction (only valid if singlex)
 int insert1first = 0;  // insert 1 before doing the rest
@@ -79,6 +81,7 @@ char *dbname;
 
 DB_ENV *dbenv;
 DB *db;
+DB_TXN *parenttid=0;
 DB_TXN *tid=0;
 
 
@@ -152,26 +155,36 @@ static void benchmark_setup (void) {
         if (do_transactions) {
             r=tid->commit(tid, 0);
             assert(r==0);
+            tid = NULL;
             r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
         }
         insert(-1);
         if (singlex) {
             r=tid->commit(tid, 0);
             assert(r==0);
+            tid = NULL;
             r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
         }
     }
     else if (singlex && !singlex_create) {
         r=tid->commit(tid, 0);
         assert(r==0);
+        tid = NULL;
         r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
     }
     if (do_transactions) {
-	if (singlex) do_prelock(db, tid);
+	if (singlex)
+            do_prelock(db, tid);
         else {
             r=tid->commit(tid, 0);
             assert(r==0);
+            tid = NULL;
         }
+    }
+    if (singlex_child) {
+        parenttid = tid;
+        tid = NULL;
+        r=dbenv->txn_begin(dbenv, parenttid, &tid, 0); CKERR(r);
     }
 
 }
@@ -187,15 +200,34 @@ static void benchmark_shutdown (void) {
 #endif
     if (do_transactions && singlex && !insert1first && (singlex_create || prelock)) {
 #if defined(TOKUDB)
+        //There should be a single 'truncate' in the rolltmp instead of many 'insert' entries.
 	struct txn_stat *s;
 	r = tid->txn_stat(tid, &s);
 	assert(r==0);
-	assert(s->rolltmp_raw_count < 100);
+        //TODO: #1125 Always do the test after performance testing is done.
+        if (singlex_child) fprintf(stderr, "SKIPPED 'small rolltmp' test for child txn\n");
+        else
+            assert(s->rolltmp_raw_count < 100);  // gross test, not worth investigating details
 	os_free(s);
 	//system("ls -l bench.tokudb");
 #endif
-	r = (do_abort ? tid->abort(tid) : tid->commit(tid, 0));    assert(r==0);
     }
+    if (do_transactions && singlex) {
+        if (!singlex_child || finish_child_first) {
+            assert(tid);
+            r = (do_abort ? tid->abort(tid) : tid->commit(tid, 0));    assert(r==0);
+            tid = NULL; 
+        }
+        if (singlex_child) {
+            assert(parenttid);
+            r = (do_abort ? parenttid->abort(parenttid) : parenttid->commit(parenttid, 0));    assert(r==0);
+            parenttid = NULL;
+        }
+        else
+            assert(!parenttid);
+    }
+    assert(!tid);
+    assert(!parenttid);
 
     r = db->close(db, 0);
     assert(r == 0);
@@ -240,6 +272,7 @@ static void insert (long long v) {
 	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
 	    n_insertions_since_txn_began=0;
 	    r = tid->commit(tid, 0); assert(r==0);
+            tid = NULL;
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
             do_prelock(db, tid);
 	    n_insertions_since_txn_began=0;
@@ -265,7 +298,7 @@ static void serial_insert_from (long long from) {
     }
     if (do_transactions && !singlex) {
 	int  r= tid->commit(tid, 0);             assert(r==0);
-	tid=0;
+	tid=NULL;
     }
 }
 
@@ -284,7 +317,7 @@ static void random_insert_below (long long below) {
     }
     if (do_transactions && !singlex) {
 	int  r= tid->commit(tid, 0);             assert(r==0);
-	tid=0;
+	tid=NULL;
     }
 }
 
@@ -328,6 +361,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             (implies -x) Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --singlex-child       (implies -x) Run the whole job as a single transaction, do all work a child of that transaction.\n");
+    fprintf(stderr, "    --finish-child-first  Commit/abort child before doing so to parent (no effect if no child).\n");
     fprintf(stderr, "    --singlex-create      (implies --singlex)  Create the file using the single transaction (Default is to use a different transaction to create.)\n");
     fprintf(stderr, "    --check_small_rolltmp (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
     fprintf(stderr, "    --prelock             Prelock the database.\n");
@@ -405,6 +440,12 @@ int main (int argc, const char *argv[]) {
 	    do_transactions = 1;
 	    singlex = 1;
 	    singlex_create = 1;
+	} else if (strcmp(arg, "--finish-child-first") == 0) {
+	    finish_child_first = 1;
+	} else if (strcmp(arg, "--singlex-child") == 0) {
+	    do_transactions = 1;
+	    singlex = 1;
+	    singlex_child = 1;
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
