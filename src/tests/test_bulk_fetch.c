@@ -55,7 +55,7 @@ verify_bwd_slow(DBT const *a, DBT  const *b, void *c) {
 
 
 static void
-test_bulk_fetch (int n) {
+test_bulk_fetch (int n, BOOL prelock) {
     if (verbose) printf("test_rand_insert:%d \n", n);
 
     DB_TXN * const null_txn = 0;
@@ -102,6 +102,14 @@ test_bulk_fetch (int n) {
     // verify fast
     r = db->cursor(db, NULL, &cursor, 0);
     CKERR(r);
+    if (prelock) {
+        r = cursor->c_pre_acquire_range_lock(
+            cursor,
+            db->dbt_neg_infty(),
+            db->dbt_pos_infty()
+            );
+        CKERR(r);
+    }
     int expected = 0;
     while (r != DB_NOTFOUND) {
         r = cursor->c_getf_next(cursor, 0, verify_fwd_fast, &expected);
@@ -112,6 +120,14 @@ test_bulk_fetch (int n) {
     // verify slow
     r = db->cursor(db, NULL, &cursor, 0);
     CKERR(r);
+    if (prelock) {
+        r = cursor->c_pre_acquire_range_lock(
+            cursor,
+            db->dbt_neg_infty(),
+            db->dbt_pos_infty()
+            );
+        CKERR(r);
+    }
     expected = 0;
     while (r != DB_NOTFOUND) {
         r = cursor->c_getf_next(cursor, 0, verify_fwd_slow, &expected);
@@ -122,6 +138,14 @@ test_bulk_fetch (int n) {
     // now do backwards
     r = db->cursor(db, NULL, &cursor, 0);
     CKERR(r);
+    if (prelock) {
+        r = cursor->c_pre_acquire_range_lock(
+            cursor,
+            db->dbt_neg_infty(),
+            db->dbt_pos_infty()
+            );
+        CKERR(r);
+    }
     expected = n-1;
     while (r != DB_NOTFOUND) {
         r = cursor->c_getf_prev(cursor, 0, verify_bwd_fast, &expected);
@@ -132,6 +156,14 @@ test_bulk_fetch (int n) {
     // verify slow
     r = db->cursor(db, NULL, &cursor, 0);
     CKERR(r);
+    if (prelock) {
+        r = cursor->c_pre_acquire_range_lock(
+            cursor,
+            db->dbt_neg_infty(),
+            db->dbt_pos_infty()
+            );
+        CKERR(r);
+    }
     expected = n-1;
     while (r != DB_NOTFOUND) {
         r = cursor->c_getf_prev(cursor, 0, verify_bwd_slow, &expected);
@@ -147,7 +179,7 @@ test_bulk_fetch (int n) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    test_bulk_fetch(10000);
-
+    test_bulk_fetch(10000, FALSE);
+    test_bulk_fetch(10000, TRUE);
     return 0;
 }

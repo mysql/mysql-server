@@ -167,6 +167,7 @@ BDB_DONTRUN_TESTS = \
 	preload-db-nested \
         progress \
 	put-multiple \
+	queries_with_deletes \
         recover-2483 \
         recover-3113 \
         recover-compare-db \
