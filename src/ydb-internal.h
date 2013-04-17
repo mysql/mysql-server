@@ -87,12 +87,15 @@ typedef struct {
     u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
 } SCHEDULE_STATUS_S, *SCHEDULE_STATUS;
 
+
+
 int toku_ydb_lock_init(void);
 int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
-int toku_ydb_lock_ctr(void);
+
 void toku_ydb_lock_get_status(SCHEDULE_STATUS statp);
+
 
 /* *********************************************************
 

@@ -20,6 +20,7 @@
 #include "minicron.h"
 #include "log-internal.h"
 
+
 #if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
 #error
 #endif
@@ -54,14 +55,15 @@ static u_int64_t cachetable_wait_reading;  // how many times does get_and_pin() 
 static u_int64_t cachetable_wait_writing;  // how many times does get_and_pin() wait for a node to be written?
 static u_int64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
 static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
-static u_int64_t cachetable_maybe_get_and_pins;      // how many times has get_and_pin been called?
-static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin() returned with a node?
+static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
+static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
 #if TOKU_DO_WAIT_TIME
-static u_int64_t cachetable_misstime;
-static u_int64_t cachetable_waittime;
+static u_int64_t cachetable_misstime;     // time spent waiting for disk read
+static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
 #endif
 
-static u_int32_t cachetable_lock_ctr = 0;
+static u_int64_t cachetable_lock_taken = 0;
+static u_int64_t cachetable_lock_released = 0;
 
 enum ctpair_state {
     CTPAIR_INVALID = 0, // invalid
@@ -134,6 +136,10 @@ static inline void ctpair_destroy(PAIR p) {
 }
 
 // The cachetable is as close to an ENV as we get.
+// There are 3 locks, must be taken in this order
+//      openfd_mutex
+//      cachetable_mutex
+//      cachefiles_mutex
 struct cachetable {
     enum typ_tag tag;
     u_int32_t n_in_table;         // number of pairs in the hash table
@@ -147,6 +153,7 @@ struct cachetable {
     int64_t size_writing;            // the sum of the sizes of the pairs being written
     TOKULOGGER logger;
     toku_pthread_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
+    toku_pthread_mutex_t cachefiles_mutex;  // lock that protects the cachefiles list
     struct workqueue wq;          // async work queue 
     THREADPOOL threadpool;        // pool of worker threads
     LSN lsn_of_checkpoint_in_progress;
@@ -159,17 +166,27 @@ struct cachetable {
 
 
 // Lock the cachetable
+static inline void cachefiles_lock(CACHETABLE ct) {
+    int r = toku_pthread_mutex_lock(&ct->cachefiles_mutex); assert(r == 0);
+}
+
+// Unlock the cachetable
+static inline void cachefiles_unlock(CACHETABLE ct) {
+    int r = toku_pthread_mutex_unlock(&ct->cachefiles_mutex); assert(r == 0);
+}
+
+// Lock the cachetable
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
     int r = toku_pthread_mutex_lock(ct->mutex); assert(r == 0);
-    cachetable_lock_ctr++;
+    cachetable_lock_taken++;
 #endif
 }
 
 // Unlock the cachetable
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
 #if DO_CACHETABLE_LOCK
-    cachetable_lock_ctr++;
+    cachetable_lock_released++;
     int r = toku_pthread_mutex_unlock(ct->mutex); assert(r == 0);
 #endif
 }
@@ -256,6 +273,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     toku_init_workers(&ct->wq, &ct->threadpool);
     ct->mutex = workqueue_lock_ref(&ct->wq);
     int r = toku_pthread_mutex_init(&ct->openfd_mutex, NULL); assert(r == 0);
+    r = toku_pthread_mutex_init(&ct->cachefiles_mutex, 0); assert(r == 0);
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     r = toku_leaflock_create(&ct->leaflock_pool); assert(r==0);
     *result = ct;
@@ -311,16 +329,18 @@ restart:
 // This function can only be called if the brt is still open, so file must 
 // still be open and cannot be in the is_closing state.
 int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
+    cachefiles_lock(ct);
     CACHEFILE extant;
     int r = ENOENT;
     for (extant = ct->cachefiles; extant; extant=extant->next) {
 	if (extant->filenum.fileid==filenum.fileid) {
             assert(!extant->is_closing);
 	    *cf = extant;
-	    r = 0;
+            r = 0;
             break;
 	}
     }
+    cachefiles_unlock(ct);
     return r;
 }
 
@@ -350,15 +370,18 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     r = toku_pthread_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     assert(r==0);
     cachetable_lock(ct);
+    cachefiles_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
             //File is already open (and in cachetable as extant)
             cachefile_refup(extant);
 	    if (extant->is_closing) {
 		// if another thread is closing this file, wait until the close is fully complete
+                cachefiles_unlock(ct); //Cannot hold cachefiles lock over the cond_wait
 		r = toku_pthread_cond_wait(&extant->openfd_wait, ct->mutex);
 		assert(r == 0);
-		break;    // other thread has closed this file, go create a new cachefile
+                cachefiles_lock(ct);
+		goto try_again;    // other thread has closed this file, go create a new cachefile
 	    }	    
 	    r = close(fd);
             assert(r == 0);
@@ -406,6 +429,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
 	r = 0;
     }
  exit:
+    cachefiles_unlock(ct);
     {
 	int rm = toku_pthread_mutex_unlock(&ct->openfd_mutex);
 	assert (rm == 0);
@@ -484,14 +508,21 @@ toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size) {
     return r;
 }
 
-static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
+static CACHEFILE remove_cf_from_list_locked (CACHEFILE cf, CACHEFILE list) {
     if (list==0) return 0;
     else if (list==cf) {
 	return list->next;
     } else {
-	list->next = remove_cf_from_list(cf, list->next);
+	list->next = remove_cf_from_list_locked(cf, list->next);
 	return list;
     }
+}
+
+static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
+    CACHETABLE ct = cf->cachetable;
+    cachefiles_lock(ct);
+    ct->cachefiles = remove_cf_from_list_locked(cf, ct->cachefiles);
+    cachefiles_unlock(ct);
 }
 
 static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
@@ -518,7 +549,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
         //  - toku_cachefile_of_iname_and_add_reference()
 	if ((r = cachetable_flush_cachefile(ct, cf))) {
 	error:
-	    cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
+	    remove_cf_from_cachefiles_list(cf);
 	    if (cf->refcount > 0) {
                 int rs;
 		assert(cf->refcount == 1);       // toku_cachetable_openfd() is single-threaded
@@ -560,7 +591,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
 	cf->begin_checkpoint_userdata = NULL;
 	cf->end_checkpoint_userdata = NULL;
 	cf->userdata = NULL;
-        cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
+        remove_cf_from_cachefiles_list(cf);
         // refcount could be non-zero if another thread is trying to open this cachefile,
 	// but is blocked in toku_cachetable_openfd() waiting for us to finish closing it.
 	if (cf->refcount > 0) {
@@ -1154,7 +1185,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
                     cachetable_wait_writing++;
 #if TOKU_DO_WAIT_TIME
 		do_wait_time = 1;
-		t0 = get_tnow();
+	        t0 = get_tnow();
 #endif
             }
 	    if (p->checkpoint_pending) {
@@ -1216,7 +1247,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
 #if TOKU_DO_WAIT_TIME
-        uint64_t t0 = get_tnow();
+	uint64_t t0 = get_tnow();
 #endif
         r = cachetable_fetch_pair(ct, cachefile, p);
         if (r) {
@@ -1601,6 +1632,7 @@ toku_cachetable_close (CACHETABLE *ctp) {
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
     r = toku_leaflock_destroy(&ct->leaflock_pool); assert(r==0);
+    r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); assert(r == 0);
     toku_free(ct->table);
     toku_free(ct);
     *ctp = 0;
@@ -1685,6 +1717,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         {
             CACHEFILE cf;
             assert(ct->cachefiles_in_checkpoint==NULL);
+            cachefiles_lock(ct);
             for (cf = ct->cachefiles; cf; cf=cf->next) {
                 assert(!cf->is_closing); //Closing requires ydb lock (or in checkpoint).  Cannot happen.
                 assert(cf->refcount>0);  //Must have a reference if not closing.
@@ -1695,6 +1728,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 ct->cachefiles_in_checkpoint = cf;
                 cf->for_checkpoint           = TRUE;
             }
+            cachefiles_unlock(ct);
         }
 
 	if (logger) {
@@ -1714,12 +1748,14 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	    {
                 //Must loop through ALL open files (even if not included in checkpoint).
 		CACHEFILE cf;
+                cachefiles_lock(ct);
 		for (cf = ct->cachefiles; cf; cf=cf->next) {
                     if (cf->log_fassociate_during_checkpoint) {
                         int r = cf->log_fassociate_during_checkpoint(cf, cf->userdata);
                         assert(r==0);
                     }
 		}
+                cachefiles_unlock(ct);
 	    }
 	}
 
@@ -1751,12 +1787,14 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         //Once marked as pending, we own write locks on the pairs, which means the writer threads can't conflict.
 	{
 	    CACHEFILE cf;
+            cachefiles_lock(ct);
 	    for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 		if (cf->begin_checkpoint_userdata) {
 		    int r = cf->begin_checkpoint_userdata(cf, ct->lsn_of_checkpoint_in_progress, cf->userdata);
 		    assert(r==0);
 		}
 	    }
+            cachefiles_unlock(ct);
 	}
 
 	cachetable_unlock(ct);
@@ -2057,9 +2095,12 @@ toku_cachefile_size_in_memory(CACHEFILE cf)
 }
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
-    s->lock_ctr     = cachetable_lock_ctr;
+    s->lock_taken    = cachetable_lock_taken;
+    s->lock_released = cachetable_lock_released;
     s->hit          = cachetable_hit;
     s->miss         = cachetable_miss;
+    s->misstime     = cachetable_misstime;
+    s->waittime     = cachetable_waittime;
     s->wait_reading = cachetable_wait_reading;
     s->wait_writing = cachetable_wait_writing;
     s->puts         = cachetable_puts;
@@ -2069,4 +2110,5 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->size_current = ct->size_current;          
     s->size_limit   = ct->size_limit;            
     s->size_writing = ct->size_writing;          
+    s->get_and_pin_footprint = get_and_pin_footprint;
 }

@@ -24,11 +24,13 @@ u_int32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
+
 static int verbose = 0;
 static const char *log_dir = NULL;
 
+
 static int print_usage (const char *argv0) {
-    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
+    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR] [--verbose]\n", argv0);
     fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
     fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
     fprintf(stderr, "  --flatten           Flatten only using special flatten function\n");
@@ -42,6 +44,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
     fprintf(stderr, "  --log_dir LOGDIR    put the logs in LOGDIR\n");
+    fprintf(stderr, "  --verbose           print verbose information\n");
     return 1;
 }
 
@@ -111,6 +114,8 @@ static void parse_args (int argc, const char *argv[]) {
 	    log_dir = *argv;
         } else if (strcmp(*argv, "--mysql") == 0) {
             do_mysql = 1;
+        } else if (strcmp(*argv, "--verbose") == 0) {
+            verbose = 1;
         } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
             run_mode = RUN_RANGE;
             argc--; argv++;
@@ -195,6 +200,7 @@ static void scanscan_shutdown (void) {
 	r = tid->commit(tid, 0);                                    assert(r==0);
     }
     r = env->close(env, 0);                                     assert(r==0);
+    env = NULL;
 
 #if 0 && defined TOKUDB
     {
@@ -206,6 +212,20 @@ static void scanscan_shutdown (void) {
     }
 #endif
 }
+
+
+static void print_engine_status(void) {
+#if defined TOKUDB
+    if (verbose) {
+      int buffsize = 1024 * 32;
+      char buff[buffsize];
+      env->get_engine_status_text(env, buff, buffsize);
+      printf("Engine status:\n");
+      printf(buff);
+    }
+#endif
+}
+
 
 static void scanscan_hwc (void) {
     int r;
@@ -233,6 +253,7 @@ static void scanscan_hwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
+	print_engine_status();
     }
 }
 
@@ -279,6 +300,7 @@ static void scanscan_lwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+	print_engine_status();
     }
 }
 
@@ -327,6 +349,7 @@ static void scanscan_range (void) {
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
 #endif
+	print_engine_status();
     }
 
     r = dbc->c_close(dbc);                                      
@@ -429,6 +452,7 @@ static void scanscan_heaviside (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+	print_engine_status();
     }
 }
 
@@ -484,6 +508,7 @@ static void scanscan_verify (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("verify   %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", v.totalbytes, v.rowcounter, tdiff, 1e-6*v.totalbytes/tdiff);
+	print_engine_status();
     }
 }
 

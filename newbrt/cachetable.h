@@ -249,19 +249,24 @@ void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
 u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
 
+
 typedef struct cachetable_status {
-    u_int32_t lock_ctr;
+    u_int64_t lock_taken;
+    u_int64_t lock_released;
     u_int64_t hit;
     u_int64_t miss;
+    u_int64_t misstime;     /* how many usec spent waiting for disk read because of cache miss */ 
+    u_int64_t waittime;     /* how many usec spent waiting for another thread to release cache line */ 
     u_int64_t wait_reading;
     u_int64_t wait_writing;
     u_int64_t puts;          // how many times has a newly created node been put into the cachetable?
     u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
-    u_int64_t maybe_get_and_pins;      // how many times has get_and_pin been called?
-    u_int64_t maybe_get_and_pin_hits;  // how many times has get_and_pin() returned with a node?
+    u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
+    u_int64_t maybe_get_and_pin_hits;  // how many times has maybe_get_and_pin(_clean) returned with a node?
     int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
     int64_t   size_limit;              // the limit to the sum of the node sizes
     int64_t   size_writing;            // the sum of the sizes of the nodes being written
+    u_int64_t get_and_pin_footprint;   
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
