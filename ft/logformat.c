@@ -53,20 +53,20 @@ struct logtype {
 const struct logtype rollbacks[] = {
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"FILENUM",    "filenum", 0},
-			NULLFIELD}},
+                        NULLFIELD}},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"FILENUM", "filenum", 0},
-			{"BYTESTRING", "iname", 0},
-			NULLFIELD}},
+                        {"BYTESTRING", "iname", 0},
+                        NULLFIELD}},
     // cmdinsert is used to insert a key-value pair into a NODUP DB.  For rollback we don't need the data.
     {"cmdinsert", 'i', FA{
-			  {"FILENUM", "filenum", 0},
-			  {"BYTESTRING", "key", 0},
-			  NULLFIELD}},
+                          {"FILENUM", "filenum", 0},
+                          {"BYTESTRING", "key", 0},
+                          NULLFIELD}},
     {"cmddelete", 'd', FA{
-			  {"FILENUM", "filenum", 0},
-			  {"BYTESTRING", "key", 0},
-			  NULLFIELD}},
+                          {"FILENUM", "filenum", 0},
+                          {"BYTESTRING", "key", 0},
+                          NULLFIELD}},
     {"rollinclude", 'r', FA{{"TXNID",     "xid", 0},
                             {"u_int64_t", "num_nodes", 0},
                             {"BLOCKNUM",  "spilled_head", 0},
@@ -102,16 +102,16 @@ const struct logtype logtypes[] = {
 #endif
     {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, {"TXNID", "last_xid", 0}, NULLFIELD}, IGNORE_LOG_BEGIN},
     {"end_checkpoint",   'X', FA{{"LSN", "lsn_begin_checkpoint", 0},
-				 {"u_int64_t", "timestamp", 0},
-				 {"u_int32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
-				 {"u_int32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
-				 NULLFIELD}, IGNORE_LOG_BEGIN},
+                                 {"u_int64_t", "timestamp", 0},
+                                 {"u_int32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
+                                 {"u_int32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
+                                 NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
                             {"u_int32_t",  "treeflags", 0},
-			    {"BYTESTRING", "iname", 0},   // pathname of file
-			    {"u_int8_t", "unlink_on_close", 0},
-			    NULLFIELD}, IGNORE_LOG_BEGIN},
+                            {"BYTESTRING", "iname", 0},   // pathname of file
+                            {"u_int8_t", "unlink_on_close", 0},
+                            NULLFIELD}, IGNORE_LOG_BEGIN},
     //We do not use a TXNINFO struct since recovery log has
     //FILENUMS and TOKUTXN has FTs (for open_fts)
     {"xstillopen", 's', FA{{"TXNID", "xid", 0}, 
@@ -127,16 +127,16 @@ const struct logtype logtypes[] = {
                            NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
     // prepared txns need a gid
     {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
-				   {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
-				   {"u_int64_t", "rollentry_raw_count", 0}, 
-				   {"FILENUMS",  "open_filenums", 0},
-				   {"u_int8_t",  "force_fsync_on_commit", 0}, 
-				   {"u_int64_t", "num_rollback_nodes", 0}, 
-				   {"u_int64_t", "num_rollentries", 0}, 
-				   {"BLOCKNUM",  "spilled_rollback_head", 0}, 
-				   {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
-				   {"BLOCKNUM",  "current_rollback", 0}, 
-				   NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
+                                   {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
+                                   {"u_int64_t", "rollentry_raw_count", 0}, 
+                                   {"FILENUMS",  "open_filenums", 0},
+                                   {"u_int8_t",  "force_fsync_on_commit", 0}, 
+                                   {"u_int64_t", "num_rollback_nodes", 0}, 
+                                   {"u_int64_t", "num_rollentries", 0}, 
+                                   {"BLOCKNUM",  "spilled_rollback_head", 0}, 
+                                   {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
+                                   {"BLOCKNUM",  "current_rollback", 0}, 
+                                   NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
     {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
                                   {"TXNID",      "xid", 0},
                                   NULLFIELD}, SHOULD_LOG_BEGIN},
@@ -148,26 +148,26 @@ const struct logtype logtypes[] = {
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"TXNID",      "xid", 0},
                         {"FILENUM",    "filenum", 0},
-			{"BYTESTRING", "iname", 0},
-			{"u_int32_t",  "mode",  "0%o"},
+                        {"BYTESTRING", "iname", 0},
+                        {"u_int32_t",  "mode",  "0%o"},
                         {"u_int32_t",  "treeflags", 0},
                         {"u_int32_t", "nodesize", 0},
                         {"u_int32_t", "basementnodesize", 0},
                         {"u_int32_t", "compression_method", 0},
-			NULLFIELD}, SHOULD_LOG_BEGIN},
+                        NULLFIELD}, SHOULD_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fopen",   'O', FA{{"BYTESTRING", "iname", 0},
-			{"FILENUM",    "filenum", 0},
+                        {"FILENUM",    "filenum", 0},
                         {"u_int32_t",  "treeflags", 0},
-			NULLFIELD}, IGNORE_LOG_BEGIN},
+                        NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
                          NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"TXNID",      "xid", 0},
-			{"FILENUM", "filenum", 0},
-			NULLFIELD}, SHOULD_LOG_BEGIN},
+                        {"FILENUM", "filenum", 0},
+                        NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
                            {"BYTESTRING", "key", 0},
@@ -233,10 +233,10 @@ const struct logtype logtypes[] = {
 };
 
 
-#define DO_STRUCTS(lt, array, body) do {	\
+#define DO_STRUCTS(lt, array, body) do {        \
     const struct logtype *lt;    \
-    for (lt=&array[0]; lt->name; lt++) {	\
-	body; \
+    for (lt=&array[0]; lt->name; lt++) {        \
+        body; \
     } } while (0)
 
 #define DO_ROLLBACKS(lt, body) DO_STRUCTS(lt, rollbacks, body)
@@ -272,15 +272,15 @@ generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype
     memset(used_cmds, 0, 256);
     fprintf(hf, "enum %s {", enum_name);
     DO_STRUCTS(lt, lts,
-		{
-		    unsigned char cmd = (unsigned char)(lt->command_and_flags&0xff);
-		    if (count!=0) fprintf(hf, ",");
-		    count++;
-		    fprintf(hf, "\n");
-		    fprintf(hf,"    %s_%-16s = '%c'", enum_prefix, lt->name, cmd);
-		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d: error: Command %d (%c) was used twice (second time for %s)\n", __FILE__, __LINE__, cmd, cmd, lt->name); abort(); }
-		    used_cmds[cmd]=1;
-		});
+                {
+                    unsigned char cmd = (unsigned char)(lt->command_and_flags&0xff);
+                    if (count!=0) fprintf(hf, ",");
+                    count++;
+                    fprintf(hf, "\n");
+                    fprintf(hf,"    %s_%-16s = '%c'", enum_prefix, lt->name, cmd);
+                    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d: error: Command %d (%c) was used twice (second time for %s)\n", __FILE__, __LINE__, cmd, cmd, lt->name); abort(); }
+                    used_cmds[cmd]=1;
+                });
     fprintf(hf, "\n};\n\n");
 
 }
@@ -294,29 +294,29 @@ generate_enum (void) {
 static void
 generate_log_struct (void) {
     DO_LOGTYPES(lt,
-		{  fprintf(hf, "struct logtype_%s {\n", lt->name);
-		    fprintf(hf, "  %-16s lsn;\n", "LSN");
-		    DO_FIELDS(field_type, lt,
-			      fprintf(hf, "  %-16s %s;\n", field_type->type, field_type->name));
-		    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
-		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
-		    fprintf(hf, "};\n");
-		    //fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
-		    //DO_FIELDS(field_type, lt, fprintf(hf, ", %s %s", field_type->type, field_type->name));
-		    //fprintf(hf, ");\n");
-		});
+                {  fprintf(hf, "struct logtype_%s {\n", lt->name);
+                    fprintf(hf, "  %-16s lsn;\n", "LSN");
+                    DO_FIELDS(field_type, lt,
+                              fprintf(hf, "  %-16s %s;\n", field_type->type, field_type->name));
+                    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
+                    fprintf(hf, "  %-16s len;\n", "u_int32_t");
+                    fprintf(hf, "};\n");
+                    //fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
+                    //DO_FIELDS(field_type, lt, fprintf(hf, ", %s %s", field_type->type, field_type->name));
+                    //fprintf(hf, ");\n");
+                });
     DO_ROLLBACKS(lt,
-		 {  fprintf(hf, "struct rolltype_%s {\n", lt->name);
-		     DO_FIELDS(field_type, lt,
-			       fprintf(hf, "  %-16s %s;\n", field_type->type, field_type->name));
-		     fprintf(hf, "};\n");
-		     fprintf(hf, "int toku_rollback_%s (", lt->name);
-		     DO_FIELDS(field_type, lt, fprintf(hf, "%s %s,", field_type->type, field_type->name));
-		     fprintf(hf, "TOKUTXN txn, LSN oplsn);\n");
-		     fprintf(hf, "int toku_commit_%s (", lt->name);
-		     DO_FIELDS(field_type, lt, fprintf(hf, "%s %s,", field_type->type, field_type->name));
-		     fprintf(hf, "TOKUTXN txn, LSN oplsn);\n");
-		 });
+                 {  fprintf(hf, "struct rolltype_%s {\n", lt->name);
+                     DO_FIELDS(field_type, lt,
+                               fprintf(hf, "  %-16s %s;\n", field_type->type, field_type->name));
+                     fprintf(hf, "};\n");
+                     fprintf(hf, "int toku_rollback_%s (", lt->name);
+                     DO_FIELDS(field_type, lt, fprintf(hf, "%s %s,", field_type->type, field_type->name));
+                     fprintf(hf, "TOKUTXN txn, LSN oplsn);\n");
+                     fprintf(hf, "int toku_commit_%s (", lt->name);
+                     DO_FIELDS(field_type, lt, fprintf(hf, "%s %s,", field_type->type, field_type->name));
+                     fprintf(hf, "TOKUTXN txn, LSN oplsn);\n");
+                 });
     fprintf(hf, "struct log_entry {\n");
     fprintf(hf, "  enum lt_cmd cmd;\n");
     fprintf(hf, "  union {\n");
@@ -347,24 +347,24 @@ generate_dispatch (void) {
     fprintf(hf, "#define rolltype_dispatch_assign(s, funprefix, var, ...) do { \\\n");
     fprintf(hf, "  switch((s)->cmd) {\\\n");
     DO_ROLLBACKS(lt, {
-		    fprintf(hf, "  case RT_%s: var = funprefix ## %s (", lt->name, lt->name);
-		    int fieldcount=0;
-		    DO_FIELDS(field_type, lt, {
-				if (fieldcount>0) fprintf(hf, ",");
-				fprintf(hf, "(s)->u.%s.%s", lt->name, field_type->name);
-				fieldcount++;
-			    });
-		    fprintf(hf, ", __VA_ARGS__); break;\\\n");
-		});
+                    fprintf(hf, "  case RT_%s: var = funprefix ## %s (", lt->name, lt->name);
+                    int fieldcount=0;
+                    DO_FIELDS(field_type, lt, {
+                                if (fieldcount>0) fprintf(hf, ",");
+                                fprintf(hf, "(s)->u.%s.%s", lt->name, field_type->name);
+                                fieldcount++;
+                            });
+                    fprintf(hf, ", __VA_ARGS__); break;\\\n");
+                });
     fprintf(hf, "  default: assert(0);} } while (0)\n");
 
     fprintf(hf, "#define logtype_dispatch_args(s, funprefix, ...) do { switch((s)->cmd) {\\\n");
     DO_LOGTYPES(lt,
-		{
-		    fprintf(hf, "  case LT_%s: funprefix ## %s ((s)->u.%s.lsn", lt->name, lt->name, lt->name);
-		    DO_FIELDS(field_type, lt, fprintf(hf, ",(s)->u.%s.%s", lt->name, field_type->name));
-		    fprintf(hf, ", __VA_ARGS__); break;\\\n");
-		});
+                {
+                    fprintf(hf, "  case LT_%s: funprefix ## %s ((s)->u.%s.lsn", lt->name, lt->name, lt->name);
+                    DO_FIELDS(field_type, lt, fprintf(hf, ",(s)->u.%s.%s", lt->name, field_type->name));
+                    fprintf(hf, ", __VA_ARGS__); break;\\\n");
+                });
     fprintf(hf, " }} while (0)\n");
 }
 
@@ -376,7 +376,7 @@ generate_get_timestamp(void) {
     fprintf(cf, "  return tv.tv_sec * 1000000ULL + tv.tv_usec;\n");
     fprintf(cf, "}\n");
 }
-		
+                
 static void
 generate_log_writer (void) {
     generate_get_timestamp();
@@ -386,7 +386,7 @@ generate_log_writer (void) {
             fprintf(hf, "static const size_t toku_log_%s_overhead = (+4+1+8", lt->name);
             DO_FIELDS(field_type, lt, fprintf(hf, "+sizeof(%s)", field_type->type));
             fprintf(hf, "+8);\n");
-			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
+                        fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN:
                         case ASSERT_BEGIN_WAS_LOGGED: {
@@ -395,11 +395,11 @@ generate_log_writer (void) {
                         }
                         case IGNORE_LOG_BEGIN: break;
                         }
-			DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
-			fprintf(hf, ");\n");
-			fprintf(cf, ") {\n");
-			fprintf(cf, "  int r = 0;\n");
-			fprintf(cf, "  if (logger==0) return 0;\n");
+                        DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
+                        fprintf(hf, ");\n");
+                        fprintf(cf, ") {\n");
+                        fprintf(cf, "  int r = 0;\n");
+                        fprintf(cf, "  if (logger==0) return 0;\n");
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN: {
                             fprintf(cf, "  if (txn && !txn->begin_was_logged) {\n");
@@ -413,67 +413,67 @@ generate_log_writer (void) {
                         }
                         case IGNORE_LOG_BEGIN: break;
                         }
-			fprintf(cf, "  if (!logger->write_log_files) {\n");
-			fprintf(cf, "    ml_lock(&logger->input_lock);\n");
-			fprintf(cf, "    logger->lsn.lsn++;\n");
-			fprintf(cf, "    if (lsnp) *lsnp=logger->lsn;\n");
-			fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
-			fprintf(cf, "    return 0;\n");
-			fprintf(cf, "  }\n");
-			fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
-			fprintf(cf, "                              +1 // log command\n");
-			fprintf(cf, "                              +8 // lsn\n");
-			DO_FIELDS(field_type, lt,
-				  fprintf(cf, "                              +toku_logsizeof_%s(%s)\n", field_type->type, field_type->name));
-			fprintf(cf, "                              +8 // crc + len\n");
-			fprintf(cf, "                     );\n");
-			fprintf(cf, "  struct wbuf wbuf;\n");
-			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
-			fprintf(cf, "  r = toku_logger_make_space_in_inbuf(logger, buflen);\n");
-			fprintf(cf, "  if (r!=0) goto panic;\n");
-			fprintf(cf, "  wbuf_nocrc_init(&wbuf, logger->inbuf.buf+logger->inbuf.n_in_buf, buflen);\n");
-			fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
-			fprintf(cf, "  wbuf_nocrc_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
-			fprintf(cf, "  logger->lsn.lsn++;\n");
-			fprintf(cf, "  LSN lsn =logger->lsn;\n");
-			fprintf(cf, "  logger->inbuf.max_lsn_in_buf = lsn;\n");
-			fprintf(cf, "  wbuf_nocrc_LSN(&wbuf, lsn);\n");
-			fprintf(cf, "  if (lsnp) *lsnp=lsn;\n");
-			DO_FIELDS(field_type, lt,
+                        fprintf(cf, "  if (!logger->write_log_files) {\n");
+                        fprintf(cf, "    ml_lock(&logger->input_lock);\n");
+                        fprintf(cf, "    logger->lsn.lsn++;\n");
+                        fprintf(cf, "    if (lsnp) *lsnp=logger->lsn;\n");
+                        fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
+                        fprintf(cf, "    return 0;\n");
+                        fprintf(cf, "  }\n");
+                        fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
+                        fprintf(cf, "                              +1 // log command\n");
+                        fprintf(cf, "                              +8 // lsn\n");
+                        DO_FIELDS(field_type, lt,
+                                  fprintf(cf, "                              +toku_logsizeof_%s(%s)\n", field_type->type, field_type->name));
+                        fprintf(cf, "                              +8 // crc + len\n");
+                        fprintf(cf, "                     );\n");
+                        fprintf(cf, "  struct wbuf wbuf;\n");
+                        fprintf(cf, "  ml_lock(&logger->input_lock);\n");
+                        fprintf(cf, "  r = toku_logger_make_space_in_inbuf(logger, buflen);\n");
+                        fprintf(cf, "  if (r!=0) goto panic;\n");
+                        fprintf(cf, "  wbuf_nocrc_init(&wbuf, logger->inbuf.buf+logger->inbuf.n_in_buf, buflen);\n");
+                        fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
+                        fprintf(cf, "  wbuf_nocrc_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
+                        fprintf(cf, "  logger->lsn.lsn++;\n");
+                        fprintf(cf, "  LSN lsn =logger->lsn;\n");
+                        fprintf(cf, "  logger->inbuf.max_lsn_in_buf = lsn;\n");
+                        fprintf(cf, "  wbuf_nocrc_LSN(&wbuf, lsn);\n");
+                        fprintf(cf, "  if (lsnp) *lsnp=lsn;\n");
+                        DO_FIELDS(field_type, lt,
                                   if (strcmp(field_type->name, "timestamp") == 0)
                                       fprintf(cf, "  if (timestamp == 0) timestamp = toku_get_timestamp();\n");
-				  fprintf(cf, "  wbuf_nocrc_%s(&wbuf, %s);\n", field_type->type, field_type->name));
-			fprintf(cf, "  wbuf_nocrc_int(&wbuf, x1764_memory(wbuf.buf, wbuf.ndone));\n");
-			fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
-			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
-			fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
-			fprintf(cf, "  r = toku_logger_maybe_fsync(logger, lsn, do_fsync);\n");
-			fprintf(cf, "  if (r!=0) goto panic;\n");
-			fprintf(cf, "  return 0;\n");
-			fprintf(cf, " panic:\n");
-			fprintf(cf, "  toku_logger_panic(logger, r);\n");
-			fprintf(cf, "  return r;\n");
-			fprintf(cf, "}\n\n");
-		    });
+                                  fprintf(cf, "  wbuf_nocrc_%s(&wbuf, %s);\n", field_type->type, field_type->name));
+                        fprintf(cf, "  wbuf_nocrc_int(&wbuf, x1764_memory(wbuf.buf, wbuf.ndone));\n");
+                        fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
+                        fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
+                        fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
+                        fprintf(cf, "  r = toku_logger_maybe_fsync(logger, lsn, do_fsync);\n");
+                        fprintf(cf, "  if (r!=0) goto panic;\n");
+                        fprintf(cf, "  return 0;\n");
+                        fprintf(cf, " panic:\n");
+                        fprintf(cf, "  toku_logger_panic(logger, r);\n");
+                        fprintf(cf, "  return r;\n");
+                        fprintf(cf, "}\n\n");
+                    });
 }
 
 static void
 generate_log_reader (void) {
     DO_LOGTYPES(lt, {
-			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, u_int32_t len1, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
-			fprintf(cf, " {\n");
-			fprintf(cf, "  int r=0;\n");
-			fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
-			fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
-			DO_FIELDS(field_type, lt,
-				  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", field_type->type, field_type->name));
-			fprintf(cf, "  u_int32_t checksum_in_file, len_in_file;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
-			fprintf(cf, "  return 0;\n");
-			fprintf(cf, "}\n\n");
-		    });
+                        fprintf(cf, "static int toku_log_fread_%s (FILE *infile, u_int32_t len1, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
+                        fprintf(cf, " {\n");
+                        fprintf(cf, "  int r=0;\n");
+                        fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
+                        fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
+                        DO_FIELDS(field_type, lt,
+                                  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", field_type->type, field_type->name));
+                        fprintf(cf, "  u_int32_t checksum_in_file, len_in_file;\n");
+                        fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
+                        fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
+                        fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
+                        fprintf(cf, "  return 0;\n");
+                        fprintf(cf, "}\n\n");
+                    });
     fprintf2(cf, hf, "int toku_log_fread (FILE *infile, struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
@@ -489,9 +489,9 @@ generate_log_reader (void) {
     fprintf(cf, "  le->cmd=(enum lt_cmd)cmd;\n");
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, {
-			fprintf(cf, "  case LT_%s:\n", lt->name);
-			fprintf(cf, "    return toku_log_fread_%s (infile, len1, &le->u.%s, &checksum);\n", lt->name, lt->name);
-		    });
+                        fprintf(cf, "  case LT_%s:\n", lt->name);
+                        fprintf(cf, "    return toku_log_fread_%s (infile, len1, &le->u.%s, &checksum);\n", lt->name, lt->name);
+                    });
     fprintf(cf, "  };\n");
     fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.
     fprintf(cf, "}\n\n");
@@ -518,13 +518,13 @@ generate_log_reader (void) {
 
     DO_LOGTYPES(lt, ({
             fprintf(cf, "static void toku_log_free_log_entry_%s_resources (struct logtype_%s *data", lt->name, lt->name);
-	    if (!lt->fields->type) fprintf(cf, " __attribute__((__unused__))");
+            if (!lt->fields->type) fprintf(cf, " __attribute__((__unused__))");
             fprintf(cf, ") {\n");
             DO_FIELDS(field_type, lt,
-		      fprintf(cf, "    toku_free_%s(data->%s);\n", field_type->type, field_type->name);
-		      );
-	    fprintf(cf, "}\n\n");
-	    }));
+                      fprintf(cf, "    toku_free_%s(data->%s);\n", field_type->type, field_type->name);
+                      );
+            fprintf(cf, "}\n\n");
+            }));
     fprintf2(cf, hf, "void toku_log_free_log_entry_resources (struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
@@ -559,32 +559,32 @@ generate_logprint (void) {
     fprintf(pf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, { if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); });
     DO_LOGTYPES(lt, {
-		unsigned char cmd = (unsigned char)(0xff&lt->command_and_flags);
-		fprintf(pf, "    case LT_%s: \n", lt->name);
-		// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-		fprintf(pf, "        fprintf(outf, \"%%-%us \", \"%s\");\n", maxnamelen, lt->name);
-		if (isprint(cmd)) fprintf(pf,"        fprintf(outf, \" '%c':\");\n", cmd);
-		else                      fprintf(pf,"        fprintf(outf, \"0%03o:\");\n", cmd);
-		fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &checksum, &len, 0);     if (r!=0) return r;\n", "LSN");
-		DO_FIELDS(field_type, lt, {
-			    fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &checksum, &len,", field_type->type, field_type->name);
-			    if (field_type->format) fprintf(pf, "\"%s\"", field_type->format);
-			    else            fprintf(pf, "0");
-			    fprintf(pf, "); if (r!=0) return r;\n");
-			});
-		fprintf(pf, "        {\n");
-		fprintf(pf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
-		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
-		fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" checksum=%%08x\", actual_murmur);\n");
-		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(pf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
-		fprintf(pf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
-		fprintf(pf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
-		fprintf(pf, "        };\n");
-		fprintf(pf, "        fprintf(outf, \"\\n\");\n");
-		fprintf(pf, "        return 0;;\n\n");
-	    });
+                unsigned char cmd = (unsigned char)(0xff&lt->command_and_flags);
+                fprintf(pf, "    case LT_%s: \n", lt->name);
+                // We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
+                fprintf(pf, "        fprintf(outf, \"%%-%us \", \"%s\");\n", maxnamelen, lt->name);
+                if (isprint(cmd)) fprintf(pf,"        fprintf(outf, \" '%c':\");\n", cmd);
+                else                      fprintf(pf,"        fprintf(outf, \"0%03o:\");\n", cmd);
+                fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &checksum, &len, 0);     if (r!=0) return r;\n", "LSN");
+                DO_FIELDS(field_type, lt, {
+                            fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &checksum, &len,", field_type->type, field_type->name);
+                            if (field_type->format) fprintf(pf, "\"%s\"", field_type->format);
+                            else            fprintf(pf, "0");
+                            fprintf(pf, "); if (r!=0) return r;\n");
+                        });
+                fprintf(pf, "        {\n");
+                fprintf(pf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
+                fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+                fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
+                fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" checksum=%%08x\", actual_murmur);\n");
+                fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+                fprintf(pf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
+                fprintf(pf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
+                fprintf(pf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
+                fprintf(pf, "        };\n");
+                fprintf(pf, "        fprintf(outf, \"\\n\");\n");
+                fprintf(pf, "        return 0;;\n\n");
+            });
     fprintf(pf, "    }\n");
     fprintf(pf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
     fprintf(pf, "    return DB_BADFORMAT;\n");
@@ -594,8 +594,8 @@ generate_logprint (void) {
 static void
 generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
-		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
-		    DO_FIELDS(field_type, lt, {
+                    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
+                    DO_FIELDS(field_type, lt, {
                         if ( strcmp(field_type->type, "BYTESTRING") == 0 ) {
                             fprintf2(cf, hf, ", BYTESTRING *%s_ptr", field_type->name);
                         } 
@@ -607,13 +607,13 @@ generate_rollbacks (void) {
                         }
                     });
 
-		    fprintf(hf, ");\n");
-		    fprintf(cf, ") {\n");
+                    fprintf(hf, ");\n");
+                    fprintf(cf, ") {\n");
                     fprintf(cf, "  toku_txn_lock(txn);\n");
                     fprintf(cf, "  ROLLBACK_LOG_NODE log;\n");
                     fprintf(cf, "  toku_get_and_pin_rollback_log_for_new_entry(txn, &log);\n");
-		    // 'memdup' all BYTESTRINGS here
-		    DO_FIELDS(field_type, lt, {
+                    // 'memdup' all BYTESTRINGS here
+                    DO_FIELDS(field_type, lt, {
                         if ( strcmp(field_type->type, "BYTESTRING") == 0 ) {
                             fprintf(cf, "  BYTESTRING %s   = {\n"
                                     "    .len  = %s_ptr->len,\n"
@@ -629,38 +629,38 @@ generate_rollbacks (void) {
                                     field_type->name, field_type->name, field_type->name, field_type->name);
                         }
                     });
-		    {
-			int count=0;
-			fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
-			DO_FIELDS(field_type, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", field_type->name));
-			fprintf(cf, ");\n");
-		    }
-		    fprintf(cf, "  struct roll_entry *v;\n");
-		    fprintf(cf, "  size_t mem_needed = sizeof(v->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-		    fprintf(cf, "  v = toku_malloc_in_rollback(log, mem_needed);\n");
-		    fprintf(cf, "  assert(v);\n");
-		    fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
-		    DO_FIELDS(field_type, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, field_type->name, field_type->name));
-		    fprintf(cf, "  v->prev = log->newest_logentry;\n");
-		    fprintf(cf, "  if (log->oldest_logentry==NULL) log->oldest_logentry=v;\n");
-		    fprintf(cf, "  log->newest_logentry = v;\n");
-		    fprintf(cf, "  log->rollentry_resident_bytecount += rollback_fsize;\n");
-		    fprintf(cf, "  txn->roll_info.rollentry_raw_count          += rollback_fsize;\n");
+                    {
+                        int count=0;
+                        fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
+                        DO_FIELDS(field_type, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", field_type->name));
+                        fprintf(cf, ");\n");
+                    }
+                    fprintf(cf, "  struct roll_entry *v;\n");
+                    fprintf(cf, "  size_t mem_needed = sizeof(v->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
+                    fprintf(cf, "  v = toku_malloc_in_rollback(log, mem_needed);\n");
+                    fprintf(cf, "  assert(v);\n");
+                    fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
+                    DO_FIELDS(field_type, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, field_type->name, field_type->name));
+                    fprintf(cf, "  v->prev = log->newest_logentry;\n");
+                    fprintf(cf, "  if (log->oldest_logentry==NULL) log->oldest_logentry=v;\n");
+                    fprintf(cf, "  log->newest_logentry = v;\n");
+                    fprintf(cf, "  log->rollentry_resident_bytecount += rollback_fsize;\n");
+                    fprintf(cf, "  txn->roll_info.rollentry_raw_count          += rollback_fsize;\n");
                     fprintf(cf, "  txn->roll_info.num_rollentries++;\n");
                     fprintf(cf, "  log->dirty = TRUE;\n");
-		    fprintf(cf, "  // spill and unpin assert success internally\n");
-		    fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
-		    fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
+                    fprintf(cf, "  // spill and unpin assert success internally\n");
+                    fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
+                    fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
                     fprintf(cf, "  toku_txn_unlock(txn);\n");
-		    fprintf(cf, "  return 0;\n}\n");
-	    });
+                    fprintf(cf, "  return 0;\n}\n");
+            });
 
     DO_ROLLBACKS(lt, {
-		fprintf2(cf, hf, "void toku_logger_rollback_wbuf_nocrc_write_%s (struct wbuf *wbuf", lt->name);
-		DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
-		fprintf2(cf, hf, ")");
-		fprintf(hf, ";\n");
-		fprintf(cf, " {\n");
+                fprintf2(cf, hf, "void toku_logger_rollback_wbuf_nocrc_write_%s (struct wbuf *wbuf", lt->name);
+                DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
+                fprintf2(cf, hf, ")");
+                fprintf(hf, ";\n");
+                fprintf(cf, " {\n");
 
                 {
                     int count=0;
@@ -669,41 +669,41 @@ generate_rollbacks (void) {
                     fprintf(cf, ");\n");
                     fprintf(cf, "  wbuf_nocrc_int(wbuf, rollback_fsize);\n");
                 }
-		fprintf(cf, "  wbuf_nocrc_char(wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
-		DO_FIELDS(field_type, lt, fprintf(cf, "  wbuf_nocrc_%s(wbuf, %s);\n", field_type->type, field_type->name));
-		fprintf(cf, "}\n");
-	    });
+                fprintf(cf, "  wbuf_nocrc_char(wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
+                DO_FIELDS(field_type, lt, fprintf(cf, "  wbuf_nocrc_%s(wbuf, %s);\n", field_type->type, field_type->name));
+                fprintf(cf, "}\n");
+            });
     fprintf2(cf, hf, "void toku_logger_rollback_wbuf_nocrc_write (struct wbuf *wbuf, struct roll_entry *r)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n  switch (r->cmd) {\n");
     DO_ROLLBACKS(lt, {
-		fprintf(cf, "    case RT_%s: toku_logger_rollback_wbuf_nocrc_write_%s(wbuf", lt->name, lt->name);
-		DO_FIELDS(field_type, lt, fprintf(cf, ", r->u.%s.%s", lt->name, field_type->name));
-		fprintf(cf, "); return;\n");
-	    });
+                fprintf(cf, "    case RT_%s: toku_logger_rollback_wbuf_nocrc_write_%s(wbuf", lt->name, lt->name);
+                DO_FIELDS(field_type, lt, fprintf(cf, ", r->u.%s.%s", lt->name, field_type->name));
+                fprintf(cf, "); return;\n");
+            });
     fprintf(cf, "  }\n  assert(0);\n");
     fprintf(cf, "}\n");
     DO_ROLLBACKS(lt, {
-		fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize_%s (", lt->name);
-		int count=0;
-		DO_FIELDS(field_type, lt, fprintf2(cf, hf, "%s%s %s", (count++>0)?", ":"", field_type->type, field_type->name));
-		fprintf(hf, ");\n");
-		fprintf(cf, ") {\n");
-		fprintf(cf, "  return 1 /* the cmd*/\n");
-		fprintf(cf, "         + 4 /* the int at the end saying the size */");
-		DO_FIELDS(field_type, lt,
-			  fprintf(cf, "\n         + toku_logsizeof_%s(%s)", field_type->type, field_type->name));
-		fprintf(cf, ";\n}\n");
-	    });
+                fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize_%s (", lt->name);
+                int count=0;
+                DO_FIELDS(field_type, lt, fprintf2(cf, hf, "%s%s %s", (count++>0)?", ":"", field_type->type, field_type->name));
+                fprintf(hf, ");\n");
+                fprintf(cf, ") {\n");
+                fprintf(cf, "  return 1 /* the cmd*/\n");
+                fprintf(cf, "         + 4 /* the int at the end saying the size */");
+                DO_FIELDS(field_type, lt,
+                          fprintf(cf, "\n         + toku_logsizeof_%s(%s)", field_type->type, field_type->name));
+                fprintf(cf, ";\n}\n");
+            });
     fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize(struct roll_entry *item)");
     fprintf(hf, ";\n");
     fprintf(cf, "{\n  switch(item->cmd) {\n");
     DO_ROLLBACKS(lt, {
-		fprintf(cf, "    case RT_%s: return toku_logger_rollback_fsize_%s(", lt->name, lt->name);
-		int count=0;
-		DO_FIELDS(field_type, lt, fprintf(cf, "%sitem->u.%s.%s", (count++>0)?", ":"", lt->name, field_type->name));
-		fprintf(cf, ");\n");
-	    });
+                fprintf(cf, "    case RT_%s: return toku_logger_rollback_fsize_%s(", lt->name, lt->name);
+                int count=0;
+                DO_FIELDS(field_type, lt, fprintf(cf, "%sitem->u.%s.%s", (count++>0)?", ":"", lt->name, field_type->name));
+                fprintf(cf, ");\n");
+            });
     fprintf(cf, "  }\n  assert(0);\n  return 0;\n");
     fprintf(cf, "}\n");
 
@@ -713,14 +713,14 @@ generate_rollbacks (void) {
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
     fprintf(cf, "  switch(cmd) {\n");
     DO_ROLLBACKS(lt, {
-		fprintf(cf, "  case RT_%s:\n", lt->name);
-		fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
+                fprintf(cf, "  case RT_%s:\n", lt->name);
+                fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
                 fprintf(cf, "    item = malloc_in_memarena(ma, mem_needed);\n");
                 fprintf(cf, "    item->cmd = cmd;\n");
-		DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
-		fprintf(cf, "    *itemp = item;\n");
-		fprintf(cf, "    return 0;\n");
-	});
+                DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
+                fprintf(cf, "    *itemp = item;\n");
+                fprintf(cf, "    return 0;\n");
+        });
     fprintf(cf, "  }\n  return EINVAL;\n}\n");
 }
 
@@ -777,12 +777,12 @@ int main (int argc, const char *const argv[]) {
     fprintf(hf, "#if defined(__cplusplus)\n};\n#endif\n");
     fprintf(hf, "#endif\n");
     {
-	int r=fclose(hf); assert(r==0);
-	r=fclose(cf); assert(r==0);
+        int r=fclose(hf); assert(r==0);
+        r=fclose(cf); assert(r==0);
         r=fclose(pf); assert(r==0);
-	// Make it tougher to modify by mistake
-	chmod(codepath, S_IRUSR|S_IRGRP|S_IROTH);
-	chmod(headerpath, S_IRUSR|S_IRGRP|S_IROTH);
+        // Make it tougher to modify by mistake
+        chmod(codepath, S_IRUSR|S_IRGRP|S_IROTH);
+        chmod(headerpath, S_IRUSR|S_IRGRP|S_IROTH);
     }
     return 0;
 }
