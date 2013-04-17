@@ -479,7 +479,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   endforeach(src)
 
   # Run test_stress0 with a special size
-  add_test(ydb/test_stress0.tdb ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 512 1000 600)
+  add_test(ydb/test_stress0.tdb ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:test_stress0.tdb> 512 1000 600)
 
   # Set up upgrade tests. Exclude test_stress_openclose
   configure_file(run_upgrade_stress_test.sh . COPYONLY)
