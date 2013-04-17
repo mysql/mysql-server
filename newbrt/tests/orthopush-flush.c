@@ -122,6 +122,44 @@ insert_random_message_to_leaf(BRT t, BRTNODE leaf, int childnum, BASEMENTNODE bl
     }
 }
 
+static void
+insert_same_message_to_leaves(BRT t, BRTNODE leaf1, BRTNODE leaf2, int childnum, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
+{
+    int keylen = (random() % 16) + 16;
+    int vallen = (random() % 1024) + 16;
+    char key[keylen+(sizeof pfx)];
+    char val[vallen];
+    *(int *) key = pfx;
+    rand_bytes_limited((char *) key + (sizeof pfx), keylen);
+    rand_bytes(val, vallen);
+    MSN msn = next_dummymsn();
+
+    DBT keydbt_s, *keydbt, valdbt_s, *valdbt;
+    keydbt = &keydbt_s;
+    valdbt = &valdbt_s;
+    toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
+    toku_fill_dbt(valdbt, val, vallen);
+    BRT_MSG_S msg;
+    BRT_MSG_S *result = &msg;
+    result->type = BRT_INSERT;
+    result->msn = msn;
+    result->xids = xids;
+    result->u.id.key = keydbt;
+    result->u.id.val = valdbt;
+    size_t memsize, disksize;
+    int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
+    assert_zero(r);
+    bool made_change;
+    brt_leaf_put_cmd(t, blb1, &BP_SUBTREE_EST(leaf1, childnum), result, &made_change, NULL, NULL, NULL);
+    if (msn.msn > blb1->max_msn_applied.msn) {
+        blb1->max_msn_applied = msn;
+    }
+    brt_leaf_put_cmd(t, blb2, &BP_SUBTREE_EST(leaf2, childnum), result, &made_change, NULL, NULL, NULL);
+    if (msn.msn > blb2->max_msn_applied.msn) {
+        blb2->max_msn_applied = msn;
+    }
+}
+
 struct orthopush_flush_update_fun_extra {
     DBT new_val;
     int *num_applications;
@@ -654,6 +692,194 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     toku_free(parent_messages_applied);
 }
 
+static void
+compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
+    int r;
+
+    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
+    LEAFENTRY *MALLOC_N(128*1024,child_messages);
+    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
+    int *MALLOC_N(128*1024,parent_messages_applied);
+    memset(parent_messages_applied, 0, 128*1024*(sizeof parent_messages_applied[0]));
+
+    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_123, xids_234;
+    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    CKERR(r);
+    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    CKERR(r);
+
+    BASEMENTNODE child1_blbs[8], child2_blbs[8];
+    DBT child1keys[7], child2keys[7];
+    int i;
+    for (i = 0; i < 8; ++i) {
+        child1_blbs[i] = toku_create_empty_bn();
+        child2_blbs[i] = toku_create_empty_bn();
+        if (i < 7) {
+            toku_init_dbt(&child1keys[i]);
+            toku_init_dbt(&child2keys[i]);
+        }
+    }
+
+    BRTNODE XMALLOC(child1), XMALLOC(child2);
+    BLOCKNUM blocknum = { 42 };
+    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0);
+    for (i = 0; i < 8; ++i) {
+        destroy_basement_node(BLB(child1, i));
+        set_BLB(child1, i, child1_blbs[i]);
+        BP_STATE(child1, i) = PT_AVAIL;
+        destroy_basement_node(BLB(child2, i));
+        set_BLB(child2, i, child2_blbs[i]);
+        BP_STATE(child2, i) = PT_AVAIL;
+    }
+
+    int total_size = 0;
+    for (i = 0; total_size < 4*M; ++i) {
+        total_size -= child1_blbs[i%8]->n_bytes_in_buffer;
+        insert_same_message_to_leaves(t, child1, child2, i%8, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
+        total_size += child1_blbs[i%8]->n_bytes_in_buffer;
+        if (i % 8 < 7) {
+            u_int32_t keylen;
+            char *key = le_key_and_len(child_messages[i], &keylen);
+            DBT keydbt;
+            if (child1keys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child1keys[i%8]) > 0) {
+                toku_fill_dbt(&child1keys[i%8], key, keylen);
+                toku_fill_dbt(&child2keys[i%8], key, keylen);
+            }
+        }
+    }
+    int num_child_messages = i;
+
+    for (i = 0; i < num_child_messages; ++i) {
+        u_int32_t keylen;
+        char *key = le_key_and_len(child_messages[i], &keylen);
+        DBT keydbt;
+        if (i % 8 < 7) {
+            assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child1keys[i%8]) <= 0);
+            assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child2keys[i%8]) <= 0);
+        }
+    }
+
+    {
+        int num_stale = random() % 10000;
+        memset(&parent_messages_is_fresh[num_stale], true, (128*1024 - num_stale) * (sizeof parent_messages_is_fresh[0]));
+    }
+    NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
+    MSN max_parent_msn = MIN_MSN;
+    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+        insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
+    }
+    int num_parent_messages = i;
+
+    for (i = 0; i < 7; ++i) {
+        child1->childkeys[i] = kv_pair_malloc(child1keys[i].data, child1keys[i].size, NULL, 0);
+        child2->childkeys[i] = kv_pair_malloc(child2keys[i].data, child2keys[i].size, NULL, 0);
+    }
+
+    if (make_leaf_up_to_date) {
+        for (i = 0; i < num_parent_messages; ++i) {
+            if (!parent_messages_is_fresh[i]) {
+                bool made_change;
+                toku_apply_cmd_to_leaf(t, child1, parent_messages[i], &made_change, NULL, NULL, NULL);
+                toku_apply_cmd_to_leaf(t, child2, parent_messages[i], &made_change, NULL, NULL, NULL);
+            }
+        }
+        for (i = 0; i < 8; ++i) {
+            BLB(child1, i)->stale_ancestor_messages_applied = true;
+            BLB(child2, i)->stale_ancestor_messages_applied = true;
+        }
+    } else {
+        for (i = 0; i < 8; ++i) {
+            BLB(child1, i)->stale_ancestor_messages_applied = false;
+            BLB(child2, i)->stale_ancestor_messages_applied = false;
+        }
+    }
+
+    toku_bnc_flush_to_child(t, parent_bnc, child1);
+
+    BRTNODE XMALLOC(parentnode);
+    BLOCKNUM parentblocknum = { 17 };
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
+    destroy_nonleaf_childinfo(BNC(parentnode, 0));
+    set_BNC(parentnode, 0, parent_bnc);
+    BP_STATE(parentnode, 0) = PT_AVAIL;
+    parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
+    struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
+    const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
+    maybe_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds);
+
+    FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
+                 {
+                     key = key; keylen = keylen; val = val; vallen = vallen; type = type; msn = msn; xids = xids;
+                     assert(!is_fresh);
+                 });
+    assert(toku_omt_size(parent_bnc->fresh_message_tree) == 0);
+    assert(toku_omt_size(parent_bnc->stale_message_tree) == (u_int32_t) num_parent_messages);
+
+    toku_brtnode_free(&parentnode);
+
+    for (int j = 0; j < 8; ++j) {
+        OMT omt1 = BLB_BUFFER(child1, j);
+        OMT omt2 = BLB_BUFFER(child2, j);
+        u_int32_t len = toku_omt_size(omt1);
+        assert(len == toku_omt_size(omt2));
+        for (u_int32_t idx = 0; idx < len; ++idx) {
+            LEAFENTRY le1, le2;
+            DBT key1dbt, val1dbt, key2dbt, val2dbt;
+            {
+                OMTVALUE v;
+                r = toku_omt_fetch(omt1, idx, &v);
+                assert_zero(r);
+                le1 = v;
+                u_int32_t keylen, vallen;
+                void *keyp = le_key_and_len(le1, &keylen);
+                void *valp = le_latest_val_and_len(le1, &vallen);
+                toku_fill_dbt(&key1dbt, keyp, keylen);
+                toku_fill_dbt(&val1dbt, valp, vallen);
+            }
+            {
+                OMTVALUE v;
+                r = toku_omt_fetch(omt2, idx, &v);
+                assert_zero(r);
+                le2 = v;
+                u_int32_t keylen, vallen;
+                void *keyp = le_key_and_len(le2, &keylen);
+                void *valp = le_latest_val_and_len(le2, &vallen);
+                toku_fill_dbt(&key2dbt, keyp, keylen);
+                toku_fill_dbt(&val2dbt, valp, vallen);
+            }
+            assert(dummy_cmp(NULL, &key1dbt, &key2dbt) == 0);
+            assert(dummy_cmp(NULL, &val1dbt, &val2dbt) == 0);
+        }
+    }
+
+    xids_destroy(&xids_0);
+    xids_destroy(&xids_123);
+    xids_destroy(&xids_234);
+
+    for (i = 0; i < num_parent_messages; ++i) {
+        toku_free(parent_messages[i]->u.id.key->data);
+        toku_free((DBT *) parent_messages[i]->u.id.key);
+        struct orthopush_flush_update_fun_extra *extra =
+            parent_messages[i]->u.id.val->data;
+        toku_free(extra->new_val.data);
+        toku_free(parent_messages[i]->u.id.val->data);
+        toku_free((DBT *) parent_messages[i]->u.id.val);
+        toku_free(parent_messages[i]);
+    }
+    for (i = 0; i < num_child_messages; ++i) {
+        toku_free(child_messages[i]);
+    }
+    toku_brtnode_free(&child1);
+    toku_brtnode_free(&child2);
+    toku_free(parent_messages);
+    toku_free(child_messages);
+    toku_free(parent_messages_is_fresh);
+    toku_free(parent_messages_applied);
+}
+
 static int slow = 0;
 
 static void
@@ -693,6 +919,8 @@ test_main (int argc, const char *argv[]) {
         flush_to_internal(t);
         flush_to_internal_multiple(t);
         flush_to_leaf(t, true, false);
+        compare_apply_and_flush(t, false);
+        compare_apply_and_flush(t, true);
     } else {
         for (int i = 0; i < 10; ++i) {
             flush_to_internal(t);
