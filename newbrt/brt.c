@@ -2397,6 +2397,13 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
 // Effect:  Flush the root fifo into the brt, and then push the cmd into the brt.
 {
+    if (logger) {
+        BYTESTRING keybs = {.len=cmd->u.id.key->size, .data=cmd->u.id.key->data};
+        BYTESTRING valbs = {.len=cmd->u.id.val->size, .data=cmd->u.id.val->data};
+        int r = toku_log_enqrootentry(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), cmd->xid, cmd->type, keybs, valbs);
+        if (r!=0) return r;
+    }
+
     void *node_v;
     BRTNODE node;
     CACHEKEY *rootp;
