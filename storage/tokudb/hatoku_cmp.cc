@@ -535,6 +535,68 @@ inline uchar* pack_toku_varstring(
 }
 
 
+inline uchar* pack_toku_varblob(
+    uchar* to_tokudb, 
+    uchar* from_mysql, 
+    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    u_int32_t max_num_bytes,
+    CHARSET_INFO* charset
+    ) 
+{
+    u_int32_t length = 0;
+    u_int32_t local_char_length = 0;
+    uchar* blob_buf = NULL;
+
+    switch (length_bytes_in_mysql) {
+    case (0):
+        length = max_num_bytes;
+        break;
+    case (1):
+        length = (u_int32_t)(*from_mysql);
+        break;
+    case (2):
+        length = uint2korr(from_mysql);
+        break;
+    case (3):
+        length = uint3korr(from_mysql);
+        break;
+    case (4):
+        length = uint4korr(from_mysql);
+        break;
+    }
+    set_if_smaller(length,max_num_bytes);
+
+    memcpy(&blob_buf,from_mysql+length_bytes_in_mysql,sizeof(uchar *));
+
+    local_char_length= ((charset->mbmaxlen > 1) ?
+                       max_num_bytes/charset->mbmaxlen : max_num_bytes);
+    if (length > local_char_length)
+    {
+      local_char_length= my_charpos(
+        charset, 
+        blob_buf, 
+        blob_buf+length,
+        local_char_length
+        );
+      set_if_smaller(length, local_char_length);
+    }
+
+
+    //
+    // copy the length bytes, assuming both are in little endian
+    //
+    to_tokudb[0] = (uchar)length & 255;
+    if (length_bytes_in_tokudb > 1) {
+        to_tokudb[1] = (uchar) (length >> 8);
+    }
+    //
+    // copy the string
+    //
+    memcpy(to_tokudb + length_bytes_in_tokudb, blob_buf, length);
+    return to_tokudb + length + length_bytes_in_tokudb;
+}
+
 inline int cmp_toku_varbinary(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -801,7 +863,7 @@ uchar* pack_toku_field(
             );
         goto exit;
     case (toku_type_blob):
-        new_pos = pack_toku_varstring(
+        new_pos = pack_toku_varblob(
             to_tokudb,
             from_mysql,
             get_length_bytes_from_max(key_part_length),
