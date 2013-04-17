@@ -2913,22 +2913,22 @@ bool fields_are_same_type(
 #endif
     {
         TOKU_TYPE toku_type = mysql_to_toku_type(a);
-        if (toku_type == toku_type_int) {
-            if ( ((a->flags & UNSIGNED_FLAG) == 0) !=  ((b->flags & UNSIGNED_FLAG) == 0) ) {
-                retval = false;
-                goto cleanup;
-            }
-            if ((a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
-                retval = false;
-                goto cleanup;
-            }
+        if ((toku_type == toku_type_int || toku_type == toku_type_float) &&
+            (a->flags & UNSIGNED_FLAG) != (b->flags & UNSIGNED_FLAG)) {
+            retval = false;
+            goto cleanup;
+        }
+        if (toku_type == toku_type_int && 
+            (a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
+            retval = false;
+            goto cleanup;
         }
         if (a->pack_length() != b->pack_length()) {
             retval = false;
             goto cleanup;
         }
-    }
         break;
+    }
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_BLOB:
