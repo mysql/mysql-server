@@ -13,6 +13,8 @@ extern "C" {
 #endif
 #endif
 
+#include "toku_atomic.h"
+
 static int event_count, event_count_trigger;
 
 __attribute__((__unused__))
@@ -26,7 +28,7 @@ static void event_hit(void) {
 
 __attribute__((__unused__))
 static int event_add_and_fetch(void) {
-    return __sync_add_and_fetch(&event_count, 1);
+    return toku_sync_increment_and_fetch_int32(&event_count);
 }
 
 static int do_user_errors = 0;
@@ -103,9 +105,9 @@ static void *my_malloc(size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
         goto skip;
-    (void) __sync_fetch_and_add(&my_malloc_count, 1); // my_malloc_count++;
+    (void) toku_sync_fetch_and_increment_int32(&my_malloc_count); // my_malloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) __sync_fetch_and_add(&my_big_malloc_count, 1); // my_big_malloc_count++;
+        (void) toku_sync_fetch_and_increment_int32(&my_big_malloc_count); // my_big_malloc_count++;
         if (do_malloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
@@ -128,9 +130,9 @@ static void *my_realloc(void *p, size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
         goto skip;
-    (void) __sync_add_and_fetch(&my_realloc_count, 1); // my_realloc_count++;
+    (void) toku_sync_increment_and_fetch_int32(&my_realloc_count); // my_realloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) __sync_add_and_fetch(&my_big_realloc_count, 1); // my_big_realloc_count++;
+        (void) toku_sync_increment_and_fetch_int32(&my_big_realloc_count); // my_big_realloc_count++;
         if (do_realloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
