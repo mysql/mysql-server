@@ -16,6 +16,8 @@ int test_main (int argc, char * const argv[]) {
     u_int32_t num_read_txns = 1000;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     env->set_errfile(env, stderr);
+    r = env->set_lk_max_locks(env, 0xffffffff);
+    CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
     DB *db;
