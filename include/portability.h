@@ -1,31 +1,25 @@
 #ifndef TOKU_PORTABILITY_H
 #define TOKU_PORTABILITY_H
 
+// Tokutek portability layer
+
 #if defined __cplusplus
 extern "C" {
 #endif
 
-// Portability layer
-#define DEV_NULL_FILE "/dev/null"
+#if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(__ICL))
 
-#if defined(_MSC_VER)
-// Microsoft compiler
 #define TOKU_WINDOWS 1
-#endif
-
-#if defined(__INTEL_COMPILER)
-// Intel compiler
-
-#if defined(__ICL)
-#define TOKU_WINDOWS 1
-#endif
-
-#undef DEV_NULL_FILE
 #define DEV_NULL_FILE "NUL"
 
+#else
+
+#define TOKU_WINDOWS 0
+#define DEV_NULL_FILE "/dev/null"
+
 #endif
 
-#if defined(TOKU_WINDOWS)
+#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
 // Windows
 
 //  ntohl and htonl are defined in winsock.h 
