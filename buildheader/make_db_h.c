@@ -483,10 +483,14 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         checkpoint_waiters_max;  /* max threads ever simultaneously waiting to perform a checkpoint */ \n");
     printf("  uint64_t         checkpoint_client_wait_on_mo;  /* how many times a client thread waited for the multi_operation lock */ \n");
     printf("  uint64_t         checkpoint_client_wait_on_cs;  /* how many times a client thread waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_sched;         /* how many times a scheduled checkpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_client;        /* how many times a client checkpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_txn;           /* how many times a txn_commitcheckpoint waited for the checkpoint_safe lock */ \n");
-    printf("  uint64_t         checkpoint_wait_other;         /* how many times a checkpoint for another purpose waited for the checkpoint_safe lock */ \n");
+    printf("  uint64_t         checkpoint_wait_sched_cs;      /* how many times a scheduled checkpoint waited for the checkpoint_safe lock */ \n");
+    printf("  uint64_t         checkpoint_wait_client_cs;     /* how many times a client checkpoint waited for the checkpoint_safe lock */ \n");
+    printf("  uint64_t         checkpoint_wait_txn_cs;        /* how many times a txn_commitcheckpoint waited for the checkpoint_safe lock */ \n");
+    printf("  uint64_t         checkpoint_wait_other_cs;      /* how many times a checkpoint for another purpose waited for the checkpoint_safe lock */ \n");
+    printf("  uint64_t         checkpoint_wait_sched_mo;      /* how many times a scheduled checkpoint waited for the multi_operation lock */ \n");
+    printf("  uint64_t         checkpoint_wait_client_mo;     /* how many times a client checkpoint waited for the multi_operation lock */ \n");
+    printf("  uint64_t         checkpoint_wait_txn_mo;        /* how many times a txn_commitcheckpoint waited for the multi_operation lock */ \n");
+    printf("  uint64_t         checkpoint_wait_other_mo;      /* how many times a checkpoint for another purpose waited for the multi_operation lock */ \n");
     printf("  u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ \n");
     printf("  u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ \n");
     printf("  u_int64_t        txn_begin;               /* number of transactions ever begun             */ \n");

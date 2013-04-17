@@ -1937,12 +1937,16 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->checkpoint_waiters_max = cpstat.waiters_max;
 	    engstat->checkpoint_client_wait_on_mo = cpstat.client_wait_on_mo;
 	    engstat->checkpoint_client_wait_on_cs = cpstat.client_wait_on_cs;
-	    engstat->checkpoint_wait_sched  = cpstat.cp_wait_sched;
-	    engstat->checkpoint_wait_client = cpstat.cp_wait_client;
-	    engstat->checkpoint_wait_txn    = cpstat.cp_wait_txn;
-	    engstat->checkpoint_wait_other  = cpstat.cp_wait_other;
+	    engstat->checkpoint_wait_sched_cs  = cpstat.cp_wait_sched_cs;
+	    engstat->checkpoint_wait_client_cs = cpstat.cp_wait_client_cs;
+	    engstat->checkpoint_wait_txn_cs    = cpstat.cp_wait_txn_cs;
+	    engstat->checkpoint_wait_other_cs  = cpstat.cp_wait_other_cs;
+	    engstat->checkpoint_wait_sched_mo  = cpstat.cp_wait_sched_mo;
+	    engstat->checkpoint_wait_client_mo = cpstat.cp_wait_client_mo;
+	    engstat->checkpoint_wait_txn_mo    = cpstat.cp_wait_txn_mo;
+	    engstat->checkpoint_wait_other_mo  = cpstat.cp_wait_other_mo;	
 	}
-        engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
+	engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
         engstat->cleaner_iterations = toku_get_cleaner_iterations_unlocked(env->i->cachetable);
 	{
 	    TXN_STATUS_S txnstat;
@@ -2302,10 +2306,14 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_max           %"PRIu64"\n", engstat.checkpoint_waiters_max);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_client_wait_on_mo     %"PRIu64"\n", engstat.checkpoint_client_wait_on_mo);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_client_wait_on_cs     %"PRIu64"\n", engstat.checkpoint_client_wait_on_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_sched            %"PRIu64"\n", engstat.checkpoint_wait_sched);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_client           %"PRIu64"\n", engstat.checkpoint_wait_client);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_txn              %"PRIu64"\n", engstat.checkpoint_wait_txn);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_other            %"PRIu64"\n", engstat.checkpoint_wait_other);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_sched_cs         %"PRIu64"\n", engstat.checkpoint_wait_sched_cs);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_client_cs        %"PRIu64"\n", engstat.checkpoint_wait_client_cs);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_txn_cs           %"PRIu64"\n", engstat.checkpoint_wait_txn_cs);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_other_cs         %"PRIu64"\n", engstat.checkpoint_wait_other_cs);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_sched_mo         %"PRIu64"\n", engstat.checkpoint_wait_sched_mo);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_client_mo        %"PRIu64"\n", engstat.checkpoint_wait_client_mo);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_txn_mo           %"PRIu64"\n", engstat.checkpoint_wait_txn_mo);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_other_mo         %"PRIu64"\n", engstat.checkpoint_wait_other_mo);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu64"\n", engstat.cleaner_period);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu64"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
