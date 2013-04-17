@@ -15,10 +15,9 @@
 #include "ft-ops.h"
 #include "compress.h"
 
-// unlink a ft from the filesystem, without a txn.
+// unlink a ft from the filesystem with or without a txn.
+// if with a txn, then the unlink happens on commit.
 void toku_ft_unlink(FT_HANDLE handle);
-
-// unlink a ft from the filesystem when the given txn commits.
 int toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__warn_unused_result__));
 
 //Effect: suppresses rollback logs
@@ -69,7 +68,6 @@ void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
 
-
 void toku_ft_add_txn_ref(FT h);
 void toku_ft_remove_txn_ref(FT h);
 
@@ -79,8 +77,19 @@ LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
 int toku_ft_set_panic(FT h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
 void toku_ft_stat64 (FT h, struct ftstat64_s *s);
 
-void toku_ft_update_descriptor(FT h, DESCRIPTOR d);
+// unconditionally set the descriptor for an open FT. can't do this when 
+// any operation has already occurred on the ft. 
+// see toku_ft_change_descriptor(), which is the transactional version
+// used by the ydb layer. it better describes the client contract.
+void toku_ft_update_descriptor(FT ft, DESCRIPTOR d);
 void toku_ft_update_cmp_descriptor(FT ft);
+
+// get the descriptor for a ft. safe to read as long as clients honor the
+// strict contract put forth by toku_ft_update_descriptor/toku_ft_change_descriptor
+// essentially, there should never be a reader while there is a writer, enforced
+// by the client, not the FT.
+DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle);
+DESCRIPTOR toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle);
 
 void toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 void toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);

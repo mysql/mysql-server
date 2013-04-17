@@ -944,6 +944,16 @@ toku_ft_update_cmp_descriptor(FT ft) {
         );
 }
 
+DESCRIPTOR
+toku_ft_get_descriptor(FT_HANDLE ft_handle) {
+    return &ft_handle->ft->descriptor;
+}
+
+DESCRIPTOR
+toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
+    return &ft_handle->ft->cmp_descriptor;
+}
+
 void
 toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta) {
     (void) __sync_fetch_and_add(&(headerstats->numrows),  delta.numrows);
