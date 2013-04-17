@@ -1334,7 +1334,7 @@ print_leafentry (FILE *outf, LEAFENTRY le) {
         // fprintf(outf, "\n%*s", i+1, " "); //Nested indenting
         uxr = &ule.uxrs[i];
         char prov = i < ule.num_cuxrs ? 'c' : 'p';
-
+        fprintf(outf, " ");
         if (uxr_is_placeholder(uxr))
             fprintf(outf, "P: xid=%016" PRIx64, uxr->xid);
         else if (uxr_is_delete(uxr))
