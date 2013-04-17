@@ -35,6 +35,12 @@ typedef struct toku_mutex {
 #endif
 } toku_mutex_t;
 
+#if defined(__APPLE__)
+static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{0}};
+#else
+static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{{0}}};
+#endif
+
 static inline void
 toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     int r = pthread_mutex_init(&mutex->pmutex, attr);
