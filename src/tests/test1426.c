@@ -57,7 +57,10 @@ do_insert_delete_fifo (void)
 	    {
 		char k[100],v[100];
 		int keylen = snprintf(k, sizeof k, "%016" PRIu64 "key", i);
-		int vallen = snprintf(v, sizeof v, "%016" PRIu64 "val%08x%08x%08x", i, myrandom(), myrandom(), myrandom());
+                u_int32_t rand1 = myrandom();
+                u_int32_t rand2 = myrandom();
+                u_int32_t rand3 = myrandom();
+		int vallen = snprintf(v, sizeof v, "%016" PRIu64 "val%08x%08x%08x", i, rand1, rand2, rand3);
 		DBT kt, vt;
 		r = db->put(db, null_txn, dbt_init(&kt, k, keylen) , dbt_init(&vt, v, vallen), DB_YESOVERWRITE);    CKERR(r);
 	    }
