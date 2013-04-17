@@ -268,8 +268,6 @@ test_serialize_nonleaf(void) {
     r = toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0, true, NULL, string_key_cmp); assert_zero(r);
     r = toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, false, NULL, string_key_cmp); assert_zero(r);
     r = toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234, true, NULL, string_key_cmp); assert_zero(r);
-    BNC(&sn, 0)->n_bytes_in_buffer = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
-    BNC(&sn, 1)->n_bytes_in_buffer = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
