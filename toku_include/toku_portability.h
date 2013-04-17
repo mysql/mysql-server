@@ -77,7 +77,7 @@ typedef int64_t toku_off_t;
 #endif
 
 #include "toku_os.h"
-#include "toku_htonl.h"
+#include "toku_htod.h"
 
 #define UU(x) x __attribute__((__unused__))
 

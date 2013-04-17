@@ -157,7 +157,7 @@ void murmur_add (struct murmur *mm, const void * key, unsigned int len) {
     // We've used up the partial bytes at the beginning of k.
     assert(mm->n_bytes_in_k==0);
     while (len >= 4) {
-	u_int32_t k = ntohl(*(u_int32_t *)data);
+	u_int32_t k = toku_dtoh32(*(u_int32_t *)data);
 	//printf(" oldh=%08x k=%08x", h, k);
 
 	k *= m; 

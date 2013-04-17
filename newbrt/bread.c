@@ -44,10 +44,10 @@ ssize_t bread_backwards(BREAD br, void *vbuf, size_t nbytes) {
 	    u_int32_t compressed_length_n, uncompressed_length_n;
 	    assert(br->fileoff>=i4); // there better be the three lengths plus the compressed data.
 	    { ssize_t r = pread(br->fd, &compressed_length_n,   i4, br->fileoff-  i4); assert(r==i4); }
-	    u_int32_t compressed_length = ntohl(compressed_length_n);
+	    u_int32_t compressed_length = toku_dtoh32(compressed_length_n);
 	    assert(br->fileoff >= compressed_length + 3*i4);
 	    { ssize_t r = pread(br->fd, &uncompressed_length_n, i4, br->fileoff-2*i4); assert(r==i4); }
-	    u_int32_t uncompressed_length = ntohl(uncompressed_length_n);
+	    u_int32_t uncompressed_length = toku_dtoh32(uncompressed_length_n);
 	    char *XMALLOC_N(compressed_length, zbuf);
 	    {
 		ssize_t r = pread(br->fd, zbuf,               compressed_length, br->fileoff- compressed_length -2*i4);
