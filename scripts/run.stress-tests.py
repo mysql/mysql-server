@@ -494,11 +494,14 @@ def main(opts):
                                 'pristine_or_stressed': pristine_or_stressed
                                 }
                             upgrade_kwargs.update(kwargs)
-                            if opts.double_upgrade:
+                            # skip running test_stress4.tdb on any env
+                            # that has already been stressed, as that
+                            # breaks its assumptions
+                            if opts.double_upgrade and test != 'test_stress4.tdb':
                                 runners.append(DoubleUpgradeTestRunner(
                                         execf=test,
                                         **upgrade_kwargs))
-                            else:
+                            elif not (test == 'test_stress4.tdb' and pristine_or_stressed == 'stressed'):
                                 runners.append(UpgradeTestRunner(
                                         execf=test,
                                         **upgrade_kwargs))
