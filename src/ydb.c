@@ -2015,6 +2015,16 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->last_lsn_v13       = persistent_last_lsn_of_v13;
 	    format_time(&persistent_upgrade_v14_time, engstat->upgrade_v14_time);
 	}
+	{
+	    MEMORY_STATUS_S memory_status;
+	    toku_memory_get_status(&memory_status);
+	    engstat->malloc_count  = memory_status.malloc_count;
+	    engstat->free_count    = memory_status.free_count;
+	    engstat->realloc_count = memory_status.realloc_count;
+	    engstat->mem_requested = memory_status.requested;
+	    engstat->mem_used      = memory_status.used;
+	    engstat->mem_freed     = memory_status.freed;
+	}
     }
     return r;
 }
@@ -2184,6 +2194,12 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
 	n += snprintf(buff + n, bufsiz - n, "last_lsn_v13                     %"PRIu64"\n", engstat.last_lsn_v13);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_v14_time                 %s \n", engstat.upgrade_v14_time);
+	n += snprintf(buff + n, bufsiz - n, "malloc_count                     %"PRIu64"\n", engstat.malloc_count);
+	n += snprintf(buff + n, bufsiz - n, "free_count                       %"PRIu64"\n", engstat.free_count);
+	n += snprintf(buff + n, bufsiz - n, "realloc_count                    %"PRIu64"\n", engstat.realloc_count);
+	n += snprintf(buff + n, bufsiz - n, "mem_requested                    %"PRIu64"\n", engstat.mem_requested);
+	n += snprintf(buff + n, bufsiz - n, "mem_used                         %"PRIu64"\n", engstat.mem_used);
+	n += snprintf(buff + n, bufsiz - n, "mem_freed                        %"PRIu64"\n", engstat.mem_freed);
     }
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
