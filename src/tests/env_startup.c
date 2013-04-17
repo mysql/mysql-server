@@ -28,12 +28,16 @@ static DB_ENV *env;
 
 static int mode = S_IRWXU+S_IRWXG+S_IRWXO;
 
+static void test_shutdown(void);
+
 static void
 setup (u_int32_t flags) {
     int r;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
+    if (env)
+        test_shutdown();
     r=db_env_create(&env, 0); 
     CKERR(r);
     env->set_errfile(env, stderr);
@@ -47,12 +51,15 @@ static void
 test_shutdown(void) {
     int r;
     r=env->close(env, 0); CKERR(r);
+    env = NULL;
 }
 
 
 static void
 reopen_env(u_int32_t flags, int expected_r) {
     int r;
+    if (env)
+        test_shutdown();
     r = db_env_create(&env, 0);                                           
     CKERR(r);
     r = env->open(env, ENVDIR, flags, mode);
@@ -141,6 +148,8 @@ test_env_startup(int logging) {
 	delete_log();
 	reopen_env(flags, ENOENT);
     }
+
+    test_shutdown();
 }
 
 
