@@ -8,15 +8,11 @@
 function usage() {
     echo "build tokudb and run regressions"
     echo "--windows=$dowindows (if yes/1 must be first option)"
-    echo "--branch=$branch --tokudb=$tokudb --revision=$revision"
-    echo "--debugtests=$debugtest --releasetests=$releasetests"
-    echo "--valgrind=$dovalgrind --VALGRIND=$VALGRIND"
+    echo "--branch=$branch --tokudb=$tokudb --revision=$revision --bdb=$bdb"
+    echo "--cc=$cc --cxx=$cxx --valgrind=$dovalgrind --VALGRIND=$VALGRIND"
     echo "--j=$makejobs"
-    echo "--deleteafter=$deleteafter"
-    echo "--doclean=$doclean"
-    echo "--cc=$cc --cxx=$cxx"
+    echo "--debugtests=$debugtests --releasetests=$releasetests --deleteafter=$deleteafter --doclean=$doclean"
     echo "--commit=$docommit"
-    echo "--bdb=$bdb"
 }
 
 function retry() {
@@ -202,13 +198,7 @@ function build() {
 	runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
-
-        # upgrade tests
-	if [ $upgradetests != 0 ] ; then
-	    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-	fi
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
         # benchmark tests
 	runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
@@ -217,6 +207,11 @@ function build() {
         # run the brtloader tests with a debug build
 	runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests    make loader-tests    -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+
+        # upgrade tests
+	if [ $upgradetests != 0 ] ; then
+	    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	fi
     fi
 
     if [ $releasetests != 0 ] ; then
@@ -231,19 +226,18 @@ function build() {
 	runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
     fi
 
     # cilk tests
-    if [ 0 = 1 ] ; then
+    if [ $cilktests != 0 ] ; then
     runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
     runcmd 0 $productbuilddir make release CC=icc DEBUG=1 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader -k -s SUMMARIZE=1 CC=icc DEBUG=1 >>$tracefile 2>&1
     fi
 
     # cxx
-    if [ 0 = 1 ] ; then
+    if [ $cxxtests != 0 ] ; then
     runcmd $dowindows $productbuilddir/cxx make -k -s >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/cxx make -k -s install >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/cxx/tests make -k -s check SUMMARIZE=1 >>$tracefile 2>&1
@@ -335,6 +329,8 @@ cxx=icpc
 debugtests=1
 releasetests=1
 upgradetests=0
+cilktests=0
+cxxtests=0
 
 arg=$1;
 shopt -s compat31 #Necessary in some flavors of linux and windows
