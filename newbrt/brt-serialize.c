@@ -1054,6 +1054,38 @@ cleanup:
 }
 
 
+int
+toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version upgrade of brt
+    int r = 0;
+
+    int version = t->h->layout_version_read_from_disk;
+    if (!t->h->upgrade_brt_performed) {
+	switch (version) {
+        case BRT_LAYOUT_VERSION_10:
+	    r = toku_brt_broadcast_commit_all(t);
+            //Fall through on purpose.
+        case BRT_LAYOUT_VERSION:
+	    if (r == 0) {
+		t->h->upgrade_brt_performed = TRUE;
+	    }
+	    break;
+        default:
+            assert(FALSE);
+	}
+    }
+    if (r) {
+	if (t->h->panic==0) {
+	    char *e = strerror(r);
+	    int   l = 200 + strlen(e);
+	    char s[l];
+	    t->h->panic=r;
+	    snprintf(s, l-1, "While upgrading brt version, error %d (%s)", r, e);
+	    t->h->panic_string = toku_strdup(s);
+	}
+    }
+    return r;
+}
+
 
 // ################
 
@@ -1101,25 +1133,27 @@ void toku_verify_counts (BRTNODE node) {
 
 static u_int32_t
 serialize_brt_header_min_size (u_int32_t version) {
-    u_int32_t size;
+    u_int32_t size = 0;
     switch(version) {
-        case BRT_LAYOUT_VERSION_10:
         case BRT_LAYOUT_VERSION_11:
-            size = (+8 // "tokudata"
-                    +4 // version
-                    +4 // size
-                    +8 // byte order verification
-                    +8 // checkpoint_count
-                    +8 // checkpoint_lsn
-                    +4 // tree's nodesize
-                    +8 // translation_size_on_disk
-                    +8 // translation_address_on_disk
-                    +4 // checksum
-                    );
-            size+=(+8 // diskoff
-                   +4 // flags
-                   );
-            break;
+	    size += 4;  // original_version
+	    // fall through to add up bytes in previous version
+        case BRT_LAYOUT_VERSION_10:
+	    size += (+8 // "tokudata"
+		     +4 // version
+		     +4 // size
+		     +8 // byte order verification
+		     +8 // checkpoint_count
+		     +8 // checkpoint_lsn
+		     +4 // tree's nodesize
+		     +8 // translation_size_on_disk
+		     +8 // translation_address_on_disk
+		     +4 // checksum
+		     );
+	    size+=(+8 // diskoff
+		   +4 // flags
+		   );
+	    break;
         default:
             assert(FALSE);
     }
@@ -1129,7 +1163,7 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 int toku_serialize_brt_header_size (struct brt_header *h) {
     u_int32_t size = serialize_brt_header_min_size(h->layout_version);
-    //Add any dynamic data.
+    //There is no dynamic data.
     assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
@@ -1149,10 +1183,11 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_DISKOFF(wbuf, translation_location_on_disk);
     wbuf_DISKOFF(wbuf, translation_size_on_disk);
     wbuf_BLOCKNUM(wbuf, h->root);
-    wbuf_int    (wbuf, h->flags);
+    wbuf_int(wbuf, h->flags);
+    wbuf_int(wbuf, h->layout_version_original);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
-    assert(wbuf->ndone<=wbuf->size);
+    assert(wbuf->ndone == wbuf->size);
     return 0;
 }
 
@@ -1403,6 +1438,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->root_hash.valid = FALSE;
     h->flags = rbuf_int(&rc);
     deserialize_descriptor_from(fd, h, &h->descriptor);
+    h->layout_version_original = rbuf_int(&rc);    
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
@@ -1442,8 +1478,11 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
     default:
 	assert(FALSE);
     }
-    if (rval == 0)
+    if (rval == 0) {
 	assert((*brth)->layout_version == BRT_LAYOUT_VERSION);
+        (*brth)->layout_version_read_from_disk = version;
+	(*brth)->upgrade_brt_performed = FALSE;
+    }
     return rval;
 }
 
