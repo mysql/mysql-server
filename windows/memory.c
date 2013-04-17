@@ -27,36 +27,12 @@ void *toku_malloc(size_t size) {
 }
 
 void *
-toku_xcalloc(size_t nmemb, size_t size)
-{
-    size_t newsize = nmemb * size;
-    void *vp = toku_xmalloc(newsize);
-    if (vp) memset(vp, 0, newsize);
-    return vp;
-}
-
-void *
 toku_calloc(size_t nmemb, size_t size)
 {
     size_t newsize = nmemb * size;
     void *vp = toku_malloc(newsize);
     if (vp) memset(vp, 0, newsize);
     return vp;
-}
-
-void *
-toku_xmalloc(size_t size) {
-    void *r = toku_malloc(size);
-    if (r==0) abort();
-    return r;
-}
-
-void *
-toku_xrealloc(void *v, size_t size)
-{
-    void *r = toku_realloc(v, size);
-    if (r==0) abort();
-    return r;
 }
 
 void *
@@ -80,6 +56,20 @@ toku_realloc(void *p, size_t size)
     return q;
 }
 
+void *
+toku_memdup (const void *v, size_t len)
+{
+    void *r=toku_malloc(len);
+    if (r) memcpy(r,v,len);
+    return r;
+}
+
+char *
+toku_strdup (const char *s)
+{
+    return toku_memdup(s, strlen(s)+1);
+}
+
 void
 toku_free(void *p)
 {
@@ -96,6 +86,30 @@ toku_free_n(void* p, size_t size __attribute__((unused)))
 }
 
 void *
+toku_xmalloc(size_t size) {
+    void *r = toku_malloc(size);
+    if (r==0) abort();
+    return r;
+}
+
+void *
+toku_xcalloc(size_t nmemb, size_t size)
+{
+    size_t newsize = nmemb * size;
+    void *vp = toku_xmalloc(newsize);
+    if (vp) memset(vp, 0, newsize);
+    return vp;
+}
+
+void *
+toku_xrealloc(void *v, size_t size)
+{
+    void *r = toku_realloc(v, size);
+    if (r==0) abort();
+    return r;
+}
+
+void *
 toku_xmemdup (const void *v, size_t len)
 {
     void *r=toku_xmalloc(len);
@@ -103,24 +117,10 @@ toku_xmemdup (const void *v, size_t len)
     return r;
 }
 
-void *
-toku_memdup (const void *v, size_t len)
-{
-    void *r=toku_malloc(len);
-    if (r) memcpy(r,v,len);
-    return r;
-}
-
 char *
 toku_xstrdup (const char *s)
 {
     return toku_xmemdup(s, strlen(s)+1);
-}
-
-char *
-toku_strdup (const char *s)
-{
-    return toku_memdup(s, strlen(s)+1);
 }
 
 void
