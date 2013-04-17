@@ -686,13 +686,20 @@ static void make_name(char *newname, const char *tablename, const char *dictname
 }
 
 
+
+#define CHECK_VALID_CURSOR() \
+    if (cursor == NULL) { \
+        error = last_cursor_error; \
+        goto cleanup; \
+    }
+
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
 :  
     handler(hton, table_arg), alloc_ptr(0), rec_buff(0),
     // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
-    changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0),primary_key_offsets(NULL) {
+    changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),primary_key_offsets(NULL) {
 }
 
 static const char *ha_tokudb_exts[] = {
@@ -2215,10 +2222,13 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
         cursor->c_close(cursor);
     }
     active_index = keynr;
+    last_cursor_error = 0;
     DBUG_ASSERT(keynr <= table->s->keys);
     DBUG_ASSERT(share->key_file[keynr]);
-    if ((error = share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, table->reginfo.lock_type > TL_WRITE_ALLOW_READ ? 0 : 0)))
+    if ((error = share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, table->reginfo.lock_type > TL_WRITE_ALLOW_READ ? 0 : 0))) {
+        last_cursor_error = error;
         cursor = NULL;             // Safety
+    }
     bzero((void *) &last_key, sizeof(last_key));
     TOKUDB_DBUG_RETURN(error);
 }
@@ -2233,6 +2243,7 @@ int ha_tokudb::index_end() {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
         error = cursor->c_close(cursor);
         cursor = NULL;
+        last_cursor_error = 0;
     }
     active_index = MAX_KEY;
     TOKUDB_DBUG_RETURN(error);
@@ -2260,9 +2271,16 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
     // Disreputable error translation: this makes us all puke
     //
     if (error) {
-        if (error == DB_NOTFOUND || error == DB_KEYEMPTY)
-            error = read_next ? HA_ERR_END_OF_FILE : HA_ERR_KEY_NOT_FOUND;
+        last_cursor_error = error;
         table->status = STATUS_NOT_FOUND;
+        cursor->c_close(cursor);
+        cursor = NULL;
+        if (error == DB_NOTFOUND || error == DB_KEYEMPTY) {
+            error = read_next ? HA_ERR_END_OF_FILE : HA_ERR_KEY_NOT_FOUND;
+            if ((share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, table->reginfo.lock_type > TL_WRITE_ALLOW_READ ? 0 : 0))) {
+                cursor = NULL;             // Safety
+            }
+        }
         TOKUDB_DBUG_RETURN(error);
     }
     //
@@ -2433,6 +2451,8 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     DBT row;
     int error;
 
+    CHECK_VALID_CURSOR();
+
     table->in_use->status_var.ha_read_key_count++;
     bzero((void *) &row, sizeof(row));
     pack_key(&last_key, active_index, key_buff, key, key_len);
@@ -2510,6 +2530,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     error = read_row(error, buf, active_index, &row, &last_key, 0);
     if (error && (tokudb_debug & TOKUDB_DEBUG_ERROR))
         TOKUDB_TRACE("error:%d:%d\n", error, find_flag);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2555,9 +2576,12 @@ int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     int error; 
     DBT row;
+    CHECK_VALID_CURSOR();
+    
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, active_index, &row, &last_key, 1);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2576,6 +2600,8 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this);
     DBT row;
     int error;
+    CHECK_VALID_CURSOR();
+    
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     /* QQQ NEXT_DUP on nodup returns EINVAL for tokudb */
@@ -2590,6 +2616,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
         if (!error &&::key_cmp_if_same(table, key, active_index, keylen))
             error = HA_ERR_END_OF_FILE;
     }
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2605,10 +2632,12 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     int error;
+    CHECK_VALID_CURSOR();
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV), buf, active_index, &row, &last_key, 1);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2625,9 +2654,11 @@ int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
     int error;
     DBT row;
+    CHECK_VALID_CURSOR();
     statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST), buf, active_index, &row, &last_key, 1);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2644,9 +2675,11 @@ int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
     int error;
     DBT row;
+    CHECK_VALID_CURSOR();
     statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 1);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2665,7 +2698,7 @@ int ha_tokudb::rnd_init(bool scan) {
     if (scan) {
         DB* db = share->key_file[primary_key];
         error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
-        if (error) { goto cleanup; }
+        if (error) { last_cursor_error = error; goto cleanup; }
     }
     error = index_init(primary_key, 0);
 cleanup:
@@ -2693,6 +2726,8 @@ int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     int error;
     DBT row;
+    
+    CHECK_VALID_CURSOR()
     //
     // The reason we do not just call index_next is that index_next 
     // increments a different variable than we do here
@@ -2701,6 +2736,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
     bzero((void *) &row, sizeof(row));
     DBUG_DUMP("last_key", (uchar *) last_key.data, last_key.size);
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, primary_key, &row, &last_key, 1);
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2802,7 +2838,17 @@ int ha_tokudb::read_range_first(
         end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty(), 
         end_dbt_data
         );
-    if (error){ goto cleanup; }
+    if (error){ 
+        last_cursor_error = error;
+        //
+        // cursor should be initialized here, but in case it is not, we still check
+        //
+        if (cursor) {
+            cursor->c_close(cursor);
+            cursor = NULL;
+        }
+        goto cleanup; 
+    }
 
     error = handler::read_range_first(start_key, end_key, eq_range, sorted);
 
