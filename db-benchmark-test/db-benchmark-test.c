@@ -22,6 +22,7 @@
 #endif
 
 int verbose=1;
+int engine_status = 0;
 int which;
 
 enum { SERIAL_SPACING = 1<<6 };
@@ -355,6 +356,8 @@ static void benchmark_shutdown (void) {
         r = db->close(db, 0);
         assert(r == 0);
     }
+    if (engine_status)
+	print_engine_status(dbenv);
     r = dbenv->close(dbenv, 0);
     assert(r == 0);
 }
@@ -551,6 +554,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --redzone N           redzone in percent\n");
     fprintf(stderr, "    --srandom N           srandom(N)\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
+    fprintf(stderr, "    --engine_status       print engine status at end of test \n");
 
     return 1;
 }
@@ -711,6 +715,8 @@ static int test_main (int argc, char *const argv[]) {
 	    redzone = atoi(argv[++i]);
         } else if (strcmp(arg, "--optimize") == 0) {
             do_optimize = 1;
+        } else if (strcmp(arg, "--engine_status") == 0) {
+            engine_status = 1;
         } else {
 	    return print_usage(argv[0]);
 	}
