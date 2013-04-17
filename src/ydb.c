@@ -1498,6 +1498,23 @@ locked_env_create_indexer(DB_ENV *env,
     return r;
 }
 
+static int
+locked_env_create_loader(DB_ENV *env,
+                         DB_TXN *txn, 
+                         DB_LOADER **blp, 
+                         DB *src_db, 
+                         int N, 
+                         DB *dbs[], 
+                         uint32_t db_flags[N], 
+                         uint32_t dbt_flags[N], 
+                         uint32_t loader_flags) {
+    toku_ydb_lock();
+    int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags);
+    toku_ydb_unlock();
+    return r;
+}
+
+
 
 static int
 env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
@@ -2155,8 +2172,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->txn_begin = locked_txn_begin;
     SENV(set_redzone);
     SENV(create_indexer);
-    // note : create_loader should use SENV
-    result->create_loader = toku_loader_create_loader;
+    SENV(create_loader);
 #undef SENV
 
     MALLOC(result->i);
