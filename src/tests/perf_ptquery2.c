@@ -50,7 +50,6 @@ static int ptquery_op2(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_
 
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
-    int n = cli_args->num_elements;
     //
     // the threads that we want:
     //   - some threads constantly updating random values
@@ -64,9 +63,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     struct arg myargs[num_threads];
     int thread_ids[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env, cli_args);
-    }
-    for (int i = 0; i < num_threads; i++) {
+        arg_init(&myargs[i], dbp, env, cli_args);
         thread_ids[i] = i % cli_args->num_DBs;
         myargs[i].operation = ptquery_op2;
         myargs[i].operation_extra = &thread_ids[i];

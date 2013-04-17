@@ -24,8 +24,6 @@
 
 static void
 stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
-    int n = cli_args->num_elements;
-
     //
     // do insertions and queries with a loader lying around doing stuff
     //
@@ -34,7 +32,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env, cli_args);
+        arg_init(&myargs[i], dbp, env, cli_args);
     }
     // make the forward fast scanner
     struct scan_op_extra soe;

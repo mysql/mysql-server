@@ -100,28 +100,6 @@ enum stress_lock_type {
     STRESS_LOCK_EXCL
 };
 
-struct arg {
-    int num_elements; // number of elements per DB
-    DB **dbp; // array of DBs
-    int num_DBs; // number of DBs
-    DB_ENV* env; // environment used
-    bool bounded_element_range; // true if elements in dictionary are bounded
-                                // by num_elements, that is, all keys in each
-                                // DB are in [0, num_elements)
-                                // false otherwise
-    int sleep_ms; // number of milliseconds to sleep between operations
-    u_int32_t txn_type; // isolation level for txn running operation
-    operation_t operation; // function that is the operation to be run
-    void* operation_extra; // extra parameter passed to operation
-    enum stress_lock_type lock_type; // states if operation must be exclusive, shared, or does not require locking
-    bool crash_on_operation_failure; // true if we should crash if operation returns non-zero, false otherwise
-    struct random_data *random_data; // state for random_r
-    u_int32_t txn_size; // specifies number of updates/puts/whatevers per txn
-    bool single_txn;
-    int thread_idx;
-    int num_threads;
-};
-
 struct env_args {
     int node_size;
     int basement_node_size;
@@ -150,7 +128,7 @@ struct cli_args {
     bool do_recover; // true if we should run recover
     int num_update_threads; // number of threads running updates
     int num_put_threads; // number of threads running puts
-    bool crash_on_update_failure; 
+    bool crash_on_operation_failure; 
     bool print_performance;
     bool print_thread_performance;
     enum perf_output_format perf_output_format;
@@ -163,20 +141,34 @@ struct cli_args {
     bool warm_cache; // warm caches before running stress_table
 };
 
+struct arg {
+    DB **dbp; // array of DBs
+    DB_ENV* env; // environment used
+    bool bounded_element_range; // true if elements in dictionary are bounded
+                                // by num_elements, that is, all keys in each
+                                // DB are in [0, num_elements)
+                                // false otherwise
+    int sleep_ms; // number of milliseconds to sleep between operations
+    u_int32_t txn_type; // isolation level for txn running operation
+    operation_t operation; // function that is the operation to be run
+    void* operation_extra; // extra parameter passed to operation
+    enum stress_lock_type lock_type; // states if operation must be exclusive, shared, or does not require locking
+    struct random_data *random_data; // state for random_r
+    int thread_idx;
+    int num_threads;
+    struct cli_args *cli;
+};
+
 DB_TXN * const null_txn = 0;
 
-static void arg_init(struct arg *arg, int num_elements, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
-    arg->num_elements = num_elements;
+static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
+    arg->cli = cli_args;
     arg->dbp = dbp;
-    arg->num_DBs = cli_args->num_DBs;
     arg->env = env;
     arg->bounded_element_range = true;
     arg->sleep_ms = 0;
     arg->lock_type = STRESS_LOCK_NONE;
     arg->txn_type = DB_TXN_SNAPSHOT;
-    arg->crash_on_operation_failure = cli_args->crash_on_update_failure;
-    arg->txn_size = cli_args->txn_size;
-    arg->single_txn = cli_args->single_txn;
     arg->operation_extra = NULL;
 }
 
@@ -393,24 +385,24 @@ static void *worker(void *arg_v) {
     if (verbose) {
         printf("%lu starting %p\n", (unsigned long) toku_pthread_self(), arg->operation);
     }
-    if (arg->single_txn) {
+    if (arg->cli->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
     }
     while (run_test) {
         lock_worker_op(we);
-        if (!arg->single_txn) {
+        if (!arg->cli->single_txn) {
             r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r == 0) {
-            if (!arg->single_txn) {
+            if (!arg->cli->single_txn) {
                 CHK(txn->commit(txn,0));
             }
         } else {
-            if (arg->crash_on_operation_failure) {
+            if (arg->cli->crash_on_operation_failure) {
                 CKERR(r);
             } else {
-                if (!arg->single_txn) {
+                if (!arg->cli->single_txn) {
                     CHK(txn->abort(txn));
                 }
             }
@@ -421,7 +413,7 @@ static void *worker(void *arg_v) {
             usleep(arg->sleep_ms * 1000);
         }
     }
-    if (arg->single_txn) {
+    if (arg->cli->single_txn) {
         CHK(txn->commit(txn, 0));
     }
     if (verbose)
@@ -538,7 +530,7 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     char buf[100];
     ZERO_ARRAY(buf);
     uint64_t i;
-    for (i = 0; i < arg->txn_size; ++i) {
+    for (i = 0; i < arg->cli->txn_size; ++i) {
         union {
             uint64_t key;
             uint16_t i[4];
@@ -559,13 +551,13 @@ cleanup:
 }
 
 static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     return random_put_in_db(db, txn, arg, stats_extra);
 }
 
 static int UU() random_put_op_singledb(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
-    int db_index = arg->thread_idx%arg->num_DBs;
+    int db_index = arg->thread_idx%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     return random_put_in_db(db, txn, arg, stats_extra);
 }
@@ -607,11 +599,11 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     // callback is designed to run on tests with one DB
     // no particular reason why, just the way it was 
     // originally done
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
-        rand_key = rand_key % arg->num_elements;
+        rand_key = rand_key % arg->cli->num_elements;
     }
     DBT key;
     dbt_init(&key, &rand_key, sizeof rand_key);
@@ -624,7 +616,7 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
 
 static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
     int r = 0;
-    for (int i = 0; i < arg->num_DBs; i++) {
+    for (int i = 0; i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
         r = db->verify_with_progress(db, NULL, NULL, 0, 0);
         CKERR(r);
@@ -634,7 +626,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
 
 static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
     struct scan_op_extra* extra = operation_extra;
-    for (int i = 0; i < arg->num_DBs; i++) {
+    for (int i = 0; i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, true);
         assert_zero(r);
     }
@@ -643,7 +635,7 @@ static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *U
 
 static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     struct scan_op_extra* extra = operation_extra;
-    for (int i = 0; i < arg->num_DBs; i++) {
+    for (int i = 0; i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, false);
         assert_zero(r);
     }
@@ -654,7 +646,7 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL ch
     int r;
     int rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
-        rand_key = rand_key % arg->num_elements;
+        rand_key = rand_key % arg->cli->num_elements;
     }
     DBT key, val;
     dbt_init(&key, &rand_key, sizeof rand_key);
@@ -666,7 +658,7 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL ch
 }
 
 static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int r = ptquery_and_maybe_check_op(db, txn, arg, TRUE);
     if (!r) {
@@ -676,7 +668,7 @@ static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void
 }
 
 static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int r = ptquery_and_maybe_check_op(db, txn, arg, FALSE);
     if (!r) {
@@ -686,7 +678,7 @@ static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_ext
 }
 
 static int UU() cursor_create_close_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
-    int db_index = arg->num_DBs > 1 ? myrandom_r(arg->random_data)%arg->num_DBs : 0;
+    int db_index = arg->cli->num_DBs > 1 ? myrandom_r(arg->random_data)%arg->cli->num_DBs : 0;
     DB* db = arg->dbp[db_index];
     DBC* cursor = NULL;
     int r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
@@ -771,7 +763,7 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
 
 static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
     int r;
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -782,12 +774,12 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
     extra.pad_bytes = 0;
-    for (u_int32_t i = 0; i < arg->txn_size; i++) {
+    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
-            rand_key = rand_key % (arg->num_elements/2);
+            rand_key = rand_key % (arg->cli->num_elements/2);
         }
-        rand_key2 = arg->num_elements - rand_key;
+        rand_key2 = arg->cli->num_elements - rand_key;
         assert(rand_key != rand_key2);
         extra.u.d.diff = 1;
         curr_val_sum += extra.u.d.diff;
@@ -818,7 +810,7 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
 
 static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int r;
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -834,10 +826,10 @@ static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(s
             extra.pad_bytes = 100;
         }
     }
-    for (u_int32_t i = 0; i < arg->txn_size; i++) {
+    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
-            rand_key = rand_key % arg->num_elements;
+            rand_key = rand_key % arg->cli->num_elements;
         }
         extra.u.d.diff = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
@@ -862,7 +854,7 @@ static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(s
     extra.u.d.diff = -curr_val_sum;
     rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
-        rand_key = rand_key % arg->num_elements;
+        rand_key = rand_key % arg->cli->num_elements;
     }
     r = db->update(
         db,
@@ -883,7 +875,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     assert(arg->bounded_element_range);
     assert(op_args->update_history_buffer);
     int r;
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -898,8 +890,8 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
             extra.pad_bytes = 500;
         }
     }
-    for (u_int32_t i = 0; i < arg->txn_size; i++) {
-        rand_key = myrandom_r(arg->random_data) % arg->num_elements;
+    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
+        rand_key = myrandom_r(arg->random_data) % arg->cli->num_elements;
         extra.u.h.new = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
         if (i%2 == 0) {
@@ -925,7 +917,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     extra.u.h.new = -curr_val_sum;
     rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
-        rand_key = rand_key % arg->num_elements;
+        rand_key = rand_key % arg->cli->num_elements;
     }
     extra.u.h.expected = op_args->update_history_buffer[rand_key];
     op_args->update_history_buffer[rand_key] = extra.u.h.new;
@@ -946,7 +938,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
 static int UU() update_broadcast_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     extra.type = UPDATE_NEGATE;
     extra.pad_bytes = 0;
@@ -958,7 +950,7 @@ static int UU() update_broadcast_op(DB_TXN *txn, ARG arg, void* UU(operation_ext
 
 static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
     int r;
-    for (int i = 0; i < arg->num_DBs; i++) {
+    for (int i = 0; i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
         r = db->hot_optimize(db, NULL, NULL);
         CKERR(r);
@@ -968,7 +960,7 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), 
 
 static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
     int r;
-    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
     r = (db)->close(db, 0); CKERR(r);
     
@@ -1284,7 +1276,7 @@ static struct cli_args UU() get_default_args(void) {
         .do_recover = false,
         .num_update_threads = 1,
         .num_put_threads = 1,
-        .crash_on_update_failure = true,
+        .crash_on_operation_failure = true,
         .print_performance = false,
         .print_thread_performance = false,
         .performance_period = 1,
@@ -1337,7 +1329,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             fprintf(stderr, "\t--txn_size                      INT (default %d rows)\n", default_args.txn_size);
             fprintf(stderr, "\t--key_size                      INT (default %d, minimum %ld)\n", default_args.key_size, MIN_KEY_SIZE);
             fprintf(stderr, "\t--val_size                      INT (default %d, minimum %ld)\n", default_args.val_size, MIN_VAL_SIZE);
-            fprintf(stderr, "\t--[no-]crash_on_update_failure  BOOL (default %s)\n", default_args.crash_on_update_failure ? "yes" : "no");
+            fprintf(stderr, "\t--[no-]crash_on_operation_failure  BOOL (default %s)\n", default_args.crash_on_operation_failure ? "yes" : "no");
             fprintf(stderr, "\t--single_txn                    BOOL (default %s)\n", default_args.single_txn ? "yes" : "no");
             fprintf(stderr, "\t--warm_cache                    BOOL (default %s)\n", default_args.warm_cache ? "yes" : "no");
             fprintf(stderr, "\t--print_performance             \n");
@@ -1397,11 +1389,11 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             argc--; argv++;
             args->num_put_threads = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--crash_on_update_failure") == 0 && argc > 1) {
-            args->crash_on_update_failure = true;
+        else if (strcmp(argv[1], "--crash_on_operation_failure") == 0 && argc > 1) {
+            args->crash_on_operation_failure = true;
         }
-        else if (strcmp(argv[1], "--no-crash_on_update_failure") == 0 && argc > 1) {
-            args->crash_on_update_failure = false;
+        else if (strcmp(argv[1], "--no-crash_on_operation_failure") == 0 && argc > 1) {
+            args->crash_on_operation_failure = false;
         }
         else if (strcmp(argv[1], "--print_performance") == 0 && argc > 1) {
             args->print_performance = true;
@@ -1487,7 +1479,7 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
     soe.fwd = true;
     soe.prefetch = true;
     struct arg scan_arg;
-    arg_init(&scan_arg, args->num_elements, dbs, env, args);
+    arg_init(&scan_arg, dbs, env, args);
     scan_arg.operation_extra = &soe;
     scan_arg.operation = scan_op_no_check;
     scan_arg.lock_type = STRESS_LOCK_NONE;
@@ -1542,7 +1534,7 @@ UU() stress_recover(struct cli_args *args) {
 
     DB_TXN* txn = NULL;    
     struct arg recover_args;
-    arg_init(&recover_args, args->num_elements, dbs, env, args);
+    arg_init(&recover_args, dbs, env, args);
     int r = env->txn_begin(env, 0, &txn, recover_args.txn_type);
     CKERR(r);
     struct scan_op_extra soe;

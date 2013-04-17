@@ -40,7 +40,6 @@
 
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
-    int n = cli_args->num_elements;
     //
     // the threads that we want:
     //   - some threads constantly updating random values
@@ -53,9 +52,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     const int num_threads = cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env, cli_args);
-    }
-    for (int i = 0; i < num_threads; i++) {
+        arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation = ptquery_op;
     }
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);

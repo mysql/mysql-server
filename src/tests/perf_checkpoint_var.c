@@ -124,7 +124,7 @@ static void checkpoint_callback_2(void * extra) {
 //
 
 static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
-    int db_index = random()%arg->num_DBs;
+    int db_index = random() % arg->cli->num_DBs;
     int r = 0;
     int val_size = *(int *)operation_extra;
     DB* db = arg->dbp[db_index];
@@ -138,7 +138,7 @@ static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *sta
     increment_counter(stats_extra, PTQUERIES, i);
     for (i = 0; i < 20; i++) {
         // do a random insertion
-        int rand_key = random() % arg->num_elements;
+        int rand_key = random() % arg->cli->num_elements;
         DBT key, val;
         r = db->put(
             db, 
@@ -160,7 +160,6 @@ static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     db_env_set_checkpoint_callback(checkpoint_callback_1, env);
     db_env_set_checkpoint_callback2(checkpoint_callback_2, env);
-    int n = cli_args->num_elements;
     //
     // the threads that we want:
     //   - some threads constantly updating random values
@@ -174,11 +173,10 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     const int num_threads = cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env, cli_args);
+        arg_init(&myargs[i], dbp, env, cli_args);
     }
     for (int i = 0; i < num_threads; i++) {
         myargs[i].operation = checkpoint_var;
-        myargs[i].crash_on_operation_failure = false;
         myargs[i].operation_extra = &val_size;
     }
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
@@ -190,6 +188,7 @@ test_main(int argc, char *const argv[]) {
     args.env_args.checkpointing_period = 30;
     args.num_DBs = 4;
     args.num_ptquery_threads = 4;
+    args.crash_on_operation_failure = false;
     parse_stress_test_args(argc, argv, &args);
     stress_test_main(&args);
     return 0;

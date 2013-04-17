@@ -18,15 +18,13 @@
 
 static void
 stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
-    int n = cli_args->num_elements;
-
     if (verbose) printf("starting creation of pthreads\n");
     const int num_threads = cli_args->num_update_threads;
     struct arg myargs[num_threads];
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
     // make the guy that updates the db
     for (int i = 0; i < 0 + cli_args->num_update_threads; ++i) {
-        arg_init(&myargs[i], n, dbp, env, cli_args);
+        arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
     }
