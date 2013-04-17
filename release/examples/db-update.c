@@ -148,9 +148,9 @@ int main(int argc, char *argv[]) {
     long rows_per_txn = 1000;
     long rows_per_report = 100000;
     int key_range = 100000;
-    bool do_update_callback = false;
-    bool do_txn = true;
-    u_int64_t cachesize = 0;
+    bool do_update_callback = true;
+    bool do_txn = false;
+    u_int64_t cachesize = 32000000;
     u_int32_t pagesize = 0;
 
     int i;
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (strcmp(arg, "--txn") == 0 && i+1 < argc) {
-            do_txn = atoi(argv[++i]);
+            do_txn = atoi(argv[++i]) != 0;
             continue;
         }
         if (strcmp(arg, "--pagesize") == 0 && i+1 < argc) {
@@ -188,8 +188,8 @@ int main(int argc, char *argv[]) {
             cachesize = atol(argv[++i]);
             continue;
         }
-        if (strcmp(arg, "--update_callback") == 0) {
-            do_update_callback = true;
+        if (strcmp(arg, "--update_callback") == 0 && i+1 < argc) {
+            do_update_callback = atoi(argv[++i]) != 0;
             continue;
         }
 
