@@ -66,6 +66,8 @@ static u_int64_t logsuppressfail;            // number of times unable to suppre
 static time_t    startuptime;                // timestamp of system startup
 static DB_ENV *  most_recent_env;            // most recently opened env, used for engine status on crash
 
+static uint32_t  engine_status_enable = 1;   // if zero, suppress engine status output on failed assert, for test programs only
+
 static void
 init_status_info(void) {
     num_inserts = 0;
@@ -2071,7 +2073,14 @@ int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = toku_mayb
 static int 
 toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     DB_ENV * env = most_recent_env;
-    int r = env_get_engine_status_text(env, buff, buffsize);
+    int r;
+    if (engine_status_enable) {
+	r = env_get_engine_status_text(env, buff, buffsize);
+    }
+    else {
+	r = ENODATA;
+	snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
+    }
     return r;
 }
 
@@ -2087,6 +2096,8 @@ static int
 toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     int r = ENOSYS;
     DB_ENV* result = NULL;
+
+    engine_status_enable = 1;
 
     if (flags!=0)    { r = EINVAL; goto cleanup; }
     MALLOC(result);
@@ -5915,7 +5926,11 @@ db_env_set_mvcc_garbage_collection_verification(u_int32_t verification_mode) {
     garbage_collection_debug = (verification_mode != 0);
 }
 
-
+// Purpose: allow test programs that expect to fail to suppress engine status output on failed assert.
+void
+db_env_enable_engine_status(uint32_t enable) {
+    engine_status_enable = enable;
+}
 
 // HACK: To ensure toku_pthread_yield gets included in the .so
 // non-static would require a prototype in a header

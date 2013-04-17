@@ -365,6 +365,7 @@ static int run_test(void)
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
+    db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
     r = env->set_default_bt_compare(env, tpch_dbt_cmp);                                                       CKERR(r);
     // select which TPC-H table to load
     if ( USE_REGION ) {
