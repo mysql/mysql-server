@@ -3667,12 +3667,15 @@ void ha_tokudb::column_bitmaps_signal() {
 int ha_tokudb::prepare_index_scan() {
     int error;
     DB* db = share->key_file[active_index];
-    error = db->pre_acquire_read_lock(
-        db, 
-        transaction, 
-        db->dbt_neg_infty(), db->dbt_neg_infty(), 
-        db->dbt_pos_infty(), db->dbt_pos_infty()
-        );
+    lockretry {
+        error = db->pre_acquire_read_lock(
+            db, 
+            transaction, 
+            db->dbt_neg_infty(), db->dbt_neg_infty(), 
+            db->dbt_pos_infty(), db->dbt_pos_infty()
+            );
+        lockretry_wait;
+    }
     if (error) { last_cursor_error = error; goto cleanup; }
 
     range_lock_grabbed = true;
@@ -3695,14 +3698,17 @@ int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
     pack_key(&start_key, active_index, key_buff, key, key_len, COL_NEG_INF);
     pack_key(&end_key, active_index, key_buff2, key, key_len, COL_POS_INF);
 
-    error = share->key_file[active_index]->pre_acquire_read_lock(
-        share->key_file[active_index], 
-        transaction, 
-        &start_key, 
-        share->key_file[active_index]->dbt_neg_infty(), 
-        &end_key, 
-        share->key_file[active_index]->dbt_pos_infty()
-        );
+    lockretry {
+        error = share->key_file[active_index]->pre_acquire_read_lock(
+            share->key_file[active_index], 
+            transaction, 
+            &start_key, 
+            share->key_file[active_index]->dbt_neg_infty(), 
+            &end_key, 
+            share->key_file[active_index]->dbt_pos_infty()
+            );
+        lockretry_wait;            
+    }
     if (error){ 
         goto cleanup; 
     }
@@ -4327,7 +4333,10 @@ int ha_tokudb::rnd_init(bool scan) {
     range_lock_grabbed = false;
     if (scan) {
         DB* db = share->key_file[primary_key];
-        error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
+        lockretry {
+            error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
+            lockretry_wait;
+        }
         if (error) { last_cursor_error = error; goto cleanup; }
     }
     error = index_init(primary_key, 0);
@@ -4529,14 +4538,17 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
     }
 
-    error = share->key_file[active_index]->pre_acquire_read_lock(
-        share->key_file[active_index], 
-        transaction, 
-        start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
-        start_dbt_data, 
-        end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty(), 
-        end_dbt_data
-        );
+    lockretry {
+        error = share->key_file[active_index]->pre_acquire_read_lock(
+            share->key_file[active_index], 
+            transaction, 
+            start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
+            start_dbt_data, 
+            end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty(), 
+            end_dbt_data
+            );
+        lockretry_wait;
+    }
     if (error){ 
         last_cursor_error = error;
         //
@@ -6050,14 +6062,17 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // first a global read lock on the main DB, because
     // we intend to scan the entire thing
     //
-    error = share->file->pre_acquire_read_lock(
-        share->file, 
-        txn, 
-        share->file->dbt_neg_infty(), 
-        NULL, 
-        share->file->dbt_pos_infty(), 
-        NULL
-        );
+    lockretry {
+        error = share->file->pre_acquire_read_lock(
+            share->file, 
+            txn, 
+            share->file->dbt_neg_infty(), 
+            NULL, 
+            share->file->dbt_pos_infty(), 
+            NULL
+            );
+        lockretry_wait;
+    }
     if (error) { goto cleanup; }
 
     //
