@@ -862,10 +862,10 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
 int
 ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
 
-    // TODO what does this do?
+    // sort keys in add index order
     KEY *key_info = (KEY*) my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
-    KEY *key = key_info;
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
+        KEY *key = &key_info[i];
         *key = ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
         for (KEY_PART_INFO *key_part= key->key_part; key_part < key->key_part + key->key_parts; key_part++)
             key_part->field = table->field[key_part->fieldnr];
