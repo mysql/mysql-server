@@ -79,7 +79,7 @@ static void benchmark_setup (void) {
 	system(unlink_cmd);
     }
     if (strcmp(dbdir, ".") != 0) {
-        r = os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+        r = toku_os_mkdir(dbdir,S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
         assert(r == 0);
     }
 
