@@ -2,7 +2,6 @@ cmake_policy(SET CMP0012 NEW)
 
 ## these tests shouldn't run with valgrind
 list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
-  ft/benchmark-test_256
   ft/bnc-insert-benchmark
   ft/brt-serialize-benchmark
   ft/ft_loader-test-extractor-1
@@ -50,11 +49,6 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/test_update_broadcast_stress.tdb
   ydb/test_update_stress.tdb
   ydb/upgrade-test-4.tdb
-  )
-
-## this is a smaller benchmark-test_256, just for valgrind, no need to run it without valgrind
-list(APPEND CTEST_CUSTOM_TESTS_IGNORE
-  ft/benchmark-test_256_vg
   )
 
 if (NOT @RUN_HELGRIND_TESTS@)
