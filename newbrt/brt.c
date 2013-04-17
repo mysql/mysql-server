@@ -340,19 +340,19 @@ toku_bnc_n_entries(NONLEAF_CHILDINFO bnc)
     return toku_fifo_n_entries(bnc->buffer);
 }
 
-static struct kv_pair const *prepivotkey (BRTNODE node, int childnum, struct kv_pair const * const lower_bound_exclusive) {
+static const DBT *prepivotkey (BRTNODE node, int childnum, const DBT * const lower_bound_exclusive) {
     if (childnum==0)
 	return lower_bound_exclusive;
     else {
-	return node->childkeys[childnum-1];
+	return &node->childkeys[childnum-1];
     }
 }
 
-static struct kv_pair const *postpivotkey (BRTNODE node, int childnum, struct kv_pair const * const upper_bound_inclusive) {
+static const DBT *postpivotkey (BRTNODE node, int childnum, const DBT * const upper_bound_inclusive) {
     if (childnum+1 == node->n_children)
 	return upper_bound_inclusive;
     else {
-	return node->childkeys[childnum];
+	return &node->childkeys[childnum];
     }
 }
 static struct pivot_bounds next_pivot_keys (BRTNODE node, int childnum, struct pivot_bounds const * const old_pb) {
@@ -694,12 +694,7 @@ void toku_brtnode_clone_callback(
     XMALLOC_N(node->n_children, cloned_node->bp);
     // clone pivots
     for (int i = 0; i < node->n_children-1; i++) {
-        cloned_node->childkeys[i] = kv_pair_malloc(
-            kv_pair_key(node->childkeys[i]), 
-            kv_pair_keylen(node->childkeys[i]), 
-            0, 
-            0
-            );
+        toku_clone_dbt(&cloned_node->childkeys[i], node->childkeys[i]);
     }
     // clone partition
     brtnode_clone_partitions(node, cloned_node);
@@ -1252,13 +1247,11 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
 }
 
 static int
-brt_compare_pivot(DESCRIPTOR desc, brt_compare_func cmp, const DBT *key, bytevec ck)
+brt_compare_pivot(DESCRIPTOR desc, brt_compare_func cmp, const DBT *key, const DBT *pivot)
 {
     int r;
-    DBT mydbt;
-    struct kv_pair *kv = (struct kv_pair *) ck;
     FAKE_DB(db, desc);
-    r = cmp(&db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+    r = cmp(&db, key, pivot);
     return r;
 }
 
@@ -1270,7 +1263,7 @@ brt_compare_pivot(DESCRIPTOR desc, brt_compare_func cmp, const DBT *key, bytevec
 void toku_destroy_brtnode_internals(BRTNODE node)
 {
     for (int i=0; i<node->n_children-1; i++) {
-	toku_free(node->childkeys[i]);
+        toku_free(node->childkeys[i].data);
     }
     toku_free(node->childkeys);
     node->childkeys = NULL;
@@ -1381,7 +1374,7 @@ brt_init_new_root(struct brt_header *h, BRTNODE nodea, BRTNODE nodeb, DBT splitk
     toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, h->layout_version, h->nodesize, h->flags, h);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
-    newroot->childkeys[0] = splitk.data;
+    toku_copyref_dbt(&newroot->childkeys[0], splitk);
     newroot->totalchildkeylens=splitk.size;
     BP_BLOCKNUM(newroot,0)=nodea->thisnodename;
     BP_BLOCKNUM(newroot,1)=nodeb->thisnodename;
@@ -1412,14 +1405,14 @@ init_childinfo(BRTNODE node, int childnum, BRTNODE child) {
 }
 
 static void
-init_childkey(BRTNODE node, int childnum, struct kv_pair *pivotkey, size_t pivotkeysize) {
-    node->childkeys[childnum] = pivotkey;
-    node->totalchildkeylens += pivotkeysize;
+init_childkey(BRTNODE node, int childnum, const DBT *pivotkey) {
+    toku_copyref_dbt(&node->childkeys[childnum], *pivotkey);
+    node->totalchildkeylens += pivotkey->size;
 }
 
 // Used only by test programs: append a child node to a parent node
 void
-toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize) {
+toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, const DBT *pivotkey) {
     int childnum = node->n_children;
     node->n_children++;
     XREALLOC_N(node->n_children, node->bp);
@@ -1427,7 +1420,7 @@ toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivot
     XREALLOC_N(node->n_children-1, node->childkeys);
     if (pivotkey) {
 	invariant(childnum > 0);
-	init_childkey(node, childnum-1, pivotkey, pivotkeysize);
+	init_childkey(node, childnum-1, pivotkey);
     }
     toku_mark_node_dirty(node);
 }
@@ -1884,9 +1877,9 @@ toku_fifo_entry_key_msn_heaviside(OMTVALUE v, void *extrap)
     const struct toku_fifo_entry_key_msn_heaviside_extra *extra = extrap;
     const long offset = (long) v;
     const struct fifo_entry *query = toku_fifo_get_entry(extra->fifo, offset);
-    DBT qdbt, tdbt;
+    DBT qdbt;
     const DBT *query_key = fill_dbt_for_fifo_entry(&qdbt, query);
-    const DBT *target_key = toku_fill_dbt(&tdbt, extra->key, extra->keylen);
+    const DBT *target_key = extra->key;
     return key_msn_cmp(query_key, target_key, query->msn, extra->msn,
                        extra->desc, extra->cmp);
 }
@@ -1918,7 +1911,8 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
     int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
     assert_zero(r);
     if (brt_msg_type_applies_once(type)) {
-        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer, .key = key, .keylen = keylen, .msn = msn };
+        DBT keydbt;
+        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer, .key = toku_fill_dbt(&keydbt, key, keylen), .msn = msn };
         if (is_fresh) {
             r = toku_omt_insert(bnc->fresh_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
             assert_zero(r);
@@ -1963,7 +1957,7 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
 #if DO_PIVOT_SEARCH_LR
     int i;
     for (i=0; i<node->n_children-1; i++) {
-	int c = brt_compare_pivot(desc, cmp, k, d, node->childkeys[i]);
+	int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
 	if (c > 0) continue;
 	if (c < 0) return i;
 	return i;
@@ -1977,7 +1971,7 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
     // random keys
     int i;
     for (i = node->n_children-2; i >= 0; i--) {
-	int c = brt_compare_pivot(desc, cmp, k, d, node->childkeys[i]);
+	int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
 	if (c > 0) return i+1;
     }
     return 0;
@@ -1989,7 +1983,7 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
 
     // check the last key to optimize seq insertions
     int n = node->n_children-1;
-    int c = brt_compare_pivot(desc, cmp, k, node->childkeys[n-1]);
+    int c = brt_compare_pivot(desc, cmp, k, &node->childkeys[n-1]);
     if (c > 0) return n;
 
     // binary search the pivots
@@ -1998,7 +1992,7 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
     int mi;
     while (lo < hi) {
 	mi = (lo + hi) / 2;
-	c = brt_compare_pivot(desc, cmp, k, node->childkeys[mi]);
+	c = brt_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
 	if (c > 0) {
 	    lo = mi+1;
 	    continue;
@@ -2024,7 +2018,7 @@ toku_brtnode_hot_next_child(BRTNODE node,
     int mi;
     while (low < hi) {
         mi = (low + hi) / 2;
-        int r = brt_compare_pivot(desc, cmp, k, node->childkeys[mi]);
+        int r = brt_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
         if (r > 0) {
             low = mi + 1;
         } else if (r < 0) {
@@ -3841,7 +3835,7 @@ copy_to_stale(OMTVALUE v, u_int32_t UU(idx), void *extrap)
     entry->is_fresh = false;
     DBT keydbt;
     DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->brt->h->cmp_descriptor, .cmp = extra->brt->compare_fun, .fifo = extra->bnc->buffer, .key = key->data, .keylen = key->size, .msn = entry->msn };
+    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->brt->h->cmp_descriptor, .cmp = extra->brt->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
     int r = toku_omt_insert(extra->bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &heaviside_extra, NULL);
     assert_zero(r);
     return r;
@@ -3971,8 +3965,7 @@ find_bounds_within_message_tree(
         struct toku_fifo_entry_key_msn_heaviside_extra lbi_extra = {
             .desc = desc, .cmp = cmp,
             .fifo = buffer,
-            .key = kv_pair_key((struct kv_pair *) bounds->lower_bound_exclusive),
-            .keylen = kv_pair_keylen((struct kv_pair *) bounds->lower_bound_exclusive),
+            .key = bounds->lower_bound_exclusive,
             .msn = MAX_MSN };
         OMTVALUE found_lb;
         r = toku_omt_find(message_tree, toku_fifo_entry_key_msn_heaviside,
@@ -3989,12 +3982,12 @@ find_bounds_within_message_tree(
             // Check if what we found for lbi is greater than the upper
             // bound inclusive that we have.  If so, there are no relevant
             // messages between these bounds.
-            DBT ubidbt_tmp = kv_pair_key_to_dbt((struct kv_pair *) bounds->upper_bound_inclusive);
+            const DBT *ubi = bounds->upper_bound_inclusive;
             const long offset = (long) found_lb;
             DBT found_lbidbt;
             fill_dbt_for_fifo_entry(&found_lbidbt, toku_fifo_get_entry(buffer, offset));
             FAKE_DB(db, desc);
-            int c = cmp(&db, &found_lbidbt, &ubidbt_tmp);
+            int c = cmp(&db, &found_lbidbt, ubi);
             // These DBTs really are both inclusive bounds, so we need
             // strict inequality in order to determine that there's
             // nothing between them.  If they're equal, then we actually
@@ -4019,8 +4012,7 @@ find_bounds_within_message_tree(
         struct toku_fifo_entry_key_msn_heaviside_extra ube_extra = {
             .desc = desc, .cmp = cmp,
             .fifo = buffer,
-            .key = kv_pair_key((struct kv_pair *) bounds->upper_bound_inclusive),
-            .keylen = kv_pair_keylen((struct kv_pair *) bounds->upper_bound_inclusive),
+            .key = bounds->upper_bound_inclusive,
             .msn = MAX_MSN };
         r = toku_omt_find(message_tree, toku_fifo_entry_key_msn_heaviside,
                           &ube_extra, +1, NULL, ube);
@@ -4565,9 +4557,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 static inline int
 search_which_child_cmp_with_bound(DB *db, brt_compare_func cmp, BRTNODE node, int childnum, brt_search_t *search, DBT *dbt)
 {
-    struct kv_pair *pivot = node->childkeys[childnum];
-    toku_fill_dbt(dbt, kv_pair_key(pivot), kv_pair_keylen(pivot));
-    return cmp(db, dbt, &search->pivot_bound);
+    return cmp(db, toku_copyref_dbt(dbt, node->childkeys[childnum]), &search->pivot_bound);
 }
 
 int
@@ -4589,8 +4579,7 @@ toku_brt_search_which_child(
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        struct kv_pair *pivot = node->childkeys[mi];
-        toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot));
+        toku_copyref_dbt(&pivotkey, node->childkeys[mi]);
         // search->compare is really strange, and only works well with a
         // linear search, it makes binary search a pita.
         //
@@ -4652,8 +4641,7 @@ toku_brt_search_which_child(
     }
     for (c = 0; c < node->n_children-1; c++) {
         int p = (search->direction == BRT_SEARCH_LEFT) ? child[c] : child[c] - 1;
-        struct kv_pair *pivot = node->childkeys[p];
-        toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot));
+        toku_copyref_dbt(&pivotkey, node->childkeys[p]);
         if (search_pivot_is_bounded(search, desc, cmp, &pivotkey) && search->compare(search, &pivotkey)) {
             return child[c];
         }
@@ -4671,9 +4659,7 @@ maybe_search_save_bound(
 {
     int p = (search->direction == BRT_SEARCH_LEFT) ? child_searched : child_searched - 1;
     if (p >= 0 && p < node->n_children-1) {
-        struct kv_pair const * pivot = node->childkeys[p];
-        DBT pivotkey = { .data = kv_pair_key((struct kv_pair *) pivot), .size = kv_pair_keylen(pivot) };
-        search_save_bound(search, &pivotkey);
+        search_save_bound(search, &node->childkeys[p]);
     }
 }
 
@@ -4749,13 +4735,13 @@ brt_search_node(
         else {
             if (node->height == 0) {
                 // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
-                struct kv_pair const * pivot = NULL;
+                const DBT *pivot = NULL;
                 if (search->direction == BRT_SEARCH_LEFT)
                     pivot = next_bounds.upper_bound_inclusive; // left -> right
                 else
                     pivot = next_bounds.lower_bound_exclusive; // right -> left
                 if (pivot) {
-                    int rr = getf(kv_pair_keylen(pivot), kv_pair_key_const(pivot), 0, NULL, getf_v, true);
+                    int rr = getf(pivot->size, pivot->data, 0, NULL, getf_v, true);
                     if (rr != 0)
                         return rr; // lock was not granted
                 }
@@ -5474,7 +5460,7 @@ toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
 
 /* ********************* debugging dump ************************ */
 static int
-toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_pair *lorange, struct kv_pair *hirange) {
+toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, const DBT *lorange, const DBT *hirange) {
     int result=0;
     BRTNODE node;
     void* node_v;
@@ -5502,12 +5488,12 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     fprintf(file, "%*sNode=%p\n", depth, "", node);
     
     fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  keyrange=%s %s\n",
-	depth, "", blocknum.b, node->nodesize, node->height, node->n_children, (char*)(lorange ? kv_pair_key(lorange) : 0), (char*)(hirange ? kv_pair_key(hirange) : 0));
+	depth, "", blocknum.b, node->nodesize, node->height, node->n_children, (char*)(lorange ? lorange->data : 0), (char*)(hirange ? hirange->data : 0));
     {
 	int i;
 	for (i=0; i+1< node->n_children; i++) {
 	    fprintf(file, "%*spivotkey %d =", depth+1, "", i);
-	    toku_print_BYTESTRING(file, toku_brt_pivot_key_len(node->childkeys[i]), node->childkeys[i]->key);
+	    toku_print_BYTESTRING(file, node->childkeys[i].size, node->childkeys[i].data);
 	    fprintf(file, "\n");
 	}
 	for (i=0; i< node->n_children; i++) {
@@ -5541,12 +5527,12 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
 	    for (i=0; i<node->n_children; i++) {
 		fprintf(file, "%*schild %d\n", depth, "", i);
 		if (i>0) {
-		    char *key = node->childkeys[i-1]->key;
-		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1]->keylen, (unsigned)toku_dtoh32(*(int*)key));
+		    char *key = node->childkeys[i-1].data;
+		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1].size, (unsigned)toku_dtoh32(*(int*)key));
 		}
 		toku_dump_brtnode(file, brt, BP_BLOCKNUM(node, i), depth+4,
-				  (i==0) ? lorange : node->childkeys[i-1],
-				  (i==node->n_children-1) ? hirange : node->childkeys[i]);
+				  (i==0) ? lorange : &node->childkeys[i-1],
+				  (i==node->n_children-1) ? hirange : &node->childkeys[i]);
 	    }
 	}
     }

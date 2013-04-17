@@ -409,7 +409,7 @@ flush_to_internal_multiple(BRT t) {
         set_BNC(child, i, child_bncs[i]);
         BP_STATE(child, i) = PT_AVAIL;
         if (i < 7) {
-            child->childkeys[i] = kv_pair_malloc(childkeys[i]->u.id.key->data, childkeys[i]->u.id.key->size, NULL, 0);
+            toku_clone_dbt(&child->childkeys[i], *childkeys[i]->u.id.key);
         }
     }
 
@@ -578,7 +578,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        child->childkeys[i] = kv_pair_malloc(childkeys[i].data, childkeys[i].size, NULL, 0);
+        toku_clone_dbt(&child->childkeys[i], childkeys[i]);
     }
 
     if (make_leaf_up_to_date) {
@@ -801,7 +801,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        child->childkeys[i] = kv_pair_malloc(childkeys[i].data, childkeys[i].size, NULL, 0);
+        toku_clone_dbt(&child->childkeys[i], childkeys[i]);
     }
 
     if (make_leaf_up_to_date) {
@@ -838,7 +838,11 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     BP_STATE(parentnode, 0) = PT_AVAIL;
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
-    const struct pivot_bounds bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = kv_pair_malloc(childkeys[7].data, childkeys[7].size, NULL, 0) };
+    DBT lbe, ubi;
+    const struct pivot_bounds bounds = {
+        .lower_bound_exclusive = toku_init_dbt(&lbe),
+        .upper_bound_inclusive = toku_clone_dbt(&ubi, childkeys[7])
+    };
     BOOL msgs_applied;
     maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied);
 
@@ -893,7 +897,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     for (i = 0; i < num_child_messages; ++i) {
         toku_free(child_messages[i]);
     }
-    toku_free((struct kv_pair *) bounds.upper_bound_inclusive);
+    toku_free(ubi.data);
     toku_brtnode_free(&child);
     toku_free(parent_messages);
     toku_free(child_messages);
@@ -990,8 +994,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        child1->childkeys[i] = kv_pair_malloc(child1keys[i].data, child1keys[i].size, NULL, 0);
-        child2->childkeys[i] = kv_pair_malloc(child2keys[i].data, child2keys[i].size, NULL, 0);
+        toku_clone_dbt(&child1->childkeys[i], child1keys[i]);
+        toku_clone_dbt(&child2->childkeys[i], child2keys[i]);
     }
 
     if (make_leaf_up_to_date) {

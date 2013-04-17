@@ -419,7 +419,7 @@ static void serialize_brtnode_info(BRTNODE node,
     wbuf_nocrc_int (&wb, node->height);    
     // pivot information
     for (int i = 0; i < node->n_children-1; i++) {
-        wbuf_nocrc_bytes(&wb, kv_pair_key(node->childkeys[i]), toku_brt_pivot_key_len(node->childkeys[i]));
+        wbuf_nocrc_bytes(&wb, node->childkeys[i].data, node->childkeys[i].size);
     }
     // child blocks, only for internal nodes
     if (node->height > 0) {
@@ -599,14 +599,13 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     // first the pivots
     for (int i = 0; i < num_pivots; i++) {
         LEAFENTRY curr_le_pivot = leafpointers[new_pivots[i]];
-        node->childkeys[i] = kv_pair_malloc(
-            le_key(curr_le_pivot),
-            le_keylen(curr_le_pivot),
-            0,
-            0
-            );
-        assert(node->childkeys[i]);
-        node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i]);
+        uint32_t keylen;
+        void *key = le_key_and_len(curr_le_pivot, &keylen);
+        toku_fill_dbt(&node->childkeys[i],
+                      toku_xmemdup(key, keylen),
+                      keylen);
+        assert(node->childkeys[i].data);
+        node->totalchildkeylens += keylen;
     }
 
     uint32_t baseindex_this_bn = 0;
@@ -1285,8 +1284,10 @@ deserialize_brtnode_info(
             bytevec childkeyptr;
             unsigned int cklen;
             rbuf_bytes(&rb, &childkeyptr, &cklen);
-            node->childkeys[i] = kv_pair_malloc((void*)childkeyptr, cklen, 0, 0);
-            node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i]);
+            toku_fill_dbt(&node->childkeys[i],
+                          toku_xmemdup(childkeyptr, cklen),
+                          cklen);
+            node->totalchildkeylens += cklen;
         }
     }
     else {
@@ -1724,11 +1725,10 @@ deserialize_and_upgrade_internal_node(BRTNODE node,
         bytevec childkeyptr;
         unsigned int cklen;
         rbuf_bytes(rb, &childkeyptr, &cklen);
-        node->childkeys[i] = kv_pair_malloc((void*)childkeyptr,
-                                            cklen,
-                                            0,
-                                            0);
-        node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i]);
+        toku_fill_dbt(&node->childkeys[i],
+                      toku_xmemdup(childkeyptr, cklen),
+                      cklen);
+        node->totalchildkeylens += cklen;
     }
 
     // Create space for the child node buffers (a.k.a. partitions).
@@ -3224,11 +3224,6 @@ exit:
         toku_free(rb_1.buf);
     }
     return e;
-}
-
-unsigned int 
-toku_brt_pivot_key_len (struct kv_pair *pk) {
-    return kv_pair_keylen(pk);
 }
 
 int 

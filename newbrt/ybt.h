@@ -17,6 +17,8 @@ DBT *toku_init_dbt(DBT *);
 DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
 void toku_destroy_dbt(DBT *);
 DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
+DBT *toku_copyref_dbt(DBT *dst, const DBT src);
+DBT *toku_clone_dbt(DBT *dst, const DBT src);
 int toku_dbt_set(ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt);
 int toku_dbt_set_value(DBT *, bytevec *val, ITEMLEN vallen, void **staticptrp, BOOL ybt1_disposable);
 void toku_sdbt_cleanup(struct simple_dbt *sdbt);

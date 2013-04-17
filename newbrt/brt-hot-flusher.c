@@ -91,16 +91,13 @@ static void
 hot_set_key(DBT *key, BRTNODE parent, int childnum)
 {
     // assert that childnum is less than number of children - 1.
-    DBT pivot;
-    struct kv_pair *pair;
-    pair = parent->childkeys[childnum];
-    pivot = kv_pair_key_to_dbt(pair);
+    DBT *pivot = &parent->childkeys[childnum];
 
     void *data = key->data;
-    u_int32_t size = pivot.size;
+    u_int32_t size = pivot->size;
 
     data = toku_xrealloc(data, size);
-    memcpy(data, pivot.data, size);
+    memcpy(data, pivot->data, size);
 
     toku_fill_dbt(key, data, size);
 }

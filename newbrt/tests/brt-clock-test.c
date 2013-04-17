@@ -248,7 +248,7 @@ test_serialize_nonleaf(void) {
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], hello_string, 6);
     sn.totalchildkeylens = 6;
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
@@ -307,7 +307,6 @@ test_serialize_nonleaf(void) {
     test1(fd, brt_h, &dn);
     test2(fd, brt_h, &dn);
 
-    kv_pair_free(sn.childkeys[0]);
     toku_free(hello_string);
     destroy_nonleaf_childinfo(BNC(&sn, 0));
     destroy_nonleaf_childinfo(BNC(&sn, 1));
@@ -349,7 +348,7 @@ test_serialize_leaf(void) {
     elts[2] = le_malloc("x", "xval");
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
@@ -396,7 +395,7 @@ test_serialize_leaf(void) {
     test3_leaf(fd, brt_h,&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < 3; ++i) {
         toku_free(elts[i]);

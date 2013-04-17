@@ -2945,21 +2945,13 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     int result = 0;
 
     BRTNODE XMALLOC(node);
-    toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children, 
-				  BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
-    for (int i=0; i<n_children-1; i++)
-        node->childkeys[i] = NULL;
-    unsigned int totalchildkeylens = 0;
+    toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children,
+                                  BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
+    node->totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
-	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);
-	if (childkey == NULL) {
-            result = errno;
-            break;
-        }
-	node->childkeys[i] = childkey;
-	totalchildkeylens += kv_pair_keylen(childkey);
+        toku_clone_dbt(&node->childkeys[i], pivots[i]);
+	node->totalchildkeylens += pivots[i].size;
     }
-    node->totalchildkeylens = totalchildkeylens;
     assert(node->bp);
     for (int i=0; i<n_children; i++) {
         BP_BLOCKNUM(node,i)  = make_blocknum(subtree_info[i].block); 
@@ -2992,7 +2984,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 
     for (int i=0; i<n_children-1; i++) {
 	toku_free(pivots[i].data);
-	toku_free(node->childkeys[i]);
+	toku_free(node->childkeys[i].data);
     }
     for (int i=0; i<n_children; i++) {
 	destroy_nonleaf_childinfo(BNC(node,i));

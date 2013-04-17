@@ -16,12 +16,9 @@
 #include "brt-cachetable-wrappers.h"
 
 static int 
-compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
-    DBT x,y;
+compare_pairs (BRT brt, const DBT *a, const DBT *b) {
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db,
-                               toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
-                               toku_fill_dbt(&y, kv_pair_key(b), kv_pair_keylen(b)));
+    int cmp = brt->compare_fun(&db, a, b);
     return cmp;
 }
 
@@ -36,31 +33,27 @@ compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
 }
 
 static int 
-compare_pair_to_leafentry (BRT brt, struct kv_pair *a, LEAFENTRY b) {
-    DBT x,y;
+compare_pair_to_leafentry (BRT brt, const DBT *a, LEAFENTRY b) {
+    DBT y;
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db,
-                               toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
-                               toku_fill_dbt(&y, le_key(b), le_keylen(b)));
+    int cmp = brt->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
 }
 
 static int 
-compare_pair_to_key (BRT brt, struct kv_pair *a, bytevec key, ITEMLEN keylen) {
-    DBT x, y;
+compare_pair_to_key (BRT brt, const DBT *a, bytevec key, ITEMLEN keylen) {
+    DBT y;
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db,
-                               toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
-                               toku_fill_dbt(&y, key, keylen));
+    int cmp = brt->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
     return cmp;
 }
 
 static int
-verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot)
+verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot)
     __attribute__((warn_unused_result));
 
 static int
-verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot) {
+verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot) {
     int result = 0;
     if (msn.msn == ZERO_MSN.msn)
         result = EINVAL;
@@ -189,9 +182,9 @@ verify_sorted_by_key_msn(BRT brt, FIFO fifo, OMT mt) {
 }
 
 static int
-count_eq_key_msn(BRT brt, FIFO fifo, OMT mt, const void *key, size_t keylen, MSN msn) {
+count_eq_key_msn(BRT brt, FIFO fifo, OMT mt, const DBT *key, MSN msn) {
     struct toku_fifo_entry_key_msn_heaviside_extra extra = { 
-        .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .keylen = keylen, .msn = msn 
+        .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .msn = msn 
     };
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(mt, toku_fifo_entry_key_msn_heaviside, &extra, &v, &idx);
@@ -232,8 +225,8 @@ int
 toku_verify_brtnode (BRT brt,
                      MSN rootmsn, MSN parentmsn,
                      BRTNODE node, int height,
-                     struct kv_pair *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
-                     struct kv_pair *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      int (*progress_callback)(void *extra, float progress), void *progress_extra,
                      int recurse, int verbose, int keep_going_on_failure)
 {
@@ -258,24 +251,24 @@ toku_verify_brtnode (BRT brt,
     }
     // Verify that all the pivot keys are in order.
     for (int i = 0; i < node->n_children-2; i++) {
-        int compare = compare_pairs(brt, node->childkeys[i], node->childkeys[i+1]);
+        int compare = compare_pairs(brt, &node->childkeys[i], &node->childkeys[i+1]);
         VERIFY_ASSERTION(compare < 0, i, "Value is >= the next value");
     }
     // Verify that all the pivot keys are lesser_pivot < pivot <= greatereq_pivot
     for (int i = 0; i < node->n_children-1; i++) {
         if (lesser_pivot) {
-            int compare = compare_pairs(brt, lesser_pivot, node->childkeys[i]);
+            int compare = compare_pairs(brt, lesser_pivot, &node->childkeys[i]);
             VERIFY_ASSERTION(compare < 0, i, "Pivot is >= the lower-bound pivot");
         }
         if (greatereq_pivot) {
-            int compare = compare_pairs(brt, greatereq_pivot, node->childkeys[i]);
+            int compare = compare_pairs(brt, greatereq_pivot, &node->childkeys[i]);
             VERIFY_ASSERTION(compare >= 0, i, "Pivot is < the upper-bound pivot");
         }
     }
 
     for (int i = 0; i < node->n_children; i++) {
-        struct kv_pair *curr_less_pivot = (i==0) ? lesser_pivot : node->childkeys[i-1];
-        struct kv_pair *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : node->childkeys[i];
+        const DBT *curr_less_pivot = (i==0) ? lesser_pivot : &node->childkeys[i-1];
+        const DBT *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : &node->childkeys[i];
         if (node->height > 0) {
             MSN last_msn = ZERO_MSN;
             // Verify that messages in the buffers are in the right place.
@@ -292,7 +285,8 @@ toku_verify_brtnode (BRT brt,
                              VERIFY_ASSERTION((msn.msn > last_msn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
                              VERIFY_ASSERTION((msn.msn <= this_msn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
                              int count;
-                             count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, key, keylen, msn);
+                             DBT keydbt;
+                             count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, toku_fill_dbt(&keydbt, key, keylen), msn);
                              if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
                                  VERIFY_ASSERTION(count == 0, i, "a broadcast message was found in the fresh message tree");
                              } else {
@@ -303,7 +297,7 @@ toku_verify_brtnode (BRT brt,
                                      VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
                                  }
                              }
-                             count = count_eq_key_msn(brt, bnc->buffer, bnc->stale_message_tree, key, keylen, msn);
+                             count = count_eq_key_msn(brt, bnc->buffer, bnc->stale_message_tree, &keydbt, msn);
                              if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
                                  VERIFY_ASSERTION(count == 0, i, "a broadcast message was found in the stale message tree");
                              } else {
@@ -314,8 +308,7 @@ toku_verify_brtnode (BRT brt,
                                      VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
                                  }
                              }
-                             DBT keydbt;
-                             struct count_msgs_extra extra = { .count = 0, .key = toku_fill_dbt(&keydbt, key, keylen),
+                             struct count_msgs_extra extra = { .count = 0, .key = &keydbt,
                                                                .msn = msn, .fifo = bnc->buffer,
                                                                .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun };
                              extra.count = 0;
@@ -371,8 +364,8 @@ toku_verify_brtnode (BRT brt,
             toku_get_node_for_verify(BP_BLOCKNUM(node, i), brt, &child_node);
             int r = toku_verify_brtnode(brt, rootmsn, this_msn,
                                         child_node, node->height-1,
-                                        (i==0)                  ? lesser_pivot        : node->childkeys[i-1],
-                                        (i==node->n_children-1) ? greatereq_pivot     : node->childkeys[i],
+                                        (i==0)                  ? lesser_pivot        : &node->childkeys[i-1],
+                                        (i==node->n_children-1) ? greatereq_pivot     : &node->childkeys[i],
                                         progress_callback, progress_extra,
                                         recurse, verbose, keep_going_on_failure);
             if (r) {

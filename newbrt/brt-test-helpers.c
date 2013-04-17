@@ -42,7 +42,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys
     }
 
     for (i=0; i+1<n_children; i++) {
-        node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
+        toku_fill_dbt(&node->childkeys[i], toku_xmemdup(keys[i], keylens[i]), keylens[i]);
         node->totalchildkeylens += keylens[i];
     }
 
@@ -63,7 +63,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
         BP_STATE(node,i) = PT_AVAIL;
     }
     for (i=0; i+1<n_children; i++) {
-        node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
+        toku_fill_dbt(&node->childkeys[i], toku_xmemdup(keys[i], keylens[i]), keylens[i]);
         node->totalchildkeylens += keylens[i];
     }
     *blocknum = node->thisnodename;

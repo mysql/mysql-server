@@ -224,7 +224,7 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
@@ -313,7 +313,7 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
             if (i < npartitions-1) {
-                assert(strcmp(kv_pair_key(dn->childkeys[i]), le_key_and_len(elts[extra.i-1], &keylen))==0);
+                assert(strcmp(dn->childkeys[i].data, le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
             // don't check soft_copy_is_up_to_date or seqinsert
             assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
@@ -325,7 +325,7 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
         BASEMENTNODE bn = BLB(&sn, i);
@@ -388,7 +388,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clon
         if (i < nrows-1) {
             u_int32_t keylen;
             char *keyp = le_key_and_len(le, &keylen);
-            sn.childkeys[i] = kv_pair_malloc(keyp, keylen, 0, 0);
+            toku_fill_dbt(&sn.childkeys[i], toku_xmemdup(keyp, keylen), keylen);
         }
     }
 
@@ -468,7 +468,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clon
 
     toku_brtnode_free(&dn);
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     toku_free(sn.childkeys);
     for (int i = 0; i < sn.n_children; i++) {
@@ -605,7 +605,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft, BOOL do_clone) 
 
     toku_brtnode_free(&dn);
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
 	bn = BLB(&sn, i);
@@ -754,7 +754,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft, BOOL do_clone)
 
     toku_brtnode_free(&dn);
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
 	bn = BLB(&sn, i);
@@ -797,12 +797,12 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc("A", 2, 0, 0);
-    sn.childkeys[1] = kv_pair_malloc("a", 2, 0, 0);
-    sn.childkeys[2] = kv_pair_malloc("a", 2, 0, 0);
-    sn.childkeys[3] = kv_pair_malloc("b", 2, 0, 0);
-    sn.childkeys[4] = kv_pair_malloc("b", 2, 0, 0);
-    sn.childkeys[5] = kv_pair_malloc("x", 2, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
+    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup("a", 2), 2);
+    toku_fill_dbt(&sn.childkeys[2], toku_xmemdup("a", 2), 2);
+    toku_fill_dbt(&sn.childkeys[3], toku_xmemdup("b", 2), 2);
+    toku_fill_dbt(&sn.childkeys[4], toku_xmemdup("b", 2), 2);
+    toku_fill_dbt(&sn.childkeys[5], toku_xmemdup("x", 2), 2);
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
@@ -904,7 +904,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
 	BASEMENTNODE bn = BLB(&sn, i);
@@ -946,9 +946,9 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc("A", 2, 0, 0);
-    sn.childkeys[1] = kv_pair_malloc("A", 2, 0, 0);
-    sn.childkeys[2] = kv_pair_malloc("A", 2, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
+    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup("A", 2), 2);
+    toku_fill_dbt(&sn.childkeys[2], toku_xmemdup("A", 2), 2);
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
@@ -1021,7 +1021,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
         destroy_basement_node(BLB(&sn, i));
@@ -1064,7 +1064,7 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
@@ -1147,7 +1147,7 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
             if (i < npartitions-1) {
-                assert(strcmp(kv_pair_key(dn->childkeys[i]), le_key_and_len(elts[extra.i-1], &keylen))==0);
+                assert(strcmp(dn->childkeys[i].data, le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
             // don't check soft_copy_is_up_to_date or seqinsert
             assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
@@ -1159,7 +1159,7 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; i++) {
 	BASEMENTNODE bn = BLB(&sn, i);
@@ -1205,7 +1205,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], hello_string, 6);
     sn.totalchildkeylens = 6;
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
@@ -1269,8 +1269,8 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 1);
     assert(dn->n_children==2);
-    assert(strcmp(kv_pair_key(dn->childkeys[0]), "hello")==0);
-    assert(toku_brt_pivot_key_len(dn->childkeys[0])==6);
+    assert(strcmp(dn->childkeys[0].data, "hello")==0);
+    assert(dn->childkeys[0].size==6);
     assert(dn->totalchildkeylens==6);
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
@@ -1282,11 +1282,10 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
 
     assert(toku_are_fifos_same(src_fifo_1, dest_fifo_1));
     assert(toku_are_fifos_same(src_fifo_2, dest_fifo_2));
-        
+
     toku_brtnode_free(&dn);
 
-    kv_pair_free(sn.childkeys[0]);
-    toku_free(hello_string);
+    toku_free(sn.childkeys[0].data);
     destroy_nonleaf_childinfo(BNC(&sn, 0));
     destroy_nonleaf_childinfo(BNC(&sn, 1));
     toku_free(sn.bp);
