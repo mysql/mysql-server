@@ -389,6 +389,18 @@ test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+STRESS_RUNS=10
+checkpoint_stress.tdbrun: SHELL=/bin/bash
+checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) && \
+	($(VGRIND) ./$< -C -i 0 $(VERBVERBOSE) && \
+	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
+		./$< -c -i $$i $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
+	done && \
+	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
+	) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
 helgrind1.tdbrun: MAYBEINVERTER=$(INVERTER)
