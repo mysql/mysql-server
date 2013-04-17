@@ -593,7 +593,7 @@ public:
         bool* modified_DB
         ); 
     void restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs);
-    int drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn);
+    int drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, KEY *key_info, DB_TXN* txn);
     void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
 
  public:

@@ -111,7 +111,7 @@ ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys)
 
     DB_TXN *txn = transaction;
     assert(txn);
-    int error = drop_indexes(table_arg, key_num, num_of_keys, txn);
+    int error = drop_indexes(table_arg, key_num, num_of_keys, table_arg->key_info, txn);
     DBUG_EXECUTE_IF("prepare_drop_index_fail", {
         error = 1;
     });

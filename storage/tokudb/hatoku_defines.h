@@ -210,8 +210,9 @@ static inline void make_name(char *newname, const char *tablename, const char *d
 }
 
 static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
-    int r;
-    r = txn->commit(txn, flags);
+    if (tokudb_debug & TOKUDB_DEBUG_TXN)
+        TOKUDB_TRACE("commit_txn %p\n", txn);
+    int r = txn->commit(txn, flags);
     if (r != 0) {
         sql_print_error("tried committing transaction %p and got error code %d", txn, r);
     }
@@ -219,8 +220,9 @@ static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
 }
 
 static inline void abort_txn(DB_TXN* txn) {
-    int r;
-    r = txn->abort(txn);
+    if (tokudb_debug & TOKUDB_DEBUG_TXN)
+        TOKUDB_TRACE("abort_txn %p\n", txn);
+    int r = txn->abort(txn);
     if (r != 0) {
         sql_print_error("tried aborting transaction %p and got error code %d", txn, r);
     }

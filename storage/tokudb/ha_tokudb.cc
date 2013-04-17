@@ -7765,7 +7765,7 @@ volatile int ha_tokudb_drop_indexes_wait = 0; // debug
 // Internal function called by ha_tokudb::prepare_drop_index and ha_tokudb::alter_table_phase2
 // With a transaction, drops dictionaries associated with indexes in key_num
 //
-int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
+int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, KEY *key_info, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
     assert(txn);
 
@@ -7787,10 +7787,10 @@ int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, D
         assert(r==0);
         share->key_file[curr_index] = NULL;
 
-        error = remove_key_name_from_status(share->status_block, table_arg->key_info[curr_index].name, txn);
+        error = remove_key_name_from_status(share->status_block, key_info[curr_index].name, txn);
         if (error) { goto cleanup; }
         
-        error = delete_or_rename_dictionary(share->table_name, NULL, table_arg->key_info[curr_index].name, true, txn, true);
+        error = delete_or_rename_dictionary(share->table_name, NULL, key_info[curr_index].name, true, txn, true);
         if (error) { goto cleanup; }
     }
 
