@@ -323,7 +323,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, TXNID_NONE, TRUE);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

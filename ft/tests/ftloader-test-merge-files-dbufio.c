@@ -327,7 +327,7 @@ static void test (const char *directory, BOOL is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               TXNID_NONE);
+                                               TXNID_NONE, TRUE);
 	assert(r==0);
     }
 

@@ -145,6 +145,7 @@ struct ft_loader_s {
     const char *temp_file_template;
 
     CACHETABLE cachetable;
+    BOOL did_reserve_memory;
     uint64_t   reserved_memory; // how much memory are we allowed to use?
 
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
@@ -241,7 +242,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 				   ft_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,
 				   LSN load_lsn,
-                                   TOKUTXN txn);
+                                   TOKUTXN txn,
+                                   BOOL reserve_memory);
 
 void toku_ft_loader_internal_destroy (FTLOADER bl, BOOL is_error);
 

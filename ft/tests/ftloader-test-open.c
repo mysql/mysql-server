@@ -60,7 +60,7 @@ static void test_loader_open(int ndbs) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE);
+        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE, TRUE);
         if (r == 0)
             break;
     }
