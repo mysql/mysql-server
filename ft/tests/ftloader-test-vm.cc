@@ -4,12 +4,11 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "test.h"
 #include "cachetable.h"
 #include <inttypes.h>
 
 /* Test for #2755.  The ft_loader is using too much VM. */
-bool verbose=false;
-
 static void test_cachetable_reservation (long size) {
     CACHETABLE ct;
     {
@@ -42,7 +41,7 @@ static void test_cachetable_reservation (long size) {
     
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     test_cachetable_reservation(1L<<28);
     test_cachetable_reservation(1LL<<33);
     test_cachetable_reservation(3L<<28);
