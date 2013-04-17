@@ -1388,9 +1388,12 @@ static int env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key
 
 static int
 locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra) {
-    toku_ydb_lock();
-    int r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array, extra);
-    toku_ydb_unlock();
+    int r = env_check_avail_fs_space(env);
+    if (r == 0) {
+	toku_ydb_lock();
+	r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array, extra);
+	toku_ydb_unlock();
+    }
     return r;
 }
 
