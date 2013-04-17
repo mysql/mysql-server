@@ -360,7 +360,7 @@ int toku_txn_manager_start_txn(
             }
             r = txn_manager->live_root_txns.insert_at(txn->txnid64, idx);
         }
-        txn->oldest_referenced_xid = get_oldest_referenced_xid_unlocked(txn_manager);
+        txn->oldest_referenced_xid = for_recovery ? TXNID_NONE : get_oldest_referenced_xid_unlocked(txn_manager);
 
         // setup information for snapshot reads
         if (txn->snapshot_type != TXN_SNAPSHOT_NONE) {
