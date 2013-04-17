@@ -107,6 +107,7 @@ const struct logtype logtypes[] = {
                         {"FILENUM",    "filenum", 0},
 			{"BYTESTRING", "fname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
+                        {"u_int32_t",  "treeflags", 0},
 			NULLFIELD}},
     {"fopen",   'O', FA{{"TXNID",      "txnid", 0},
 			{"BYTESTRING", "fname", 0},
