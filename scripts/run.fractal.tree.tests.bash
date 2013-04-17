@@ -215,7 +215,7 @@ function build() {
 	fi
 	drd_trace=$(my_mktemp drd)
 	if [ $drdtests != 0 ] ; then
-	eval runcmd 0 $productbuilddir/src/tests make tiny_stress_tests.drdrun -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$drd_trace 2>&1 $BG
+	eval runcmd 0 $productbuilddir/src/tests make tiny_stress_tests.drdrun mid_stress_tests.drdrun -j$n -k -s SUMMARIZE=1 DEBUG=1 CC=$ftcc HAVE_CILK=$have_cilk >>$drd_trace 2>&1 $BG
 	fi
 	wait
 	cat $bench_trace >>$tracefile; rm $bench_trace
