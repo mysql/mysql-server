@@ -690,13 +690,7 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 }
 
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
-    if (env->i->logger) {
-	// checkpoints the logger and the cachetable
-	return toku_logger_log_checkpoint(env->i->logger);
-    } else {
-	// if no logger, then checkpoint the cachetable only
-	return toku_cachetable_checkpoint(env->i->cachetable);
-    }
+    return toku_cachetable_checkpoint(env->i->cachetable, env->i->logger);
 }
 
 static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
@@ -3060,7 +3054,6 @@ delete_db_file:
 	need_close = FALSE;
 	if (r!=0) { goto cleanup; }
         if (unlink(full_name) != 0) { r = errno; goto cleanup; }
-        if (toku_graceful_delete(full_name) !=0) { r = errno; goto cleanup; }
     } else {
 	r = toku_db_close(db, 0);
 	need_close = FALSE;
@@ -3108,6 +3101,16 @@ static int toku_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *,
 static int toku_db_set_dup_compare(DB *db, int (*dup_compare)(DB *, const DBT *, const DBT *)) {
     HANDLE_PANICKED_DB(db);
     int r = toku_brt_set_dup_compare(db->i->brt, dup_compare);
+    return r;
+}
+
+static int toku_db_set_descriptor(DB *db, const DBT *descriptor) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+    if (db_opened(db)) return EINVAL;
+    else if (!descriptor) r = EINVAL;
+    else if (descriptor->size>0 && !descriptor->data) r = EINVAL;
+    else r = toku_brt_set_descriptor(db->i->brt, descriptor);
     return r;
 }
 
@@ -3385,6 +3388,10 @@ static int locked_db_set_dup_compare(DB * db, int (*dup_compare) (DB *, const DB
     toku_ydb_lock(); int r = toku_db_set_dup_compare(db, dup_compare); toku_ydb_unlock(); return r;
 }
 
+static int locked_db_set_descriptor(DB *db, const DBT *descriptor) {
+    toku_ydb_lock(); int r = toku_db_set_descriptor(db, descriptor); toku_ydb_unlock(); return r;
+}
+
 static void locked_db_set_errfile (DB *db, FILE *errfile) {
     db->dbenv->set_errfile(db->dbenv, errfile);
 }
@@ -3469,6 +3476,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(rename);
     SDB(set_bt_compare);
     SDB(set_dup_compare);
+    SDB(set_descriptor);
     SDB(set_errfile);
     SDB(set_pagesize);
     SDB(set_flags);

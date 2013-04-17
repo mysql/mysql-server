@@ -29,7 +29,7 @@ test_main (int argc , const char *argv[]) {
     int r;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink_file_and_bit(FNAME);
+    unlink(FNAME);
     BRT one;
     BRT two;
     BRT three;

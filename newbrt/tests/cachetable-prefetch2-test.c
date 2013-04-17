@@ -14,7 +14,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        LSN m       __attribute__((__unused__)),
-       BOOL r      __attribute__((__unused__))
+       BOOL r      __attribute__((__unused__)),
+       BOOL c      __attribute__((__unused__))
        ) {
     assert(w == FALSE);
 }

@@ -29,7 +29,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     BRT brt;
     BRT_CURSOR cursors[n];
 
-    unlink_file_and_bit(fname);
+    unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);

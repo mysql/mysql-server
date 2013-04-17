@@ -24,16 +24,12 @@ static void
 dump_header (int f, struct brt_header **header) {
     struct brt_header *h;
     int r;
-    r = toku_deserialize_brtheader_from (f, header_blocknum, &h); assert(r==0);
+    r = toku_deserialize_brtheader_from (f, &h); assert(r==0);
     printf("brtheader:\n");
     if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
     else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
-    BLOCKNUM free_blocks = toku_block_get_free_blocks(h->blocktable);
-    BLOCKNUM unused_blocks = toku_block_get_unused_blocks(h->blocktable);
-    printf(" free_blocks=%" PRId64 "\n", free_blocks.b);
-    printf(" unused_memory=%" PRId64 "\n", unused_blocks.b);
     if (h->n_named_roots==-1) {
 	printf(" unnamed_root=%" PRId64 "\n", h->roots[0].b);
 	printf(" flags=%u\n", h->flags_array[0]);
@@ -91,7 +87,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     assert(n!=0);
     printf("brtnode\n");
     DISKOFF disksize, diskoffset;
-    toku_block_get_offset_size(h->blocktable, blocknum, &diskoffset, &disksize);
+    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &diskoffset, &disksize);
     printf(" diskoffset  =%" PRId64 "\n", diskoffset);
     printf(" disksize    =%" PRId64 "\n", disksize);
     printf(" nodesize    =%u\n", n->nodesize);
@@ -172,55 +168,53 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 
 static void 
 dump_block_translation(struct brt_header *h, u_int64_t offset) {
-    toku_block_dump_translation(h->blocktable, offset);
+    toku_blocknum_dump_translation(h->blocktable, make_blocknum(offset));
 }
 
-static int 
-bxpcmp(const void *a, const void *b) {
-    const struct block_translation_pair *bxpa = a;
-    const struct block_translation_pair *bxpb = b;
-    if (bxpa->diskoff < bxpb->diskoff) return -1;
-    if (bxpa->diskoff > bxpb->diskoff) return +1;
+typedef struct {
+    int f;
+    struct brt_header *h;
+    u_int64_t blocksizes;
+    u_int64_t leafsizes;
+    u_int64_t leafblocks;
+} frag_help_extra;
+
+static int
+fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
+    frag_help_extra *info = extra;
+    BRTNODE n;
+    int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, info->h);
+    if (r==0) {
+        info->blocksizes += size;
+        if (n->height == 0) {
+            info->leafsizes += size;
+            info->leafblocks++;
+        }
+	toku_brtnode_free(&n);
+    }
     return 0;
 }
 
 static void 
 dump_fragmentation(int f, struct brt_header *h) {
-    u_int64_t blocksizes = 0;
-    u_int64_t leafsizes = 0; 
-    u_int64_t leafblocks = 0;
-    u_int64_t fragsizes = 0;
-    u_int64_t i;
-    u_int64_t limit = toku_block_get_translated_blocknum_limit(h->blocktable);
-    for (i = 0; i < limit; i++) {
-        BRTNODE n;
-	BLOCKNUM blocknum = make_blocknum(i);
-        int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
-	if (r != 0) continue;
+    frag_help_extra info;
+    memset(&info, 0, sizeof(info));
+    info.f = f;
+    info.h = h;
+    toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+                            fragmentation_helper, &info, TRUE, TRUE);
+    int64_t used_space;
+    int64_t total_space;
+    toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
+    int64_t fragsizes = total_space - used_space;
 
-        DISKOFF size = toku_block_get_size(h->blocktable, blocknum);
-        blocksizes += size;
-	if (n->height == 0) {
-	    leafsizes += size;
-	    leafblocks += 1;
-	}
-	toku_brtnode_free(&n);
-    }
-    size_t n = limit * sizeof (struct block_translation_pair);
-    struct block_translation_pair *bx = toku_malloc(n);
-    toku_block_memcpy_translation_table(h->blocktable, n, bx);
-    qsort(bx, limit, sizeof (struct block_translation_pair), bxpcmp);
-    for (i = 0; i < limit - 1; i++) {
-        // printf("%lu %lu %lu\n", i, bx[i].diskoff, bx[i].size);
-        fragsizes += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
-    }
-    toku_free(bx);
-    printf("translated_blocknum_limit: %" PRIu64 "\n", limit);
-    printf("leafblocks: %" PRIu64 "\n", leafblocks);
-    printf("blocksizes: %" PRIu64 "\n", blocksizes);
-    printf("leafsizes: %" PRIu64 "\n", leafsizes);
-    printf("fragsizes: %" PRIu64 "\n", fragsizes);
-    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(fragsizes + blocksizes)));
+    printf("leafblocks: %" PRIu64 "\n", info.leafblocks);
+    printf("blocksizes: %" PRIu64 "\n", info.blocksizes);
+    printf("used size: %" PRId64 "\n",  used_space);
+    printf("total size: %" PRId64 "\n", total_space);
+    printf("leafsizes: %" PRIu64 "\n", info.leafsizes);
+    printf("fragsizes: %" PRId64 "\n", fragsizes);
+    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
 }
 
 static void
@@ -271,6 +265,18 @@ static int
 usage(const char *arg0) {
     printf("Usage: %s [--nodata] [--interactive] brtfilename\n", arg0);
     return 1;
+}
+
+typedef struct __dump_node_extra {
+    int f;
+    struct brt_header *h;
+} dump_node_extra;
+
+static int
+dump_node_wrapper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
+    dump_node_extra *info = extra;
+    dump_node(info->f, b, info->h);
+    return 0;
 }
 
 int 
@@ -339,28 +345,19 @@ main (int argc, const char *argv[]) {
             }
         }
     } else {
-	BLOCKNUM blocknum;
 	printf("Block translation:");
 
-        u_int64_t limit = toku_block_get_translated_blocknum_limit(h->blocktable);
-        BLOCKNUM unused_blocks = toku_block_get_unused_blocks(h->blocktable);
-        size_t bx_size = limit * sizeof (struct block_translation_pair);
-        struct block_translation_pair *bx = toku_malloc(bx_size);
-        toku_block_memcpy_translation_table(h->blocktable, bx_size, bx);
+        toku_dump_translation_table(stdout, h->blocktable);
 
-
-	for (blocknum.b=0; blocknum.b< unused_blocks.b; blocknum.b++) {
-	    printf(" %" PRId64 ":", blocknum.b);
-	    if (bx[blocknum.b].size == -1) printf("free");
-	    else printf("%" PRId64 ":%" PRId64, bx[blocknum.b].diskoff, bx[blocknum.b].size);
-	}
-	for (blocknum.b=1; blocknum.b<unused_blocks.b; blocknum.b++) {
-	    if (bx[blocknum.b].size != -1)
-		dump_node(f, blocknum, h);
-        }
-        toku_free(bx);
+        struct __dump_node_extra info;
+        info.f = f;
+        info.h = h;
+        toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+                                dump_node_wrapper, &info, TRUE, TRUE);
     }
     toku_brtheader_free(h);
     toku_malloc_cleanup();
     return 0;
 }
+
+

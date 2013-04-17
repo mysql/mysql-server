@@ -15,7 +15,7 @@ static void test_named_db (void) {
     DBT k,v;
 
     if (verbose) printf("test_named_db\n");
-    unlink_file_and_bit(n0);
+    unlink(n0);
     toku_memory_check_all_free();
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);           assert(r==0);
     r = toku_open_brt(n0, "db1", 1, &t0, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);

@@ -7,56 +7,57 @@ typedef struct block_table *BLOCK_TABLE;
 
 //Needed by tests, brtdump
 struct block_translation_pair {
-    DISKOFF diskoff; // When in free list, set to the next free block.  In this case it's really a BLOCKNUM.
+    union { // If in the freelist, use next_free_blocknum, otherwise diskoff.
+        DISKOFF  diskoff; 
+        BLOCKNUM next_free_blocknum;
+    } u;
     DISKOFF size;    // set to 0xFFFFFFFFFFFFFFFF for free
 };
 
-void toku_block_realloc(BLOCK_TABLE bt, BLOCKNUM b, u_int64_t size, u_int64_t *offset, int *dirty);
-void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
-void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
-DISKOFF toku_block_get_offset(BLOCK_TABLE bt, BLOCKNUM b);
-DISKOFF toku_block_get_size(BLOCK_TABLE bt, BLOCKNUM b);
-void toku_block_get_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
-int toku_allocate_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *res, int *dirty);
-int toku_free_diskblocknumber(BLOCK_TABLE bt, BLOCKNUM *b, int *dirty);
-void toku_verify_diskblocknumber_allocated(BLOCK_TABLE bt, BLOCKNUM b);
-void toku_block_verify_no_free_blocks(BLOCK_TABLE bt);
-u_int64_t toku_block_allocator_allocated_limit(BLOCK_TABLE bt);
-void toku_block_dump_translation_table(FILE *f, BLOCK_TABLE bt);
-void toku_block_dump_translation(BLOCK_TABLE bt, u_int64_t offset);
-
+void toku_blocktable_create_new(BLOCK_TABLE *btp);
+void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
-void toku_blocktable_debug_set_translation(BLOCK_TABLE bt,
-        u_int64_t limit,
-        struct block_translation_pair *table);
-void toku_blocktable_create(BLOCK_TABLE *btp,
-        BLOCKNUM free_blocks,
-        BLOCKNUM unused_blocks,
-        u_int64_t translated_blocknum_limit,
-        u_int64_t block_translation_address_on_disk,
-        unsigned char *buffer);
-void toku_blocktable_create_from_loggedheader(BLOCK_TABLE *btp, LOGGEDBRTHEADER);
-void toku_blocktable_create_new(BLOCK_TABLE *bt);
 
-BLOCKNUM toku_block_get_unused_blocks(BLOCK_TABLE bt);
-BLOCKNUM toku_block_get_free_blocks(BLOCK_TABLE bt);
-u_int64_t toku_block_get_translated_blocknum_limit(BLOCK_TABLE bt);
-
-void toku_block_memcpy_translation_table(BLOCK_TABLE bt, size_t n, void *p);
-
-//Unlocked/multi ops
 void toku_block_lock_for_multiple_operations(BLOCK_TABLE bt);
 void toku_block_unlock_for_multiple_operations(BLOCK_TABLE bt);
 
-void toku_block_realloc_translation_unlocked(BLOCK_TABLE bt);
-void toku_block_wbuf_free_blocks_unlocked(BLOCK_TABLE bt, struct wbuf *wbuf);
-void toku_block_wbuf_unused_blocks_unlocked(BLOCK_TABLE bt, struct wbuf *wbuf);
-void toku_block_wbuf_translated_blocknum_limit_unlocked(BLOCK_TABLE bt, struct wbuf *wbuf);
-void toku_block_wbuf_block_translation_address_on_disk_unlocked(BLOCK_TABLE bt, struct wbuf *wbuf);
-void toku_block_wbuf_init_and_fill_unlocked(BLOCK_TABLE bt, struct wbuf *w,
-                                            u_int64_t *size, u_int64_t *address);
+void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
+void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt);
+void toku_block_translation_note_failed_checkpoint(BLOCK_TABLE bt);
+void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
 
+//Blocknums
+void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h);
+void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, struct brt_header * h);
+void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
+void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
+void toku_realloc_fifo_on_disk_unlocked (BLOCK_TABLE, DISKOFF size, DISKOFF *offset);
+void toku_get_fifo_offset_on_disk(BLOCK_TABLE bt, DISKOFF *offset);
 
+//Blocks and Blocknums
+void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct brt_header * h, BOOL for_checkpoint);
+void toku_translate_blocknum_to_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
+
+//Serialization
+void toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w, int64_t *address, int64_t *size);
+
+//DEBUG ONLY (brtdump included), tests included
+void toku_blocknum_dump_translation(BLOCK_TABLE bt, BLOCKNUM b);
+void toku_dump_translation_table(FILE *f, BLOCK_TABLE bt);
+void toku_block_alloc(BLOCK_TABLE bt, u_int64_t size, u_int64_t *offset);
+void toku_block_free(BLOCK_TABLE bt, u_int64_t offset);
+typedef int(*BLOCKTABLE_CALLBACK)(BLOCKNUM b, int64_t size, int64_t address, void *extra);
+enum translation_type {TRANSLATION_NONE=0,
+                       TRANSLATION_CURRENT,
+                       TRANSLATION_INPROGRESS,
+                       TRANSLATION_CHECKPOINTED,
+                       TRANSLATION_DEBUG};
+
+int toku_blocktable_iterate(BLOCK_TABLE bt, enum translation_type type, BLOCKTABLE_CALLBACK f, void *extra, BOOL data_only, BOOL used_only); 
+void toku_blocktable_internal_fragmentation(BLOCK_TABLE bt, int64_t *total_sizep, int64_t *used_sizep);
+
+//ROOT FIFO (To delete)
+u_int64_t toku_block_allocator_allocated_limit(BLOCK_TABLE bt);
 
 #endif
 

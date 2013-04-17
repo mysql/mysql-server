@@ -11,6 +11,11 @@
 //  The actual header is 8+4+4+8+8_4+8+ the length of the db names + 1 pointer for each root.
 //  So 4096 should be enough.
 #define BLOCK_ALLOCATOR_HEADER_RESERVE 4096
+#if (BLOCK_ALLOCATOR_HEADER_RESERVE % BLOCK_ALLOCATOR_ALIGNMENT) != 0
+#error
+#endif
+
+#define BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE (2*BLOCK_ALLOCATOR_HEADER_RESERVE)
 
 // A block allocator manages the allocation of variable-sized blocks.
 // The translation of block numbers to addresses is handled elsewhere.

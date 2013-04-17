@@ -191,6 +191,15 @@ struct __toku_db_key_range {
 struct __toku_db_lsn {
   char __toku_dummy0[8];  /* Padding at the end */ 
 };
+struct __toku_dbt {
+  void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
+  u_int32_t size; /* 32-bit offset=4 size=4, 64=bit offset=8 size=4 */
+  u_int32_t ulen; /* 32-bit offset=8 size=4, 64=bit offset=12 size=4 */
+  void* __toku_dummy0[1];
+  char __toku_dummy1[8];
+  u_int32_t flags; /* 32-bit offset=24 size=4, 64=bit offset=32 size=4 */
+  /* 4 more bytes of alignment in the 64-bit case. */
+};
 struct __toku_db {
   struct __toku_db_internal *i;
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
@@ -204,7 +213,9 @@ struct __toku_db {
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
-  void* __toku_dummy1[36];
+  DBT descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
+  int (*set_descriptor) (DB*, const DBT*) /* set row/dictionary descriptor for a db.  Available only while db is open */;
+  void* __toku_dummy1[34];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[5];
@@ -306,15 +317,6 @@ struct __toku_dbc {
   void* __toku_dummy2[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=260 size=4, 64=bit offset=416 size=8 */
   void* __toku_dummy3[10]; /* Padding at the end */ 
-};
-struct __toku_dbt {
-  void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
-  u_int32_t size; /* 32-bit offset=4 size=4, 64=bit offset=8 size=4 */
-  u_int32_t ulen; /* 32-bit offset=8 size=4, 64=bit offset=12 size=4 */
-  void* __toku_dummy0[1];
-  char __toku_dummy1[8];
-  u_int32_t flags; /* 32-bit offset=24 size=4, 64=bit offset=32 size=4 */
-  /* 4 more bytes of alignment in the 64-bit case. */
 };
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb

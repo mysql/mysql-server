@@ -10,7 +10,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        LSN m       __attribute__((__unused__)),
-       BOOL r      __attribute__((__unused__))
+       BOOL r      __attribute__((__unused__)),
+       BOOL c      __attribute__((__unused__))
        ) {
     /* Do nothing */
 }
@@ -34,12 +35,12 @@ test_cachetable_flush (int n) {
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __FILE__ "test1.dat";
-    unlink_file_and_bit(fname1);
+    unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     char fname2[] = __FILE__ "test2.dat";
-    unlink_file_and_bit(fname2);
+    unlink(fname2);
     CACHEFILE f2;
     r = toku_cachetable_openf(&f2, ct, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 

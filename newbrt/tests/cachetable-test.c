@@ -108,7 +108,8 @@ static void flush (CACHEFILE f,
 		   BOOL write_me __attribute__((__unused__)),
 		   BOOL keep_me __attribute__((__unused__)),
 		   LSN modified_lsn __attribute__((__unused__)),
-		   BOOL rename_p __attribute__((__unused__))) {
+		   BOOL rename_p __attribute__((__unused__)),
+		   BOOL for_checkpoint __attribute__((__unused__))) {
     struct item *it = value;
     int i;
 
@@ -173,7 +174,7 @@ static void test0 (void) {
 
     r=toku_create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
 
@@ -303,7 +304,8 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
 		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
-		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__ ((__unused__))) {
+		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__ ((__unused__)),
+		     BOOL for_checkpoint __attribute__ ((__unused__))) {
     int *v = value;
     assert(*v==0);
 }
@@ -327,7 +329,7 @@ static void test_nested_pin (void) {
     char fname[] = __FILE__ "test_ct.dat";
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     expect_f = f;
@@ -368,7 +370,8 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         BOOL write_me    __attribute__((__unused__)),
                         BOOL keep_me     __attribute__((__unused__)),
                         LSN modified_lsn __attribute__((__unused__)),
-                        BOOL rename_p    __attribute__((__unused__))) {
+                        BOOL rename_p    __attribute__((__unused__)),
+                        BOOL for_checkpoint __attribute__((__unused__))) {
 }
 
 static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
@@ -397,8 +400,8 @@ static void test_multi_filehandles (void) {
     char fname3[]= __FILE__ "test3_ct.dat";
     int r;
     void *v;
-    unlink_file_and_bit(fname1);
-    unlink_file_and_bit(fname2);
+    unlink(fname1);
+    unlink(fname2);
 
     r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);          assert(r==0);
     r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
@@ -443,7 +446,8 @@ static void test_dirty_flush(CACHEFILE f,
 			     BOOL do_write,
 			     BOOL keep,
 			     LSN modified_lsn __attribute__((__unused__)),
-			     BOOL rename_p __attribute__((__unused__))) {
+			     BOOL rename_p __attribute__((__unused__)),
+			     BOOL for_checkpoint __attribute__((__unused__))) {
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
 }
 
@@ -468,7 +472,7 @@ static void test_dirty() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
@@ -568,7 +572,8 @@ static void test_size_flush_callback(CACHEFILE f,
 				     BOOL do_write,
 				     BOOL keep,
 				     LSN modified_lsn __attribute__((__unused__)),
-				     BOOL rename_p __attribute__((__unused__))) {
+				     BOOL rename_p __attribute__((__unused__)),
+				     BOOL for_checkpoint __attribute__((__unused__))) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
     if (keep) {
         if (do_write) {
@@ -595,7 +600,7 @@ static void test_size_resize() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
@@ -650,7 +655,7 @@ static void test_size_flush() {
     assert(r == 0);
 
     char *fname = __FILE__ "test.dat";
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 

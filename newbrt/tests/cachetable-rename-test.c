@@ -45,7 +45,8 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
 		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
 		     LSN modified_lsn __attribute__((__unused__)),
-		     BOOL rename_p    __attribute__((__unused__))) {
+		     BOOL rename_p    __attribute__((__unused__)),
+		     BOOL for_checkpoint    __attribute__((__unused__))) {
     int i;
     //printf("Flush\n");
     if (keep_me) return;
@@ -88,7 +89,7 @@ static void test_rename (void) {
     test_mutex_init();
     const char fname[] = __FILE__ "rename.dat";
     r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink_file_and_bit(fname);
+    unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     for (i=0; i<TRIALLIMIT; i++) {

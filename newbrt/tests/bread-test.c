@@ -29,7 +29,7 @@ char wrotedata[RECORDS*RECORDLEN];
 static void
 test (int seed) {
     srandom(seed);
-    unlink_file_and_bit(FNAME);
+    unlink(FNAME);
     int i;
     {
         int fd = open(FNAME, O_CREAT+O_RDWR+O_BINARY, 0777);
@@ -69,7 +69,7 @@ test (int seed) {
 
     { int r=close_bread_without_closing_fd(br); assert(r==0); }
     { int r=close(fd); assert(r==0); }
-    unlink_file_and_bit(FNAME);
+    unlink(FNAME);
 }
 
 int

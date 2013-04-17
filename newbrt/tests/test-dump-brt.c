@@ -13,7 +13,7 @@ test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__u
     BRT t;
     CACHETABLE ct;
     FILE *f = fopen("test-dump-brt.out", "w");
-    unlink_file_and_bit(n);
+    unlink(n);
     assert(f);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
     r = toku_open_brt(n, 0, 1, &t, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
