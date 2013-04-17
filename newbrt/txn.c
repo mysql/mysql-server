@@ -80,7 +80,7 @@ setup_live_root_txn_list(TOKUTXN txn) {
         xidsp[i] = &xids[i];
     }
     r = toku_omt_iterate(global, fill_xids, xids);
-    invariant(r==0);
+    assert_zero(r);
     
     r = toku_omt_create_steal_sorted_array(&txn->live_root_txn_list, &xidsp, num, num);
     return r;
@@ -96,7 +96,7 @@ snapshot_txnids_note_txn(TOKUTXN txn) {
     TXNID *XMALLOC(xid);
     *xid = txn->txnid64;
     r = toku_omt_insert_at(txnids, xid, toku_omt_size(txnids));
-    invariant(r==0);
+    assert_zero(r);
     return r;
 }
 
@@ -128,7 +128,7 @@ live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), v
         pair->xid1 = *live_xid;
         pair->xid2 = txn->txnid64;
         r = toku_omt_insert_at(reverse, pair, idx);
-        invariant(r==0);
+        assert_zero(r);
     }
     return r;
 }
@@ -146,7 +146,7 @@ live_list_reverse_note_txn_start(TOKUTXN txn) {
     int r;
 
     r = toku_omt_iterate(txn->live_root_txn_list, live_list_reverse_note_txn_start_iter, txn);
-    invariant(r==0);
+    assert_zero(r);
     return r;
 }
 
@@ -246,12 +246,12 @@ int toku_txn_begin_with_xid (
             // is a child transaction that specifically asked for its own snapshot
             if (parent_tokutxn==NULL || snapshot_type == TXN_SNAPSHOT_CHILD) {
                 r = setup_live_root_txn_list(result);  
-                invariant(r==0);
+                assert_zero(r);
                 result->snapshot_txnid64 = result->txnid64;
                 r = snapshot_txnids_note_txn(result);
-                invariant(r==0);
+                assert_zero(r);
                 r = live_list_reverse_note_txn_start(result);
-                invariant(r==0);
+                assert_zero(r);
             }
             // in this case, it is a child transaction that specified its snapshot to be that 
             // of the root transaction
@@ -270,6 +270,7 @@ int toku_txn_begin_with_xid (
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
     result->state = TOKUTXN_LIVE;
+    result->do_fsync = FALSE;
 
     // 2954
     r = toku_txn_ignore_init(result);
@@ -297,7 +298,7 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
     for (i = 0; i < info->num_brts; i++) {
         BRT brt = info->open_brts[i];
         int r = toku_txn_note_brt(txn, brt);
-        assert(r==0);
+        assert_zero(r);
     }
     COPY_FROM_INFO(force_fsync_on_commit );
     COPY_FROM_INFO(num_rollback_nodes);
@@ -329,7 +330,6 @@ int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
 struct xcommit_info {
     int r;
     TOKUTXN txn;
-    int do_fsync;
 };
 
 //Called during a yield (ydb lock NOT held).
@@ -360,12 +360,12 @@ local_checkpoints_and_log_xcommit(void *thunk) {
         CACHETABLE ct = toku_cachefile_get_cachetable(cachefiles[0]);
 
         int r = toku_cachetable_local_checkpoint_for_commit(ct, txn, num_cachefiles, cachefiles);
-        assert(r==0);
+        assert_zero(r);
         toku_free(cachefiles);
         toku_poll_txn_progress_function(txn, TRUE, FALSE);
     }
 
-    info->r = toku_log_xcommit(txn->logger, (LSN*)0, info->do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
+    info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
@@ -377,8 +377,9 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     int r;
     // panic handled in log_commit
 
-    //Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
-    int do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
+    // Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
+    // the do_sync state is captured in the txn for txn_close_txn later
+    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
@@ -387,7 +388,6 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
         struct xcommit_info info = {
             .r = 0,
             .txn = txn,
-            .do_fsync = do_fsync
         };
         yield(local_checkpoints_and_log_xcommit, &info, yieldv);
         r = info.r;
@@ -419,7 +419,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
     int r=0;
-    r = toku_log_xabort(txn->logger, (LSN*)0, 0, txn->txnid64);
+    r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
     if (r!=0) 
         return r;
     r = toku_rollback_abort(txn, yield, yieldv, oplsn);
@@ -428,10 +428,18 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 }
 
 void toku_txn_close_txn(TOKUTXN txn) {
-    TOKULOGGER logger = txn->logger;    
-    toku_rollback_txn_close(txn);
-    if (garbage_collection_debug) {
+    TOKULOGGER logger = txn->logger; // capture these for the fsync after the txn is deleted
+    bool do_fsync = txn->do_fsync;
+    LSN lsn = txn->do_fsync_lsn;
+
+    toku_rollback_txn_close(txn); 
+    txn = NULL; // txn is no longer valid
+
+    if (garbage_collection_debug)
         verify_snapshot_system(logger);
+    if (do_fsync) { // #3590
+        int r = toku_logger_fsync_if_lsn_not_fsynced(logger, lsn);
+        assert_zero(r);
     }
     status.close++;
     return;
@@ -464,7 +472,7 @@ TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
     OMTVALUE v;
     int r;
     r = toku_omt_fetch(omt, 0, &v, NULL);
-    invariant(r==0);
+    assert_zero(r);
     TXNID *xidp = v;
     return *xidp;
 }
@@ -512,19 +520,19 @@ verify_snapshot_system(TOKULOGGER logger) {
     for (i = 0; i < num_snapshot_txnids; i++) {
         OMTVALUE v;
         r = toku_omt_fetch(logger->snapshot_txnids, i, &v, NULL);
-        invariant(r==0);
+        assert_zero(r);
         snapshot_txnids[i] = *(TXNID*)v;
     }
     for (i = 0; i < num_live_txns; i++) {
         OMTVALUE v;
         r = toku_omt_fetch(logger->live_txns, i, &v, NULL);
-        invariant(r==0);
+        assert_zero(r);
         live_txns[i] = v;
     }
     for (i = 0; i < num_live_list_reverse; i++) {
         OMTVALUE v;
         r = toku_omt_fetch(logger->live_list_reverse, i, &v, NULL);
-        invariant(r==0);
+        assert_zero(r);
         live_list_reverse[i] = v;
     }
 
@@ -535,14 +543,14 @@ verify_snapshot_system(TOKULOGGER logger) {
             invariant(is_txnid_live(logger, snapshot_xid));
             TOKUTXN snapshot_txn;
             r = toku_txnid2txn(logger, snapshot_xid, &snapshot_txn);
-            invariant(r==0);
+            assert_zero(r);
             int   num_live_root_txn_list = toku_omt_size(snapshot_txn->live_root_txn_list);
             TXNID     live_root_txn_list[num_live_root_txn_list];
             {
                 for (j = 0; j < num_live_root_txn_list; j++) {
                     OMTVALUE v;
                     r = toku_omt_fetch(snapshot_txn->live_root_txn_list, j, &v, NULL);
-                    invariant(r==0);
+                    assert_zero(r);
                     live_root_txn_list[j] = *(TXNID*)v;
                 }
             }
@@ -571,7 +579,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 r = toku_omt_find_zero(logger->snapshot_txnids,
                                        toku_find_xid_by_xid,
                                        &pair->xid2, &v2, &index, NULL);
-                invariant(r==0);
+                assert_zero(r);
             }
             for (j = 0; j < num_live_txns; j++) {
                 TOKUTXN txn = live_txns[j];
