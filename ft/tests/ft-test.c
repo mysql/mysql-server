@@ -829,7 +829,7 @@ static void test_new_ft_cursor_first(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_nodesize(t, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(t, 4096);
     r = toku_ft_handle_open(t, fname, 1, 1, ct, null_txn); assert(r==0);
 
     DBT key, val;
@@ -881,7 +881,7 @@ static void test_new_ft_cursor_last(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_nodesize(t, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(t, 4096);
     r = toku_ft_handle_open(t, fname, 1, 1, ct, null_txn); assert(r==0);
 
     DBT key, val;
@@ -934,7 +934,7 @@ static void test_new_ft_cursor_next(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_nodesize(t, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(t, 4096);
     r = toku_ft_handle_open(t, fname, 1, 1, ct, null_txn); assert(r==0);
 
     for (i=0; i<n; i++) {
@@ -977,7 +977,7 @@ static void test_new_ft_cursor_prev(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_nodesize(t, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(t, 4096);
     r = toku_ft_handle_open(t, fname, 1, 1, ct, null_txn); assert(r==0);
 
     for (i=0; i<n; i++) {
@@ -1020,7 +1020,7 @@ static void test_new_ft_cursor_current(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_nodesize(t, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(t, 4096);
     r = toku_ft_handle_open(t, fname, 1, 1, ct, null_txn); assert(r==0);
 
     for (i=0; i<n; i++) {
@@ -1102,7 +1102,7 @@ static void test_new_ft_cursor_set_range(int n) {
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_ft_handle_create(&brt); assert(r == 0);
-    r = toku_ft_set_nodesize(brt, 4096); assert(r == 0);
+    toku_ft_handle_set_nodesize(brt, 4096);
     r = toku_ft_handle_open(brt, fname, 1, 1, ct, null_txn); assert(r==0);
 
     int i;

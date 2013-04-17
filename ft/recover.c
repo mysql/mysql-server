@@ -276,18 +276,15 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     assert(r == 0);
 
     if (nodesize != 0) {
-        r = toku_ft_set_nodesize(brt, nodesize);
-        assert(r == 0);
+        toku_ft_handle_set_nodesize(brt, nodesize);
     }
 
     if (basementnodesize != 0) {
-        r = toku_ft_set_basementnodesize(brt, basementnodesize);
-        assert(r == 0);
+        toku_ft_handle_set_basementnodesize(brt, basementnodesize);
     }
 
     if (compression_method != TOKU_DEFAULT_COMPRESSION_METHOD) {
-        r = toku_ft_set_compression_method(brt, compression_method);
-        assert(r == 0);
+        toku_ft_handle_set_compression_method(brt, compression_method);
     }
 
     // set the key compare functions

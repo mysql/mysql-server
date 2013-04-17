@@ -2988,9 +2988,9 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *ft_handle_
     r = toku_ft_handle_create(&brt);
     if (r != 0)
         return r;
-    r = toku_ft_set_nodesize(brt, nodesize); assert_zero(r);
-    r = toku_ft_set_basementnodesize(brt, basementnodesize); assert_zero(r);
-    r = toku_ft_set_compression_method(brt, compression_method); assert_zero(r);
+    toku_ft_handle_set_nodesize(brt, nodesize);
+    toku_ft_handle_set_basementnodesize(brt, basementnodesize);
+    toku_ft_handle_set_compression_method(brt, compression_method);
     r = toku_ft_set_bt_compare(brt, compare_fun); assert_zero(r);
 
     r = toku_ft_handle_open(brt, fname, is_create, only_create, cachetable, txn);
@@ -3042,18 +3042,26 @@ static int ft_open_file(const char *fname, int *fdp) {
     return 0;
 }
 
-int
-toku_ft_set_compression_method(FT_HANDLE t, enum toku_compression_method method)
+void
+toku_ft_handle_set_compression_method(FT_HANDLE t, enum toku_compression_method method)
 {
-    t->options.compression_method = method;
-    return 0;
+    if (t->ft) {
+        toku_ft_set_compression_method(t->ft, method);
+    }
+    else {
+        t->options.compression_method = method;
+    }
 }
 
-int
-toku_ft_get_compression_method(FT_HANDLE t, enum toku_compression_method *methodp)
+void
+toku_ft_handle_get_compression_method(FT_HANDLE t, enum toku_compression_method *methodp)
 {
-    *methodp = t->options.compression_method;
-    return 0;
+    if (t->ft) {
+        toku_ft_get_compression_method(t->ft, methodp);
+    }
+    else {
+        *methodp = t->options.compression_method;
+    }
 }
 
 static int
@@ -3389,17 +3397,6 @@ int toku_ft_get_flags(FT_HANDLE brt, unsigned int *flags) {
     return 0;
 }
 
-
-int toku_ft_set_nodesize(FT_HANDLE brt, unsigned int nodesize) {
-    brt->options.nodesize = nodesize;
-    return 0;
-}
-
-int toku_ft_get_nodesize(FT_HANDLE brt, unsigned int *nodesize) {
-    *nodesize = brt->options.nodesize;
-    return 0;
-}
-
 void toku_ft_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, unsigned int *max_val_len)
 // return the maximum advisable key value lengths.  The brt doesn't enforce these.
 {
@@ -3407,14 +3404,41 @@ void toku_ft_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, u
     *max_val_len = 32*1024*1024;
 }
 
-int toku_ft_set_basementnodesize(FT_HANDLE brt, unsigned int basementnodesize) {
-    brt->options.basementnodesize = basementnodesize;
-    return 0;
+
+void toku_ft_handle_set_nodesize(FT_HANDLE ft_handle, unsigned int nodesize) {
+    if (ft_handle->ft) {
+        toku_ft_set_nodesize(ft_handle->ft, nodesize);
+    }
+    else {
+        ft_handle->options.nodesize = nodesize;
+    }
 }
 
-int toku_ft_get_basementnodesize(FT_HANDLE brt, unsigned int *basementnodesize) {
-    *basementnodesize = brt->options.basementnodesize;
-    return 0;
+void toku_ft_handle_get_nodesize(FT_HANDLE ft_handle, unsigned int *nodesize) {
+    if (ft_handle->ft) {
+        toku_ft_get_nodesize(ft_handle->ft, nodesize);
+    }
+    else {
+        *nodesize = ft_handle->options.nodesize;
+    }
+}
+
+void toku_ft_handle_set_basementnodesize(FT_HANDLE ft_handle, unsigned int basementnodesize) {
+    if (ft_handle->ft) {
+        toku_ft_set_basementnodesize(ft_handle->ft, basementnodesize);
+    }
+    else {
+        ft_handle->options.basementnodesize = basementnodesize;
+    }
+}
+
+void toku_ft_handle_get_basementnodesize(FT_HANDLE ft_handle, unsigned int *basementnodesize) {
+    if (ft_handle->ft) {
+        toku_ft_get_basementnodesize(ft_handle->ft, basementnodesize);
+    }
+    else {
+        *basementnodesize = ft_handle->options.basementnodesize;
+    }
 }
 
 int toku_ft_set_bt_compare(FT_HANDLE brt, int (*bt_compare)(DB*, const DBT*, const DBT*)) {

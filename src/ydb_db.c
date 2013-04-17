@@ -543,45 +543,72 @@ toku_db_get_flags(DB *db, u_int32_t *pflags) {
 }
 
 static int 
+toku_db_change_pagesize(DB *db, u_int32_t pagesize) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    toku_ft_handle_set_nodesize(db->i->ft_handle, pagesize);
+    return 0;
+}
+
+static int 
 toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_set_nodesize(db->i->ft_handle, pagesize);
-    return r;
+    if (db_opened(db)) return EINVAL;
+    toku_ft_handle_set_nodesize(db->i->ft_handle, pagesize);
+    return 0;
 }
 
 static int 
 toku_db_get_pagesize(DB *db, u_int32_t *pagesize_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_get_nodesize(db->i->ft_handle, pagesize_ptr);
-    return r;
+    toku_ft_handle_get_nodesize(db->i->ft_handle, pagesize_ptr);
+    return 0;
+}
+
+static int 
+toku_db_change_readpagesize(DB *db, u_int32_t readpagesize) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    toku_ft_handle_set_basementnodesize(db->i->ft_handle, readpagesize);
+    return 0;
 }
 
 static int 
 toku_db_set_readpagesize(DB *db, u_int32_t readpagesize) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_set_basementnodesize(db->i->ft_handle, readpagesize);
-    return r;
+    if (db_opened(db)) return EINVAL;
+    toku_ft_handle_set_basementnodesize(db->i->ft_handle, readpagesize);
+    return 0;
 }
 
 static int 
 toku_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_get_basementnodesize(db->i->ft_handle, readpagesize_ptr);
-    return r;
+    toku_ft_handle_get_basementnodesize(db->i->ft_handle, readpagesize_ptr);
+    return 0;
+}
+
+static int 
+toku_db_change_compression_method(DB *db, enum toku_compression_method compression_method) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    toku_ft_handle_set_compression_method(db->i->ft_handle, compression_method);
+    return 0;
 }
 
 static int 
 toku_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_set_compression_method(db->i->ft_handle, compression_method);
-    return r;
+    if (db_opened(db)) return EINVAL;
+    toku_ft_handle_set_compression_method(db->i->ft_handle, compression_method);
+    return 0;
 }
 
 static int 
 toku_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_get_compression_method(db->i->ft_handle, compression_method_ptr);
-    return r;
+    toku_ft_handle_get_compression_method(db->i->ft_handle, compression_method_ptr);
+    return 0;
 }
 
 static int 
@@ -866,10 +893,13 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     USDB(set_errfile);
     USDB(set_pagesize);
     USDB(get_pagesize);
+    USDB(change_pagesize);
     USDB(set_readpagesize);
     USDB(get_readpagesize);
+    USDB(change_readpagesize);
     USDB(set_compression_method);
     USDB(get_compression_method);
+    USDB(change_compression_method);
     USDB(set_flags);
     USDB(get_flags);
     USDB(fd);

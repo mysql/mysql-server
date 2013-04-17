@@ -374,9 +374,11 @@ struct ft_header {
     BLOCKNUM root_blocknum;
 
     const unsigned int flags;
-    const unsigned int nodesize;
-    const unsigned int basementnodesize;
-    const enum toku_compression_method compression_method;
+
+    //protected by toku_ft_lock
+    unsigned int nodesize; 
+    unsigned int basementnodesize;
+    enum toku_compression_method compression_method;
 
     // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
     // This is decremented from our currnt MIN_MSN so as not to clash
