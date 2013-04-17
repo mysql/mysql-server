@@ -97,6 +97,7 @@ typedef ulonglong HA_METADATA_KEY;
 #define hatoku_capabilities 1
 #define hatoku_max_ai 2 //maximum auto increment value found so far
 #define hatoku_ai_create_value 3
+#define hatoku_key_name 4
 
 typedef struct st_filter_key_part_info {
     uint offset;
@@ -258,14 +259,19 @@ private:
     int handle_cursor_error(int error, int err_to_return, uint keynr);
     DBT *get_pos(DBT * to, uchar * pos);
  
-    int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
+    int open_main_dictionary(const char* name, int mode, DB_TXN* txn);
+    int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type, DB_TXN* txn);
+    int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows);
     bool has_auto_increment_flag(uint* index);
-    int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size );
-    int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size );
+    int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn );
+    int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn );
+    int remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* transaction);
     int update_max_auto_inc(DB* db, ulonglong val);
-    int write_auto_inc_create(DB* db, ulonglong val);
+    int remove_key_name_from_status(DB* status_block, char* key_name, DB_TXN* txn);
+    int write_key_name_to_status(DB* status_block, char* key_name, DB_TXN* txn);
+    int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
     int initialize_share(
         const char* name,
@@ -276,7 +282,12 @@ private:
     int prelock_range ( const key_range *start_key, const key_range *end_key);
     int create_txn(THD* thd, tokudb_trx_data* trx);
     bool may_table_be_empty();
-
+    int delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete);
+    int delete_or_rename_dictionary( const char* from_name, const char* to_name, char* index_name, bool is_key, DB_TXN* txn, bool is_delete);
+    int truncate_dictionary( uint keynr, DB_TXN* txn );
+    int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn);
+    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn);
+    void trace_create_table_info(const char *name, TABLE * form);
 
  
 public:

@@ -31,7 +31,7 @@ extern "C" {
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
 
-#define TOKU_METADB_NAME ".\\tokudb_meta.tokudb"
+#define TOKU_METADB_NAME "tokudb_meta"
 
 static inline void *thd_data_get(THD *thd, int slot) {
     return thd->ha_data[slot].ha_ptr;
@@ -300,12 +300,17 @@ static int tokudb_init_func(void *p) {
 
     r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
     if (r) {
-        sql_print_error("No metadata table exists, so creating it");
+        if (r != ENOENT) {
+            sql_print_error("Got error %d when trying to open metadata_db", r);
+            goto error;
+        }
+        sql_print_warning("No metadata table exists, so creating it");
         r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
         if (r) {
             goto error;
         }
-        metadata_db->close(metadata_db,0);
+        r = metadata_db->close(metadata_db,0);
+        assert(r == 0);
         r = db_create(&metadata_db, db_env, 0);
         if (r) {
             DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
@@ -435,13 +440,14 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     u_int32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    int error = 0;
     if (*txn) {
-        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("commit:%d:%p\n", all, *txn);
-        error = (*txn)->commit(*txn, syncflag);
-        if (*txn == trx->sp_level)
+        }
+        commit_txn(*txn, syncflag);
+        if (*txn == trx->sp_level) {
             trx->sp_level = 0;
+        }
         *txn = 0;
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
@@ -451,7 +457,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         trx->iso_level = hatoku_iso_not_set;
     }
     reset_stmt_progress(&trx->stmt_progress);
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_DBUG_RETURN(0);
 }
 
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
@@ -459,14 +465,15 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    int error = 0;
     if (*txn) {
-        if (tokudb_debug & TOKUDB_DEBUG_TXN)
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("rollback:%p\n", *txn);
-        error = (*txn)->abort(*txn);
-    if (*txn == trx->sp_level)
-        trx->sp_level = 0;
-    *txn = 0;
+        }
+        abort_txn(*txn);
+        if (*txn == trx->sp_level) {
+            trx->sp_level = 0;
+        }
+        *txn = 0;
     } 
     else {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
@@ -477,7 +484,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         trx->iso_level = hatoku_iso_not_set;
     }
     reset_stmt_progress(&trx->stmt_progress);
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_DBUG_RETURN(0);
 }
 
 #if 0
@@ -570,8 +577,6 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
         if (!error) {
             char* name = (char *)curr_key.data;
             char* newname = NULL;
-            char name_buff[FN_REFLEN];
-            char* fn_ret = NULL;
             u_int64_t curr_num_bytes = 0;
             DB_BTREE_STAT64 dict_stats;
 
@@ -585,12 +590,11 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
             }
 
             make_name(newname, name, "main");
-            fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);            
 
             error = db_create(&curr_db, db_env, 0);
             if (error) { goto cleanup; }
             
-            error = curr_db->open(curr_db, 0, name_buff, NULL, DB_BTREE, DB_THREAD, 0);
+            error = curr_db->open(curr_db, 0, newname, NULL, DB_BTREE, DB_THREAD, 0);
             if (error == ENOENT) { error = 0; continue; }
             if (error) { goto cleanup; }
 
@@ -678,7 +682,7 @@ cleanup:
         tmp_table_cursor->c_close(tmp_table_cursor);
     }
     if (txn) {
-        txn->commit(txn, 0);
+        commit_txn(txn, 0);
     }
     if (error) {
         sql_print_error("got an error %d in show_data_size\n", error);
@@ -763,8 +767,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("logger lock", lockstat);
       STATPRINT("logger lock counter", buf);
 
-      lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
+      //lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      //lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
       sprintf(buf, "%" PRIu32, lockctr);  
       STATPRINT("cachetable lock", lockstat);
       STATPRINT("cachetable lock counter", buf);
