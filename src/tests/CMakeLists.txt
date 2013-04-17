@@ -351,9 +351,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     # libtokudb.so.
     # We link the test with util directly so that the test code itself can use
     # some of those things (i.e. kibbutz in the threaded tests).
-    # We link the locktree so that threaded stress tests can call some
-    # functions (ie: lock escalation) directly. 
-    target_link_libraries(${base}.tdb util locktree ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${base}.tdb util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
@@ -388,7 +386,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
   function(add_custom_executable prefix binary source)
     add_executable(${prefix}_${binary} ${source})
-    target_link_libraries(${prefix}_${binary} util locktree ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${prefix}_${binary} util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_target_properties(${prefix}_${binary} PROPERTIES
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
@@ -489,6 +487,13 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif()
   endforeach(src)
 
+  # We link the locktree so that stress test 0 can call some
+  # functions (ie: lock escalation) directly.
+  target_link_libraries(test_stress0.tdb locktree)
+  target_link_libraries(tiny_test_stress0.tdb locktree)
+  target_link_libraries(mid_test_stress0.tdb locktree)
+  target_link_libraries(large_test_stress0.tdb locktree)
+
   # Run test_stress0 with a special size
   add_test(ydb/test_stress0.tdb ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:test_stress0.tdb> 512 1000 600)
 
@@ -504,6 +509,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
           if (NOT (${base} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
             foreach(size 2000)
               add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${base})
+              if (src MATCHES stress0)
+                target_link_libraries(upgrade_${oldver}_${p_or_s}_${size}_${test} locktree)
+              endif ()
               add_test(
                 NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
                 COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${base}.tdb ${size} 600 7200)
