@@ -216,6 +216,8 @@ int toku_graceful_delete(const char *db_fname);
 void toku_graceful_lock_init(void);
 void toku_graceful_lock_destroy(void);
 
+#define TOKU_CACHETABLE_DO_EVICT_FROM_WRITER 0
 
+void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
 #endif

@@ -1688,7 +1688,7 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
         BLOCKNUM childblocknum  = BNC_BLOCKNUM(node, childnum); 
         u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
-        void *child_v;
+        void *child_v = NULL;
         int r = toku_cachetable_maybe_get_and_pin(t->cf, childblocknum, childfullhash, &child_v);
         if (r!=0) {
             // It's not in main memory, so

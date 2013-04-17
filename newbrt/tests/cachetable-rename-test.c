@@ -26,6 +26,12 @@ static inline void test_mutex_unlock() {
     int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 
+static void maybe_flush(CACHETABLE t) {
+#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
+    toku_cachetable_maybe_flush_some(t);
+#endif
+}
+
 enum { KEYLIMIT = 4, TRIALLIMIT=256000 };
 static CACHEKEY  keys[KEYLIMIT];
 static void*     vals[KEYLIMIT];
@@ -100,7 +106,7 @@ static void test_rename (void) {
             test_mutex_lock();
             while (n_keys >= KEYLIMIT) {
                 test_mutex_unlock();
-                toku_pthread_yield();
+                toku_pthread_yield(); maybe_flush(t);
                 test_mutex_lock();
             }
 	    assert(n_keys<KEYLIMIT);

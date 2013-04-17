@@ -26,6 +26,12 @@ static inline void test_mutex_unlock() {
     int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 
+static void maybe_flush(CACHETABLE t) {
+#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
+    toku_cachetable_maybe_flush_some(t);
+#endif
+}
+
 static const int test_object_size = 1;
 
 static CACHETABLE ct;
@@ -47,10 +53,10 @@ static void print_ints(void) {
     printf("}\n");
 }
 
-static void item_becomes_present(CACHEFILE cf, CACHEKEY key) {
+static void item_becomes_present(CACHETABLE thect, CACHEFILE cf, CACHEKEY key) {
     test_mutex_lock();
     while (n_present >= N_PRESENT_LIMIT) {
-        test_mutex_unlock(); toku_pthread_yield(); test_mutex_lock();
+        test_mutex_unlock(); toku_pthread_yield(); maybe_flush(thect); test_mutex_lock();
     }
     assert(n_present<N_PRESENT_LIMIT);
     present_items[n_present].cf     = cf;
@@ -159,7 +165,7 @@ static void test_chaining (void) {
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
 	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
 	assert(r==0);
-	item_becomes_present(f[fnum], make_blocknum(i));
+	item_becomes_present(ct, f[fnum], make_blocknum(i));
 	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
 	assert(r==0);
 	//print_ints();
@@ -204,7 +210,7 @@ static void test_chaining (void) {
 	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
-            item_becomes_present(f[fnum], make_blocknum(i));
+            item_becomes_present(ct, f[fnum], make_blocknum(i));
             //print_ints();
             //cachetable_print_state(ct);
         }
