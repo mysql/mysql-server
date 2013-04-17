@@ -89,6 +89,12 @@ add_subdirectory(db-benchmark-test)
 ## subdirectories that just install things
 add_subdirectory(include)
 add_subdirectory(toku_include)
+add_subdirectory(examples)
+
+install(
+  FILES README
+  DESTINATION .
+  )
 
 file(GLOB_RECURSE all_srcs
   include/*.c
