@@ -125,7 +125,7 @@ static PAIR_ATTR const zero_attr = {
     .cache_pressure_size = 0
 };
 
-static int maybe_flush_some (CACHETABLE ct, long size);
+static void maybe_flush_some (CACHETABLE ct, long size);
 
 static inline void
 ctpair_add_ref(PAIR p) {
@@ -442,13 +442,7 @@ u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_wait_write(ct);
     uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
     ct->size_reserved += reserved_memory;
-    {
-	int r = maybe_flush_some(ct, reserved_memory);
-	if (r) {
-	    cachetable_unlock(ct);
-	    return r;
-	}
-    }
+    maybe_flush_some(ct, reserved_memory);    
     ct->size_current += reserved_memory;
     cachetable_unlock(ct);
     return reserved_memory;
@@ -1530,8 +1524,7 @@ static void cachetable_partial_eviction(WORKITEM wi) {
 // we are absolutely sure that we will successfully grab it without
 // releasing the cachetable lock
 //
-static int maybe_flush_some (CACHETABLE ct, long size) {
-    int r = 0;
+static void maybe_flush_some (CACHETABLE ct, long size) {
 
     //
     // These variables will help us detect if everything in the clock is currently being accessed.
@@ -1553,7 +1546,6 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
                 // we have identified a cycle where everything in the clock is in use
                 // do not return an error
                 // just let memory be overfull
-                r = 0;
                 goto exit;
             }
             else {
@@ -1629,7 +1621,7 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
         cachetable_rehash(ct, ct->table_size/2);
     }
 exit:
-    return r;
+    return;
 }
 
 void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
@@ -1741,10 +1733,7 @@ static int cachetable_put_internal(
             }
         }
     }
-    int r;
-    if ((r=maybe_flush_some(ct, attr.size))) {
-        return r;
-    }
+    maybe_flush_some(ct, attr.size);
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
     PAIR p = cachetable_insert_at(
@@ -2182,7 +2171,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
 	}
     }
     note_hash_count(count);
-    int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     // The pair was not found, we must retrieve it from disk 
     {
@@ -2260,10 +2248,10 @@ got_value:
 	END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
     }
 
-    r = maybe_flush_some(ct, 0);
+    maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
-    return r;
+    return 0;
 }
 
 // Lookup a key in the cachetable.  If it is found and it is not being written, then
@@ -2361,10 +2349,7 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
                 if (flush) {
-                    if ((r=maybe_flush_some(ct, 0))) {
-                        cachetable_unlock(ct);
-                        return r;
-                    }
+                    maybe_flush_some(ct, 0);
                 }
 	    }
             r = 0; // we found one
