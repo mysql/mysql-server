@@ -67,6 +67,7 @@ run_recover(void) {
     CHK(db_env_create(&env, 0));
     env->set_errfile(env, stderr);
     CHK(env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
+    CHK(env->close(env, 0));
 }
 
 int
