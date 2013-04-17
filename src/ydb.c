@@ -4815,7 +4815,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                     DB* zombie = env_get_zombie_db_with_dname(env, dname);
                     if (zombie)
                         r = toku_db_pre_acquire_table_lock(zombie, child, TRUE);
-                    if (r!=0)
+                    if (r!=0 && r!=DB_LOCK_NOTGRANTED)
                         toku_ydb_do_error(env, r, "Cannot remove dictionary.\n");
                 }
             }
