@@ -1311,11 +1311,24 @@ brtleaf_get_split_loc(
             curr_le = v;
             assert_zero(r);
             size_so_far += leafentry_disksize(curr_le);
-            if (size_so_far >= sumlesizes/2 ||
-                (i == node->n_children - 1 &&
-                 j == n_leafentries - 2)) {
+            if (size_so_far >= sumlesizes/2) {
                 *bn_index = i;
                 *le_index = j;
+                if ((*bn_index == node->n_children - 1) &&
+                    ((unsigned int) *le_index == n_leafentries - 1)) {
+                    // need to correct for when we're splitting after the
+                    // last element, that makes no sense
+                    if (*le_index > 0) {
+                        (*le_index)--;
+                    } else if (*bn_index > 0) {
+                        (*bn_index)--;
+                        *le_index = toku_omt_size(BLB_BUFFER(node, *bn_index)) - 1;
+                    } else {
+                        // we are trying to split a leaf with only one
+                        // leafentry in it
+                        assert(FALSE);
+                    }
+                }
                 goto exit;
             }
         }
