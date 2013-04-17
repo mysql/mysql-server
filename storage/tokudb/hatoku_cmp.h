@@ -82,23 +82,45 @@ inline ulonglong hpk_char_to_num(uchar* val) {
     return uint8korr(val);
 }
 
+
+
+inline int tokudb_compare_two_hidden_keys(
+    const void* new_key_data, 
+    const u_int32_t new_key_size, 
+    const void*  saved_key_data,
+    const u_int32_t saved_key_size
+    );
+
 int tokudb_compare_two_keys(
+    KEY *key, 
     const void* new_key_data, 
     const u_int32_t new_key_size, 
     const void*  saved_key_data,
     const u_int32_t saved_key_size,
-    const void*  row_desc,
-    const u_int32_t row_desc_size,
     bool cmp_prefix
     );
 
+int tokudb_cmp_hidden_key(
+    DB* file, 
+    const DBT* new_key, 
+    const DBT* saved_key
+    );
 
-int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
-int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb);
+int tokudb_compare_two_clustered_keys(
+    KEY *key, 
+    KEY* primary_key, 
+    const DBT * new_key, 
+    const DBT * saved_key
+    );
 
+
+int tokudb_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb);
+
+int tokudb_cmp_primary_key(DB *file, const DBT *keya, const DBT *keyb);
+    
 //TODO: QQQ Only do one direction for prefix.
-int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
+int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb);
 
 int create_toku_key_descriptor(KEY* key, uchar* buf);
 

@@ -581,51 +581,6 @@ inline int cmp_toku_varstring(
     return ret_val;
 }
 
-inline int tokudb_compare_two_hidden_keys(
-    const void* new_key_data, 
-    const u_int32_t new_key_size, 
-    const void*  saved_key_data,
-    const u_int32_t saved_key_size
-    ) {
-    assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
-    ulonglong a = hpk_char_to_num((uchar *) new_key_data);
-    ulonglong b = hpk_char_to_num((uchar *) saved_key_data);
-    return a < b ? -1 : (a > b ? 1 : 0);
-}
-
-//
-// returns number of bytes to jump over
-//
-u_int32_t skip_field_in_descriptor(uchar* row_desc) {
-    uchar* row_desc_pos = row_desc;
-    TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
-    row_desc_pos++;
-    
-    switch (toku_type) {
-    case (toku_type_hpk):
-    case (toku_type_double):
-    case (toku_type_float):
-        break;
-    case (toku_type_int):
-        row_desc_pos += 2;
-        break;
-    case (toku_type_fixbinary):
-    case (toku_type_varbinary):
-        row_desc_pos++;
-        break;
-    case (toku_type_fixstring):
-    case (toku_type_varstring):
-    case (toku_type_blob):
-        row_desc_pos++;
-        row_desc_pos += sizeof(u_int32_t);
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    return (u_int32_t)(row_desc_pos - row_desc);
-}
-    
 inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -641,6 +596,7 @@ inline int compare_toku_field(
     u_int32_t length_bytes = 0;
     u_int32_t charset_num = 0;
     bool is_unsigned = false;
+
 
     TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
     row_desc_pos++;
@@ -724,6 +680,90 @@ inline int compare_toku_field(
     *row_desc_bytes_read = row_desc_pos - row_desc;
     return ret_val;
 }
+
+inline int compare_toku_field(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    Field* field,
+    u_int32_t key_part_length, //I really hope this is temporary as I phase out the pack_cmp stuff
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) {
+    int ret_val = 0;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field);
+    u_int32_t num_bytes = 0;
+    switch(toku_type) {
+    case (toku_type_int):
+        ret_val = cmp_toku_int(
+            a_buf, 
+            b_buf, 
+            field->flags & UNSIGNED_FLAG, 
+            field->pack_length()
+            );
+        *a_bytes_read = field->pack_length();
+        *b_bytes_read = field->pack_length();
+        goto exit;
+    case (toku_type_double):
+        assert(field->pack_length() == sizeof(double));
+        assert(key_part_length == sizeof(double));
+        ret_val = cmp_toku_double(a_buf, b_buf);
+        *a_bytes_read = sizeof(double);
+        *b_bytes_read = sizeof(double);
+        goto exit;
+    case (toku_type_float):
+        assert(field->pack_length() == sizeof(float));
+        assert(key_part_length == sizeof(float));
+        ret_val = cmp_toku_float(a_buf, b_buf);
+        *a_bytes_read = sizeof(float);
+        *b_bytes_read = sizeof(float);
+        goto exit;
+    case (toku_type_fixbinary):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        ret_val = cmp_toku_binary(a_buf, num_bytes, b_buf,num_bytes);
+        *a_bytes_read = num_bytes;
+        *b_bytes_read = num_bytes;
+        goto exit;
+    case (toku_type_fixstring):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        ret_val = cmp_toku_varstring(
+            a_buf, 
+            b_buf, 
+            get_length_bytes_from_max(num_bytes), 
+            field->charset()->number, 
+            a_bytes_read,
+            b_bytes_read
+            );
+        goto exit;
+    case (toku_type_varbinary):
+        ret_val = cmp_toku_varbinary(
+            a_buf,
+            b_buf,
+            get_length_bytes_from_max(key_part_length),
+            a_bytes_read,
+            b_bytes_read
+            );
+        goto exit;
+    case (toku_type_varstring):
+    case (toku_type_blob):
+        ret_val = cmp_toku_varstring(
+            a_buf,
+            b_buf,
+            get_length_bytes_from_max(key_part_length),
+            field->charset()->number,
+            a_bytes_read,
+            b_bytes_read
+            );
+        goto exit;
+    default:
+        assert(false);
+    }
+    assert(false);
+exit:
+    return ret_val;
+}
+
 
 //
 // at the moment, this returns new position in buffer
@@ -937,160 +977,256 @@ exit:
 }
 
 
+inline int tokudb_compare_two_hidden_keys(
+    const void* new_key_data, 
+    const u_int32_t new_key_size, 
+    const void*  saved_key_data,
+    const u_int32_t saved_key_size
+    ) {
+    assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
+    ulonglong a = hpk_char_to_num((uchar *) new_key_data);
+    ulonglong b = hpk_char_to_num((uchar *) saved_key_data);
+    return a < b ? -1 : (a > b ? 1 : 0);
+}
+
+int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * saved_key) {
+    return tokudb_compare_two_hidden_keys(
+        new_key->data, 
+        new_key->size,
+        saved_key->data,
+        saved_key->size
+        );
+}
+
 int tokudb_compare_two_keys(
+    KEY *key, 
     const void* new_key_data, 
     const u_int32_t new_key_size, 
     const void*  saved_key_data,
     const u_int32_t saved_key_size,
-    const void*  row_desc,
-    const u_int32_t row_desc_size,
     bool cmp_prefix
-    )
-{
-    int ret_val = 0;
-    uchar new_key_inf_val = COL_NEG_INF;
-    uchar saved_key_inf_val = COL_NEG_INF;
-    
-    uchar* row_desc_ptr = (uchar *)row_desc;
-    uchar *new_key_ptr = (uchar *)new_key_data;
-    uchar *saved_key_ptr = (uchar *)saved_key_data;
-
-    u_int32_t new_key_bytes_left = new_key_size;
-    u_int32_t saved_key_bytes_left = saved_key_size;
-
+    ) {
+    uchar new_key_inf_val = *(uchar *) new_key_data;
+    uchar saved_key_inf_val = *(uchar *) saved_key_data;
     //
-    // if the keys have an infinity byte, set it
+    // first byte is "infinity" byte
     //
-    if (row_desc_ptr[0]) {
-        new_key_inf_val = new_key_ptr[0];
-        saved_key_inf_val = saved_key_ptr[0];
-        new_key_ptr++;
-        saved_key_ptr++;
-    }
-    row_desc_ptr++;
+    uchar *new_key_ptr = (uchar *)(new_key_data) + 1;
+    uchar *saved_key_ptr = (uchar *)(saved_key_data) + 1;
+    KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
+    int ret_val;
+    //
+    // do not include the inf val at the beginning
+    //
+    uint new_key_length = new_key_size - sizeof(uchar);
+    uint saved_key_length = saved_key_size - sizeof(uchar);
 
-    while ( (u_int32_t)(new_key_ptr - (uchar *)new_key_data) < new_key_size &&
-            (u_int32_t)(saved_key_ptr - (uchar *)saved_key_data) < saved_key_size &&
-            (u_int32_t)(row_desc_ptr - (uchar *)row_desc) < row_desc_size
-            )
-    {
-        u_int32_t new_key_field_length;
-        u_int32_t saved_key_field_length;
-        u_int32_t row_desc_field_length;
-        //
-        // if there is a null byte at this point in the key
-        //
-        if (row_desc_ptr[0]) {
-            //
-            // compare null bytes. If different, return
-            //
-            if (new_key_ptr[0] != saved_key_ptr[0]) {
-                ret_val = ((int) *new_key_ptr - (int) *saved_key_ptr);
-                goto exit;
-            }
+    //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
+    for (; key_part != end && (int) new_key_length > 0 && (int) saved_key_length > 0; key_part++) {
+        int cmp;
+        uint new_key_field_length;
+        uint saved_key_field_length;
+        if (key_part->field->null_bit) {
+            assert(new_key_ptr   < (uchar *) new_key_data   + new_key_size);
+            assert(saved_key_ptr < (uchar *) saved_key_data + saved_key_size);
+            if (*new_key_ptr != *saved_key_ptr) {
+                return ((int) *new_key_ptr - (int) *saved_key_ptr); }
             saved_key_ptr++;
-            //
-            // in case we just read the fact that new_key_ptr and saved_key_ptr
-            // have NULL as their next field
-            //
-            if (!*new_key_ptr++) {
-                //
-                // skip row_desc_ptr[0] read in if clause
-                //
-                row_desc_ptr++;
-                //
-                // skip data that describes rest of field
-                //
-                row_desc_ptr += skip_field_in_descriptor(row_desc_ptr);
-                continue; 
-            }         
+            new_key_length--;
+            saved_key_length--;
+            if (!*new_key_ptr++) { continue; }
         }
-        row_desc_ptr++;
-
-        ret_val = compare_toku_field(
+        cmp = compare_toku_field(
             new_key_ptr, 
-            saved_key_ptr, 
-            row_desc_ptr,
-            &new_key_field_length, 
-            &saved_key_field_length,
-            &row_desc_field_length
+            saved_key_ptr,
+            key_part->field,
+            key_part->length,
+            &new_key_field_length,
+            &saved_key_field_length
             );
-        new_key_ptr += new_key_field_length;
-        saved_key_ptr += saved_key_field_length;
-        row_desc_ptr += row_desc_field_length;
-        if (ret_val) {
-            goto exit;;
+        if (cmp) {
+            return cmp;
         }
 
-        assert((u_int32_t)(new_key_ptr - (uchar *)new_key_data) <= new_key_size);
-        assert((u_int32_t)(saved_key_ptr - (uchar *)saved_key_data) <= saved_key_size);
-        assert((u_int32_t)(row_desc_ptr - (uchar *)row_desc) <= row_desc_size);
+        assert(new_key_length >= new_key_field_length);
+        assert(saved_key_length >= saved_key_field_length);
+
+        new_key_ptr      += new_key_field_length;
+        new_key_length   -= new_key_field_length;
+        saved_key_ptr    += saved_key_field_length;
+        saved_key_length -= saved_key_field_length;
     }
-    new_key_bytes_left = new_key_size - ((u_int32_t)(new_key_ptr - (uchar *)new_key_data));
-    saved_key_bytes_left = saved_key_size - ((u_int32_t)(saved_key_ptr - (uchar *)saved_key_data));
-    if (cmp_prefix || (new_key_bytes_left== 0 && saved_key_bytes_left== 0) ) {
+    if (cmp_prefix || (new_key_length == 0 && saved_key_length == 0) ) {
         ret_val = 0;
     }
     //
     // at this point, one SHOULD be 0
     //
-    else if (new_key_bytes_left == 0 && saved_key_bytes_left > 0) {
+    else if (new_key_length == 0 && saved_key_length > 0) {
         ret_val = (new_key_inf_val == COL_POS_INF ) ? 1 : -1; 
     }
-    else if (new_key_bytes_left > 0 && saved_key_bytes_left == 0) {
+    else if (new_key_length > 0 && saved_key_length == 0) {
         ret_val = (saved_key_inf_val == COL_POS_INF ) ? -1 : 1; 
     }
     //
     // this should never happen, perhaps we should assert(false)
     //
     else {
-        assert(false);
-        ret_val = new_key_bytes_left - saved_key_bytes_left;
+        ret_val = new_key_length - saved_key_length;
     }
-exit:
     return ret_val;
 }
 
-int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
-    int cmp = tokudb_compare_two_keys(
-        keya->data, 
-        keya->size, 
-        keyb->data,
-        keyb->size,
-        (uchar *)file->descriptor.data + 4,
-        *(u_int32_t *)file->descriptor.data,
-        false
-        );
-    return cmp;
+
+
+//
+// this is super super ugly, copied from compare_two_keys so that it can get done fast
+//
+int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const DBT * new_key, const DBT * saved_key) {
+    uchar new_key_inf_val = *(uchar *) new_key->data;
+    uchar saved_key_inf_val = *(uchar *) saved_key->data;
+    //
+    // first byte is "infinity" byte
+    //
+    uchar *new_key_ptr = (uchar *)(new_key->data) + 1;
+    uchar *saved_key_ptr = (uchar *)(saved_key->data) + 1;
+    KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
+    int ret_val;
+    //
+    // do not include the inf val at the beginning
+    //
+    uint new_key_length = new_key->size - sizeof(uchar);
+    uint saved_key_length = saved_key->size - sizeof(uchar);
+
+    //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
+    for (; key_part != end && (int) new_key_length > 0 && (int) saved_key_length > 0; key_part++) {
+        int cmp;
+        uint new_key_field_length;
+        uint saved_key_field_length;
+        if (key_part->field->null_bit) {
+            assert(new_key_ptr   < (uchar *) new_key->data   + new_key->size);
+            assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
+            if (*new_key_ptr != *saved_key_ptr) {
+                return ((int) *new_key_ptr - (int) *saved_key_ptr); }
+            saved_key_ptr++;
+            new_key_length--;
+            saved_key_length--;
+            if (!*new_key_ptr++) { continue; }
+        }
+        cmp = compare_toku_field(
+            new_key_ptr, 
+            saved_key_ptr,
+            key_part->field,
+            key_part->length,
+            &new_key_field_length,
+            &saved_key_field_length
+            );
+        if (cmp) {
+            return cmp;
+        }
+
+        assert(new_key_length >= new_key_field_length);
+        assert(saved_key_length >= saved_key_field_length);
+
+        new_key_ptr      += new_key_field_length;
+        new_key_length   -= new_key_field_length;
+        saved_key_ptr    += saved_key_field_length;
+        saved_key_length -= saved_key_field_length;
+    }
+    if (new_key_length == 0 && saved_key_length == 0){
+        ret_val = 0;
+    }
+    else if (new_key_length == 0 && saved_key_length > 0) {
+        ret_val = (new_key_inf_val == COL_POS_INF ) ? 1 : -1; 
+    }
+    else if (new_key_length > 0 && saved_key_length == 0) {
+        ret_val = (saved_key_inf_val == COL_POS_INF ) ? -1 : 1; 
+    }
+    //
+    // now we compare the primary key
+    //
+    else {
+        if (primary_key == NULL) {
+            //
+            // primary key hidden
+            //
+            ulonglong a = hpk_char_to_num((uchar *) new_key_ptr);
+            ulonglong b = hpk_char_to_num((uchar *) saved_key_ptr);
+            ret_val =  a < b ? -1 : (a > b ? 1 : 0);
+        }
+        else {
+            //
+            // primary key not hidden, I know this is bad, basically copying the code from above
+            //
+            key_part = primary_key->key_part;
+            end = key_part + primary_key->key_parts;
+            for (; key_part != end && (int) new_key_length > 0 && (int) saved_key_length > 0; key_part++) {
+                int cmp;
+                uint new_key_field_length;
+                uint saved_key_field_length;
+                if (key_part->field->null_bit) {
+                    assert(new_key_ptr   < (uchar *) new_key->data   + new_key->size);
+                    assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
+                    if (*new_key_ptr != *saved_key_ptr) {
+                        return ((int) *new_key_ptr - (int) *saved_key_ptr); }
+                    saved_key_ptr++;
+                    new_key_length--;
+                    saved_key_length--;
+                    if (!*new_key_ptr++) { continue; }
+                }
+                cmp = compare_toku_field(
+                    new_key_ptr, 
+                    saved_key_ptr,
+                    key_part->field,
+                    key_part->length,
+                    &new_key_field_length,
+                    &saved_key_field_length
+                    );
+                if (cmp) {
+                    return cmp;
+                }
+                
+                assert(new_key_length >= new_key_field_length);
+                assert(saved_key_length >= saved_key_field_length);
+                
+                new_key_ptr      += new_key_field_length;
+                new_key_length   -= new_key_field_length;
+                saved_key_ptr    += saved_key_field_length;
+                saved_key_length -= saved_key_field_length;
+            }
+            //
+            // at this point, we have compared the actual keys and the primary key, we return 0
+            //
+            ret_val = 0;
+        }
+    }
+    return ret_val;
 }
 
-int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
-    int row_desc_offset = *(u_int32_t *)file->descriptor.data;
-    int cmp = tokudb_compare_two_keys(
-        keya->data, 
-        keya->size, 
-        keyb->data,
-        keyb->size,
-        (uchar *)file->descriptor.data + row_desc_offset,
-        file->descriptor.size - row_desc_offset,
-        false
-        );
-    return cmp;
+
+int tokudb_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->app_private;
+    KEY *primary_key = (KEY *) file->api_internal;
+    if (key->flags & HA_CLUSTERING) {
+        return tokudb_compare_two_clustered_keys(key, primary_key, keya, keyb);
+    }
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, false);
+}
+
+int tokudb_cmp_primary_key(DB *file, const DBT *keya, const DBT *keyb) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->api_internal;
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, false);
 }
 
 //TODO: QQQ Only do one direction for prefix.
-int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
-    int cmp = tokudb_compare_two_keys(
-        keya->data, 
-        keya->size, 
-        keyb->data,
-        keyb->size,
-        (uchar *)file->descriptor.data + 4,
-        *(u_int32_t *)file->descriptor.data,
-        true
-        );
-    return cmp;
+int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->app_private;
+    return tokudb_compare_two_keys(key, keya->data, keya->size, keyb->data, keyb->size, true);
 }
+
 
 
 //
@@ -1244,24 +1380,22 @@ int create_toku_descriptor(
         goto exit;
     }
 
-    if (!is_clustering_key) {
-        pos[0] = (is_second_hpk) ? 0 : 1; //we place an infinity byte iff it is NOT a clustering key and NOT a hpk
-        pos++;
-    }
-
     //
     // if we have a second key, and it is an hpk, we need to pack it, and
     // write in the offset to this position in the first four bytes
     //
     if (is_second_hpk) {
-        pos[0] = 0; //field cannot be NULL, stating it
-        pos[1] = toku_type_hpk;
-        pos += 2;
+        pos[0] = 0; //say there is NO infinity byte
+        pos[1] = 0; //field cannot be NULL, stating it
+        pos[2] = toku_type_hpk;
+        pos += 3;
     }
     else {
         //
         // second key is NOT a hidden primary key, so we now pack second_key
         //
+        pos[0] = 1; //say there is an infinity byte
+        pos++;
         num_bytes = create_toku_key_descriptor(second_key, pos);
         pos += num_bytes;
     }

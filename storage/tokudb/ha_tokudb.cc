@@ -517,7 +517,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
     *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
     (*ptr)->app_private = (void *) (key_info);
-    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);    
+    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);    
     
     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %s\n", key_info->name));
     //
@@ -525,7 +525,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     //
     if (!(key_info->flags & HA_CLUSTERING)) {
         (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
-        (*ptr)->set_dup_compare(*ptr, tokudb_cmp_dbt_data);
+        (*ptr)->set_dup_compare(*ptr, hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_primary_key);
     }
     (*ptr)->api_internal = share->file->app_private;
 
@@ -676,7 +676,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         else {
             share->file->app_private = NULL;
         }
-        share->file->set_bt_compare(share->file, tokudb_cmp_dbt_key);
+        share->file->set_bt_compare(share->file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
         
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
@@ -1628,15 +1628,27 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 //
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
     int ret_val = 0;
+    KEY *key_info = NULL;
+
+    if (hidden_primary_key) {
+        ret_val =  tokudb_compare_two_hidden_keys(
+            (void *)ref1, 
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
+            (void *)ref2, 
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
+            );
+        goto exit;
+    }    
+    key_info = &table->key_info[table_share->primary_key];
     ret_val = tokudb_compare_two_keys(
+        key_info,
         ref1 + sizeof(u_int32_t),
         *(u_int32_t *)ref1,
         ref2 + sizeof(u_int32_t),
         *(u_int32_t *)ref2,
-        (uchar *)share->file->descriptor.data + 4,
-        *(u_int32_t *)share->file->descriptor.data,
         false
         );
+exit:
     return ret_val;
 }
 
@@ -2505,7 +2517,7 @@ typedef struct heavi_info {
 //
 static int after_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return cmp>0 ? 1 : -1;
 }
 
@@ -2535,7 +2547,7 @@ static int after_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
 //
 static int prefix_last_or_prev_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return cmp;
 }
 
@@ -2564,7 +2576,7 @@ static int prefix_last_or_prev_heavi(const DBT *key, const DBT *value, void *ext
 //
 static int before_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_dbt_key(info->db, key, info->key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return (cmp<0) ? -1 : 1;
 }
 
@@ -2614,7 +2626,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &last_key)) {
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key)) {
                 error = DB_NOTFOUND;
             }
         }
@@ -2649,7 +2661,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &last_key) != 0) {
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0) {
                 error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
             }
         }
@@ -3694,11 +3706,10 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char* newname = NULL;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
-    KEY* prim_key = NULL;
 
 
     bzero(&row_descriptor, sizeof(row_descriptor));
-    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+10 ,MYF(MY_WME));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
     dirname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
@@ -3746,7 +3757,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     //
     // setup the row descriptor
     //
-    prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
+    KEY* prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
     row_descriptor.data = row_desc_buff;
     row_descriptor.size = create_toku_descriptor(
         row_desc_buff, 
@@ -4294,7 +4305,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
     tmp_record2 = (uchar *)my_malloc(2*table_arg->s->rec_buff_length,MYF(MY_WME));
-    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+10 ,MYF(MY_WME));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
     if (newname == NULL || 
         tmp_key_buff == NULL ||
         tmp_prim_key_buff == NULL ||
