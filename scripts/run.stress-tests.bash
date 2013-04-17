@@ -76,7 +76,8 @@ testnames=(test_stress1.tdb \
            test_stress5.tdb \
            test_stress6.tdb)
 recover_testnames=(recover-test_stress1.tdb \
-                   recover-test_stress2.tdb)
+                   recover-test_stress2.tdb \
+                   recover-test_stress3.tdb)
 
 save_failure() {
     dir="$1"; shift
