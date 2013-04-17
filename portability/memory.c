@@ -16,6 +16,7 @@
 #endif
 #include <dlfcn.h>
 #include <valgrind/helgrind.h>
+#include <sys/mman.h>
 #include "memory.h"
 #include "toku_assert.h"
 
@@ -25,8 +26,11 @@ static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
 static realloc_fun_t t_xrealloc = 0;
 
+enum which_mallocator { M_LIBC, M_JEMALLOC, M_DARWIN } which_mallocator;
 static LOCAL_MEMORY_STATUS_S status;
 int toku_memory_do_stats = 0;
+
+static size_t pagesize = 0;
 
 typedef size_t (*malloc_usable_size_fun_t)(const void *);
 static malloc_usable_size_fun_t malloc_usable_size_f;
@@ -40,6 +44,8 @@ toku_memory_startup(void) {
     }
     memory_startup_complete = true;
 
+    pagesize = sysconf(_SC_PAGESIZE);
+
     int result = 0;
 
 #if defined(HAVE_M_MMAP_THRESHOLD)
@@ -49,6 +55,7 @@ toku_memory_startup(void) {
     if (success) {
         status.mallocator_version = "libc";
         status.mmap_threshold = mmap_threshold;
+        which_mallocator = M_LIBC;
     } else
         result = EINVAL;
 #else
@@ -64,6 +71,7 @@ toku_memory_startup(void) {
     mallctl_fun_t mallctl_f;
     mallctl_f = (mallctl_fun_t) dlsym(RTLD_DEFAULT, "mallctl");
     if (mallctl_f) { // jemalloc is loaded
+        which_mallocator = M_JEMALLOC;
         size_t version_length = sizeof status.mallocator_version;
         result = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
         if (result == 0) {
@@ -126,7 +134,6 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
 
 size_t 
 toku_memory_footprint(void * p, size_t touched) {
-    static size_t pagesize = 0;
     size_t rval = 0;
     if (!pagesize)
 	pagesize = sysconf(_SC_PAGESIZE);
@@ -223,8 +230,7 @@ toku_free_n(void* p, size_t size __attribute__((unused))) {
 void *
 toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
-    if (p == NULL)  // avoid function call in common case
-        resource_assert(p);
+    resource_assert(p);
     ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
@@ -248,8 +254,7 @@ void *
 toku_xrealloc(void *v, size_t size) {
     size_t used_orig = v ? my_malloc_usable_size(v) : 0;
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
-    if (p == 0)  // avoid function call in common case
-        resource_assert(p);
+    resource_assert(p);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         __sync_add_and_fetch(&status.realloc_count, 1);
