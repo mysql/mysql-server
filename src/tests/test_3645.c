@@ -152,6 +152,10 @@ test_evictions (int nseconds) {
     // set the cache size to 10MB
     r = env->set_cachesize(env, 0, 100000, 1); CKERR(r);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->checkpointing_set_period(env, 10); 
+    CKERR(r);
+
+
 
     DB *db;
     r = db_create(&db, env, 0);
