@@ -123,12 +123,22 @@ test_gen: test_gen_hex
 TEST_GEN_HEX_NUMKEYS=10000
 TEST_GEN_HEX_LENGTHMIN=0
 TEST_GEN_HEX_LENGTHLIMIT=1024
+
 TEST_GEN_HEX_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(TEST_GEN_HEX_LENGTHLIMIT) -r 5
 
 TDB_GEN=./tokudb_gen$(BINSUF)
 TDB_LOAD=./tokudb_load$(BINSUF)
 TDB_DUMP=./tokudb_dump$(BINSUF)
 TDB_DUMPBDB=./tokudb_dump.bdb$(BINSUF)
+
+
+ifeq ($(OS_CHOICE),windows)
+    LINEEND   = "\r\n"
+    TO_NATIVE = unix2dos --u2d
+else
+    LINEEND   = "\n"
+    TO_NATIVE = cat
+endif
 
 test_gen_hex:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
@@ -138,7 +148,7 @@ test_gen_hex:
 	$(BDB_LOAD) $@.db.temp < $@.gen.temp && \
 	$(BDB_DUMP) $@.db.temp > $@.load_dump.temp && \
 	$(TDB_GEN) -H -f > $@.gen_sorted.temp && \
-	export LC_ALL=C;$(TDB_GEN) -h -f $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp && \
+	export LC_ALL=C;$(TDB_GEN) -h -f $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d $(LINEEND) | tr "\t" "\n" | $(TO_NATIVE) >> $@.gen_sorted.temp && \
 	$(TDB_GEN) -F -h  >> $@.gen_sorted.temp && \
 	$(DIFF) $@.load_dump.temp $@.gen_sorted.temp \
 	$(SUMMARIZE_CMD)

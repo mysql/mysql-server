@@ -33,7 +33,7 @@ static int   get_delimiter(char* str);
 
 
 char           dbt_delimiter  = '\n';
-char           sort_delimiter[2];
+char           sort_delimiter[3];
 u_int32_t       lengthmin      = 0;
 bool           set_lengthmin  = false;
 u_int32_t       lengthlimit    = 0;
@@ -171,6 +171,11 @@ static int test_main (int argc, char *argv[]) {
             }
             sort_delimiter[0] = (char)temp;
             sort_delimiter[1] = '\0';
+#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
+            if (!strcmp(sort_delimiter, "\n")) {
+                strcpy(sort_delimiter, "\r\n");
+            }
+#endif
             break;
          }
          case ('V'): {
