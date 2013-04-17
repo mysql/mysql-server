@@ -2357,11 +2357,11 @@ void toku_bnc_flush_to_child(
     }
     if (child->height == 0) {
         ft_leaf_run_gc(child, ft);
+        size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
+        STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
+        // may be misleading if there's a broadcast message in there
+        STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
     }
-    size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
-    STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
-    // may be misleading if there's a broadcast message in there
-    STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
 }
 
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) {
