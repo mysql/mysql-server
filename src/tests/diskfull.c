@@ -178,9 +178,9 @@ do_writes_that_fail (void) {
 	write_count=0;
 	pid_t child;
 	if ((child=fork())==0) {
-	    int devnul = open("/dev/null", O_WRONLY);
+	    int devnul = open(DEV_NULL_FILE, O_WRONLY);
 	    assert(devnul>=0);
-	    { int r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr)); }
+	    { int r = toku_dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr)); }
 	    { int r = close(devnul);                          assert(r==0);              }
 	    do_db_work();
 	    exit(1);

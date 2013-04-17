@@ -22,10 +22,12 @@ run_test(void) {
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery
-    int devnul = open("/dev/null", O_WRONLY);
+    int devnul = open(DEV_NULL_FILE, O_WRONLY);
     assert(devnul>=0);
-    r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
-    r = close(devnul);                      assert(r==0);
+    r = toku_dup2(devnul, fileno(stderr));
+    assert(r==fileno(stderr));
+    r = close(devnul);
+    assert(r==0);
 
     r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, NULL, NULL, 0); 
     assert(r == 0);

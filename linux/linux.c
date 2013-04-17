@@ -282,6 +282,13 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
     return r;
 }
 
+int
+toku_dup2(int fd, int fd2) {
+    int r;
+    r = dup2(fd, fd2);
+    return r;
+}
+
 #if __GNUC__ && __i386__
 
 // workaround for a gcc 4.1.2 bug on 32 bit platforms.

@@ -26,6 +26,8 @@ $(TARGET): $(OBJS)
 check: $(TARGET)
 	cd tests && $(MAKE) check
 
+$(OBJS): CFLAGS += -DTOKU_WINDOWS_ALLOW_DEPRECATED
+
 clean:
 	rm -rf $(TARGET) $(LIBPORTABILITY) $(PTHREAD_LIB)
 	cd tests && $(MAKE) clean

@@ -79,6 +79,9 @@ int toku_stat(const char *name, toku_struct_stat *statbuf) __attribute__((__visi
 // Portable linux 'fstat'
 int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__("default")));
 
+// Portable linux 'dup2'
+int toku_dup2(int fd, int fd2) __attribute__((__visibility__("default")));
+
 #if defined __cplusplus
 };
 #endif
