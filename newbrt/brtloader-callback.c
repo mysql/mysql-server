@@ -11,6 +11,14 @@
 #include "memory.h"
 #include "brtloader-internal.h"
 
+static void error_callback_lock(brtloader_error_callback loader_error) {
+    int r = toku_pthread_mutex_lock(&loader_error->mutex); assert(r == 0);
+}
+
+static void error_callback_unlock(brtloader_error_callback loader_error) {
+    int r = toku_pthread_mutex_unlock(&loader_error->mutex); assert(r == 0);
+}
+
 int brt_loader_init_error_callback(brtloader_error_callback loader_error) {
     memset(loader_error, 0, sizeof *loader_error);
     int r = toku_pthread_mutex_init(&loader_error->mutex, NULL); assert(r == 0);
@@ -25,20 +33,15 @@ void brt_loader_destroy_error_callback(brtloader_error_callback loader_error) {
 }
 
 int brt_loader_get_error(brtloader_error_callback loader_error) {
-    return loader_error->error;
+    error_callback_lock(loader_error);
+    int r = loader_error->error;
+    error_callback_unlock(loader_error);
+    return r;
 }
 
 void brt_loader_set_error_function(brtloader_error_callback loader_error, brt_loader_error_func error_function, void *error_extra) {
     loader_error->error_callback = error_function;
     loader_error->extra = error_extra;
-}
-
-static void error_callback_lock(brtloader_error_callback loader_error) {
-    int r = toku_pthread_mutex_lock(&loader_error->mutex); assert(r == 0);
-}
-
-static void error_callback_unlock(brtloader_error_callback loader_error) {
-    int r = toku_pthread_mutex_unlock(&loader_error->mutex); assert(r == 0);
 }
 
 static void copy_dbt(DBT *dest, DBT *src) {
