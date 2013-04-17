@@ -76,12 +76,15 @@ BRT_SOURCES = \
   ule \
   threadpool \
   toku_worker \
-  trace_mem \
   txn \
   x1764 \
   xids \
   ybt \
 # keep this line so I can have a \ on the previous line
+ifneq ($(OS_CHOICE),windows)
+    BRT_SOURCES += trace_mem #Windows does not handle 'empty' file
+endif
+
 
 TEST_NEWBRT = brt-test-helpers.$(OEXT)
 

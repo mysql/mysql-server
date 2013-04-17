@@ -17,7 +17,7 @@ struct dbufio_file {
 
     // consumers own these
     size_t offset_in_buf;
-    off_t  offset_in_file;
+    toku_off_t  offset_in_file;
 
     // need the mutex to modify these
     struct dbufio_file *next;

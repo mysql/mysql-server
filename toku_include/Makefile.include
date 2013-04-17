@@ -244,6 +244,7 @@ ifeq ($(CC),icc)
 	#Linux
         ICC_NOWARN=-diag-disable #Need the space
     endif
+    DISABLE_WARNING +=111# Unreachable code (i.e. assert(0) )
     DISABLE_WARNING +=271# Remove warnings about trailing comma being nonstandard
     DISABLE_WARNING +=424# Remove warnings about extra ';' being ignored
     DISABLE_WARNING +=810# Remove warnings about losing precision
