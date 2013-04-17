@@ -25,6 +25,9 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
     case MYSQL_TYPE_DOUBLE:
         ret_val = toku_type_double;
         break;
+    case MYSQL_TYPE_FLOAT:
+        ret_val = toku_type_float;
+        break;
     default:
         ret_val = toku_type_unknown;
         break;
@@ -206,6 +209,41 @@ exit:
 }
 
 
+inline uchar* pack_toku_float (uchar* to_tokudb, uchar* from_mysql) {
+    memcpy(to_tokudb, from_mysql, sizeof(float));
+    return to_tokudb + sizeof(float);
+}
+
+
+inline uchar* unpack_toku_float(uchar* to_mysql, uchar* from_tokudb) {
+    memcpy(to_mysql, from_tokudb, sizeof(float));
+    return from_tokudb + sizeof(float);
+}
+
+inline int cmp_toku_float(uchar* a_buf, uchar* b_buf) {
+    int ret_val;
+    float a_num;
+    float b_num;
+    //
+    // This is the way Field_float::cmp gets the floats from the buffers
+    //
+    memcpy(&a_num, a_buf, sizeof(float));
+    memcpy(&b_num, b_buf, sizeof(float));
+    if (a_num < b_num) {
+        ret_val = -1;
+        goto exit;
+    }
+    else if (a_num > b_num) {
+        ret_val = 1;
+        goto exit;
+    }
+    ret_val = 0;
+exit:
+    return ret_val;
+}
+
+
+
 int compare_field(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -275,6 +313,11 @@ uchar* pack_field(
         assert(key_part_length == sizeof(double));
         new_pos = pack_toku_double(to_tokudb, from_mysql);
         goto exit;
+    case (toku_type_float):
+        assert(field->pack_length() == sizeof(float));
+        assert(key_part_length == sizeof(float));
+        new_pos = pack_toku_double(to_tokudb, from_mysql);
+        goto exit;
     default:
         assert(toku_type == toku_type_unknown);
         new_pos = field->pack_key(
@@ -302,6 +345,7 @@ uchar* pack_key_field(
     switch(toku_type) {
     case (toku_type_int):
     case (toku_type_double):
+    case (toku_type_float):
         new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     default:
@@ -342,6 +386,11 @@ uchar* unpack_field(
         assert(field->pack_length() == sizeof(double));
         assert(key_part_length == sizeof(double));
         new_pos = unpack_toku_double(to_mysql, from_tokudb);
+        goto exit;
+    case (toku_type_float):
+        assert(field->pack_length() == sizeof(float));
+        assert(key_part_length == sizeof(float));
+        new_pos = unpack_toku_float(to_mysql, from_tokudb);
         goto exit;
     default:
         assert(toku_type == toku_type_unknown);
