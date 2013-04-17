@@ -59,9 +59,13 @@ static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_a
 static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
 static u_int64_t cachetable_misstime;     // time spent waiting for disk read
 static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
-
 static u_int64_t cachetable_lock_taken = 0;
 static u_int64_t cachetable_lock_released = 0;
+static u_int64_t local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
+static u_int64_t local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
+static u_int64_t local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
+
+
 
 enum ctpair_state {
     CTPAIR_INVALID = 0, // invalid
@@ -2500,6 +2504,9 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->size_limit   = ct->size_limit;            
     s->size_writing = ct->size_writing;          
     s->get_and_pin_footprint = get_and_pin_footprint;
+    s->local_checkpoint      = local_checkpoint;
+    s->local_checkpoint_files = local_checkpoint_files;
+    s->local_checkpoint_during_checkpoint = local_checkpoint_during_checkpoint;
 }
 
 char *
@@ -2541,6 +2548,8 @@ uint64_t toku_cachetable_get_size_limit(CACHETABLE ct) {
 int 
 toku_cachetable_local_checkpoint_for_commit (CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[n]) {
     cachetable_lock(ct);
+    local_checkpoint++;
+    local_checkpoint_files += n;
 
     LSN begin_checkpoint_lsn = ZERO_LSN;
     uint32_t i;
@@ -2629,6 +2638,7 @@ toku_cachetable_local_checkpoint_for_commit (CACHETABLE ct, TOKUTXN txn, uint32_
             cachetable_lock(ct);
             assert(cf->most_recent_global_checkpoint_that_finished_early.lsn < ct->lsn_of_checkpoint_in_progress.lsn);
             cf->most_recent_global_checkpoint_that_finished_early = ct->lsn_of_checkpoint_in_progress;
+	    local_checkpoint_during_checkpoint++;
             break;
         default:
             assert(FALSE);

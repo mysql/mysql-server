@@ -316,6 +316,9 @@ typedef struct cachetable_status {
     int64_t   size_limit;              // the limit to the sum of the node sizes
     int64_t   size_writing;            // the sum of the sizes of the nodes being written
     u_int64_t get_and_pin_footprint;   
+    uint64_t  local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
+    uint64_t  local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
+    uint64_t  local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);

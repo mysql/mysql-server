@@ -57,6 +57,7 @@ struct __toku_loader {
   int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
 };
 typedef struct __toku_engine_status {
+  char             startuptime[26];         /* time of engine startup */ 
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
   u_int64_t        max_possible_sleep;      /* max possible sleep time for ydb lock scheduling (constant) */ 
@@ -76,6 +77,15 @@ typedef struct __toku_engine_status {
   char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
   char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ 
   char             checkpoint_time_end[26]; /* time of last checkpoint end      */ 
+  u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ 
+  u_int32_t        checkpoint_count;         /* number of checkpoints taken        */ 
+  u_int32_t        checkpoint_count_fail;    /* number of checkpoints failed        */ 
+  u_int64_t        txn_begin;               /* number of transactions ever begun             */ 
+  u_int64_t        txn_commit;              /* txn commit operations                         */ 
+  u_int64_t        txn_abort;               /* txn abort operations                          */ 
+  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ 
+  u_int64_t        txn_oldest_live;         /* oldest extant txn                             */ 
+  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ 
   u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ 
   u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ 
   u_int64_t        cachetable_hit;          /* how many cache hits   */ 
@@ -93,27 +103,46 @@ typedef struct __toku_engine_status {
   int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ 
   int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
   int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ 
+  int64_t          local_checkpoint;        /* number of times a local checkpoint is taken for commit */ 
+  int64_t          local_checkpoint_files;  /* number of files subjec to local checkpoint is taken for commit */ 
+  int64_t          local_checkpoint_during_checkpoint;  /* number of times a local checkpoint happens during normal checkpoint */ 
   u_int32_t        range_locks_max;         /* max total number of range locks */ 
   u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ 
   u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
   u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
   u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
-  u_int64_t        inserts;                 /* ydb row insert operations            */ 
-  u_int64_t        deletes;                 /* ydb row delete operations            */ 
-  u_int64_t        commits;                 /* ydb txn commit operations            */ 
-  u_int64_t        aborts;                  /* ydb txn abort operations             */ 
-  u_int64_t        point_queries;           /* ydb point queries                    */ 
-  u_int64_t        sequential_queries;      /* ydb sequential queries               */ 
-  u_int64_t        fsync_count;             /* number of times fsync performed      */ 
-  u_int64_t        fsync_time;              /* total time required to fsync         */ 
+  u_int64_t        range_read_locks;        /* total range read locks taken */ 
+  u_int64_t        range_read_locks_fail;   /* total range read locks unable to be taken */ 
+  u_int64_t        range_out_of_read_locks; /* total times range read locks exhausted */ 
+  u_int64_t        range_write_locks;       /* total range write locks taken */ 
+  u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ 
+  u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ 
+  u_int64_t        inserts;                 /* ydb row insert operations              */ 
+  u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ 
+  u_int64_t        deletes;                 /* ydb row delete operations              */ 
+  u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ 
+  u_int64_t        point_queries;           /* ydb point queries                      */ 
+  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
+  u_int64_t        fsync_count;             /* number of times fsync performed        */ 
+  u_int64_t        fsync_time;              /* total time required to fsync           */ 
   u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ 
   u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ 
   u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ 
   char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ 
   u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ 
-  u_int64_t        enospc_total;            /* how many times has ENOSPC been returned by disk write */ 
-  u_int64_t        enospc_seal_ctr;         /* how many times has ENOSPC been returned to user (red zone) */ 
-  u_int64_t        enospc_seal_state;       /* state of ydb-level seal (0 = green, 1 = yellow, 2 = red) */ 
+  u_int64_t        enospc_ctr;              /* how many times has ENOSPC been returned by disk write */ 
+  u_int64_t        enospc_redzone_ctr;      /* how many times has ENOSPC been returned to user (red zone) */ 
+  u_int64_t        enospc_state;            /* state of ydb-level ENOSPC prevention (0 = green, 1 = yellow, 2 = red) */ 
+  u_int64_t        loader_create;           /* number of loaders created */ 
+  u_int64_t        loader_create_fail;      /* number of failed loader creations */ 
+  u_int64_t        loader_put;              /* number of loader puts */ 
+  u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ 
+  u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ 
+  u_int64_t        loader_abort;            /* number of loaders aborted  */ 
+  u_int32_t        loader_current;          /* number of loaders currently existing           */ 
+  u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ 
+  u_int64_t        logsuppress;             /* number of times logging is suppressed */ 
+  u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,

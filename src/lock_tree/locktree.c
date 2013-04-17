@@ -211,12 +211,11 @@ cleanup:
 
 
 void 
-toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s) {
-    s->max_locks                 = mgr->max_locks;
-    s->max_locks_per_db          = mgr->max_locks_per_db;
-    s->curr_locks                = mgr->curr_locks;
-    s->lock_escalation_successes = mgr->lock_escalation_successes;
-    s->lock_escalation_failures  = mgr->lock_escalation_failures;
+toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, uint32_t * max_locks_per_db, LTM_STATUS s) {
+    *max_locks = mgr->max_locks;
+    *curr_locks = mgr->curr_locks;
+    *max_locks_per_db = mgr->max_locks_per_db;
+    *s = mgr->status;
 }
 
 
@@ -1381,6 +1380,7 @@ cleanup:
     return r;
 }
 
+// toku_lt_acquire_read_lock() used only by test programs
 int toku_lt_acquire_read_lock(toku_lock_tree* tree,
                               DB* db, TXNID txn,
                               const DBT* key, const DBT* data) {
@@ -1745,9 +1745,9 @@ static int toku__lt_do_escalation_per_db(toku_lock_tree* lt, DB* db, BOOL* locks
 
     *locks_available = toku__lt_lock_test_incr_per_db(lt, 0);
     if (*locks_available)
-	lt->mgr->lock_escalation_successes++;
+	lt->mgr->status.lock_escalation_successes++;
     else
-	lt->mgr->lock_escalation_failures++;	    
+	lt->mgr->status.lock_escalation_failures++;	    
     r = 0;
 cleanup:
     toku__lt_clear_comparison_functions(lt);
@@ -1789,6 +1789,17 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 
     r = 0;
 cleanup:
+    {
+	LTM_STATUS s = &(tree->mgr->status);
+	if (r == 0) {
+	    s->read_lock++;
+	}
+	else {
+	    s->read_lock_fail++;
+	    if (r == TOKUDB_OUT_OF_LOCKS) 
+		s->out_of_read_locks++;
+	}
+    }
     return r;
 }
 
@@ -1885,6 +1896,7 @@ cleanup:
     return r;
 }
 
+// toku_lt_acquire_write_lock() used only by test programs
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
                                const DBT* key, const DBT* data) {
     BOOL out_of_locks = FALSE;
@@ -2003,6 +2015,17 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 
     r = 0;
 cleanup:
+    {
+	LTM_STATUS s = &(tree->mgr->status);
+	if (r == 0) {
+	    s->write_lock++;
+	}
+	else {
+	    s->write_lock_fail++;
+	    if (r == TOKUDB_OUT_OF_LOCKS) 
+		s->out_of_write_locks++;
+	}
+    }
     return r;
 }
 

@@ -20,8 +20,11 @@
 #include "ydb_load.h"
 #include "checkpoint.h"
 #include "brt-internal.h"
+#include "toku_atomic.h"
 
 enum {MAX_FILE_SIZE=256};
+
+static LOADER_STATUS_S status;  // accountability
 
 struct __toku_loader_internal {
     DB_ENV *env;
@@ -132,6 +135,8 @@ int toku_loader_create_loader(DB_ENV *env,
                               uint32_t dbt_flags[N], 
                               uint32_t loader_flags)
 {
+    int rval;
+
     *blp = NULL;           // set later when created
 
     DB_LOADER *loader;
@@ -151,7 +156,8 @@ int toku_loader_create_loader(DB_ENV *env,
     int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->dir, loader_temp_prefix, loader_temp_suffix);
     if ( !(n>0 && n<MAX_FILE_SIZE) ) {
         free_loader(loader);
-        return -1;
+        rval = -1;
+	goto create_exit;
     }
 
     memset(&loader->i->err_key, 0, sizeof(loader->i->err_key));
@@ -180,57 +186,70 @@ int toku_loader_create_loader(DB_ENV *env,
     }
     if ( r!=0 ) {
         free_loader(loader);
-        return -1;
+        rval = -1;
+	goto create_exit;
     }
 
-    brt_compare_func compare_functions[N];
-    for (int i=0; i<N; i++) {
-	compare_functions[i] = dbs[i]->i->key_compare_was_set ? toku_brt_get_bt_compare(dbs[i]->i->brt) : env->i->bt_compare;
-    }
-
-    // time to open the big kahuna
-    if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
-        XCALLOC_N(loader->i->N, loader->i->ekeys);
-        XCALLOC_N(loader->i->N, loader->i->evals);
-        for (int i=0; i<N; i++) {
-            loader->i->ekeys[i].flags = DB_DBT_REALLOC;
-            loader->i->evals[i].flags = DB_DBT_REALLOC;
-        }
-        loader->i->brt_loader = NULL;
-    }
-    else {
-        char **XMALLOC_N(N, new_inames_in_env);
-	const struct descriptor **XMALLOC_N(N, descriptors);
+    {
+	brt_compare_func compare_functions[N];
 	for (int i=0; i<N; i++) {
-	    descriptors[i] = &dbs[i]->i->brt->h->descriptor;
+	    compare_functions[i] = dbs[i]->i->key_compare_was_set ? toku_brt_get_bt_compare(dbs[i]->i->brt) : env->i->bt_compare;
 	}
-        loader->i->ekeys = NULL;
-        loader->i->evals = NULL;
-        LSN load_lsn;
-        r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
-        if ( r!=0 ) {
-            toku_free(new_inames_in_env);
-            toku_free(descriptors);
-            free_loader(loader);
-            return r;
-        }
-        toku_brt_loader_open(&loader->i->brt_loader,
-                             loader->i->env->i->cachetable,
-                             loader->i->env->i->generate_row_for_put,
-                             src_db,
-                             N,
-                             dbs,
-			     descriptors,
-                             (const char **)new_inames_in_env,
-                             compare_functions,
-                             loader->i->temp_file_template,
-                             load_lsn);
-        loader->i->inames_in_env = new_inames_in_env;
-	toku_free(descriptors);
+
+	// time to open the big kahuna
+	if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
+	    XCALLOC_N(loader->i->N, loader->i->ekeys);
+	    XCALLOC_N(loader->i->N, loader->i->evals);
+	    for (int i=0; i<N; i++) {
+		loader->i->ekeys[i].flags = DB_DBT_REALLOC;
+		loader->i->evals[i].flags = DB_DBT_REALLOC;
+	    }
+	    loader->i->brt_loader = NULL;
+	}
+	else {
+	    char **XMALLOC_N(N, new_inames_in_env);
+	    const struct descriptor **XMALLOC_N(N, descriptors);
+	    for (int i=0; i<N; i++) {
+		descriptors[i] = &dbs[i]->i->brt->h->descriptor;
+	    }
+	    loader->i->ekeys = NULL;
+	    loader->i->evals = NULL;
+	    LSN load_lsn;
+	    r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
+	    if ( r!=0 ) {
+		toku_free(new_inames_in_env);
+		toku_free(descriptors);
+		free_loader(loader);
+		rval = r;
+		goto create_exit;
+	    }
+	    toku_brt_loader_open(&loader->i->brt_loader,
+				 loader->i->env->i->cachetable,
+				 loader->i->env->i->generate_row_for_put,
+				 src_db,
+				 N,
+				 dbs,
+				 descriptors,
+				 (const char **)new_inames_in_env,
+				 compare_functions,
+				 loader->i->temp_file_template,
+				 load_lsn);
+	    loader->i->inames_in_env = new_inames_in_env;
+	    toku_free(descriptors);
+	    rval = 0;
+	}
     }
     *blp = loader;
-
-    return 0;
+ create_exit:
+    if (rval == 0) {
+	(void) toku_sync_fetch_and_increment_uint64(&status.create);
+	(void) toku_sync_fetch_and_increment_uint32(&status.current);
+	if (status.current > status.max)
+	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
+    }
+    else
+	(void) toku_sync_fetch_and_increment_uint64(&status.create_fail);
+    return rval;
 }
 
 int toku_loader_set_poll_function(DB_LOADER *loader,
@@ -253,6 +272,8 @@ int toku_loader_set_error_callback(DB_LOADER *loader,
 
 int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val) 
 {
+    status.put++;  // not worth the extra cycles to keep threadsafe
+
     int r = 0;
     int i = 0;
     //      err_i is unused now( always 0).  How would we know which dictionary
@@ -302,6 +323,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
 int toku_loader_close(DB_LOADER *loader) 
 {
+    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -334,11 +356,17 @@ int toku_loader_close(DB_LOADER *loader)
         }
     }
     free_loader(loader);
+    if (r==0)
+	(void) toku_sync_fetch_and_increment_uint64(&status.close);
+    else
+	(void) toku_sync_fetch_and_increment_uint64(&status.close_fail);
     return r;
 }
 
 int toku_loader_abort(DB_LOADER *loader) 
 {
+    (void) toku_sync_fetch_and_decrement_uint32(&status.current);
+    (void) toku_sync_fetch_and_increment_uint64(&status.abort);
     int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
@@ -352,6 +380,7 @@ int toku_loader_abort(DB_LOADER *loader)
     free_loader(loader);
     return r;
 }
+
 
 // find all of the files in the environments home directory that match the loader temp name and remove them
 int toku_loader_cleanup_temp_files(DB_ENV *env) {
@@ -385,4 +414,9 @@ int toku_loader_cleanup_temp_files(DB_ENV *env) {
 
 exit:
     return result;
+}
+
+void 
+toku_loader_get_status(LOADER_STATUS s) {
+    *s = status;
 }

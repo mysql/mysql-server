@@ -28,8 +28,23 @@ int toku_loader_abort(DB_LOADER *loader);
 // Remove any loader temp files that may have been left from a crashed system
 int toku_loader_cleanup_temp_files(DB_ENV *env);
 
+typedef struct loader_status {
+  uint64_t create;          // number of loaders succefully created
+  uint64_t create_fail;     // number of calls to toku_loader_create_loader() that failed
+  uint64_t put;             // number of calls to toku_loader_put()
+  uint64_t close;           // number of calls to toku_loader_close()
+  uint64_t close_fail;      // number of calls to toku_loader_close() that failed
+  uint64_t abort;           // number of calls to toku_loader_abort()
+  uint32_t current;         // number of loaders currently in existence
+  uint32_t max;             // max number of loaders that ever existed simultaneously
+} LOADER_STATUS_S, *LOADER_STATUS;
+
+void toku_loader_get_status(LOADER_STATUS s);
+
+
 #if defined(__cplusplus)
 }
+
 #endif
 
 #endif

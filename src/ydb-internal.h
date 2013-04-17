@@ -82,7 +82,7 @@ struct __toku_db_env_internal {
     uint64_t last_seq_entered_red;
     uint64_t last_seq_entered_yellow;
     int redzone;                                        // percent of total fs space that marks boundary between yellow and red zones
-    int enospc_seal_ctr;                                // number of operations rejected by enospc seal  (red zone)
+    int enospc_redzone_ctr;                             // number of operations rejected by enospc prevention  (red zone)
     int fs_poll_time;                                   // Time in seconds between statfs calls
     struct minicron fs_poller;                          // Poll the file systems
     BOOL fs_poller_is_init;    
