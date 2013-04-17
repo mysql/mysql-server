@@ -129,7 +129,7 @@ static void do_check (long N) {
     
 }
 
-int test_main (int argc, char *argv[]) {
+int test_main (int argc, char * const argv[]) {
     assert(argc>=2 && argc<=3);
     if (strcmp(argv[1], "--write")==0) {
 	assert(argc==2);

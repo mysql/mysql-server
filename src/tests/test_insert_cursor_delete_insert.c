@@ -69,7 +69,7 @@ test_insert_delete_insert (int dup_mode) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

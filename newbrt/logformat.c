@@ -626,7 +626,7 @@ generate_log_entry_functions(void) {
 const char codefile[] = "log_code.c";
 const char printfile[] = "log_print.c";
 const char headerfile[] = "log_header.h";
-int main (int argc, const char *argv[]) {
+int main (int argc, const char *const argv[]) {
     assert(argc==2); // the single argument is the directory into which to put things
     const char *dir = argv[1];
     size_t codepathlen   = sizeof(codefile) + strlen(dir) + 4;

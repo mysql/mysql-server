@@ -10,7 +10,7 @@
 
 
 int
-test_main (int UU(argc), char UU(*argv[])) {
+test_main (int UU(argc), char UU(*const argv[])) {
     DB *db;
     int r;
     r = db_create(&db, 0, 0); 

@@ -81,7 +81,7 @@ test_txn_nested(int do_commit) {
 
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

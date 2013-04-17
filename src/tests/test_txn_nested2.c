@@ -194,7 +194,7 @@ test_txn_nested_slow (int abort_at_depth) {
 
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     initialize_values();
     int i;

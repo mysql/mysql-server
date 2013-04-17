@@ -136,7 +136,7 @@ static void newmain (int count) {
     }
 }
 
-int main (int argc, char *argv[]) {
+int main (int argc, char *const argv[]) {
     int count=-1;
     while (argc>1) {
 	if (strcmp(argv[1], "--oldcode")==0) {

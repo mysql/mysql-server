@@ -78,7 +78,7 @@ const char *cmd;
 
 BOOL do_test=FALSE, do_recover=FALSE, do_recover_only=FALSE, do_no_recover = FALSE;
 
-static void test_parse_args (int argc, char *argv[]) {
+static void test_parse_args (int argc, char * const argv[]) {
     int resultcode;
     cmd = argv[0];
     argc--; argv++;
@@ -111,7 +111,7 @@ static void test_parse_args (int argc, char *argv[]) {
     }
 }
 
-int test_main (int argc, char *argv[]) {
+int test_main (int argc, char * const argv[]) {
     test_parse_args(argc, argv);
     if (do_test) {
 	run_test();

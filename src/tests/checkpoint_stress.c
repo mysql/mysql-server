@@ -277,7 +277,7 @@ usage(char *progname) {
 
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
 
     // get arguments, set parameters
 
@@ -285,7 +285,7 @@ test_main (int argc, char *argv[]) {
 
     int c;
     int crash = 0;
-    while ((c = getopt(argc, argv, "cChi:qvn:l:")) != -1) {
+    while ((c = getopt(argc, (char * const *)argv, "cChi:qvn:l:")) != -1) {
 	switch(c) {
         case 'c':
             crash = 1;

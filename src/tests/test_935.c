@@ -77,7 +77,7 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     const int meg = 1024*1024;
     const int headeroverhead = 12*4;

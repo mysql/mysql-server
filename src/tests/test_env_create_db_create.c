@@ -10,7 +10,7 @@
 
 
 int
-test_main (int UU(argc), char UU(*argv[])) {
+test_main (int UU(argc), char UU(*const argv[])) {
     DB_ENV *env;
     DB *db;
     int r;

@@ -56,7 +56,7 @@ int verbose=0;
 #endif
 
 static __attribute__((__unused__)) void
-parse_args (int argc, char *argv[]) {
+parse_args (int argc, char * const argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
@@ -259,12 +259,12 @@ toku_hard_crash_on_purpose(void) {
 }
 #endif
 
-int test_main (int argc, char *argv[]);
+int test_main (int argc, char * const argv[]);
 int
 #if defined(__cilkplusplus)
 cilk_main(int argc, char *argv[]) 
 #else
-main(int argc, char *argv[]) 
+main(int argc, char * const argv[]) 
 #endif
 {
     int r;

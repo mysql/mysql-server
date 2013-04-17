@@ -270,7 +270,7 @@ redirect_test(uint8_t num_open_before, uint8_t num_open_after, uint8_t num_close
 
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char *const argv[])
 {
     parse_args(argc, argv);
     redirect_EINVAL();

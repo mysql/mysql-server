@@ -53,7 +53,7 @@ static int   apply_commandline_options(void);
 static int   close_database (void);
 static int   doublechararray(char** pmem, u_int64_t* size);
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
    int ch;
    int retval;
    char** next_config_option;

@@ -5,7 +5,7 @@
 #include <string.h>
 #include "toku_os.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *const argv[]) {
     int verbose = 0;
     int i;
     for (i=1; i<argc; i++) {

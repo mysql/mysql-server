@@ -138,7 +138,7 @@ static void root_fifo_41(int n, int ntxn, BOOL do_populate) {
     r = env->close(env, 0); assert(r == 0); env = null_env;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     int n = -1;
     int ntxn = -1;

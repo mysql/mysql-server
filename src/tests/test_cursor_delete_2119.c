@@ -65,7 +65,7 @@ test_cursor_delete_2119 (u_int32_t c_del_flags, u_int32_t txn_isolation_flags) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
 

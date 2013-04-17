@@ -123,7 +123,7 @@ test_dup_next (int n, int dup_mode) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     int i;
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];

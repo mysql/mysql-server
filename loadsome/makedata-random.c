@@ -14,7 +14,7 @@ long long parsell (char *s) {
     return r;
 }
 
-int main (int argc, char *argv[]) {
+int main (int argc, char *const argv[]) {
     long long i;
     assert(argc==4);
     long long count=parsell(argv[1]);

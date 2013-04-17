@@ -135,7 +135,7 @@ test_789(void) {
 }
 
 int
-test_main(int UU(argc), char UU(*argv[])) {
+test_main(int UU(argc), char UU(*const argv[])) {
     test_789();
     return 0;
 }

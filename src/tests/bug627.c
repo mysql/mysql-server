@@ -66,7 +66,7 @@ do_627 (void) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     do_627();
     return 0;

@@ -44,7 +44,7 @@ static int   dump_footer    (void);
 static int   dump_header    (void);
 static int   close_database (void);
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
    int ch;
    int retval;
 

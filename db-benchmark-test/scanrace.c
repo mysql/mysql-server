@@ -22,7 +22,7 @@ static u_int32_t cachesize = 16*1024*1024;
 const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 
 
-static void parse_args (int argc, const char *argv[]) {
+static void parse_args (int argc, const char *const argv[]) {
     pname=argv[0];
     argc--;
     argv++;
@@ -132,7 +132,7 @@ static void scanrace_lwc (void) {
     printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
 }
   
-int main (int argc, const char *argv[]) {
+int main (int argc, const char *const argv[]) {
 
     parse_args(argc,argv);
 

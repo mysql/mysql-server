@@ -393,7 +393,7 @@ test_fileops_3(void) {
 
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
     setup();
     print_engine_status(env);

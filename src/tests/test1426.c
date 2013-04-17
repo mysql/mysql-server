@@ -100,7 +100,7 @@ do_insert_delete_fifo (void)
 }
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char *const argv[])
 {
     parse_args(argc, argv);
     do_insert_delete_fifo();

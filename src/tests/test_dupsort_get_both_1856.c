@@ -148,7 +148,7 @@ test_icdi_search (int n, int dup_mode) {
 
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

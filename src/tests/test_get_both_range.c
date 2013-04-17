@@ -113,7 +113,7 @@ static void test_get_both(int n, int dup_mode, int op) {
 
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     unsigned long doi=0;
     int i;
     char flags = 0;

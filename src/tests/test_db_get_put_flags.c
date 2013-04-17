@@ -132,7 +132,7 @@ GET_TEST get_tests[] = {
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     int i;
     
     parse_args(argc, argv);

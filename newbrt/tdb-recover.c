@@ -11,20 +11,20 @@
 
 #include "includes.h"
 
-static int recovery_main(int argc, const char *argv[]);
+static int recovery_main(int argc, const char *const argv[]);
 
 static void dummy(void) {}
 static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
-main(int argc, const char *argv[]) {
+main(int argc, const char *const argv[]) {
     toku_brt_init(dummy, dummy, dummy_set_brt);
     int r = recovery_main(argc, argv);
     toku_brt_destroy();
     return r;
 }
 
-int recovery_main (int argc, const char *argv[]) {
+int recovery_main (int argc, const char *const argv[]) {
     const char *data_dir, *log_dir;
     if (argc==3) {
 	data_dir = argv[1];

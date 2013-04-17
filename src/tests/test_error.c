@@ -16,7 +16,7 @@ handle_error (const DB_ENV *UU(dbenv), const char *errpfx, const char *UU(msg)) 
     n_handle_error++;
 }
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
 
 #if defined(OSX)

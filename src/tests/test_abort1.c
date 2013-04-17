@@ -187,7 +187,7 @@ test_db_put_aborts (void) {
 }
 
 int
-test_main (int UU(argc), char UU(*argv[])) {
+test_main (int UU(argc), char UU(*const argv[])) {
     test_db_open_aborts();
     test_db_put_aborts();
     return 0;

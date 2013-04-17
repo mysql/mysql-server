@@ -281,7 +281,7 @@ getuint64(const char *f) {
 }
 
 int 
-main (int argc, const char *argv[]) {
+main (int argc, const char *const argv[]) {
     const char *arg0 = argv[0];
     int interactive = 0;
     argc--; argv++;

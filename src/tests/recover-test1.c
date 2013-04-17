@@ -64,7 +64,7 @@ do_x1_recover (BOOL UU(did_commit)) {
 BOOL do_commit=FALSE, do_recover_committed=FALSE;
 
 static void
-x1_parse_args (int argc, char *argv[]) {
+x1_parse_args (int argc, char * const argv[]) {
     int resultcode;
     char *cmd = argv[0];
     argc--; argv++;
@@ -104,7 +104,7 @@ x1_parse_args (int argc, char *argv[]) {
 }
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char * const argv[])
 {
     x1_parse_args(argc, argv);
     if (do_commit) {

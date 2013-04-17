@@ -139,7 +139,7 @@ test_truncate_with_cursors (int n, u_int32_t trunc_flag) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     int nodesize = 1024*1024;
     int leafentry = 25;

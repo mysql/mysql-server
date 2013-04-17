@@ -61,7 +61,7 @@ four_billion_subtransactions (int do_something_in_children, int use_big_incremen
 }
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char *const argv[])
 {
     parse_args(argc, argv);
     four_billion_subtransactions(0, 0);
