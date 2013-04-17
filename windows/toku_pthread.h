@@ -18,6 +18,14 @@ typedef pthread_mutexattr_t     toku_pthread_mutexattr_t;
 typedef pthread_mutex_t         toku_pthread_mutex_t;
 typedef pthread_condattr_t      toku_pthread_condattr_t;
 typedef pthread_cond_t          toku_pthread_cond_t;
+
+
+static inline int toku_pthread_cond_init(toku_pthread_cond_t *cond, const toku_pthread_condattr_t *attr);
+static inline int toku_pthread_cond_destroy(toku_pthread_cond_t *cond);
+static inline int toku_pthread_cond_wait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex);
+static inline int toku_pthread_cond_signal(toku_pthread_cond_t *cond);
+static inline int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond);
+
 #if USE_PTHREADS_WIN32_RWLOCKS
 typedef pthread_rwlock_t        toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t    toku_pthread_rwlockattr_t;
@@ -42,7 +50,7 @@ typedef int (__cdecl *toku_pthread_win32_rwlock_unlock_func) (pthread_rwlock_t *
 typedef int (__cdecl *toku_pthread_win32_attr_init_func) (pthread_attr_t *attr);
 typedef int (__cdecl *toku_pthread_win32_attr_destroy_func) (pthread_attr_t *attr);
 typedef int (__cdecl *toku_pthread_win32_attr_getstacksize_func)(pthread_attr_t *attr, size_t *stacksize);
-typedef int (__cdecl *toku_pthread_win32_attr_setstacksize_func)(pthread_attr_t *attr, size_t *stacksize);
+typedef int (__cdecl *toku_pthread_win32_attr_setstacksize_func)(pthread_attr_t *attr, size_t stacksize);
 typedef int (__cdecl *toku_pthread_win32_create_func) (pthread_t *thread, const pthread_attr_t *attr, void *(*start_function)(void *), void *arg);
 typedef int (__cdecl *toku_pthread_win32_join_func) (pthread_t thread, void **value_ptr);
 typedef pthread_t (__cdecl *toku_pthread_win32_self_func)(void);
