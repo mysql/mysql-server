@@ -28,6 +28,7 @@ cachetable-flush-test
 cachetable-getandpin-test
 cachetable-prefetch-checkpoint-test
 cachetable-prefetch-close-fail-test
+cachetable-prefetch-close-leak-test
 cachetable-prefetch-close-test
 cachetable-prefetch-flowcontrol-test
 cachetable-prefetch-getandpin-fail-test
@@ -46,6 +47,7 @@ keyrange
 keyrange-dupsort
 keyrange-dupsort-unflat
 keyrange-unflat
+keytest
 list-test
 log-test
 log-test2
