@@ -602,6 +602,56 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     toku_free(new_pivots);
 }
 
+struct serialize_compress_work {
+    struct work base;
+    BRTNODE node;
+    int i;
+    struct sub_block *sb;
+};
+
+static void *
+serialize_and_compress_worker(void *arg) {
+    struct workset *ws = (struct workset *) arg;
+    while (1) {
+        struct serialize_compress_work *w = (struct serialize_compress_work *) workset_get(ws);
+        if (w == NULL)
+            break;
+        int i = w->i;
+        serialize_brtnode_partition(w->node, i, &w->sb[i]);
+        compress_brtnode_sub_block(&w->sb[i]);
+    }
+    workset_release_ref(ws);
+    return arg;
+}
+
+static void
+serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
+    if (npartitions == 1) {
+        serialize_brtnode_partition(node, 0, &sb[0]);
+        compress_brtnode_sub_block(&sb[0]);
+    } else {
+        int T = num_cores;
+        if (T > npartitions)
+            T = npartitions;
+        if (T > 0)
+            T = T - 1;
+        struct workset ws;
+        workset_init(&ws);
+        struct serialize_compress_work work[npartitions];
+        workset_lock(&ws);
+        for (int i = 0; i < npartitions; i++) {
+            work[i] = (struct serialize_compress_work) { .node = node, .i = i, .sb = sb };
+            workset_put_locked(&ws, &work[i].base);
+        }
+        workset_unlock(&ws);
+        toku_thread_pool_run(brt_pool, 0, &T, serialize_and_compress_worker, &ws);
+        workset_add_ref(&ws, T);
+        serialize_and_compress_worker(&ws);
+        workset_join(&ws);
+        workset_destroy(&ws);
+    }
+}
+
 // Writes out each child to a separate malloc'd buffer, then compresses
 // all of them, and writes the uncompressed header, to bytes_to_write,
 // which is malloc'd.
@@ -631,12 +681,17 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
 
     //
     // First, let's serialize and compress the individual sub blocks
-    // TODO: (Zardosht) cilkify this
     //
+#if 0
+    // TODO: (Zardosht) cilkify this
     for (int i = 0; i < npartitions; i++) {
         serialize_brtnode_partition(node, i, &sb[i]);
         compress_brtnode_sub_block(&sb[i]);
     }
+#else
+    serialize_and_compress(node, npartitions, sb);
+#endif
+
     //
     // Now lets create a sub-block that has the common node information,
     // This does NOT include the header
