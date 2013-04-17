@@ -6,7 +6,9 @@
 #endif
 #define _FILE_OFFSET_BITS 64
 
-#include <arpa/inet.h>
+// Portability first!
+#include "portability.h"
+
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>

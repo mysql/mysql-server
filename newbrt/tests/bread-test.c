@@ -1,4 +1,5 @@
-#include <arpa/inet.h>
+#include "../portability.h"
+
 #include <assert.h>
 #include <fcntl.h>
 #include <stdlib.h>

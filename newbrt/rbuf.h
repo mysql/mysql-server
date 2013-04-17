@@ -3,10 +3,11 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "toku_assert.h"
-#include "memory.h"
+#include "portability.h"
 #include "memarena.h"
-#include <arpa/inet.h>
+#include "toku_assert.h"
+#include "brttypes.h"
+#include "memory.h"
 
 struct rbuf {
     unsigned char *buf;

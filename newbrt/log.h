@@ -16,10 +16,10 @@ struct logbytes {
     struct logbytes *next;
     int nbytes;
     LSN lsn;
-    char bytes[0];
+    char bytes[1];
 };
 
-#define MALLOC_LOGBYTES(n) toku_malloc(sizeof(struct logbytes)+n)
+#define MALLOC_LOGBYTES(n) toku_malloc(sizeof(struct logbytes)+n -1)
 
 int toku_logger_create(TOKULOGGER */*resultp*/);
 void toku_logger_set_cachetable (TOKULOGGER, CACHETABLE);

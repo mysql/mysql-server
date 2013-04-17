@@ -49,7 +49,7 @@ dump_header (int f, struct brt_header **header) {
     printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
     if (dump_data) {
 	FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
-		     ({
+		     {
 			 printf(" ");
 			 switch (type) {
 			 case BRT_NONE: printf("NONE"); goto ok;
@@ -68,7 +68,7 @@ dump_header (int f, struct brt_header **header) {
 			 printf(" ");
 			 print_item(data, datalen);
 			 printf("\n");
-		     }));
+		     });
     }
 }
 
@@ -130,7 +130,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	    printf("   buffer contains %u bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
 	    if (dump_data) {
 		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
-			     ({
+			     {
 				 printf("    TYPE=");
 				 switch ((enum brt_cmd_type)typ) {
 				 case BRT_NONE: printf("NONE"); goto ok;
@@ -151,7 +151,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				     print_item(data, datalen);
 				 }
 				 printf("\n");
-			     })
+			     }
 			     );
 	    }
 	}

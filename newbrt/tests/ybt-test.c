@@ -1,12 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#define _FILE_OFFSET_BITS 64
-
-#include "ybt.h"
-#include "memory.h"
-#include "toku_assert.h"
-#include <string.h>
+#include "includes.h"
 
 static void ybt_test0 (void) {
     void *v0=0,*v1=0;

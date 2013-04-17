@@ -14,6 +14,6 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 #ifdef SLOW_ASSERT
 #define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__)
 #else
-#define assert(expr) ({ if ((expr)==0) toku_do_assert(0, #expr, __FUNCTION__, __FILE__, __LINE__); })
+#define assert(expr) do { if ((expr)==0) toku_do_assert(0, #expr, __FUNCTION__, __FILE__, __LINE__); } while (0)
 #endif
 #endif

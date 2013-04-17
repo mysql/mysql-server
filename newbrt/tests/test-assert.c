@@ -1,10 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include "toku_assert.h"
-#include "brttypes.h"
+#include "includes.h"
 #include <signal.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+
 
 static __attribute__((__noreturn__)) void catch_abort (int sig __attribute__((__unused__))) {
     exit(1);

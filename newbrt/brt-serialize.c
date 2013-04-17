@@ -237,14 +237,14 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
 		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-				  ({
+				  {
 				      assert(type>=0 && type<256);
 				      wbuf_char(&w, (unsigned char)type);
 				      wbuf_TXNID(&w, xid);
 				      wbuf_bytes(&w, key, keylen);
 				      wbuf_bytes(&w, data, datalen);
 				      check_local_fingerprint+=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-				  }));
+				  });
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
 	    if (check_local_fingerprint!=node->local_fingerprint) printf("%s:%d node=%" PRId64 " fingerprint expected=%08x actual=%08x\n", __FILE__, __LINE__, node->thisnodename.b, check_local_fingerprint, node->local_fingerprint);
@@ -882,7 +882,7 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
 	freeoff+=size;
     }
     FIFO_ITERATE(fifo, key, keylen, val, vallen, type, xid,
-		 ({
+		 {
 		     size_t size=keylen+vallen+1+8+4+4;
 		     char  *MALLOC_N(size, buf);
 		     assert(buf!=0);
@@ -903,7 +903,7 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
 		     assert(r==(ssize_t)size);
 		     freeoff+=size;
 		     toku_free(buf);
-		 }));
+		 });
     unlock_for_pwrite();
     return 0;
 }

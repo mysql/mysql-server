@@ -1,10 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2008 Tokutek Inc.  All rights reserved."
 
-#include "brt.h"
+#include "includes.h"
 #include "test.h"
-#include "toku_assert.h"
-#include "key.h"
 
 #include <unistd.h>
 

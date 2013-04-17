@@ -23,9 +23,9 @@ static void verify_local_fingerprint (BRTNODE node) {
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++)
 	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-			      ({
+			      {
 				  fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-			      }));
+			      });
 	assert(fp==node->local_fingerprint);
     } else {
 	toku_verify_counts(node);

@@ -1,11 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "brt.h"
-#include "key.h"
+#include "includes.h"
 #include "test.h"
-#include "toku_assert.h"
-#include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
