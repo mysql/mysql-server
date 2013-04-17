@@ -12,4 +12,13 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv);
 void toku_txn_close_txn(TOKUTXN txn);
 XIDS toku_txn_get_xids (TOKUTXN);
 
+// Returns TRUE if a is older than b
+BOOL toku_txnid_older(TXNID a, TXNID b);
+
+// Returns TRUE if a == b
+BOOL toku_txnid_eq(TXNID a, TXNID b);
+
+// Returns TRUE if a is newer than b
+BOOL toku_txnid_newer(TXNID a, TXNID b);
+
 #endif //TOKUTXN_H
