@@ -39,6 +39,14 @@ WINDOWS_DONTRUN_TESTS = \
 	helgrind3 \
 #\ ends prev line
 
+#BDB Tests that are irrelevant in windows.
+WINDOWS_BDB_DONTRUN_TESTS = \
+	diskfull \
+	test_groupcommit_count \
+#\ ends prev line
+#diskfull: windows bdb is missing db_env_set_func_pwrite and db_env_set_func_write
+#test_groupcommit_count: windows bdb is missing db_env_set_func_fsync
+
 ifeq ($(OS_CHOICE),windows)
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
 else
@@ -69,6 +77,10 @@ BDB_DONTRUN_TESTS = \
 	test_txn_close_open_commit \
 	test_txn_commit8 \
 #\ ends prev line
+
+ifeq ($(OS_CHOICE),windows)
+    BDB_DONTRUN_TESTS+=$(WINDOWS_BDB_DONTRUN_TESTS)
+endif
 
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 
@@ -106,7 +118,7 @@ RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TE
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
 
-MORE_BDB_BINS = test1426.bdb
+MORE_BDB_BINS = test1426.bdb$(BINSUF)
 
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
@@ -117,7 +129,7 @@ tests: tests.bdb tests.tdb ;
 tests.bdb: $(BDB_TESTS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_TESTS) ;
-check.tdb: $(RUN_TDB_TESTS) ;
+check.tdb: $(notdir $(LIBTDB)) $(RUN_TDB_TESTS) ;
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
@@ -139,9 +151,37 @@ $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
 
 TDBVGRIND=$(VGRIND)
 
+ifeq ($(OS_CHOICE),windows)
+ifdef BDBDIR
+%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include
+%.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
+endif
+ifeq ($(DEBUG),0)
+WINDOWS_BDB_LIB_NAME=libdb$(BDBVER).$(SOEXT)
+$(WINDOWS_BDB_LIB_NAME):
+	cp $(BDBDIR)/bin/$(WINDOWS_BDB_LIB_NAME) $@
+else
+WINDOWS_BDB_LIB_NAME=libdb$(BDBVER)d.$(SOEXT)
+$(WINDOWS_BDB_LIB_NAME):
+	cp $(BDBDIR)/bin/debug/$(WINDOWS_BDB_LIB_NAME) $@
+endif
+%.bdb$(BINSUF): DLINK_FILES=$(BDBDIR)/lib/$(WINDOWS_BDB_LIB_NAME)
+else
+WINDOWS_BDB_LIB_NAME=
+#linux
+ifdef BDBDIR
+%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include
+%.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
+endif
+%.bdb$(BINSUF): DLINK_FILES=db.$(SOEXT)
+endif
+#empty on purpose
+
+
+
 # Use -s on the command line to make things quiet.
 # Use -s on the command line to make things quiet.
-%.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK)
+%.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(WINDOWS_BDB_LIB_NAME)
 	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
 	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
@@ -168,14 +208,7 @@ all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) ;
 #DISABLE standard tdbrun for recover tests.
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
 
-#TODO: PORT
-ifdef BDBDIR
-%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include
-%.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
-endif
-%.bdb$(BINSUF): DLINK_FILES=db.$(SOEXT)
-
-%.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
+%.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0 -DTOKU_ALLOW_DEPRECATED
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
@@ -288,7 +321,7 @@ test_db_assoc3.tdbrun: test_db_assoc3.tdb$(BINSUF)
 	              $(VGRIND) ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # Give up on VGRIND for bdbrun
-test_db_assoc3.bdbrun: test_db_assoc3.bdb$(BINSUF)
+test_db_assoc3.bdbrun: test_db_assoc3.bdb$(BINSUF) $(WINDOWS_BDB_LIB_NAME)
 	./$< --seed=2 --count=100000        $(VERBVERBOSE) && \
 	              ./$< --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 

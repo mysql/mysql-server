@@ -114,14 +114,21 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #define CLOSE_TRACE_FILE(x) ((void)0)
 #endif
 
+#include <memory.h>
 int test_main (int argc, const char *argv[]);
 int
 main(int argc, const char *argv[]) {
-#if defined(_WIN32) || defined(_WIN64)
+    int r;
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
     toku_ydb_init();
 #endif
-    int r = test_main(argc, argv);
-#if defined(_WIN32) || defined(_WIN64)
+#if !IS_TDB
+    r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
+    r = db_env_set_func_free(toku_free);      assert(r==0);
+    r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
+#endif
+    r = test_main(argc, argv);
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
     toku_ydb_destroy();
 #endif
     return r;

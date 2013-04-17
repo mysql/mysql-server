@@ -1,3 +1,4 @@
+# -*- Mode: Makefile -*-
 CPPFLAGS = -D_GNU_SOURCE
 CPPFLAGS += -I../../toku_include -I..
 CFLAGS = -Wall -Werror -g -O0
@@ -28,7 +29,8 @@ all: $(TARGETS)
 test-gettime: test-gettime.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS) -lrt
 
-check: $(TARGETS) $(RUNTARGETS)
+.PHONY: check
+check: $(TARGETS) $(RUNTARGETS);
 
 %.tdbrun: %
 ifeq ($(VGRIND),)
