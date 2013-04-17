@@ -222,7 +222,6 @@ static void scanscan_lwc (void) {
 #endif
 
 static void scanscan_range (void) {
-    int fnull = open(DEV_NULL_FILE, O_WRONLY); assert(fnull >= 0); // use with strace
     int r;
     double tstart = gettime();
     DBC *dbc;
@@ -241,9 +240,7 @@ static void scanscan_range (void) {
         DBT val; memset(&val, 0, sizeof val);
 
         // set the cursor to the random key
-        write(fnull, "s", 1);
         r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag); assert(r==0);
-        write(fnull, "e", 1);
 
 #if 0
 	long rowcounter=0;
@@ -260,8 +257,6 @@ static void scanscan_range (void) {
     double tend = gettime();
     double tdiff = tend-tstart;
     printf("Range %d %f\n", n_experiments, tdiff);
-
-    close(fnull);
 }
 
 #ifdef TOKUDB
