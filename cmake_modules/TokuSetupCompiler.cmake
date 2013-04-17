@@ -85,6 +85,8 @@ set_cflags_if_supported(
   -Wmissing-format-attribute
   -Wno-error=missing-format-attribute
   -Wpacked
+  -fno-rtti
+  -fno-exceptions
   )
 ## set_cflags_if_supported_named("-Weffc++" -Weffcpp)
 set_ldflags_if_supported(
@@ -108,14 +110,18 @@ else ()
   check_c_compiler_flag(-flto HAVE_C_FLAG_FLTO)
   check_c_compiler_flag(-ipo HAVE_C_FLAG_IPO)
   if (HAVE_C_FLAG_FLTO)
-    set(CMAKE_C_FLAGS_RELEASE "-O3 -flto")# -fuse-linker-plugin")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto -fuse-linker-plugin")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -fuse-linker-plugin")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fuse-linker-plugin")
   elseif (HAVE_C_FLAG_IPO)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ip -ipo1")
   endif ()
   check_cxx_compiler_flag(-flto HAVE_CXX_FLAG_FLTO)
   check_cxx_compiler_flag(-ipo HAVE_CXX_FLAG_IPO)
   if (HAVE_CXX_FLAG_FLTO)
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto")# -fuse-linker-plugin")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto -fuse-linker-plugin")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -fuse-linker-plugin")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fuse-linker-plugin")
   elseif (HAVE_CXX_FLAG_IPO)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ip -ipo1")
   endif ()
