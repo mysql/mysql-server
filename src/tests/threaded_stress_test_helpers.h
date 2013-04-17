@@ -150,7 +150,6 @@ struct scan_cb_extra {
     bool fast;
     int64_t curr_sum;
     int64_t num_elements;
-    int elts[20];
 };
 
 static int
@@ -161,7 +160,6 @@ scan_cb(const DBT *a, const DBT *b, void *arg_v) {
     assert(cb_extra);
     assert(b->size >= sizeof(int));
     cb_extra->curr_sum += *(int *)b->data;
-    cb_extra->elts[cb_extra->num_elements] = *(int*)b->data;
     cb_extra->num_elements++;
     return cb_extra->fast ? TOKUDB_CURSOR_CONTINUE : 0;
 }
@@ -196,9 +194,6 @@ static int scan_op_and_maybe_check_sum(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, A
     }
     if (check_sum && e.curr_sum) {
         printf("e.curr_sum: %"PRId64" e.num_elements: %"PRId64" \n", e.curr_sum, e.num_elements);
-        for (int i = 0; i < 20; ++i) {
-            printf("%d\t%d\n", i, e.elts[i]);
-        }
         assert(false);
     }
     return r;
