@@ -175,7 +175,9 @@ struct cachetable {
     u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
     u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
-    struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread
+    struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread,
+                                 // see comments in toku_cachetable_begin_checkpoint to understand
+                                 // purpose of the pending_lock
     struct minicron checkpointer; // the periodic checkpointing thread
     struct minicron cleaner; // the periodic cleaner thread
     u_int32_t cleaner_iterations; // how many times to run the cleaner per
@@ -1338,6 +1340,8 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // that needs to write out a dirty node for checkpoint.
 //
 static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
+    // see comments in toku_cachetable_begin_checkpoint to understand
+    // purpose of the pending_lock
     rwlock_read_lock(&ct->pending_lock, ct->mutex);
     
     // helgrind
@@ -3225,6 +3229,46 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	}
 
         unsigned int npending = 0;
+        //
+        // Here is why we have the pending lock, and why we take its write lock
+        // at this point. 
+        //
+        // First, here is how the pending lock is used:
+        //  - begin checkpoint grabs the write lock
+        //  - threads that write a node to disk grab the read lock
+        //
+        // As a result, when we grab the write lock here, we know that
+        // no writer threads are in the middle of writing a node out to disk.
+        //
+        // We are protecting against a race condition between writer
+        // threads that write nodes to disk, and the beginning of this checkpoint.
+        // When a writer thread writes a node to disk, the cachetable lock is released,
+        // allowing a begin_checkpoint to occur. If writer threads and begin checkpoint
+        // run concurrently, our checkpoint may be incorrect. Here is how.
+        //
+        // Here is the specific race condition. Suppose this pending lock does not exist,
+        // and writer threads may be writing nodes to disk. Take the following scenario:
+        // Writer thread:
+        //  -grabs cachetable lock, has a dirty PAIR without the checkpoint pending bit set
+        //  -releases the cachetable lock with the intent of writing this node to disk
+        // Before the writer thread goes any further, the checkpoint thread comes along:
+        //  - marks the dirty PAIR that is about to be written out as pending.
+        //  - copies the current translation table of that contains the PAIR to the inprogress one (see struct block_table)
+        // At this point, for the checkpoint to be correct, the dirty PAIR 
+        // that is in the process of being written out should be included in the inprogress translation table. This PAIR 
+        // belongs in the checkpoint.
+        // Now let's go back to the writer thread:
+        //  - because the checkpoint pending bit was not set for the PAIR, the for_checkpoint parameter
+        //     passed into the flush callback is FALSE.
+        //  - as a result, the PAIR is written to disk, the current translation table is updated, but the
+        //     inprogress translation table is NOT updated.
+        //  - the PAIR is marked as clean because it was just written to disk
+        // Now, when the checkpoint thread gets around to this PAIR, it notices
+        // that the checkpoint_pending bit is set, but the PAIR is clean. So no I/O is done.
+        // The checkpoint_pending bit is cleared, without the inprogress translation table ever being 
+        // updated. This is not correct. The result is that the checkpoint does not include the proper
+        // state of this PAIR.
+        //
         rwlock_write_lock(&ct->pending_lock, ct->mutex);
         ct->checkpoint_is_beginning = TRUE;         // detect threadsafety bugs, must set checkpoint_is_beginning ...
         invariant(ct->checkpoint_prohibited == 0);  // ... before testing checkpoint_prohibited
@@ -3237,14 +3281,14 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 // mark anything that is dirty OR currently in use
                 // as pending a checkpoint
                 //
-                //The rule for the checkpoint_pending big is as follows:
+                //The rule for the checkpoint_pending bit is as follows:
                 //  - begin_checkpoint may set checkpoint_pending to true
                 //    even though the pair lock on the node is not held. Only the
                 //    cachetable lock is necessary
                 //  - any thread that wants to clear the pending bit must own
                 //     BOTH the cachetable lock and the PAIR lock. Otherwise,
-                //     we may end up clearing the pending bit before giving the
-                //     current lock ever released.
+                //     we may end up clearing the pending bit before the
+                //     current lock is ever released.
                 if (p->dirty || nb_mutex_writers(&p->nb_mutex)) {
                     p->checkpoint_pending = TRUE;
                     if (ct->pending_head) {
