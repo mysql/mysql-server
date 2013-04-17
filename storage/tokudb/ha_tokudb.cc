@@ -6348,7 +6348,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DB_TXN* txn = NULL;
     THD* thd = ha_thd(); 
     DB_LOADER* loader = NULL;
-    u_int32_t loader_flags = (get_load_save_space(thd)) ? LOADER_USE_PUTS : 0;
+    bool loader_use_puts = get_load_save_space(thd);
+    u_int32_t loader_flags = loader_use_puts ? LOADER_USE_PUTS : 0;
     u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
     u_int32_t mult_dbt_flags[MAX_KEY + 1] = {DB_DBT_REALLOC};
     struct loader_context lc = {0};
@@ -6494,7 +6495,12 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         num_processed++; 
 
         if ((num_processed % 1000) == 0) {
-            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
+            if (loader_use_puts) {
+                sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, (long long unsigned) share->rows);
+            }
+            else {
+                sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
+            }
             thd_proc_info(thd, status_msg);
             if (thd->killed) {
                 error = ER_ABORTING_CONNECTION;
