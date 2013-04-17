@@ -37,7 +37,7 @@ ftcc=gcc47
 ftcxx=g++47
 BDBVERSION=5.3
 ctest_model=Nightly
-generator="UNIX Makefiles"
+generator="Unix Makefiles"
 toku_svnroot=$FULLTOKUDBDIR/../..
 commit=1
 while [ $# -gt 0 ] ; do
