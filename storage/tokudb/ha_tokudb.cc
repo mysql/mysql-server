@@ -3461,7 +3461,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         else {
             if (thd->in_lock_tables) {
                 assert(trx->all != NULL);
-                assert(lock.type == TL_WRITE || lock.type == TL_READ_NO_INSERT);
                 //
                 // For the command "Lock tables foo read, bar read"
                 // This statement is grabbing the locks for the table
@@ -3469,10 +3468,10 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 // trx->tokudb_lock_count is 0 and we are initializing
                 // trx->all above
                 //
-                if (lock.type == TL_READ_NO_INSERT) {
+                if (lock.type <= TL_READ_NO_INSERT) {
                     error = acquire_table_lock(trx->all,lock_read);
                 }
-                else if (lock.type == TL_WRITE) {
+                else {
                     error = acquire_table_lock(trx->all,lock_write);
                 }
                 if (error) {trx->tokudb_lock_count--; goto cleanup;}
