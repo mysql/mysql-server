@@ -10,6 +10,8 @@ add_library(range_tree_tlog SHARED log_nooverlap.c)
 target_link_libraries(range_tree_tlog ft ${LIBTOKUPORTABILITY})
 add_dependencies(range_tree_tlog install_tdb_h)
 
+set_targets_need_intel_libs(range_tree_lin range_tree_tlog)
+
 ## make the real library, it's going to go into libtokudb.so so it needs
 ## to be PIC
 add_library(range_tree_static STATIC log_nooverlap.c)
