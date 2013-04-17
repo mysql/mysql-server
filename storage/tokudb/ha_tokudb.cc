@@ -4180,12 +4180,11 @@ exit:
 //
 int ha_tokudb::index_end() {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_end %p", this);
-    int error = 0;
     range_lock_grabbed = false;
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
-        error = cursor->c_close(cursor);
-        assert(error==0);
+        int r = cursor->c_close(cursor);
+        assert(r==0);
         cursor = NULL;
         last_cursor_error = 0;
     }
@@ -4199,7 +4198,7 @@ int ha_tokudb::index_end() {
     read_key = true;
     num_fixed_cols_for_query = 0;
     num_var_cols_for_query = 0;
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_DBUG_RETURN(0);
 }
 
 
@@ -4766,7 +4765,7 @@ int ha_tokudb::rnd_init(bool scan) {
             error = cursor->c_pre_acquire_read_lock(cursor, db->dbt_neg_infty(), db->dbt_pos_infty());
             lockretry_wait;
         }
-        if (error) { last_cursor_error = error; goto cleanup; }
+        if (error) { goto cleanup; }
     }
     //
     // only want to set range_lock_grabbed to true after index_init
@@ -4777,6 +4776,10 @@ int ha_tokudb::rnd_init(bool scan) {
     if (scan) { range_lock_grabbed = true; }
     error = 0;
 cleanup:
+    if (error) { 
+        index_end();
+        last_cursor_error = error; 
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
