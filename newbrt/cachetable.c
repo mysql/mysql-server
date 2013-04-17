@@ -176,7 +176,7 @@ static PAIR_ATTR const zero_attr = {
     .is_valid = TRUE
 };
 
-static void maybe_flush_some (CACHETABLE ct, long size, BOOL ct_locked);
+static void maybe_flush_some (CACHETABLE ct, long size);
 
 static inline void
 ctpair_add_ref(PAIR p) {
@@ -533,7 +533,7 @@ u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_wait_write(ct);
     uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
     ct->size_reserved += reserved_memory;
-    maybe_flush_some(ct, reserved_memory, TRUE);    
+    maybe_flush_some(ct, reserved_memory);    
     ct->size_current += reserved_memory;
     cachetable_unlock(ct);
     return reserved_memory;
@@ -1616,7 +1616,7 @@ static void cachetable_partial_eviction(WORKITEM wi) {
 }
 
 
-static void maybe_flush_some (CACHETABLE ct, long size, BOOL ct_locked) {
+static void maybe_flush_some (CACHETABLE ct, long size) {
 
     //
     // These variables will help us detect if everything in the clock is currently being accessed.
@@ -1629,7 +1629,6 @@ static void maybe_flush_some (CACHETABLE ct, long size, BOOL ct_locked) {
     FILENUM curr_filenum;
     curr_filenum.fileid = UINT32_MAX; // create initial value so compiler does not complain
     BOOL set_val = FALSE;
-    if (!ct_locked) cachetable_lock(ct);
     
     while ((ct->clock_head) && (size + ct->size_current > ct->size_limit + ct->size_evicting)) {
         PAIR curr_in_clock = ct->clock_head;
@@ -1726,13 +1725,12 @@ static void maybe_flush_some (CACHETABLE ct, long size, BOOL ct_locked) {
         cachetable_rehash(ct, ct->table_size/2);
     }
 exit:
-    if (!ct_locked) cachetable_unlock(ct);
     return;
 }
 
 void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
     cachetable_lock(ct);
-    maybe_flush_some(ct, 0, TRUE);
+    maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
 }
 
@@ -1985,7 +1983,7 @@ int toku_cachetable_put_with_dep_pairs(
     // is used to ensure that a checkpoint is not begun during 
     // cachetable_put_internal
     // 
-    maybe_flush_some(ct, attr.size, TRUE);
+    maybe_flush_some(ct, attr.size);
     int rval;
     {
 	BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
@@ -2027,7 +2025,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     CACHETABLE ct = cachefile->cachetable;
     cachetable_lock(ct);
     cachetable_wait_write(ct);
-    maybe_flush_some(ct, attr.size, TRUE);
+    maybe_flush_some(ct, attr.size);
     int r = cachetable_put_internal(
         cachefile,
         key,
@@ -2235,7 +2233,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             if (!partial_fetch_required && fast_checkpointing) {
                 *value = p->value;
                 if (sizep) *sizep = p->attr.size;
-                maybe_flush_some(ct, 0, FALSE);
                 return 0;
             }
             cachetable_lock(ct);
@@ -2332,7 +2329,7 @@ got_value:
 	END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
     }
 
-    maybe_flush_some(ct, 0, TRUE);
+    maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return 0;
@@ -2444,7 +2441,7 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
                 if (flush) {
-                    maybe_flush_some(ct, 0, TRUE);
+                    maybe_flush_some(ct, 0);
                 }
 	    }
             r = 0; // we found one
