@@ -33,7 +33,6 @@ void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
 }
 
 void *toku_worker(void *arg) {
-    // printf("%lu:%s:start %p\n", toku_pthread_self(), __FUNCTION__, arg);
     WORKQUEUE wq = arg;
     int r;
     while (1) {
@@ -43,6 +42,5 @@ void *toku_worker(void *arg) {
             break;                     // [see "A" in toku_destroy_workers() ]
         wi->f(wi);                     // call the work handler function
     }
-    // printf("%lu:%s:exit %p\n", toku_pthread_self(), __FUNCTION__, arg);
     return arg;
 }

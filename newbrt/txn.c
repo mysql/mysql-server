@@ -263,7 +263,7 @@ toku_txn_start_txn(TOKUTXN txn) {
     }
     assert(logger->oldest_living_xid <= txn->txnid64);
 
-    r = toku_pthread_mutex_lock(&logger->txn_list_lock); assert_zero(r);
+    toku_mutex_lock(&logger->txn_list_lock);
     {
         //Add txn to list (omt) of live transactions
         //We know it is the newest one.
@@ -320,7 +320,7 @@ toku_txn_start_txn(TOKUTXN txn) {
             }
         }
     }
-    r = toku_pthread_mutex_unlock(&logger->txn_list_lock); assert_zero(r);
+    toku_mutex_unlock(&logger->txn_list_lock);
     return 0;
 }
 
@@ -688,7 +688,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
     assert(txn->current_rollback.b == ROLLBACK_NONE.b);
     int r;
     TOKULOGGER logger = txn->logger;
-    r = toku_pthread_mutex_lock(&logger->txn_list_lock); assert_zero(r);
+    toku_mutex_lock(&logger->txn_list_lock);
     {
         {
             //Remove txn from list (omt) of live transactions
@@ -739,7 +739,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
             }
         }
     }
-    r = toku_pthread_mutex_unlock(&logger->txn_list_lock); assert_zero(r);
+    toku_mutex_unlock(&logger->txn_list_lock);
 
     assert(logger->oldest_living_xid <= txn->txnid64);
     if (txn->txnid64 == logger->oldest_living_xid) {

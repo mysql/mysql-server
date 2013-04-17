@@ -103,7 +103,7 @@ static void test_write_dbfile (char *template, int n, char *output_name, TXNID x
         bl.root_xids_that_created[0] = 0;
     }
     int r = brtloader_init_file_infos(&bl.file_infos); CKERR(r);
-    r = brt_loader_lock_init(&bl); CKERR(r);
+    brt_loader_lock_init(&bl);
     brt_loader_set_fractal_workers_count_from_c(&bl);
 
     struct merge_fileset fs;

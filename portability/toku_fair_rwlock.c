@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <toku_assert.h>
 #include "toku_pthread.h"
+#include "toku_fair_rwlock.h"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -16,11 +17,11 @@
 struct toku_fair_rwlock_waiter_state {
     char is_read;
     struct toku_fair_rwlock_waiter_state *next;
-    pthread_cond_t cond;
+    toku_cond_t cond;
 };
 
 #if defined(HAVE_GNU_TLS)
-static __thread struct toku_fair_rwlock_waiter_state waitstate_var = {0, NULL, PTHREAD_COND_INITIALIZER };
+static __thread struct toku_fair_rwlock_waiter_state waitstate_var = {0, NULL, { PTHREAD_COND_INITIALIZER } };
 #define GET_WAITSTATE(name) name = &waitstate_var
 #else
 static pthread_key_t waitstate_key;
@@ -62,16 +63,16 @@ get_waitstate(void)
 #define GET_WAITSTATE(name) name = get_waitstate()
 #endif
 
-int toku_fair_rwlock_init (toku_fair_rwlock_t *rwlock) {
+void toku_fair_rwlock_init (toku_fair_rwlock_t *rwlock) {
     rwlock->state=0LL;
     rwlock->waiters_head = NULL;
     rwlock->waiters_tail = NULL;
-    return toku_pthread_mutex_init(&rwlock->mutex, NULL);
+    toku_mutex_init(&rwlock->mutex, NULL);
 }
 
-int toku_fair_rwlock_destroy (toku_fair_rwlock_t *rwlock) {
+void toku_fair_rwlock_destroy (toku_fair_rwlock_t *rwlock) {
     assert(rwlock->state==0); // no one can hold the mutex, and no one can hold any lock.
-    return toku_pthread_mutex_destroy(&rwlock->mutex);
+    toku_mutex_destroy(&rwlock->mutex);
 }
 
 #ifdef RW_DEBUG
@@ -97,12 +98,10 @@ void foo (void) {
 
 int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
     uint64_t s;
-    int r;
     struct toku_fair_rwlock_waiter_state *GET_WAITSTATE(waitstate);
     goto ML; // we start in the ML state.
  ML:
-    r = toku_pthread_mutex_lock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_lock(&rwlock->mutex);
     goto R2;
  R2:
     s = rwlock->state;
@@ -126,8 +125,7 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
     waitstate->is_read = 1; 
     goto W;
  W:
-    r = toku_pthread_cond_wait(&waitstate->cond, &rwlock->mutex);
-    assert(r==0);
+    toku_cond_wait(&waitstate->cond, &rwlock->mutex);
     // must wait till we are at the head of the queue because of the possiblity of spurious wakeups.
     if (rwlock->waiters_head==waitstate) goto D; 
     else goto W;
@@ -140,8 +138,7 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
  WN:
     // If the next guy is a reader then wake him up.
     if (waitstate->next!=NULL && waitstate->next->is_read) {
-	r = toku_pthread_cond_signal(&rwlock->waiters_head->cond);
-	assert(r==0);
+	toku_cond_signal(&rwlock->waiters_head->cond);
     }
     goto R4;
  R4:
@@ -151,8 +148,7 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
     if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s_decr_qcount(s)))) goto MU;
     else goto R4;
  MU:
-    r = toku_pthread_mutex_unlock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&rwlock->mutex);
     goto DONE;
  DONE:
     return 0;
@@ -160,13 +156,11 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
 
 int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
     uint64_t s;
-    int r;
     struct toku_fair_rwlock_waiter_state *GET_WAITSTATE(waitstate);
     goto ML;
  ML:
     L(ML);
-    r = toku_pthread_mutex_lock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_lock(&rwlock->mutex);
     goto R2;
  R2:
     s = rwlock->state;
@@ -193,8 +187,7 @@ int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
     waitstate->is_read = 0; 
     goto W;
  W:
-    r = toku_pthread_cond_wait(&waitstate->cond, &rwlock->mutex);
-    assert(r==0);
+    toku_cond_wait(&waitstate->cond, &rwlock->mutex);
     // must wait till we are at the head of the queue because of the possiblity of spurious wakeups.
     if (rwlock->waiters_head==waitstate) goto D; 
     else goto W;
@@ -212,8 +205,7 @@ int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
     if (__sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s_decr_qcount(s)))) goto MU;
     else goto R4;
  MU:
-    r = toku_pthread_mutex_unlock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&rwlock->mutex);
     goto DONE;
  DONE:
     return 0;
@@ -221,11 +213,9 @@ int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
 
 int toku_fair_rwlock_unlock_r_slow (toku_fair_rwlock_t *rwlock) {
     uint64_t s;
-    int r;
     goto ML;
  ML:
-    r = toku_pthread_mutex_lock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_lock(&rwlock->mutex);
     goto R2;
  R2:
     s = rwlock->state;
@@ -241,12 +231,10 @@ int toku_fair_rwlock_unlock_r_slow (toku_fair_rwlock_t *rwlock) {
     else goto R2;
  WN:
     LP(WN, rwlock->state);
-    r = toku_pthread_cond_signal(&rwlock->waiters_head->cond);
-    assert(r==0);
+    toku_cond_signal(&rwlock->waiters_head->cond);
     goto MU;
  MU:
-    r = toku_pthread_mutex_unlock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&rwlock->mutex);
     goto DONE;
  DONE:
     return 0;
@@ -254,12 +242,10 @@ int toku_fair_rwlock_unlock_r_slow (toku_fair_rwlock_t *rwlock) {
 
 int toku_fair_rwlock_unlock_w_slow (toku_fair_rwlock_t *rwlock) {
     uint64_t s;
-    int r;
     //assert(s_get_rcount(s)==0 && s_get_wlock(s));
     goto ML;
  ML:
-    r = toku_pthread_mutex_lock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_lock(&rwlock->mutex);
     goto R2;
  R2:
     LP(R2, rwlock->state);
@@ -274,12 +260,10 @@ int toku_fair_rwlock_unlock_w_slow (toku_fair_rwlock_t *rwlock) {
     else goto R2;
  WN:
     LP(WN, rwlock->state);
-    r = toku_pthread_cond_signal(&rwlock->waiters_head->cond);
-    assert(r==0);
+    toku_cond_signal(&rwlock->waiters_head->cond);
     goto MU;
  MU:
-    r = toku_pthread_mutex_unlock(&rwlock->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&rwlock->mutex);
     goto DONE;
  DONE:
     return 0;

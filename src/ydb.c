@@ -196,7 +196,7 @@ toku_ydb_init(void) {
     if (r==0) 
         r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
     if (r==0) 
-        r = toku_ydb_lock_init();
+        toku_ydb_lock_init();
     return r;
 }
 
@@ -205,10 +205,8 @@ int
 toku_ydb_destroy(void) {
     int r = 0;
     if (env_is_panicked == 0) {
-        r = toku_ydb_lock_destroy();
-	//Lower level must be cleaned up last.
-	if (r==0)
-	    r = toku_brt_destroy();
+        toku_ydb_lock_destroy();
+        r = toku_brt_destroy();
     }
     return r;
 }

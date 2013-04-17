@@ -35,7 +35,7 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
     int i;
     for (i=0; i<1000; i++) {
-	r = ml_lock(&logger->input_lock);                                                    assert(r==0);
+	ml_lock(&logger->input_lock);
 
 	int ilen=3+random()%5;
 	r = toku_logger_make_space_in_inbuf(logger, ilen+1);                                 assert(r==0);
@@ -43,7 +43,7 @@ test_main (int argc __attribute__((__unused__)),
 	logger->inbuf.n_in_buf+=(ilen+1);
 	logger->lsn.lsn++;
 	logger->inbuf.max_lsn_in_buf = logger->lsn;
-	r = ml_unlock(&logger->input_lock);                                                  assert(r == 0);
+	ml_unlock(&logger->input_lock);
 	r = toku_logger_fsync(logger);                                                      assert(r == 0);
     }
     r = toku_logger_close(&logger);

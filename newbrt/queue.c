@@ -26,8 +26,8 @@ struct queue {
 
     BOOL eof;
 
-    toku_pthread_mutex_t mutex;
-    toku_pthread_cond_t  cond;
+    toku_mutex_t mutex;
+    toku_cond_t  cond;
 };
 
 // Representation invariant:
@@ -51,18 +51,8 @@ int queue_create (QUEUE *q, u_int64_t weight_limit)
     result->head            = NULL;
     result->tail            = NULL;
     result->eof             = FALSE;
-    int r;
-    r = toku_pthread_mutex_init(&result->mutex, NULL);
-    if (r!=0) {
-	toku_free(result);
-	return r;
-    }
-    r = toku_pthread_cond_init(&result->cond, NULL);
-    if (r!=0) {
-	toku_pthread_mutex_destroy(&result->mutex);
-	toku_free(result);
-	return r;
-    }
+    toku_mutex_init(&result->mutex, NULL);
+    toku_cond_init(&result->cond, NULL);
     *q = result;
     return 0;
 }
@@ -71,30 +61,21 @@ int queue_destroy (QUEUE q)
 {
     if (q->head) return EINVAL;
     assert(q->contents_weight==0);
-    {
-	int r = toku_pthread_mutex_destroy(&q->mutex);
-	if (r) return r;
-    }
-    {
-	int r = toku_pthread_cond_destroy(&q->cond);
-	if (r) return r;
-    }
+    toku_mutex_destroy(&q->mutex);
+    toku_cond_destroy(&q->cond);
     toku_free(q);
     return 0;
 }
 
 int queue_enq (QUEUE q, void *item, u_int64_t weight, u_int64_t *total_weight_after_enq)
 {
-    {
-	int r = toku_pthread_mutex_lock(&q->mutex);
-	if (r) return r;
-    }
+    toku_mutex_lock(&q->mutex);
     assert(!q->eof);
     // Go ahead and put it in, even if it's too much.
     struct qitem *MALLOC(qi);
     if (qi==NULL) {
 	int r = errno;
-	toku_pthread_mutex_unlock(&q->mutex);
+	toku_mutex_unlock(&q->mutex);
 	return r;
     }
     q->contents_weight += weight;
@@ -109,55 +90,35 @@ int queue_enq (QUEUE q, void *item, u_int64_t weight, u_int64_t *total_weight_af
     }
     q->tail = qi;
     // Wake up the consumer.
-    {
-	int r = toku_pthread_cond_signal(&q->cond);
-	if (r) return r;
-    }
+    toku_cond_signal(&q->cond);
     // Now block if there's too much stuff in there.
     while (q->weight_limit < q->contents_weight) {
-	int r = toku_pthread_cond_wait(&q->cond, &q->mutex);
-	if (r) return r;
+	toku_cond_wait(&q->cond, &q->mutex);
     }
     // we are allowed to return.
     if (total_weight_after_enq) {
 	*total_weight_after_enq = q->contents_weight;
     }
-    {
-	int r = toku_pthread_mutex_unlock(&q->mutex);
-	if (r) return r;
-    }
+    toku_mutex_unlock(&q->mutex);
     return 0;
 }
 
 int queue_eof (QUEUE q)
 {
-    {
-	int r = toku_pthread_mutex_lock(&q->mutex);
-	if (r) return r;
-    }
+    toku_mutex_lock(&q->mutex);
     assert(!q->eof);
     q->eof = TRUE;
-    {
-	int r = toku_pthread_cond_signal(&q->cond);
-	if (r) return r;
-    }
-    {
-	int r = toku_pthread_mutex_unlock(&q->mutex);
-	if (r) return r;
-    }
+    toku_cond_signal(&q->cond);
+    toku_mutex_unlock(&q->mutex);
     return 0;
 }
 
 int queue_deq (QUEUE q, void **item, u_int64_t *weight, u_int64_t *total_weight_after_deq)
 {
-    {
-	int r = toku_pthread_mutex_lock(&q->mutex);
-	if (r) return r;
-    }
+    toku_mutex_lock(&q->mutex);
     int result;
     while (q->head==NULL && !q->eof) {
-	int r = toku_pthread_cond_wait(&q->cond, &q->mutex);
-	if (r) return r;
+	toku_cond_wait(&q->cond, &q->mutex);
     }
     if (q->head==NULL) {
 	assert(q->eof);
@@ -176,14 +137,10 @@ int queue_deq (QUEUE q, void **item, u_int64_t *weight, u_int64_t *total_weight_
 	    q->tail = NULL;
 	}
 	// wake up the producer, since we decreased the contents_weight.
-	int r = toku_pthread_cond_signal(&q->cond);
-	if (r!=0) return r;
+	toku_cond_signal(&q->cond);
 	// Successful result.
 	result = 0;
     }
-    {
-	int r = toku_pthread_mutex_unlock(&q->mutex);
-	if (r) return r;
-    }
+    toku_mutex_unlock(&q->mutex);
     return result;
 }

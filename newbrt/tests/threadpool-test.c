@@ -22,8 +22,8 @@ int verbose;
 
 struct my_threadpool {
     THREADPOOL threadpool;
-    toku_pthread_mutex_t mutex;
-    toku_pthread_cond_t wait;
+    toku_mutex_t mutex;
+    toku_cond_t wait;
     int closed;
     int counter;
 };
@@ -33,38 +33,35 @@ my_threadpool_init (struct my_threadpool *my_threadpool, int max_threads) {
     int r;
     r = toku_thread_pool_create(&my_threadpool->threadpool, max_threads); assert(r == 0);
     assert(my_threadpool != 0);
-    r = toku_pthread_mutex_init(&my_threadpool->mutex, 0); assert(r == 0);
-    r = toku_pthread_cond_init(&my_threadpool->wait, 0); assert(r == 0);
+    toku_mutex_init(&my_threadpool->mutex, 0);
+    toku_cond_init(&my_threadpool->wait, 0);
     my_threadpool->closed = 0;
     my_threadpool->counter = 0;
 }
 
 static void
 my_threadpool_destroy (struct my_threadpool *my_threadpool, int max_threads) {
-    int r;
-    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    toku_mutex_lock(&my_threadpool->mutex);
     my_threadpool->closed = 1;
-    r = toku_pthread_cond_broadcast(&my_threadpool->wait); assert(r == 0);
-    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
+    toku_cond_broadcast(&my_threadpool->wait);
+    toku_mutex_unlock(&my_threadpool->mutex);
 
     if (verbose) printf("current %d\n", toku_thread_pool_get_current_threads(my_threadpool->threadpool));
     toku_thread_pool_destroy(&my_threadpool->threadpool); assert(my_threadpool->threadpool == 0);
     assert(my_threadpool->counter == max_threads);
-    r = toku_pthread_mutex_destroy(&my_threadpool->mutex); assert(r == 0);
-    r = toku_pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
+    toku_mutex_destroy(&my_threadpool->mutex);
+    toku_cond_destroy(&my_threadpool->wait);
 }
 
 static void *
 my_thread_f (void *arg) {
     struct my_threadpool *my_threadpool = arg;
-    int r;
-    
-    r = toku_pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
+    toku_mutex_lock(&my_threadpool->mutex);
     my_threadpool->counter++;
     while (!my_threadpool->closed) {
-        r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
+        toku_cond_wait(&my_threadpool->wait, &my_threadpool->mutex);
     }
-    r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
+    toku_mutex_unlock(&my_threadpool->mutex);
     if (verbose) printf("%lu:%s:exit\n", (unsigned long)toku_os_gettid(), __FUNCTION__); 
     return arg;
 }

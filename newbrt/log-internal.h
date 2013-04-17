@@ -31,29 +31,20 @@ extern "C" {
 #define LOGGER_MIN_BUF_SIZE (1<<24)
 
 struct mylock {
-    toku_pthread_mutex_t lock;
-    int is_locked;
+    toku_mutex_t lock;
 };
 
-static inline int ml_init(struct mylock *l) {
-    l->is_locked=0;
-    memset(&l->lock, 0, sizeof(l->lock));
-    return toku_pthread_mutex_init(&l->lock, 0);
+static inline void ml_init(struct mylock *l) {
+    toku_mutex_init(&l->lock, 0);
 }
-static inline int ml_lock(struct mylock *l) {
-    int r = toku_pthread_mutex_lock(&l->lock);
-    assert(l->is_locked==0);
-    l->is_locked=1;
-    return r;
+static inline void ml_lock(struct mylock *l) {
+    toku_mutex_lock(&l->lock);
 }
-static inline int ml_unlock(struct mylock *l) {
-    assert(l->is_locked==1);
-    l->is_locked=0;
-    return toku_pthread_mutex_unlock(&l->lock);
+static inline void ml_unlock(struct mylock *l) {
+    toku_mutex_unlock(&l->lock);
 }
-static inline int ml_destroy(struct mylock *l) {
-    assert(l->is_locked==0);
-    return toku_pthread_mutex_destroy(&l->lock);
+static inline void ml_destroy(struct mylock *l) {
+    toku_mutex_destroy(&l->lock);
 }
 
 struct logbuf {
@@ -66,9 +57,9 @@ struct logbuf {
 struct tokulogger {
     struct mylock  input_lock;
 
-    toku_pthread_mutex_t output_condition_lock; // if you need both this lock and input_lock, acquire the output_lock first, then input_lock. More typical is to get the output_is_available condition to be false, and then acquire the input_lock.
-    toku_pthread_cond_t  output_condition;      //
-    BOOL output_is_available;                  // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
+    toku_mutex_t output_condition_lock; // if you need both this lock and input_lock, acquire the output_lock first, then input_lock. More typical is to get the output_is_available condition to be false, and then acquire the input_lock.
+    toku_cond_t  output_condition;      //
+    BOOL output_is_available;           // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
 
     BOOL is_open;
     BOOL is_panicked;
@@ -82,7 +73,7 @@ struct tokulogger {
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
 
     // To access these, you must have the input lock
-    toku_pthread_mutex_t txn_list_lock;  // a lock protecting live_list_reverse and snapshot_txnids for now TODO: revisit this decision
+    toku_mutex_t txn_list_lock;  // a lock protecting live_list_reverse and snapshot_txnids for now TODO: revisit this decision
     LSN lsn; // the next available lsn
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     OMT live_root_txns; // a sorted tree.

@@ -13,38 +13,34 @@
 
 struct test_seq {
     int state;
-    toku_pthread_mutex_t lock;
-    toku_pthread_cond_t cv;
+    toku_mutex_t lock;
+    toku_cond_t cv;
 };
 
 static void test_seq_init(struct test_seq *seq) {
     seq->state = 0;
-    int r;
-    r = toku_pthread_mutex_init(&seq->lock, NULL); assert(r == 0);
-    r = toku_pthread_cond_init(&seq->cv, NULL); assert(r == 0);
+    toku_mutex_init(&seq->lock, NULL);
+    toku_cond_init(&seq->cv, NULL);
 }
 
 static void test_seq_destroy(struct test_seq *seq) {
-    int r;
-    r = toku_pthread_mutex_destroy(&seq->lock); assert(r == 0);
-    r = toku_pthread_cond_destroy(&seq->cv); assert(r == 0);
+    toku_mutex_destroy(&seq->lock);
+    toku_cond_destroy(&seq->cv);
 }
 
 static void test_seq_sleep(struct test_seq *seq, int new_state) {
-    int r;
-    r = toku_pthread_mutex_lock(&seq->lock); assert(r == 0);
+    toku_mutex_lock(&seq->lock);
     while (seq->state != new_state) {
-        r = toku_pthread_cond_wait(&seq->cv, &seq->lock); assert(r == 0);
+        toku_cond_wait(&seq->cv, &seq->lock);
     }
-    r = toku_pthread_mutex_unlock(&seq->lock); assert(r == 0);
+    toku_mutex_unlock(&seq->lock);
 }
 
 static void test_seq_next_state(struct test_seq *seq) {
-    int r;
-    r = toku_pthread_mutex_lock(&seq->lock);
+    toku_mutex_lock(&seq->lock);
     seq->state++;
-    r = toku_pthread_cond_broadcast(&seq->cv); assert(r == 0);
-    r = toku_pthread_mutex_unlock(&seq->lock); assert(r == 0);
+    toku_cond_broadcast(&seq->cv);
+    toku_mutex_unlock(&seq->lock);
 }
 
 static void insert_row(DB *db, DB_TXN *txn, int k, int v, int expect_r) {

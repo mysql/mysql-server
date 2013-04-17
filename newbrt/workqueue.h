@@ -47,10 +47,10 @@ static inline void *workitem_arg(WORKITEM wi) {
 typedef struct workqueue *WORKQUEUE;
 struct workqueue {
     WORKITEM head, tail;             // list of workitems
-    toku_pthread_mutex_t lock;
-    toku_pthread_cond_t wait_read;   // wait for read
+    toku_mutex_t lock;
+    toku_cond_t wait_read;   // wait for read
     int want_read;                   // number of threads waiting to read
-    toku_pthread_cond_t wait_write;  // wait for write
+    toku_cond_t wait_write;  // wait for write
     int want_write;                  // number of threads waiting to write
     char closed;                     // kicks waiting threads off of the write queue
     int n_in_queue;                  // count of how many workitems are in the queue.
@@ -58,18 +58,18 @@ struct workqueue {
 
 // Get a pointer to the workqueue lock.  This is used by workqueue client software
 // that wants to control the workqueue locking.
-static inline toku_pthread_mutex_t *workqueue_lock_ref(WORKQUEUE wq) {
+static inline toku_mutex_t *workqueue_lock_ref(WORKQUEUE wq) {
     return &wq->lock;
 }
 
 // Lock the workqueue
 static inline void workqueue_lock(WORKQUEUE wq) {
-    int r = toku_pthread_mutex_lock(&wq->lock); assert(r == 0);
+    toku_mutex_lock(&wq->lock);
 }
 
 // Unlock the workqueue
 static inline void workqueue_unlock(WORKQUEUE wq) {
-    int r = toku_pthread_mutex_unlock(&wq->lock); assert(r == 0);
+    toku_mutex_unlock(&wq->lock);
 }
 
 // Initialize a workqueue
@@ -77,12 +77,11 @@ static inline void workqueue_unlock(WORKQUEUE wq) {
 // Effects: the workqueue is set to empty and the condition variable is initialized
 __attribute__((unused))
 static void workqueue_init(WORKQUEUE wq) {
-    int r;
-    r = toku_pthread_mutex_init(&wq->lock, 0); assert(r == 0);
+    toku_mutex_init(&wq->lock, 0);
     wq->head = wq->tail = 0;
-    r = toku_pthread_cond_init(&wq->wait_read, 0); assert(r == 0);
+    toku_cond_init(&wq->wait_read, 0);
     wq->want_read = 0;
-    r = toku_pthread_cond_init(&wq->wait_write, 0); assert(r == 0);
+    toku_cond_init(&wq->wait_write, 0);
     wq->want_write = 0;
     wq->closed = 0;
     wq->n_in_queue = 0;
@@ -92,24 +91,22 @@ static void workqueue_init(WORKQUEUE wq) {
 // Expects: the work queue must be initialized and empty
 __attribute__((unused))
 static void workqueue_destroy(WORKQUEUE wq) {
-    int r;
     workqueue_lock(wq); // shutup helgrind
     assert(wq->head == 0 && wq->tail == 0);
     workqueue_unlock(wq);
-    r = toku_pthread_cond_destroy(&wq->wait_read); assert(r == 0);
-    r = toku_pthread_cond_destroy(&wq->wait_write); assert(r == 0);
-    r = toku_pthread_mutex_destroy(&wq->lock); assert(r == 0);
+    toku_cond_destroy(&wq->wait_read);
+    toku_cond_destroy(&wq->wait_write);
+    toku_mutex_destroy(&wq->lock);
 }
 
 // Close the work queue
 // Effects: signal any threads blocked in the work queue
 __attribute__((unused))
 static void workqueue_set_closed(WORKQUEUE wq, int dolock) {
-    int r;
     if (dolock) workqueue_lock(wq);
     wq->closed = 1;
-    r = toku_pthread_cond_broadcast(&wq->wait_read); assert(r == 0);
-    r = toku_pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
+    toku_cond_broadcast(&wq->wait_read);
+    toku_cond_broadcast(&wq->wait_write);
     if (dolock) workqueue_unlock(wq);
 }
 
@@ -134,7 +131,7 @@ static void workqueue_enq(WORKQUEUE wq, WORKITEM wi, int dolock) {
         wq->head = wi;
     wq->tail = wi;
     if (wq->want_read) {
-        int r = toku_pthread_cond_signal(&wq->wait_read); assert(r == 0);
+        toku_cond_signal(&wq->wait_read);
     }
     if (dolock) workqueue_unlock(wq);
 }
@@ -155,7 +152,7 @@ static int workqueue_deq(WORKQUEUE wq, WORKITEM *wiptr, int dolock) {
             return EINVAL;
         }
         wq->want_read++;
-        int r = toku_pthread_cond_wait(&wq->wait_read, &wq->lock); assert(r == 0);
+        toku_cond_wait(&wq->wait_read, &wq->lock);
         wq->want_read--;
     }
     wq->n_in_queue--;
@@ -174,7 +171,7 @@ __attribute__((unused))
 static void workqueue_wait_write(WORKQUEUE wq, int dolock) {
     if (dolock) workqueue_lock(wq);
     wq->want_write++;
-    int r = toku_pthread_cond_wait(&wq->wait_write, &wq->lock); assert(r == 0);
+    toku_cond_wait(&wq->wait_write, &wq->lock);
     wq->want_write--;
     if (dolock) workqueue_unlock(wq);
 }
@@ -185,7 +182,7 @@ static void workqueue_wakeup_write(WORKQUEUE wq, int dolock) {
     if (wq->want_write) {
         if (dolock) workqueue_lock(wq);
         if (wq->want_write) {
-            int r = toku_pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
+            toku_cond_broadcast(&wq->wait_write);
         }
         if (dolock) workqueue_unlock(wq);
     }

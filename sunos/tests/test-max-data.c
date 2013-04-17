@@ -1,1 +1,0 @@
-../../portability/tests/test-max-data.c

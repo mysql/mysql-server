@@ -81,7 +81,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     // ct is uninitialized on purpose
     result->lg_max = 100<<20; // 100MB default
     // lsn is uninitialized
-    r = toku_pthread_mutex_init(&result->txn_list_lock, 0); if (r!=0) goto panic;
+    toku_mutex_init(&result->txn_list_lock, NULL);
     r = toku_omt_create(&result->live_txns); if (r!=0) goto panic;
     r = toku_omt_create(&result->live_root_txns); if (r!=0) goto panic;
     r = toku_omt_create(&result->snapshot_txnids); if (r!=0) goto panic;
@@ -98,9 +98,9 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->oldest_living_starttime = 0;
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
-    r = ml_init(&result->input_lock);                                  if (r!=0) goto panic;
-    r = toku_pthread_mutex_init(&result->output_condition_lock, NULL); if (r!=0) goto panic;
-    r = toku_pthread_cond_init(&result->output_condition,       NULL); if (r!=0) goto panic;
+    ml_init(&result->input_lock);
+    toku_mutex_init(&result->output_condition_lock, NULL);
+    toku_cond_init(&result->output_condition,       NULL);
     result->input_lock_ctr = 0;
     result->output_condition_lock_ctr = 0;
     result->swap_ctr = 0;
@@ -271,9 +271,9 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     toku_free(logger->inbuf.buf);
     toku_free(logger->outbuf.buf);
     // before destroying locks they must be left in the unlocked state.
-    r = ml_destroy(&logger->input_lock);                            if (r!=0) goto panic;
-    r = toku_pthread_mutex_destroy(&logger->output_condition_lock); if (r!=0) goto panic;
-    r = toku_pthread_cond_destroy(&logger->output_condition);       if (r!=0) goto panic;
+    ml_destroy(&logger->input_lock);
+    toku_mutex_destroy(&logger->output_condition_lock);
+    toku_cond_destroy(&logger->output_condition);
     logger->is_panicked=TRUE; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_omt_destroy(&logger->live_txns);
@@ -335,8 +335,7 @@ wait_till_output_available (TOKULOGGER logger)
 // 
 {
     while (!logger->output_is_available) {
-	int r = toku_pthread_cond_wait(&logger->output_condition, &logger->output_condition_lock);
-	assert_zero(r);
+        toku_cond_wait(&logger->output_condition, &logger->output_condition_lock);
     }
 }
 
@@ -346,8 +345,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
 // Entry: Holds no lock (including not holding the input lock, since we never hold both at once).
 // Exit:  Hold permission to modify output (but none of the locks).
 {
-    int r;
-    r = toku_pthread_mutex_lock(&logger->output_condition_lock);   assert_zero(r);
+    toku_mutex_lock(&logger->output_condition_lock);
     logger->output_condition_lock_ctr++;
     wait_till_output_available(logger);
     logger->output_is_available = FALSE;
@@ -355,7 +353,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
 	*fsynced_lsn = logger->fsynced_lsn;
     }
     logger->output_condition_lock_ctr++;
-    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert_zero(r);
+    toku_mutex_unlock(&logger->output_condition_lock);
 }
 
 static BOOL
@@ -368,7 +366,8 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 // Exit: Hold the output permission if returns false.
 {
     BOOL result;
-    { int r = toku_pthread_mutex_lock(&logger->output_condition_lock);  logger->output_condition_lock_ctr++;  assert_zero(r); }
+    toku_mutex_lock(&logger->output_condition_lock);
+    logger->output_condition_lock_ctr++;
     while (1) {
 	if (logger->fsynced_lsn.lsn >= lsn.lsn) { // we can look at the fsynced lsn since we have the lock.
 	    result = TRUE;
@@ -380,11 +379,11 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 	    break;
 	}
 	// otherwise wait for a good time to look again.
-	int r = toku_pthread_cond_wait(&logger->output_condition, &logger->output_condition_lock);
-	assert_zero(r);
+	toku_cond_wait(&logger->output_condition, &logger->output_condition_lock);
     }
     *fsynced_lsn = logger->fsynced_lsn;
-    { logger->output_condition_lock_ctr++;  int r = toku_pthread_mutex_unlock(&logger->output_condition_lock);  assert_zero(r); }
+    logger->output_condition_lock_ctr++;
+    toku_mutex_unlock(&logger->output_condition_lock);
     return result;
 }
 
@@ -394,16 +393,15 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
 // Entry: Holds output permissions, but no locks.
 // Exit: Holds neither locks nor output permission.
 {
-    int r;
-    r = toku_pthread_mutex_lock(&logger->output_condition_lock);        assert_zero(r);
+    toku_mutex_lock(&logger->output_condition_lock);
     logger->output_condition_lock_ctr++;
     logger->output_is_available = TRUE;
     if (logger->fsynced_lsn.lsn < fsynced_lsn.lsn) {
 	logger->fsynced_lsn = fsynced_lsn;
     }
-    r = toku_pthread_cond_broadcast(&logger->output_condition);    assert_zero(r);
+    toku_cond_broadcast(&logger->output_condition);
     logger->output_condition_lock_ctr++;
-    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert_zero(r);
+    toku_mutex_unlock(&logger->output_condition_lock);
 }
     
 static void
@@ -450,14 +448,13 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
 // Arguments:  logger:         the logger (side effects)
 //             n_bytes_needed: how many bytes to make space for.
 {
-    int r;
     if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) return 0;
     logger->input_lock_ctr++;
-    r = ml_unlock(&logger->input_lock);                     if (r!=0) goto panic;
+    ml_unlock(&logger->input_lock);
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
 
-    r = ml_lock(&logger->input_lock);                       if (r!=0) goto panic;
+    ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
     // Some other thread may have written the log out while we didn't have the lock.  If we have space now, then be happy.
     if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) {
@@ -481,9 +478,6 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
     }
     release_output(logger, fsynced_lsn);
     return 0;
-  panic:
-    toku_logger_panic(logger, r);
-    return r;
 }
 
 int toku_logger_fsync (TOKULOGGER logger)
@@ -496,7 +490,7 @@ int toku_logger_fsync (TOKULOGGER logger)
 {
     int r;
     if (logger->is_panicked) return EINVAL;
-    r = ml_lock(&logger->input_lock);        assert_zero(r);
+    ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
     r = toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, TRUE);
     if (r!=0) {
@@ -510,7 +504,7 @@ toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
     int r = 0;
     if (logger->is_panicked) r = EINVAL;
     else if (logger->write_log_files) {
-        r = ml_lock(&logger->input_lock);        assert_zero(r);
+        ml_lock(&logger->input_lock);
         logger->input_lock_ctr++;
         r = toku_logger_maybe_fsync(logger, lsn, TRUE);
         if (r!=0) {
@@ -761,21 +755,20 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
     if (do_fsync) {
 	// reacquire the locks (acquire output permission first)
 	logger->input_lock_ctr++;
-	r = ml_unlock(&logger->input_lock);    assert_zero(r);
+	ml_unlock(&logger->input_lock);
 	LSN  fsynced_lsn;
 	BOOL already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
 	if (already_done) return 0;
 
 	// otherwise we now own the output permission, and our lsn isn't outputed.
 
-	r = ml_lock(&logger->input_lock);      assert_zero(r);
+	ml_lock(&logger->input_lock);
 	logger->input_lock_ctr++;
     
 	swap_inbuf_outbuf(logger);
 
 	logger->input_lock_ctr++;
-	r = ml_unlock(&logger->input_lock); // release the input lock now, so other threads can fill the inbuf.  (Thus enabling group commit.)
-	assert_zero(r);
+	ml_unlock(&logger->input_lock); // release the input lock now, so other threads can fill the inbuf.  (Thus enabling group commit.)
 
 	write_outbuf_to_logfile(logger, &fsynced_lsn);
 	if (fsynced_lsn.lsn < lsn.lsn) {
@@ -794,8 +787,7 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 	release_output(logger, fsynced_lsn);
     } else {
 	logger->input_lock_ctr++;
-	r = ml_unlock(&logger->input_lock);
-	assert_zero(r);
+	ml_unlock(&logger->input_lock);
     }
     return 0;
 }
@@ -808,7 +800,8 @@ toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn)
 // Note: Only called during single-threaded activity from toku_logger_restart, so locks aren't really needed.
 {
     swap_inbuf_outbuf(logger);
-    { logger->input_lock_ctr++;  int r = ml_unlock(&logger->input_lock);  assert_zero(r); }
+    logger->input_lock_ctr++;
+    ml_unlock(&logger->input_lock);
     write_outbuf_to_logfile(logger, fsynced_lsn);
     if (logger->write_log_files) {
 	int r = toku_file_fsync_without_accounting(logger->fd);
@@ -829,7 +822,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
     // flush out the log buffer
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
-    r = ml_lock(&logger->input_lock);                   assert(r == 0);
+    ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
     r = toku_logger_write_buffer(logger, &fsynced_lsn); assert(r == 0);
 

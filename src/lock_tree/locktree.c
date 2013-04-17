@@ -112,28 +112,20 @@ const DBT* const toku_lt_neg_infinity = &__toku_lt_neg_infinity;
 static void 
 ltm_mutex_lock(toku_ltm *mgr) {
     toku_mutex_lock(&mgr->mutex);
-    assert(!mgr->mutex_locked);
-    mgr->mutex_locked = true;
 }
 
 static void
 ltm_mutex_unlock(toku_ltm *mgr) {
-    assert(mgr->mutex_locked);
-    mgr->mutex_locked = false;
     toku_mutex_unlock(&mgr->mutex);
 }
 
 static void 
 lt_mutex_lock(toku_lock_tree *tree) {
     toku_mutex_lock(&tree->mutex);
-    assert(!tree->mutex_locked);
-    tree->mutex_locked = true;
 }
 
 static void
 lt_mutex_unlock(toku_lock_tree *tree) {
-    assert(tree->mutex_locked);
-    tree->mutex_locked = false;
     toku_mutex_unlock(&tree->mutex);
 }
 
@@ -263,7 +255,6 @@ toku_ltm_create(toku_ltm** pmgr,
     assert(r == 0 && mgr->idlth);
 
     toku_mutex_init(&mgr->mutex, NULL);
-    mgr->mutex_locked = false;
     DRD_IGNORE_VAR(mgr->status);
     r = 0;
     *pmgr = mgr;
@@ -1310,7 +1301,6 @@ toku_lt_create(toku_lock_tree** ptree,
     assert(r == 0);
     lock_request_tree_init(tmp_tree);
     toku_mutex_init(&tmp_tree->mutex, NULL);
-    tmp_tree->mutex_locked = false;
     tmp_tree->ref_count = 1;
     *ptree = tmp_tree;
     r = 0;
@@ -1475,7 +1465,7 @@ cleanup:
 
 static int 
 lt_try_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
-    assert(tree && tree->mutex_locked); // locked by this thread
+    assert(tree && toku_mutex_is_locked(&tree->mutex)); // locked by this thread
 
     int r;
     toku_point left;
@@ -1724,7 +1714,7 @@ cleanup:
 // run escalation algorithm on a given locktree
 static int 
 lt_do_escalation(toku_lock_tree* lt) {
-    assert(lt && lt->mutex_locked);
+    assert(lt && toku_mutex_is_locked(&lt->mutex));
 
     int r = ENOSYS;
 
@@ -1822,7 +1812,7 @@ toku_lt_acquire_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key) {
 
 static int 
 lt_try_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
-    assert(tree->mutex_locked);
+    assert(toku_mutex_is_locked(&tree->mutex));
 
     int r;
     toku_point left;
@@ -2063,7 +2053,7 @@ lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
 
 static inline int 
 lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
-    assert(tree && tree->mutex_locked);
+    assert(tree && toku_mutex_is_locked(&tree->mutex));
 
     int r;
     toku_range_tree *selfwrite = toku_lt_ifexist_selfwrite(tree, txn);
@@ -2165,7 +2155,7 @@ toku_lt_remove_db_ref(toku_lock_tree* tree) {
 static void
 lock_request_init_wait(toku_lock_request *lock_request) {
     if (!lock_request->wait_initialized) {
-        int r = toku_pthread_cond_init(&lock_request->wait, NULL); assert_zero(r);
+        toku_cond_init(&lock_request->wait, NULL);
         lock_request->wait_initialized = true;
     }
 }
@@ -2173,7 +2163,7 @@ lock_request_init_wait(toku_lock_request *lock_request) {
 static void
 lock_request_destroy_wait(toku_lock_request *lock_request) {
     if (lock_request->wait_initialized) {
-        int r = toku_pthread_cond_destroy(&lock_request->wait); assert_zero(r);
+        toku_cond_destroy(&lock_request->wait);
         lock_request->wait_initialized = false;
     }
 }
@@ -2246,9 +2236,7 @@ lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct 
         if (!tree_locked) lt_mutex_lock(tree);
         while (lock_request->state == LOCK_REQUEST_PENDING) {
             lock_request_init_wait(lock_request);
-            tree->mutex_locked = false;
-            r = pthread_cond_timedwait(&lock_request->wait, &tree->mutex, &ts);
-            tree->mutex_locked = true;
+            r = toku_cond_timedwait(&lock_request->wait, &tree->mutex, &ts);
             assert(r == 0 || r == ETIMEDOUT);
             if (r == ETIMEDOUT && lock_request->state == LOCK_REQUEST_PENDING) {
                 lock_request_tree_delete(tree, lock_request);
@@ -2260,9 +2248,7 @@ lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct 
         if (!tree_locked) lt_mutex_lock(tree);
         while (lock_request->state == LOCK_REQUEST_PENDING) {
             lock_request_init_wait(lock_request);
-            tree->mutex_locked = false;
-            r = toku_pthread_cond_wait(&lock_request->wait, &tree->mutex); assert_zero(r);
-            tree->mutex_locked = true;
+            toku_cond_wait(&lock_request->wait, &tree->mutex);
         }
         if (!tree_locked) lt_mutex_unlock(tree);
     }
@@ -2283,7 +2269,7 @@ toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, tok
 static void
 lock_request_wakeup(toku_lock_request *lock_request, toku_lock_tree *tree UU()) {
     if (lock_request->wait_initialized) {
-        int r = toku_pthread_cond_broadcast(&lock_request->wait); assert_zero(r);
+        toku_cond_broadcast(&lock_request->wait);
     }
 }
 
@@ -2386,7 +2372,7 @@ static void lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *a_lock_re
 static int 
 lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted, bool do_escalation) { 
     assert(lock_request->state == LOCK_REQUEST_INIT);
-    assert(tree && tree->mutex_locked);
+    assert(tree && toku_mutex_is_locked(&tree->mutex));
     int r = 0;
     switch (lock_request->type) {
     case LOCK_REQUEST_READ:
@@ -2459,7 +2445,7 @@ toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_loc
 
 static void 
 lt_retry_lock_requests(toku_lock_tree *tree) {
-    assert(tree && tree->mutex_locked);
+    assert(tree && toku_mutex_is_locked(&tree->mutex));
 
     for (uint32_t i = 0; i < toku_omt_size(tree->lock_requests); ) {
         int r;

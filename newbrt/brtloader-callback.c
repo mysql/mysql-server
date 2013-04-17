@@ -12,21 +12,20 @@
 #include "brtloader-internal.h"
 
 static void error_callback_lock(brtloader_error_callback loader_error) {
-    int r = toku_pthread_mutex_lock(&loader_error->mutex); assert(r == 0);
+    toku_mutex_lock(&loader_error->mutex);
 }
 
 static void error_callback_unlock(brtloader_error_callback loader_error) {
-    int r = toku_pthread_mutex_unlock(&loader_error->mutex); assert(r == 0);
+    toku_mutex_unlock(&loader_error->mutex);
 }
 
-int brt_loader_init_error_callback(brtloader_error_callback loader_error) {
+void brt_loader_init_error_callback(brtloader_error_callback loader_error) {
     memset(loader_error, 0, sizeof *loader_error);
-    int r = toku_pthread_mutex_init(&loader_error->mutex, NULL); assert(r == 0);
-    return r;
+    toku_mutex_init(&loader_error->mutex, NULL);
 }
 
 void brt_loader_destroy_error_callback(brtloader_error_callback loader_error) { 
-    int r = toku_pthread_mutex_destroy(&loader_error->mutex); assert(r == 0);
+    toku_mutex_destroy(&loader_error->mutex);
     toku_free(loader_error->key.data);
     toku_free(loader_error->val.data);
     memset(loader_error, 0, sizeof *loader_error);

@@ -2255,7 +2255,7 @@ toku_bnc_flush_to_child(
         OMT live_list_reverse = NULL;
         OMT live_root_txns = NULL;
         {
-            toku_pthread_mutex_lock(&logger->txn_list_lock);
+            toku_mutex_lock(&logger->txn_list_lock);
             r = toku_omt_clone_noptr(&snapshot_txnids,
                                      logger->snapshot_txnids);
             assert_zero(r);
@@ -2271,7 +2271,7 @@ toku_bnc_flush_to_child(
             STATUS_VALUE(BRT_MSG_BYTES_OUT) += buffsize;
             // may be misleading if there's a broadcast message in there
             STATUS_VALUE(BRT_MSG_BYTES_CURR) -= buffsize;
-            toku_pthread_mutex_unlock(&logger->txn_list_lock);
+            toku_mutex_unlock(&logger->txn_list_lock);
         }
         // Perform the garbage collection.
         brt_leaf_gc_all_les(child, h, snapshot_txnids, live_list_reverse, live_root_txns);

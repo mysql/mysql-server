@@ -28,7 +28,7 @@ struct file_infos {
     int n_files_limit;
     struct file_info *file_infos;
     int n_files_open, n_files_extant;
-    toku_pthread_mutex_t lock; // must protect this data structure because current activity performs a REALLOC(fi->file_infos).
+    toku_mutex_t lock; // must protect this data structure because current activity performs a REALLOC(fi->file_infos).
 };
 typedef struct fidx { int idx; } FIDX;
 static const FIDX FIDX_NULL __attribute__((__unused__)) = {-1};
@@ -93,11 +93,11 @@ struct error_callback_s {
     DBT key;
     DBT val;
     BOOL did_callback;
-    toku_pthread_mutex_t mutex;
+    toku_mutex_t mutex;
 };
 typedef struct error_callback_s *brtloader_error_callback;
 
-int brt_loader_init_error_callback(brtloader_error_callback);
+void brt_loader_init_error_callback(brtloader_error_callback);
 
 void brt_loader_destroy_error_callback(brtloader_error_callback);
 
@@ -164,7 +164,7 @@ struct brtloader_s {
 
     unsigned fractal_workers; // number of fractal tree writer threads
 
-    toku_pthread_mutex_t mutex;
+    toku_mutex_t mutex;
     BOOL mutex_init;
 };
 
@@ -251,7 +251,7 @@ int toku_brt_loader_finish_extractor(BRTLOADER bl);
 
 int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 
-int brt_loader_lock_init(BRTLOADER bl);
+void brt_loader_lock_init(BRTLOADER bl);
 void brt_loader_lock_destroy(BRTLOADER bl);
 void brt_loader_set_fractal_workers_count_from_c(BRTLOADER bl);
 

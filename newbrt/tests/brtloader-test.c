@@ -287,7 +287,7 @@ static void test_merge_files (const char *template, const char *output_name) {
         .reserved_memory = 512*1024*1024,
     };
     int r = brtloader_init_file_infos(&bl.file_infos); CKERR(r);
-    r = brt_loader_lock_init(&bl); CKERR(r);
+    brt_loader_lock_init(&bl);
     brt_loader_set_fractal_workers_count_from_c(&bl);
 
     struct merge_fileset fs;
