@@ -296,136 +296,6 @@ static int toku_c_close(DBC * c);
 /* misc */
 static char *construct_full_name(const char *dir, const char *fname);
     
-#define DO_ENV_FILE 0
-#if DO_ENV_FILE
-
-static int env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
-    int r;
-    
-    if (!strcmp(command, "set_data_dir")) {
-        r = toku_env_set_data_dir(dbenv, value);
-    }
-    else if (!strcmp(command, "set_tmp_dir")) {
-        r = toku_env_set_tmp_dir(dbenv, value);
-    }
-    else if (!strcmp(command, "set_lg_dir")) {
-        r = toku_env_set_lg_dir(dbenv, value);
-    }
-    else r = -1;
-        
-    return r;
-}
-
-static int env_read_config(DB_ENV *env) {
-    HANDLE_PANICKED_ENV(env);
-    const char* config_name = "DB_CONFIG";
-    char* full_name = NULL;
-    char* linebuffer = NULL;
-    int buffersize;
-    FILE* fp = NULL;
-    int r = 0;
-    int r2 = 0;
-    char* command;
-    char* value;
-    
-    full_name = construct_full_name(env->i->dir, config_name);
-    if (full_name == 0) {
-        r = ENOMEM;
-        goto cleanup;
-    }
-    if ((fp = fopen(full_name, "r")) == NULL) {
-        //Config file is optional.
-        if (errno == ENOENT) {
-            r = EXIT_SUCCESS;
-            goto cleanup;
-        }
-        r = errno;
-        goto cleanup;
-    }
-    //Read each line, applying configuration parameters.
-    //After ignoring leading white space, skip any blank lines
-    //or comments (starts with #)
-    //Command contains no white space.  Value may contain whitespace.
-    int linenumber;
-    int ch = '\0';
-    BOOL eof = FALSE;
-    char* temp;
-    char* end;
-    int index;
-    
-    buffersize = 1<<10; //1KB
-    linebuffer = toku_malloc(buffersize);
-    if (!linebuffer) {
-        r = ENOMEM;
-        goto cleanup;
-    }
-    for (linenumber = 1; !eof; linenumber++) {
-        /* Read a single line. */
-        for (index = 0; TRUE; index++) {
-            if ((ch = getc(fp)) == EOF) {
-                eof = TRUE;
-                if (ferror(fp)) {
-                    /* Throw away current line and print warning. */
-                    r = errno;
-                    goto readerror;
-                }
-                break;
-            }
-            if (ch == '\n') break;
-            if (index + 1 >= buffersize) {
-                //Double the buffer.
-                buffersize *= 2;
-                linebuffer = toku_realloc(linebuffer, buffersize);
-                if (!linebuffer) {
-                    r = ENOMEM;
-                    goto cleanup;
-                }
-            }
-            linebuffer[index] = ch;
-        }
-        linebuffer[index] = '\0';
-        end = &linebuffer[index];
-
-        /* Separate the line into command/value */
-        command = linebuffer;
-        //Strip leading spaces.
-        while (isspace(*command) && command < end) command++;
-        //Find end of command.
-        temp = command;
-        while (!isspace(*temp) && temp < end) temp++;
-        *temp++ = '\0'; //Null terminate command.
-        value = temp;
-        //Strip leading spaces.
-        while (isspace(*value) && value < end) value++;
-        if (value < end) {
-            //Strip trailing spaces.
-            temp = end;
-            while (isspace(*(temp-1))) temp--;
-            //Null terminate value.
-            *temp = '\0';
-        }
-        //Parse the line.
-        if (strlen(command) == 0 || command[0] == '#') continue; //Ignore Comments.
-        r = env_parse_config_line(env, command, value < end ? value : "");
-        if (r != 0) goto parseerror;
-    }
-    if (0) {
-readerror:
-        toku_ydb_do_error(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
-    }
-    if (0) {
-parseerror:
-        toku_ydb_do_error(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
-    }
-cleanup:
-    if (full_name) toku_free(full_name);
-    if (linebuffer) toku_free(linebuffer);
-    if (fp) r2 = fclose(fp);
-    return r ? r : r2;
-}
-
-#endif
-
 static int do_recovery (DB_ENV *env) {
     const char *datadir=env->i->dir;
     char *logdir;
@@ -477,9 +347,9 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	    return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
 	}
     }
+    else if ((flags & DB_USE_ENVIRON)) home = getenv("DB_HOME");
 #if !TOKU_WINDOWS
-    else if ((flags & DB_USE_ENVIRON) ||
-             ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) home = getenv("DB_HOME");
+    else if ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0) home = getenv("DB_HOME");
 #endif
     unused_flags &= ~DB_USE_ENVIRON & ~DB_USE_ENVIRON_ROOT; 
 
@@ -518,11 +388,6 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         env->i->dir = NULL;
         return r;
     }
-#if DO_ENV_FILE
-    if ((r = env_read_config(env)) != 0) {
-	goto died1;
-    }
-#endif
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
