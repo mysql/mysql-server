@@ -68,6 +68,12 @@ hot_test_setup(void)
     CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
 }
 
+static void
+hot_test_destroy(void)
+{
+    CHK(env->close(env, 0));
+}
+
 ///
 static void
 hot_insert_keys(DB* db, unsigned int key_count)
@@ -178,11 +184,18 @@ test_main(int argc, char * const argv[])
 
     hot_create_db(&db, "none.db");
     hot_test(db, NONE);
+    r = db->close(db, 0);
+    CKERR(r);
     hot_create_db(&db, "small.db");
     hot_test(db, SMALL);
+    r = db->close(db, 0);
+    CKERR(r);
     hot_create_db(&db, "big.db");
     hot_test(db, BIG);
+    r = db->close(db, 0);
+    CKERR(r);
 
+    hot_test_destroy();
     verbose ? printf("Exiting Test.\n") : 0;
     return r;
 }
