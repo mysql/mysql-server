@@ -56,8 +56,10 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
     // debug printf("%s:%d %s %p %u\n", __FUNCTION__, __LINE__, lc->logfiles[index], lc->buffer, (unsigned) lc->buffer_size);
+#if !TOKU_WINDOWS //Windows reads logs fastest if we use default settings (not use setvbuf to change buffering)
     r = setvbuf(lc->cur_fp, lc->buffer, _IOFBF, lc->buffer_size);
     assert(r == 0);
+#endif
     // position fp past header
     unsigned int version=0;
     r = toku_read_logmagic(lc->cur_fp, &version);
