@@ -605,7 +605,7 @@ int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct x1764 *checksum, u_int
     return r;
 }
 int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *blocknum, struct x1764 *checksum, u_int32_t *len) {
-    u_int64_t b;
+    u_int64_t b = 0;
     int r = toku_fread_u_int64_t (f, &b, checksum, len); // sign conversion will be OK.
     blocknum->b=b;
     return r;
