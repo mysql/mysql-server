@@ -214,6 +214,7 @@ if(BUILD_TESTING)
       test_4368
       test_4657
       test_5015
+      test_5469
       test-5138
       test938c
       test_abort1

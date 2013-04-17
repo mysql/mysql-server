@@ -408,7 +408,9 @@ toku_commit_load (FILENUM    old_filenum,
         lazy_assert(r == 0);
     }
 
-    toku_cachefile_unlink_on_close(old_cf);
+    if (!toku_cachefile_is_unlink_on_close(old_cf)) {
+        toku_cachefile_unlink_on_close(old_cf);
+    }
 done:
     return r;
 }
