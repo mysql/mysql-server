@@ -64,7 +64,7 @@ rollback_memory_size(ROLLBACK_LOG_NODE log) {
     return make_rollback_pair_attr(size);
 }
 
-static void toku_rollback_node_save_ct_pair(void *value_data, PAIR p) {
+static void toku_rollback_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p) {
     ROLLBACK_LOG_NODE CAST_FROM_VOIDP(log, value_data);
     log->ct_pair = p;
 }
@@ -256,7 +256,7 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
                                         toku_rollback_pf_callback,
                                         PL_WRITE_CHEAP, // lock_type
                                         h,
-                                        0, NULL, NULL, NULL, NULL
+                                        0, NULL, NULL
                                         );
     assert(r == 0);
     ROLLBACK_LOG_NODE CAST_FROM_VOIDP(pinned_log, value);

@@ -4340,13 +4340,14 @@ struct unlock_ftnode_extra {
 };
 // When this is called, the cachetable lock is held
 static void
-unlock_ftnode_fun (void *v) {
+unlock_ftnode_fun (PAIR p, void *v) {
     struct unlock_ftnode_extra *x = NULL;
     CAST_FROM_VOIDP(x, v);
     FT_HANDLE brt = x->ft_handle;
     FTNODE node = x->node;
     // CT lock is held
     int r = toku_cachetable_unpin_ct_prelocked_no_flush(
+        p,
         brt->ft->cf,
         node->ct_pair,
         (enum cachetable_dirty) node->dirty,
@@ -4386,13 +4387,9 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
                                          &bfe,
                                          PL_READ, // we try to get a read lock, but we may upgrade to a write lock on a leaf for message application.
                                          true,
-                                         (node->height == 1), // end_batch_on_success true iff child is a leaf
                                          &childnode,
                                          &msgs_applied);
         if (rr==TOKUDB_TRY_AGAIN) {
-            // We're going to try again, so we aren't pinning any more
-            // nodes in this batch.
-            toku_cachetable_end_batched_pin(brt->ft->cf);
             return rr;
         }
         // We end the batch before applying ancestor messages if we get
@@ -4573,10 +4570,6 @@ ft_search_node(
     // At this point, we must have the necessary partition available to continue the search
     //
     assert(BP_STATE(node,child_to_search) == PT_AVAIL);
-    // When we enter, we are in a batch.  If we search a node but get
-    // DB_NOTFOUND and need to search the next node, we'll need to start
-    // another batch.
-    bool must_begin_batch = false;
     while (child_to_search >= 0 && child_to_search < node->n_children) {
         //
         // Normally, the child we want to use is available, as we checked
@@ -4592,10 +4585,6 @@ ft_search_node(
         }
         const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
         if (node->height > 0) {
-            if (must_begin_batch) {
-                toku_cachetable_begin_batched_pin(brt->ft->cf);
-                must_begin_batch = false;
-            }
             r = ft_search_child(
                 brt,
                 node,
@@ -4655,7 +4644,6 @@ ft_search_node(
         maybe_search_save_bound(node, child_to_search, search);
 
         // We're about to pin some more nodes, but we thought we were done before.
-        must_begin_batch = true;
         if (search->direction == FT_SEARCH_LEFT) {
             child_to_search++;
         }
@@ -4722,11 +4710,6 @@ try_again:
         uint32_t fullhash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
-        // Begin a batch of pins here.  If a child gets TOKUDB_TRY_AGAIN
-        // it must immediately end the batch.  Otherwise, it must end the
-        // batch as soon as it pins the leaf.  The batch will never be
-        // ended in this function.
-        toku_cachetable_begin_batched_pin(ft->cf);
         toku_pin_ftnode_off_client_thread_batched(
             ft,
             root_key,
@@ -4737,12 +4720,6 @@ try_again:
             NULL,
             &node
             );
-        if (node->height == 0) {
-            // The root is a leaf, must end the batch now because we
-            // won't apply ancestor messages, which is where we usually
-            // end it.
-            toku_cachetable_end_batched_pin(ft->cf);
-        }
     }
 
     uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
@@ -5248,7 +5225,6 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
             bfe,
             PL_READ, // may_modify_node is false, because node guaranteed to not change
             false,
-            false,
             &childnode,
             &msgs_applied
             );
@@ -5296,7 +5272,6 @@ try_again:
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-            toku_cachetable_begin_batched_pin(brt->ft->cf);
             toku_pin_ftnode_off_client_thread_batched(
                 brt->ft,
                 root_key,
@@ -5321,7 +5296,6 @@ try_again:
                                                 numrows,
                                                 &bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
             assert(r == 0 || r == TOKUDB_TRY_AGAIN);
-            toku_cachetable_end_batched_pin(brt->ft->cf);
             if (r == TOKUDB_TRY_AGAIN) {
                 assert(!unlockers.locked);
                 goto try_again;

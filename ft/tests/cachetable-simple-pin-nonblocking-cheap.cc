@@ -35,7 +35,7 @@ static void kibbutz_work(void *fe_v)
 }
 
 static void
-unlock_dummy (void* UU(v)) {
+unlock_dummy (PAIR UU(p), void* UU(v)) {
 }
 
 static void reset_unlockers(UNLOCKERS unlockers) {

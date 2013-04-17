@@ -291,7 +291,7 @@ static void ft_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v
 // End of Functions that are callbacks to the cachefile
 /////////////////////////////////////////////////////////////////////////
 
-void toku_node_save_ct_pair(void *value_data, PAIR p) {
+void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p) {
     FTNODE CAST_FROM_VOIDP(node, value_data);
     node->ct_pair = p;
 }

@@ -185,6 +185,7 @@ def_fetch (CACHEFILE f        __attribute__((__unused__)),
 
 static UU() void
 put_callback_nop(
+    CACHEKEY UU(key),
     void *UU(v),
     PAIR UU(p)) {
 }
