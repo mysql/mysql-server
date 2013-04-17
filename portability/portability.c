@@ -47,10 +47,9 @@ toku_portability_init(void) {
     return r;
 }
 
-int
+void
 toku_portability_destroy(void) {
     toku_memory_shutdown();
-    return 0;
 }
 
 int

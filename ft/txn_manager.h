@@ -78,6 +78,9 @@ int toku_txn_manager_recover_txn(
     u_int32_t flags
     );
 
+void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn);
+void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn);
+
 void toku_txn_manager_suspend(TXN_MANAGER txn_manager);
 void toku_txn_manager_resume(TXN_MANAGER txn_manager);
 

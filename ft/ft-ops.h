@@ -238,14 +238,12 @@ struct ftstat64_s {
 int 
 toku_ft_handle_stat64 (FT_HANDLE, TOKUTXN, struct ftstat64_s *stat) __attribute__ ((warn_unused_result));
 
-int toku_ft_layer_init(void (*ydb_lock_callback)(void),
-                  void (*ydb_unlock_callback)(void))
-     __attribute__ ((warn_unused_result));
+int toku_ft_layer_init(void) __attribute__ ((warn_unused_result));
 void toku_ft_open_close_lock(void);
 void toku_ft_open_close_unlock(void);
-int toku_ft_layer_destroy(void)  __attribute__ ((warn_unused_result));
-int toku_ft_serialize_layer_init(void) __attribute__ ((warn_unused_result));
-int toku_ft_serialize_layer_destroy(void) __attribute__ ((warn_unused_result));
+void toku_ft_layer_destroy(void);
+void toku_ft_serialize_layer_init(void);
+void toku_ft_serialize_layer_destroy(void);
 
 void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 // Effect: truncate file if overallocated by at least 32MiB

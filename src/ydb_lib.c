@@ -21,8 +21,7 @@ static void __attribute__((constructor)) libtokudb_init(void) {
 
 static void __attribute__((destructor)) libtokudb_destroy(void) {
     // printf("%s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-    int r = toku_ydb_destroy();
-    assert(r==0);
+    toku_ydb_destroy();
 }
 
 #endif
@@ -40,7 +39,7 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
         r = toku_ydb_init();
         break;
     case DLL_PROCESS_DETACH:
-        r = toku_ydb_destroy();
+        toku_ydb_destroy();
         break;
     case DLL_THREAD_ATTACH:
         //TODO: Any new thread code if necessary, i.e. allocate per-thread

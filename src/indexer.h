@@ -16,6 +16,12 @@ extern "C" {
 #endif
 
 
+// locking and unlocking functions to synchronize cursor position with
+// XXX_multiple APIs
+void toku_indexer_lock(DB_INDEXER* indexer);
+
+void toku_indexer_unlock(DB_INDEXER* indexer);
+
 // The indexer populates multiple destination db's from the contents of one source db.
 // While the indexes are being built by the indexer, the application may continue to 
 // change the contents of the source db.  The changes will be reflected into the destination

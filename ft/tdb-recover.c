@@ -14,19 +14,14 @@
 
 static int recovery_main(int argc, const char *const argv[]);
 
-static void dummy(void) {}
-
 int
 main(int argc, const char *const argv[]) {
     {
-	int rr = toku_ft_layer_init(dummy, dummy);
+	int rr = toku_ft_layer_init();
 	assert(rr==0);
     }
     int r = recovery_main(argc, argv);
-    {
-	int rr = toku_ft_layer_destroy();
-	assert(rr==0);
-    }
+    toku_ft_layer_destroy();
     return r;
 }
 

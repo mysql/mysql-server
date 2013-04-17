@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include "key-val.h"
 
+toku_mutex_t put_lock;
+
 enum {NUM_INDEXER_INDEXES=1};
 static const int NUM_DBS = NUM_INDEXER_INDEXES + 1; // 1 for source DB
 static const int NUM_ROWS = 100000;
@@ -83,6 +85,7 @@ static void * client(void *arg)
         dbt_init(&val, &v, sizeof(v));
 
         while ( retry++ < 10 ) {
+            toku_mutex_lock(&put_lock);
             rr = env->put_multiple(env,
                                    cs->dbs[0],
                                    txn,
@@ -93,6 +96,7 @@ static void * client(void *arg)
                                    dest_keys,
                                    dest_vals, 
                                    cs->flags);
+            toku_mutex_unlock(&put_lock);
             if ( rr == 0 ) break;
             sleep(0);
         }
@@ -257,12 +261,14 @@ static void test_indexer(DB *src, DB **dbs)
     CKERR(r);
 
     if ( verbose ) printf("test_indexer create_indexer\n");
+    toku_mutex_lock(&put_lock);
     r = env->create_indexer(env, txn, &indexer, src, NUM_DBS-1, &dbs[1], db_flags, 0);
     CKERR(r);
     r = indexer->set_error_callback(indexer, NULL, NULL);
     CKERR(r);
     r = indexer->set_poll_function(indexer, poll_print, NULL);
     CKERR(r);
+    toku_mutex_unlock(&put_lock);
 
     // start threads doing additional inserts - no lock issues since indexer already created
     r = toku_pthread_create(&client_threads[0], 0, client, (void *)&client_specs[0]);  CKERR(r);
@@ -283,8 +289,10 @@ static void test_indexer(DB *src, DB **dbs)
     }
 
     if ( verbose ) printf("test_indexer close\n");
+    toku_mutex_lock(&put_lock);
     r = indexer->close(indexer);
     CKERR(r);
+    toku_mutex_unlock(&put_lock);
     r = txn->commit(txn, DB_TXN_SYNC);
     CKERR(r);
 
@@ -306,6 +314,7 @@ static void test_indexer(DB *src, DB **dbs)
 static void run_test(void) 
 {
     int r;
+    toku_mutex_init(&put_lock, NULL);
     r = system("rm -rf " ENVDIR);                                                CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     r = toku_os_mkdir(ENVDIR "/log", S_IRWXU+S_IRWXG+S_IRWXO);                   CKERR(r);
@@ -350,6 +359,7 @@ static void run_test(void)
     for(int i=0;i<NUM_DBS;i++) {
         r = dbs[i]->close(dbs[i], 0);                                            CKERR(r);
     }
+    toku_mutex_destroy(&put_lock);
     r = env->close(env, 0);                                                      CKERR(r);
 }
 

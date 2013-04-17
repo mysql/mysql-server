@@ -783,7 +783,7 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKU
 //   (old_ft_h may be one of many handles to the dictionary.)
 //   txn that created the loader
 // Requires: 
-//   ydb_lock is held.
+//   multi operation lock is held.
 //   The brt is open.  (which implies there can be no zombies.)
 //   The new file must be a valid dictionary.
 //   The block size and flags in the new file must match the existing BRT.

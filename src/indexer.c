@@ -113,7 +113,8 @@ disassociate_indexer_from_hot_dbs(DB_INDEXER *indexer) {
 
 static void 
 free_indexer_resources(DB_INDEXER *indexer) {
-    if ( indexer->i ) {
+    if ( indexer->i ) {        
+        toku_mutex_destroy(&indexer->i->indexer_lock);
         if ( indexer->i->lec )   { le_cursor_close(indexer->i->lec); }
         if ( indexer->i->fnums ) { 
             toku_free(indexer->i->fnums); 
@@ -133,6 +134,16 @@ free_indexer(DB_INDEXER *indexer) {
         toku_free(indexer);
         indexer = NULL;
     }
+}
+
+void
+toku_indexer_lock(DB_INDEXER* indexer) {
+    toku_mutex_lock(&indexer->i->indexer_lock);
+}
+
+void
+toku_indexer_unlock(DB_INDEXER* indexer) {
+    toku_mutex_unlock(&indexer->i->indexer_lock);
 }
 
 int 
@@ -179,6 +190,8 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->build                 = build_index;
     indexer->close                 = close_indexer;
     indexer->abort                 = abort_indexer;
+
+    toku_mutex_init(&indexer->i->indexer_lock, NULL);
 
     //
     // create and close a dummy loader to get redirection going for the hot indexer
@@ -273,7 +286,7 @@ build_index(DB_INDEXER *indexer) {
     BOOL done = FALSE;
     for (uint64_t loop_count = 0; !done; loop_count++) {
 
-        toku_ydb_lock();
+        toku_indexer_lock(indexer);
 
         result = le_cursor_next(indexer->i->lec, &le);
         if (result != 0) {
@@ -295,10 +308,7 @@ build_index(DB_INDEXER *indexer) {
             toku_ule_free(ule);
         }
 
-        // if there is lock contention, then sleep for 1 millisecond after the unlock
-        // note: the value 1000 was empirically determined to provide good query performance
-        //         during hotindexing
-        toku_ydb_unlock_and_yield(1000); 
+        toku_indexer_unlock(indexer);
         
         if (result == 0) 
             result = maybe_call_poll_func(indexer, loop_count);

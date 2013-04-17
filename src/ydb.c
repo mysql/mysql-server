@@ -193,22 +193,22 @@ int
 toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
-    if (r==0) 
-        r = toku_ft_layer_init(toku_ydb_lock, toku_ydb_unlock);
-    if (r==0) 
+    if (r==0) {
+        r = toku_ft_layer_init();
+    }
+    if (r==0) {
         toku_ydb_lock_init();
+    }
     return r;
 }
 
 // Do not clean up resources if env is panicked, just exit ugly
-int 
+void 
 toku_ydb_destroy(void) {
-    int r = 0;
     if (env_is_panicked == 0) {
         toku_ydb_lock_destroy();
-        r = toku_ft_layer_destroy();
+        toku_ft_layer_destroy();
     }
-    return r;
 }
 
 static int

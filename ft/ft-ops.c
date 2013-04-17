@@ -5423,35 +5423,28 @@ int toku_dump_ft (FILE *f, FT_HANDLE brt) {
     return r;
 }
 
-int toku_ft_layer_init(void (*ydb_lock_callback)(void),
-                  void (*ydb_unlock_callback)(void)) {
+int toku_ft_layer_init(void) {
     int r = 0;
     //Portability must be initialized first
     r = toku_portability_init();
     if (r) { goto exit; }
 
-    toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+    toku_checkpoint_init();
 
-    r = toku_ft_serialize_layer_init();
-    if (r) { goto exit; }
+    toku_ft_serialize_layer_init();
 
     toku_mutex_init(&ft_open_close_lock, NULL);
 exit:
     return r;
 }
 
-int toku_ft_layer_destroy(void) {
-    int r = 0;    
+void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
 
-    if (r == 0)
-        r = toku_ft_serialize_layer_destroy();
-    if (r==0)
-        toku_checkpoint_destroy();
+    toku_ft_serialize_layer_destroy();
+    toku_checkpoint_destroy();
     //Portability must be cleaned up last
-    if (r==0)
-        r = toku_portability_destroy();
-    return r;
+    toku_portability_destroy();
 }
 
 void toku_ft_open_close_lock(void) {

@@ -20,8 +20,7 @@
  *    to set all the "pending" bits and to create the checkpoint-in-progress versions
  *    of the header and translation table (btt).
  *    The following operations must take the multi_operation_lock:
- *       - insertion into multiple indexes
- *       - "replace-into" (matching delete and insert on a single key)
+ *     - any set of operations that must be atomic with respect to begin checkpoint
  *
  *  - checkpoint_safe_lock
  *    This is a new reader-writer lock.
@@ -35,13 +34,6 @@
  *    The application can use this lock to disable checkpointing during other sensitive
  *    operations, such as making a backup copy of the database.
  *
- *  - ydb_big_lock
- *    This is the existing lock used to serialize all access to tokudb.
- *    This lock is held by the checkpoint function only for as long as is required to 
-
- *    to set all the "pending" bits and to create the checkpoint-in-progress versions
- *    of the header and translation table (btt).
- *    
  * Once the "pending" bits are set and the snapshots are taken of the header and btt,
  * most normal database operations are permitted to resume.
  *
@@ -117,10 +109,6 @@ static LSN last_completed_checkpoint_lsn;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
-
-// Call through function pointers because this layer has no access to ydb lock functions.
-static void (*ydb_lock)(void)   = NULL;
-static void (*ydb_unlock)(void) = NULL;
 
 static BOOL initialized = FALSE;     // sanity check
 static volatile BOOL locked_mo = FALSE;       // true when the multi_operation write lock is held (by checkpoint)
@@ -220,9 +208,7 @@ toku_checkpoint_safe_client_unlock(void) {
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
 void
-toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
-    ydb_lock   = ydb_lock_callback;
-    ydb_unlock = ydb_unlock_callback;
+toku_checkpoint_init(void) {
     multi_operation_lock_init();
     checkpoint_safe_lock_init();
     initialized = TRUE;
@@ -280,7 +266,6 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     }
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20);
-    ydb_lock();
     toku_ft_open_close_lock();
     
     SET_CHECKPOINT_FOOTPRINT(30);
@@ -289,7 +274,6 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
     toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
-    ydb_unlock();
 
     SET_CHECKPOINT_FOOTPRINT(40);
     if (r==0) {

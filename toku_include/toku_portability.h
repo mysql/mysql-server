@@ -206,7 +206,7 @@ int toku_set_func_fclose(int (*)(FILE*));
 int toku_set_func_read(ssize_t (*)(int, void *, size_t));
 int toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 int toku_portability_init    (void);
-int toku_portability_destroy (void);
+void toku_portability_destroy (void);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

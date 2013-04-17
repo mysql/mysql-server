@@ -426,8 +426,7 @@ main(int argc, char * const argv[])
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);
 #if IS_TDB && TOKU_WINDOWS
-    int rdestroy = toku_ydb_destroy();
-    CKERR(rdestroy);
+    toku_ydb_destroy();
 #endif
     return r;
 }

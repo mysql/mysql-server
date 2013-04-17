@@ -234,16 +234,13 @@ default_parse_args (int argc, const char *argv[]) {
 
 int test_main(int argc, const char *argv[]);
 
-static void dummy(void) {}
-
 int
 main(int argc, const char *argv[]) {
     initialize_dummymsn();
-    int rinit = toku_ft_layer_init(dummy, dummy);
+    int rinit = toku_ft_layer_init();
     CKERR(rinit);
     int r = test_main(argc, argv);
-    int rdestroy = toku_ft_layer_destroy();
-    CKERR(rdestroy);
+    toku_ft_layer_destroy();
     return r;
 }
 
