@@ -58,21 +58,43 @@ struct omt_cursor {
     OMTCURSOR next,prev; // circular linked list of all OMTCURSORs associated with omt.
 };
 
-static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
-    if (num_starting_nodes < 2) num_starting_nodes = 2;
+static inline int
+omt_create_no_array(OMT *omtp) {
     OMT MALLOC(result);
-    if (result==NULL) return errno;
+    if (result==NULL) return ENOMEM;
     result->is_array       = TRUE;
-    result->capacity       = 2*num_starting_nodes;
     result->i.a.num_values = 0;
     result->i.a.start_idx  = 0;
+    result->associated = NULL;
+    *omtp = result;
+    return 0;
+}
+
+static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
+    OMT result;
+    int r = omt_create_no_array(&result);
+    if (r) return r;
+    if (num_starting_nodes < 2) num_starting_nodes = 2;
+    result->capacity       = 2*num_starting_nodes;
     MALLOC_N(result->capacity, result->i.a.values);
     if (result->i.a.values==NULL) {
         toku_free(result);
         return errno;
     }
-    result->associated = NULL;
     *omtp = result;
+    return 0;
+}
+
+int
+toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numvalues, u_int32_t capacity) {
+    if (numvalues>capacity || !*valuesp) return EINVAL;
+    int r = omt_create_no_array(omtp);
+    if (r) return r;
+    OMT result = *omtp;
+    result->capacity       = capacity;
+    result->i.a.num_values = numvalues;
+    result->i.a.values     = *valuesp;
+    *valuesp = NULL; //Remove caller's reference.
     return 0;
 }
 

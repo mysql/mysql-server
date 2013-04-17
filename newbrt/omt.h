@@ -171,6 +171,24 @@ int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t num
 //               If the N values are known in advance, are sorted, and
 //               the structure is empty, we can batch insert them much faster.
 
+int toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numvalues, u_int32_t steal_capacity);
+// Effect: Create an OMT containing values.  The number of values is in numvalues.
+//         On success the OMT takes ownership of *valuesp array, and sets valuesp=NULL.
+// Requires: omtp != NULL
+// Requires: valuesp != NULL
+// Requires: *valuesp is sorted
+// Requires: *valuesp was allocated with toku_malloc
+// Requires: Capacity of the *valuesp array is <= steal_capacity
+// Requires: On success, *valuesp may not be accessed again by the caller.
+// Returns:
+//   0        success
+//   ENOMEM   out of memory (and doesn't modify *omtp)
+//   EINVAL   *valuesp == NULL or numvalues > capacity
+// Performance:  time=O(1)
+// Rational:     toku_omt_create_from_sorted_array takes O(numvalues) time.
+//               By taking ownership of the array, we save a malloc and memcpy,
+//               and possibly a free (if the caller is done with the array).
+
 void toku_omt_destroy(OMT *omtp);
 // Effect:  Destroy an OMT, freeing all its memory.
 //   Does not free the OMTVALUEs stored in the OMT.
