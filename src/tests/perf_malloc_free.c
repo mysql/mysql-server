@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #ident "$Id: test_stress1.c 39258 2012-01-27 13:51:58Z zardosht $"
 
+#define DONT_DEPRECATE_MALLOC 1
 #include "test.h"
 
 #include <stdio.h>

@@ -1092,80 +1092,80 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             fprintf(stderr, "\t--performance_period            INT (default %d)\n", default_args.performance_period);
             exit(resultcode);
         }
-        else if (strcmp(argv[1], "--num_elements") == 0) {
+        else if (strcmp(argv[1], "--num_elements") == 0 && argc > 1) {
             argc--; argv++;
             args->num_elements = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--num_DBs") == 0) {
+        else if (strcmp(argv[1], "--num_DBs") == 0 && argc > 1) {
             argc--; argv++;
             args->num_DBs = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--num_seconds") == 0) {
+        else if (strcmp(argv[1], "--num_seconds") == 0 && argc > 1) {
             argc--; argv++;
             args->time_of_test = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--node_size") == 0) {
+        else if (strcmp(argv[1], "--node_size") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.node_size = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--basement_node_size") == 0) {
+        else if (strcmp(argv[1], "--basement_node_size") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.basement_node_size = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--cachetable_size") == 0) {
+        else if (strcmp(argv[1], "--cachetable_size") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.cachetable_size = strtoll(argv[1], NULL, 0);
         }
-        else if (strcmp(argv[1], "--checkpointing_period") == 0) {
+        else if (strcmp(argv[1], "--checkpointing_period") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.checkpointing_period = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--cleaner_period") == 0) {
+        else if (strcmp(argv[1], "--cleaner_period") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.cleaner_period = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--cleaner_iterations") == 0) {
+        else if (strcmp(argv[1], "--cleaner_iterations") == 0 && argc > 1) {
             argc--; argv++;
             args->env_args.cleaner_iterations = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--update_broadcast_period") == 0) {
+        else if (strcmp(argv[1], "--update_broadcast_period") == 0 && argc > 1) {
             argc--; argv++;
             args->update_broadcast_period_ms = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--num_ptquery_threads") == 0 || strcmp(argv[1], "--num_threads") == 0) {
+        else if ((strcmp(argv[1], "--num_ptquery_threads") == 0 || strcmp(argv[1], "--num_threads") == 0) && argc > 1) {
             argc--; argv++;
             args->num_ptquery_threads = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--num_update_threads") == 0) {
+        else if (strcmp(argv[1], "--num_update_threads") == 0 && argc > 1) {
             argc--; argv++;
             args->num_update_threads = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--crash_on_update_failure") == 0) {
+        else if (strcmp(argv[1], "--crash_on_update_failure") == 0 && argc > 1) {
             args->crash_on_update_failure = true;
         }
-        else if (strcmp(argv[1], "--no-crash_on_update_failure") == 0) {
+        else if (strcmp(argv[1], "--no-crash_on_update_failure") == 0 && argc > 1) {
             args->crash_on_update_failure = false;
         }
-        else if (strcmp(argv[1], "--print_performance") == 0) {
+        else if (strcmp(argv[1], "--print_performance") == 0 && argc > 1) {
             args->print_performance = true;
         }
-        else if (strcmp(argv[1], "--print_thread_performance") == 0) {
+        else if (strcmp(argv[1], "--print_thread_performance") == 0 && argc > 1) {
             args->print_thread_performance = true;
         }
-        else if (strcmp(argv[1], "--performance_period") == 0) {
+        else if (strcmp(argv[1], "--performance_period") == 0 && argc > 1) {
             argc--; argv++;
             args->performance_period = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--update_txn_size") == 0) {
+        else if (strcmp(argv[1], "--update_txn_size") == 0 && argc > 1) {
             argc--; argv++;
             args->update_txn_size = atoi(argv[1]);
         }
-        else if (strcmp(argv[1], "--key_size") == 0) {
+        else if (strcmp(argv[1], "--key_size") == 0 && argc > 1) {
             argc--; argv++;
             args->key_size = atoi(argv[1]);
             assert(args->key_size >= MIN_KEY_SIZE);
         }
-        else if (strcmp(argv[1], "--val_size") == 0) {
+        else if (strcmp(argv[1], "--val_size") == 0 && argc > 1) {
             argc--; argv++;
             args->val_size = atoi(argv[1]);
             assert(args->val_size >= MIN_VAL_SIZE);
