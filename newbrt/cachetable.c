@@ -266,6 +266,13 @@ static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname, stru
     cf->fileid = fileid;
     cf->fname  = fname ? toku_strdup(fname) : 0;
 }
+//
+// Increment the reference count
+// MUST HOLD cachetable lock
+static void
+cachefile_refup (CACHEFILE cf) {
+    cf->refcount++;
+}
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname) {
@@ -277,12 +284,14 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
         r=errno; close(fd); 
         return r;
     }
+    cachetable_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
 	    r = close(fd);
             assert(r == 0);
-	    extant->refcount++;
+            cachefile_refup(extant);
 	    *cfptr = extant;
+            cachetable_unlock(ct);
 	    return 0;
 	}
     }
@@ -309,10 +318,12 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	newcf->end_checkpoint_userdata = 0;
 
 	*cfptr = newcf;
+        cachetable_unlock(ct);
 	return 0;
     }
 }
 
+//TEST_ONLY_FUNCTION
 int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname, int flags, mode_t mode) {
     int fd = open(fname, flags+O_BINARY, mode);
     if (fd<0) return errno;
@@ -387,11 +398,6 @@ static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
 }
 
 static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
-
-// Increment the reference count
-void toku_cachefile_refup (CACHEFILE cf) {
-    cf->refcount++;
-}
 
 int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string) {
 
@@ -1412,7 +1418,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 if (cf->refcount>0) {
                     //Incremement reference count of cachefile because we're using it for the checkpoint.
                     //This will prevent closing during the checkpoint.
-                    toku_cachefile_refup(cf);
+                    cachefile_refup(cf);
                     cf->next_in_checkpoint       = ct->cachefiles_in_checkpoint;
                     ct->cachefiles_in_checkpoint = cf;
                     cf->for_checkpoint           = TRUE;
