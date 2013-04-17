@@ -104,18 +104,7 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
 
 check_%: % $(PTHREAD_LOCAL)
-ifeq ($(VGRIND),)
-	./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
-else
-	$(VGRIND) --log-file=$<.check.valgrind ./$< $(VERBVERBOSE) $(EXTRA_ARGS); \
-	if [ $$? -eq 0 ] ; then \
-		lines=`cat $<.check.valgrind | wc -l`; \
-		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
-	else \
-		cat $<.check.valgrind; test 0 = 1; \
-	fi \
-	$(SUMMARIZE_CMD)
-endif
+	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 

@@ -345,29 +345,14 @@ endif
 
 ABORTCODE=137
 %.abortrecover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
-ifeq ($(VGRIND),)
-	{ ./$< --test >$<.check.output 2>&1; } 2>/dev/null ;\
+	{ ./$< --test ; } ; \
         if [ $$? -ne $(ABORTCODE) ] ; then \
+		echo $* --test did not return $(ABORTCODE); \
 		test 0 = 1; \
         else \
-		./$< --recover >>$<.check.output 2>&1; \
+		$(VGRIND) ./$< --recover; \
 	fi \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-else
-	{ ./$< --test >$<.check.output 2>&1; } 2>/dev/null ;\
-        if [ $$? -ne $(ABORTCODE) ] ; then \
-		cat $<.check.output; test 0 = 1; \
-        else \
-		valgrind --quiet --error-exitcode=1 --leak-check=full --log-file=$<.check.valgrind ./$< --recover >>$<.check.output 2>&1; \
-		if [ $$? -ne 0 ] ; then \
-		    	cat $<.check.valgrind; test 0 = 1; \
-	        else \
-			lines=`cat $<.check.valgrind | wc -l`; \
-			if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi; \
-	        fi \
-	fi \
-	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-endif
 
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
