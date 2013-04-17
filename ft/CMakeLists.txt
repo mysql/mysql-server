@@ -79,32 +79,19 @@ set(FT_SOURCES
   )
 
 add_library(ft SHARED ${FT_SOURCES})
-add_library(ft_objects OBJECT ${FT_SOURCES})
+add_library(ft_static STATIC ${FT_SOURCES})
 ## we're going to link this into libtokudb.so so it needs to have PIC
-set_target_properties(ft_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_library(ft_static STATIC $<TARGET_OBJECTS:ft_objects>)
+set_target_properties(ft_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 maybe_add_gcov_to_libraries(ft ft_static)
 
 ## depend on other generated targets
 add_dependencies(ft install_tdb_h generate_log_code build_lzma)
-add_dependencies(ft_objects install_tdb_h generate_log_code build_lzma)
+add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE lzma ${LIBTOKUPORTABILITY})
 target_link_libraries(ft LINK_PUBLIC z)
 target_link_libraries(ft_static LINK_PRIVATE lzma)
-
-if (CMAKE_C_COMPILER_ID STREQUAL Intel)
-  target_link_libraries(ft LINK_PRIVATE -nodefaultlibs)
-endif ()
-
-## conditionally use cilk
-if (USE_CILK)
-  set_property(TARGET ft APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
-  set_property(TARGET ft_static APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
-  target_link_libraries(ft cilkrts)
-  target_link_libraries(ft_static cilkrts)
-endif (USE_CILK)
 
 ## build the bins in this directory
 set(bins
