@@ -137,10 +137,11 @@ MORE_BDB_BINS = test1426.bdb$(BINSUF)
 
 default all build: $(ALL_TESTS) $(MORE_BDB_BINS)
 
-check: check.tdb ;
 ifndef TOKUDBONLY
-check: check.bdb ;
-endif
+MAYBE_CHECK_BDB = check.bdb
+else
+MAYBE_CHECK_BDB =
+check: check.tdb $(MAYBE_CHECK_BDB) ;
 
 tests: tests.bdb tests.tdb ;
 tests.bdb: $(BDB_TESTS) ;
