@@ -7738,6 +7738,9 @@ cleanup:
     } else {
         *add = new ha_tokudb_add_index(table_arg, key_info, num_of_keys, txn, incremented_numDBs, modified_DBs);
     }
+    DBUG_EXECUTE_IF("add_index_fail", {
+        error = 1;
+    });
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7764,6 +7767,10 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     // transaction does not need to be committed,
     // we depend on MySQL to rollback the transaction
     // by calling tokudb_rollback
+
+    DBUG_EXECUTE_IF("final_add_index_fail", {
+        error = 1;
+    });
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7908,6 +7915,9 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     DB_TXN *txn = transaction;
     assert(txn);
     int error = drop_indexes(table_arg, key_num, num_of_keys, txn);
+    DBUG_EXECUTE_IF("prepare_drop_index_fail", {
+        error = 1;
+    });
 
 #else
 
@@ -7949,6 +7959,9 @@ int ha_tokudb::final_drop_index(TABLE *table_arg) {
     while (ha_tokudb_final_drop_index_wait) sleep(1); // debug
 
     int error = 0;
+    DBUG_EXECUTE_IF("final_drop_index_fail", {
+        error = 1;
+    });
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -10121,6 +10134,9 @@ ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
         DB_TXN *txn = transaction; // use alter table transaction
         assert(txn);
         error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
+        DBUG_EXECUTE_IF("new_alter_table_frm_data_fail", {
+            error = 1;
+        });
     }
    
     TOKUDB_DBUG_RETURN(error);
