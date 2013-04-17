@@ -3308,7 +3308,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     DB* dbs[MAX_KEY + 1];
     DBT key_dbts[MAX_KEY + 1];
     DBT rec_dbts[MAX_KEY + 1];
-    DBT prim_val;
     u_int32_t curr_db_index;
     bool use_put_multiple = share->version > 2;
 
