@@ -10158,11 +10158,14 @@ ha_tokudb::prepare_for_alter() {
     THD *thd = ha_thd();
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     assert(trx);
-    int error = create_txn(thd, trx);
-    assert(error == 0);
-    assert(thd->in_sub_stmt == 0);
+    // for partitioned tables, a transaction may already exist, 
+    // as we call prepare_for_alter on all partitions
+    if (!trx->sub_sp_level) {
+        int error = create_txn(thd, trx);
+        assert(error == 0);
+        assert(thd->in_sub_stmt == 0);
+    }
     transaction = trx->sub_sp_level;
-
     DBUG_VOID_RETURN;
 }
 
