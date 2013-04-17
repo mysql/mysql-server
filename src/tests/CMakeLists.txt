@@ -103,6 +103,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       perf_nop
       perf_ptquery
       perf_ptquery2
+      perf_rangequery
       perf_read_txn
       perf_read_txn_single_thread
       perf_read_write
