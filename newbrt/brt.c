@@ -1681,10 +1681,10 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
 
 /* find the leftmost child that may contain the key */
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
-    int i;
     assert(node->height>0);
 #define DO_PIVOT_SEARCH_LR 0
 #if DO_PIVOT_SEARCH_LR
+    int i;
     for (i=0; i<node->u.n.n_children-1; i++) {
         int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
         if (cmp > 0) continue;
@@ -1693,13 +1693,46 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     }
     return node->u.n.n_children-1;
 #else
+#endif
+#define DO_PIVOT_SEARCH_RL 0
+#if DO_PIVOT_SEARCH_RL
     // give preference for appending to the dictionary.  no change for
     // random keys
+    int i;
     for (i = node->u.n.n_children-2; i >= 0; i--) {
         int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
         if (cmp > 0) return i+1;
     }
     return 0;
+#endif
+#define DO_PIVOT_BIN_SEARCH 1
+#if DO_PIVOT_BIN_SEARCH
+    // a funny case of no pivots
+    if (node->u.n.n_children <= 1) return 0;
+
+    // check the last key to optimize seq insertions
+    int n = node->u.n.n_children-1;
+    int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[n-1]);
+    if (cmp > 0) return n;
+
+    // binary search the pivots
+    int lo = 0;
+    int hi = n-1; // skip the last one, we checked it above
+    int mi;
+    while (lo < hi) {
+        mi = (lo + hi) / 2;
+        cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[mi]);
+        if (cmp > 0) {
+            lo = mi+1;
+            continue;
+        } 
+        if (cmp < 0) {
+            hi = mi;
+            continue;
+        }
+        return mi;
+    }
+    return lo;
 #endif
 }
 
