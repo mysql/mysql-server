@@ -61,7 +61,7 @@ static const char *ha_tokudb_exts[] = {
         if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) { \
             TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
         } \
-        usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
+        Sleep(lockretrycount<4 ? (1<<lockretrycount) : (1<<3)); \
 
 //
 // This offset is calculated starting from AFTER the NULL bytes
