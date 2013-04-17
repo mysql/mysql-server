@@ -16,12 +16,16 @@
  *            alf       16-core server (xeon E5-2665 2.4GHz) sandybridge
  *
  *      mork  mindy  bradley  alf
- *      0.3ns  1.07ns  1.27ns  0.58ns   to do a ++, but it's got a race in it.
- *     28.0ns 20.47ns 18.75ns 39.38ns   to do a sync_fetch_and_add().
- *      0.4ns  0.29ns  0.71ns  0.19ns   to do with a single version of a counter
- *             0.33ns  0.69ns  0.18ns   pure thread-local variable (no way to add things up)
+ *     1.22ns  1.07ns  1.27ns  0.61ns   to do a ++, but it's got a race in it.
+ *    27.11ns 20.47ns 18.75ns 34.15ns   to do a sync_fetch_and_add().
+ *     0.26ns  0.29ns  0.71ns  0.19ns   to do with a single version of a counter
+ *     0.35ns  0.33ns  0.69ns  0.18ns   pure thread-local variable (no way to add things up)
  *             0.76ns  1.50ns  0.35ns   partitioned_counter.c (using link-time optimization, otherwise the function all overwhelms everything)
- *      
+ *     2.21ns          3.32ns  0.70ns   partitioned_counter.c (using gcc, the C version at r46097, not C++)  This one is a little slower because it has an extra branch in it.
+ * 
+ * Surprisingly, compiling this code without -fPIC doesn't make it any faster (even the pure thread-local variable is the same).  -fPIC access to
+ * thread-local variables look slower since they have a function all, but they don't seem to be any slower in practice.  In fact, even the puretl-ptr test
+ * which simply increments a thread-local pointer is basically the same speed as accessing thread_local variable.
  * 
  * How it works.  Each thread has a thread-local counter structure with an integer in it.  To increment, we increment the thread-local structure.
  *   The other operation is to query the counters to get the sum of all the thread-local variables.
@@ -42,75 +46,100 @@
 #include "toku_assert.h"
 #include "partitioned_counter.h"
 #include "memory.h"
+#include "test.h"
+
+// The test code includes the fastest version I could figure out to make, implemented below.
 
 struct counter_s {
     bool inited;
-    int counter;
+    volatile int counter;
     struct counter_s *prev, *next;
     int myid;
 };
 static __thread struct counter_s counter = {false,0, NULL,NULL,0};
 
 static int finished_counter=0; // counter for all threads that are done.
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct counter_s *head=NULL, *tail=NULL;
+
+// We use a single mutex for anything complex.  We'd like to use a mutex per partitioned counter, but we must cope with the possibility of a race between
+// a terminating pthread (which calls destroy_counter()), and a call to the counter destructor.  So we use a global mutex.
+static pthread_mutex_t pc_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct counter_s *head=NULL;
 static pthread_key_t   counter_key;
 
-static void destroy_counter (void *counterp) {
+static void pc_lock (void)
+// Effect: Lock the pc mutex.  
+{
+    int r = pthread_mutex_lock(&pc_mutex);
+    assert(r==0);
+}
+
+static void pc_unlock (void)
+// Effect: Unlock the pc mutex.
+{
+    int r = pthread_mutex_unlock(&pc_mutex);
+    assert(r==0);
+}
+
+static void destroy_counter (void *counterp)
+// Effect: This is the function passed to pthread_key_create that is to run whenever a thread terminates.
+//   The thread-local part of the counter must be copied into the shared state, and the thread-local part of the counter must be
+//   removed from the linked list of all thread-local parts.
+{
     assert((struct counter_s*)counterp==&counter);
-    { int r = pthread_mutex_lock(&mutex); assert(r==0); }
+    pc_lock();
     if (counter.prev==NULL) {
 	assert(head==&counter);
 	head = counter.next;
     } else {
 	counter.prev->next = counter.next;
     }
-    if (counter.next==NULL) {
-	assert(tail==&counter);
-	tail = counter.prev;
-    } else {
+    if (counter.next!=NULL) {
 	counter.next->prev = counter.prev;
     }
     finished_counter += counter.counter;
     HELGRIND_VALGRIND_HG_ENABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // stop ignoring races
     //printf("finished counter now %d\n", finished_counter);
-    { int r = pthread_mutex_unlock(&mutex); assert(r==0); }
+    pc_unlock();
 }
 
 static int idcounter=0;
 
 static inline void increment (void) {
     if (!counter.inited) {
-	{ int r = pthread_mutex_lock(&mutex); assert(r==0); }
-	{ int r = pthread_setspecific(counter_key, &counter); assert(r==0); }
-	counter.prev = tail;
-	counter.next = NULL;
-	if (head==NULL) {
-	    head = &counter;
-	    tail = &counter;
-	} else {
-	    tail->next = &counter;
-	    tail = &counter;
+        pc_lock();
+        struct counter_s *cp = &counter;
+	{ int r = pthread_setspecific(counter_key, cp); assert(r==0); }
+	cp->prev = NULL;
+	cp->next = head;
+	if (head!=NULL) {
+	    head->prev = cp;
 	}
-	counter.counter = 0;
-	counter.inited = true;
-	counter.myid = idcounter++;
+        head = cp;
+#ifdef __INTEL_COMPILER
+        __memory_barrier(); // for some reason I don't understand, ICC needs a memory barrier here. -Bradley
+#endif
+	cp->counter = 0;
+	cp->inited = true;
+	cp->myid = idcounter++;
 	HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&counter.counter, sizeof(counter.counter)); // the counter increment is kind of racy.
-	{ int r = pthread_mutex_unlock(&mutex); assert(r==0); }
+        pc_unlock();
     }
     counter.counter++;
 }
 
 static int getvals (void) {
-    { int r = pthread_mutex_lock(&mutex); assert(r==0); }    
+    pc_lock();
     int sum=finished_counter;
     for (struct counter_s *p=head; p; p=p->next) {
 	sum+=p->counter;
     }
-    { int r = pthread_mutex_unlock(&mutex); assert(r==0); }
+    pc_unlock();
     return sum;
 }
     
+/**********************************************************************************/
+/* And now for some actual test code.                                             */
+/**********************************************************************************/
 
 static const int N=10000000;
 static const int T=20;
@@ -189,7 +218,33 @@ static void timeit (const char *description, void* (*f)(void*)) {
 	pt_join(threads[i], NULL);
     }
     gettimeofday(&end, 0);
-    printf("%-9s Time=%.6fs (%7.3fns per increment)\n", description, tdiff(&start, &end), (1e9*tdiff(&start, &end)/T)/N);
+    printf("%-10s Time=%.6fs (%7.3fns per increment)\n", description, tdiff(&start, &end), (1e9*tdiff(&start, &end)/T)/N);
+}
+
+// Do a measurement where it really is only a pointer dereference to increment the variable, which is thread local.
+static void* tl_doit_ptr (void *v) {
+    volatile uint64_t *p = (uint64_t *)v;
+    for (int i=0; i<N; i++) {
+	(*p)++;
+    }
+    return v;
+}
+
+
+static void timeit_with_thread_local_pointer (const char *description, void* (*f)(void*)) {
+    struct timeval start, end;
+    pthread_t threads[T];
+    struct { uint64_t values[8] __attribute__((__aligned__(64))); } values[T]; // pad to different cache lines.
+    gettimeofday(&start, 0);
+    for (int i=0; i<T; i++) {
+        values[i].values[0]=0;
+	pt_create(&threads[i], f, &values[i].values[0]);
+    }
+    for (int i=0; i<T; i++) {
+	pt_join(threads[i], &values[i].values[0]);
+    }
+    gettimeofday(&end, 0);
+    printf("%-10s Time=%.6fs (%7.3fns per increment)\n", description, tdiff(&start, &end), (1e9*tdiff(&start, &end)/T)/N);
 }
 
 static int verboseness_cmdarg=0;
@@ -211,93 +266,116 @@ static void parse_args (int argc, const char *argv[]) {
 
 static void do_timeit (void) {
     { int r = pthread_key_create(&counter_key, destroy_counter); assert(r==0); } 
-    pc = create_partitioned_counter();
     printf("%d threads\n%d increments per thread\n", T, N);
-    timeit("++",       old_doit_nonatomic);
-    timeit("atomic++", old_doit);
-    timeit("fast",     new_doit);
-    timeit("puretl",   tl_doit);
+    timeit("++",         old_doit_nonatomic);
+    timeit("atomic++",   old_doit);
+    timeit("fast",       new_doit);
+    timeit("puretl",     tl_doit);
+    timeit_with_thread_local_pointer("puretl-ptr", tl_doit_ptr);
+    pc = create_partitioned_counter();
     timeit("pc",       pc_doit);
     destroy_partitioned_counter(pc);
 }
 
 struct test_arguments {
     PARTITIONED_COUNTER pc;
-    unsigned long limit;
-    unsigned long total_increment_per_writer;
-    volatile unsigned long unfinished_count;
+    uint64_t            limit;
+    uint64_t            total_increment_per_writer;
+    volatile uint64_t   unfinished_count;
 };
 
 static void *reader_test_fun (void *ta_v) {
     struct test_arguments *ta = (struct test_arguments *)ta_v;
-    unsigned long lastval = 0;
-    printf("reader starting\n");
+    uint64_t lastval = 0;
     while (ta->unfinished_count>0) {
-	unsigned long thisval = read_partitioned_counter(ta->pc);
+	uint64_t thisval = read_partitioned_counter(ta->pc);
 	assert(lastval <= thisval);
 	assert(thisval <= ta->limit);
 	lastval = thisval;
-	if (verboseness_cmdarg && (0==(thisval & (thisval-1)))) printf("Thisval=%ld\n", thisval);
+	if (verboseness_cmdarg && (0==(thisval & (thisval-1)))) printf("ufc=%ld Thisval=%ld\n", ta->unfinished_count,thisval);
     }
-    unsigned long thisval = read_partitioned_counter(ta->pc);
+    uint64_t thisval = read_partitioned_counter(ta->pc);
     assert(thisval==ta->limit);
     return ta_v;
 }
 
 static void *writer_test_fun (void *ta_v) {
     struct test_arguments *ta = (struct test_arguments *)ta_v;
-    printf("writer starting\n");
-    for (unsigned long i=0; i<ta->total_increment_per_writer; i++) {
+    for (uint64_t i=0; i<ta->total_increment_per_writer; i++) {
 	if (i%1000 == 0) sched_yield();
 	increment_partitioned_counter(ta->pc, 1);
     }
-    printf("writer done\n");
-    __sync_fetch_and_sub(&ta->unfinished_count, 1);
+    uint64_t c __attribute__((__unused__)) = __sync_fetch_and_sub(&ta->unfinished_count, 1);
     return ta_v;
 }
     
 
 static void do_testit (void) {
     const int NGROUPS = 2;
-    PARTITIONED_COUNTER pcs[NGROUPS];
-    unsigned long limits[NGROUPS];
+    uint64_t limits[NGROUPS];
     limits [0] = 2000000;
     limits [1] = 1000000;
-    unsigned long n_writers[NGROUPS];
+    uint64_t n_writers[NGROUPS];
     n_writers[0] = 20;
     n_writers[1] = 40;
     struct test_arguments tas[NGROUPS];
     pthread_t reader_threads[NGROUPS];
     pthread_t *writer_threads[NGROUPS];
     for (int i=0; i<NGROUPS; i++) {
-	pcs[i] = create_partitioned_counter();
-	tas[i].pc = pcs[i];
-	tas[i].limit = limits[i];
-	tas[i].unfinished_count  = n_writers[i];
+        tas[i].pc                         = create_partitioned_counter();
+	tas[i].limit                      = limits[i];
+	tas[i].unfinished_count           = n_writers[i];
 	tas[i].total_increment_per_writer = limits[i]/n_writers[i];
 	assert(tas[i].total_increment_per_writer * n_writers[i] == limits[i]);
 	pt_create(&reader_threads[i], reader_test_fun, &tas[i]);
 	MALLOC_N(n_writers[i], writer_threads[i]);
-	for (unsigned long j=0; j<n_writers[i] ; j++) {
+	for (uint64_t j=0; j<n_writers[i] ; j++) {
 	    pt_create(&writer_threads[i][j], writer_test_fun, &tas[i]);
 	}
     }
     for (int i=0; i<NGROUPS; i++) {
 	pt_join(reader_threads[i], &tas[i]);
-	for (unsigned long j=0; j<n_writers[i] ; j++) {
+	for (uint64_t j=0; j<n_writers[i] ; j++) {
 	    pt_join(writer_threads[i][j], &tas[i]);
 	}
 	toku_free(writer_threads[i]);
-	destroy_partitioned_counter(pcs[i]);
+        destroy_partitioned_counter(tas[i].pc);
     }
 }
 
-int main (int argc, const char *argv[]) {
+volatile int spinwait=0;
+static void* test2_fun (void* mypc_v) {
+    PARTITIONED_COUNTER mypc = (PARTITIONED_COUNTER)mypc_v;
+    increment_partitioned_counter(mypc, 3);
+    spinwait=1;
+    while (spinwait==1);
+    // mypc no longer points at a valid data structure.
+    return NULL;
+}
+
+static void do_testit2 (void) 
+// This test checks to see what happens if a thread is still live when we destruct a counter.
+//   A thread increments the counter, then lets us know through a spin wait, then waits until we destroy the counter.
+{
+    pthread_t t;
+    {
+        PARTITIONED_COUNTER mypc = create_partitioned_counter();
+        pt_create(&t, test2_fun, mypc);
+        while(spinwait==0); // wait until he incremented the counter.
+        assert(read_partitioned_counter(mypc)==3);
+        destroy_partitioned_counter(mypc);
+    } // leave scope, so the counter goes away.
+    spinwait=2; // tell the other guy to finish up.
+    pt_join(t, NULL);
+}
+
+int test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     if (time_cmdarg) {
 	do_timeit();
     } else {
 	do_testit();
+        do_testit2();
     }
     return 0;
 }

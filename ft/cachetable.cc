@@ -20,6 +20,7 @@
 #include "log-internal.h"
 #include "kibbutz.h"
 #include "background_job_manager.h"
+#include "partitioned_counter.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -30,12 +31,40 @@
 // These should be in the cachetable object, but we make them file-wide so that gdb can get them easily.
 // They were left here after engine status cleanup (#2949, rather than moved into the status struct)
 // so they are still easily available to the debugger and to save lots of typing.
-static uint64_t cachetable_miss;
-static uint64_t cachetable_misstime;     // time spent waiting for disk read
-static uint64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
-static uint64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
-static uint64_t cachetable_evictions;
-static uint64_t cleaner_executions; // number of times the cleaner thread's loop has executed
+
+// If we had constructors and destructors, this would be cleaner.  For now, we initialize with setup_cachetable_statistics().
+static PARTITIONED_COUNTER cachetable_miss;          
+static PARTITIONED_COUNTER cachetable_misstime;        // time spent waiting for disk read
+static PARTITIONED_COUNTER cachetable_puts;            // how many times has a newly created node been put into the cachetable?
+static PARTITIONED_COUNTER cachetable_prefetches;      // how many times has a block been prefetched into the cachetable?
+static PARTITIONED_COUNTER cachetable_evictions;
+static PARTITIONED_COUNTER cleaner_executions;         // number of times the cleaner thread's loop has executed
+
+static bool cachetables_inited = false;
+
+void toku_cachetables_init(void) {
+    assert(!cachetables_inited);
+    cachetables_inited = true;
+    cachetable_miss       = create_partitioned_counter();
+    cachetable_misstime   = create_partitioned_counter();
+    cachetable_puts       = create_partitioned_counter();
+    cachetable_prefetches = create_partitioned_counter();
+    cachetable_evictions  = create_partitioned_counter();
+    cleaner_executions    = create_partitioned_counter();
+}
+
+void toku_cachetables_destroy(void) {
+#define DESTROY(x) destroy_partitioned_counter(x); x=NULL;
+    assert(cachetables_inited);
+    cachetables_inited = false;
+    DESTROY(cachetable_miss);
+    DESTROY(cachetable_misstime);
+    DESTROY(cachetable_puts);
+    DESTROY(cachetable_prefetches);
+    DESTROY(cachetable_evictions);
+    DESTROY(cleaner_executions);
+#undef DESTROY
+}
 
 static CACHETABLE_STATUS_S ct_status;
 
@@ -183,10 +212,10 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     if (!ct_status.initialized) {
         status_init();
     }
-    STATUS_VALUE(CT_MISS)                   = cachetable_miss;
-    STATUS_VALUE(CT_MISSTIME)               = cachetable_misstime;
-    STATUS_VALUE(CT_PUTS)                   = cachetable_puts;
-    STATUS_VALUE(CT_PREFETCHES)             = cachetable_prefetches;
+    STATUS_VALUE(CT_MISS)                   = read_partitioned_counter(cachetable_miss);
+    STATUS_VALUE(CT_MISSTIME)               = read_partitioned_counter(cachetable_misstime);
+    STATUS_VALUE(CT_PUTS)                   = read_partitioned_counter(cachetable_puts);
+    STATUS_VALUE(CT_PREFETCHES)             = read_partitioned_counter(cachetable_prefetches);
     STATUS_VALUE(CT_SIZE_CURRENT)           = ct->size_current;
     STATUS_VALUE(CT_SIZE_LIMIT)             = ct->size_limit;
     STATUS_VALUE(CT_SIZE_WRITING)           = ct->size_evicting;
@@ -194,8 +223,8 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     STATUS_VALUE(CT_SIZE_LEAF)              = ct->size_leaf;
     STATUS_VALUE(CT_SIZE_ROLLBACK)          = ct->size_rollback;
     STATUS_VALUE(CT_SIZE_CACHEPRESSURE)     = ct->size_cachepressure;
-    STATUS_VALUE(CT_EVICTIONS)              = cachetable_evictions;
-    STATUS_VALUE(CT_CLEANER_EXECUTIONS)     = cleaner_executions;
+    STATUS_VALUE(CT_EVICTIONS)              = read_partitioned_counter(cachetable_evictions);
+    STATUS_VALUE(CT_CLEANER_EXECUTIONS)     = read_partitioned_counter(cleaner_executions);
     STATUS_VALUE(CT_CLEANER_PERIOD)         = toku_get_cleaner_period_unlocked(ct);
     STATUS_VALUE(CT_CLEANER_ITERATIONS)     = toku_get_cleaner_iterations_unlocked(ct);
     *statp = ct_status;
@@ -857,7 +886,7 @@ static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     void *write_extraargs = p->write_extraargs;
     PAIR_ATTR old_attr = p->attr;
     
-    cachetable_evictions++;
+    increment_partitioned_counter(cachetable_evictions, 1);
     cachetable_unlock(ct);
     PAIR_ATTR new_attr = p->attr;
     // Note that flush_callback is called with write_me false, so the only purpose of this 
@@ -1279,7 +1308,7 @@ static int cachetable_put_internal(
         }
     }
     // flushing could change the table size, but wont' change the fullhash
-    cachetable_puts++;
+    increment_partitioned_counter(cachetable_puts, 1);
     PAIR p = cachetable_insert_at(
         ct, 
         cachefile, 
@@ -1916,8 +1945,8 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         // The pair being fetched will be marked as pending if a checkpoint happens during the
         // fetch because begin_checkpoint will mark as pending any pair that is locked even if it is clean.        
         cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, true);
-        cachetable_miss++;
-        cachetable_misstime += get_tnow() - t0;
+        increment_partitioned_counter(cachetable_miss,     1);
+        increment_partitioned_counter(cachetable_misstime, get_tnow() - t0);
         goto got_value;
     }
 got_value:
@@ -2142,8 +2171,8 @@ int toku_cachetable_get_and_pin_nonblocking (
     run_unlockers(unlockers); // we hold the ct mutex.
     uint64_t t0 = get_tnow();
     cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, false);
-    cachetable_miss++;
-    cachetable_misstime += get_tnow() - t0;
+    increment_partitioned_counter(cachetable_miss,     1);
+    increment_partitioned_counter(cachetable_misstime, get_tnow() - t0);
     cachetable_unlock(ct);
     return TOKUDB_TRY_AGAIN;
 }
@@ -2216,7 +2245,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
 
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
-        cachetable_prefetches++;
+        increment_partitioned_counter(cachetable_prefetches, 1);
         r = bjm_add_background_job(cf->bjm);
         assert_zero(r);
         p = cachetable_insert_at(
@@ -3207,7 +3236,7 @@ toku_cleaner_thread (void *cachetable_v)
     assert(ct);
     uint32_t num_iterations = toku_get_cleaner_iterations(ct);
     for (uint32_t i = 0; i < num_iterations; ++i) {
-        cleaner_executions++;
+        increment_partitioned_counter(cleaner_executions, 1);
         cachetable_lock(ct);
         PAIR best_pair = NULL;
         int n_seen = 0;

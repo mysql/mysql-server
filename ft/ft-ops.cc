@@ -127,6 +127,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include <ft-flusher.h>
 #include <valgrind/helgrind.h>
 #include "txn_manager.h"
+#include "partitioned_counter.h"
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>
@@ -5498,10 +5499,10 @@ int toku_ft_layer_init(void) {
     r = toku_portability_init();
     if (r) { goto exit; }
 
+    partitioned_counters_init();
     toku_checkpoint_init();
-
     toku_ft_serialize_layer_init();
-
+    toku_cachetables_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
 exit:
     return r;
@@ -5509,9 +5510,10 @@ exit:
 
 void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
-
+    toku_cachetables_destroy();
     toku_ft_serialize_layer_destroy();
     toku_checkpoint_destroy();
+    partitioned_counters_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();
 }
