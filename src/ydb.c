@@ -2473,14 +2473,14 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             if (toku_db_pre_acquire_table_lock(db, txn) != 0) {
                 r = DB_LOCK_NOTGRANTED;
             } else {
-                // The ft will be removed when the txn commits
-                r = toku_ft_remove_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
+                // The ft will be unlinked when the txn commits
+                r = toku_ft_unlink_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
                 assert_zero(r);
             }
         }
         else {
-            // Remove the ft without a txn
-            toku_ft_remove(db->i->ft_handle);
+            // unlink the ft without a txn
+            toku_ft_unlink(db->i->ft_handle);
         }
     }
 

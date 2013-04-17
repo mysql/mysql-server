@@ -15,13 +15,11 @@
 #include "ft-ops.h"
 #include "compress.h"
 
-// remove a ft, transactionless.
-// if the ft is being checkpointed, it will be removed after checkpoint.
-void toku_ft_remove(FT_HANDLE handle);
+// unlink a ft from the filesystem, without a txn.
+void toku_ft_unlink(FT_HANDLE handle);
 
-// remove a ft using the given txn. when the txn commits, the ft is removed.
-// if the ft is being checkpointed, it will be removed after checkpoint.
-int toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__warn_unused_result__));
+// unlink a ft from the filesystem when the given txn commits.
+int toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__warn_unused_result__));
 
 //Effect: suppresses rollback logs
 void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
@@ -42,9 +40,12 @@ void toku_ft_free (FT h);
 int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, BOOL* was_open);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
-int toku_ft_needed_unlocked(FT h);
-BOOL toku_ft_has_one_reference_unlocked(FT ft);
-int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+bool toku_ft_needed_unlocked(FT ft);
+bool toku_ft_has_one_reference_unlocked(FT ft);
+
+// evict a ft from memory by closing its cachefile. any future work
+// will have to read in the ft in a new cachefile and new FT object.
+int toku_ft_evict_from_memory(FT ft, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 

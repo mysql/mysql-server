@@ -876,7 +876,7 @@ static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
     struct file_map_tuple *tuple;
     r = file_map_find(&renv->fmap, l->filenum, &tuple);
     if (r == 0) {
-        r = toku_ft_remove_on_commit(tuple->ft_handle, txn);
+        r = toku_ft_unlink_on_commit(tuple->ft_handle, txn);
     }
     return 0;
 }
