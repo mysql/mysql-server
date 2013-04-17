@@ -770,6 +770,38 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize) 
     return 0;
 }
 
+static void
+init_childinfo(BRTNODE node, int childnum, BRTNODE child) {
+    BNC_BLOCKNUM(node,childnum) = child->thisnodename;
+    BNC_HAVE_FULLHASH(node,childnum) = FALSE;
+    BNC_NBYTESINBUF(node,childnum) = 0;
+    BNC_SUBTREE_FINGERPRINT(node,childnum) = 0;
+    BNC_SUBTREE_ESTIMATES(node,childnum) = zero_estimates;
+    int r = toku_fifo_create(&BNC_BUFFER(node,childnum));
+    resource_assert_zero(r);
+}
+
+static void
+init_childkey(BRTNODE node, int childnum, struct kv_pair *pivotkey, size_t pivotkeysize) {
+    node->u.n.childkeys[childnum] = pivotkey;
+    node->u.n.totalchildkeylens += pivotkeysize;
+}
+
+// append a child node to a parent node
+void
+toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize) {
+    int childnum = node->u.n.n_children;
+    node->u.n.n_children++;
+    XREALLOC_N(node->u.n.n_children, node->u.n.childinfos);
+    init_childinfo(node, childnum, child);
+    XREALLOC_N(node->u.n.n_children-1, node->u.n.childkeys);
+    if (pivotkey) {
+        invariant(childnum > 0);
+        init_childkey(node, childnum-1, pivotkey, pivotkeysize);
+    }
+    node->dirty = 1;
+}
+
 static int
 fill_buf (OMTVALUE lev, u_int32_t idx, void *varray)
 {
@@ -1414,7 +1446,7 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     return r;
 }
 
-static int
+int
 brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
                          u_int32_t idx, LEAFENTRY le, TOKULOGGER logger)
 // Effect: Apply cmd to leafentry
@@ -1771,26 +1803,25 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
     }
 
  put_in_fifo:
-
-    {
-        //TODO: Determine if we like direct access to type, to key, to val, 
-        int type = cmd->type;
-        DBT *k = cmd->u.id.key;
-        DBT *v = cmd->u.id.val;
-
-	node->local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, cmd->xids, k->data, k->size, v->data, v->size);
-        int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(cmd->xids);
-        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xids);
-        lazy_assert_zero(r);
-        node->u.n.n_bytes_in_buffers += diff;
-        BNC_NBYTESINBUF(node, childnum) += diff;
-        node->dirty = 1;
-    }
+    toku_brt_append_to_child_buffer(node, childnum, cmd->type, cmd->xids, cmd->u.id.key, cmd->u.id.val);
 
     verify_local_fingerprint_nonleaf(node);
 
     return 0;
 }
+
+// append a cmd to a nonleaf node's child buffer
+void
+toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, DBT *key, DBT *val) {
+    node->local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key->data, key->size, val->data, val->size);
+    int diff = key->size + val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
+    int r = toku_fifo_enq(BNC_BUFFER(node,childnum), key->data, key->size, val->data, val->size, type, xids);
+    lazy_assert_zero(r);
+    node->u.n.n_bytes_in_buffers += diff;
+    BNC_NBYTESINBUF(node, childnum) += diff;
+    node->dirty = 1;
+}
+
 
 /* find the leftmost child that may contain the key */
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t) {
