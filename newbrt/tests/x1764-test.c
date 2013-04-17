@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void test0 (void) {
+static void
+test0 (void) {
     u_int32_t c = x1764_memory("", 0);
     assert(c==0);
     struct x1764 cs;
@@ -13,7 +14,8 @@ void test0 (void) {
     assert(c==0);
 }
 
-void test1 (void) {
+static void
+test1 (void) {
     u_int64_t v=0x123456789abcdef0ULL;
     u_int32_t c;
     int i;
@@ -27,7 +29,8 @@ void test1 (void) {
 }
 
 // Compute checksums incrementally, using various strides
-void test2 (void) {
+static void
+test2 (void) {
     enum { N=200 };
     char v[N];
     int i;

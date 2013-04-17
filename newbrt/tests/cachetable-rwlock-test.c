@@ -12,7 +12,8 @@ int verbose = 0;
 
 // test create and destroy
 
-void test_create_destroy() {
+static void
+test_create_destroy (void) {
     struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
 
     ctpair_rwlock_init(rwlock);
@@ -21,7 +22,8 @@ void test_create_destroy() {
 
 // test read lock and unlock with no writers
 
-void test_simple_read_lock(int n) {
+static void
+test_simple_read_lock (int n) {
     struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
 
     ctpair_rwlock_init(rwlock);
@@ -42,7 +44,8 @@ void test_simple_read_lock(int n) {
 
 // test write lock and unlock with no readers
 
-void test_simple_write_lock() {
+static void
+test_simple_write_lock (void) {
     struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
 
     ctpair_rwlock_init(rwlock);
@@ -61,18 +64,21 @@ struct rw_event {
     pthread_mutex_t mutex;
 };
 
-void rw_event_init(struct rw_event *rwe) {
+static void
+rw_event_init (struct rw_event *rwe) {
     rwe->e = 0;
     ctpair_rwlock_init(&rwe->the_rwlock);
     int r = pthread_mutex_init(&rwe->mutex, 0); assert(r == 0);
 }
 
-void rw_event_destroy(struct rw_event *rwe) {
+static void
+rw_event_destroy (struct rw_event *rwe) {
     ctpair_rwlock_destroy(&rwe->the_rwlock);
     int r = pthread_mutex_destroy(&rwe->mutex); assert(r == 0);
 }
 
-void *test_writer_priority_thread(void *arg) {
+static void *
+test_writer_priority_thread (void *arg) {
     struct rw_event *rwe = arg;
     int r;
 
@@ -91,7 +97,8 @@ void *test_writer_priority_thread(void *arg) {
 
 // test writer priority over new readers
 
-void test_writer_priority() {
+static void
+test_writer_priority (void) {
     struct rw_event rw_event, *rwe = &rw_event;
     int r;
 
@@ -131,7 +138,8 @@ void test_writer_priority() {
 
 // test single writer
 
-void *test_single_writer_thread(void *arg) {
+static void *
+test_single_writer_thread (void *arg) {
     struct rw_event *rwe = arg;
     int r;
 
@@ -145,7 +153,8 @@ void *test_single_writer_thread(void *arg) {
     return arg;
 }
 
-void test_single_writer() {
+static void
+test_single_writer (void) {
     struct rw_event rw_event, *rwe = &rw_event;
     int r;
 

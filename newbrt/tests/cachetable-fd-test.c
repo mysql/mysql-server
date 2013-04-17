@@ -6,7 +6,8 @@
 #include "test.h"
 #include "cachetable.h"
 
-void cachetable_fd_test() {
+static void
+cachetable_fd_test (void) {
     const int test_limit = 1;
     int r;
     CACHETABLE ct;

@@ -57,7 +57,7 @@ void *toku_realloc(void *, size_t size);
 
 #define REALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
 
-// XMALLOC macros are like MALLOC except they abort if the operatoin fails
+// XMALLOC macros are like MALLOC except they abort if the operation fails
 #define XMALLOC(v) v = toku_xmalloc(sizeof(*v))
 #define XMALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
 #define XREALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))

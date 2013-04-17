@@ -5,14 +5,34 @@
 #include "test.h"
 #include "cachetable.h"
 
-void flush() {
+static void
+flush (CACHEFILE f __attribute__((__unused__)),
+       CACHEKEY k  __attribute__((__unused__)),
+       void *v     __attribute__((__unused__)),
+       void *e     __attribute__((__unused__)),
+       long s      __attribute__((__unused__)),
+       BOOL w      __attribute__((__unused__)),
+       BOOL keep   __attribute__((__unused__)),
+       LSN m       __attribute__((__unused__)),
+       BOOL r      __attribute__((__unused__))
+       ) {
+    /* Do nothing */
 }
 
-int fetch() {
+static int
+fetch (CACHEFILE f        __attribute__((__unused__)),
+       CACHEKEY k         __attribute__((__unused__)),
+       u_int32_t fullhash __attribute__((__unused__)),
+       void **value       __attribute__((__unused__)),
+       long *sizep        __attribute__((__unused__)),
+       void *extraargs    __attribute__((__unused__)),
+       LSN *written_lsn    __attribute__((__unused__))
+       ) {
     return 0;
 }
 
-void cachetable_put_test(int n) {
+static void
+cachetable_put_test (int n) {
     const int test_limit = 2*n;
     int r;
     CACHETABLE ct;

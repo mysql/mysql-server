@@ -12,7 +12,8 @@
 
 static TOKUTXN const null_txn = 0;
 
-void doit (void) {
+static void
+doit (void) {
     int r;
     CACHETABLE ct;
     BRT t;

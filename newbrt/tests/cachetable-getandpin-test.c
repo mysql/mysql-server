@@ -5,39 +5,43 @@
 #include "test.h"
 #include "cachetable.h"
 
-void flush(CACHEFILE cf     __attribute__((__unused__)),
-	   CACHEKEY key     __attribute__((__unused__)),
-	   void *v          __attribute__((__unused__)),
-	   void *extraargs  __attribute__((__unused__)),
-	   long size        __attribute__((__unused__)),
-	   BOOL write_me    __attribute__((__unused__)),
-	   BOOL keep_me     __attribute__((__unused__)),
-	   LSN lsn          __attribute__((__unused__)),
-	   BOOL rename_p    __attribute__((__unused__))
-	   ) {
+static void
+flush (CACHEFILE cf     __attribute__((__unused__)),
+       CACHEKEY key     __attribute__((__unused__)),
+       void *v          __attribute__((__unused__)),
+       void *extraargs  __attribute__((__unused__)),
+       long size        __attribute__((__unused__)),
+       BOOL write_me    __attribute__((__unused__)),
+       BOOL keep_me     __attribute__((__unused__)),
+       LSN lsn          __attribute__((__unused__)),
+       BOOL rename_p    __attribute__((__unused__))
+       ) {
     assert((long) key.b == size);
     if (!keep_me) free(v);
 }
 
-int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra, LSN *written_lsn) {
+static int
+fetch (CACHEFILE cf, CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra, LSN *written_lsn) {
     cf = cf; hash = hash; extra = extra; written_lsn = written_lsn;
     *sizep = (long) key.b;
     *vptr = malloc(*sizep);
     return 0;
 }
 
-int fetch_error(CACHEFILE cf       __attribute__((__unused__)),
-		CACHEKEY key       __attribute__((__unused__)),
-		u_int32_t fullhash __attribute__((__unused__)),
-		void **value       __attribute__((__unused__)),
-		long *sizep        __attribute__((__unused__)),
-		void*extraargs     __attribute__((__unused__)),
-		LSN *written_lsn   __attribute__((__unused__))
-		) {
+static int
+fetch_error (CACHEFILE cf       __attribute__((__unused__)),
+	     CACHEKEY key       __attribute__((__unused__)),
+	     u_int32_t fullhash __attribute__((__unused__)),
+	     void **value       __attribute__((__unused__)),
+	     long *sizep        __attribute__((__unused__)),
+	     void*extraargs     __attribute__((__unused__)),
+	     LSN *written_lsn   __attribute__((__unused__))
+	     ) {
     return -1;
 }
 
-void cachetable_getandpin_test(int n) {
+static void
+cachetable_getandpin_test (int n) {
     const int test_limit = 1024*1024;
     int r;
     CACHETABLE ct;

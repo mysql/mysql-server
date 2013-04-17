@@ -12,7 +12,8 @@
 
 #define RECORDS 2
 
-void test (int seed) {
+static void
+test (int seed) {
     srandom(seed);
     unlink(FNAME);
     int i;

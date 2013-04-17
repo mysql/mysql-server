@@ -13,12 +13,14 @@ struct ctpair {
     PAIR next_wq;
 };
 
-PAIR new_pair() {
+static PAIR
+new_pair (void) {
     PAIR p = (PAIR) malloc(sizeof *p); assert(p);
     return p;
 }
 
-void destroy_pair(PAIR p) {
+static void
+destroy_pair(PAIR p) {
     free(p);
 }
 
@@ -26,7 +28,8 @@ void destroy_pair(PAIR p) {
 
 // test simple create and destroy
 
-void test_create_destroy() {
+static void
+test_create_destroy (void) {
     struct writequeue writequeue, *wq = &writequeue;
     writequeue_init(wq);
     assert(writequeue_empty(wq));
@@ -35,7 +38,8 @@ void test_create_destroy() {
 
 // verify that the wq implements FIFO ordering
 
-void test_simple_enq_deq(int n) {
+static void
+test_simple_enq_deq (int n) {
     struct writequeue writequeue, *wq = &writequeue;
     int r;
     pthread_mutex_t mutex; 
@@ -63,7 +67,8 @@ void test_simple_enq_deq(int n) {
 
 // setting the wq closed should cause deq to return EINVAL
 
-void test_set_closed() {
+static void
+test_set_closed (void) {
     struct writequeue writequeue, *wq = &writequeue;
     writequeue_init(wq);
     writequeue_set_closed(wq);
@@ -79,17 +84,20 @@ struct writequeue_with_mutex {
     pthread_mutex_t mutex;
 };
 
-void writequeue_with_mutex_init(struct writequeue_with_mutex *wqm) {
+static void
+writequeue_with_mutex_init (struct writequeue_with_mutex *wqm) {
     writequeue_init(&wqm->writequeue);
     int r = pthread_mutex_init(&wqm->mutex, 0); assert(r == 0);
 }
 
-void writequeue_with_mutex_destroy(struct writequeue_with_mutex *wqm) {
+static void
+writequeue_with_mutex_destroy (struct writequeue_with_mutex *wqm) {
     writequeue_destroy(&wqm->writequeue);
     int r = pthread_mutex_destroy(&wqm->mutex); assert(r == 0);
 }
 
-void *test_set_closed_waiter(void *arg) {
+static void *
+test_set_closed_waiter(void *arg) {
     struct writequeue_with_mutex *wqm = arg;
     int r;
 
@@ -101,7 +109,8 @@ void *test_set_closed_waiter(void *arg) {
     return arg;
 }
 
-void test_set_closed_thread() {
+static void
+test_set_closed_thread (void) {
     struct writequeue_with_mutex writequeue_with_mutex, *wqm = &writequeue_with_mutex;
     int r;
 
@@ -128,20 +137,22 @@ struct rwfc {
     int current, limit;
 };
 
-void rwfc_init(struct rwfc *rwfc, int limit) {
+static void rwfc_init (struct rwfc *rwfc, int limit) {
     int r;
     r = pthread_mutex_init(&rwfc->mutex, 0); assert(r == 0);
     writequeue_init(&rwfc->writequeue);
     rwfc->current = 0; rwfc->limit = limit;
 }
 
-void rwfc_destroy(struct rwfc *rwfc) {
+static void
+rwfc_destroy (struct rwfc *rwfc) {
     int r;
     writequeue_destroy(&rwfc->writequeue);
     r = pthread_mutex_destroy(&rwfc->mutex); assert(r == 0);
 }
 
-void *rwfc_reader(void *arg) {
+static void *
+rwfc_reader (void *arg) {
     struct rwfc *rwfc = arg;
     int r;
     while (1) {
@@ -162,7 +173,8 @@ void *rwfc_reader(void *arg) {
     return arg;
 }       
 
-void test_flow_control(int limit, int n) {
+static void
+test_flow_control (int limit, int n) {
     struct rwfc my_rwfc, *rwfc = &my_rwfc;
     int r;
     rwfc_init(rwfc, limit);

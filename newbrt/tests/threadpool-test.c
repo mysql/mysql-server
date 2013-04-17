@@ -17,7 +17,8 @@ struct my_threadpool {
     int closed;
 };
 
-void my_threadpool_init(struct my_threadpool *my_threadpool, int max_threads) {
+static void
+my_threadpool_init (struct my_threadpool *my_threadpool, int max_threads) {
     int r;
     r = threadpool_create(&my_threadpool->threadpool, max_threads); assert(r == 0);
     assert(my_threadpool != 0);
@@ -26,7 +27,8 @@ void my_threadpool_init(struct my_threadpool *my_threadpool, int max_threads) {
     my_threadpool->closed = 0;
 }
 
-void my_threadpool_destroy(struct my_threadpool *my_threadpool) {
+static void
+my_threadpool_destroy (struct my_threadpool *my_threadpool) {
     int r;
     r = pthread_mutex_lock(&my_threadpool->mutex); assert(r == 0);
     my_threadpool->closed = 1;
@@ -39,7 +41,8 @@ void my_threadpool_destroy(struct my_threadpool *my_threadpool) {
     r = pthread_cond_destroy(&my_threadpool->wait); assert(r == 0);
 }
 
-void *fbusy(void *arg) {
+static void *
+fbusy (void *arg) {
     struct my_threadpool *my_threadpool = arg;
     int r;
     
@@ -52,7 +55,8 @@ void *fbusy(void *arg) {
     return arg;
 }
 
-void *fidle(void *arg) {
+static void *
+fidle (void *arg) {
     struct my_threadpool *my_threadpool = arg;
     int r;
     
@@ -74,7 +78,8 @@ static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
 }
 #endif
 
-int usage() {
+static int
+usage (void) {
     printf("threadpool-test: [-v] [-malloc-fail] [N]\n");
     printf("-malloc-fail     simulate malloc failures\n");
     printf("N                max number of threads in the thread pool\n");
