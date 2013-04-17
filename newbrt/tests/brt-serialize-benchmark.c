@@ -210,6 +210,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     int nperchild = nelts / 8;
     for (int ck = 0; ck < sn.n_children; ++ck) {
         long k;
+        NONLEAF_CHILDINFO bnc = BNC(&sn, ck);
         for (long i = 0; i < nperchild; ++i) {
             k = ck * nperchild + i;
             char buf[valsize];
@@ -219,9 +220,10 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
                 c += sizeof(int);
             }
             memset(&buf[c], 0, valsize - c);
-            r = toku_fifo_enq(BNC_BUFFER(&sn,ck), &k, sizeof k, buf, sizeof buf, BRT_NONE, next_dummymsn(), xids_123, NULL);    assert(r==0);
+
+            r = toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, BRT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp); assert_zero(r);
         }
-        BNC_NBYTESINBUF(&sn, ck) = nperchild*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+(sizeof k)+valsize+xids_get_serialize_size(xids_123));
+        bnc->n_bytes_in_buffer = nperchild*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+(sizeof k)+valsize+xids_get_serialize_size(xids_123));
         if (ck < 7) {
             sn.childkeys[ck] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += sizeof k;

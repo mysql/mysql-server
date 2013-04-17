@@ -64,7 +64,7 @@ insert_into_child_buffer(BRT brt, BRTNODE node, int childnum, int minkey, int ma
         unsigned int key = htonl(val);
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
+        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
 	node->max_msn_applied_to_node_on_disk = msn;
     }
 }

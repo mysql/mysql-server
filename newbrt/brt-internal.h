@@ -229,10 +229,18 @@ toku_fifo_entry_key_msn_cmp(void *extrap, const void *ap, const void *bp);
 // data of an available partition of a nonleaf brtnode
 struct brtnode_nonleaf_childinfo {
     FIFO buffer;
-    OMT broadcast_buffer;
-    OMT message_tree;
+    OMT broadcast_list;
+    OMT fresh_message_tree;
+    OMT stale_message_tree;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
+
+unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
+int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
+long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
+int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, bool is_fresh, DB *cmp_extra, brt_compare_func cmp);
+void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
+int toku_bnc_flush_to_child(BRT t, NONLEAF_CHILDINFO bnc, BRTNODE child);
 
 // data of an available partition of a leaf brtnode
 struct brtnode_leaf_basement_node {
@@ -241,6 +249,7 @@ struct brtnode_leaf_basement_node {
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
     MSN max_msn_applied; // max message sequence number applied
+    bool stale_ancestor_messages_applied;
 };
 
 #define PT_INVALID 0
@@ -401,12 +410,6 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
     p->u.subblock = sb;
 }
 
-// macros for brtnode_nonleaf_childinfo
-#define BNC_BUFFER(node,i) (BNC(node,i)->buffer)
-#define BNC_BROADCAST_BUFFER(node,i) (BNC(node,i)->broadcast_buffer)
-#define BNC_MESSAGE_TREE(node, i) (BNC(node,i)->message_tree)
-#define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
-
 // brtnode leaf basementnode macros, 
 #define BLB_OPTIMIZEDFORUPGRADE(node,i) (BLB(node,i)->optimized_for_upgrade)
 #define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
@@ -549,7 +552,7 @@ void toku_assert_entire_node_in_memory(BRTNODE node);
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
 
 // append a cmd to a nonleaf node child buffer
-void toku_brt_append_to_child_buffer(BRT brt, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val);
+void toku_brt_append_to_child_buffer(BRT brt, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)

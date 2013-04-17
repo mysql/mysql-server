@@ -1112,11 +1112,11 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     r = xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0, NULL);    assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, NULL);  assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234, NULL);  assert(r==0);
-    BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
-    BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
+    r = toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0, true, NULL, string_key_cmp); assert_zero(r);
+    r = toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, true, NULL, string_key_cmp); assert_zero(r);
+    r = toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234, true, NULL, string_key_cmp); assert_zero(r);
+    BNC(&sn, 0)->n_bytes_in_buffer = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
+    BNC(&sn, 1)->n_bytes_in_buffer = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
@@ -1165,10 +1165,10 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
 
-    FIFO src_fifo_1 = BNC_BUFFER(&sn, 0);
-    FIFO src_fifo_2 = BNC_BUFFER(&sn, 1);
-    FIFO dest_fifo_1 = BNC_BUFFER(dn, 0);
-    FIFO dest_fifo_2 = BNC_BUFFER(dn, 1);
+    FIFO src_fifo_1 = BNC(&sn, 0)->buffer;
+    FIFO src_fifo_2 = BNC(&sn, 1)->buffer;
+    FIFO dest_fifo_1 = BNC(dn, 0)->buffer;
+    FIFO dest_fifo_2 = BNC(dn, 1)->buffer;
     bytevec src_key,src_val, dest_key, dest_val;
     ITEMLEN src_keylen, src_vallen;
     u_int32_t src_type;
@@ -1178,9 +1178,11 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     u_int32_t dest_type;
     MSN dest_msn;
     XIDS dest_xids;
-    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    bool src_is_fresh;
+    bool dest_is_fresh;
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids, &src_is_fresh);
     assert(r==0);
-    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids, &dest_is_fresh);
     assert(r==0);
     assert(src_keylen == dest_keylen);
     assert(src_keylen == 2);
@@ -1192,13 +1194,14 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "a") == 0);
     assert(strcmp(src_val, "aval") == 0);
     assert(strcmp(dest_val, "aval") == 0);
+    assert(dest_is_fresh);
     r = toku_fifo_deq(src_fifo_1);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_1);
     assert(r==0);
-    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids, &src_is_fresh);
     assert(r==0);
-    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids, &dest_is_fresh);
     assert(r==0);
     assert(src_keylen == dest_keylen);
     assert(src_keylen == 2);
@@ -1210,18 +1213,19 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "b") == 0);
     assert(strcmp(src_val, "bval") == 0);
     assert(strcmp(dest_val, "bval") == 0);
+    assert(dest_is_fresh);
     r = toku_fifo_deq(src_fifo_1);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_1);
     assert(r==0);
-    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids, &src_is_fresh);
     assert(r!=0);
-    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids, &dest_is_fresh);
     assert(r!=0);
 
-    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids, &src_is_fresh);
     assert(r==0);
-    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids, &dest_is_fresh);
     assert(r==0);
     assert(src_keylen == dest_keylen);
     assert(src_keylen == 2);
@@ -1233,13 +1237,14 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "x") == 0);
     assert(strcmp(src_val, "xval") == 0);
     assert(strcmp(dest_val, "xval") == 0);
+    assert(dest_is_fresh);
     r = toku_fifo_deq(src_fifo_2);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_2);
     assert(r==0);
-    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids, &src_is_fresh);
     assert(r!=0);
-    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids, &dest_is_fresh);
     assert(r!=0);
 
     

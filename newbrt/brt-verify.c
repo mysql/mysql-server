@@ -172,7 +172,8 @@ toku_verify_brtnode (BRT brt,
         if (node->height > 0) {
             MSN lastmsn = ZERO_MSN;
             // Verify that messages in the buffers are in the right place.
-            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, msn, xid,
+            NONLEAF_CHILDINFO bnc = BNC(node, i);
+            FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, type, msn, xid, UU(is_fresh),
                          { 
                              int r = verify_msg_in_child_buffer(brt, type, msn, key, keylen, data, datalen, xid, 
                                                                 curr_less_pivot,

@@ -57,12 +57,12 @@ test_fifo_enq (int n) {
 	MSN msn = next_dummymsn();
 	if (startmsn.msn == ZERO_MSN.msn)
 	  startmsn = msn;
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, NULL); assert(r == 0);
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, true, NULL); assert(r == 0);
         xids_destroy(&xids);
     }
 
     int i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, {
+    FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, UU(is_fresh), {
         if (verbose) printf("checkit %d %d %"PRIu64"\n", i, type, msn.msn);
         assert(msn.msn == startmsn.msn + i);
         buildkey(i);
