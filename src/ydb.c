@@ -3822,4 +3822,5 @@ void db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
     checkpoint_callback_f = callback_f;
     checkpoint_callback_extra = extra;
     toku_checkpoint_safe_client_unlock();
+    printf("set callback = %p, extra = %p\n", callback_f, extra);
 }
