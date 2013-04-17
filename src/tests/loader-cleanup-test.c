@@ -581,7 +581,8 @@ static void test_loader(enum test_type t, DB **dbs)
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
-    printf("USE_PUTS = %d\n", USE_PUTS);
+    if (verbose)
+	printf("USE_PUTS = %d\n", USE_PUTS);
     if (verbose >= 2) 
 	printf("new inames:\n");
     get_inames(new_inames, dbs);
@@ -605,13 +606,17 @@ static void test_loader(enum test_type t, DB **dbs)
         
     poll_count=0;
 
-    printf("Data dir is %s\n", env->i->real_data_dir);
     int n = count_temp(env->i->real_data_dir);
-    printf("Num temp files = %d\n", n);
-
+    if (verbose) {
+	printf("Data dir is %s\n", env->i->real_data_dir);
+	printf("Num temp files = %d\n", n);
+    }
     if (t == commit || t == abort_txn) {
 	// close the loader
-	printf("closing\n"); fflush(stdout);
+	if (verbose) {
+	    printf("closing\n"); 
+	    fflush(stdout);
+	}
 	r = loader->close(loader);
 	CKERR(r);
 	if (!USE_PUTS) {
@@ -624,13 +629,15 @@ static void test_loader(enum test_type t, DB **dbs)
     }
     else if (t == abort_via_poll) {
 	assert(!USE_PUTS);  // test makes no sense with USE_PUTS
-	printf("closing, but expecting abort via poll\n");
+	if (verbose)
+	    printf("closing, but expecting abort via poll\n");
 	r = loader->close(loader);
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
     else if (error_injection && !failed_put) {
 	const char * type = err_type_str(t);
-	printf("closing, but expecting failure from simulated error (enospc or einval)%s\n", type);
+	if (verbose)
+	    printf("closing, but expecting failure from simulated error (enospc or einval)%s\n", type);
 	r = loader->close(loader);
 	if (!USE_PUTS)
 	    assert(r);
@@ -638,16 +645,18 @@ static void test_loader(enum test_type t, DB **dbs)
 	    CKERR(r);  // if using puts, "outer" loader should close just fine
     }
     else {
-	printf("aborting loader"); fflush(stdout);
+	if (verbose)
+	    printf("aborting loader"); 
 	r = loader->abort(loader);
 	CKERR(r);
     }
-
     n = count_temp(env->i->real_data_dir);
     if (verbose) printf("Num temp files = %d\n", n);
+    fflush(stdout);
     assert(n==0);
 
-    printf(" done\n");
+    if (verbose)
+	printf(" done\n");
 
     if (t == commit) {
 	fwrite_count_nominal = fwrite_count;  // capture how many fwrites were required for normal operation
@@ -694,6 +703,11 @@ static void test_loader(enum test_type t, DB **dbs)
 static void run_test(enum test_type t, int trigger) 
 {
     int r;
+
+    if (verbose == 0) {  // if no other ouput, give indication of progress
+	printf(".");
+	fflush(stdout);
+    }
 
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
@@ -810,7 +824,8 @@ static void run_all_tests(void) {
 	enum test_type t = et[j];
 	const char * write_type = err_type_str(t);
 	int nominal = *(nomp[j]);
-	printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
+	if (verbose)
+	    printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
 	int i;
 	// induce write error at beginning of process
 	for (i = 1; i < limit && i < nominal+1; i++) {
@@ -839,11 +854,11 @@ static void run_all_tests(void) {
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
 
-    if (verbose) printf("\nTesting loader with default size_factor\n");
+    printf("\nTesting loader with default size_factor\n");
     assert_temp_files = 0;
     run_all_tests();
 
-    if (verbose) printf("\nTesting loader with size_factor=1\n");
+    printf("\nTesting loader with size_factor=1\n");
     db_env_set_loader_size_factor(1);
     assert_temp_files = 1;
     run_all_tests();
