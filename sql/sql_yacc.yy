@@ -12171,9 +12171,6 @@ truncate:
             LEX* lex= Lex;
             lex->sql_command= SQLCOM_TRUNCATE;
             lex->alter_info.reset();
-            lex->select_lex->options= 0;
-            lex->select_lex->sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            lex->select_lex->init_order();
             YYPS->m_lock_type= TL_WRITE;
             YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }

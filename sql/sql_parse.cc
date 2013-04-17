@@ -2171,15 +2171,11 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(first_table == all_tables);
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
   */
-  if (select_lex)
-  {
-    lex->first_lists_tables_same();
-    /* should be assigned after making first tables same */
-    all_tables= lex->query_tables;
-    /* set context for commands which do not use setup_tables */
-    select_lex->
-      context.resolve_in_table_list_only(select_lex->get_table_list());
-  }
+  lex->first_lists_tables_same();
+  /* should be assigned after making first tables same */
+  all_tables= lex->query_tables;
+  /* set context for commands which do not use setup_tables */
+  select_lex->context.resolve_in_table_list_only(select_lex->get_table_list());
 
   /*
     Reset warning count for each query that uses tables
