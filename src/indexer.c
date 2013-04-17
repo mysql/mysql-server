@@ -224,8 +224,8 @@ static int
 build_index(DB_INDEXER *indexer) {
     int result = 0;
 
-    DBT key; toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
-    DBT le; toku_init_dbt(&le); le.flags = DB_DBT_REALLOC;
+    DBT key; toku_init_dbt_flags(&key, DB_DBT_REALLOC);
+    DBT le; toku_init_dbt_flags(&le, DB_DBT_REALLOC);
 
     BOOL done = FALSE;
     for (uint64_t loop_count = 0; !done; loop_count++) {
