@@ -6227,8 +6227,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
     {
 	//assert(fullhash == toku_cachetable_hash(brt->cf, nodename));
         struct brtnode_fetch_extra bfe;
-        // TODO: (Zardosht) change this
-        fill_bfe_for_full_read(&bfe, brt->h);
+        fill_bfe_for_min_read(&bfe, brt->h);
 	toku_pin_brtnode_holding_lock(brt, nodename, fullhash,
 				      ancestors, bounds, &bfe,
 				      &node);
@@ -6265,15 +6264,25 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
 					   &next_ancestors, &next_bounds);
 	    }
 	    else {
-		struct cmd_leafval_heaviside_extra be = {brt, key};
-		u_int32_t idx;
-		int r = toku_omt_find_zero(BLB_BUFFER(node, i), toku_cmd_leafval_heaviside, &be, 0, &idx, NULL);
-		*less += idx;
-		*greater += toku_omt_size(BLB_BUFFER(node, i))-idx;
-		if (r==0) {
-		    (*greater)--;
-		    (*equal)++;
-		}
+                if (BP_STATE(node,i) == PT_AVAIL) {
+                    struct cmd_leafval_heaviside_extra be = {brt, key};
+                    u_int32_t idx;
+                    int r = toku_omt_find_zero(BLB_BUFFER(node, i), toku_cmd_leafval_heaviside, &be, 0, &idx, NULL);
+                    *less += idx;
+                    *greater += toku_omt_size(BLB_BUFFER(node, i))-idx;
+                    if (r==0) {
+                        (*greater)--;
+                        (*equal)++;
+                    }
+                }
+                else {
+                    // In this case, we need to search the basement node, but it is not available
+                    // We do not want to incur a disk seek just to get an estimate, so, we
+                    // just take a guess. Arbitrarily say half the elements are less, and half are greater 
+                    u_int64_t bn_subest = BP_SUBTREE_EST(node,i).ndata;
+                    *less += bn_subest/2;
+                    *greater += bn_subest - (bn_subest/2);
+                }
 	    }
 	}
     }
