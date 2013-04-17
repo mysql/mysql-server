@@ -129,8 +129,7 @@ static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
 #endif
 }
 
-// Wait for writes to complete if the size in the write queue is 1/2 of 
-// the cachetable
+// Wait for cache table space to become available 
 static inline void cachetable_wait_write(CACHETABLE ct) {
     while (2*ct->size_writing > ct->size_current) {
         workqueue_wait_write(&ct->wq, 0);
@@ -608,8 +607,6 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // boolean is true, so the pair is not yet evicted from the cachetable.
 
 static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
-    ctpair_write_lock(&p->rwlock, ct->mutex);
-
     // helgrind
     CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
     CACHEFILE cachefile = p->cachefile;
@@ -679,6 +676,7 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // a thread pool.
 
 static void flush_and_maybe_remove (CACHETABLE ct, PAIR p, BOOL write_me) {
+    ctpair_write_lock(&p->rwlock, ct->mutex);
     p->state = CTPAIR_WRITING;
     ct->size_writing += p->size; assert(ct->size_writing >= 0);
     p->write_me = write_me;
@@ -686,7 +684,7 @@ static void flush_and_maybe_remove (CACHETABLE ct, PAIR p, BOOL write_me) {
 #if DO_WORKER_THREAD
     WORKITEM wi = &p->asyncwork;
     workitem_init(wi, cachetable_writer, p);
-    // evictions without a write or unpinned paris that are clean
+    // evictions without a write or unpinned pair's that are clean
     // can be run in the current thread
     if (!p->write_me || (!ctpair_pinned(&p->rwlock) && !p->dirty)) {
         cachetable_write_pair(ct, p);
