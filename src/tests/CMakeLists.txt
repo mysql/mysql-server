@@ -619,54 +619,55 @@ if(BUILD_TESTING)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    ydb/test_query.tdb
-    ydb/test1572.tdb
     ydb/checkpoint_1.tdb
     ydb/env-put-multiple.tdb
     ydb/loader-cleanup-test0.tdb
     ydb/loader-cleanup-test2.tdb
-    ydb/loader-stress-test4.tdb
     ydb/manyfiles.tdb
+    ydb/recovery_fileops_stress.tdb
+    ydb/recovery_fileops_unit.tdb
     ydb/root_fifo_1.tdb
     ydb/root_fifo_2.tdb
     ydb/root_fifo_31.tdb
     ydb/root_fifo_32.tdb
     ydb/shutdown-3344.tdb
     ydb/stat64-create-modify-times.tdb
+    ydb/test1572.tdb
     ydb/test_abort4_19_0.tdb
     ydb/test_abort4_19_1.tdb
     ydb/test_abort5.tdb
     ydb/test_archive1.tdb
     ydb/test_logmax.tdb
+    ydb/test_query.tdb
     ydb/test_txn_abort5.tdb
     ydb/test_txn_abort5a.tdb
     ydb/test_txn_abort6.tdb
     ydb/test_txn_nested2.tdb
     ydb/test_txn_nested4.tdb
     ydb/test_txn_nested5.tdb
-    ydb/recovery_fileops_stress.tdb
-    ydb/recovery_fileops_unit.tdb
+    ydb/test_update_stress.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
-      ydb/test1426.tdb
       ydb/root_fifo_1.bdb
       ydb/root_fifo_31.bdb
+      ydb/rowsize.bdb
+      ydb/test1426.tdb
       ydb/test_log10.bdb
       ydb/test_log7.bdb
       ydb/test_logmax.bdb
-      ydb/rowsize.bdb
       )
   endif (BDB_FOUND)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
     ydb/drd_test_4015.tdb
-    ydb/test3039.tdb
-    ydb/loader-dup-test0.tdb
-    ydb/loader-stress-del.p.loader
-    ydb/loader-stress-del.nop.loader
     ydb/hotindexer-with-queries.tdb
+    ydb/loader-dup-test0.tdb
+    ydb/loader-stress-del.nop.loader
+    ydb/loader-stress-del.p.loader
+    ydb/loader-stress-test4.tdb
+    ydb/test3039.tdb
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these really take a long time with valgrind
