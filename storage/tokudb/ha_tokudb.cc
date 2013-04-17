@@ -62,10 +62,11 @@ typedef struct st_tokudb_trx_data {
 #define STATUS_AUTO_INCREMENT_INIT 8
 
 // tokudb debug tracing
-#define TOKUDB_DEBUG_OPEN 1
-#define TOKUDB_DEBUG_ERROR 2
-#define TOKUDB_DEBUG_TXN 4
-#define TOKUDB_DEBUG_AUTO_INCREMENT 8
+#define TOKUDB_DEBUG_INIT 1
+#define TOKUDB_DEBUG_OPEN 2
+#define TOKUDB_DEBUG_ERROR 4
+#define TOKUDB_DEBUG_TXN 8
+#define TOKUDB_DEBUG_AUTO_INCREMENT 16
 
 #define TOKUDB_DBUG_RETURN(r) \
 { \
@@ -224,7 +225,8 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_env_flags: 0x%x\n", tokudb_env_flags));
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) { // QQQ
-        if (tokudb_debug) printf("%d:%s:%d:WARNING: flags %x r %d\n", my_tid(), __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
+        if (tokudb_debug & TOKUDB_DEBUG_INIT) 
+            printf("%d:%s:%d:WARNING: flags %x r %d\n", my_tid(), __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
     }
 
     // config error handling
@@ -268,7 +270,8 @@ static int tokudb_init_func(void *p) {
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
-        if (tokudb_debug) printf("%d:%s:%d:tokudb_cache_size %lld\n", my_tid(), __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
+        if (tokudb_debug & TOKUDB_DEBUG_INIT) 
+            printf("%d:%s:%d:tokudb_cache_size %lld\n", my_tid(), __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
@@ -797,7 +800,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
     file = share->file;
-    if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN)
         printf("%d:%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", my_tid(), __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
@@ -824,6 +827,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             my_errno = error;
             TOKUDB_DBUG_RETURN(1);
         }
+        if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+            printf("%d:%s:%d:open:%s:file=%p\n", my_tid(), __FILE__, __LINE__, newname, file);
 
         /* Open other keys;  These are part of the share structure */
         key_file[primary_key] = file;
@@ -853,6 +858,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                     my_errno = error;
                     TOKUDB_DBUG_RETURN(1);
                 }
+                if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                    printf("%d:%s:%d:open:%s:file=%p\n", my_tid(), __FILE__, __LINE__, newname, *ptr);
+
             }
         }
         /* Calculate pack_length of primary key */
@@ -1156,6 +1164,8 @@ void ha_tokudb::get_status() {
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
                               | DB_THREAD);
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                printf("%d:%s:%d:open:%s\n", my_tid(), __FILE__, __LINE__, newname);
             if (!db_create(&share->status_block, db_env, 0)) {
                 if (share->status_block->open(share->status_block, NULL, name_buff, "status", DB_BTREE, open_mode, 0)) {
                     share->status_block->close(share->status_block, 0);
@@ -1817,19 +1827,16 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     int error;
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-#if 1 /* NEXT_DUP on nodup returns EINVAL for tokudb */
-    if (keylen == table->key_info[active_index].key_length && !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
-        int next_flag = DB_NEXT_DUP;
-        if (table->key_info[active_index].flags & HA_NOSAME)
-            next_flag = DB_NEXT;
-        error = cursor->c_get(cursor, &last_key, &row, next_flag);
+    /* QQQ NEXT_DUP on nodup returns EINVAL for tokudb */
+    if (keylen == table->key_info[active_index].key_length && 
+        !(table->key_info[active_index].flags & HA_NOSAME) && 
+        !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
+
+        error = cursor->c_get(cursor, &last_key, &row, DB_NEXT_DUP);
         if (error == EINVAL)
             printf("%d:%s:%d\n", my_tid(), __FILE__, __LINE__);
         error = read_row(error, buf, active_index, &row, &last_key, 1);
     } else {
-#else
-    {
-#endif
         error = read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, active_index, &row, &last_key, 1);
         if (!error &&::key_cmp_if_same(table, key, active_index, keylen))
             error = HA_ERR_END_OF_FILE;
@@ -2066,6 +2073,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                  */
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 error = trx->stmt->commit(trx->stmt, 0);
+                if (tokudb_debug & TOKUDB_DEBUG_TXN)
+                    printf("%d:%s:%d:commit:%p:%d\n", my_tid(), __FILE__, __LINE__, trx->stmt, error);
                 trx->stmt = transaction = 0;
             }
         }
@@ -2191,8 +2200,11 @@ static int rmall(const char *dname) {
             sprintf(fname, "%s/%s", dname, dirent->d_name);
             if (dirent->d_type == DT_DIR) {
                 error = rmall(fname);
-            } else
+            } else {
+                if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                    printf("%d:%s:%d:unlink:%s\n", my_tid(), __FILE__, __LINE__, fname);
                 error = unlink(fname);
+            }
             if (error != 0) {
                 error = errno;
                 break;
@@ -2230,6 +2242,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     /* Create the main table that will hold the real rows */
     if ((error = create_sub_table(name_buff, "main", DB_BTREE, 0)))
         TOKUDB_DBUG_RETURN(error);
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+        printf("%d:%s:%d:create:%s\n", my_tid(), __FILE__, __LINE__, newname);
 
     primary_key = form->s->primary_key;
 
@@ -2243,6 +2257,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             if ((error = create_sub_table(name_buff, part, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT)))
                 TOKUDB_DBUG_RETURN(error);
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                printf("%d:%s:%d:create:%s:%ld\n", my_tid(), __FILE__, __LINE__, newname, form->key_info[i].flags);
+
         }
     }
 
@@ -2262,6 +2279,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             error = write_status(status_block, rec_buff, length);
             status_block->close(status_block, 0);
         }
+        if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+            printf("%d:%s:%d:create:%s:%d\n", my_tid(), __FILE__, __LINE__, newname, error);
+
     }
     TOKUDB_DBUG_RETURN(error);
 }
