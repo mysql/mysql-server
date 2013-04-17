@@ -1093,7 +1093,9 @@ int toku_read_rollback_backwards(BREAD br, struct roll_entry **item, MEMARENA ma
 static int find_xid (OMTVALUE v, void *txnv) {
     TOKUTXN txn = v;
     TOKUTXN txnfind = txnv;
-    return txn->txnid64 - txnfind->txnid64;
+    if (txn->txnid64<txnfind->txnid64) return -1;
+    if (txn->txnid64>txnfind->txnid64) return +1;
+    return 0;
 }
 
 static int find_filenum (OMTVALUE v, void *brtv) {
