@@ -1933,6 +1933,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->checkpoint_count      = cpstat.checkpoint_count;
 	    engstat->checkpoint_count_fail = cpstat.checkpoint_count_fail;
 	    engstat->checkpoint_waiters_now = cpstat.waiters_now;
+	    engstat->checkpoint_waiters_max = cpstat.waiters_max;
 	}
         engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
         engstat->cleaner_iterations = toku_get_cleaner_iterations_unlocked(env->i->cachetable);
@@ -2277,6 +2278,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu64"\n", engstat.checkpoint_count);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu64"\n", engstat.checkpoint_count_fail);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_now           %"PRIu64"\n", engstat.checkpoint_waiters_now);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_max           %"PRIu64"\n", engstat.checkpoint_waiters_max);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu64"\n", engstat.cleaner_period);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu64"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);

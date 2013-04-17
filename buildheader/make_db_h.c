@@ -479,7 +479,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ \n");
     printf("  u_int64_t        checkpoint_count;        /* number of checkpoints taken        */ \n");
     printf("  u_int64_t        checkpoint_count_fail;   /* number of checkpoints failed        */ \n");
-    printf("  u_int64_t        checkpoint_waiters_now;  /* number of threads currently waiting for checkpoint_safe lock */ \n");
+    printf("  u_int64_t        checkpoint_waiters_now;  /* number of threads currently waiting to perform a checkpoint */ \n");
+    printf("  u_int64_t        checkpoint_waiters_max;  /* max threads ever simultaneously waiting to perform a checkpoint */ \n");
     printf("  u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ \n");
     printf("  u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ \n");
     printf("  u_int64_t        txn_begin;               /* number of transactions ever begun             */ \n");
