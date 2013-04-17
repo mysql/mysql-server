@@ -2213,6 +2213,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->mem_used       = memory_status.used;
 	    engstat->mem_freed      = memory_status.freed;
 	    engstat->max_mem_in_use = memory_status.max_in_use;
+	    engstat->malloc_mmap_threshold = memory_status.mmap_threshold;	    
 	    engstat->mallocator_version = memory_status.mallocator_version;
 	}
     }
@@ -2481,6 +2482,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "mem_used                         %"PRIu64"\n", engstat.mem_used);
 	n += snprintf(buff + n, bufsiz - n, "mem_freed                        %"PRIu64"\n", engstat.mem_freed);
 	n += snprintf(buff + n, bufsiz - n, "max_mem_in_use                   %"PRIu64"\n", engstat.max_mem_in_use);
+	n += snprintf(buff + n, bufsiz - n, "malloc_mmap_threshold            %"PRIu64"\n", engstat.malloc_mmap_threshold);
 	n += snprintf(buff + n, bufsiz - n, "mallocator_version               %s\n",        engstat.mallocator_version);
     }
     if (n > bufsiz) {
