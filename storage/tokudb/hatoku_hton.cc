@@ -1155,22 +1155,22 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("time of engine startup", engstat.startuptime);
       STATPRINT("time now", engstat.now);
 
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_period);
       STATPRINT("checkpoint period", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_footprint);
       STATPRINT("checkpoint status code (0 = idle)", buf);
       STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
       STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
       STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_last_lsn);
       STATPRINT("last complete checkpoint LSN ", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_count);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_count);
       STATPRINT("checkpoints taken  ", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_count_fail);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_count_fail);
       STATPRINT("checkpoints failed", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.cleaner_period);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_period);
       STATPRINT("cleaner period", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.cleaner_iterations);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_iterations);
       STATPRINT("cleaner iterations", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_begin);
@@ -1220,16 +1220,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("partial_fetch_miss", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_compressed);
       STATPRINT("partial_fetch_compressed", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_internal);
-      STATPRINT("partial_evictions_internal", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_nonleaf);
+      STATPRINT("partial_evictions_nonleaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_leaf);
       STATPRINT("partial_evictions_leaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.msn_discards);
       STATPRINT("msn_discards", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.max_workdone);
       STATPRINT("max_workdone", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.dsn_gap);
-      STATPRINT("dsn_gap", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_searches);
       STATPRINT("total_searches", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_retries);
@@ -1319,13 +1317,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("ydb lock", lockstat);
       STATPRINT("ydb lock counter", buf);
 
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.num_waiters_now);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.num_waiters_now);
       STATPRINT("num_waiters_now", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.max_waiters);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_waiters);
       STATPRINT("max_waiters", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleep_time);
       STATPRINT("total_sleep_time", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_time_ydb_lock_held);
+      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.max_time_ydb_lock_held));
       STATPRINT("max_time_ydb_lock_held", buf);
       snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_ydb_lock_held));
       STATPRINT("total_time_ydb_lock_held", buf);
@@ -1373,8 +1371,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable size_nonleaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_rollback);  
       STATPRINT("cachetable size_rollback", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_cachepressure);  
-      STATPRINT("cachetable size_cachepressure", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
       STATPRINT("cachetable size_writing", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
@@ -1386,17 +1382,17 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.local_checkpoint_during_checkpoint);  
       STATPRINT("local checkpoint during checkpoint", buf);
 
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max);
       STATPRINT("max range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max_memory);
       STATPRINT("memory available for range locks", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_curr_memory);
       STATPRINT("memory in use for range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_successes);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lock_escalation_successes);
       STATPRINT("range lock escalation successes", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_failures);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lock_escalation_failures);
       STATPRINT("range lock escalation failures", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_read_locks);
       STATPRINT("range read locks acquired", buf);
@@ -1461,9 +1457,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("loader close fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_abort);
       STATPRINT("loader abort", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.loader_current);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_current);
       STATPRINT("loaders current", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.loader_max);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_max);
       STATPRINT("loader max", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppress);
       STATPRINT("log suppress (success) ", buf);
@@ -1484,9 +1480,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("indexer close fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_abort);
       STATPRINT("indexer abort", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.indexer_current);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_current);
       STATPRINT("indexers current", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.indexer_max);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_max);
       STATPRINT("indexer max", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
