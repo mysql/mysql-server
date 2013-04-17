@@ -198,7 +198,7 @@ function build() {
 	runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
         # benchmark tests
 	runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
@@ -226,7 +226,7 @@ function build() {
 	runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 	runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
+	runcmd 0 $productbuilddir/src/tests make stress_tests.tdbrun -j$makejobs -k -s SUMMARIZE=1 CC=icc HAVE_CILK=0 VGRIND= >>$tracefile 2>&1
     fi
 
     # cilk tests
@@ -317,7 +317,7 @@ bdb="4.6"
 makejobs=`get_ncpus`
 revision=0
 dovalgrind=1
-VALGRIND=valgrind
+VALGRIND=tokugrind
 docommit=1
 docoverage=0
 dowindows=0
@@ -390,8 +390,9 @@ export VALGRIND=$VALGRIND
 # setup VGRIND
 if [ $dovalgrind = 0 ] ; then export VGRIND=""; fi
 
-# limit execution time to 2 hours
-ulimit -t 7200
+# limit execution time to 3 hours
+let t =3*3600
+ulimit -t $t
 ulimit -c unlimited
 
 build $bdb
