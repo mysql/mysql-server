@@ -426,6 +426,11 @@ msg_init_empty_ule(ULE ule, BRT_MSG msg) {
     ule_init_empty_ule(ule, keylen, keyp);
 }
 
+static void
+update_ule_key(ULE ule, BRT_MSG msg) {
+    ule->keylen = brt_msg_get_keylen(msg);
+    ule->keyp = brt_msg_get_key(msg);
+}
 
 // Purpose is to modify the unpacked leafentry in our private workspace.
 //
@@ -446,6 +451,11 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
         //fall through to BRT_INSERT on purpose.
     }
     case BRT_INSERT: {
+        // even though the keys of the ule and the msg should techinically
+        // be the same as far as comparison goes, tickets #4618 and #4631
+        // show why this is necessary. We need to update the key with the exact
+        // bytes of the message
+        update_ule_key(ule, msg);
         u_int32_t vallen = brt_msg_get_vallen(msg);
         invariant(IS_VALID_LEN(vallen));
         void * valp      = brt_msg_get_val(msg);
