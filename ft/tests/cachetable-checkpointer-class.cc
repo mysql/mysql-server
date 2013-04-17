@@ -82,7 +82,7 @@ void checkpointer_test::test_begin_checkpoint() {
     cachetable ctbl;
     ctbl.list.init();
     
-    m_cp.init(&ctbl, NULL, &ctbl.ev, &cfl);
+    m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
 
     // 1. Call checkpoint with NO cachefiles.
     r = m_cp.begin_checkpoint();
@@ -136,7 +136,6 @@ void checkpointer_test::test_pending_bits() {
     
     cachetable ctbl;
     ctbl.list.init();
-    m_cp.m_ct = &ctbl;
     
     //
     // 1. Empty hash chain.
@@ -179,11 +178,11 @@ void checkpointer_test::test_pending_bits() {
         NULL, 
         &ctbl.list);
 
-    m_cp.m_ct->list.put(&p);
+    m_cp.m_list->put(&p);
     
     m_cp.turn_on_pending_bits();
     assert(p.checkpoint_pending);
-    m_cp.m_ct->list.evict(&p);
+    m_cp.m_list->evict(&p);
     
     //
     // 3. Many hash chain entries.
@@ -201,9 +200,9 @@ void checkpointer_test::test_pending_bits() {
         CACHEKEY key;
         key.b = i;
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
-        PAIR pp = m_cp.m_ct->list.find_pair(&cf, key, full_hash);
+        PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_ct->list.evict(pp);
+        m_cp.m_list->evict(pp);
     }
     
     int r = ctbl.list.destroy();
@@ -242,9 +241,9 @@ void checkpointer_test::add_pairs(struct cachefile *cf,
             full_hash,
             cb,
             NULL,
-            &m_cp.m_ct->list);
+            m_cp.m_list);
 
-        m_cp.m_ct->list.put(&pairs[i]);
+        m_cp.m_list->put(&pairs[i]);
     }
 }
 
@@ -278,7 +277,6 @@ void checkpointer_test::test_end_checkpoint() {
     // 1. Init test.
     cachetable ctbl;
     ctbl.list.init();
-    m_cp.m_ct = &ctbl;
 
     cachefile_list cfl;
     cfl.init();
@@ -289,14 +287,14 @@ void checkpointer_test::test_end_checkpoint() {
     cf.for_checkpoint = true;
     create_dummy_functions(&cf);
     
-    m_cp.init(&ctbl, NULL, &ctbl.ev, &cfl);
+    m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
     m_cp.m_cf_list->m_head = &cf;
 
     // 2. Add data before running checkpoint.
     const uint32_t count = 6;
     ctpair pairs[count];
     add_pairs(&cf, pairs, count / 2, 0);
-    assert(m_cp.m_ct->list.m_n_in_table == count / 2);
+    assert(m_cp.m_list->m_n_in_table == count / 2);
     
     // 3. Call begin checkpoint.
     m_cp.begin_checkpoint();
@@ -308,20 +306,20 @@ void checkpointer_test::test_end_checkpoint() {
     
     // 4. Add new data between starting and stopping checkpoint.
     add_pairs(&cf, pairs, count / 2, count / 2);
-    assert(m_cp.m_ct->list.m_n_in_table == count);
+    assert(m_cp.m_list->m_n_in_table == count);
     for (uint32_t i = count / 2; i < count / 2; ++i)
     {
         assert(!pairs[i].checkpoint_pending);
     }
     
     uint32_t pending_pairs = 0;
-    pending_pairs = get_number_pending_pairs(&m_cp.m_ct->list);
+    pending_pairs = get_number_pending_pairs(m_cp.m_list);
     assert(pending_pairs == count / 2);
         
     // 5. Call end checkpoint
     m_cp.end_checkpoint(NULL, NULL);
 
-    pending_pairs = get_number_pending_pairs(&m_cp.m_ct->list);
+    pending_pairs = get_number_pending_pairs(m_cp.m_list);
     assert(pending_pairs == 0);
 
     // Verify that none of the pairs are pending a checkpoint.
@@ -335,9 +333,9 @@ void checkpointer_test::test_end_checkpoint() {
         CACHEKEY key;
         key.b = i;
         uint32_t full_hash = toku_cachetable_hash(&cf, key);
-        PAIR pp = m_cp.m_ct->list.find_pair(&cf, key, full_hash);
+        PAIR pp = m_cp.m_list->find_pair(&cf, key, full_hash);
         assert(pp);
-        m_cp.m_ct->list.evict(pp);
+        m_cp.m_list->evict(pp);
     }
     m_cp.destroy();
     int r = ctbl.list.destroy();

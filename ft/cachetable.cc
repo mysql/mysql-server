@@ -210,7 +210,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->checkpointing_kibbutz = toku_kibbutz_create(checkpointing_nworkers);
     // must be done after creating ct_kibbutz
     ct->ev.init(size_limit, &ct->list, ct->ct_kibbutz, EVICTION_PERIOD);
-    ct->cp.init(ct, logger, &ct->ev, &ct->cf_list);
+    ct->cp.init(&ct->list, logger, &ct->ev, &ct->cf_list);
     ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
     ct->env_dir = toku_xstrdup(".");
     *result = ct;
@@ -4166,11 +4166,11 @@ ENSURE_POD(checkpointer);
 //
 // Sets the cachetable reference in this checkpointer class, this is temporary.
 //
-void checkpointer::init(CACHETABLE _ct, 
+void checkpointer::init(pair_list *_pl, 
                         TOKULOGGER _logger,
                         evictor *_ev,
                         cachefile_list *files) {
-    m_ct = _ct;
+    m_list = _pl;
     m_logger = _logger;
     m_ev = _ev;
     m_cf_list = files;
@@ -4275,19 +4275,19 @@ int checkpointer::begin_checkpoint() {
 
     bjm_reset(m_checkpoint_clones_bjm);
 
-    m_ct->list.write_pending_exp_lock();
-    m_ct->list.read_list_lock();
+    m_list->write_pending_exp_lock();
+    m_list->read_list_lock();
     m_cf_list->read_lock(); // needed for update_cachefiles
-    m_ct->list.write_pending_cheap_lock();
+    m_list->write_pending_cheap_lock();
     // 4. Turn on all the relevant checkpoint pending bits.
     this->turn_on_pending_bits();
     
     // 5.
     this->update_cachefiles();
-    m_ct->list.write_pending_cheap_unlock();
+    m_list->write_pending_cheap_unlock();
     m_cf_list->read_unlock();
-    m_ct->list.read_list_unlock();
-    m_ct->list.write_pending_exp_unlock();
+    m_list->read_list_unlock();
+    m_list->write_pending_exp_unlock();
     return r;
 }
 
@@ -4348,9 +4348,9 @@ void checkpointer::log_begin_checkpoint() {
 // both pending locks are grabbed
 //
 void checkpointer::turn_on_pending_bits() {
-    for (uint32_t i = 0; i < m_ct->list.m_table_size; i++) {
+    for (uint32_t i = 0; i < m_list->m_table_size; i++) {
         PAIR p;
-        for (p = m_ct->list.m_table[i]; p; p = p->hash_chain) {
+        for (p = m_list->m_table[i]; p; p = p->hash_chain) {
             assert(!p->checkpoint_pending);
             //Only include pairs belonging to cachefiles in the checkpoint
             if (!p->cachefile->for_checkpoint) {
@@ -4366,12 +4366,12 @@ void checkpointer::turn_on_pending_bits() {
             //     we may end up clearing the pending bit before the
             //     current lock is ever released.
             p->checkpoint_pending = true;
-            if (m_ct->list.m_pending_head) {
-                m_ct->list.m_pending_head->pending_prev = p;
+            if (m_list->m_pending_head) {
+                m_list->m_pending_head->pending_prev = p;
             }
-            p->pending_next = m_ct->list.m_pending_head;
+            p->pending_next = m_list->m_pending_head;
             p->pending_prev = NULL;
-            m_ct->list.m_pending_head = p;
+            m_list->m_pending_head = p;
         }
     }
 }
@@ -4420,20 +4420,20 @@ void checkpointer::fill_checkpoint_cfs(CACHEFILE* checkpoint_cfs) {
 
 void checkpointer::checkpoint_pending_pairs() {
     PAIR p;
-    m_ct->list.read_list_lock();
-    while ((p = m_ct->list.m_pending_head)!=0) {
+    m_list->read_list_lock();
+    while ((p = m_list->m_pending_head)!=0) {
         // <CER> TODO: Investigate why we move pending head outisde of the pending_pairs_remove() call.
-        m_ct->list.m_pending_head = m_ct->list.m_pending_head->pending_next;
-        m_ct->list.pending_pairs_remove(p);
+        m_list->m_pending_head = m_list->m_pending_head->pending_next;
+        m_list->pending_pairs_remove(p);
         // if still pending, clear the pending bit and write out the node
         pair_lock(p);
-        m_ct->list.read_list_unlock();
+        m_list->read_list_unlock();
         write_pair_for_checkpoint_thread(m_ev, p);
         pair_unlock(p);
-        m_ct->list.read_list_lock();
+        m_list->read_list_lock();
     }
-    assert(!m_ct->list.m_pending_head);
-    m_ct->list.read_list_unlock();
+    assert(!m_list->m_pending_head);
+    m_list->read_list_unlock();
     bjm_wait_for_jobs_to_finish(m_checkpoint_clones_bjm);
 }
 

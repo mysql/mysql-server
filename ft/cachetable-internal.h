@@ -311,7 +311,7 @@ public:
 //
 class checkpointer {
 public:
-    void init(CACHETABLE _ct, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
+    void init(pair_list *_pl, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
     void destroy();
     int set_checkpoint_period(uint32_t new_period);
     uint32_t get_checkpoint_period();
@@ -331,8 +331,7 @@ private:
     uint32_t m_checkpoint_num_files; // how many cachefiles are in the checkpoint
     struct minicron m_checkpointer_cron; // the periodic checkpointing thread
     cachefile_list *m_cf_list;
-    // <CER> TEMP?
-    CACHETABLE m_ct;
+    pair_list *m_list;
     evictor *m_ev;
     
     // variable used by the checkpoint thread to know
