@@ -153,7 +153,9 @@ static void *worker(void *arg_v) {
     struct worker_extra* we = arg_v;
     ARG arg = we->thread_arg;
     struct random_data random_data;
+    memset(&random_data, 0, sizeof random_data);
     char *random_buf = toku_xmalloc(8);
+    memset(random_buf, 0, 8);
     r = initstate_r(random(), random_buf, 8, &random_data);
     assert_zero(r);
     arg->random_data = &random_data;
