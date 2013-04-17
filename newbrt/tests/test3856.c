@@ -59,7 +59,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         BRT_CURSOR c;
         char lkey[100],rkey[100];
         DBT lk, rk;
-        r = toku_brt_cursor(t, &c, null_txn, FALSE); assert(r == 0);
+        r = toku_brt_cursor(t, &c, null_txn, FALSE, FALSE); assert(r == 0);
         snprintf(lkey, 100, "hello%d", i);
         snprintf(rkey, 100, "hello%d", i + 100);
         toku_brt_cursor_set_range_lock(c, toku_fill_dbt(&lk, lkey, 1+strlen(lkey)),

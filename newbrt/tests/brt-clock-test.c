@@ -158,7 +158,8 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         &left,
         &right,
         TRUE,
-        TRUE
+        TRUE,
+        FALSE
         );
 
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_subset);

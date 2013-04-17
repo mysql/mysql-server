@@ -160,6 +160,7 @@ static void print_defines (void) {
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
     printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb
     printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
+    printf("#define DBC_DISABLE_PREFETCHING 0x20000000\n"); // private tokudb
 
     {
         //dbt flags
@@ -609,6 +610,25 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/\n");
     printf("  uint64_t         msg_num;                     /* how many messages injected at root*/\n");
     printf("  uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/\n");
+    printf("  uint64_t         num_basements_decompressed_normal;  /* how many basement nodes were decompressed because they were the target of a query */\n");
+    printf("  uint64_t         num_basements_decompressed_aggressive; /* ... because they were between lc and rc */\n");
+    printf("  uint64_t         num_basements_decompressed_prefetch;\n");
+    printf("  uint64_t         num_basements_decompressed_write;\n");
+    printf("  uint64_t         num_msg_buffer_decompressed_normal;  /* how many msg buffers were decompressed because they were the target of a query */\n");
+    printf("  uint64_t         num_msg_buffer_decompressed_aggressive; /* ... because they were between lc and rc */\n");
+    printf("  uint64_t         num_msg_buffer_decompressed_prefetch;\n");
+    printf("  uint64_t         num_msg_buffer_decompressed_write;\n");
+    printf("  uint64_t         num_pivots_fetched_query;           /* how many pivots were fetched were fetched for a query */\n");
+    printf("  uint64_t         num_pivots_fetched_prefetch;        /* ... for a prefetch */\n");
+    printf("  uint64_t         num_pivots_fetched_write;           /* ... for a write */\n");
+    printf("  uint64_t         num_basements_fetched_normal;       /* how many basement nodes were fetched because they were the target of a query */\n");
+    printf("  uint64_t         num_basements_fetched_aggressive;      /* ... because they were between lc and rc */\n");
+    printf("  uint64_t         num_basements_fetched_prefetch;\n");
+    printf("  uint64_t         num_basements_fetched_write;\n");
+    printf("  uint64_t         num_msg_buffer_fetched_normal;       /* how many msg buffers were fetched because they were the target of a query */\n");
+    printf("  uint64_t         num_msg_buffer_fetched_aggressive;      /* ... because they were between lc and rc */\n");
+    printf("  uint64_t         num_msg_buffer_fetched_prefetch;\n");
+    printf("  uint64_t         num_msg_buffer_fetched_write;\n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
     printf("  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ \n");
     printf("  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ \n");
