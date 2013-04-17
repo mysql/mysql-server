@@ -29,7 +29,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->n_in_file=0;
     result->directory=0;
     result->checkpoint_lsn=(LSN){0};
-    result->oldest_living_xid = MAX_TXNID;
+    result->oldest_living_xid = TXNID_NONE_LIVING;
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died1;
@@ -813,25 +813,32 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // get them into increasing order
     qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
 
-    LSN oldest_live_txn_lsn={.lsn = toku_logger_get_oldest_living_xid(logger)};
-    assert(oldest_live_txn_lsn.lsn != 0);
+    LSN oldest_live_txn_lsn;
+    {
+        TXNID oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
+        if (oldest_living_xid == TXNID_NONE_LIVING)
+            oldest_live_txn_lsn = MAX_LSN;
+        else
+            oldest_live_txn_lsn.lsn = oldest_living_xid;
+    }
+
     //printf("%s:%d Oldest txn is %lld\n", __FILE__, __LINE__, (long long)oldest_live_txn_lsn.lsn);
 
     // Now starting at the last one, look for archivable ones.
     // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
-    LSN earliest_lsn_seen={(unsigned long long)(-1LL)};
-    r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_seen); // try to find the lsn that's in the most recent log
-    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsn.lsn)&&
-	(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
+    LSN earliest_lsn_in_logfile={(unsigned long long)(-1LL)};
+    r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_in_logfile); // try to find the lsn that's in the most recent log
+    if ((earliest_lsn_in_logfile.lsn <= logger->checkpoint_lsn.lsn)&&
+	(earliest_lsn_in_logfile.lsn <= oldest_live_txn_lsn.lsn)) {
 	i=all_n_logs-1;
     } else {
 	for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
-	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
+	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_in_logfile);
 	    if (r!=0) continue; // In case of error, just keep going
 	
-	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
-	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsn.lsn)&&
-		(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
+	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_in_logfile.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
+	    if ((earliest_lsn_in_logfile.lsn <= logger->checkpoint_lsn.lsn)&&
+		(earliest_lsn_in_logfile.lsn <= oldest_live_txn_lsn.lsn)) {
 		break;
 	    }
 	}

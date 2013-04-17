@@ -3314,7 +3314,6 @@ int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger) {
     cursor->current_in_omt = FALSE;
     cursor->prefetching = FALSE;
     cursor->oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
-    assert(cursor->oldest_living_xid != MAX_TXNID);
     list_push(&brt->cursors, &cursor->cursors_link);
     int r = toku_omt_cursor_create(&cursor->omtcursor);
     assert(r==0);

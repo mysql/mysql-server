@@ -12,21 +12,10 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
     if (result==0) 
         return errno;
     int r;
-    if (0) {
-died0:
-        toku_logger_panic(logger, r);  
-        toku_free(result); 
-        return r; 
-    }
     r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
-    if (r!=0) goto died0;
+    if (r!=0) goto died;
     r = toku_omt_create(&result->open_brts);
-    if (r!=0) goto died0;
-    if (0) {
-died1:
-        toku_omt_destroy(&result->open_brts);
-        goto died0;
-    }
+    if (r!=0) goto died;
     result->txnid64 = result->first_lsn.lsn;
     XIDS parent_xids;
     if (parent_tokutxn==NULL)
@@ -34,12 +23,7 @@ died1:
     else
         parent_xids = parent_tokutxn->xids;
     if ((r=xids_create_child(parent_xids, &result->xids, result->txnid64)))
-        goto died1;
-    if (0) {
-died2:
-        xids_destroy(&result->xids);
-        goto died1;
-    }
+        goto died;
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
@@ -47,17 +31,16 @@ died2:
     result->rollentry_arena = memarena_create();
 
     if (toku_omt_size(logger->live_txns) == 0) {
-        assert(logger->oldest_living_xid == MAX_TXNID);
+        assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
         logger->oldest_living_xid = result->txnid64;
     }
-    assert(logger->oldest_living_xid < MAX_TXNID);
     assert(logger->oldest_living_xid <= result->txnid64);
 
     {
         //Add txn to list (omt) of live transactions
         u_int32_t idx;
         r = toku_omt_insert(logger->live_txns, result, find_xid, result, &idx);
-        if (r!=0) goto died2;
+        if (r!=0) goto died;
 
         if (logger->oldest_living_xid == result->txnid64)
             assert(idx == 0);
@@ -72,6 +55,9 @@ died2:
     result->rollentry_filesize = 0;
     *tokutxn = result;
     return 0;
+died:
+    toku_logger_panic(logger, r);
+    return r; 
 }
 
 // Doesn't close the txn, just performs the commit operations.
