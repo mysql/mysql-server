@@ -684,7 +684,7 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	if (r!=4) {
 	    return DB_BADFORMAT;
 	}
-	printf("tokulog v.%u\n", toku_dtoh32(version));
+	printf("tokulog v.%u\n", toku_ntohl(version));
         //version MUST be in network order regardless of disk order
 	*versionp=toku_ntohl(version);
     }
