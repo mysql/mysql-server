@@ -282,7 +282,7 @@ static inline BOOL toku__ltm_lock_test_incr(toku_ltm* tree_mgr,
                                             u_int32_t replace_locks) {
     assert(tree_mgr);
     assert(replace_locks <= tree_mgr->curr_locks);
-    return tree_mgr->curr_locks - replace_locks < tree_mgr->max_locks;
+    return (BOOL)(tree_mgr->curr_locks - replace_locks < tree_mgr->max_locks);
 }
 
 static inline void toku__ltm_lock_incr(toku_ltm* tree_mgr, u_int32_t replace_locks) {
@@ -302,8 +302,8 @@ static inline BOOL toku__lt_lock_test_incr_per_db(toku_lock_tree* tree,
                                                   u_int32_t replace_locks) {
     assert(tree);
     assert(replace_locks <= tree->curr_locks);
-    return (BOOL)(tree->curr_locks - replace_locks < tree->max_locks) &&
-                  toku__ltm_lock_test_incr(tree->mgr, replace_locks);
+    return (BOOL)((tree->curr_locks - replace_locks < tree->max_locks) &&
+                  toku__ltm_lock_test_incr(tree->mgr, replace_locks));
 }
 
 static inline void toku__lt_lock_incr_per_db(toku_lock_tree* tree, u_int32_t replace_locks) {
