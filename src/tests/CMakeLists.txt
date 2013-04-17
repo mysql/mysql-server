@@ -319,8 +319,7 @@ if(BUILD_TESTING)
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.tdb")
-    add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS "-fvisibility=hidden -fPIE")
-    add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS -pie)
+    add_common_options_to_binary_targets(${base}.tdb)
   endforeach(bin)
 
   if(BDB_FOUND)
@@ -335,6 +334,7 @@ if(BUILD_TESTING)
         INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
       target_link_libraries(${base}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.bdb")
+      add_common_options_to_binary_targets(${base}.bdb)
     endforeach(bin)
   endif()
 
@@ -355,8 +355,7 @@ if(BUILD_TESTING)
     set_target_properties(${prefix}_${binary} PROPERTIES
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
-    add_space_separated_property(TARGET ${prefix}_${binary} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
-    add_space_separated_property(TARGET ${prefix}_${binary} COMPILE_FLAGS -pie)
+    add_common_options_to_binary_targets(${prefix}_${binary})
   endfunction(add_custom_executable)
 
   declare_custom_tests(test1426.tdb)
