@@ -114,7 +114,7 @@ toku_ydb_lock_destroy(void) {
 void 
 toku_ydb_lock(void) {
 #if !YDB_LOCK_MISS_TIME
-    int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
+    int r = toku_pthread_mutex_lock(&ydb_big_lock.lock);   assert(r == 0);
 #endif
 
 #if YDB_LOCK_MISS_TIME
@@ -168,7 +168,7 @@ toku_ydb_unlock(void) {
     assert((status.ydb_lock_ctr & 0x01) == 0);
 
 #if !YDB_LOCK_MISS_TIME
-    int r = toku_pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
 #endif
 
 #if YDB_LOCK_MISS_TIME
