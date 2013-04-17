@@ -69,12 +69,12 @@ static void *do_checkpoint(void *arg) {
 
 
 static void flusher_callback(int state, void* extra) {
-    BOOL after_child_pin = *(BOOL *)extra;
+    BOOL after_split = *(BOOL *)extra;
     if (verbose) {
         printf("state %d\n", state);
     }
-    if ((state == ft_flush_before_child_pin && !after_child_pin) ||
-        (state == ft_flush_after_child_pin && after_child_pin)) {
+    if ((state == ft_flush_before_split && !after_split) ||
+        (state == ft_flush_during_split && after_split)) {
         checkpoint_called = TRUE;
         int r = toku_pthread_create(&checkpoint_tid, NULL, do_checkpoint, NULL); 
         assert_zero(r);
@@ -85,18 +85,22 @@ static void flusher_callback(int state, void* extra) {
 }
 
 static void
-doit (BOOL after_child_pin) {
+doit (BOOL after_split) {
     BLOCKNUM node_leaf, node_root;
 
     int r;
     checkpoint_called = FALSE;
     checkpoint_callback_called = FALSE;
 
-    toku_flusher_thread_set_callback(flusher_callback, &after_child_pin);
+    toku_flusher_thread_set_callback(flusher_callback, &after_split);
     
     r = toku_brt_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink("foo.brt");
-    r = toku_open_brt("foo.brt", 1, &t, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun, null_db);
+    unlink("bar.brt");
+    // note the basement node size is 5 times the node size
+    // this is done to avoid rebalancing when writing a leaf
+    // node to disk
+    r = toku_open_brt("foo.brt", 1, &t, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
@@ -110,21 +114,31 @@ doit (BOOL after_child_pin) {
     r = toku_testsetup_root(t, node_root);
     assert(r==0);
 
-
-    r = toku_testsetup_insert_to_nonleaf(
-        t, 
-        node_root, 
-        BRT_INSERT,
+    char dummy_val[NODESIZE-50];
+    memset(dummy_val, 0, sizeof(dummy_val));
+    r = toku_testsetup_insert_to_leaf(
+        t,
+        node_leaf,
         "a",
         2,
-        NULL,
-        0
+        dummy_val,
+        sizeof(dummy_val)
         );
+    assert_zero(r);
+    r = toku_testsetup_insert_to_leaf(
+        t,
+        node_leaf,
+        "z",
+        2,
+        dummy_val,
+        sizeof(dummy_val)
+        );
+    assert_zero(r);
 
-    // at this point, we have inserted a message into
-    // the root, and we wish to flush it, the leaf
-    // should be empty
 
+    // at this point, we have inserted two leafentries into
+    // the leaf, that should be big enough such that a split
+    // will happen    
     struct flusher_advice fa;
     flusher_advice_init(
         &fa,
@@ -151,13 +165,12 @@ doit (BOOL after_child_pin) {
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
-    assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
 
     // do the flush
     flush_some_child(t->h, node, &fa);
     assert(checkpoint_callback_called);
 
-    // now let's pin the root again and make sure it is flushed
+    // now let's pin the root again and make sure it is has split
     toku_pin_brtnode_off_client_thread(
         t->h, 
         node_root,
@@ -168,8 +181,7 @@ doit (BOOL after_child_pin) {
         &node
         );
     assert(node->height == 1);
-    assert(node->n_children == 1);
-    assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
+    assert(node->n_children == 2);
     toku_unpin_brtnode(t, node);
 
     void *ret;
@@ -187,7 +199,10 @@ doit (BOOL after_child_pin) {
     assert_zero(r);
 
     BRT c_brt;
-    r = toku_open_brt("bar.brt", 0, &c_brt, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun, null_db);
+    // note the basement node size is 5 times the node size
+    // this is done to avoid rebalancing when writing a leaf
+    // node to disk
+    r = toku_open_brt("bar.brt", 0, &c_brt, NODESIZE, 5*NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
 
     //
@@ -205,38 +220,76 @@ doit (BOOL after_child_pin) {
         );
     assert(node->height == 1);
     assert(!node->dirty);
-    assert(node->n_children == 1);
-    if (after_child_pin) {
-        assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
+    BLOCKNUM left_child, right_child;
+    if (after_split) {
+        assert(node->n_children == 2);
+        left_child = BP_BLOCKNUM(node,0);
+        assert(left_child.b == node_leaf.b);
+        right_child = BP_BLOCKNUM(node,1);
     }
     else {
-        assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
+        assert(node->n_children == 1);
+        left_child = BP_BLOCKNUM(node,0);
+        assert(left_child.b == node_leaf.b);
     }
     toku_unpin_brtnode_off_client_thread(c_brt->h, node);
 
-    toku_pin_brtnode_off_client_thread(
-        c_brt->h, 
-        node_leaf,
-        toku_cachetable_hash(c_brt->h->cf, node_root),
-        &bfe,
-        0,
-        NULL,
-        &node
-        );
-    assert(node->height == 0);
-    assert(!node->dirty);
-    assert(node->n_children == 1);
-    if (after_child_pin) {
-        assert(BLB_NBYTESINBUF(node,0) > 0);
+    // now let's verify the leaves are what we expect
+    if (after_split) {
+        toku_pin_brtnode_off_client_thread(
+            c_brt->h, 
+            left_child,
+            toku_cachetable_hash(c_brt->h->cf, left_child),
+            &bfe,
+            0,
+            NULL,
+            &node
+            );
+        assert(node->height == 0);
+        assert(!node->dirty);
+        assert(node->n_children == 1);
+        assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
+        toku_unpin_brtnode_off_client_thread(c_brt->h, node);
+
+        toku_pin_brtnode_off_client_thread(
+            c_brt->h, 
+            right_child,
+            toku_cachetable_hash(c_brt->h->cf, right_child),
+            &bfe,
+            0,
+            NULL,
+            &node
+            );
+        assert(node->height == 0);
+        assert(!node->dirty);
+        assert(node->n_children == 1);
+        assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
+        toku_unpin_brtnode_off_client_thread(c_brt->h, node);
     }
     else {
-        assert(BLB_NBYTESINBUF(node,0) == 0);
+        toku_pin_brtnode_off_client_thread(
+            c_brt->h, 
+            left_child,
+            toku_cachetable_hash(c_brt->h->cf, left_child),
+            &bfe,
+            0,
+            NULL,
+            &node
+            );
+        assert(node->height == 0);
+        assert(!node->dirty);
+        assert(node->n_children == 1);
+        assert(toku_omt_size(BLB_BUFFER(node,0)) == 2);
+        toku_unpin_brtnode_off_client_thread(c_brt->h, node);
     }
-    toku_unpin_brtnode_off_client_thread(c_brt->h, node);
 
-    struct check_pair pair1 = {2, "a", 0, NULL, 0};
+
     DBT k;
+    struct check_pair pair1 = {2, "a", sizeof(dummy_val), dummy_val, 0};
     r = toku_brt_lookup(c_brt, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair1);
+    assert(r==0);
+    struct check_pair pair2 = {2, "z", sizeof(dummy_val), dummy_val, 0};
+    r = toku_brt_lookup(c_brt, toku_fill_dbt(&k, "z", 2), lookup_checkf, &pair2);
     assert(r==0);
 
 
