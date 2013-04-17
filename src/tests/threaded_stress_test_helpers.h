@@ -1049,6 +1049,11 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), 
     return 0;
 }
 
+static void
+get_ith_table_name(char *buf, size_t len, int i) {
+    snprintf(buf, len, "main%d", i);
+}
+
 static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
     int r;
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
@@ -1057,7 +1062,7 @@ static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operat
     
     char name[30];
     ZERO_ARRAY(name);
-    snprintf(name, sizeof(name), "main%d", db_index);
+    get_ith_table_name(name, sizeof(name), db_index);
 
     r = arg->env->dbremove(arg->env, null_txn, name, NULL, 0);  
     CKERR(r);
@@ -1224,7 +1229,7 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         DB *db;
         char name[30];
         memset(name, 0, sizeof(name));
-        snprintf(name, sizeof(name), "main%d", i);
+        get_ith_table_name(name, sizeof(name), i);
         r = db_create(&db, env, 0);
         CKERR(r);
         r = db->set_flags(db, 0);
@@ -1333,7 +1338,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         DB *db;
         char name[30];
         memset(name, 0, sizeof(name));
-        snprintf(name, sizeof(name), "main%d", i);
+        get_ith_table_name(name, sizeof(name), i);
         r = db_create(&db, env, 0);
         CKERR(r);
         r = db->open(db, null_txn, name, NULL, DB_BTREE, 0, 0666);
