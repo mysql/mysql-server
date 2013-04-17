@@ -3860,7 +3860,8 @@ int ha_tokudb::info(uint flag) {
                 goto exit;
             }
             rec_per_key = (stat64.bt_nkeys) ? stat64.bt_ndata/stat64.bt_nkeys : 0;
-            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = (ulong)rec_per_key;
+            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 
+                (table->key_info[i].flags & HA_CLUSTERING) ? 0 : (ulong)rec_per_key;
                 
         }
     }
