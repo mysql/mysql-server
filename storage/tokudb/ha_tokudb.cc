@@ -2652,8 +2652,16 @@ int ha_tokudb::index_last(uchar * buf) {
 //
 int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
+    int error;
     current_row.flags = DB_DBT_REALLOC;
-    TOKUDB_DBUG_RETURN(index_init(primary_key, 0));
+    if (scan) {
+        DB* db = share->key_file[primary_key];
+        error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
+        if (error) { goto cleanup; }
+    }
+    error = index_init(primary_key, 0);
+cleanup:
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
