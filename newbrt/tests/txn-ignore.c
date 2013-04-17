@@ -53,8 +53,9 @@ test_main(int argc, const char *argv[]) {
     r = toku_txn_ignore_contains(txn, f8);     assert( r == ENOENT );
     r = toku_txn_ignore_contains(txn, f9);     CKERR(r);
 
-    assert(txn->ignore_errors->fns_allocated == 8);
-    assert(txn->ignore_errors->filenums.num == 4);
+    assert(txn->ignore_errors.fns_allocated == 8);
+    assert(txn->ignore_errors.filenums.num == 4);
+
 
     r = toku_txn_ignore_add(txn, f2);          CKERR(r);
     r = toku_txn_ignore_add(txn, f3);          CKERR(r);
@@ -62,15 +63,16 @@ test_main(int argc, const char *argv[]) {
     r = toku_txn_ignore_add(txn, f6);          CKERR(r);
     r = toku_txn_ignore_add(txn, f8);          CKERR(r);
 
-    assert(txn->ignore_errors->fns_allocated == 16);
-    assert(txn->ignore_errors->filenums.num == 9);
+    TXN_IGNORE txni = &(txn->ignore_errors);  // test using code similar to that in txn.c
+    assert(txni->fns_allocated == 16);
+    assert(txni->filenums.num == 9);
 
     // check that dups are ignored
     for (int i=0;i<10;i++) {
         r = toku_txn_ignore_add(txn, f2);          CKERR(r);
     }
-    assert(txn->ignore_errors->fns_allocated == 16);
-    assert(txn->ignore_errors->filenums.num == 9);
+    assert(txn->ignore_errors.fns_allocated == 16);
+    assert(txn->ignore_errors.filenums.num == 9);
 
     toku_txn_ignore_free(txn);
 
