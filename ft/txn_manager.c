@@ -136,8 +136,8 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
                     // Only committed entries have return a youngest.
                     invariant(youngest == TXNID_NONE);
                 }
-                else {
-                    invariant(youngest != TXNID_NONE);
+                else if (youngest != TXNID_NONE) {
+                    // A committed entry might have been read-only, in which case it won't return anything.
                     // This snapshot reads 'live_xid' so it's youngest cannot be older than snapshot_xid.
                     invariant(youngest >= snapshot_xid);
                 }
@@ -586,26 +586,29 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
         invariant_zero(r);
 
-        if (!is_snapshot) {
-            // If it's a snapshot, we already calculated index_in_snapshot_txnids.
-            r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, NULL, &index_in_snapshot_txnids);
-            invariant(r == DB_NOTFOUND);
-        }
-        uint32_t num_references = toku_omt_size(txn_manager->snapshot_txnids) - index_in_snapshot_txnids;
-        if (num_references > 0) {
-            // This transaction exists in a live list of another transaction.
-            struct referenced_xid_tuple *XMALLOC(tuple);
-            tuple->begin_id = txn->txnid64;
-            tuple->end_id = ++txn_manager->last_xid;
-            tuple->references = num_references;
+        if (txn->begin_was_logged) {
+            if (!is_snapshot) {
+                // If it's a snapshot, we already calculated index_in_snapshot_txnids.
+                // Otherwise, calculate it now.
+                r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, NULL, &index_in_snapshot_txnids);
+                invariant(r == DB_NOTFOUND);
+            }
+            uint32_t num_references = toku_omt_size(txn_manager->snapshot_txnids) - index_in_snapshot_txnids;
+            if (num_references > 0) {
+                // This transaction exists in a live list of another transaction.
+                struct referenced_xid_tuple *XMALLOC(tuple);
+                tuple->begin_id = txn->txnid64;
+                tuple->end_id = ++txn_manager->last_xid;
+                tuple->references = num_references;
 
-            r = toku_omt_insert(
-                txn_manager->referenced_xids,
-                tuple,
-                find_tuple_by_xid,
-                (OMTVALUE)txn->txnid64,
-                NULL);
-            lazy_assert_zero(r);
+                r = toku_omt_insert(
+                    txn_manager->referenced_xids,
+                    tuple,
+                    find_tuple_by_xid,
+                    (OMTVALUE)txn->txnid64,
+                    NULL);
+                lazy_assert_zero(r);
+            }
         }
     }
 
