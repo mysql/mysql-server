@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // A threadpool is a limited set of threads that can be used to apply a 
 // function to work contained in a work queue.  The work queue is outside
 // of the scope of the threadpool; the threadpool merely provides 

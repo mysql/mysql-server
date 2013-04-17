@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id: test-del-inorder.c 32975 2011-07-11 23:42:51Z leifwalsh $"
 /* The goal of this test.  Make sure that inserts stay behind deletes. */
 

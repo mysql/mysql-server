@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // This test verifies that queries that have a provisional delete at the end of a basement node work.
 // The issue is that when we read off the end of a basement node, the next basement node may not be available memory, so we
 // need to release the ydb lock and try again. This test verifies that this scenario works by having many deletes

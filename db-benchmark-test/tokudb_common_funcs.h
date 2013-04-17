@@ -1,7 +1,8 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #if !defined(TOKUDB_COMMON_FUNCS_H)
 #define TOKUDB_COMMON_FUNCS_H
 
-/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 

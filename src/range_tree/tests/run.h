@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 static toku_interval *
 init_query(toku_interval* range, int left, int right) {
     assert(0 <= left && left < (int) (sizeof nums / sizeof nums[0]));

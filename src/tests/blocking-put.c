@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // have multiple threads try to put key 0 into the same db. one thread should gain a write lock on the key.
 // the other threads should block until the thread that owns the lock commits its transaction.  then, one
 // of the blocked transactions should gain the lock and its owning thread resumed.

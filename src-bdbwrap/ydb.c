@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 /* This version is what Mysql calls.
  * It invokes the version in bdbw.
  * The version in bdbw then converts to Berkeley DB Calls. */

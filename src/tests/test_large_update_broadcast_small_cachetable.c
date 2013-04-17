@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // This test sets the cache size to be small and then inserts enough data
 // to make some basement nodes get evicted.  Then sends a broadcast update
 // and checks all the data.  If the msns for evicted basement nodes and

@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // test that an update broadcast called when there are previously deleted
 // keys doesn't get a callback to update_fun on those keys
 

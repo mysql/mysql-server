@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // verify that table locks used by multiple transactions suspend the conflicting thread rather than just return DB_LOCK_NOTGRANTED.
 
 #include "test.h"

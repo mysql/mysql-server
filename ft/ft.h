@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef FT_H
 #define FT_H
 #ident "$Id: ft.h 43422 2012-05-12 17:51:02Z zardosht $"

@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // for all i: T(i) reads 0, gets a read lock on 0
 // for all i: T(i) writes 0, enters a deadlock
 // tokudb detects deadlock on the fly

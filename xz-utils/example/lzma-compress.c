@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 /* An example of using lzma.  Written by Bradley Tue Mar  6 2012 */
 /* Read stdin in blocks of size up to 1MB, compress it and write it to stdout.
  * Each output block is preceeded by two 4-byte numbers that says how big the compressed block is and how big the uncompressed block is.
