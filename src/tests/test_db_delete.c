@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
@@ -129,7 +129,7 @@ test_db_get_datasize0 (void) {
     DBT key, val; 
     r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
     assert(r == 0);
-    free(val.data);
+    toku_free(val.data);
 
     r = db->close(db, 0);
     assert(r == 0);

@@ -13,14 +13,14 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        BOOL rename_p    __attribute__((__unused__))
        ) {
     assert((long) key.b == size);
-    if (!keep_me) free(v);
+    if (!keep_me) toku_free(v);
 }
 
 static int
 fetch (CACHEFILE cf, CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra, LSN *written_lsn) {
     cf = cf; hash = hash; extra = extra; written_lsn = written_lsn;
     *sizep = (long) key.b;
-    *vptr = malloc(*sizep);
+    *vptr = toku_malloc(*sizep);
     return 0;
 }
 

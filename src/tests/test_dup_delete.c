@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -35,8 +35,8 @@ expect (DBC *cursor, int k, int v) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.data);
-    free(val.data);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 /* verify dup keys delete */
@@ -97,7 +97,7 @@ test_dup_delete (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(n));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     {
@@ -273,7 +273,7 @@ test_dup_delete_insert (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     {
@@ -296,7 +296,7 @@ test_dup_delete_insert (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     DBC *cursor;
@@ -509,7 +509,7 @@ test_icdi_search (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     /* reopen the database to force nonleaf buffering */
@@ -544,7 +544,7 @@ test_icdi_search (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(n));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     DBC *cursor;
@@ -600,7 +600,7 @@ test_ici_search (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     /* reopen the database to force nonleaf buffering */
@@ -628,7 +628,7 @@ test_ici_search (int n, int dup_mode) {
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
-        free(val.data);
+        toku_free(val.data);
     } 
 
     DBC *cursor;
@@ -656,7 +656,7 @@ expect_db_lookup (DB *db, int k, int v) {
     assert(val.size == sizeof vv);
     memcpy(&vv, val.data, val.size);
     assert(vv == v);
-    free(val.data);
+    toku_free(val.data);
 }
 
 /* insert 0, insert 1, close, insert 0, search 0 */

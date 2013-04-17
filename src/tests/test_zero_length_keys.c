@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -36,8 +36,8 @@ walk (DB *db) {
     assert(i != 0);
     r = cursor->c_close(cursor); assert(r == 0);
 
-    if (key.data) free(key.data);
-    if (val.data) free(val.data);
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
 }
 
 static void
@@ -79,7 +79,7 @@ test_insert_zero_length (int n, int dup_mode, const char *dbname) {
 
             r = db->get(db, null_txn, &key, dbt_init_malloc(&val), 0);
             assert(r == 0 && val.data != 0 && val.size == 0);
-            free(val.data);
+            toku_free(val.data);
 
             memset(&key, 0, sizeof key);
             memset(&val, 0, sizeof val);
@@ -88,7 +88,7 @@ test_insert_zero_length (int n, int dup_mode, const char *dbname) {
 
             r = db->get(db, null_txn, &key, dbt_init_malloc(&val), 0);
             assert(r == 0 && val.data != 0 && val.size == 0);
-            free(val.data);
+            toku_free(val.data);
         }
     }
 

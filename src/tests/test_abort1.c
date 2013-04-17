@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <toku_portability.h>
 #include <db.h>
-#include <string.h>
+#include <memory.h>
 #include <stdio.h>
 
 #include "test.h"

@@ -11,7 +11,7 @@
 #include <search.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
+#include <memory.h>
 
 #include "test.h"
 

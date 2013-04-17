@@ -724,6 +724,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
 	if ((r=fetch_callback(cachefile, key, fullhash, &toku_value, &size, extraargs, &written_lsn))) {
+            if (r == DB_BADFORMAT) toku_db_badformat();
             cachetable_unlock(t);
             return r;
 	}
@@ -733,6 +734,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             *sizep = size;
     }
     r = maybe_flush_some(t, 0);
+    if (r == DB_BADFORMAT) toku_db_badformat();
     cachetable_unlock(t);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return r;

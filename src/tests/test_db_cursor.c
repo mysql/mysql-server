@@ -4,7 +4,7 @@
 #include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -36,8 +36,8 @@ struct primary_data {
 };
 
 static void free_pd (struct primary_data *pd) {
-    free(pd->name.name);
-    free(pd);
+    toku_free(pd->name.name);
+    toku_free(pd);
 }
 
 static void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
@@ -101,7 +101,7 @@ static void read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_k
 	read_uchar_from_dbt(dbt, off, &buf[i]);
 	if (buf[i]==0) break;
     }
-    nk->name=(unsigned char*)(strdup((char*)buf));
+    nk->name=(unsigned char*)(toku_strdup((char*)buf));
 }
 
 static void read_pd_from_dbt (const DBT *dbt, unsigned int *off, struct primary_data *pd) {
@@ -112,7 +112,7 @@ static void read_pd_from_dbt (const DBT *dbt, unsigned int *off, struct primary_
 }
 
 static int name_callback (DB *secondary __attribute__((__unused__)), const DBT * UU(key), const DBT *data, DBT *result) {
-    struct primary_data *pd = malloc(sizeof(*pd));
+    struct primary_data *pd = toku_malloc(sizeof(*pd));
     unsigned int off=0;
     read_pd_from_dbt(data, &off, pd);
     static int buf[1000];
@@ -167,8 +167,8 @@ static void close_databases (void) {
     if (name_cursor) {
 	r = name_cursor->c_close(name_cursor);     CKERR(r);
     }
-    if (nc_key.data) free(nc_key.data);
-    if (nc_data.data) free(nc_data.data);
+    if (nc_key.data) toku_free(nc_key.data);
+    if (nc_data.data) toku_free(nc_data.data);
     r = namedb->close(namedb, 0);     CKERR(r);
     r = dbp->close(dbp, 0);           CKERR(r);
     r = expiredb->close(expiredb, 0); CKERR(r);
@@ -307,10 +307,10 @@ test_main (int argc, const char *argv[]) {
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
     nc_key.flags = DB_DBT_MALLOC;
-    nc_key.data = malloc(1); // Initalize it.
+    nc_key.data = toku_malloc(1); // Initalize it.
     ((char*)nc_key.data)[0]=0;
     nc_data.flags = DB_DBT_MALLOC;
-    nc_data.data = malloc(1); // Initalize it.
+    nc_data.data = toku_malloc(1); // Initalize it.
 
 
     mode = MODE_DEFAULT;

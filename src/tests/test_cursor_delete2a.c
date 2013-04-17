@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
@@ -47,8 +47,8 @@ test_cursor_delete2 (void) {
 
     r = db->cursor(db, txn, &cursor, 0);                                                     CKERR(r);
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);       CKERR(r);
-    assert(strcmp(key.data, "a")==0);  free(key.data);
-    assert(strcmp(val.data, "c")==0);  free(val.data);
+    assert(strcmp(key.data, "a")==0);  toku_free(key.data);
+    assert(strcmp(val.data, "c")==0);  toku_free(val.data);
     r = cursor->c_del(cursor, 0);                                                            CKERR(r);
     r = cursor->c_del(cursor, 0);                                                            assert(r==DB_KEYEMPTY);
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);        assert(r==DB_NOTFOUND);

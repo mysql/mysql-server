@@ -63,7 +63,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp) {
     struct dirent *de;
     DIR *d=opendir(directory);
     if (d==0) {
-        free(result);
+        toku_free(result);
         return errno;
     }
     int dirnamelen = strlen(directory);
@@ -974,9 +974,9 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	result[n_to_archive]=0;
     }
     for (i=0; all_logs[i]; i++) {
-	free(all_logs[i]);
+	toku_free(all_logs[i]);
     }
-    free(all_logs);
+    toku_free(all_logs);
     *logs_p = result;
     return 0;
 }

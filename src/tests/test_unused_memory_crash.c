@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -18,8 +18,8 @@ expect_cursor_get (DBC *cursor, int k, int v, int op) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     assert(r == 0); 
-    assert(key.size == sizeof kk); memcpy(&kk, key.data, key.size); assert(kk == k); free(key.data); 
-    assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v); free(val.data);
+    assert(key.size == sizeof kk); memcpy(&kk, key.data, key.size); assert(kk == k); toku_free(key.data); 
+    assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v); toku_free(val.data);
 }
 
 static DBC *

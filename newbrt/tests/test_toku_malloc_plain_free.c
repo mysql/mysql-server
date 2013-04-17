@@ -8,6 +8,6 @@ test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     char *m=toku_malloc(5);
     m=m;
-    free(m);
+    toku_free(m);
     return 0;
 }

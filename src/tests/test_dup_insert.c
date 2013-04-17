@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -35,8 +35,8 @@ expect (DBC *cursor, int k, int v) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.data);
-    free(val.data);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 static int mycmp(const void *a, const void *b) {
@@ -109,7 +109,7 @@ test_insert (int n, int dup_mode) {
                 assert(vv == values[n-1]);
         } else
             assert(vv == values[i]);
-        free(val.data);
+        toku_free(val.data);
     }
 
     /* verify the sort order with a cursor */
@@ -218,7 +218,7 @@ test_nonleaf_insert (int n, int dup_mode) {
                 assert(vv == values[n-1]);
         } else
             assert(vv == values[i]);
-        free(val.data);
+        toku_free(val.data);
     }
 
     /* verify the sort order with a cursor */

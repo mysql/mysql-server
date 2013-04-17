@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <string.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
 #include <assert.h>
@@ -117,22 +117,22 @@ insert_test (void) {
     memset(&testdata, 0, sizeof testdata); testdata.flags = DB_DBT_MALLOC;
     r = dbp->get(dbp, null_txn, &key, &testdata, 0);    CKERR(r);
     r = dbtcmp(&data, &testdata);                       CKERR(r);
-    if (testdata.data) free(testdata.data);
+    if (testdata.data) toku_free(testdata.data);
     
     /* Try to get it from secondary. */
     memset(&testdata, 0, sizeof testdata); testdata.flags = DB_DBT_MALLOC;
     r = sdbp->get(sdbp, null_txn, &skey, &testdata, 0); CKERR(r);
     r = dbtcmp(&data, &testdata);                       CKERR(r);
-    if (testdata.data) free(testdata.data);
+    if (testdata.data) toku_free(testdata.data);
 
     /* Try to pget from secondary */ 
     memset(&testkey, 0, sizeof testkey); testkey.flags = DB_DBT_MALLOC;
     memset(&testdata, 0, sizeof testdata); testdata.flags = DB_DBT_MALLOC;
     r = sdbp->pget(sdbp, null_txn, &skey, &testkey, &testdata, 0);  CKERR(r);
     r = dbtcmp(&data, &testdata);                       CKERR(r);
-    if (testdata.data) free(testdata.data);
+    if (testdata.data) toku_free(testdata.data);
     r = dbtcmp(&testkey, &key);                         CKERR(r);
-    if (testkey.data) free(testkey.data);
+    if (testkey.data) toku_free(testkey.data);
     
     /* Make sure we fail 'pget' from primary */
     r = dbp->pget(dbp, null_txn, &key, &testkey, &data, 0);         assert(r == EINVAL);
@@ -183,14 +183,14 @@ verify_gone (void) {
     /* Try (fail) to get it from primary. */
     data.flags = DB_DBT_MALLOC;
     r = dbp->get(dbp, null_txn, &key, &data, 0);        assert(r == DB_NOTFOUND);
-    if (data.data) free(data.data);
+    if (data.data) toku_free(data.data);
 
     /* Try (fail) to get it from secondary. */
     setup_student(&s); memset(&data, 0, sizeof data); data.data = &s; data.size = sizeof s;
     r = getname(sdbp, NULL, &data, &skey);              CKERR(r);
     memset(&data, 0, sizeof data); data.flags = DB_DBT_MALLOC;
     r = sdbp->get(sdbp, null_txn, &skey, &data, 0);     assert(r == DB_NOTFOUND);
-    if (data.data) free(data.data);
+    if (data.data) toku_free(data.data);
 
     /* Try (fail) to pget from secondary */ 
     setup_student(&s);  memset(&data, 0, sizeof data); data.data = &s; data.size = sizeof s;
@@ -198,8 +198,8 @@ verify_gone (void) {
     memset(&data, 0, sizeof data); data.flags = DB_DBT_MALLOC;
     memset(&key, 0, sizeof key); key.flags = DB_DBT_MALLOC;
     r = sdbp->pget(sdbp, null_txn, &skey, &key, &data, 0);assert(r == DB_NOTFOUND);
-    if (data.data) free(data.data);
-    if (key.data) free(key.data);
+    if (data.data) toku_free(data.data);
+    if (key.data) toku_free(key.data);
 }
 
 int

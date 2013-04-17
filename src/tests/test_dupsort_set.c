@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -38,7 +38,7 @@ expect_db_get (DB *db, int k, int v) {
     assert(val.size == sizeof vv);
     memcpy(&vv, val.data, val.size);
     assert(vv == v);
-    free(val.data);
+    toku_free(val.data);
 }
 
 static void
@@ -56,8 +56,8 @@ expect_cursor_get (DBC *cursor, int k, int v) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.data);
-    free(val.data);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 static void
@@ -65,7 +65,7 @@ expect_cursor_set (DBC *cursor, int k) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET);
     assert(r == 0);
-    free(val.data);
+    toku_free(val.data);
 }
 
 static void
@@ -76,7 +76,7 @@ expect_cursor_get_current (DBC *cursor, int k, int v) {
     int kk, vv;
     assert(key.size == sizeof kk); memcpy(&kk, key.data, key.size); assert(kk == k);
     assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v);
-    free(key.data); free(val.data);
+    toku_free(key.data); toku_free(val.data);
 }
 
 

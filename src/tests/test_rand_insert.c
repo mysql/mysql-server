@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -75,7 +75,7 @@ test_rand_insert (int n, int dup_mode) {
         memcpy(&vv, val.data, val.size);
         if (vv != i) assert(keys[vv] == keys[i]);
         else assert(vv == i);
-        free(val.data);
+        toku_free(val.data);
     }
 
     r = db->close(db, 0);

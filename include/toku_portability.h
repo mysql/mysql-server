@@ -72,13 +72,20 @@ extern "C" {
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
 #   if defined(__ICL) //Windows Intel Compiler
-#       pragma deprecated (fstat, getpid, syscall, sysconf, mkdir)
+#       pragma deprecated (fstat, getpid, syscall, sysconf, mkdir, strdup, malloc, free)
 #   else
 int      fstat()                        __attribute__((__deprecated__));
 int      getpid(void)                   __attribute__((__deprecated__));
 long int syscall(long int __sysno, ...) __attribute__((__deprecated__));
 long int sysconf(int)                   __attribute__((__deprecated__));
 int      mkdir()                        __attribute__((__deprecated__));
+// strdup is a macro in some libraries.
+#undef strdup
+char*    strdup(const char *)           __attribute__((__deprecated__));
+#undef __strdup
+char*    __strdup(const char *)         __attribute__((__deprecated__));
+void *malloc(size_t)                    __attribute__((__deprecated__));
+void free(void*)                        __attribute__((__deprecated__));
 #   endif
 #endif
 

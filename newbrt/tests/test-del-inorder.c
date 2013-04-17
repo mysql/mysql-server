@@ -22,7 +22,7 @@ doit (void) {
     int r;
     
     fnamelen = strlen(__FILE__) + 20;
-    fname = malloc(fnamelen);
+    fname = toku_malloc(fnamelen);
     assert(fname!=0);
 
     snprintf(fname, fnamelen, "%s.brt", __FILE__);
@@ -30,7 +30,7 @@ doit (void) {
     unlink(fname);
     r = toku_open_brt(fname, 0, 1, &t, NODESIZE, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
-    free(fname);
+    toku_free(fname);
 
     r = toku_testsetup_leaf(t, &nodea);
     assert(r==0);

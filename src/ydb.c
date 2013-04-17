@@ -416,7 +416,7 @@ static int do_recovery (DB_ENV *env) {
     if (env->i->lg_dir) {
 	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
     } else {
-	logdir = strdup(env->i->dir);
+	logdir = toku_strdup(env->i->dir);
     }
     
 #if 0
@@ -1302,7 +1302,7 @@ static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) 
     clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
         /* This should be free because idx.data is allocated by the user */
-    	free(idx.data);
+    	toku_free(idx.data);
     }
     return r; 
 }
@@ -2342,7 +2342,7 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
     clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
         /* This should be free because idx.data is allocated by the user */
-    	free(idx.data);
+    	toku_free(idx.data);
     }
     if (r!=0) return r;
     return r2;
@@ -3073,7 +3073,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
     clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
         /* This should be free because idx.data is allocated by the user */
-        free(idx.data);
+        toku_free(idx.data);
     }
     return r;
 }

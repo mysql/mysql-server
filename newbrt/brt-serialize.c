@@ -368,14 +368,14 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, toku_ntohl(datasize_n));
 	if (r!=(int)sizeof(uncompressed_header)) {
 	    if (r==-1) r=errno;
-	    else r = DB_BADFORMAT;
+	    else r = toku_db_badformat(); 
 	    goto died0;
 	}
 	compressed_size   = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
-	if (compressed_size<=0   || compressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
+	if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
 	uncompressed_size = toku_ntohl(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len+4]));
 	if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
-	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = DB_BADFORMAT; goto died0; }
+	if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); goto died0; }
     }
     
     //printf("%s:%d serializing %" PRIu64 " size=%d\n", __FILE__, __LINE__, blocknum.b, uncompressed_size);
@@ -418,7 +418,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	rbuf_literal_bytes(&rc, &tmp, 8);
 	if (memcmp(tmp, "tokuleaf", 8)!=0
 	    && memcmp(tmp, "tokunode", 8)!=0) {
-	    r = DB_BADFORMAT;
+	    r = toku_db_badformat();
 	    return r;
 	}
     }
@@ -428,7 +428,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	case BRT_LAYOUT_VERSION_9: goto ok_layout_version;
 	    // Don't support older versions.
 	}
-	r=DB_BADFORMAT;
+	r=toku_db_badformat();
 	return r;
     ok_layout_version: ;
     }
@@ -489,7 +489,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 		int j;
 		if (0) { died_12: j=result->u.n.n_bytes_in_buffers; }
 		for (j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
-		return DB_BADFORMAT;
+		return toku_db_badformat();
 	    }
 	}
 	{
@@ -521,11 +521,11 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    }
 	    if (check_local_fingerprint != result->local_fingerprint) {
 		fprintf(stderr, "%s:%d local fingerprint is wrong (found %8x calcualted %8x\n", __FILE__, __LINE__, result->local_fingerprint, check_local_fingerprint);
-		return DB_BADFORMAT;
+		return toku_db_badformat();
 	    }
 	    if (check_subtree_fingerprint+check_local_fingerprint != subtree_fingerprint) {
 		fprintf(stderr, "%s:%d subtree fingerprint is wrong\n", __FILE__, __LINE__);
-		return DB_BADFORMAT;
+		return toku_db_badformat();
 	    }
 	}
     } else {
@@ -555,7 +555,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	toku_free(array);
 	if (r!=0) {
 	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
-	    return DB_BADFORMAT;
+	    return toku_db_badformat();
 	}
 
 	result->u.l.buffer_mempool.frag_size = start_of_data;
@@ -564,7 +564,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (r!=0) goto died_21;
 	if (actual_sum!=result->local_fingerprint) {
 	    //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
-	    return DB_BADFORMAT;
+	    return toku_db_badformat();
 	    // goto died_21;
 	} else {
 	    //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
@@ -575,7 +575,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     {
 	unsigned int n_read_so_far = rc.ndone;
 	if (n_read_so_far+4!=rc.size) {
-	    r = DB_BADFORMAT; goto died_21;
+	    r = toku_db_badformat(); goto died_21;
 	}
 	uint32_t crc = x1764_memory(rc.buf, n_read_so_far);
 	uint32_t storedcrc = rbuf_int(&rc);
@@ -583,7 +583,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    printf("Bad CRC\n");
 	    printf("%s:%d crc=%08x stored=%08x\n", __FILE__, __LINE__, crc, storedcrc);
 	    assert(0);//this is wrong!!!
-	    r = DB_BADFORMAT;
+	    r = toku_db_badformat();
 	    goto died_21;
 	}
     }
@@ -808,10 +808,10 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     if (h->n_named_roots>=0) {
 	int i;
 	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
-	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; if (0) { died2: free(h->flags_array); }                    goto died1; }
-	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0)       { ret=errno; if (0) { died3: if (h->n_named_roots>=0) free(h->roots); } goto died2; }
-	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; if (0) { died4: if (h->n_named_roots>=0) free(h->root_hashes); } goto died3; }
-	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died5: if (h->n_named_roots>=0) free(h->names); } goto died4; }
+	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; if (0) { died2: toku_free(h->flags_array); }                    goto died1; }
+	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0)       { ret=errno; if (0) { died3: if (h->n_named_roots>=0) toku_free(h->roots); } goto died2; }
+	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; if (0) { died4: if (h->n_named_roots>=0) toku_free(h->root_hashes); } goto died3; }
+	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died5: if (h->n_named_roots>=0) toku_free(h->names); } goto died4; }
 	for (i=0; i<h->n_named_roots; i++) {
 	    h->root_hashes[i].valid = FALSE;
 	    h->roots[i]       = rbuf_blocknum(&rc);
@@ -996,4 +996,8 @@ static int deserialize_fifo_at (int fd, toku_off_t at, FIFO *fifo) {
     *fifo = result;
     //printf("%s:%d *fifo=%p\n", __FILE__, __LINE__, result);
     return 0;
+}
+
+int toku_db_badformat(void) {
+    return DB_BADFORMAT;
 }

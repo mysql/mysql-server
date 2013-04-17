@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <memory.h>
 
 #include "test.h"
 
@@ -35,8 +36,8 @@ static void test (void) {
     for (i=0; i<N; i++) {
 	char ks[100];  snprintf(ks, sizeof(ks), "k%09ld.%d", random(), i);
 	char vs[1000]; snprintf(vs, sizeof(vs), "v%d.%0*d", i, (int)(sizeof(vs)-100), i);
-	keys[i]=strdup(ks);
-	vals[i]=strdup(vs);
+	keys[i]=toku_strdup(ks);
+	vals[i]=toku_strdup(vs);
 	r=db->put(db, tid, dbt_init(&key, ks, strlen(ks)+1), dbt_init(&data, vs, strlen(vs)+1), 0);    assert(r==0);
     }
     r=tid->commit(tid, 0);                                                     assert(r==0);
@@ -55,13 +56,13 @@ static void test (void) {
     for (i=0; i<N; i++) {
 	r=db->get(db, tid, dbt_init(&key, keys[i], 1+strlen(keys[i])), dbt_init_malloc(&data), 0);     assert(r==0);
 	assert(strcmp(data.data, vals[i])==0);
-	free(data.data);
+	toku_free(data.data);
 	data.data=0;
-	free(keys[i]);
-	free(vals[i]);
+	toku_free(keys[i]);
+	toku_free(vals[i]);
     }
     r=tid->commit(tid, 0);                                                     assert(r==0);
-    free(data.data);
+    toku_free(data.data);
     r=db->close(db, 0);                                                        CKERR(r);
     r=env->close(env, 0);                                                      CKERR(r);
 }

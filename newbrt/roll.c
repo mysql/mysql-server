@@ -37,7 +37,7 @@ int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
     }
     r = unlink(full_fname);
     assert(r==0);
-    free(fname);
+    toku_free(fname);
     return 0;
 }
 
@@ -175,7 +175,7 @@ int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     r = close(fd);
     assert(r==0);
     unlink(fname);
-    free(fname);
+    toku_free(fname);
     return 0;
 }
 
@@ -192,6 +192,6 @@ int toku_rollback_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     r = close(fd);
     assert(r==0);
     unlink(fname);
-    free(fname);
+    toku_free(fname);
     return 0;
 }

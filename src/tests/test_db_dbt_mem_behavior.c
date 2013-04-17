@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <string.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
 #include <assert.h>
@@ -99,7 +99,7 @@ test_main(int argc, const char *argv[]) {
             dbt_init(&key, &key_1, sizeof(key_1));
             dbt_init(&data, 0, 0);
             data.flags = flags[j];
-            oldmem = malloc(set_ulen);
+            oldmem = toku_malloc(set_ulen);
             data.data = oldmem;
             memset(oldmem, 0, set_ulen);
             if (flags[j] == DB_DBT_USERMEM) {
@@ -126,10 +126,10 @@ test_main(int argc, const char *argv[]) {
             doclone = r == 0;
 
             if (flags[j] != 0) {
-                free(data.data);
+                toku_free(data.data);
             }
             if (flags[j] == 0 || flags[j] == DB_DBT_MALLOC) {
-                free(oldmem);
+                toku_free(oldmem);
             }
                 
             assert(!was_truncated);

@@ -200,14 +200,14 @@ dump_fragmentation(int f, struct brt_header *h) {
 	toku_brtnode_free(&n);
     }
     size_t n = h->translated_blocknum_limit * sizeof (struct block_translation_pair);
-    struct block_translation_pair *bx = malloc(n);
+    struct block_translation_pair *bx = toku_malloc(n);
     memcpy(bx, h->block_translation, n);
     qsort(bx, h->translated_blocknum_limit, sizeof (struct block_translation_pair), bxpcmp);
     for (i = 0; i < h->translated_blocknum_limit - 1; i++) {
         // printf("%lu %lu %lu\n", i, bx[i].diskoff, bx[i].size);
         fragsizes += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
     }
-    free(bx);
+    toku_free(bx);
     printf("translated_blocknum_limit: %" PRIu64 "\n", h->translated_blocknum_limit);
     printf("leafblocks: %" PRIu64 "\n", leafblocks);
     printf("blocksizes: %" PRIu64 "\n", blocksizes);

@@ -21,7 +21,7 @@ static void test_push_pop (int n) {
 
     list_init(&head);
     for (i=0; i<n; i++) {
-        struct testlist *tl = (struct testlist *) malloc(sizeof *tl);
+        struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
         list_push(&head, &tl->next);
@@ -40,7 +40,7 @@ static void test_push_pop (int n) {
         list = list_pop(&head);
         tl = list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        free(tl);
+        toku_free(tl);
     }
     assert(list_empty(&head));
 }
@@ -51,7 +51,7 @@ static void test_push_pop_head (int n) {
 
     list_init(&head);
     for (i=0; i<n; i++) {
-        struct testlist *tl = (struct testlist *) malloc(sizeof *tl);
+        struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
         list_push(&head, &tl->next);
@@ -71,7 +71,7 @@ static void test_push_pop_head (int n) {
         list = list_pop_head(&head);
         tl = list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        free(tl);
+        toku_free(tl);
     }
     assert(list_empty(&head));
 }
@@ -82,7 +82,7 @@ static void test_push_head_pop (int n) {
 
     list_init(&head);
     for (i=0; i<n; i++) {
-        struct testlist *tl = (struct testlist *) malloc(sizeof *tl);
+        struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
         list_push_head(&head, &tl->next);
@@ -102,7 +102,7 @@ static void test_push_head_pop (int n) {
         list = list_pop(&head);
         tl = list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        free(tl);
+        toku_free(tl);
     }
     assert(list_empty(&head));
 }
@@ -127,7 +127,7 @@ static void test_move (int n) {
     list_init(&h1);
     list_init(&h2);
     for (i=0; i<n; i++) {
-        struct testlist *tl = (struct testlist *) malloc(sizeof *tl);
+        struct testlist *tl = (struct testlist *) toku_malloc(sizeof *tl);
         assert(tl);
         testlist_init(tl, i);
         list_push(&h2, &tl->next);
@@ -140,7 +140,7 @@ static void test_move (int n) {
         struct list *list = list_pop_head(&h1);
         struct testlist *tl = list_struct(list, struct testlist, next);
         assert(tl->tag == i);
-        free(tl);
+        toku_free(tl);
         i += 1;
     }
     assert(i == n);

@@ -11,7 +11,7 @@
 
 static void
 test_mempool_limits (size_t size) {
-    void *base = malloc(size);
+    void *base = toku_malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);
 
@@ -24,12 +24,12 @@ test_mempool_limits (size_t size) {
     assert(i == size);
 
     toku_mempool_fini(&mempool);
-    free(base);
+    toku_free(base);
 }
 
 static void
 test_mempool_malloc_mfree (size_t size) {
-    void *base = malloc(size);
+    void *base = toku_malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);
 
@@ -49,7 +49,7 @@ test_mempool_malloc_mfree (size_t size) {
     assert(toku_mempool_get_frag_size(&mempool) == size);
 
     toku_mempool_fini(&mempool);
-    free(base);
+    toku_free(base);
 }
 
 int

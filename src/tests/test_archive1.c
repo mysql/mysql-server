@@ -2,6 +2,7 @@
 #include <toku_portability.h>
 #include <db.h>
 #include <sys/stat.h>
+#include <memory.h>
 #include "test.h"
 
 int
@@ -47,7 +48,7 @@ test_main (int argc, const char *argv[]) {
 	assert(list);
 	assert(list[0]);
 	if (verbose) printf("file[0]=%s\n", list[0]);
-	free(list);
+	toku_free(list);
     }
 
     r=db->close(db, 0); CKERR(r);

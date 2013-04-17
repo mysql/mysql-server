@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
@@ -77,7 +77,7 @@ test_txn_recover3 (int nrows) {
     if (names) {
         for (i=0; names[i]; i++)
             printf("%d:%s\n", i, names[i]);
-        free(names);
+        toku_free(names);
     }
 
     r = env->close(env, 0); assert(r == 0);

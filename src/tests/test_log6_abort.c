@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
+#include <memory.h>
 
 #ifndef DB_DELETE_ANY
 #define DB_DELETE_ANY 0
@@ -29,7 +29,7 @@ struct in_db {
 static void put_n (DB *db, DB_TXN *tid, int i) {
     char hello[30], there[30];
     DBT key,data;
-    struct in_db *newitem = malloc(sizeof(*newitem));
+    struct in_db *newitem = toku_malloc(sizeof(*newitem));
     newitem->r = random();
     newitem->i = i;
     newitem->next = items;
@@ -110,13 +110,13 @@ static void make_db (void) {
     r=env->close(env, 0);     assert(r==0);
     while (items) {
 	struct in_db *next=items->next;
-	free(items);
+	toku_free(items);
 	items=next;
     }
 
     while (deleted_items) {
 	struct in_db *next=deleted_items->next;
-	free(deleted_items);
+	toku_free(deleted_items);
 	deleted_items=next;
     }
 }

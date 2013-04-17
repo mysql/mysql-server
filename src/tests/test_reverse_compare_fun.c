@@ -9,7 +9,7 @@
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -49,8 +49,8 @@ expect (DBC *cursor, int k, int v) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.data);
-    free(val.data);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 static void
