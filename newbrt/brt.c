@@ -2060,16 +2060,13 @@ brtnode_put_cmd (
     )
 // Effect: Push CMD into the subtree rooted at NODE.
 //   If NODE is a leaf, then
-//	put CMD into leaf, applying it to the leafentries
+//   put CMD into leaf, applying it to the leafentries
 //   If NODE is a nonleaf, then push the cmd into the FIFO(s) of the relevent child(ren).
 //   The node may become overfull.  That's not our problem.
 {
     toku_assert_entire_node_in_memory(node);
     if (node->height==0) {
-	// we need to make sure that after doing all the put_cmd operations 
-	// that the tree above is completely flushed out, 
-	// otherwise may have an inconsistency (part of the data is there, and part isn't)
-	bool made_change = false;
+        bool made_change = false;
         uint64_t workdone = 0;
         toku_apply_cmd_to_leaf(
             compare_fun,
@@ -2083,7 +2080,7 @@ brtnode_put_cmd (
             live_list_reverse
             );
     } else {
-	brt_nonleaf_put_cmd(compare_fun, desc, node, cmd, is_fresh);
+        brt_nonleaf_put_cmd(compare_fun, desc, node, cmd, is_fresh);
     }
 }
 
@@ -2184,46 +2181,38 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 {
     BRTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
-    if (node->height==0) {
-	// Must special case height 0, since brtnode_put_cmd() doesn't modify leaves.
-	// Part of the problem is: if the node is in memory, then it was updated as part of the in-memory operation.
-	// If the root node is not in memory, then we must apply it.
-	bool made_dirty = 0;
-	uint64_t workdone_ignore = 0;  // ignore workdone for root-leaf node
-	// not up to date, which means the get_and_pin actually fetched it
-	// into memory.
-        TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-        OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
-        OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
-        // passing down snapshot_txnids and live_list_reverse directly
-        // since we're holding the ydb lock.  TODO: verify this is correct
-        toku_apply_cmd_to_leaf(
-            brt->compare_fun,
-            brt->update_fun,
-            &brt->h->descriptor,
-            node, 
-            cmd, 
-            &made_dirty, 
-            &workdone_ignore, 
-            snapshot_txnids, 
-            live_list_reverse
-            );
+    TOKULOGGER logger = toku_cachefile_logger(brt->cf);
+    OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
+    OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
+    brtnode_put_cmd(
+        brt->compare_fun,
+        brt->update_fun,
+        &brt->h->descriptor,
+        node,
+        cmd,
+        true,
+        snapshot_txnids,
+        live_list_reverse
+        );
+    if (node->height == 0) {
         MSN cmd_msn = cmd->msn;
         invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
-	// max_msn_applied_to_node_on_disk is normally set only when leaf is serialized, 
-	// but needs to be done here (for root leaf) so msn can be set in new commands.
+        // max_msn_applied_to_node_on_disk is normally set only when leaf is serialized, 
+        // but needs to be done here (for root leaf) so msn can be set in new commands.
         node->max_msn_applied_to_node_on_disk = cmd_msn;
-	toku_mark_node_dirty(node);
-   } else {
-	uint64_t msgsize = brt_msg_size(cmd);
-	brt_status.msg_bytes_in += msgsize;
-	brt_status.msg_bytes_curr += msgsize;
-	if (brt_status.msg_bytes_curr > brt_status.msg_bytes_max)
-	    brt_status.msg_bytes_max = brt_status.msg_bytes_curr;
-	brt_status.msg_num++;
-	if (brt_msg_applies_all(cmd))
-	    brt_status.msg_num_broadcast++;	
-        brt_nonleaf_put_cmd(brt->compare_fun, &brt->h->descriptor, node, cmd, true);
+        toku_mark_node_dirty(node);
+    }
+    else {
+        uint64_t msgsize = brt_msg_size(cmd);
+        brt_status.msg_bytes_in += msgsize;
+        brt_status.msg_bytes_curr += msgsize;
+        if (brt_status.msg_bytes_curr > brt_status.msg_bytes_max) {
+            brt_status.msg_bytes_max = brt_status.msg_bytes_curr;
+        }
+        brt_status.msg_num++;
+        if (brt_msg_applies_all(cmd)) {
+            brt_status.msg_num_broadcast++;
+        }
     }
 }
 
