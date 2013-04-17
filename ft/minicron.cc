@@ -98,14 +98,13 @@ toku_minicron_setup(struct minicron *p, uint32_t period_in_seconds, int(*f)(void
     return toku_pthread_create(&p->thread, 0, minicron_do, p);
 }
     
-int
+void
 toku_minicron_change_period(struct minicron *p, uint32_t new_period)
 {
     toku_mutex_lock(&p->mutex);
     p->period_in_seconds = new_period;
     toku_cond_signal(&p->condvar);
     toku_mutex_unlock(&p->mutex);
-    return 0;
 }
 
 uint32_t

@@ -2784,7 +2784,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 static int
 write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk) {
     int result = 0;
-    unsigned int size = toku_serialize_ft_size (out->h->h);
+    size_t size = toku_serialize_ft_size(out->h->h);
     struct wbuf wbuf;
     char *MALLOC_N(size, buf);
     if (buf == NULL) {

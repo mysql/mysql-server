@@ -139,10 +139,9 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             if (txn_has_current_rollback_log(txn)) {
                 num_nodes--; //Don't count the in-progress rollback log.
             }
-            r = toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid64, num_nodes,
+            toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid64, num_nodes,
                                                       txn->roll_info.spilled_rollback_head, txn->roll_info.spilled_rollback_head_hash,
                                                       txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash);
-            if (r!=0) return r;
             //Remove ownership from child.
             txn->roll_info.spilled_rollback_head      = ROLLBACK_NONE; 
             txn->roll_info.spilled_rollback_head_hash = 0; 

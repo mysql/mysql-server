@@ -67,7 +67,7 @@ run_test (void) {
     int r;
     void *ret;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
@@ -112,8 +112,8 @@ run_test (void) {
     assert_zero(r);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

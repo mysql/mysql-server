@@ -201,13 +201,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     // Let's read the block off of disk and fill a buffer with that
     // block.
     struct rbuf rb = RBUF_INITIALIZER;
-    r = read_block_from_fd_into_rbuf(fd, blocknum, ft, &rb);
-    if (r != 0) {
-        // This is impossible without setting the panic member in
-        // the ft, let's just pretend that it is not and exit.
-        printf(" Read block failed.\n");
-        failure++;
-    }
+    read_block_from_fd_into_rbuf(fd, blocknum, ft, &rb);
 
     // Allocate the node.
     FTNODE XMALLOC(node);

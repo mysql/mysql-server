@@ -15,8 +15,8 @@ cachetable_test (void) {
     const int test_limit = 1000;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
-    r = toku_set_cleaner_period(ct, 1); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_set_cleaner_period(ct, 1);
 
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
@@ -26,8 +26,8 @@ cachetable_test (void) {
     
     usleep(4000000);
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
-    r = toku_cachetable_end_checkpoint(
+    toku_cachetable_begin_checkpoint(cp, NULL);
+    toku_cachetable_end_checkpoint(
         cp,
         NULL,
         NULL,
@@ -36,8 +36,8 @@ cachetable_test (void) {
     assert(r==0);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

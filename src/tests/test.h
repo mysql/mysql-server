@@ -377,9 +377,9 @@ main(int argc, char * const argv[])
     CKERR(rinit);
 #endif
 #if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
-    r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
-    r = db_env_set_func_free(toku_free);      assert(r==0);
-    r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
+    db_env_set_func_malloc(toku_malloc);
+    db_env_set_func_free(toku_free);
+    db_env_set_func_realloc(toku_realloc);
 #endif
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);

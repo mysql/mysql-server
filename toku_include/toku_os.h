@@ -3,12 +3,12 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#if !defined(TOKU_OS_INTERFACE_H)
-#define TOKU_OS_INTERFACE_H
+
+#ifndef TOKU_OS_H
+#define TOKU_OS_H
 
 #include <dirent.h>
 #include <sys/time.h>
-
 
 #include <toku_os_types.h>
 
@@ -67,10 +67,7 @@ int toku_os_get_max_process_data_size(uint64_t *maxdata) __attribute__((__visibi
 
 int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("default")));
 
-//
-// this int acts like a bool, returns 0 for false, 1 for true
-//
-int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
+bool toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
 // Set whether or not writes assert when ENOSPC is returned or they wait for space
 void toku_set_assert_on_write_enospc(int do_assert) __attribute__((__visibility__("default")));
@@ -81,8 +78,7 @@ void toku_set_assert_on_write_enospc(int do_assert) __attribute__((__visibility_
 // *enospc_total     is the number of times ENOSPC was returned by write or pwrite
 void toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total);
 
-
-int toku_fsync_dirfd_without_accounting(DIR *dirp);
+void toku_fsync_dirfd_without_accounting(DIR *dirp);
 
 int toku_fsync_dir_by_name_without_accounting(const char *dir_name);
 
@@ -108,6 +104,4 @@ int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__(
 // Portable linux 'dup2'
 int toku_dup2(int fd, int fd2) __attribute__((__visibility__("default")));
 
-
-#endif
-
+#endif /* TOKU_OS_H */

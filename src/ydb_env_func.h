@@ -8,18 +8,17 @@
 #if !defined(TOKU_YDB_ENV_FUNC_H)
 #define TOKU_YDB_ENV_FUNC_H
 
-
 extern void (*checkpoint_callback_f)(void*);
 extern void * checkpoint_callback_extra;
 extern void (*checkpoint_callback2_f)(void*);
 extern void * checkpoint_callback2_extra;
 
 extern uint32_t engine_status_enable;
+
 // Called to use dlmalloc functions.
 void setup_dlmalloc(void) __attribute__((__visibility__("default")));
 
 // Test-only function
 void toku_env_increase_last_xid(DB_ENV *env, uint64_t increment);
-
 
 #endif

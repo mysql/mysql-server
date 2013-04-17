@@ -37,15 +37,15 @@ run_test(void) {
         r = toku_logger_open(TESTDIR, logger); assert(r == 0);
         LSN beginlsn;
         // all logs must contain a valid checkpoint
-        r = toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0); assert(r == 0);
-        r = toku_log_comment(logger, NULL, true, 0, hello); assert(r == 0);
-        r = toku_log_comment(logger, NULL, true, 0, world); assert(r == 0);
-        r = toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0); assert(r == 0);
-        r = toku_log_comment(logger, NULL, true, 0, hello); assert(r == 0);
-        r = toku_log_comment(logger, NULL, true, 0, there); assert(r == 0);
-        r = toku_logger_close(&logger); assert(r == 0);
+        toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0);
+        toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0);
+        toku_log_comment(logger, NULL, true, 0, hello);
+        toku_log_comment(logger, NULL, true, 0, world);
+        toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0);
+        toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0);
+        toku_log_comment(logger, NULL, true, 0, hello);
+        toku_log_comment(logger, NULL, true, 0, there);
+        toku_logger_close(&logger);
 
         // redirect stderr
         int devnul = open(DEV_NULL_FILE, O_WRONLY);

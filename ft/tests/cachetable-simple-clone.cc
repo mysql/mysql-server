@@ -64,7 +64,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -86,7 +86,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL);
+    toku_cachetable_begin_checkpoint(cp, NULL);
     assert_zero(r);
     struct timeval tstart;
     struct timeval tend; 
@@ -130,19 +130,18 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
         assert(tdelta_usec(&tend, &tstart) >= 2000000); 
     }
 
-    r = toku_cachetable_end_checkpoint(
+    toku_cachetable_end_checkpoint(
         cp, 
         NULL, 
         NULL,
         NULL
         );
-    assert_zero(r);
     
     check_flush = false;
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

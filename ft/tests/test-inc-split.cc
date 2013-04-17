@@ -57,7 +57,7 @@ doit (int ksize __attribute__((__unused__))) {
     XMALLOC_N(fnamelen, fname);
 
     snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
-    r = toku_create_cachetable(&ct, 16*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 16*1024, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -123,17 +123,17 @@ doit (int ksize __attribute__((__unused__))) {
 	int keylen=1+snprintf(key, sizeof(key), "%08d", 4);
 	int vallen=magic_size;
 	snprintf(data, magic_size, "%*s", magic_size-1, " ");
-	r=toku_ft_insert(t,
-			  toku_fill_dbt(&k, key, keylen),
-			  toku_fill_dbt(&v, data, vallen),
-			  null_txn);
+	toku_ft_insert(t,
+                      toku_fill_dbt(&k, key, keylen),
+                      toku_fill_dbt(&v, data, vallen),
+                      null_txn);
     }
 
     r = toku_testsetup_root(t, anode);
     assert(r==0);
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 
     //printf("ksize=%d, unused\n", ksize);
 

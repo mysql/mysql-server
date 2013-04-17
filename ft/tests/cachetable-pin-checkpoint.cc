@@ -269,16 +269,14 @@ static void *checkpoints(void *arg) {
         //
         // now run a checkpoint
         //
-        int r;
         CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);    
-        r = toku_cachetable_end_checkpoint(
+        toku_cachetable_begin_checkpoint(cp, NULL);    
+        toku_cachetable_end_checkpoint(
             cp, 
             NULL, 
             NULL,
             NULL
             );
-        assert(r==0);
         assert (sum==0);
         for (int i = 0; i < NUM_ELEMENTS; i++) {
             sum += checkpointed_data[i];
@@ -290,18 +288,12 @@ static void *checkpoints(void *arg) {
     return arg;
 }
 
-static int
+static void
 test_begin_checkpoint (
     LSN UU(checkpoint_lsn), 
     void* UU(header_v)) 
 {
     memcpy(checkpointed_data, data, sizeof(int64_t)*NUM_ELEMENTS);
-    return 0;
-}
-
-static int
-dummy_int_checkpoint_userdata(CACHEFILE UU(cf), int UU(n), void* UU(extra)) {
-    return 0;
 }
 
 static void sum_vals(void) {
@@ -336,7 +328,7 @@ cachetable_test (void) {
 
     int r;
     
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
@@ -344,13 +336,13 @@ cachetable_test (void) {
     toku_cachefile_set_userdata(
         f1, 
         NULL, 
-        &dummy_log_fassociate, 
-        &dummy_log_rollback, 
-        &dummy_close_usr, 
-        dummy_int_checkpoint_userdata, 
-        test_begin_checkpoint, // called in begin_checkpoint
-        dummy_int_checkpoint_userdata,
-        &dummy_note_pin, 
+        &dummy_log_fassociate,
+        &dummy_log_rollback,
+        &dummy_close_usr,
+        &dummy_chckpnt_usr,
+        &test_begin_checkpoint,
+        &dummy_end,
+        &dummy_note_pin,
         &dummy_note_unpin
         );
     
@@ -389,8 +381,8 @@ cachetable_test (void) {
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
     
     sum_vals();
     if (verbose) printf("num_checkpoints %d\n", num_checkpoints);

@@ -89,5 +89,10 @@ static inline tokutime_t get_tokutime (void) {
     return (uint64_t)hi << 32 | lo;
 }
 
+static inline uint64_t toku_current_time_usec(void) {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return t.tv_sec * 1000000UL + t.tv_usec;
+}
 
 #endif

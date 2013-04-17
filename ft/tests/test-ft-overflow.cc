@@ -21,7 +21,7 @@ test_overflow (void) {
     uint32_t nodesize = 1<<20; 
     int r;
     unlink(fname);
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, nodesize / 8, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     DBT k,v;
@@ -31,11 +31,10 @@ test_overflow (void) {
     int i;
     for (i=0; i<8; i++) {
 	char key[]={(char)('a'+i), 0};
-	r = toku_ft_insert(t, toku_fill_dbt(&k, key, 2), toku_fill_dbt(&v,buf,sizeof(buf)), null_txn);
-	assert(r==0);
+	toku_ft_insert(t, toku_fill_dbt(&k, key, 2), toku_fill_dbt(&v,buf,sizeof(buf)), null_txn);
     }
     r = toku_close_ft_handle_nolsn(t, 0);        assert(r==0);
-    r = toku_cachetable_close(&ct);     assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 int

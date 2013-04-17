@@ -512,10 +512,9 @@ main (int argc, const char *const argv[]) {
     int f = open(n, O_RDWR + O_BINARY);  assert(f>=0);
     FT ft;
     // create a cachefile for the header
-    int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
-    assert(r == 0);
+    toku_cachetable_create(&ct, 1<<25, (LSN){0}, 0);
     CACHEFILE cf = NULL;
-    r = toku_cachetable_openfd (&cf, ct, f, n);
+    int r = toku_cachetable_openfd (&cf, ct, f, n);
     assert(r==0);
     dump_header(f, &ft, cf);
     if (interactive) {

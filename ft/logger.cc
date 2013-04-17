@@ -10,7 +10,7 @@
 static const int log_format_version=TOKU_LOG_VERSION;
 
 static int open_logfile (TOKULOGGER logger);
-static int toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn);
+static void logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn);
 static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
@@ -68,12 +68,11 @@ static bool is_a_logfile (const char *name, long long *number_result) {
 }
 
 
+// TODO: can't fail
 int toku_logger_create (TOKULOGGER *resultp) {
     TOKULOGGER CALLOC(result);
     if (result==0) return get_error_errno();
     result->is_open=false;
-    result->is_panicked=false;
-    result->panic_errno = 0;
     result->write_log_files = true;
     result->trim_log_files = true;
     result->directory=0;
@@ -104,8 +103,8 @@ int toku_logger_create (TOKULOGGER *resultp) {
     return 0;
 }
 
-static int fsync_logdir(TOKULOGGER logger) {
-    return toku_fsync_dirfd_without_accounting(logger->dir);
+static void fsync_logdir(TOKULOGGER logger) {
+    toku_fsync_dirfd_without_accounting(logger->dir);
 }
 
 static int open_logdir(TOKULOGGER logger, const char *directory) {
@@ -138,7 +137,6 @@ static int close_logdir(TOKULOGGER logger) {
 int
 toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid) {
     if (logger->is_open) return EINVAL;
-    if (logger->is_panicked) return EINVAL;
 
     int r;
     TXNID last_xid_if_clean_shutdown;
@@ -181,19 +179,14 @@ bool toku_logger_rollback_is_open (TOKULOGGER logger) {
 int
 toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create) {
     assert(logger->is_open);
-    assert(!logger->is_panicked);
     assert(!logger->rollback_cachefile);
     
-    int r;
     FT_HANDLE t = NULL;   // Note, there is no DB associated with this BRT.
-
-    r = toku_ft_handle_create(&t);
-    assert_zero(r);
-    r = toku_ft_handle_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
+    toku_ft_handle_create(&t);
+    int r = toku_ft_handle_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
     assert_zero(r);
     logger->rollback_cachefile = t->ft->cf;
     //Verify it is empty
-    assert(!t->ft->panic);
     //Must have no data blocks (rollback logs or otherwise).
     toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->h->root_blocknum);
     bool is_empty;
@@ -207,24 +200,18 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
 //            so it will always be clean (!h->dirty) when about to be closed.
 //            Rollback log can only be closed when there are no open transactions,
 //            so it will always be empty (no data blocks) when about to be closed.
+// TODO: can't fail
 int
-toku_logger_close_rollback(TOKULOGGER logger, bool recovery_failed) {
-    int r = 0;
+toku_logger_close_rollback(TOKULOGGER logger) {
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
-    if (!logger->is_panicked && cf) {
+    if (cf) {
         FT_HANDLE ft_to_close;
         {   //Find "brt"
             FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
-            if (!ft->panic && recovery_failed) {
-                r = toku_ft_set_panic(ft, EINVAL, "Recovery failed");
-                assert_zero(r);
-            }
             //Verify it is safe to close it.
-            if (!ft->panic) { //If paniced, it is safe to close.
-                assert(!ft->h->dirty);  //Must not be dirty.
-                //Must have no data blocks (rollback logs or otherwise).
-                toku_block_verify_no_data_blocks_except_root_unlocked(ft->blocktable, ft->h->root_blocknum);
-            }
+            assert(!ft->h->dirty);  //Must not be dirty.
+            //Must have no data blocks (rollback logs or otherwise).
+            toku_block_verify_no_data_blocks_except_root_unlocked(ft->blocktable, ft->h->root_blocknum);
             assert(!ft->h->dirty);
             ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
             {
@@ -239,61 +226,59 @@ toku_logger_close_rollback(TOKULOGGER logger, bool recovery_failed) {
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
-    return r;
+    return 0;
 }
 
 // No locks held on entry
 // No locks held on exit.
 // No locks are needed, since you cannot legally close the log concurrently with doing anything else.
+// TODO: can't fail
 int toku_logger_close(TOKULOGGER *loggerp) {
+    int r;
     TOKULOGGER logger = *loggerp;
-    if (logger->is_panicked) return EINVAL;
-    int r = 0;
-    if (!logger->is_open) goto is_closed;
+    if (!logger->is_open) {
+        goto is_closed;
+    }
     ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
-    r = toku_logger_write_buffer(logger, &fsynced_lsn);           if (r!=0) goto panic; //Releases the input lock
+    logger_write_buffer(logger, &fsynced_lsn);
     if (logger->fd!=-1) {
         if ( logger->write_log_files ) {
-            r = toku_file_fsync_without_accounting(logger->fd);   if (r!=0) { r=get_error_errno(); goto panic; }
+            toku_file_fsync_without_accounting(logger->fd);
         }
-        r = close(logger->fd);                                    if (r!=0) { r=get_error_errno(); goto panic; }
+        r = close(logger->fd);
+        assert(r == 0);
     }
-    r = close_logdir(logger);  if (r!=0) { r=get_error_errno(); goto panic; }
+    r = close_logdir(logger);
+    assert(r == 0);
     logger->fd=-1;
     release_output(logger, fsynced_lsn);
 
- is_closed:
+is_closed:
     toku_free(logger->inbuf.buf);
     toku_free(logger->outbuf.buf);
     // before destroying locks they must be left in the unlocked state.
     ml_destroy(&logger->input_lock);
     toku_mutex_destroy(&logger->output_condition_lock);
     toku_cond_destroy(&logger->output_condition);
-    logger->is_panicked=true; // Just in case this might help.
     toku_txn_manager_destroy(logger->txn_manager);
     if (logger->directory) toku_free(logger->directory);
     toku_logfilemgr_destroy(&logger->logfilemgr);
     toku_free(logger);
     *loggerp=0;
-    return r;
- panic:
-    toku_logger_panic(logger, r);
-    return r;
+    return 0;
 }
 
-int toku_logger_shutdown(TOKULOGGER logger) {
-    int r = 0;
+void toku_logger_shutdown(TOKULOGGER logger) {
     if (logger->is_open) {
         TXN_MANAGER mgr = logger->txn_manager;
         if (toku_txn_manager_num_live_txns(mgr) == 0) {
             TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
-            r = toku_log_shutdown(logger, NULL, true, 0, last_xid);
+            toku_log_shutdown(logger, NULL, true, 0, last_xid);
         }
     }
-    return r;
 }
 
 static int close_and_open_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
@@ -303,7 +288,7 @@ static int close_and_open_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
 {
     int r;
     if (logger->write_log_files) {
-        r = toku_file_fsync_without_accounting(logger->fd);                 if (r!=0) return get_error_errno();
+        toku_file_fsync_without_accounting(logger->fd);
         *fsynced_lsn = logger->written_lsn;
         toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);          // fixes t:2294
     }
@@ -432,7 +417,7 @@ write_outbuf_to_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
     }
 }
 
-int
+void
 toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
 // Entry: Holds the inlock
 // Exit:  Holds the inlock
@@ -444,7 +429,9 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
 // Arguments:  logger:         the logger (side effects)
 //             n_bytes_needed: how many bytes to make space for.
 {
-    if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) return 0;
+    if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) {
+        return;
+    }
     logger->input_lock_ctr++;
     ml_unlock(&logger->input_lock);
     LSN fsynced_lsn;
@@ -455,7 +442,7 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
     // Some other thread may have written the log out while we didn't have the lock.  If we have space now, then be happy.
     if (logger->inbuf.n_in_buf + n_bytes_needed <= LOGGER_MIN_BUF_SIZE) {
         release_output(logger, fsynced_lsn);
-        return 0;
+        return;
     }
     if (logger->inbuf.n_in_buf > 0) {
         // There isn't enough space, and there is something in the buffer, so write the inbuf.
@@ -473,7 +460,6 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
         logger->inbuf.buf_size = new_size;
     }
     release_output(logger, fsynced_lsn);
-    return 0;
 }
 
 int toku_logger_fsync (TOKULOGGER logger)
@@ -482,42 +468,25 @@ int toku_logger_fsync (TOKULOGGER logger)
 // Exit: Holds no locks
 // Implementation note:  Acquire the output condition lock, then the output permission, then release the output condition lock, then get the input lock.
 // Then release everything.
-// 
+//  TODO: can't fail
 {
-    int r;
-    if (logger->is_panicked) return EINVAL;
     ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
-    r = toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true);
-    if (r!=0) {
-        toku_logger_panic(logger, r);
-    }
-    return r;
+    toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true);
+    return 0;
 }
 
+// TODO: can't fail
 int
 toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
-    int r = 0;
-    if (logger->is_panicked) r = EINVAL;
-    else if (logger->write_log_files) {
+    if (logger->write_log_files) {
         ml_lock(&logger->input_lock);
         logger->input_lock_ctr++;
-        r = toku_logger_maybe_fsync(logger, lsn, true);
-        if (r!=0) {
-            toku_logger_panic(logger, r);
-        }
+        toku_logger_maybe_fsync(logger, lsn, true);
     }
-    return r;
+    return 0;
 }
 
-void toku_logger_panic (TOKULOGGER logger, int err) {
-    logger->panic_errno=err;
-    logger->is_panicked=true;
-}
-int toku_logger_panicked(TOKULOGGER logger) {
-    if (logger==0) return 0;
-    return logger->is_panicked;
-}
 int toku_logger_is_open(TOKULOGGER logger) {
     if (logger==0) return 0;
     return logger->is_open;
@@ -529,7 +498,6 @@ void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct) {
 
 int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max) {
     if (logger==0) return EINVAL; // no logger
-    if (logger->is_panicked) return EINVAL;
     if (logger->is_open) return EINVAL;
     if (lg_max>(1<<30)) return EINVAL; // too big
     logger->lg_max = lg_max;
@@ -537,14 +505,12 @@ int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max) {
 }
 int toku_logger_get_lg_max(TOKULOGGER logger, uint32_t *lg_maxp) {
     if (logger==0) return EINVAL; // no logger
-    if (logger->is_panicked) return EINVAL;
     *lg_maxp = logger->lg_max;
     return 0;
 }
 
 int toku_logger_set_lg_bsize(TOKULOGGER logger, uint32_t bsize) {
     if (logger==0) return EINVAL; // no logger
-    if (logger->is_panicked) return EINVAL;
     if (logger->is_open) return EINVAL;
     if (bsize<=0 || bsize>(1<<30)) return EINVAL;
     logger->write_block_size = bsize;
@@ -657,21 +623,22 @@ static int open_logfile (TOKULOGGER logger)
     long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
         logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
-        if (logger->fd==-1) return get_error_errno();
-        int r = fsync_logdir(logger);   if (r!=0) return r; // t:2445
+        if (logger->fd==-1) {
+            return get_error_errno();
+        }
+        fsync_logdir(logger);
         logger->next_log_file_number++;
     } else {
         logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);
-        // printf("%s: %s %d\n", __FUNCTION__, DEV_NULL_FILE, logger->fd); fflush(stdout);
-        if (logger->fd==-1) return get_error_errno();
+        if (logger->fd==-1) {
+            return get_error_errno();
+        }
     }
     toku_os_full_write(logger->fd, "tokulogg", 8);
     int version_l = toku_htonl(log_format_version); //version MUST be in network byte order regardless of disk order
     toku_os_full_write(logger->fd, &version_l, 4);
     if ( logger->write_log_files ) {
-        TOKULOGFILEINFO MALLOC(lf_info);
-        if (lf_info == NULL) 
-            return ENOMEM;
+        TOKULOGFILEINFO XMALLOC(lf_info);
         lf_info->index = index;
         lf_info->maxlsn = logger->written_lsn; 
         lf_info->version = TOKU_LOG_VERSION;
@@ -739,20 +706,21 @@ void toku_logger_trim_log_files (TOKULOGGER logger, bool trim_log_files)
     logger->trim_log_files = trim_log_files;
 }
 
-int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
+void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync)
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
 // Entry: Holds input lock.  The log entry has already been written to the input buffer.
 // Exit:  Holds no locks.
 // The input lock may be released and then reacquired.  Thus this function does not run atomically with respect to other threads.
 {
-    int r;
     if (do_fsync) {
         // reacquire the locks (acquire output permission first)
         logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock);
         LSN  fsynced_lsn;
         bool already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
-        if (already_done) return 0;
+        if (already_done) {
+            return;
+        }
 
         // otherwise we now own the output permission, and our lsn isn't outputed.
 
@@ -767,27 +735,23 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
         write_outbuf_to_logfile(logger, &fsynced_lsn);
         if (fsynced_lsn.lsn < lsn.lsn) {
             // it may have gotten fsynced by the write_outbuf_to_logfile.
-            r = toku_file_fsync_without_accounting(logger->fd);
-            if (r!=0) {
-                toku_logger_panic(logger, r);
-                return r;
-            }
+            toku_file_fsync_without_accounting(logger->fd);
             assert(fsynced_lsn.lsn <= logger->written_lsn.lsn);
             fsynced_lsn = logger->written_lsn;
         }
         // the last lsn is only accessed while holding output permission or else when the log file is old.
-        if ( logger->write_log_files )
+        if (logger->write_log_files) {
             toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
+        }
         release_output(logger, fsynced_lsn);
     } else {
         logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock);
     }
-    return 0;
 }
 
-static int
-toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn) 
+static void
+logger_write_buffer(TOKULOGGER logger, LSN *fsynced_lsn) 
 // Entry:  Holds the input lock and permission to modify output.
 // Exit:   Holds only the permission to modify output.
 // Effect:  Write the buffers to the output.  If DO_FSYNC is true, then fsync.
@@ -798,14 +762,9 @@ toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn)
     ml_unlock(&logger->input_lock);
     write_outbuf_to_logfile(logger, fsynced_lsn);
     if (logger->write_log_files) {
-        int r = toku_file_fsync_without_accounting(logger->fd);
-        if (r!=0) {
-            toku_logger_panic(logger, r);
-            return r;
-        }
+        toku_file_fsync_without_accounting(logger->fd);
         toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);  // t:2294
     }
-    return 0;
 }
 
 int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
@@ -818,15 +777,11 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
     grab_output(logger, &fsynced_lsn);
     ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
-    r = toku_logger_write_buffer(logger, &fsynced_lsn); assert(r == 0);
+    logger_write_buffer(logger, &fsynced_lsn);
 
     // close the log file
     if ( logger->write_log_files) { // fsyncs don't work to /dev/null
-        r = toku_file_fsync_without_accounting(logger->fd); 
-        if ( r!=0 ) {
-            toku_logger_panic(logger, r);
-            return r;
-        }
+        toku_file_fsync_without_accounting(logger->fd); 
     }
     r = close(logger->fd);                              assert(r == 0);
     logger->fd = -1;
@@ -843,35 +798,36 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 }
 
 // fname is the iname
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t treeflags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs_fname = { .len = (uint32_t) strlen(fname), .data = (char *) fname };
-    // fsync log on fcreate
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, txn, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize, basementnodesize, compression_method);
-    return r;
+void toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode,
+        uint32_t treeflags, uint32_t nodesize, uint32_t basementnodesize,
+        enum toku_compression_method compression_method) {
+    if (txn) {
+        BYTESTRING bs_fname = { .len = (uint32_t) strlen(fname), .data = (char *) fname };
+        // fsync log on fcreate
+        toku_log_fcreate (txn->logger, (LSN*)0, 1, txn, toku_txn_get_txnid(txn), filenum, 
+                bs_fname, mode, treeflags, nodesize, basementnodesize, compression_method);
+    }
 }
 
 
 // We only do fdelete on open ft's, so we pass the filenum here
-int toku_logger_log_fdelete (TOKUTXN txn, FILENUM filenum) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    //No fsync.
-    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, txn, toku_txn_get_txnid(txn), filenum);
-    return r;
+void toku_logger_log_fdelete (TOKUTXN txn, FILENUM filenum) {
+    if (txn) {
+        //No fsync.
+        toku_log_fdelete (txn->logger, (LSN*)0, 0, txn, toku_txn_get_txnid(txn), filenum);
+    }
 }
 
 
 
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
-int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs;
-    bs.len = strlen(fname);
-    bs.data = (char*)fname;
-    return toku_log_fopen (txn->logger, (LSN*)0, 0, bs, filenum, treeflags);
+void toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags) {
+    if (txn) {
+        BYTESTRING bs;
+        bs.len = strlen(fname);
+        bs.data = (char*)fname;
+        toku_log_fopen (txn->logger, (LSN*)0, 0, bs, filenum, treeflags);
+    }
 }
 
 static int toku_fread_uint8_t_nocrclen (FILE *f, uint8_t *v) {
@@ -1177,15 +1133,6 @@ int toku_read_logmagic (FILE *f, uint32_t *versionp) {
     return 0;
 }
 
-TXNID toku_txn_get_root_txnid (TOKUTXN txn) {
-    if (txn==0) return 0;
-    TOKUTXN root = txn;
-    while (root->parent) {
-        root = root->parent;
-    }
-    return root->txnid64;
-}
-
 TXNID toku_txn_get_txnid (TOKUTXN txn) {
     if (txn==0) return 0;
     else return txn->txnid64;
@@ -1309,11 +1256,6 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
     logger->last_completed_checkpoint_lsn = lsn;
 }
 
-LSN
-toku_logger_get_next_lsn(TOKULOGGER logger) {
-    return logger->lsn;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
 //
@@ -1336,8 +1278,6 @@ status_init(void) {
     STATUS_INIT(LOGGER_ILOCK_CTR,    UINT64,  "ilock count");
     STATUS_INIT(LOGGER_OLOCK_CTR,    UINT64,  "olock count");
     STATUS_INIT(LOGGER_SWAP_CTR,     UINT64,  "swap count");
-    STATUS_INIT(LOGGER_PANICKED,     UINT64,  "panic");
-    STATUS_INIT(LOGGER_PANIC_ERRNO,  UINT64,  "panic errno");
     logger_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -1353,8 +1293,6 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
         STATUS_VALUE(LOGGER_ILOCK_CTR)   = logger->input_lock_ctr;
         STATUS_VALUE(LOGGER_OLOCK_CTR)   = logger->output_condition_lock_ctr;
         STATUS_VALUE(LOGGER_SWAP_CTR)    = logger->swap_ctr;
-        STATUS_VALUE(LOGGER_PANICKED)    = logger->is_panicked;
-        STATUS_VALUE(LOGGER_PANIC_ERRNO) = logger->panic_errno;
     }
     *statp = logger_status;
 }

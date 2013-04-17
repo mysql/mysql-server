@@ -61,8 +61,7 @@ static void test_xid_lsn_independent(int N) {
 	snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
 	memset(val, 'v', sizeof(val));
 	val[sizeof(val)-1]=0;
-	r = toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
-        CKERR(r);
+	toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
     }
     {
         TOKUTXN txn2;
@@ -117,11 +116,9 @@ static void test_xid_lsn_independent_crash_recovery(int N) {
 
     TXNID last_xid_before = logger_get_last_xid(logger);
 
-    r = toku_logger_close_rollback(logger, false);
-    CKERR(r);
+    toku_logger_close_rollback(logger);
 
-    r = toku_cachetable_close(&ct);
-    CKERR(r);
+    toku_cachetable_close(&ct);
     // "Crash"
     r = toku_logger_close(&logger);
     CKERR(r);

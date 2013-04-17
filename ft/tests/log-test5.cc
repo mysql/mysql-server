@@ -39,7 +39,7 @@ test_main (int argc __attribute__((__unused__)),
 	ml_lock(&logger->input_lock);
 
 	int ilen=3+random()%5;
-	r = toku_logger_make_space_in_inbuf(logger, ilen+1);                                 assert(r==0);
+	toku_logger_make_space_in_inbuf(logger, ilen+1);
 	snprintf(logger->inbuf.buf+logger->inbuf.n_in_buf, ilen+1, "a%0*d ", (int)ilen, i);
 	logger->inbuf.n_in_buf+=(ilen+1);
 	logger->lsn.lsn++;

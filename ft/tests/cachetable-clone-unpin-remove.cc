@@ -51,7 +51,7 @@ cachetable_test (void) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -72,7 +72,7 @@ cachetable_test (void) {
     flush_completed = false;
     evict_called = false;
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL); assert_zero(r);
+    toku_cachetable_begin_checkpoint(cp, NULL);
     assert_zero(r);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
@@ -80,7 +80,7 @@ cachetable_test (void) {
     assert_zero(r);
 
 
-    r = toku_cachetable_end_checkpoint(
+    toku_cachetable_end_checkpoint(
         cp, 
         NULL, 
         NULL,
@@ -90,8 +90,8 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 
 
 }

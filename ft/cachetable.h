@@ -11,7 +11,6 @@
 #include "fttypes.h"
 #include "minicron.h"
 
-
 // Maintain a cache mapping from cachekeys to values (void*)
 // Some of the keys can be pinned.  Don't pin too many or for too long.
 // If the cachetable is too full, it will call the flush_callback() function with the key, the value, and the otherargs
@@ -27,10 +26,10 @@
 
 typedef BLOCKNUM CACHEKEY;
 
-int toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period);
+void toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period);
 uint32_t toku_get_cleaner_period (CACHETABLE ct);
 uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct);
-int toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations);
+void toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations);
 uint32_t toku_get_cleaner_iterations (CACHETABLE ct);
 uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
 
@@ -39,7 +38,7 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
 // create and initialize a cache table
 // size_limit is the upper limit on the size of the size of the values in the table
 // pass 0 if you want the default
-int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
+void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
 
 // Create a new cachetable.
 // Effects: a new cachetable is created and initialized.
@@ -62,11 +61,11 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 
 // Get the iname (within the cwd) associated with the cachefile
 // Return the filename
-char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
+char *toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
-// TODO: #1510  Add comments on how these behave
-int toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER);
-int toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER logger, 
+void toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER);
+
+void toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER logger, 
                                    void (*testcallback_f)(void*),  void * testextra);
 
 // Shuts down checkpoint thread
@@ -75,15 +74,15 @@ void toku_cachetable_minicron_shutdown(CACHETABLE ct);
 
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.
-int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
+void toku_cachetable_close(CACHETABLE *ct); 
 
 // Open a file and bind the file to a new cachefile object. (For use by test programs only.)
-int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, int flags, mode_t mode);
+int toku_cachetable_openf(CACHEFILE *,CACHETABLE, const char *fname_in_env, int flags, mode_t mode);
 
 // Bind a file to a new cachefile object.
-int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, 
-			    const char *fname_relative_to_env); /*(used for logging)*/
-int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, 
+int toku_cachetable_openfd(CACHEFILE *,CACHETABLE, int fd, 
+			    const char *fname_relative_to_env);
+int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int fd, 
 					 const char *fname_in_env,
 					 FILENUM filenum);
 
@@ -100,8 +99,7 @@ void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 // cachefile operations
 
 // Does an fsync of a cachefile.
-// Handles the case where cf points to /dev/null
-int toku_cachefile_fsync(CACHEFILE cf);
+void toku_cachefile_fsync(CACHEFILE cf);
 
 enum partial_eviction_cost {
     PE_CHEAP=0, // running partial eviction is cheap, and can be done on the client thread
@@ -189,14 +187,14 @@ typedef void (*CACHETABLE_GET_KEY_AND_FULLHASH)(CACHEKEY* cachekey, uint32_t* fu
 typedef void (*CACHETABLE_REMOVE_KEY)(CACHEKEY* cachekey, bool for_checkpoint, void* extra);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
-    int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
-    int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
-    int (*close_userdata)(CACHEFILE, int, void*, char **/*error_string*/, bool, LSN),
+    void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
+    void (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
+    int (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
     int (*checkpoint_userdata)(CACHEFILE, int, void*),
-    int (*begin_checkpoint_userdata)(LSN, void*),
-    int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
-    int (*note_pin_by_checkpoint)(CACHEFILE, void*),
-    int (*note_unpin_by_checkpoint)(CACHEFILE, void*));
+    void (*begin_checkpoint_userdata)(LSN, void*),
+    void (*end_checkpoint_userdata)(CACHEFILE, int, void*),
+    void (*note_pin_by_checkpoint)(CACHEFILE, void*),
+    void (*note_unpin_by_checkpoint)(CACHEFILE, void*));
 // Effect: Store some cachefile-specific user data.  When the last reference to a cachefile is closed, we call close_userdata().
 // Before starting a checkpoint, we call checkpoint_prepare_userdata().
 // When the cachefile needs to be checkpointed, we call checkpoint_userdata().
@@ -220,10 +218,10 @@ typedef enum {
 
 // put something into the cachetable and checkpoint dependent pairs
 // if the checkpointing is necessary
-int toku_cachetable_put_with_dep_pairs(
+void toku_cachetable_put_with_dep_pairs(
     CACHEFILE cachefile,
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
-    void*value,
+    void *value,
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback,
     void *get_key_and_fullhash_extra,
@@ -241,9 +239,7 @@ int toku_cachetable_put_with_dep_pairs(
 // Effects: Lookup the key in the cachetable. If the key is not in the cachetable,
 // then insert the pair and pin it. Otherwise return an error.  Some of the key
 // value pairs may be evicted from the cachetable when the cachetable gets too big.
-// Returns: 0 if the memory object is placed into the cachetable, otherwise an
-// error number.
-int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
+void toku_cachetable_put(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
 			void *value, PAIR_ATTR size,
 			CACHETABLE_WRITE_CALLBACK write_callback,
                         CACHETABLE_PUT_CALLBACK put_callback
@@ -386,8 +382,6 @@ int toku_cachetable_get_and_pin_nonblocking (
     UNLOCKERS unlockers
     );
 
-#define CAN_RELEASE_LOCK_DURING_IO
-
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, uint32_t /*fullhash*/, void**);
 // Effect: Maybe get and pin a memory object.
 //  This function is similar to the get_and_pin function except that it
@@ -459,13 +453,13 @@ int toku_cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 // object is freed.
 // If oplsn_valid is true then use oplsn as the LSN of the close instead of asking the logger.  oplsn_valid being true is only allowed during recovery, and requires that you are removing the last reference (otherwise the lsn wouldn't make it in.)
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachefile_close (CACHEFILE*, char **error_string, bool oplsn_valid, LSN oplsn);
+int toku_cachefile_close (CACHEFILE*, bool oplsn_valid, LSN oplsn);
 
 // Flush the cachefile.
 // Effect: Flush everything owned by the cachefile from the cachetable. All dirty
 // blocks are written.  All unpinned blocks are evicted from the cachetable.
 // Returns: 0 if success, otherwise returns an error number.
-int toku_cachefile_flush (CACHEFILE);
+void toku_cachefile_flush(CACHEFILE);
 
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
@@ -527,8 +521,6 @@ void toku_cachetable_verify (CACHETABLE t);
 // Not for use in production, but useful for testing.
 void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("default")));
 
-#define TOKU_CACHETABLE_DO_EVICT_FROM_WRITER 0
-
 void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
 // for stat64
@@ -572,11 +564,10 @@ void remove_background_job_from_cf (CACHEFILE cf);
 // the cachetable must be notified.
 
 // test-only function
-extern int toku_cachetable_get_checkpointing_user_data_status(void);
+int toku_cachetable_get_checkpointing_user_data_status(void);
 
 // test-only function
-int toku_cleaner_thread_for_test (CACHETABLE ct);
-int toku_cleaner_thread (void *cleaner_v);
+int toku_cleaner_thread_for_test(CACHETABLE ct);
+int toku_cleaner_thread(void *cleaner_v);
 
-
-#endif
+#endif /* CACHETABLE_H */

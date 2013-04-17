@@ -37,7 +37,7 @@ get_one_value(FT_HANDLE t, CACHETABLE UU(ct), void *UU(extra))
     r = toku_ft_cursor_first(cursor, noop_getf, &called);
     CKERR(r);
     assert(called == 1);
-    r = toku_ft_cursor_close(cursor);
+    toku_ft_cursor_close(cursor);
     CKERR(r);
 
     return 0;
@@ -71,14 +71,12 @@ static int
 insert_something(FT_HANDLE t, CACHETABLE UU(ct), void *UU(extra))
 {
     assert(t);
-    int r = 0;
     unsigned int dummy_value = 1U << 31;
     DBT key;
     DBT val;
     toku_fill_dbt(&key, &dummy_value, sizeof(unsigned int));
     toku_fill_dbt(&val, &dummy_value, sizeof(unsigned int));
-    r = toku_ft_insert (t, &key, &val, 0);
-    CKERR(r);
+    toku_ft_insert (t, &key, &val, 0);
     return 0;
 }
 
@@ -91,8 +89,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     FT_HANDLE t;
     CACHETABLE ct;
 
-    r = toku_create_cachetable(&ct, 16*(1<<20), ZERO_LSN, NULL_LOGGER);
-    CKERR(r);
+    toku_cachetable_create(&ct, 16*(1<<20), ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 
                       0, 
                       &t, 
@@ -113,8 +110,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     CKERR(r);
     r = toku_close_ft_handle_nolsn(t, 0);
     CKERR(r);
-    r = toku_cachetable_close(&ct);
-    CKERR(r);
+    toku_cachetable_close(&ct);
 
     return r2;
 }

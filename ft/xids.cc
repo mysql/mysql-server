@@ -209,33 +209,10 @@ xids_get_serialize_size(XIDS xids){
 }
 
 
-// Include TXNID zero in checksum to maintain compatibility
-// with previously released version.  
-void
-toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids) {
-    x1764_add(mm, &xids->num_xids, 1);
-    TXNID zero = 0;
-    x1764_add(mm, &zero, 8);
-    uint8_t index;
-    uint8_t num_xids = xids_get_num_xids(xids);
-    for (index = 0; index < num_xids; index++) {
-        TXNID current_xid = xids_get_xid(xids, index);
-        x1764_add(mm, &current_xid, 8);
-    }
-}
-
 unsigned char *
 xids_get_end_of_array(XIDS xids) {
     TXNID *r = xids->ids + xids->num_xids;
     return (unsigned char*)r;
-}
-
-void wbuf_xids(struct wbuf *wb, XIDS xids) {
-    wbuf_char(wb, (unsigned char)xids->num_xids);
-    uint8_t index;
-    for (index = 0; index < xids->num_xids; index++) {
-        wbuf_TXNID(wb, xids->ids[index]);
-    }
 }
 
 void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids) {

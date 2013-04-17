@@ -208,8 +208,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
-    r = toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
-    assert(r==0);
+    toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
     // Hack to get the test working. The problem is that this test
     // is directly queueing something in a FIFO instead of 
     // using brt APIs.

@@ -63,10 +63,8 @@ struct tokulogger {
     bool output_is_available;           // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
 
     bool is_open;
-    bool is_panicked;
     bool write_log_files;
     bool trim_log_files; // for test purposes
-    int panic_errno;
     char *directory;  // file system directory
     DIR *dir; // descriptor for directory
     int fd;

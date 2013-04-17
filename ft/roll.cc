@@ -179,8 +179,8 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                           ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                           : toku_init_dbt(&data_dbt) } } };
 
-        r = toku_ft_root_put_cmd(h, &ftcmd);
-        if (r == 0 && reset_root_xid_that_created) {
+        toku_ft_root_put_cmd(h, &ftcmd);
+        if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(h, new_root_xid_that_created);
         }

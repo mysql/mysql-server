@@ -9,12 +9,13 @@
 #include <toku_assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
 #include "memory.h"
+#include "toku_time.h"
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
@@ -27,8 +28,7 @@ void toku_set_assert_on_write_enospc(int do_assert) {
     toku_assert_on_write_enospc = do_assert;
 }
 
-void
-toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
+void toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
     *enospc_last_time = toku_write_enospc_last_time;
     *enospc_current = toku_write_enospc_current;
     *enospc_total = toku_write_enospc_total;
@@ -100,77 +100,55 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     errno = errno_write;
 }
 
-static ssize_t (*t_write)(int, const void *, size_t) = 0;
-static ssize_t (*t_full_write)(int, const void *, size_t) = 0;
-static ssize_t (*t_pwrite)(int, const void *, size_t, off_t) = 0;
-static ssize_t (*t_full_pwrite)(int, const void *, size_t, off_t) = 0;
-static FILE *  (*t_fdopen)(int, const char *) = 0;
-static FILE *  (*t_fopen)(const char *, const char *) = 0;
-static int     (*t_open)(const char *, int, int) = 0;  // no implementation of variadic form until needed
-static int     (*t_fclose)(FILE *) = 0;
-static ssize_t (*t_read)(int, void *, size_t) = 0;
-static ssize_t (*t_pread)(int, void *, size_t, off_t) = 0;
+static ssize_t (*t_write)(int, const void *, size_t);
+static ssize_t (*t_full_write)(int, const void *, size_t);
+static ssize_t (*t_pwrite)(int, const void *, size_t, off_t);
+static ssize_t (*t_full_pwrite)(int, const void *, size_t, off_t);
+static FILE *  (*t_fdopen)(int, const char *);
+static FILE *  (*t_fopen)(const char *, const char *);
+static int     (*t_open)(const char *, int, int);
+static int     (*t_fclose)(FILE *);
+static ssize_t (*t_read)(int, void *, size_t);
+static ssize_t (*t_pread)(int, void *, size_t, off_t);
 
-int 
-toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
+void toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     t_write = write_fun;
-    return 0;
 }
 
-int 
-toku_set_func_full_write (ssize_t (*write_fun)(int, const void *, size_t)) {
+void toku_set_func_full_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     t_full_write = write_fun;
-    return 0;
 }
 
-int 
-toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
+void toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     t_pwrite = pwrite_fun;
-    return 0;
 }
 
-int 
-toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
+void toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     t_full_pwrite = pwrite_fun;
-    return 0;
 }
 
-int 
-toku_set_func_fdopen(FILE * (*fdopen_fun)(int, const char *)) {
+void toku_set_func_fdopen(FILE * (*fdopen_fun)(int, const char *)) {
     t_fdopen = fdopen_fun;
-    return 0;
 }
 
-
-int 
-toku_set_func_fopen(FILE * (*fopen_fun)(const char *, const char *)) {
+void toku_set_func_fopen(FILE * (*fopen_fun)(const char *, const char *)) {
     t_fopen = fopen_fun;
-    return 0;
 }
 
-
-int 
-toku_set_func_open(int (*open_fun)(const char *, int, int)) {
+void toku_set_func_open(int (*open_fun)(const char *, int, int)) {
     t_open = open_fun;
-    return 0;
 }
 
-int 
-toku_set_func_fclose(int (*fclose_fun)(FILE*)) {
+void toku_set_func_fclose(int (*fclose_fun)(FILE*)) {
     t_fclose = fclose_fun;
-    return 0;
 }
 
-int 
-toku_set_func_read (ssize_t (*read_fun)(int, void *, size_t)) {
+void toku_set_func_read (ssize_t (*read_fun)(int, void *, size_t)) {
     t_read = read_fun;
-    return 0;
 }
 
-int
-toku_set_func_pread (ssize_t (*pread_fun)(int, void *, size_t, off_t)) {
+void toku_set_func_pread (ssize_t (*pread_fun)(int, void *, size_t, off_t)) {
     t_pread = pread_fun;
-    return 0;
 }
 
 void
@@ -306,7 +284,7 @@ toku_os_fclose(FILE * stream) {
 }
 
 int 
-toku_os_close (int fd) {  // if EINTR, retry until success
+toku_os_close(int fd) {  // if EINTR, retry until success
     int r = -1;
     while (r != 0) {
 	r = close(fd);
@@ -351,106 +329,77 @@ static uint64_t toku_fsync_time;
 static uint64_t sched_fsync_count;
 static uint64_t sched_fsync_time;
 
-int
-toku_set_func_fsync(int (*fsync_function)(int)) {
+void toku_set_func_fsync(int (*fsync_function)(int)) {
     t_fsync = fsync_function;
-    return 0;
-}
-
-static uint64_t get_tnow(void) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, NULL); assert(r == 0);
-    return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
 // keep trying if fsync fails because of EINTR
-static int 
-file_fsync_internal (int fd, uint64_t *duration_p) {
-    uint64_t tstart = get_tnow();
+static void file_fsync_internal (int fd, uint64_t *duration_p) {
+    uint64_t tstart = toku_current_time_usec();
     int r = -1;
     while (r != 0) {
-	if (t_fsync)
+	if (t_fsync) {
 	    r = t_fsync(fd);
-	else 
+        } else {
 	    r = fsync(fd);
+        }
 	if (r) {
-	    int rr = errno;
-	    if (rr!=EINTR) printf("rr=%d (%s)\n", rr, strerror(rr));
-	    assert(rr==EINTR);
+            assert(get_error_errno() == EINTR);
 	}
     }
     __sync_fetch_and_add(&toku_fsync_count, 1);
-    uint64_t duration;
-    duration = get_tnow() - tstart;
+    uint64_t duration = toku_current_time_usec() - tstart;
     __sync_fetch_and_add(&toku_fsync_time, duration);
-    if (duration_p) *duration_p = duration;
-    return r;
-}
-
-int
-toku_file_fsync_without_accounting (int fd) {
-    int r = file_fsync_internal (fd, NULL);
-    return r;
-}
-
-
-int
-toku_fsync_dirfd_without_accounting(DIR *dirp) {
-    int r;
-    int fd = dirfd(dirp);
-    if (fd < 0) {
-        r = -1;
-    } else {
-        r = toku_file_fsync_without_accounting(fd);
+    if (duration_p) {
+        *duration_p = duration;
     }
-    return r;
 }
 
-int
-toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
+void toku_file_fsync_without_accounting(int fd) {
+    file_fsync_internal(fd, NULL);
+}
+
+void toku_fsync_dirfd_without_accounting(DIR *dir) {
+    int fd = dirfd(dir);
+    toku_file_fsync_without_accounting(fd);
+}
+
+int toku_fsync_dir_by_name_without_accounting(const char *dir_name) {
     int r = 0;
     DIR * dir = opendir(dir_name);
     if (!dir) {
-        r = errno;
-        assert(r);
-    }
-    else {
-        r = toku_fsync_dirfd_without_accounting(dir);
-        int rc = closedir(dir);
-        if (r==0 && rc!=0) {
-            r = errno;
-            assert(r);
+        r = get_error_errno();
+    } else {
+        toku_fsync_dirfd_without_accounting(dir);
+        r = closedir(dir);
+        if (r != 0) {
+            r = get_error_errno();
         }
     }
     return r;
 }
 
 // include fsync in scheduling accounting
-int
-toku_file_fsync(int fd) {
+void toku_file_fsync(int fd) {
     uint64_t duration;
-    int r = file_fsync_internal (fd, &duration);
+    file_fsync_internal (fd, &duration);
     __sync_fetch_and_add(&sched_fsync_count, 1);
     __sync_fetch_and_add(&sched_fsync_time, duration);
-    return r;
 }
 
 // for real accounting
-void
-toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
+void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = toku_fsync_count;
     *fsync_time = toku_fsync_time;
 }
 
 // for scheduling algorithm only
-void
-toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
+void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = sched_fsync_count;
     *fsync_time  = sched_fsync_time;
 }
 
-int 
-toku_fsync_directory(const char *fname) {
+int toku_fsync_directory(const char *fname) {
     int result = 0;
     
     // extract dirname from fname
@@ -461,16 +410,17 @@ toku_fsync_directory(const char *fname) {
         resource_assert(sp >= fname);
         len = sp - fname + 1;
         MALLOC_N(len+1, dirname);
-        if (dirname == NULL)
-            result = errno;
-        else {
+        if (dirname == NULL) {
+            result = get_error_errno();;
+        } else {
             strncpy(dirname, fname, len);
             dirname[len] = 0;
         }
     } else {
         dirname = toku_strdup(".");
-        if (dirname == NULL)
-            result = errno;
+        if (dirname == NULL) {
+            result = get_error_errno();;
+        }
     }
 
     if (result == 0) {

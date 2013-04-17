@@ -22,77 +22,60 @@ void * checkpoint_callback2_extra     = NULL;
 
 uint32_t  engine_status_enable = 1;   // if zero, suppress engine status output on failed assert, for test programs only
 
-int 
-db_env_set_func_fsync (int (*fsync_function)(int)) {
-    return toku_set_func_fsync(fsync_function);
+void db_env_set_func_fsync (int (*fsync_function)(int)) {
+    toku_set_func_fsync(fsync_function);
 }
 
-int 
-db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, toku_off_t)) {
-    return toku_set_func_pwrite(pwrite_function);
+void db_env_set_func_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, toku_off_t)) {
+    toku_set_func_pwrite(pwrite_function);
 }
 
-int 
-db_env_set_func_full_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, toku_off_t)) {
-    return toku_set_func_full_pwrite(pwrite_function);
+void db_env_set_func_full_pwrite (ssize_t (*pwrite_function)(int, const void *, size_t, toku_off_t)) {
+    toku_set_func_full_pwrite(pwrite_function);
 }
 
-int 
-db_env_set_func_write (ssize_t (*write_function)(int, const void *, size_t)) {
-    return toku_set_func_write(write_function);
+void db_env_set_func_write (ssize_t (*write_function)(int, const void *, size_t)) {
+    toku_set_func_write(write_function);
 }
 
-int 
-db_env_set_func_full_write (ssize_t (*write_function)(int, const void *, size_t)) {
-    return toku_set_func_full_write(write_function);
+void db_env_set_func_full_write (ssize_t (*write_function)(int, const void *, size_t)) {
+    toku_set_func_full_write(write_function);
 }
 
-int 
-db_env_set_func_fdopen (FILE * (*fdopen_function)(int, const char *)) {
-    return toku_set_func_fdopen(fdopen_function);
+void db_env_set_func_fdopen (FILE * (*fdopen_function)(int, const char *)) {
+    toku_set_func_fdopen(fdopen_function);
 }
 
-int 
-db_env_set_func_fopen (FILE * (*fopen_function)(const char *, const char *)) {
-    return toku_set_func_fopen(fopen_function);
+void db_env_set_func_fopen (FILE * (*fopen_function)(const char *, const char *)) {
+    toku_set_func_fopen(fopen_function);
 }
 
-int 
-db_env_set_func_open (int (*open_function)(const char *, int, int)) {
-    return toku_set_func_open(open_function);
+void db_env_set_func_open (int (*open_function)(const char *, int, int)) {
+    toku_set_func_open(open_function);
 }
 
-int 
-db_env_set_func_fclose (int (*fclose_function)(FILE*)) {
-    return toku_set_func_fclose(fclose_function);
+void db_env_set_func_fclose (int (*fclose_function)(FILE*)) {
+    toku_set_func_fclose(fclose_function);
 }
 
-int
-db_env_set_func_pread (ssize_t (*fun)(int, void *, size_t, off_t)) {
-    return toku_set_func_pread(fun);
+void db_env_set_func_pread (ssize_t (*fun)(int, void *, size_t, off_t)) {
+    toku_set_func_pread(fun);
 }
 
-void 
-db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
+void db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
     ft_loader_set_os_fwrite(fwrite_fun);
 }
 
-int 
-db_env_set_func_malloc (void *(*f)(size_t)) {
+void db_env_set_func_malloc (void *(*f)(size_t)) {
     toku_set_func_malloc(f);
-    return 0;
 }
 
-int 
-db_env_set_func_realloc (void *(*f)(void*, size_t)) {
+void db_env_set_func_realloc (void *(*f)(void*, size_t)) {
     toku_set_func_realloc(f);
-    return 0;
 }
 
-int 
-db_env_set_func_free (void (*f)(void*)) {
+void db_env_set_func_free (void (*f)(void*)) {
     toku_set_func_free(f);
-    return 0;
 }
 
 // For test purposes only.
@@ -103,7 +86,6 @@ db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
     checkpoint_callback_f = callback_f;
     checkpoint_callback_extra = extra;
     toku_checkpoint_safe_client_unlock();
-    //printf("set callback = %p, extra = %p\n", callback_f, extra);
 }
 
 void 
@@ -112,7 +94,6 @@ db_env_set_checkpoint_callback2 (void (*callback_f)(void*), void* extra) {
     checkpoint_callback2_f = callback_f;
     checkpoint_callback2_extra = extra;
     toku_checkpoint_safe_client_unlock();
-    //printf("set callback2 = %p, extra2 = %p\n", callback2_f, extra2);
 }
 
 void 

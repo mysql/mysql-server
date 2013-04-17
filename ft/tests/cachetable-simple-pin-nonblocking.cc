@@ -62,7 +62,7 @@ run_test (void) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -109,25 +109,20 @@ run_test (void) {
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
     // this should mark the PAIR as pending
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
+    toku_cachetable_begin_checkpoint(cp, NULL);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_end_checkpoint(
+    toku_cachetable_end_checkpoint(
         cp, 
         NULL, 
         NULL,
         NULL
         );
-    assert(r==0);
-    
-    
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); 
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); 
     assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
-    
-    
+    toku_cachetable_close(&ct);
 }
 
 int

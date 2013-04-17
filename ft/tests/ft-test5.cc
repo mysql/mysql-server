@@ -21,7 +21,7 @@ static void test5 (void) {
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);        assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
     for (i=0; i<limit/2; i++) {
 	char key[100],val[100];
@@ -32,8 +32,7 @@ static void test5 (void) {
 	snprintf(key, 100, "key%d", rk);
 	snprintf(val, 100, "val%d", rv);
 	DBT k,v;
-	r = toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
-	assert(r==0);
+	toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
     }
     if (verbose) printf("\n");
     for (i=0; i<limit/2; i++) {
@@ -54,7 +53,7 @@ static void test5 (void) {
     toku_free(values);
     r = toku_verify_ft(t);         assert(r==0);
     r = toku_close_ft_handle_nolsn(t, 0);       assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
     
 }
 

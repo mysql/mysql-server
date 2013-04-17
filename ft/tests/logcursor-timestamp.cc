@@ -40,14 +40,12 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0);
 
     BYTESTRING bs0 = { .len = 5, .data = (char *) "hello" };
-    r = toku_log_comment(logger, &lsn, 0, now(), bs0);
-    assert(r == 0);
+    toku_log_comment(logger, &lsn, 0, now(), bs0);
 
     sleep(11);
 
     BYTESTRING bs1 = { .len = 5, .data = (char *) "world" };
-    r = toku_log_comment(logger, &lsn, 0, now(), bs1);
-    assert(r == 0);
+    toku_log_comment(logger, &lsn, 0, now(), bs1);
 
     r = toku_logger_close(&logger);
     assert(r == 0);

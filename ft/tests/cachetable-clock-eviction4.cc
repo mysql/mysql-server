@@ -95,7 +95,7 @@ cachetable_test (void) {
     num_entries = 0;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -128,14 +128,14 @@ cachetable_test (void) {
     }
     flush_may_occur = true;
     expected_flushed_key = 4;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
+    toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
     flush_may_occur = true;
     expected_flushed_key = 5;
     r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(4));
 
     check_flush = false;
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachetable_close(&ct);
 }
 
 int

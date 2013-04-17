@@ -56,7 +56,7 @@ static void cachetable_prefetch_full_test (bool partial_fetch) {
     expect_pf = false;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -97,8 +97,8 @@ static void cachetable_prefetch_full_test (bool partial_fetch) {
 
     // close with the prefetch in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

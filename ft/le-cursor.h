@@ -25,9 +25,7 @@ typedef struct le_cursor *LE_CURSOR;
 int toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn);
 
 // Close and free the LE_CURSOR
-// Success: returns 0
-// Failure: returns a non-zero error number
-int toku_le_cursor_close(LE_CURSOR le_cursor);
+void toku_le_cursor_close(LE_CURSOR le_cursor);
 
 // Move to the next leaf entry under the LE_CURSOR
 // Success: returns zero, calls the getf callback with the getf_v parameter

@@ -149,8 +149,6 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 
     XCALLOC(ft);
     ft->checkpoint_header = NULL;
-    ft->panic = 0;
-    ft->panic_string = 0;
     toku_list_init(&ft->live_ft_handles);
 
     //version MUST be in network order on disk regardless of disk order
@@ -364,10 +362,9 @@ exit:
     return r;
 }
 
-static uint32_t
+static size_t
 serialize_ft_min_size (uint32_t version) {
-    uint32_t size = 0;
-
+    size_t size = 0;
 
     switch(version) {
     case FT_LAYOUT_VERSION_20:
@@ -418,6 +415,7 @@ serialize_ft_min_size (uint32_t version) {
     default:
         lazy_assert(false);
     }
+    
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
@@ -654,15 +652,15 @@ exit:
 }
 
 
-int toku_serialize_ft_size (FT_HEADER h) {
-    uint32_t size = serialize_ft_min_size(h->layout_version);
+size_t toku_serialize_ft_size (FT_HEADER h) {
+    size_t size = serialize_ft_min_size(h->layout_version);
     //There is no dynamic data.
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
 
 
-int toku_serialize_ft_to_wbuf (
+void toku_serialize_ft_to_wbuf (
     struct wbuf *wbuf, 
     FT_HEADER h, 
     DISKOFF translation_location_on_disk, 
@@ -700,59 +698,47 @@ int toku_serialize_ft_to_wbuf (
     uint32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
-    return 0;
 }
 
-int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf) {
-    int rr = 0;
+void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf) {
     lazy_assert(h->type==FT_CHECKPOINT_INPROGRESS);
     struct wbuf w_translation;
     int64_t size_translation;
     int64_t address_translation;
-    {
-        //Must serialize translation first, to get address,size for header.
-        toku_serialize_translation_to_wbuf(blocktable, fd, &w_translation,
-                                                   &address_translation,
-                                                   &size_translation);
-        lazy_assert(size_translation==w_translation.size);
-    }
+
+    //Must serialize translation first, to get address,size for header.
+    toku_serialize_translation_to_wbuf(blocktable, fd, &w_translation,
+                                               &address_translation,
+                                               &size_translation);
+    lazy_assert(size_translation == w_translation.size);
+
     struct wbuf w_main;
-    unsigned int size_main = toku_serialize_ft_size(h);
-    {
-        wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
-        {
-            int r=toku_serialize_ft_to_wbuf(&w_main, h, address_translation, size_translation);
-            lazy_assert_zero(r);
-        }
-        lazy_assert(w_main.ndone==size_main);
+    size_t size_main = toku_serialize_ft_size(h);
+    wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
+    toku_serialize_ft_to_wbuf(&w_main, h, address_translation, size_translation);
+    lazy_assert(w_main.ndone == size_main);
+
+    //Actual Write translation table
+    toku_os_full_pwrite(fd, w_translation.buf, size_translation, address_translation);
+
+    //Everything but the header MUST be on disk before header starts.
+    //Otherwise we will think the header is good and some blocks might not
+    //yet be on disk.
+    //If the header has a cachefile we need to do cachefile fsync (to
+    //prevent crash if we redirected to dev null)
+    //If there is no cachefile we still need to do an fsync.
+    if (cf) {
+        toku_cachefile_fsync(cf);
     }
-    {
-        //Actual Write translation table
-        toku_os_full_pwrite(fd, w_translation.buf,
-                                size_translation, address_translation);
+    else {
+        toku_file_fsync(fd);
     }
-    {
-        //Everything but the header MUST be on disk before header starts.
-        //Otherwise we will think the header is good and some blocks might not
-        //yet be on disk.
-        //If the header has a cachefile we need to do cachefile fsync (to
-        //prevent crash if we redirected to dev null)
-        //If there is no cachefile we still need to do an fsync.
-        if (cf) {
-            rr = toku_cachefile_fsync(cf);
-        }
-        else {
-            rr = toku_file_fsync(fd);
-        }
-        if (rr==0) {
-            //Alternate writing header to two locations:
-            //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
-            toku_off_t main_offset;
-            main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
-            toku_os_full_pwrite(fd, w_main.buf, w_main.ndone, main_offset);
-        }
-    }
+
+    //Alternate writing header to two locations:
+    //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
+    toku_off_t main_offset;
+    main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
+    toku_os_full_pwrite(fd, w_main.buf, w_main.ndone, main_offset);
     toku_free(w_main.buf);
     toku_free(w_translation.buf);
-    return rr;
 }

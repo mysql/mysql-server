@@ -51,7 +51,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     const int test_limit = 200;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -70,28 +70,27 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL);
+    toku_cachetable_begin_checkpoint(cp, NULL);
     assert_zero(r);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     
     // at this point, there should be no more dirty writes
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
     usleep(2*1024*1024);
-    r = toku_cachetable_end_checkpoint(
+    toku_cachetable_end_checkpoint(
         cp, 
         NULL, 
         NULL,
         NULL
     );
-    assert_zero(r);
     
     check_flush = true;
     flush_expected = (dirty == CACHETABLE_DIRTY) ? true : false;
     flush_called = false;
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachetable_close(&ct);
     if (flush_expected) assert(flush_called);
 }
 

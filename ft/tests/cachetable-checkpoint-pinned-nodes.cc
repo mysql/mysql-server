@@ -68,7 +68,7 @@ cachetable_test (void) {
   const int test_limit = 20;
   int r;
   CACHETABLE ct;
-  r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+  toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
   char fname1[] = __SRCFILE__ "test1.dat";
   unlink(fname1);
   CACHEFILE f1;
@@ -91,7 +91,7 @@ cachetable_test (void) {
   // flush will be called only for v1, because v1 is dirty
   //
   CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-  r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
+  toku_cachetable_begin_checkpoint(cp, NULL);
 
 
   r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
@@ -99,7 +99,7 @@ cachetable_test (void) {
 
   check_me = true;
   flush_called = false;
-  r = toku_cachetable_end_checkpoint(
+  toku_cachetable_end_checkpoint(
       cp, 
       NULL, 
       NULL,
@@ -110,8 +110,8 @@ cachetable_test (void) {
   check_me = false;
 
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-  r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+  r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+  toku_cachetable_close(&ct);
 
 
 }

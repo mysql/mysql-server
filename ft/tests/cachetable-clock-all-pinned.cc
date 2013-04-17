@@ -12,7 +12,7 @@ cachetable_test (void) {
     int test_limit = 6;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -20,14 +20,13 @@ cachetable_test (void) {
 
     // test that putting something too big in the cachetable works fine
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
-    r = toku_cachetable_put(f1, make_blocknum(num_entries+1), num_entries+1, NULL, make_pair_attr(test_limit*2), wc, put_callback_nop);
-    assert(r==0);
+    toku_cachetable_put(f1, make_blocknum(num_entries+1), num_entries+1, NULL, make_pair_attr(test_limit*2), wc, put_callback_nop);
     r = toku_test_cachetable_unpin(f1, make_blocknum(num_entries+1), num_entries+1, CACHETABLE_DIRTY, make_pair_attr(test_limit*2));
     assert(r==0);
 
 
     for (int64_t i = 0; i < num_entries; i++) {
-        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc, put_callback_nop);
+        toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc, put_callback_nop);
         assert(toku_cachefile_count_pinned(f1, 0) == (i+1));
     }
     for (int64_t i = 0; i < num_entries; i++) {
@@ -35,8 +34,8 @@ cachetable_test (void) {
     }
 
     
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachetable_close(&ct);
 }
 
 int

@@ -208,7 +208,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     assert(!db_txn_struct_i(txn)->child);
     TOKUTXN ttxn;
     ttxn = db_txn_struct_i(txn)->tokutxn;
-    r = toku_txn_prepare_txn(ttxn, xid);
+    toku_txn_prepare_txn(ttxn, xid);
     TOKULOGGER logger;
     logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;

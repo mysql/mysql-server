@@ -26,8 +26,8 @@ run_test(void) {
     
     // add begin checkpoint, end checkpoint
     LSN beginlsn;
-    r = toku_log_begin_checkpoint(logger, &beginlsn, false, 0, 0); assert(r == 0);
-    r = toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0); assert(r == 0);
+    toku_log_begin_checkpoint(logger, &beginlsn, false, 0, 0);
+    toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // add hello
@@ -35,7 +35,7 @@ run_test(void) {
         r = toku_logger_create(&logger); assert(r == 0);
         r = toku_logger_open(TESTDIR, logger); assert(r == 0);
         BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
-        r = toku_log_comment(logger, NULL, true, 0, hello);
+        toku_log_comment(logger, NULL, true, 0, hello);
         r = toku_logger_close(&logger); assert(r == 0);
     }
 

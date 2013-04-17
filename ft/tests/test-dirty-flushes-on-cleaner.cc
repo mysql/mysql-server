@@ -52,7 +52,7 @@ doit (void) {
     XMALLOC_N(fnamelen, fname);
 
     snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
-    r = toku_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &brt, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -266,7 +266,7 @@ doit (void) {
 
 
     r = toku_close_ft_handle_nolsn(brt, 0);    assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 
     toku_free(pivots[0]);
 }

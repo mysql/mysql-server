@@ -35,8 +35,8 @@ run_test (void) {
     const int test_limit = 1000;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
-    r = toku_set_cleaner_period(ct, 1); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_set_cleaner_period(ct, 1);
     my_cleaner_callback_called = false;
 
     char fname1[] = __SRCFILE__ "test1.dat";
@@ -80,8 +80,8 @@ run_test (void) {
     assert(my_cleaner_callback_called);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0 );
+    toku_cachetable_close(&ct);
 }
 
 int

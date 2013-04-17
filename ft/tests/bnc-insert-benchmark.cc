@@ -54,11 +54,11 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
     for (unsigned int i = 0; i < repeat; ++i) {
         bnc = toku_create_empty_nl();
         for (; toku_bnc_nbytesinbuf(bnc) <= nodesize; ++cur) {
-            r = toku_bnc_insert_msg(bnc,
-                                    &keys[cur % 1024], sizeof keys[cur % 1024],
-                                    vals[cur % 1024], eltsize - (sizeof keys[cur % 1024]),
-                                    FT_NONE, next_dummymsn(), xids_123, true,
-                                    NULL, long_key_cmp); assert_zero(r);
+            toku_bnc_insert_msg(bnc,
+                                &keys[cur % 1024], sizeof keys[cur % 1024],
+                                vals[cur % 1024], eltsize - (sizeof keys[cur % 1024]),
+                                FT_NONE, next_dummymsn(), xids_123, true,
+                                NULL, long_key_cmp); assert_zero(r);
         }
         nbytesinserted += toku_bnc_nbytesinbuf(bnc);
         destroy_nonleaf_childinfo(bnc);

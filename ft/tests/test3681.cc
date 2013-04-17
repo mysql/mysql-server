@@ -22,7 +22,7 @@ static TOKUTXN const null_txn = 0;
 volatile bool done = false;
 
 static void setup (void) {
-    { int r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                  assert(r==0); }
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     char fname[] = __SRCFILE__ "test1.dat";
     unlink(fname);
     { int r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);         assert(r==0); }
@@ -31,7 +31,7 @@ static void setup (void) {
 
 static void finish (void) {
     { int r = toku_close_ft_handle_nolsn(t, 0);                                                                       assert(r==0); };
-    { int r = toku_cachetable_close(&ct);                                                    assert(r == 0 && ct == 0); }
+    toku_cachetable_close(&ct);
 }
 
 static void *starta (void *n) {
@@ -41,8 +41,7 @@ static void *starta (void *n) {
 	char ks[20], vs[20];
 	snprintf(ks, sizeof(ks), "hello%03d", i);
 	snprintf(vs, sizeof(vs), "there%03d", i);
-	int r = toku_ft_insert(t, toku_fill_dbt(&k, ks, strlen(ks)), toku_fill_dbt(&v, vs, strlen(vs)), null_txn);
-	assert(r==0);
+	toku_ft_insert(t, toku_fill_dbt(&k, ks, strlen(ks)), toku_fill_dbt(&v, vs, strlen(vs)), null_txn);
 	usleep(1);
     }
     done = true;

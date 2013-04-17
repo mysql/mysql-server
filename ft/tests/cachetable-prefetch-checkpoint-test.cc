@@ -68,7 +68,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     CACHETABLE ct;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -88,8 +88,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         uint32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
 
         r = toku_test_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));
         assert(r == 0);
@@ -143,8 +142,8 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

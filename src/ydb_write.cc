@@ -156,7 +156,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock) {
     if (r == 0) {
         //Do the actual deleting.
         if (!holds_mo_lock) toku_multi_operation_client_lock();
-        r = toku_ft_delete(db->i->ft_handle, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
+        toku_ft_delete(db->i->ft_handle, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
         if (!holds_mo_lock) toku_multi_operation_client_unlock();
     }
 
@@ -197,7 +197,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_
             type = FT_INSERT_NO_OVERWRITE;
         }
         if (!holds_mo_lock) toku_multi_operation_client_lock();
-        r = toku_ft_maybe_insert(db->i->ft_handle, key, val, ttxn, false, ZERO_LSN, true, type);
+        toku_ft_maybe_insert(db->i->ft_handle, key, val, ttxn, false, ZERO_LSN, true, type);
         if (!holds_mo_lock) toku_multi_operation_client_unlock();
     }
 
@@ -238,7 +238,7 @@ toku_db_update(DB *db, DB_TXN *txn,
     TOKUTXN ttxn;
     ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
-    r = toku_ft_maybe_update(db->i->ft_handle, key, update_function_extra, ttxn,
+    toku_ft_maybe_update(db->i->ft_handle, key, update_function_extra, ttxn,
                               false, ZERO_LSN, true);
     toku_multi_operation_client_unlock();
 
@@ -295,7 +295,7 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
     TOKUTXN ttxn;
     ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     toku_multi_operation_client_lock();
-    r = toku_ft_maybe_update_broadcast(db->i->ft_handle, update_function_extra, ttxn,
+    toku_ft_maybe_update_broadcast(db->i->ft_handle, update_function_extra, ttxn,
                                         false, ZERO_LSN, true, is_resetting_op);
     toku_multi_operation_client_unlock();
 
@@ -307,11 +307,10 @@ cleanup:
     return r;
 }
 
-static int
+static void
 log_del_single(DB_TXN *txn, FT_HANDLE brt, const DBT *key) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    int r = toku_ft_log_del(ttxn, brt, key);
-    return r;
+    toku_ft_log_del(ttxn, brt, key);
 }
 
 static uint32_t
@@ -322,22 +321,21 @@ sum_size(uint32_t num_keys, DBT keys[], uint32_t overhead) {
     return sum;
 }
 
-static int
+static void
 log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32_t num_dbs, FT_HANDLE brts[], DBT keys[]) {
-    int r = 0;
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         FT_HANDLE src_ft  = src_db ? src_db->i->ft_handle : NULL;
         uint32_t del_multiple_size = key->size + val->size + num_dbs*sizeof (uint32_t) + toku_log_enq_delete_multiple_overhead;
         uint32_t del_single_sizes = sum_size(num_dbs, keys, toku_log_enq_delete_any_overhead);
         if (del_single_sizes < del_multiple_size) {
-            for (uint32_t i = 0; r == 0 && i < num_dbs; i++)
-                r = log_del_single(txn, brts[i], &keys[i]);
+            for (uint32_t i = 0; i < num_dbs; i++) {
+                log_del_single(txn, brts[i], &keys[i]);
+            }
         } else {
-            r = toku_ft_log_del_multiple(ttxn, src_ft, brts, num_dbs, key, val);
+            toku_ft_log_del_multiple(ttxn, src_ft, brts, num_dbs, key, val);
         }
     }
-    return r;
 }
 
 static uint32_t 
@@ -374,7 +372,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
             do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
         }
         if (r == 0 && do_delete) {
-            r = toku_ft_maybe_delete(db->i->ft_handle, &keys[which_db], ttxn, false, ZERO_LSN, false);
+            toku_ft_maybe_delete(db->i->ft_handle, &keys[which_db], ttxn, false, ZERO_LSN, false);
         }
     }
     return r;
@@ -488,10 +486,10 @@ env_del_multiple(
     }
     toku_multi_operation_client_lock();
     if (num_dbs == 1) {
-        r = log_del_single(txn, brts[0], &del_keys[0]);
+        log_del_single(txn, brts[0], &del_keys[0]);
     }
     else {
-        r = log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
+        log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
     }
     if (r == 0) {
         r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key);
@@ -509,22 +507,19 @@ cleanup:
     return r;
 }
 
-static int
+static void
 log_put_single(DB_TXN *txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    int r = toku_ft_log_put(ttxn, brt, key, val);
-    return r;
+    toku_ft_log_put(ttxn, brt, key, val);
 }
 
-static int
+static void
 log_put_multiple(DB_TXN *txn, DB *src_db, const DBT *src_key, const DBT *src_val, uint32_t num_dbs, FT_HANDLE brts[]) {
-    int r = 0;
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         FT_HANDLE src_ft  = src_db ? src_db->i->ft_handle : NULL;
-        r = toku_ft_log_put_multiple(ttxn, src_ft, brts, num_dbs, src_key, src_val);
+        toku_ft_log_put_multiple(ttxn, src_ft, brts, num_dbs, src_key, src_val);
     }
-    return r;
 }
 
 static int
@@ -552,7 +547,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
             do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_key);
         }
         if (r == 0 && do_put) {
-            r = toku_ft_maybe_insert(db->i->ft_handle, &keys[which_db], &vals[which_db], ttxn, false, ZERO_LSN, false, FT_INSERT);
+            toku_ft_maybe_insert(db->i->ft_handle, &keys[which_db], &vals[which_db], ttxn, false, ZERO_LSN, false, FT_INSERT);
         }
     }
     return r;
@@ -644,10 +639,10 @@ env_put_multiple_internal(
     }
     toku_multi_operation_client_lock();
     if (num_dbs == 1) {
-        r = log_put_single(txn, brts[0], &put_keys[0], &put_vals[0]);
+        log_put_single(txn, brts[0], &put_keys[0], &put_vals[0]);
     }
     else {
-        r = log_put_multiple(txn, src_db, src_key, src_val, num_dbs, brts);
+        log_put_multiple(txn, src_db, src_key, src_val, num_dbs, brts);
     }
     if (r == 0) {
         r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key);
@@ -799,19 +794,21 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
         }
         toku_multi_operation_client_lock();
         if (r == 0 && n_del_dbs > 0) {
-            if (n_del_dbs == 1)
-                r = log_del_single(txn, del_fts[0], &del_keys[0]);
-            else
-                r = log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_fts, del_keys);
-            if (r == 0)
+            if (n_del_dbs == 1) {
+                log_del_single(txn, del_fts[0], &del_keys[0]);
+            } else {
+                log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_fts, del_keys);
+            }
+            if (r == 0) {
                 r = do_del_multiple(txn, n_del_dbs, del_dbs, del_keys, src_db, old_src_key);
+            }
         }
 
         if (r == 0 && n_put_dbs > 0) {
             if (n_put_dbs == 1)
-                r = log_put_single(txn, put_fts[0], &put_keys[0], &put_vals[0]);
+                log_put_single(txn, put_fts[0], &put_keys[0], &put_vals[0]);
             else
-                r = log_put_multiple(txn, src_db, new_src_key, new_src_data, n_put_dbs, put_fts);
+                log_put_multiple(txn, src_db, new_src_key, new_src_data, n_put_dbs, put_fts);
             if (r == 0)
                 r = do_put_multiple(txn, n_put_dbs, put_dbs, put_keys, put_vals, src_db, new_src_key);
         }

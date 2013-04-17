@@ -69,7 +69,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -107,7 +107,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         //
         // should mark the v1 and v2 as pending
         //
-        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r==0);
+        toku_cachetable_begin_checkpoint(cp, NULL);
     }
     //
     // This call should cause a flush for both
@@ -145,20 +145,17 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     r = toku_test_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(8));
 
     if (start_checkpoint) {
-        r = toku_cachetable_end_checkpoint(
+        toku_cachetable_end_checkpoint(
             cp, 
             NULL, 
             NULL,
             NULL
             );
-        assert(r==0);
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
-
-
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

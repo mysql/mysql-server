@@ -8,7 +8,7 @@
 #ident "$Id$"
 
 
-int toku_set_checkpoint_period(CACHETABLE ct, uint32_t new_period);
+void toku_set_checkpoint_period(CACHETABLE ct, uint32_t new_period);
 //Effect: Change [end checkpoint (n) - begin checkpoint (n+1)] delay to
 //        new_period seconds.  0 means disable.
 

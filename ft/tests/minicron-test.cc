@@ -126,7 +126,7 @@ test5 (void *v) {
     int counter = 0;
     ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 10, run_3sec, &counter); assert(r==0);
-    r = toku_minicron_change_period(&m, 2);                  assert(r==0);
+    toku_minicron_change_period(&m, 2);
     sleep(9);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
     assert(counter==2);
@@ -138,7 +138,7 @@ test6 (void *v) {
     struct minicron m;
     ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 5, never_run, 0); assert(r==0);
-    r = toku_minicron_change_period(&m, 0);                  assert(r==0);
+    toku_minicron_change_period(&m, 0);
     sleep(7);
     r = toku_minicron_shutdown(&m);                          assert(r==0);
     return v;

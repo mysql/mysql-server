@@ -23,24 +23,19 @@ enum {
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid);
-int toku_logger_shutdown(TOKULOGGER logger);
+void toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create);
-int toku_logger_close_rollback(TOKULOGGER logger, bool recovery_failed);
+int toku_logger_close_rollback(TOKULOGGER logger);
 bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.
 
 int toku_logger_fsync (TOKULOGGER logger);
 int toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
-void toku_logger_panic (TOKULOGGER logger, int err);
-int toku_logger_panicked(TOKULOGGER logger);
 int toku_logger_is_open(TOKULOGGER logger);
 void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct);
 int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max);
 int toku_logger_get_lg_max(TOKULOGGER logger, uint32_t *lg_maxp);
 int toku_logger_set_lg_bsize(TOKULOGGER logger, uint32_t bsize);
-
-int toku_logger_lock_init(void);
-int toku_logger_lock_destroy(void);
 
 void toku_logger_write_log_files (TOKULOGGER logger, bool write_log_files);
 void toku_logger_trim_log_files(TOKULOGGER logger, bool trim_log_files);
@@ -58,9 +53,9 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // Returns: 0 if success
 int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t flags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method);
-int toku_logger_log_fdelete (TOKUTXN txn, FILENUM filenum);
-int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
+void toku_logger_log_fcreate(TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t flags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method);
+void toku_logger_log_fdelete(TOKUTXN txn, FILENUM filenum);
+void toku_logger_log_fopen(TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
 
 int toku_fread_uint8_t (FILE *f, uint8_t *v, struct x1764 *mm, uint32_t *len);
 int toku_fread_uint32_t_nocrclen (FILE *f, uint32_t *v);
@@ -91,7 +86,6 @@ int toku_read_and_print_logmagic (FILE *f, uint32_t *versionp);
 int toku_read_logmagic (FILE *f, uint32_t *versionp);
 
 TXNID toku_txn_get_txnid (TOKUTXN txn);
-TXNID toku_txn_get_root_txnid (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
@@ -103,12 +97,9 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
-LSN toku_logger_get_next_lsn(TOKULOGGER logger);
+void toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed);
 
-int toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed);
-
-int
-toku_logger_write_inbuf (TOKULOGGER logger);
+int toku_logger_write_inbuf (TOKULOGGER logger);
 // Effect: Write the buffered data (from the inbuf) to a file.  No fsync, however.
 // As a side effect, the inbuf will be made empty.
 // Return 0 on success, otherwise return an error number.
@@ -119,9 +110,7 @@ toku_logger_write_inbuf (TOKULOGGER logger);
 // Rationale:  When the buffer becomes nearly full, call this function so that more can be put in.
 // Implementation note:  Since the output lock is acquired first, we must release the input lock, and then grab both in the right order.
 
-
-int
-toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
+void toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
 // Entry: Holds input lock.
 // Exit:  Holds no locks.
@@ -163,14 +152,11 @@ toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 //        fsync
 //        release the outlock
 
-
 typedef enum {
     LOGGER_NEXT_LSN = 0,
     LOGGER_ILOCK_CTR,
     LOGGER_OLOCK_CTR,
     LOGGER_SWAP_CTR,
-    LOGGER_PANICKED,
-    LOGGER_PANIC_ERRNO,
     LOGGER_STATUS_NUM_ROWS
 } logger_status_entry;
 
@@ -179,17 +165,12 @@ typedef struct {
     TOKU_ENGINE_STATUS_ROW_S status[LOGGER_STATUS_NUM_ROWS];
 } LOGGER_STATUS_S, *LOGGER_STATUS;
 
-
 void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 
 int toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, uint32_t *version_found);
-int toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete);
 
 TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger);
 
-
 static const TOKULOGGER NULL_logger __attribute__((__unused__)) = NULL;
 
-
-#endif
-
+#endif /* TOKU_LOGGER_H */

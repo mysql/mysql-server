@@ -21,21 +21,15 @@ static void test_5123(void) {
 
     int r;
 
-    r = toku_log_xbegin(logger, NULL, false, (TXNID) 1, TXNID_NONE);
-    CKERR(r);
-    r = toku_log_xbegin(logger, NULL, false, (TXNID) 3, TXNID_NONE);
-    CKERR(r);
-    r = toku_log_xbegin(logger, NULL, false, (TXNID) 2, TXNID_NONE);
-    CKERR(r);
+    toku_log_xbegin(logger, NULL, false, (TXNID) 1, TXNID_NONE);
+    toku_log_xbegin(logger, NULL, false, (TXNID) 3, TXNID_NONE);
+    toku_log_xbegin(logger, NULL, false, (TXNID) 2, TXNID_NONE);
 
-    r = toku_log_xcommit(logger, NULL, false, NULL, (TXNID) 2);
-    CKERR(r);
+    toku_log_xcommit(logger, NULL, false, NULL, (TXNID) 2);
 
-    r = toku_logger_close_rollback(logger, false);
-    CKERR(r);
+    toku_logger_close_rollback(logger);
 
-    r = toku_cachetable_close(&ct);
-    CKERR(r);
+    toku_cachetable_close(&ct);
     // "Crash"
     r = toku_logger_close(&logger);
     CKERR(r);

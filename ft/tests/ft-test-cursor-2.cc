@@ -33,8 +33,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
 
     unlink(fname);
 
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -45,11 +44,10 @@ static void test_multiple_ft_cursor_dbts(int n) {
 	char key[10],val[10];
 	snprintf(key, sizeof key, "k%04d", i);
 	snprintf(val, sizeof val, "v%04d", i);
-	r = toku_ft_insert(brt,
-			    toku_fill_dbt(&kbt, key, 1+strlen(key)),
-			    toku_fill_dbt(&vbt, val, 1+strlen(val)),
-			    0);
-	assert(r == 0);
+	toku_ft_insert(brt,
+                       toku_fill_dbt(&kbt, key, 1+strlen(key)),
+                       toku_fill_dbt(&vbt, val, 1+strlen(val)),
+                       0);
     }
 
     for (i=0; i<n; i++) {
@@ -78,7 +76,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
     }
 
     for (i=0; i<n; i++) {
-        r = toku_ft_cursor_close(cursors[i]);
+        toku_ft_cursor_close(cursors[i]);
         assert(r == 0);
 	toku_free(ptrs[i]);
     }
@@ -86,8 +84,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
     r = toku_close_ft_handle_nolsn(brt, 0);
     assert(r==0);
 
-    r = toku_cachetable_close(&ct);
-    assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 static void test_ft_cursor(void) {

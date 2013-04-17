@@ -156,6 +156,7 @@ verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN 
 
 
 // Actually create a log file of the current version, making the environment be of the current version.
+// TODO: can't fail
 static int
 upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn, TXNID last_xid) { // the real deal
     int r;
@@ -169,8 +170,7 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn, TXNID last_x
     FOOTPRINT(1);
 
     { //Create temporary environment
-        r = toku_create_cachetable(&ct, 1<<25, initial_lsn, NULL);
-        assert(r == 0);
+        toku_cachetable_create(&ct, 1<<25, initial_lsn, NULL);
         toku_cachetable_set_env_dir(ct, env_dir);
         r = toku_logger_create(&logger);
         assert(r == 0);
@@ -184,10 +184,8 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn, TXNID last_x
         assert(r == 0);
     }
     { //Close cachetable and logger
-        r = toku_logger_shutdown(logger);
-        assert(r==0);
-        r = toku_cachetable_close(&ct);
-        assert(r==0);
+        toku_logger_shutdown(logger);
+        toku_cachetable_close(&ct);
         r = toku_logger_close(&logger);
         assert(r==0);
     }

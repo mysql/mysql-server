@@ -99,7 +99,7 @@ doit (bool after_child_pin) {
 
     toku_flusher_thread_set_callback(flusher_callback, &after_child_pin);
     
-    r = toku_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink("foo1.ft_handle");
     r = toku_open_ft_handle("foo1.ft_handle", 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -251,7 +251,7 @@ doit (bool after_child_pin) {
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
     r = toku_close_ft_handle_nolsn(c_ft, 0);    assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 int

@@ -26,7 +26,7 @@ static void test_it (int N) {
 
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);                                               CKERR(r);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
     toku_cachetable_set_env_dir(ct, TESTDIR);
 
     toku_logger_set_cachetable(logger, ct);
@@ -58,7 +58,7 @@ static void test_it (int N) {
 	snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
 	memset(val, 'v', sizeof(val));
 	val[sizeof(val)-1]=0;
-	r = toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
+	toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
 	r = toku_txn_commit_txn(txn, false, NULL, NULL);                                 CKERR(r);
 	toku_txn_close_txn(txn);
 
@@ -78,7 +78,7 @@ static void test_it (int N) {
 	char key[100];
 	DBT k;
 	snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
-	r = toku_ft_delete(brt, toku_fill_dbt(&k, key, 1+strlen(key)), txn);
+	toku_ft_delete(brt, toku_fill_dbt(&k, key, 1+strlen(key)), txn);
 
 	if (0) {
 	bool is_empty;
@@ -109,9 +109,9 @@ static void test_it (int N) {
     r = toku_close_ft_handle_nolsn(brt, NULL);                                                                             CKERR(r);
 
     r = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
-    r = toku_logger_close_rollback(logger, false);                                                             CKERR(r);
+    toku_logger_close_rollback(logger);                                                             CKERR(r);
     r = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
-    r = toku_cachetable_close(&ct);                                                                            CKERR(r);
+    toku_cachetable_close(&ct);
     r = toku_logger_close(&logger);                                                        assert(r==0);
 
 }

@@ -45,7 +45,7 @@ cachetable_put_empty_node_with_dep_nodes(
         dependent_dirty_bits[i] = (enum cachetable_dirty) dependent_nodes[i]->dirty;
     }
 
-    int r = toku_cachetable_put_with_dep_pairs(
+    toku_cachetable_put_with_dep_pairs(
         h->cf,
         ftnode_get_key_and_fullhash,
         new_node,
@@ -60,7 +60,6 @@ cachetable_put_empty_node_with_dep_nodes(
         name,
         fullhash,
         toku_node_save_ct_pair);
-    assert_zero(r);
     *result = new_node;
 }
 

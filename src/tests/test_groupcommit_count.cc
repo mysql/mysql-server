@@ -179,7 +179,7 @@ test_main (int argc, char *const argv[]) {
     gettimeofday(&prevtime, 0);
     prev_count=0;
 
-    { int r = db_env_set_func_fsync(do_fsync); CKERR(r); }
+    db_env_set_func_fsync(do_fsync);
 
     {
 	int size=20+strlen(env_path);

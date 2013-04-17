@@ -84,7 +84,7 @@ cachetable_test (void) {
     check_flush = false;
     dirty_flush_called = false;
     
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     evictor_test_helpers::disable_ev_thread(&ct->ev); // disable eviction thread
     
     char fname1[] = __SRCFILE__ "test1.dat";
@@ -118,7 +118,7 @@ cachetable_test (void) {
 
     usleep(2*1024*1024);
     check_flush = true;
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); 
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); 
     assert(r == 0);
     assert(dirty_flush_called);
     check_flush = false;
@@ -129,8 +129,8 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f2, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f2, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

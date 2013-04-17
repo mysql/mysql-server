@@ -4,14 +4,14 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 
-#ifndef _TOKU_PTHREAD_H
-#define _TOKU_PTHREAD_H
+#ifndef TOKU_PTHREAD_H
+#define TOKU_PTHREAD_H
 
 #include <pthread.h>
 #include <time.h>
 #include <stdint.h>
-#include "toku_assert.h"
 
+#include "toku_assert.h"
 
 typedef pthread_attr_t toku_pthread_attr_t;
 typedef pthread_t toku_pthread_t;
@@ -162,12 +162,14 @@ toku_cond_timedwait(toku_cond_t *cond, toku_mutex_t *mutex, toku_timespec_t *wak
 
 static inline void 
 toku_cond_signal(toku_cond_t *cond) {
-    pthread_cond_signal(&cond->pcond);
+    int r = pthread_cond_signal(&cond->pcond);
+    assert_zero(r);
 }
 
 static inline void
 toku_cond_broadcast(toku_cond_t *cond) {
-    pthread_cond_broadcast(&cond->pcond);
+    int r =pthread_cond_broadcast(&cond->pcond);
+    assert_zero(r);
 }
 
 int 
@@ -178,7 +180,6 @@ toku_pthread_self(void) {
     return pthread_self();
 }
 
-#if 1
 static inline void
 toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
     int r = pthread_rwlock_init(rwlock, attr);
@@ -214,7 +215,6 @@ toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
     int r = pthread_rwlock_unlock(rwlock);
     assert_zero(r);
 }
-#endif
 
 static inline int 
 toku_pthread_create(toku_pthread_t *thread, const toku_pthread_attr_t *attr, void *(*start_function)(void *), void *arg) {
@@ -251,5 +251,4 @@ toku_pthread_setspecific(toku_pthread_key_t key, void *data) {
     return pthread_setspecific(key, data);
 }
 
-
-#endif
+#endif /* TOKU_PTHREAD_H */

@@ -27,7 +27,6 @@ rollback_log_destroy(ROLLBACK_LOG_NODE log) {
 void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
                                           void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
                                           bool write_me, bool keep_me, bool for_checkpoint, bool is_clone) {
-    int r;
     ROLLBACK_LOG_NODE log = nullptr;
     SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;
     if (is_clone) {
@@ -40,20 +39,10 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
     }
     FT CAST_FROM_VOIDP(h, extraargs);
 
-    if (write_me && !h->panic) {
+    if (write_me) {
         assert(h->cf == cachefile);
-
-        r = toku_serialize_rollback_log_to(fd, log, serialized, is_clone, h, for_checkpoint);
-        if (r) {
-            if (h->panic==0) {
-                char *e = strerror(r);
-                int   l = 200 + strlen(e);
-                char s[l];
-                h->panic=r;
-                snprintf(s, l-1, "While writing data to disk, error %d (%s)", r, e);
-                h->panic_string = toku_strdup(s);
-            }
-        }
+        int r = toku_serialize_rollback_log_to(fd, log, serialized, is_clone, h, for_checkpoint);
+        assert(r == 0);
     }
     *new_size = size;
     if (!keep_me) {

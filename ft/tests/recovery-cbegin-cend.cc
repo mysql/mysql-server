@@ -22,12 +22,12 @@ run_test(void) {
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
     LSN beginlsn;
-    r = toku_log_begin_checkpoint(logger, &beginlsn, false, 0, 0); assert(r == 0);
+    toku_log_begin_checkpoint(logger, &beginlsn, false, 0, 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
-    r = toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0); assert(r == 0);
+    toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery

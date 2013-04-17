@@ -9,22 +9,22 @@
 //
 // Dummy callbacks for checkpointing
 //
-static int dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-static int dummy_log_rollback(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), char** UU(c), bool UU(b), LSN UU(lsn)) 
+static void dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p))
+{ return; }
+static void dummy_log_rollback(CACHEFILE UU(cf), void* UU(p))
+{ return; }
+static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), bool UU(b), LSN UU(lsn)) 
 { return 0; }
 static int dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p))
 { return 0; }
-static int dummy_begin(LSN UU(lsn), void* UU(p)) 
-{ return 0; }
-static int dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) 
-{ return 0; }
-static int dummy_note_pin(CACHEFILE UU(cf), void* UU(p)) 
-{ return 0; }
-static int dummy_note_unpin(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
+static void dummy_begin(LSN UU(lsn), void* UU(p)) 
+{ return; }
+static void dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) 
+{ return; }
+static void dummy_note_pin(CACHEFILE UU(cf), void* UU(p)) 
+{ return; }
+static void dummy_note_unpin(CACHEFILE UU(cf), void* UU(p))
+{ return; }
 
 //
 // Helper function to set dummy functions in given cachefile.

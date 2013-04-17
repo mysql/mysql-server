@@ -17,7 +17,7 @@ static void test2 (int limit) {
     char fname[]= __SRCFILE__ ".ft_handle";
     if (verbose) printf("%s:%d checking\n", __SRCFILE__, __LINE__);
     
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     if (verbose) printf("%s:%d did setup\n", __SRCFILE__, __LINE__);
@@ -27,7 +27,7 @@ static void test2 (int limit) {
 	char key[100],val[100];
 	snprintf(key,100,"hello%d",i);
 	snprintf(val,100,"there%d",i);
-	r = toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
 	assert(r==0);
 	r = toku_verify_ft(t); assert(r==0);
 	//printf("%s:%d did insert %d\n", __SRCFILE__, __LINE__, i);
@@ -35,7 +35,7 @@ static void test2 (int limit) {
     if (verbose) printf("%s:%d inserted\n", __SRCFILE__, __LINE__);
     r = toku_verify_ft(t); assert(r==0);
     r = toku_close_ft_handle_nolsn(t, 0);              assert(r==0);
-    r = toku_cachetable_close(&ct);     assert(r==0);
+    toku_cachetable_close(&ct);
     
     if (verbose) printf("test2 ok\n");
 }

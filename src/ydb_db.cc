@@ -356,17 +356,13 @@ lt_on_close_callback(toku_lock_tree *lt) {
 
 int 
 db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
-    int r;
-
     //Set comparison functions if not yet set.
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
-        r = toku_ft_set_bt_compare(db->i->ft_handle, db->dbenv->i->bt_compare);
-        assert(r==0);
+        toku_ft_set_bt_compare(db->i->ft_handle, db->dbenv->i->bt_compare);
         db->i->key_compare_was_set = true;
     }
     if (db->dbenv->i->update_function) {
-        r = toku_ft_set_update(db->i->ft_handle,db->dbenv->i->update_function);
-        assert(r==0);
+        toku_ft_set_update(db->i->ft_handle,db->dbenv->i->update_function);
     }
     toku_ft_set_redirect_callback(
         db->i->ft_handle,
@@ -398,7 +394,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, i
     db->i->open_mode = mode;
 
     FT_HANDLE ft_handle = db->i->ft_handle;
-    r = toku_ft_handle_open(ft_handle, iname_in_env,
+    int r = toku_ft_handle_open(ft_handle, iname_in_env,
                       is_db_create, is_db_excl,
                       db->dbenv->i->cachetable,
                       txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
@@ -506,7 +502,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
 
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-    r = toku_ft_change_descriptor(
+    toku_ft_change_descriptor(
         db->i->ft_handle, 
         &old_descriptor, 
         descriptor, 
@@ -514,7 +510,6 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         ttxn, 
         update_cmp_descriptor
         );
-    if (r != 0) { goto cleanup; }
 
     // the lock tree uses a copy of the header's descriptor for comparisons.
     // if we need to update the cmp descriptor, we need to make sure the lock
@@ -623,17 +618,15 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     if (txn != NULL) {
         tokutxn = db_txn_struct_i(txn)->tokutxn;
     }
-    int r = toku_ft_handle_stat64(db->i->ft_handle, tokutxn, &ftstat);
-    if (r==0) {
-        s->bt_nkeys = ftstat.nkeys;
-        s->bt_ndata = ftstat.ndata;
-        s->bt_dsize = ftstat.dsize;
-        s->bt_fsize = ftstat.fsize;
-        s->bt_create_time_sec = ftstat.create_time_sec;
-        s->bt_modify_time_sec = ftstat.modify_time_sec;
-        s->bt_verify_time_sec = ftstat.verify_time_sec;
-    }
-    return r;
+    toku_ft_handle_stat64(db->i->ft_handle, tokutxn, &ftstat);
+    s->bt_nkeys = ftstat.nkeys;
+    s->bt_ndata = ftstat.ndata;
+    s->bt_dsize = ftstat.dsize;
+    s->bt_fsize = ftstat.fsize;
+    s->bt_create_time_sec = ftstat.create_time_sec;
+    s->bt_modify_time_sec = ftstat.modify_time_sec;
+    s->bt_verify_time_sec = ftstat.verify_time_sec;
+    return 0;
 }
 
 static int 
@@ -645,12 +638,10 @@ toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u
     // this will be fixed later
     // temporarily, because the caller, locked_db_keyrange, 
     // has the ydb lock, we are ok
-    int r = toku_ft_keyrange(db->i->ft_handle, key, less, equal, greater);
-    if (r != 0) { goto cleanup; }
+    toku_ft_keyrange(db->i->ft_handle, key, less, equal, greater);
     // temporarily set is_exact to 0 because ft_keyrange does not have this parameter
     *is_exact = 0;
-cleanup:
-    return r;
+    return 0;
 }
 
 // needed by loader.c
@@ -769,8 +760,8 @@ toku_db_dbt_neg_infty(void) {
 static int
 toku_db_optimize(DB *db) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_ft_optimize(db->i->ft_handle);
-    return r;
+    toku_ft_optimize(db->i->ft_handle);
+    return 0;
 }
 
 static int
@@ -889,11 +880,9 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     
 
     FT_HANDLE brt;
-    int r;
-    r = toku_ft_handle_create(&brt);
-    if (r!=0) return r;
+    toku_ft_handle_create(&brt);
 
-    r = toku_setup_db_internal(db, env, flags, brt, false);
+    int r = toku_setup_db_internal(db, env, flags, brt, false);
     if (r != 0) return r;
 
 
@@ -1013,8 +1002,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
                 do_fsync = 1; //We only need a single fsync of logs.
                 get_lsn  = load_lsn; //Set pointer to capture the last lsn.
             }
-            rval = toku_ft_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
-            if (rval) break;
+            toku_ft_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
         }
     }
     return rval;

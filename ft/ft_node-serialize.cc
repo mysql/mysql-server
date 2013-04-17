@@ -1109,32 +1109,21 @@ void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
     toku_free(nl);
 }
 
-int
-read_block_from_fd_into_rbuf(
+void read_block_from_fd_into_rbuf(
     int fd, 
     BLOCKNUM blocknum,
     FT h,
     struct rbuf *rb
     ) 
 {
-    if (h->panic) {
-        toku_trace("panic set, will not read block from fd into buf");
-        return h->panic;
-    }
-    toku_trace("deserial start nopanic");
-    
     // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
     uint8_t *XMALLOC_N(size, raw_block);
     rbuf_init(rb, raw_block, size);
-    {
-        // read the block
-        ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
-        lazy_assert((DISKOFF)rlen == size);
-    }
-    
-    return 0;
+    // read the block
+    ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
+    lazy_assert((DISKOFF)rlen == size);
 }
 
 static const int read_header_heuristic_max = 32*1024;
@@ -1144,7 +1133,6 @@ static const int read_header_heuristic_max = 32*1024;
 static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKNUM blocknum, FT h, struct rbuf *rb)
 // Effect: If the header part of the node is small enough, then read it into the rbuf.  The rbuf will be allocated to be big enough in any case.
 {
-    assert(!h->panic);
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
     DISKOFF read_size = MIN(read_header_heuristic_max, size);
@@ -2424,17 +2412,12 @@ deserialize_ftnode_from_fd(int fd,
                             STAT64INFO info)
 {
     struct rbuf rb = RBUF_INITIALIZER;
-    int r = 0;
-    r = read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb);
-    if (r != 0) {
-        goto cleanup;
-    } // if we were successful, then we are done.
+    read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb);
 
-    r = deserialize_ftnode_from_rbuf(ftnode, ndd, blocknum, fullhash, bfe, info, &rb, fd);
+    int r = deserialize_ftnode_from_rbuf(ftnode, ndd, blocknum, fullhash, bfe, info, &rb, fd);
     if (r != 0) {
         dump_bad_block(rb.buf,rb.size);
     }
-cleanup:
     toku_free(rb.buf);
     return r;
 }
@@ -2533,6 +2516,7 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
     lazy_assert(calculated_size==wb.ndone);
 }
 
+// TODO: can't fail. assert on ENOMEM for compressed_buf...
 static int
 serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        int n_sub_blocks,
@@ -2856,9 +2840,6 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
                                   /* out */ int *layout_version_p) {
     int r = 0;
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
-    if (h->panic) return h->panic;
-
-    toku_trace("deserial start nopanic");
 
     // get the file offset and block size for the block
     DISKOFF offset, size;

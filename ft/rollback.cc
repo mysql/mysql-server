@@ -74,7 +74,6 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
     ROLLBACK_LOG_NODE MALLOC(log);
     assert(log);
 
-    int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
     FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
 
@@ -94,11 +93,10 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
     log->rollentry_resident_bytecount = 0;
 
     *result = log;
-    r = toku_cachetable_put(cf, log->blocknum, log->hash,
-                          log, rollback_memory_size(log),
-                          get_write_callbacks_for_rollback_log(h),
-                          toku_rollback_node_save_ct_pair);
-    assert(r == 0);
+    toku_cachetable_put(cf, log->blocknum, log->hash,
+                       log, rollback_memory_size(log),
+                       get_write_callbacks_for_rollback_log(h),
+                       toku_rollback_node_save_ct_pair);
     txn->roll_info.current_rollback      = log->blocknum;
     txn->roll_info.current_rollback_hash = log->hash;
 }

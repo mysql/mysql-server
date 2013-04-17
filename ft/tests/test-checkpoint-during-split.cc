@@ -99,7 +99,7 @@ doit (bool after_split) {
 
     toku_flusher_thread_set_callback(flusher_callback, &after_split);
     
-    r = toku_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink("foo4.ft_handle");
     unlink("bar4.ft_handle");
     // note the basement node size is 5 times the node size
@@ -306,7 +306,7 @@ doit (bool after_split) {
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
     r = toku_close_ft_handle_nolsn(c_ft, 0);    assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 int
