@@ -610,46 +610,6 @@ public:
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
     bool try_hot_alter_table();
 #endif
-#if TOKU_INCLUDE_ALTER_51
- public:
-    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
-    int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
-    int final_drop_index(TABLE *table_arg);
-#endif
-
-#if defined(HA_GENERAL_ONLINE)
- private:
-    void print_alter_info(
-        TABLE *altered_table,
-        HA_CREATE_INFO *create_info,
-        HA_ALTER_FLAGS *alter_flags,
-        uint table_changes
-        );
- public:
-    int check_if_supported_alter(TABLE *altered_table,
-         HA_CREATE_INFO *create_info,
-         HA_ALTER_FLAGS *alter_flags,
-         HA_ALTER_INFO  *alter_info,
-         uint table_changes
-         );
-    int alter_table_phase1(THD *thd,
-                                   TABLE *altered_table,
-                                   HA_CREATE_INFO *create_info,
-                                   HA_ALTER_INFO *alter_info,
-                                   HA_ALTER_FLAGS *alter_flags)
-    {
-      return 0;
-    }
-    int alter_table_phase2(THD *thd,
-                                   TABLE *altered_table,
-                                   HA_CREATE_INFO *create_info,
-                                   HA_ALTER_INFO *alter_info,
-                                   HA_ALTER_FLAGS *alter_flags);
-    int alter_table_phase3(THD *thd, TABLE *table)
-    {
-      return 0;
-    }
-#endif
 
  private:
     int tokudb_add_index(
