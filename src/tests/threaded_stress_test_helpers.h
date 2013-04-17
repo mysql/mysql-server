@@ -1935,7 +1935,7 @@ static struct cli_args UU() get_default_args(void) {
         .num_elements = 150000,
         .num_DBs = 1,
         .num_seconds = 180,
-        .join_timeout = 600,
+        .join_timeout = 3600,
         .only_create = false,
         .only_stress = false,
         .update_broadcast_period_ms = 2000,
