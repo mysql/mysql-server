@@ -592,7 +592,8 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
                     parent_messages_present[i]++;
                 }
             }
-            for (i = num_child_messages - 1; i >= 0; --i) {
+            for (i = j + (~7 & (num_child_messages - 1)); i >= 0; i -= 8) {
+                if (i >= num_child_messages) { continue; }
                 DBT childkeydbt, childvaldbt;
                 {
                     u_int32_t keylen, vallen;
