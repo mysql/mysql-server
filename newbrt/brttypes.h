@@ -59,7 +59,7 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 typedef struct {u_int32_t fileid;} FILENUM;
 #define FILENUM_NONE ((FILENUM){UINT32_MAX})
 
-typedef struct {u_int32_t dictid;} DICTIONARY_ID;
+typedef struct {u_int64_t dictid;} DICTIONARY_ID;
 #define DICTIONARY_ID_NONE ((DICTIONARY_ID){0})
 
 typedef struct {
