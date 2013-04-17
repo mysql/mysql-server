@@ -42,6 +42,13 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
 } DB_BTREE_STAT64;
+typedef struct __toku_engine_status {
+  int              ydb_lock_held;           /* is some thread holding the ydb lock? */ 
+  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
+  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
+  struct timeval   tbegin;                  /* time of last checkpoint begin        */ 
+  struct timeval   tend;                    /* time of last checkpoint end          */ 
+} ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5
@@ -145,7 +152,8 @@ struct __toku_db_env {
   int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */;
   int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
-  void* __toku_dummy0[4];
+  int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
+  void* __toku_dummy0[3];
   void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
   void* __toku_dummy1[39];
   char __toku_dummy2[144];
