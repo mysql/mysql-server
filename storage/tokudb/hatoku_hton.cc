@@ -349,7 +349,6 @@ static int tokudb_init_func(void *p) {
             sql_print_error("Got error %d when trying to open metadata_db", r);
             goto error;
         }
-        sql_print_warning("No metadata table exists, so creating it");
         r = metadata_db->close(metadata_db,0);
         assert(r == 0);
         r = db_create(&metadata_db, db_env, 0);
