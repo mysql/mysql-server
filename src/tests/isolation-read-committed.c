@@ -108,6 +108,8 @@ int test_main (int argc, char * const argv[]) {
         assert(((char *)(curr_key.data))[0] == 'y');
         assert(((char *)(curr_val.data))[0] == 'y');
 
+        cursor_committed->c_close(cursor_committed);
+        cursor_uncommitted->c_close(cursor_uncommitted);
     }
     r = txn_put->commit(txn_put, 0);                                                          CKERR(r);
     r = txn_committed->commit(txn_committed, 0);                                             CKERR(r);
