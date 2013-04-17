@@ -1646,6 +1646,9 @@ int ha_tokudb::initialize_share(
         if (table_share->key_info[i].flags & HA_NOSAME) {
             share->has_unique_keys = true;
         }
+        if (table_share->key_info[i].flags & HA_CLUSTERING) {
+            share->rec_has_buff[i] = true;
+        }
         if (i != primary_key) {
             error = open_secondary_dictionary(
                 &share->key_file[i],
@@ -1844,7 +1847,7 @@ exit:
         rec_buff = NULL;
         my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
         rec_update_buff = NULL;
-        for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+        for (u_int32_t i = 0; i < sizeof(mult_rec_buff)/sizeof(mult_rec_buff[0]); i++) {
             my_free(mult_rec_buff[i], MYF(MY_ALLOW_ZERO_PTR));
         }
         for (u_int32_t i = 0; i < sizeof(mult_key_buff)/sizeof(mult_key_buff[0]); i++) {
@@ -2157,7 +2160,7 @@ int ha_tokudb::__close(int mutex_is_locked) {
     for (u_int32_t i = 0; i < sizeof(mult_key_buff)/sizeof(mult_key_buff[0]); i++) {
         my_free(mult_key_buff[i], MYF(MY_ALLOW_ZERO_PTR));
     }
-    for (u_int32_t i = 0; i < (table_share->keys + test(hidden_primary_key)); i++) {
+    for (u_int32_t i = 0; i < (sizeof(mult_rec_buff)/sizeof(mult_rec_buff[0])); i++) {
         my_free(mult_rec_buff[i], MYF(MY_ALLOW_ZERO_PTR));
     }
     rec_buff = NULL;
@@ -2202,10 +2205,31 @@ bool ha_tokudb::fix_rec_update_buff_for_blob(ulong length) {
 }
 
 
+void ha_tokudb::handle_rec_buff_for_hot_index() {
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    if (share->num_DBs > curr_num_DBs) {
+        for (u_int32_t i = curr_num_DBs; i < share->num_DBs; i++) {
+            // this is the case where a hot index came along, but we have not yet created/
+            // a buffer for its val (only needed for clustering keys, which sets share->rec_has_buff[i])
+            // In this case, we must create a buffer for it
+            if (share->rec_has_buff[i] && mult_rec_buff[i] == NULL) {
+                uchar *newptr;
+                if (!(newptr = (uchar *) my_realloc((void *) mult_rec_buff[i], alloced_rec_buff_length, MYF(MY_ALLOW_ZERO_PTR)))) {
+                    assert(false);
+                }
+                mult_rec_buff[i] = newptr;
+                mult_rec_dbt[i].ulen = alloced_rec_buff_length;
+                mult_rec_dbt[i].flags = DB_DBT_USERMEM;
+                mult_rec_dbt[i].data = mult_rec_buff[i];
+            }
+        }
+    }
+}
+
 void ha_tokudb::fix_mult_rec_buff() {
     if (alloced_rec_buff_length > alloced_mult_rec_buff_length) {
-        for (uint i = 0; i < table_share->keys; i++) {
-            if (table_share->key_info[i].flags & HA_CLUSTERING) {
+        for (uint i = 0; i < share->num_DBs; i++) {
+            if (share->rec_has_buff[i]) {
                 uchar *newptr;
                 if (!(newptr = (uchar *) my_realloc((void *) mult_rec_buff[i], alloced_rec_buff_length, MYF(MY_ALLOW_ZERO_PTR)))) {
                     assert(false);
@@ -3817,6 +3841,7 @@ int ha_tokudb::write_row(uchar * record) {
     
     txn = create_sub_trans ? sub_trans : transaction;    
 
+    handle_rec_buff_for_hot_index();
     //
     // make sure the buffers for the rows are big enough
     //
@@ -4027,6 +4052,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (error) { goto cleanup; }
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
+    handle_rec_buff_for_hot_index();
     lockretryN(wait_lock_time){
         error = db_env->update_multiple(
             db_env, 
@@ -6867,6 +6893,8 @@ int ha_tokudb::tokudb_add_index(
             if (error) {
                 goto cleanup;
             }
+
+            share->rec_has_buff[curr_index] = true;
         }
 
 
