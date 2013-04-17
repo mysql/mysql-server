@@ -464,6 +464,60 @@ ulonglong get_read_lock_wait_time (THD* thd) {
     return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
 }
 
+
+typedef struct txn_progress_info {
+    char status[200];
+    THD* thd;
+} *TXN_PROGRESS_INFO;
+
+
+void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
+    TXN_PROGRESS_INFO progress_info = (TXN_PROGRESS_INFO)extra;
+    int r;
+    if (progress->stalled_on_checkpoint) {
+        r = sprintf(
+            progress_info->status, 
+            "stalled on checkpoint, processed %lld out of %lld", 
+            progress->entries_processed, 
+            progress->entries_total
+            ); 
+        assert(r >= 0);
+    }
+    else {
+        r = sprintf(
+            progress_info->status, 
+            "processed %lld out of %lld", 
+            progress->entries_processed, 
+            progress->entries_total
+            ); 
+        assert(r >= 0);
+    }
+    thd_proc_info(progress_info->thd, progress_info->status);
+}
+
+
+static void commit_txn_with_progress(DB_TXN* txn, u_int32_t flags, THD* thd) {
+    int r;
+    struct txn_progress_info info;
+    info.thd = thd;
+    r = txn->commit_with_progress(txn, flags, txn_progress_func, &info);
+    if (r != 0) {
+        sql_print_error("tried committing transaction %p and got error code %d", txn, r);
+    }
+    assert(r == 0);
+}
+
+static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
+    int r;
+    struct txn_progress_info info;
+    info.thd = thd;
+    r = txn->abort_with_progress(txn, txn_progress_func, &info);
+    if (r != 0) {
+        sql_print_error("tried aborting transaction %p and got error code %d", txn, r);
+    }
+    assert(r == 0);
+}
+
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_commit");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
@@ -474,7 +528,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("commit:%d:%p\n", all, *txn);
         }
-        commit_txn(*txn, syncflag);
+        commit_txn_with_progress(*txn, syncflag, thd);
         if (*txn == trx->sp_level) {
             trx->sp_level = 0;
         }
@@ -496,7 +550,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("rollback:%p\n", *txn);
         }
-        abort_txn(*txn);
+        abort_txn_with_progress(*txn, thd);
         if (*txn == trx->sp_level) {
             trx->sp_level = 0;
         }
