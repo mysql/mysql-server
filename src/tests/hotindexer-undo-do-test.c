@@ -16,40 +16,49 @@
 #include "indexer-internal.h"
 #include "xids-internal.h"
 
+typedef enum {
+    TOKUTXN_NOT_LIVE, TOKUTXN_LIVE, TOKUTXN_COMMIT, TOKUTXN_ABORT,
+} TOKUTXN_STATE;
+
+struct txn {
+    TXNID xid;
+    TOKUTXN_STATE state;
+};
+
 struct live {
     int n;
     int o;
-    TXNID *xids;
+    struct txn *txns;
 };
 
 static void
 live_init(struct live *live) {
     live->n = live->o = 0;
-    live->xids = NULL;
+    live->txns = NULL;
 }
 
 static void
 live_destroy(struct live *live) {
-    toku_free(live->xids);
+    toku_free(live->txns);
 }
 
 static void
-live_add(struct live *live, TXNID xid) {
+live_add(struct live *live, TXNID xid, TOKUTXN_STATE state) {
     if (live->o >= live->n) {
         int newn = live->n == 0 ? 1 : live->n * 2;
-        live->xids = (TXNID *) toku_realloc(live->xids, newn * sizeof (TXNID));
-        resource_assert(live->xids);
+        live->txns = (struct txn *) toku_realloc(live->txns, newn * sizeof (struct txn));
+        resource_assert(live->txns);
         live->n = newn;
     }
-    live->xids[live->o++] = xid;
+    live->txns[live->o++] = (struct txn ) { xid, state };
 }
 
 static int
-is_live(struct live *live, TXNID xid) {
-    int r = 0;
+txn_state(struct live *live, TXNID xid) {
+    int r = TOKUTXN_NOT_LIVE;
     for (int i = 0; i < live->o; i++) {
-        if (live->xids[i] == xid) {
-            r = 1;
+        if (live->txns[i].xid == xid) {
+            r = live->txns[i].state;
             break;
         }
     }
@@ -189,9 +198,9 @@ static DB_INDEXER *test_indexer = NULL;
 static DB *test_hotdb = NULL;
 
 static int
-test_is_xid_live(DB_INDEXER *indexer, TXNID xid) {
+test_xid_state(DB_INDEXER *indexer, TXNID xid) {
     invariant(indexer == test_indexer);
-    int r = is_live(&live_xids, xid);
+    int r = txn_state(&live_xids, xid);
     return r;
 }
 
@@ -199,7 +208,7 @@ static int
 test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(indexer == test_indexer);
     invariant(hotdb == test_hotdb);
-    invariant(test_is_xid_live(indexer, xid));
+    invariant(test_xid_state(indexer, xid) == TOKUTXN_LIVE);
     printf("lock [%lu] ", xid);
     print_dbt(key);
     printf("\n");
@@ -325,7 +334,22 @@ read_test(char *testname, ULE ule) {
             // live xid...
             if (strcmp(fields[0], "live") == 0) {
                 for (int i = 1; i < nfields; i++)
-                    live_add(&live_xids, atoll(fields[i]));
+                    live_add(&live_xids, atoll(fields[i]), TOKUTXN_LIVE);
+                continue;
+            }
+            // xid <XID> [live|committing|aborting]
+            if (strcmp(fields[0], "xid") == 0 && nfields == 3) {
+                TXNID xid = atoll(fields[1]);
+                TOKUTXN_STATE state = TOKUTXN_NOT_LIVE;
+                if (strcmp(fields[2], "live") == 0)
+                    state = TOKUTXN_LIVE;
+                else if (strcmp(fields[2], "committing") == 0)
+                    state = TOKUTXN_COMMIT;
+                else if (strcmp(fields[2], "aborting") == 0)
+                    state = TOKUTXN_ABORT;
+                else
+                    assert(0);
+                live_add(&live_xids, xid, state);
                 continue;
             }
             // key KEY
@@ -410,7 +434,7 @@ run_test(char *envdir, char *testname) {
     r = env->create_indexer(env, txn, &indexer, src_db, 1, &dest_db, NULL, 0); assert_zero(r);
 
     // set test callbacks
-    indexer->i->test_is_xid_live = test_is_xid_live;
+    indexer->i->test_xid_state = test_xid_state;
     indexer->i->test_lock_key = test_lock_key;
     indexer->i->test_delete_provisional = test_delete_provisional;
     indexer->i->test_delete_committed = test_delete_committed;

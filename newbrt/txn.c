@@ -253,6 +253,8 @@ int toku_txn_begin_with_xid (
     result->force_fsync_on_commit = FALSE;
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
+    result->state = TOKUTXN_LIVE;
+
     // 2954
     r = toku_txn_ignore_init(result);
     if (r != 0) goto died;
@@ -352,6 +354,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+    txn->state = TOKUTXN_COMMIT;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
     }
@@ -388,6 +391,7 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+    txn->state = TOKUTXN_ABORT;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
     }
@@ -684,4 +688,9 @@ int toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum)
         }
     }
     return ENOENT;
+}
+
+TOKUTXN_STATE
+toku_txn_get_state(TOKUTXN txn) {
+    return txn->state;
 }

@@ -114,6 +114,8 @@ BDB_DONTRUN_TESTS = \
 	hotindexer-lock-test \
 	hotindexer-multiclient \
 	hotindexer-nested-insert-committed \
+	hotindexer-put-abort \
+	hotindexer-put-commit \
 	hotindexer-put-multiple \
 	hotindexer-simple-abort \
 	hotindexer-undo-do-test \

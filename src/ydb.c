@@ -2345,7 +2345,8 @@ toku_txn_release_locks(DB_TXN* txn) {
 static void 
 ydb_yield (voidfp f, void *fv, void *UU(v)) {
     toku_ydb_unlock(); 
-    if (f) f(fv);
+    if (f) 
+        f(fv);
     toku_ydb_lock();
 }
 

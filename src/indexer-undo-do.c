@@ -1,10 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 /*
- * Copyright (c) 2010 Tokutek Inc.  All rights reserved." 
+ * Copyright (c) 2010-2011 Tokutek Inc.  All rights reserved.
  * The technology is licensed by the Massachusetts Institute of Technology, 
  * Rutgers State University of New Jersey, and the Research Foundation of 
  * State University of New York at Stony Brook under United States of America 
- * Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+ * Serial No. 11/760379 and to the patents and/or patent applications resulting from it.
  */
 
 #include <stdio.h>
@@ -70,7 +70,7 @@ indexer_commit_keys_set_empty(struct indexer_commit_keys *keys) {
 
 // internal functions
 static int indexer_set_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result);
-static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, BOOL xid_is_live, XIDS *xids_result);
+static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result);
 
 static BOOL indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
 
@@ -81,7 +81,8 @@ static int indexer_brt_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *h
 static int indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
 static int indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
 static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid);
-static int indexer_is_xid_live(DB_INDEXER *indexer, TXNID xid);
+static TOKUTXN_STATE indexer_xid_state(DB_INDEXER *indexer, TXNID xid);
+
 
 // initialize undo globals located in the indexer private object
 void
@@ -184,7 +185,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     XIDS xids = xids_get_root_xids();
 
     TXNID outermost_xid = TXNID_NONE;
-    BOOL outermost_is_live = FALSE;
+    TOKUTXN_STATE outermost_xid_state = TOKUTXN_NOT_LIVE;
 
     // scan the provisional stack from bottom to top
     uint32_t num_committed = ule_get_num_committed(ule);
@@ -195,20 +196,25 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
         UXRHANDLE uxr = ule_get_uxr(ule, xrindex);
 
         TXNID this_xid = uxr_get_txnid(uxr);
-        BOOL this_xid_is_live = indexer_is_xid_live(indexer, this_xid);
+        TOKUTXN_STATE this_xid_state = indexer_xid_state(indexer, this_xid);
+
+        if (this_xid_state == TOKUTXN_ABORT)
+            break;         // nothing to do once we reach a transaction that is aborting
+
         if (xrindex == num_committed) {
             outermost_xid = this_xid;
-            outermost_is_live = this_xid_is_live;
-        }
-
-        // setup up the xids
-        result = indexer_append_xid(indexer, this_xid, this_xid_is_live, &xids);
+            outermost_xid_state = this_xid_state;
+            result = indexer_set_xid(indexer, this_xid, &xids);    // always add the outermost xid to the XIDS list
+        } else if (this_xid_state == TOKUTXN_LIVE)
+            result = indexer_append_xid(indexer, this_xid, &xids); // append a live xid to the XIDS list
         if (result != 0)
             break;
 
-        // skip placeholders
+        if (outermost_xid_state != TOKUTXN_LIVE && xrindex > num_committed)
+            invariant(this_xid_state == TOKUTXN_NOT_LIVE);
+
         if (uxr_is_placeholder(uxr))
-            continue;
+            continue;         // skip placeholders
 
         // undo
         uint64_t prev_xrindex;
@@ -222,14 +228,16 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 result = indexer_generate_hot_key_val(indexer, hotdb, ule, prevuxr, &indexer->i->hotkey, NULL);
                 if (result == 0) {
                     // send the delete message
-                    if (!outermost_is_live) {
-                        result = indexer_brt_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
-                        if (result == 0)
-                            indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
-                    } else {
+                    if (outermost_xid_state == TOKUTXN_LIVE) {
+                        invariant(this_xid_state != TOKUTXN_ABORT);
                         result = indexer_brt_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids);
                         if (result == 0)
                             result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
+                    } else {
+                        invariant(outermost_xid_state == TOKUTXN_NOT_LIVE || outermost_xid_state == TOKUTXN_COMMIT);
+                        result = indexer_brt_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
+                        if (result == 0)
+                            indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
                     }
                 }
             } else
@@ -246,17 +254,19 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             result = indexer_generate_hot_key_val(indexer, hotdb, ule, uxr, &indexer->i->hotkey, &indexer->i->hotval);
             if (result == 0) {
                 // send the insert message
-                if (!outermost_is_live) {
+                if (outermost_xid_state == TOKUTXN_LIVE) {
+                    invariant(this_xid_state != TOKUTXN_ABORT);
+                    result = indexer_brt_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+                    if (result == 0) 
+                        result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
+                } else {
+                    invariant(outermost_xid_state == TOKUTXN_NOT_LIVE || outermost_xid_state == TOKUTXN_COMMIT);
                     result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
 #if 0
                     // no need to do this
                     if (result == 0)
                         indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
 #endif
-                } else {
-                    result = indexer_brt_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
-                    if (result == 0) 
-                        result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                 }
             }
         } else
@@ -287,7 +297,7 @@ indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     return result;
 }
 
-// the committed XIDS always = [this_xid]
+// set xids_result = [root_xid, this_xid]
 // Note that this could be sped up by adding a new xids constructor that constructs the stack with
 // exactly one xid.
 static int
@@ -310,34 +320,16 @@ indexer_set_xid(DB_INDEXER *UU(indexer), TXNID this_xid, XIDS *xids_result) {
     return result;
 }
 
-// the provisional XIDS = XIDS . [this_xid] when this_xid is live or when XIDS is empty
+// append xid to xids_result
 static int
-indexer_append_xid(DB_INDEXER *UU(indexer), TXNID xid, BOOL xid_is_live, XIDS *xids_result) {
-    int result = 0;
+indexer_append_xid(DB_INDEXER *UU(indexer), TXNID xid, XIDS *xids_result) {
     XIDS old_xids = *xids_result;
     XIDS new_xids;
-    if (xids_get_num_xids(old_xids) == 0) {
-        // setup xids = [ root xid, xid ]
-        new_xids = xids_get_root_xids();
-        if (xid > 0) {
-            XIDS child_xids;
-            result = xids_create_child(new_xids, &child_xids, xid);
-	    xids_destroy(&new_xids);
-            if (result == 0) {
-		new_xids = child_xids;
-                xids_destroy(&old_xids);
-                *xids_result = new_xids;
-            }
-	}
-    } else if (xid_is_live) {
-        // append xid to xids
-        result = xids_create_child(old_xids, &new_xids, xid);
-        if (result == 0) {
-            xids_destroy(&old_xids);
-            *xids_result = new_xids;
-        }
+    int result = xids_create_child(old_xids, &new_xids, xid);
+    if (result == 0) {
+        xids_destroy(&old_xids);
+        *xids_result = new_xids;
     }
-
     return result;
 }
 
@@ -365,18 +357,19 @@ indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRH
 
 // looks up the TOKUTXN by TXNID.  if it does not exist then the transaction is committed.
 // returns TRUE if the xid is committed.  otherwise returns FALSE.
-static int
-indexer_is_xid_live(DB_INDEXER *indexer, TXNID xid) {
-    int result = 0;
+static TOKUTXN_STATE
+indexer_xid_state(DB_INDEXER *indexer, TXNID xid) {
+    TOKUTXN_STATE result = TOKUTXN_NOT_LIVE;
     // TEST
-    if (indexer->i->test_is_xid_live) {
-        result = indexer->i->test_is_xid_live(indexer, xid);
+    if (indexer->i->test_xid_state) {
+        result = indexer->i->test_xid_state(indexer, xid);
     } else {
         DB_ENV *env = indexer->i->env;
         TOKUTXN txn = NULL;
         int r = toku_txnid2txn(env->i->logger, xid, &txn);
         invariant(r == 0);
-        result = txn != NULL;
+        if (txn) 
+            result = toku_txn_get_state(txn);
     }
     return result;
 }
