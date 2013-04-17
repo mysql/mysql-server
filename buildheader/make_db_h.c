@@ -43,9 +43,10 @@ void print_db_notices (void) {
     printf("#define %s %d\n", #name, bit);      \
 } while (0)
 
-#define dodefine_track_enum(flags, name) do {assert(!(flags[name])); \
+#define dodefine_track_enum(flags, name) do {assert(name>=0 && name<256); \
+                                             assert(!(flags[name])); \
                                              flags[name] = 1;        \
-                                        printf("#define %s %d\n", #name, name);} while (0)
+                                             printf("#define %s %d\n", #name, name);} while (0)
 #define dodefine_from_track_enum(flags, name) do {   \
     uint32_t which;                             \
     /* don't use 0 */                           \
