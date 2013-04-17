@@ -3268,7 +3268,9 @@ int ha_tokudb::read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT c
 void ha_tokudb::read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_key_only");
     table->status = 0;
-    unpack_key(buf, found_key, keynr);
+    if (!(hidden_primary_key && keynr == primary_key)) {
+        unpack_key(buf, found_key, keynr);
+    }
     if (!hidden_primary_key && (keynr != primary_key) && !(table->key_info[keynr].flags & HA_CLUSTERING)) {
         unpack_key(buf, row, primary_key);
     }
