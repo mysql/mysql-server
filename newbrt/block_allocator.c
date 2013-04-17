@@ -192,3 +192,12 @@ block_allocator_block_size (BLOCK_ALLOCATOR ba, u_int64_t offset) {
     assert(bn>=0); // we require that there is a block with that offset.  Might as well abort if no such block exists.
     return ba->blocks_array[bn].size;
 }
+
+u_int64_t
+block_allocator_allocated_limit (BLOCK_ALLOCATOR ba) {
+    if (ba->n_blocks==0) return ba->reserve_at_beginning;
+    else {
+	struct blockpair *last = &ba->blocks_array[ba->n_blocks-1];
+	return last->offset + last->size;
+    }
+}

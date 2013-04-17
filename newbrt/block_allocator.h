@@ -84,4 +84,12 @@ block_allocator_validate (BLOCK_ALLOCATOR ba);
 void
 block_allocator_print (BLOCK_ALLOCATOR ba);
 
+u_int64_t
+block_allocator_allocated_limit (BLOCK_ALLOCATOR ba);
+// Effect: Return the unallocated block address of "infinite" size.
+//  That is, return the smallest address that is above all the allocated blocks.
+// Rationale: When writing the root FIFO we don't know how big the block is.
+//  So we start at the "infinite" block, write the fifo, and then
+//  allocate_block_at of the correct size and offset to account for the root FIFO.
+
 #endif
