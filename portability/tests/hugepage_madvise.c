@@ -4,10 +4,6 @@
 
 enum which_mallocator { M_LIBC, M_JEMALLOC, M_DARWIN } which_mallocator;
 
-size_t malloc_usable_size (void *p) {
-    return 4096;
-}
-
 int main (int argc, const char *argv[] __attribute__((__unused__))) {
     assert(argc==1);
     void *p;
