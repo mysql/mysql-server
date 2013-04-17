@@ -1005,13 +1005,22 @@ static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_ext
     return r;
 }
 
+typedef void (*rangequery_row_cb)(DB *db, const DBT *key, const DBT *val, void *extra);
 struct rangequery_cb_extra {
     int rows_read;
-    int limit;
+
+    // Call cb(db, key, value, cb_extra) on up to $limit rows.
+    const int limit;
+    const rangequery_row_cb cb;
+    DB *const db;
+    void *const cb_extra;
 };
 
-static int rangequery_cb(const DBT *UU(key), const DBT *UU(value), void *extra) {
+static int rangequery_cb(const DBT *key, const DBT *value, void *extra) {
     struct rangequery_cb_extra *CAST_FROM_VOIDP(info, extra);
+    if (info->cb != nullptr) {
+        info->cb(info->db, key, value, info->cb_extra);
+    }
     if (++info->rows_read >= info->limit) {
         return 0;
     } else {
@@ -1019,7 +1028,7 @@ static int rangequery_cb(const DBT *UU(key), const DBT *UU(value), void *extra) 
     }
 }
 
-static void rangequery_db(DB *db, DB_TXN *txn, ARG arg) {
+static void rangequery_db(DB *db, DB_TXN *txn, ARG arg, rangequery_row_cb cb, void *cb_extra) {
     const int limit = arg->cli->range_query_limit;
 
     int r;
@@ -1036,10 +1045,13 @@ static void rangequery_db(DB *db, DB_TXN *txn, ARG arg) {
     r = db->cursor(db, txn, &cursor, 0); CKERR(r);
     r = cursor->c_pre_acquire_range_lock(cursor, &start_key, &end_key); CKERR(r);
 
-    struct rangequery_cb_extra extra;
-    extra.rows_read = 0;
-    extra.limit = limit;
-
+    struct rangequery_cb_extra extra = {
+        .rows_read = 0,
+        .limit = limit,
+        .cb = cb,
+        .db = db,
+        .cb_extra = cb_extra,
+    };
     r = cursor->c_getf_set(cursor, 0, &start_key, rangequery_cb, &extra);
     while (r == 0 && extra.rows_read < extra.limit && run_test) {
         r = cursor->c_getf_next(cursor, 0, rangequery_cb, &extra);
@@ -1051,7 +1063,7 @@ static void rangequery_db(DB *db, DB_TXN *txn, ARG arg) {
 static int UU() rangequery_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB *db = arg->dbp[db_index];
-    rangequery_db(db, txn, arg);
+    rangequery_db(db, txn, arg, nullptr, nullptr);
     increment_counter(stats_extra, PTQUERIES, 1);
     return 0;
 }
@@ -2647,7 +2659,7 @@ UU() stress_recover(struct cli_args *args) {
 }
 
 static void
-test_main(struct cli_args *args, bool fill_with_zeroes)
+open_and_stress_tables(struct cli_args *args, bool fill_with_zeroes, int (*cmp)(DB *, const DBT *, const DBT *))
 {
     if ((args->key_size < 8 && args->key_size != 4) ||
         (args->val_size < 8 && args->val_size != 4)) {
@@ -2666,7 +2678,7 @@ test_main(struct cli_args *args, bool fill_with_zeroes)
             &env,
             dbs,
             args->num_DBs,
-            stress_cmp,
+            cmp,
             args
             );
         { int chk_r = fill_tables(env, dbs, args, fill_with_zeroes); CKERR(chk_r); }
@@ -2676,7 +2688,7 @@ test_main(struct cli_args *args, bool fill_with_zeroes)
         { int chk_r = open_tables(&env,
                                   dbs,
                                   args->num_DBs,
-                                  stress_cmp,
+                                  cmp,
                                   args); CKERR(chk_r); }
         if (args->warm_cache) {
             do_warm_cache(env, dbs, args);
@@ -2690,14 +2702,21 @@ static void
 UU() stress_test_main(struct cli_args *args) {
     // Begin the test with fixed size values equal to zero.
     // This is important for correctness testing.
-    test_main(args, true);
+    open_and_stress_tables(args, true, stress_cmp);
 }
 
 static void
 UU() perf_test_main(struct cli_args *args) {
     // Do not begin the test by creating a table of all zeroes.
     // We want to control the row size and its compressibility.
-    test_main(args, false);
+    open_and_stress_tables(args, false, stress_cmp);
+}
+
+static void
+UU() perf_test_main_with_cmp(struct cli_args *args, int (*cmp)(DB *, const DBT *, const DBT *)) {
+    // Do not begin the test by creating a table of all zeroes.
+    // We want to control the row size and its compressibility.
+    open_and_stress_tables(args, false, cmp);
 }
 
 #endif
