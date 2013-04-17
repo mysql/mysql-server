@@ -666,7 +666,7 @@ public:
 
 private:
     int read_full_row(uchar * buf);
-    int __close(int mutex_is_locked);
+    int __close();
     int get_next(uchar* buf, int direction, DBT* key_to_compare);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
     // for ICP, only in MariaDB and MySQL 5.6
