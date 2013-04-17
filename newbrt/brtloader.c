@@ -130,7 +130,7 @@ int brtloader_init_file_infos (struct file_infos *fi) {
     if (fi->file_infos) return 0;
     else {
 	int result = errno;
-        toku_pthread_mutex_destroy(&fi->lock);
+        toku_pthread_mutex_destroy(&fi->lock); // lazy no error check and maybe done elsewhere
         return result;
     }
 }
@@ -874,7 +874,7 @@ static void* extractor_thread (void *blv) {
 
 static void enqueue_for_extraction (BRTLOADER bl) {
     //printf("%s:%d enqueing %ld items\n", __FILE__, __LINE__, bl->primary_rowset.n_rows);
-    struct rowset *MALLOC(enqueue_me);
+    struct rowset *XMALLOC(enqueue_me);
     *enqueue_me = bl->primary_rowset;
     zero_rowset(&bl->primary_rowset);
     int r = queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
@@ -958,7 +958,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 {
     int error_count = 0;
     // cilk++ bug int error_codes[bl-N]; 
-    int *MALLOC_N(bl->N, error_codes);
+    int *XMALLOC_N(bl->N, error_codes);
 
     // Do parallelize this loop with cilk_grainsize = 1 so that every iteration will run in parallel.
 #if defined(__cilkplusplus)
@@ -1324,7 +1324,7 @@ static int extend_fileset (BRTLOADER bl, struct merge_fileset *fs, FIDX*ffile)
 
     if (fs->n_temp_files+1 > fs->n_temp_files_limit) {
 	fs->n_temp_files_limit = (fs->n_temp_files+1)*2;
-	REALLOC_N(fs->n_temp_files_limit, fs->data_fidxs);
+	XREALLOC_N(fs->n_temp_files_limit, fs->data_fidxs);
     }
     fs->data_fidxs[fs->n_temp_files] = sfile;
     fs->n_temp_files++;
@@ -1706,7 +1706,7 @@ int merge_files (struct merge_fileset *fs,
 	    //printf("%s:%d merging\n", __FILE__, __LINE__);
 	    FIDX merged_data = FIDX_NULL;
 
-	    FIDX *MALLOC_N(n_to_merge, data_fidxs);
+	    FIDX *XMALLOC_N(n_to_merge, data_fidxs);
 	    for (int i=0; i<n_to_merge; i++) {
 		data_fidxs[i] = FIDX_NULL;
 	    }
@@ -2003,8 +2003,7 @@ static inline long int loader_random(void) {
 
 static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *desc, int64_t lblocknum) {
     invariant(lblocknum < out->n_translations_limit);
-    struct leaf_buf *MALLOC(lbuf);
-    resource_assert(lbuf);
+    struct leaf_buf *XMALLOC(lbuf);
     lbuf->blocknum = lblocknum;
     dbuf_init(&lbuf->dbuf);
     int height=0;
@@ -2219,7 +2218,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    invariant(desc_size>0);
 	    out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].size = desc_size;
 	    struct wbuf wbuf;
-	    char *MALLOC_N(desc_size, buf);
+	    char *XMALLOC_N(desc_size, buf);
 	    wbuf_init(&wbuf, buf, desc_size);
 	    toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
 	    u_int32_t checksum = x1764_finish(&wbuf.checksum);
