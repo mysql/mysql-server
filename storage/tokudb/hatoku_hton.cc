@@ -284,7 +284,7 @@ static uint32_t tokudb_env_flags = 0;
 // static uint32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
-static my_bool tokudb_directIO = FALSE;
+static my_bool tokudb_directio = FALSE;
 static ulonglong tokudb_cache_size = 0;
 static ulonglong tokudb_max_lock_memory = 0;
 static char *tokudb_home;
@@ -511,7 +511,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
     assert(!r);
     db_env->set_update(db_env, tokudb_update_fun);
-    db_env_set_direct_io(tokudb_directIO == TRUE);
+    db_env_set_direct_io(tokudb_directio == TRUE);
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
@@ -1883,7 +1883,7 @@ static void tokudb_cleaner_iterations_update(THD * thd,
 #define DEFAULT_CLEANER_ITERATIONS 5
 
 
-static MYSQL_SYSVAR_BOOL(directIO, tokudb_directIO,
+static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
   PLUGIN_VAR_READONLY,
   "TokuDB Enable Direct I/O ",
   NULL, NULL, FALSE);
@@ -1943,7 +1943,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_block_size),
     MYSQL_SYSVAR(read_buf_size),
     MYSQL_SYSVAR(row_format),
-    MYSQL_SYSVAR(directIO),
+    MYSQL_SYSVAR(directio),
 #if TOKU_INCLUDE_UPSERT
     MYSQL_SYSVAR(disable_slow_update),
     MYSQL_SYSVAR(disable_slow_upsert),
