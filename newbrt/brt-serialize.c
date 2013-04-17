@@ -7,6 +7,12 @@
 #include "backwards_10.h"
 
 // NOTE: The backwards compatability functions are in a file that is included at the END of this file.
+static int deserialize_brtheader_10 (int fd, struct rbuf *rb, struct brt_header **brth);
+static int upgrade_brtheader_10_11 (struct brt_header **brth_10, struct brt_header **brth_11);
+static int decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum);
+static int deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb);
+static int upgrade_brtnode_10_11 (BRTNODE *brtnode_10, BRTNODE *brtnode_11);
+
 
 #if 0
 static u_int64_t ntohll(u_int64_t v) {
@@ -965,13 +971,27 @@ decompress_brtnode_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
     int r;
+    BRTNODE brtnode_10 = NULL;
+    BRTNODE brtnode_11 = NULL;
+
+    int upgrade = 0;
     switch (version) {
         case BRT_LAYOUT_VERSION_10:
-            r = deserialize_brtnode_from_rbuf_10(blocknum, fullhash, brtnode, h, rb);
-            break;
+            if (!upgrade)
+                r = deserialize_brtnode_from_rbuf_10(blocknum, fullhash, &brtnode_10, h, rb);
+            upgrade++;
+            if (r==0)
+                r = upgrade_brtnode_10_11(&brtnode_10, &brtnode_11);
+            //Fall through on purpose.
         case BRT_LAYOUT_VERSION:
-            r = deserialize_brtnode_from_rbuf(blocknum, fullhash, brtnode, h, rb);
-            break;
+            if (!upgrade)
+                r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &brtnode_11, h, rb);
+            if (r==0) {
+                assert(brtnode_11);
+                *brtnode = brtnode_11;
+            }
+            if (upgrade && r == 0) (*brtnode)->dirty = 1;
+            break;    // this is the only break
         default:
             assert(FALSE);
     }
@@ -1397,8 +1417,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
     int rval;
-    brt_header_10 *brth_10 = NULL;
-    brt_header_11 *brth_11 = NULL;
+    struct brt_header *brth_10 = NULL;
+    struct brt_header *brth_11 = NULL;
     int upgrade = 0;
 
     switch(version) {
@@ -1408,6 +1428,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 	upgrade++;
 	if (rval == 0) 
 	    rval = upgrade_brtheader_10_11(&brth_10, &brth_11);
+        //Fall through on purpose.
     case BRT_LAYOUT_VERSION:
 	if (!upgrade)
 	    rval = deserialize_brtheader (fd, rb, &brth_11);

@@ -6,12 +6,28 @@
 #ifndef BACKWARD_10_H
 #define BACKWARD_10_H
 
-static int deserialize_brtheader_10 (int fd, struct rbuf *rb, brt_header_10 **brth);
+int le10_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result);
+int le10_both (TXNID xid, u_int32_t cklen, void* ckval, u_int32_t cdlen, void* cdval, u_int32_t pdlen, void* pdval,
+	     u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result);
+int le10_provdel (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
+		u_int32_t *resultsize, u_int32_t *memsize, LEAFENTRY *result);
+int le10_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result);
 
-static int upgrade_brtheader_10_11 (brt_header_10 **brth_10, brt_header_11 **brth_11);
+enum le_state { LE_COMMITTED=1, // A committed pair.
+		LE_BOTH,        // A committed pair and a provisional pair.
+		LE_PROVDEL,     // A committed pair that has been provisionally deleted
+		LE_PROVPAIR };  // No committed value, but a provisional pair.
 
-static int decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum);
-
-static int deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb);
+static inline enum le_state get_le_state(LEAFENTRY le) {
+    return (enum le_state)*(unsigned char *)le;
+}
+#include "ule.h"
+//Exposed ule functions for the purpose of upgrading
+void toku_upgrade_ule_init_empty_ule(ULE ule, u_int32_t keylen, void * keyp);
+void toku_upgrade_ule_remove_innermost_uxr(ULE ule);
+void toku_upgrade_ule_push_insert_uxr(ULE ule, TXNID xid, u_int32_t vallen, void * valp);
+void toku_upgrade_ule_push_delete_uxr(ULE ule, TXNID xid);
+//Exposed brt functions for the purpose of upgrading
+void toku_upgrade_maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction);
 
 #endif

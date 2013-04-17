@@ -1418,7 +1418,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
         u_int32_t size = leafentry_memsize(le);
 
         // This mfree must occur after the mempool_malloc so that when the mempool is compressed everything is accounted for.
-        // But we must compute the size before doing the mempool malloc because otherwise the le pointer is no good.
+        // But we must compute the size before doing the mempool mfree because otherwise the le pointer is no good.
         toku_mempool_mfree(&node->u.l.buffer_mempool, 0, size); // Must pass 0, since le may be no good any more.
         
         node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
@@ -1428,7 +1428,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 
     } else {
         if (le) {
-            // It's there, note that it's gone and remove it from the mempool
+            // It was there, note that it's gone and remove it from the mempool
 
 	    // Figure out if one of the other keys is the same key
 	    maybe_bump_nkeys(node, idx, le, -1);
@@ -4751,3 +4751,11 @@ toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
     }
     return 0;
 }
+
+//Wrapper functions for upgrading from version 10.
+#include "backwards_10.h"
+void
+toku_upgrade_maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
+    maybe_bump_nkeys(node, idx, le, direction);
+}
+

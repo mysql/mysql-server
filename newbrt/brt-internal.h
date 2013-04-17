@@ -92,7 +92,7 @@ struct brtnode {
     //      When we checkpoint:  Create a checkpoint record, and cause every dirty node to be written to disk.  The new checkpoint record is *not* incorporated into the disk_lsn of the written nodes.
     //      While we are checkpointing, someone may modify a dirty node that has not yet been written.   In that case, when we unpin the node, we make the new copy (because the disk_lsn<checkpoint_lsn), just as we would usually.
     //
-    int    layout_version; // What version of the data structure? (version 2 adds the xid to the brt cmds)
+    int    layout_version; // What version of the data structure?
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
@@ -177,10 +177,6 @@ struct brt_header {
     struct list live_brts;
     struct list zombie_brts;
 };
-
-typedef struct brt_header brt_header_10;
-
-typedef struct brt_header brt_header_11;
 
 struct brt {
     CACHEFILE cf;
