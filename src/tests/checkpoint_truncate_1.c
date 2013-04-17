@@ -92,7 +92,7 @@ void checkpoint_callback_1(void * extra) {
 
 int
 test_main (int argc, char *argv[]) {
-    int limit = 512;
+    int limit = 4;
     parse_args(argc, argv);
 
     db_env_set_checkpoint_callback(checkpoint_callback_1, &test_dictionary);
