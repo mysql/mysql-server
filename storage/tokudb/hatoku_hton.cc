@@ -239,8 +239,7 @@ static char *tokudb_log_dir;
 // static long tokudb_lock_scan_time = 0;
 // static ulong tokudb_region_size = 0;
 // static ulong tokudb_cache_parts = 1;
-static const char tokudb_hton_name[] = "TokuDB";
-static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
+const char *tokudb_hton_name = "TokuDB";
 static u_int32_t tokudb_checkpointing_period;
 u_int32_t tokudb_write_status_frequency;
 u_int32_t tokudb_read_status_frequency;
@@ -1127,7 +1126,7 @@ format_time(u_int64_t time64, char *buf) {
 
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
-                                          tokudb_hton_name_length, \
+                                          strlen(tokudb_hton_name), \
                                           legend, \
                                           strlen(legend), \
                                           val, \
@@ -1565,7 +1564,7 @@ mysql_declare_plugin(tokudb)
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
     &tokudb_storage_engine, 
-    "TokuDB", 
+    tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
@@ -1612,7 +1611,7 @@ maria_declare_plugin(tokudb)
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
     &tokudb_storage_engine, 
-    "TokuDB", 
+    tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
