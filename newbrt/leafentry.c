@@ -408,7 +408,7 @@ void* any_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(va
     return val;
 }
 void* any_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval, u_int32_t UU(plen), void *UU(pval)) {
-    return cval;
+    return pval;
 }
 void* any_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval) {
     return cval;
