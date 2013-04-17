@@ -1072,8 +1072,7 @@ static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
 // or not there are any threads interested in the pair.  The flush callback
 // is called with write_me and keep_me both false, and the pair is destroyed.
 
-static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* destroyed) {
-    *destroyed = FALSE;
+static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
     if (rwlock_users(&p->rwlock) == 0) {
         cachetable_remove_pair(ct, p);
 
@@ -1095,7 +1094,6 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* 
         rwlock_read_unlock(&cachefile->fdlock);
 
         ctpair_destroy(p);
-        *destroyed = TRUE;
     }
 }
 
@@ -1166,7 +1164,7 @@ static int cachetable_fetch_pair(
     }
 }
 
-static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed);
+static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove);
 
 // Write a pair to storage
 // Effects: an exclusive lock on the pair is obtained, the write callback is called,
@@ -1218,24 +1216,21 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
     // otherwise complete the write now
     if (p->cq)
         workqueue_enq(p->cq, &p->asyncwork, 1);
-    else {
-        BOOL destroyed;
-        cachetable_complete_write_pair(ct, p, p->remove_me, &destroyed);
-    }
+    else
+        cachetable_complete_write_pair(ct, p, remove_me);
 }
 
 // complete the write of a pair by reseting the writing flag, and 
 // maybe removing the pair from the cachetable if there are no
 // references to it
 
-static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed) {
+static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove) {
     p->cq = 0;
     p->state = CTPAIR_IDLE;
     
     rwlock_write_unlock(&p->rwlock);
-    if (do_remove) {
-        cachetable_maybe_remove_and_free_pair(ct, p, destroyed);
-    }
+    if (do_remove)
+        cachetable_maybe_remove_and_free_pair(ct, p);
 }
 
 
@@ -2381,8 +2376,7 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
         p->cq = 0;
         if (p->state == CTPAIR_READING || p->state == CTPAIR_WRITING) { //Some other thread owned the lock, but transferred ownership to the thread executing this function
             rwlock_write_unlock(&p->rwlock);  //Release the lock, no one has a pin.
-            BOOL destroyed;
-            cachetable_maybe_remove_and_free_pair(ct, p, &destroyed);
+            cachetable_maybe_remove_and_free_pair(ct, p);
         } else if (p->state == CTPAIR_INVALID) {
             abort_fetch_pair(p);
         } else
@@ -2484,19 +2478,13 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
                     assert(rwlock_writers(&p->rwlock) == 1);
                     assert(rwlock_readers(&p->rwlock) == 0);
                     assert(rwlock_blocked_readers(&p->rwlock) == 0);
-                    BOOL destroyed = FALSE;
-                    cachetable_complete_write_pair(ct, p, TRUE, &destroyed);
-                    if (destroyed) {
-                        break;
-                    }
+                    cachetable_complete_write_pair(ct, p, TRUE);
                 }
                 workqueue_destroy(&cq);
             }
             else {
                 //Remove pair.
-                BOOL destroyed = FALSE;;
-                cachetable_maybe_remove_and_free_pair(ct, p, &destroyed);
-                assert(destroyed);
+                cachetable_maybe_remove_and_free_pair(ct, p);
             }
             r = 0;
 	    goto done;
