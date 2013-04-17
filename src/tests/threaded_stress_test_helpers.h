@@ -546,7 +546,7 @@ static void *worker(void *arg_v) {
             r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
-        if (!arg->cli->single_txn && arg->do_prepare) {
+        if (r==0 && !arg->cli->single_txn && arg->do_prepare) {
             u_int8_t gid[DB_GID_SIZE];
             memset(gid, 0, DB_GID_SIZE);
             u_int64_t gid_val = txn->id64(txn);
