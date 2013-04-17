@@ -236,12 +236,6 @@ toku_txn_prepare (DB_TXN *txn, uint8_t gid[DB_GID_SIZE]) {
     return toku_txn_xa_prepare(txn, &xid);
 }
 
-static uint32_t 
-locked_txn_id(DB_TXN *txn) {
-    uint32_t r = toku_txn_id(txn); 
-    return r;
-}
-
 static int 
 toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
@@ -318,13 +312,13 @@ txn_func_init(DB_TXN *txn) {
     STXN(commit);
     STXN(abort_with_progress);
     STXN(commit_with_progress);
-    STXN(id);
     STXN(txn_stat);
 #undef STXN
 #define SUTXN(name) txn->name = toku_txn_ ## name
     SUTXN(prepare);
     SUTXN(xa_prepare);
 #undef SUTXN
+    txn->id = toku_txn_id;
     txn->id64 = toku_txn_id64;
 }
 
