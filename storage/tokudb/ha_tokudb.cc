@@ -3329,7 +3329,7 @@ int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, share->rows);
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
-        stats.records = share->rows;
+        stats.records = share->rows + share->rows_from_locked_table;
         stats.deleted = 0;
     }
     if ((flag & HA_STATUS_CONST)) {
@@ -3573,7 +3573,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         pthread_mutex_unlock(&share->mutex);
         added_rows = 0;
         deleted_rows = 0;
-
+        share->rows_from_locked_table = 0;
         if (!--trx->tokudb_lock_count) {
             if (trx->stmt) {
                 /*
@@ -3615,6 +3615,9 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         DBUG_PRINT("trans", ("starting transaction stmt"));
         error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, toku_iso_to_txn_flag(trx->iso_level));
         trans_register_ha(thd, FALSE, tokudb_hton);
+    }
+    if (added_rows > deleted_rows) {
+        share->rows_from_locked_table = added_rows - deleted_rows;
     }
     transaction = trx->stmt;
     TOKUDB_DBUG_RETURN(error);
