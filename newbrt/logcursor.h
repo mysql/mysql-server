@@ -42,6 +42,8 @@ int toku_logcursor_last(const TOKULOGCURSOR lc, struct log_entry **le);
 // return 0 if log exists, ENOENT if no log
 int toku_logcursor_log_exists(const TOKULOGCURSOR lc);
 
+void toku_logcursor_print(TOKULOGCURSOR lc);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
