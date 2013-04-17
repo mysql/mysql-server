@@ -670,10 +670,6 @@ fill_key_buf(integer_t key, uint8_t *data, struct cli_args *args) {
 //          int64_t k = 5; fill_key_buf(k, ...) // RIGHT
     invariant(sizeof(integer_t) >= min_key_size);
     invariant(sizeof(integer_t) <= args->key_size);
-    if (args->key_size != 4) {
-        invariant(args->key_size >= 8);
-        invariant(sizeof(key) == 8);
-    }
     integer_t *k = reinterpret_cast<integer_t *>(data);
     if (args->disperse_keys) {
         *k = static_cast<integer_t>(breverse(key));
@@ -1958,8 +1954,6 @@ static struct cli_args UU() get_default_args_for_perf(void) {
     args.num_elements = 1000000; //default of 1M
     //args.print_performance = true;
     args.env_args = DEFAULT_PERF_ENV_ARGS;
-    args.key_size = sizeof(uint64_t);
-    args.val_size = sizeof(uint64_t);
     return args;
 }
 
