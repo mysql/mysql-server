@@ -32,8 +32,6 @@ extern "C" {
 
 #define TOKU_METADB_NAME "tokudb_meta"
 
-#define DEFAULT_LOCK_TIMEOUT_USEC (4UL * 1000 * 1000)
-
 typedef struct savepoint_info {
     DB_TXN* txn;
     tokudb_trx_data* trx;
@@ -424,7 +422,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
 
-    r = db_env->set_lock_timeout(db_env, DEFAULT_LOCK_TIMEOUT_USEC);
+    r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout);
     assert(r == 0);
 
     r = db_create(&metadata_db, db_env, 0);
@@ -1548,6 +1546,8 @@ static void tokudb_lock_timeout_update(THD * thd,
     *timeout = *(const ulonglong *) save;
     db_env->set_lock_timeout(db_env, *timeout);
 }
+
+#define DEFAULT_LOCK_TIMEOUT_USEC (4UL * 1000 * 1000)
 
 static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
         0, "TokuDB lock timeout", 

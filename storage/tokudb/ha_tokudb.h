@@ -306,7 +306,6 @@ private:
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
     struct loader_context lc;
 
-    ulonglong read_lock_wait_time;
     DB_LOADER* loader;
     bool abort_loader;
     int loader_error;

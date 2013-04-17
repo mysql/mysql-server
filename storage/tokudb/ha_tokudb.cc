@@ -1209,7 +1209,6 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_blob_bytes = 0;
     delay_updating_ai_metadata = false;
     ai_metadata_update_required = false;
-    read_lock_wait_time = 4000;
     bzero(mult_key_dbt, sizeof(mult_key_dbt));
     bzero(mult_rec_dbt, sizeof(mult_rec_dbt));
     loader = NULL;
