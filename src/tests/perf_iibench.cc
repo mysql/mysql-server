@@ -120,7 +120,7 @@ test_main(int argc, char *const argv[]) {
     args.num_DBs = 4;
     args.txn_size = 1000;
     args.key_size = 8;
-    args.val_size = 32;
+    args.val_size = 8;
     parse_stress_test_args(argc, argv, &args);
     // when there are multiple threads, its valid for two of them to
     // generate the same key and one of them fail with DB_LOCK_NOTGRANTED
@@ -128,6 +128,6 @@ test_main(int argc, char *const argv[]) {
         args.crash_on_operation_failure = false;
     }
     args.env_args.generate_put_callback = iibench_generate_row_for_put;
-    stress_test_main(&args);
+    stress_test_main_with_cmp(&args, stress_uint64_dbt_cmp);
     return 0;
 }
