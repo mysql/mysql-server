@@ -606,7 +606,7 @@ static inline bool
 is_null_field( TABLE* table, Field* field, const uchar* record) {
     uint null_offset;
     bool ret_val;
-    if (!field->null_ptr) {
+    if (!field->real_maybe_null()) {
         ret_val = false;
         goto exitpt;
     }
@@ -5970,7 +5970,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         added_rows = 0;
         deleted_rows = 0;
         share->rows_from_locked_table = 0;
-        if (!--trx->tokudb_lock_count) {
+        if (trx->tokudb_lock_count > 0 && !--trx->tokudb_lock_count) {
             if (trx->stmt) {
                 /*
                    F_UNLCK is done without a transaction commit / rollback.
