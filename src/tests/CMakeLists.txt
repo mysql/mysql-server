@@ -369,80 +369,83 @@ if(BUILD_TESTING)
 
     declare_custom_bdb_tests(test1426.bdb)
     configure_file(run_test1426.sh . COPYONLY)
-    add_test(NAME test1426.tdb
+    add_test(NAME ydb/test1426.tdb
       COMMAND run_test1426.sh
           $<TARGET_FILE:test1426.tdb> $<TARGET_FILE:test1426.bdb>
           $<TARGET_FILE:tokudb_dump> "${BDBDIR}/bin/db_dump"
           test1426.bdbdump/dump.bdb.1426)
-    add_dependencies(test1426.tdb tokudb_dump)
+    add_dependencies(ydb/test1426.tdb tokudb_dump)
   endif()
 
   string(REGEX REPLACE "\\.c(;|$)" ".tdb\\1" recover_would_be_tdb_tests "${recover_srcs}")
   declare_custom_tests(${recover_would_be_tdb_tests})
 
   declare_custom_tests(powerfail.tdb)
-  add_test(powerfail.tdb echo must run powerfail by hand)
+  add_test(ydb/powerfail.tdb echo must run powerfail by hand)
 
   declare_custom_tests(checkpoint_stress.tdb)
   configure_file(run_checkpoint_stress_test.sh . COPYONLY)
-  add_test(NAME checkpoint_stress.tdb
+  add_test(NAME ydb/checkpoint_stress.tdb
     COMMAND run_checkpoint_stress_test.sh $<TARGET_FILE:checkpoint_stress.tdb> 5 5001 137)
 
   declare_custom_tests(recover_stress.tdb)
   add_custom_executable(recover stress.tdb checkpoint_stress.c)
   configure_file(run_recover_stress_test.sh . COPYONLY)
-  add_test(NAME recover_stress.tdb
+  add_test(NAME ydb/recover_stress.tdb
     COMMAND run_recover_stress_test.sh $<TARGET_FILE:recover_stress.tdb> 5 5001 137)
 
   declare_custom_tests(diskfull.tdb)
   configure_file(run_diskfull_test.sh . COPYONLY)
-  add_test(NAME diskfull.tdb
+  add_test(NAME ydb/diskfull.tdb
     COMMAND run_diskfull_test.sh $<TARGET_FILE:diskfull.tdb> 134)
 
   declare_custom_tests(recovery_fileops_unit.tdb)
   configure_file(run_recovery_fileops_unit_test.sh . COPYONLY)
-  add_test(NAME recovery_fileops_unit.tdb
+  add_test(NAME ydb/recovery_fileops_unit.tdb
     COMMAND run_recovery_fileops_unit_test.sh $<TARGET_FILE:recovery_fileops_unit.tdb> 137)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.recovery_fileops_unit.c.errors")
 
-  if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR USE_GCOV))
+  if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR
+           (CMAKE_C_COMPILER_ID STREQUAL Intel AND
+            CMAKE_BUILD_TYPE STREQUAL Release)
+           OR USE_GCOV))
     declare_custom_tests(helgrind1.tdb)
-    add_test(NAME helgrind_helgrind1.tdb
+    add_test(NAME ydb/helgrind_helgrind1.tdb
       COMMAND valgrind --quiet --tool=helgrind --error-exitcode=1 --log-file=helgrind1.tdb.deleteme $<TARGET_FILE:helgrind1.tdb>)
-    set_tests_properties(helgrind_helgrind1.tdb PROPERTIES WILL_FAIL TRUE)
+    set_tests_properties(ydb/helgrind_helgrind1.tdb PROPERTIES WILL_FAIL TRUE)
   endif()
   declare_custom_tests(helgrind2.tdb)
   declare_custom_tests(helgrind3.tdb)
-  add_helgrind_test(helgrind2.tdb $<TARGET_FILE:helgrind2.tdb>)
-  add_helgrind_test(helgrind3.tdb $<TARGET_FILE:helgrind3.tdb>)
+  add_helgrind_test(ydb/helgrind_helgrind2.tdb $<TARGET_FILE:helgrind2.tdb>)
+  add_helgrind_test(ydb/helgrind_helgrind3.tdb $<TARGET_FILE:helgrind3.tdb>)
 
   declare_custom_tests(test_groupcommit_count.tdb)
-  add_test(test_groupcommit_count.tdb test_groupcommit_count.tdb -n 1 -p vgrind)
+  add_test(ydb/test_groupcommit_count.tdb test_groupcommit_count.tdb -n 1 -p vgrind)
 
   add_custom_executable(helgrind test_groupcommit_count.tdb test_groupcommit_count.c)
-  add_helgrind_test(helgrind_test_groupcommit_count.tdb $<TARGET_FILE:helgrind_test_groupcommit_count.tdb> -n 1 -p hgrind)
+  add_helgrind_test(ydb/helgrind_test_groupcommit_count.tdb $<TARGET_FILE:helgrind_test_groupcommit_count.tdb> -n 1 -p hgrind)
 
   add_custom_executable(drd test_groupcommit_count.tdb test_groupcommit_count.c)
-  add_drd_test(drd_test_groupcommit_count.tdb $<TARGET_FILE:drd_test_groupcommit_count.tdb> -n 1 -p drd)
+  add_drd_test(ydb/drd_test_groupcommit_count.tdb $<TARGET_FILE:drd_test_groupcommit_count.tdb> -n 1 -p drd)
 
   add_custom_executable(drd test_4015.tdb test_4015.c)
-  add_drd_test(drd_test_4015.tdb $<TARGET_FILE:drd_test_4015.tdb>)
+  add_drd_test(ydb/drd_test_4015.tdb $<TARGET_FILE:drd_test_4015.tdb>)
 
   configure_file(run_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if(NOT ${src} MATCHES hot_index)
       string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
 
-      add_test(${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000)
+      add_test(ydb/${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000)
 
       add_custom_executable(tiny ${test} ${src})
-      add_drd_test(drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
+      add_drd_test(ydb/drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
       add_custom_executable(mid ${test} ${src})
-      add_drd_test(drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
-      set_tests_properties(drd_mid_${test} PROPERTIES TIMEOUT 14400)
+      add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
+      set_tests_properties(ydb/drd_mid_${test} PROPERTIES TIMEOUT 14400)
       add_custom_executable(large ${test} ${src})
-      add_drd_test(drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
-      set_tests_properties(drd_large_${test} PROPERTIES TIMEOUT 28800)
+      add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
+      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 28800)
     endif()
   endforeach(src)
 
@@ -453,12 +456,12 @@ if(BUILD_TESTING)
   #  MAIN_DEPENDENCY run_test_thread_stack.sh
   #  VERBATIM)
   #add_custom_target(install_run_test_thread_stack.sh ALL DEPENDS run_test_thread_stack.sh)
-  #add_test(test_thread_stack.tdb run_test_thread_stack.sh "${CMAKE_CFG_INTDIR}/test_thread_stack.tdb")
+  #add_test(ydb/test_thread_stack.tdb run_test_thread_stack.sh "${CMAKE_CFG_INTDIR}/test_thread_stack.tdb")
 
   declare_custom_tests(root_fifo_41.tdb)
   foreach(num RANGE 1 100)
-    add_test(root_fifo_41_${num}_populate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_populate.tdbdir -populate)
-    add_test(root_fifo_41_${num}_nopopulate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_nopopulate.tdbdir)
+    add_test(ydb/root_fifo_41_${num}_populate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_populate.tdbdir -populate)
+    add_test(ydb/root_fifo_41_${num}_nopopulate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_nopopulate.tdbdir)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
       root_fifo_41_${num}_populate.tdbdir
       root_fifo_41_${num}_nopopulate.tdbdir
@@ -467,24 +470,24 @@ if(BUILD_TESTING)
 
   declare_custom_tests(test3039.tdb)
   configure_file(run_test3039.sh . COPYONLY)
-  add_test(NAME test3039.tdb
+  add_test(NAME ydb/test3039.tdb
     COMMAND run_test3039.sh $<TARGET_FILE:test3039.tdb>)
 
   declare_custom_tests(test_abort4.tdb)
   foreach(num RANGE -1 19)
-    add_test(test_abort4_${num}_0.tdb test_abort4.tdb -e dir.test_abort4_${num}_0.tdb -c 0 -l ${num})
-    add_test(test_abort4_${num}_1.tdb test_abort4.tdb -e dir.test_abort4_${num}_1.tdb -c 1 -l ${num})
+    add_test(ydb/test_abort4_${num}_0.tdb test_abort4.tdb -e dir.test_abort4_${num}_0.tdb -c 0 -l ${num})
+    add_test(ydb/test_abort4_${num}_1.tdb test_abort4.tdb -e dir.test_abort4_${num}_1.tdb -c 1 -l ${num})
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES dir.test_abort4_${num}_0.tdb dir.test_abort4_${num}_1.tdb)
   endforeach(num)
 
   set_property(SOURCE loader-stress-test.c APPEND PROPERTY COMPILE_DEFINITIONS
     "OLDDATADIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../../../../tokudb.data/\"")
   list(REMOVE_ITEM loader_tests loader-stress-test.loader)
-  add_test(loader-stress-test0.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0.tdb)
-  add_test(loader-stress-test1.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1.tdb)
-  add_test(loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2.tdb)
-  add_test(loader-stress-test3.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3.tdb)
-  add_test(loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4.tdb)
+  add_test(ydb/loader-stress-test0.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0.tdb)
+  add_test(ydb/loader-stress-test1.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1.tdb)
+  add_test(ydb/loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2.tdb)
+  add_test(ydb/loader-stress-test3.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3.tdb)
+  add_test(ydb/loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-stress-test0.tdb
     dir.loader-stress-test1.tdb
@@ -494,12 +497,12 @@ if(BUILD_TESTING)
     )
 
   list(REMOVE_ITEM loader_tests loader-dup-test.loader)
-  add_test(loader-dup-test0.tdb loader-dup-test.tdb -e dir.loader-dup-test0.tdb)
-  add_test(loader-dup-test1.tdb loader-dup-test.tdb -d 1 -r 500000 -e dir.loader-dup-test1.tdb)
-  add_test(loader-dup-test2.tdb loader-dup-test.tdb -d 1 -r 1000000 -e dir.loader-dup-test2.tdb)
-  add_test(loader-dup-test3.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3.tdb)
-  add_test(loader-dup-test4.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4.tdb)
-  add_test(loader-dup-test5.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5.tdb)
+  add_test(ydb/loader-dup-test0.tdb loader-dup-test.tdb -e dir.loader-dup-test0.tdb)
+  add_test(ydb/loader-dup-test1.tdb loader-dup-test.tdb -d 1 -r 500000 -e dir.loader-dup-test1.tdb)
+  add_test(ydb/loader-dup-test2.tdb loader-dup-test.tdb -d 1 -r 1000000 -e dir.loader-dup-test2.tdb)
+  add_test(ydb/loader-dup-test3.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3.tdb)
+  add_test(ydb/loader-dup-test4.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4.tdb)
+  add_test(ydb/loader-dup-test5.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-dup-test0.tdb
     dir.loader-dup-test1.tdb
@@ -511,10 +514,10 @@ if(BUILD_TESTING)
 
   ## as part of #4503, we took out test 1 and 3
   list(REMOVE_ITEM loader_tests loader-cleanup-test.loader)
-  add_test(loader-cleanup-test0.tdb loader-cleanup-test.tdb -s -r 800 -e dir.loader-cleanup-test0.tdb)
-  #add_test(loader-cleanup-test1.tdb loader-cleanup-test.tdb -s -r 800 -p -e dir.loader-cleanup-test1.tdb)
-  add_test(loader-cleanup-test2.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2.tdb)
-  #add_test(loader-cleanup-test3.tdb loader-cleanup-test.tdb -s -r 8000 -p -e dir.loader-cleanup-test3.tdb)
+  add_test(ydb/loader-cleanup-test0.tdb loader-cleanup-test.tdb -s -r 800 -e dir.loader-cleanup-test0.tdb)
+  #add_test(ydb/loader-cleanup-test1.tdb loader-cleanup-test.tdb -s -r 800 -p -e dir.loader-cleanup-test1.tdb)
+  add_test(ydb/loader-cleanup-test2.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2.tdb)
+  #add_test(ydb/loader-cleanup-test3.tdb loader-cleanup-test.tdb -s -r 8000 -p -e dir.loader-cleanup-test3.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-cleanup-test0.tdb
     dir.loader-cleanup-test1.tdb
@@ -523,12 +526,12 @@ if(BUILD_TESTING)
     )
 
   declare_custom_tests(keyrange.tdb)
-  add_test(keyrange-get0.tdb keyrange.tdb --get 0 --envdir dir.keyrange-get0.tdb)
-  add_test(keyrange-get1.tdb keyrange.tdb --get 1 --envdir dir.keyrange-get1.tdb)
-  add_test(keyrange-random-get0.tdb keyrange.tdb --get 0 --random_keys 1 --envdir dir.keyrange-random-get0.tdb)
-  add_test(keyrange-random-get1.tdb keyrange.tdb --get 1 --random_keys 1 --envdir dir.keyrange-random-get1.tdb)
-  add_test(keyrange-loader-get0.tdb keyrange.tdb --get 0 --loader 1 --envdir dir.keyrange-loader-get0.tdb)
-  add_test(keyrange-loader-get1.tdb keyrange.tdb --get 1 --loader 1 --envdir dir.keyrange-loader-get1.tdb)
+  add_test(ydb/keyrange-get0.tdb keyrange.tdb --get 0 --envdir dir.keyrange-get0.tdb)
+  add_test(ydb/keyrange-get1.tdb keyrange.tdb --get 1 --envdir dir.keyrange-get1.tdb)
+  add_test(ydb/keyrange-random-get0.tdb keyrange.tdb --get 0 --random_keys 1 --envdir dir.keyrange-random-get0.tdb)
+  add_test(ydb/keyrange-random-get1.tdb keyrange.tdb --get 1 --random_keys 1 --envdir dir.keyrange-random-get1.tdb)
+  add_test(ydb/keyrange-loader-get0.tdb keyrange.tdb --get 0 --loader 1 --envdir dir.keyrange-loader-get0.tdb)
+  add_test(ydb/keyrange-loader-get1.tdb keyrange.tdb --get 1 --loader 1 --envdir dir.keyrange-loader-get1.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.keyrange-get0.tdb
     dir.keyrange-get1.tdb
@@ -539,8 +542,8 @@ if(BUILD_TESTING)
     )
 
   declare_custom_tests(maxsize-for-loader.tdb)
-  add_test(maxsize-for-loader-A.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-A.tdb -f)
-  add_test(maxsize-for-loader-B.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-B.tdb)
+  add_test(ydb/maxsize-for-loader-A.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-A.tdb -f)
+  add_test(ydb/maxsize-for-loader-B.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-B.tdb)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.maxsize-for-loader-A.tdb
     dir.maxsize-for-loader-B.tdb
@@ -555,17 +558,17 @@ if(BUILD_TESTING)
   endforeach(result)
   foreach(test ${hotindexer_tests})
     configure_file(${test} ${test} COPYONLY)
-    add_test(NAME ${test} COMMAND run-hotindexer-undo-do-tests.bash ${test})
+    add_test(NAME ydb/${test} COMMAND run-hotindexer-undo-do-tests.bash ${test})
   endforeach()
 
   foreach(test ${tdb_tests} ${bdb_tests})
-    add_test(${test} ${test})
+    add_test(ydb/${test} ${test})
   endforeach(test)
 
   configure_file(run_recover_test.sh . COPYONLY)
   foreach(recover_test ${recover_tests})
     get_filename_component(base ${recover_test} NAME_WE)
-    add_test(NAME ${recover_test}
+    add_test(NAME ydb/${recover_test}
       COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.c.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump_static>)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.tdb" "dir.${base}.c.tdb.recover")
   endforeach(recover_test)
@@ -573,14 +576,14 @@ if(BUILD_TESTING)
   configure_file(run_abortrecover_test.sh . COPYONLY)
   foreach(abortrecover_test ${abortrecover_tests})
     get_filename_component(base ${abortrecover_test} NAME_WE)
-    add_test(NAME ${base}.abortrecover
+    add_test(NAME ydb/${base}.abortrecover
       COMMAND run_abortrecover_test.sh $<TARGET_FILE:${base}.tdb> 137)
   endforeach(abortrecover_test)
 
   foreach(loader_test ${loader_tests})
     get_filename_component(base ${loader_test} NAME_WE)
-    add_test(${base}.nop.loader ${base}.tdb -e "dir.${base}.nop.loader")
-    add_test(${base}.p.loader ${base}.tdb -p -e "dir.${base}.p.loader")
+    add_test(ydb/${base}.nop.loader ${base}.tdb -e "dir.${base}.nop.loader")
+    add_test(ydb/${base}.p.loader ${base}.tdb -p -e "dir.${base}.p.loader")
     if("${tdb_tests_that_should_fail}" MATCHES "${base}.loader")
       list(REMOVE_ITEM tdb_tests_that_should_fail ${base}.loader)
       list(APPEND tdb_tests_that_should_fail ${base}.nop.loader ${base}.p.loader)
@@ -588,64 +591,66 @@ if(BUILD_TESTING)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.nop.loader" "dir.${base}.p.loader")
   endforeach(loader_test)
 
+  set(tdb_tests_that_should_fail "ydb/${tdb_tests_that_should_fail}")
+  string(REGEX REPLACE ";" ";ydb/" tdb_tests_that_should_fail "${tdb_tests_that_should_fail}")
   set_tests_properties(${tdb_tests_that_should_fail} PROPERTIES WILL_FAIL TRUE)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    test_query.tdb
-    test1572.tdb
-    checkpoint_1.tdb
-    env-put-multiple.tdb
-    loader-cleanup-test0.tdb
-    loader-cleanup-test2.tdb
-    loader-stress-test4.tdb
-    manyfiles.tdb
-    root_fifo_1.tdb
-    root_fifo_2.tdb
-    root_fifo_31.tdb
-    root_fifo_32.tdb
-    shutdown-3344.tdb
-    stat64-create-modify-times.tdb
-    test_abort4_19_0.tdb
-    test_abort4_19_1.tdb
-    test_abort5.tdb
-    test_archive1.tdb
-    test_logmax.tdb
-    test_txn_abort5.tdb
-    test_txn_abort5a.tdb
-    test_txn_abort6.tdb
-    test_txn_nested2.tdb
-    test_txn_nested4.tdb
-    test_txn_nested5.tdb
-    recovery_fileops_stress.tdb
-    recovery_fileops_unit.tdb
+    ydb/test_query.tdb
+    ydb/test1572.tdb
+    ydb/checkpoint_1.tdb
+    ydb/env-put-multiple.tdb
+    ydb/loader-cleanup-test0.tdb
+    ydb/loader-cleanup-test2.tdb
+    ydb/loader-stress-test4.tdb
+    ydb/manyfiles.tdb
+    ydb/root_fifo_1.tdb
+    ydb/root_fifo_2.tdb
+    ydb/root_fifo_31.tdb
+    ydb/root_fifo_32.tdb
+    ydb/shutdown-3344.tdb
+    ydb/stat64-create-modify-times.tdb
+    ydb/test_abort4_19_0.tdb
+    ydb/test_abort4_19_1.tdb
+    ydb/test_abort5.tdb
+    ydb/test_archive1.tdb
+    ydb/test_logmax.tdb
+    ydb/test_txn_abort5.tdb
+    ydb/test_txn_abort5a.tdb
+    ydb/test_txn_abort6.tdb
+    ydb/test_txn_nested2.tdb
+    ydb/test_txn_nested4.tdb
+    ydb/test_txn_nested5.tdb
+    ydb/recovery_fileops_stress.tdb
+    ydb/recovery_fileops_unit.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
-      test1426.tdb
-      root_fifo_1.bdb
-      root_fifo_31.bdb
-      test_log10.bdb
-      test_log7.bdb
-      test_logmax.bdb
-      rowsize.bdb
+      ydb/test1426.tdb
+      ydb/root_fifo_1.bdb
+      ydb/root_fifo_31.bdb
+      ydb/test_log10.bdb
+      ydb/test_log7.bdb
+      ydb/test_logmax.bdb
+      ydb/rowsize.bdb
       )
   endif (BDB_FOUND)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
-    drd_test_4015.tdb
-    test3039.tdb
-    loader-dup-test0.tdb
-    loader-stress-del.p.loader
-    loader-stress-del.nop.loader
-    hotindexer-with-queries.tdb
+    ydb/drd_test_4015.tdb
+    ydb/test3039.tdb
+    ydb/loader-dup-test0.tdb
+    ydb/loader-stress-del.p.loader
+    ydb/loader-stress-del.nop.loader
+    ydb/hotindexer-with-queries.tdb
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these really take a long time with valgrind
   set(phenomenally_long_tests
-    checkpoint_stress.tdb
-    recover_stress.tdb
+    ydb/checkpoint_stress.tdb
+    ydb/recover_stress.tdb
     )
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING)

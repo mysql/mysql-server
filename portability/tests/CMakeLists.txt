@@ -30,23 +30,23 @@ if(BUILD_TESTING)
   endforeach(src)
 
   list(REMOVE_ITEM tests test-pwrite4g)
-  add_test(test-pwrite4g test-pwrite4g .)
+  add_test(portability/test-pwrite4g test-pwrite4g .)
 
   configure_file(ensure_memcheck_fails.sh . COPYONLY)
   foreach(test try-leak-lost try-leak-reachable try-uninit)
     list(REMOVE_ITEM tests ${test})
 
-    add_test(NAME ${test}
+    add_test(NAME portability/${test}
       COMMAND ensure_memcheck_fails.sh $<TARGET_FILE:${test}> valgrind --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --trace-children=yes --trace-children-skip=sh,*/sh,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,test,wc,*/wc)
   endforeach(test)
 
   foreach(test ${tests})
-    add_test(${test} ${test})
+    add_test(portability/${test} ${test})
   endforeach(test)
 
   set(portability_tests_should_fail
-    try-assert0
-    try-assert-zero
+    portability/try-assert0
+    portability/try-assert-zero
     )
 
   set_tests_properties(${portability_tests_should_fail} PROPERTIES WILL_FAIL TRUE)
