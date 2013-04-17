@@ -2501,7 +2501,7 @@ void ha_tokudb::print_error(int error, myf errflag) {
     if (error == DB_LOCK_DEADLOCK)
         error = HA_ERR_LOCK_DEADLOCK;
     if (error == DB_LOCK_NOTGRANTED)
-        error = ER_CANT_LOCK;
+        error = HA_ERR_LOCK_WAIT_TIMEOUT;
     handler::print_error(error, errflag);
 }
 
