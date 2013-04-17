@@ -51,16 +51,16 @@ int madvise (void *addr, size_t length, int advice) {
     char *m=mem;
     if (counter==0) {
 	assert(m+4096==a);
-	assert(length==16*1024*1024-4096);
-	assert(advice==MADV_DONTNEED);
+	assert(length=16*1024*1024-4096);
+	assert(advice=MADV_DONTNEED);
     } else if (counter==1) {
 	assert(m+2*1024*1024+4096==a);
-	assert(length==16*1024*1024-2*1024*1024-4096);
-	assert(advice==MADV_DONTNEED);
+	assert(length=16*1024*1024-2*1024*1024-4096);
+	assert(advice=MADV_DONTNEED);
     } else if (counter==2) {
 	assert(m+4*1024*1024+4096==a);
-	assert(length==16*1024*1024-4*1024*1024-4096);
-	assert(advice==MADV_DONTNEED);
+	assert(length=16*1024*1024-4*1024*1024-4096);
+	assert(advice=MADV_DONTNEED);
     } else {
 	printf("madvise(%p, 0x%lx, %d)\n", addr, length, advice);
 	abort();

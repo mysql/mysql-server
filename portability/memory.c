@@ -16,7 +16,6 @@
 #endif
 #include <dlfcn.h>
 #include <valgrind/helgrind.h>
-#include <sys/mman.h>
 #include "memory.h"
 #include "toku_assert.h"
 
@@ -26,11 +25,8 @@ static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
 static realloc_fun_t t_xrealloc = 0;
 
-enum which_mallocator { M_LIBC, M_JEMALLOC, M_DARWIN } which_mallocator;
 static LOCAL_MEMORY_STATUS_S status;
 int toku_memory_do_stats = 0;
-
-static size_t pagesize = 0;
 
 typedef size_t (*malloc_usable_size_fun_t)(const void *);
 static malloc_usable_size_fun_t malloc_usable_size_f;
@@ -44,8 +40,6 @@ toku_memory_startup(void) {
     }
     memory_startup_complete = true;
 
-    pagesize = sysconf(_SC_PAGESIZE);
-
     int result = 0;
 
 #if defined(HAVE_M_MMAP_THRESHOLD)
@@ -55,7 +49,6 @@ toku_memory_startup(void) {
     if (success) {
         status.mallocator_version = "libc";
         status.mmap_threshold = mmap_threshold;
-        which_mallocator = M_LIBC;
     } else
         result = EINVAL;
 #else
@@ -71,7 +64,6 @@ toku_memory_startup(void) {
     mallctl_fun_t mallctl_f;
     mallctl_f = (mallctl_fun_t) dlsym(RTLD_DEFAULT, "mallctl");
     if (mallctl_f) { // jemalloc is loaded
-        which_mallocator = M_JEMALLOC;
         size_t version_length = sizeof status.mallocator_version;
         result = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
         if (result == 0) {
@@ -134,6 +126,7 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
 
 size_t 
 toku_memory_footprint(void * p, size_t touched) {
+    static size_t pagesize = 0;
     size_t rval = 0;
     if (!pagesize)
 	pagesize = sysconf(_SC_PAGESIZE);
@@ -230,7 +223,8 @@ toku_free_n(void* p, size_t size __attribute__((unused))) {
 void *
 toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
-    resource_assert(p);
+    if (p == NULL)  // avoid function call in common case
+        resource_assert(p);
     ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
@@ -254,7 +248,8 @@ void *
 toku_xrealloc(void *v, size_t size) {
     size_t used_orig = v ? my_malloc_usable_size(v) : 0;
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
-    resource_assert(p);
+    if (p == 0)  // avoid function call in common case
+        resource_assert(p);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         __sync_add_and_fetch(&status.realloc_count, 1);
@@ -319,35 +314,6 @@ toku_set_func_realloc_only(realloc_fun_t f) {
 void
 toku_set_func_free(free_fun_t f) {
     t_free = f;
-}
-
-#define HUGEPAGE_SIZE (2L*1024L*1024L)
-void toku_memory_dontneed_after_but_i_touched(void *malloced_object, size_t malloced_size, size_t just_touched_start, size_t just_touched_length) {
-    if (which_mallocator==M_JEMALLOC) {
-        if ((just_touched_length>0) && (0==((long)malloced_object & (HUGEPAGE_SIZE-1)))) {
-            // If it's zero, then we didn't touch anything.
-            // jemalloc aligns all large objects on 4MB boundaries, so if it's not 2MB aligned, then don't bother to continue.
-            // Since we know that o is aligned, we can just do arithmetic on the offsets.
-            long prevhugepage = (just_touched_start                    -1)/HUGEPAGE_SIZE;
-            long thishugepage = (just_touched_start+just_touched_length-1)/HUGEPAGE_SIZE;
-            if (prevhugepage != thishugepage) {
-                // Crossed a hugepage boundary.
-                // Take the ceiling modulo page size of the first untouched byte:
-                long start_offset = (just_touched_start + just_touched_length + pagesize -1)&~(pagesize-1);
-                char *madvise_start = (char*)malloced_object + start_offset;
-                size_t usable        = toku_malloc_usable_size(malloced_object);
-                assert(usable >= malloced_size);
-                if (usable%HUGEPAGE_SIZE == 0) { // We knew it was 2MB-aligned, and now we know that it's a big block
-		    long madvise_len = usable-start_offset;
-		    assert(madvise_len>=0);
-		    if (madvise_len>0) {
-			int r = madvise(madvise_start, madvise_len, MADV_DONTNEED);
-			assert(r==0);
-		    }
-		}
-            }
-        }
-    }
 }
 
 #include <valgrind/helgrind.h>
