@@ -127,10 +127,8 @@ struct verify_message_tree_extra {
     int keep_going_on_failure;
 };
 
-// template-only function, but must be extern
-int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
-    __attribute__((nonnull(3)));
-int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+__attribute__((nonnull(3)))
+static int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
     int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
@@ -144,14 +142,29 @@ int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct ve
         VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) entry->type),
                          e->i, "message found in fresh or stale message tree that does not apply once");
         if (e->is_fresh) {
-            VERIFY_ASSERTION(entry->is_fresh,
-                             e->i, "message found in fresh message tree that is not fresh");
+            // Disabling this assert because of
+            // marked messages in the fresh tree
+            //VERIFY_ASSERTION(entry->is_fresh,
+            //                 e->i, "message found in fresh message tree that is not fresh");
         } else {
             VERIFY_ASSERTION(!entry->is_fresh,
                              e->i, "message found in stale message tree that is fresh");
         }
     }
 done:
+    return result;
+}
+
+__attribute__((nonnull(3)))
+static int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+{
+    int verbose = e->verbose;
+    BLOCKNUM blocknum = e->blocknum;
+    int keep_going_on_failure = e->keep_going_on_failure;
+    int result = 0;
+    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
+    VERIFY_ASSERTION(!entry->is_fresh, e->i, "marked message found in the fresh message tree that is fresh");
+ done:
     return result;
 }
 
@@ -294,14 +307,19 @@ toku_verify_ftnode (FT_HANDLE brt,
                                  count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, toku_fill_dbt(&keydbt, key, keylen), msn);
                                  if (is_fresh) {
                                      VERIFY_ASSERTION(count == 1, i, "a fresh message was not found in the fresh message tree");
+                                     assert(count == 1);
                                  } else {
-                                     VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
+                                     // Disabling this assert because of
+                                     // marked messages in the fresh tree
+                                     //VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
                                  }
                                  count = count_eq_key_msn(brt, bnc->buffer, bnc->stale_message_tree, &keydbt, msn);
                                  if (is_fresh) {
                                      VERIFY_ASSERTION(count == 0, i, "a fresh message was found in the stale message tree");
                                  } else {
-                                     VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
+                                     // Disabling this assert because of
+                                     // marked messages in the fresh tree
+                                     //VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
                                  }
                              } else {
                                  VERIFY_ASSERTION(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type), i, "a message was found that does not apply either to all or to only one key");
@@ -316,6 +334,8 @@ toku_verify_ftnode (FT_HANDLE brt,
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;
             r = bnc->stale_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
+            if (r != 0) { result = r; goto done; }
+            r = bnc->fresh_message_tree.iterate_over_marked<struct verify_message_tree_extra, verify_marked_messages>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.broadcast = true;
             r = bnc->broadcast_list.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);

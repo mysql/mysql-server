@@ -890,7 +890,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
     int r = 0;
     for (int i = 0; i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
-        r = db->verify_with_progress(db, NULL, NULL, 0, 0);
+        r = db->verify_with_progress(db, NULL, NULL, 1, 0);
         CKERR(r);
     }
     return r;
