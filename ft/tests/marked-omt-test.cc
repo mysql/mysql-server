@@ -363,6 +363,7 @@ static void stress_test(int nelts) {
 
     const int num_marker_threads = 5;
     struct stress_shared extra;
+    ZERO_STRUCT(extra);
     extra.omt = &omt;
     toku_mutex_init(&extra.mutex, NULL);
     rwlock_init(&extra.lock);
