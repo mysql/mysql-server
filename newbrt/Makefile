@@ -54,6 +54,7 @@ BRT_SOURCES = \
   logfilemgr \
   logger \
   log_code \
+  log_print \
   logcursor \
   memarena \
   mempool \
