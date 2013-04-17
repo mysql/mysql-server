@@ -470,13 +470,43 @@ static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV re
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, l->key.data, l->key.len);
     toku_fill_dbt(&valdbt, l->value.data, l->value.len);
-    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE);
+    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, BRT_INSERT);
     assert(r == 0);
 
     return 0;
 }
 
 static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_enq_insert_no_overwrite (struct logtype_enq_insert_no_overwrite *l, RECOVER_ENV renv) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    if (txn == NULL) {
+        //This is a straddle txn.
+        assert(renv->ss.ss == FORWARD_OLDER_CHECKPOINT_BEGIN); //cannot happen after checkpoint begin
+        return 0;
+    }
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return 0;
+    }    
+    DBT keydbt, valdbt;
+    toku_fill_dbt(&keydbt, l->key.data, l->key.len);
+    toku_fill_dbt(&valdbt, l->value.data, l->value.len);
+    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, BRT_INSERT_NO_OVERWRITE);
+    assert(r == 0);
+
+    return 0;
+}
+
+static int toku_recover_backward_enq_insert_no_overwrite (struct logtype_enq_insert_no_overwrite *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }
@@ -521,7 +551,7 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
         DB *db = tuple->brt->db;
         r = renv->generate_row_for_put(db, src_db, &dest_key, &dest_val, &src_key, &src_val, NULL);
         assert(r==0);
-        r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE);
+        r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE, BRT_INSERT);
         assert(r == 0);
         //flags==0 indicates the return values are stored in temporary memory that does
         //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
