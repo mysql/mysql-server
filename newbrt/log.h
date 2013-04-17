@@ -33,6 +33,14 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     if (target->data==0) return errno;
     return 0;
 }
+static inline void toku_free_TXNID(TXNID txnid __attribute__((__unused__))) {}
+static inline void toku_free_u_int64_t(u_int64_t u __attribute__((__unused__))) {}
+static inline void toku_free_u_int32_t(u_int32_t u __attribute__((__unused__))) {}
+static inline void toku_free_u_int8_t(u_int8_t u __attribute__((__unused__))) {}
+static inline void toku_free_FILENUM(FILENUM u __attribute__((__unused__))) {}
+static inline void toku_free_BLOCKNUM(BLOCKNUM u __attribute__((__unused__))) {}
+static inline void toku_free_BOOL(BOOL u __attribute__((__unused__))) {}
+static inline void toku_free_XIDP(XIDP xidp) { toku_free(xidp); }
 static inline void toku_free_BYTESTRING(BYTESTRING val) { toku_free(val.data); }
 static inline void toku_free_FILENUMS(FILENUMS val) { toku_free(val.filenums); }
 

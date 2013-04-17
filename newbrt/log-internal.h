@@ -181,7 +181,7 @@ struct tokutxn {
     TOKUTXN_STATE state;
     LSN        do_fsync_lsn;
     BOOL       do_fsync;
-    GID        gid; // for prepared transactions
+    XID        xa_xid; // for prepared transactions
     struct toku_list prepared_txns_link; // list of prepared transactions
 };
 
@@ -228,8 +228,14 @@ static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__)))
     return 8;
 }
 
-static inline int toku_logsizeof_GID (GID gid __attribute__((__unused__))) {
-    return DB_GID_SIZE;
+static inline int toku_logsizeof_XIDP (XIDP xid) {
+    assert(0<=xid->gtrid_length && xid->gtrid_length<=64);
+    assert(0<=xid->bqual_length && xid->bqual_length<=64);
+    return xid->gtrid_length
+	+ xid->bqual_length
+	+ 4  // formatID
+	+ 1  // gtrid_length
+	+ 1; // bqual_length
 }
 
 static inline int toku_logsizeof_FILENUMS (FILENUMS fs) {

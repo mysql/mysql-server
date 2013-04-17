@@ -1499,13 +1499,61 @@ locked_env_close(DB_ENV * env, u_int32_t flags) {
 }
 
 static int
-toku_env_recover_txn (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
-    return toku_logger_recover_txn(env->i->logger, preplist, count, retp, flags);
+toku_env_txn_xa_recover (DB_ENV *env, XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    struct tokulogger_preplist *MALLOC_N(count,preps);
+    int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
+    if (r==0) {
+        assert(*retp<=count);
+        for (int i=0; i<*retp; i++) {
+            xids[i] = preps[i].xid;
+        }
+    }
+    toku_free(preps);
+    return r;
 }
 
 static int
+toku_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    struct tokulogger_preplist *MALLOC_N(count,preps);
+    int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
+    if (r==0) {
+        assert(*retp<=count);
+        for (int i=0; i<*retp; i++) {
+            preplist[i].txn = preps[i].txn;
+            memcpy(preplist[i].gid, preps[i].xid.data, preps[i].xid.gtrid_length + preps[i].xid.bqual_length);
+        }
+    }
+    toku_free(preps);
+    return r;
+}
+
+
+static int
 locked_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_recover_txn(env, preplist, count, retp, flags); toku_ydb_unlock(); return r;
+    toku_ydb_lock();
+    int r = toku_env_txn_recover(env, preplist, count, retp, flags);
+    toku_ydb_unlock();
+    return r;
+}
+static int
+locked_env_txn_xa_recover (DB_ENV *env, XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    toku_ydb_lock();
+    int r = toku_env_txn_xa_recover(env, xids, count, retp, flags);
+    toku_ydb_unlock();
+    return r;
+}
+
+static int
+toku_env_get_txn_from_xid (DB_ENV *env, /*in*/XID *xid, /*out*/ DB_TXN **txnp) {
+    return toku_logger_get_txn_from_xid(env->i->logger, xid, txnp);
+}
+
+static int
+locked_env_get_txn_from_xid (DB_ENV *env, /*in*/XID *xid, /*out*/ DB_TXN **txnp) {
+    toku_ydb_lock();
+    int r = toku_env_get_txn_from_xid(env, xid, txnp);
+    toku_ydb_unlock();
+    return r;
 }
 
 static int 
@@ -2372,6 +2420,8 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(open);
     SENV(close);
     SENV(txn_recover);
+    SENV(txn_xa_recover);
+    SENV(get_txn_from_xid);
     SENV(log_flush);
     //SENV(set_noticecall);
     SENV(set_flags);

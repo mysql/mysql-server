@@ -359,6 +359,8 @@ void print_db_env_struct (void) {
                              "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
                              "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
+			     "int (*txn_xa_recover)                       (DB_ENV*, XID list[/*count*/], long count, /*out*/ long *retp, u_int32_t flags)",
+			     "int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ XID *, /*out*/ DB_TXN **)",
                              NULL};
 
 	sort_and_dump_fields("db_env", true, extra);
@@ -463,6 +465,7 @@ static void print_db_txn_struct (void) {
 	"struct toku_list open_txns",
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
+	"int (*xa_prepare) (DB_TXN*, XID *)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
@@ -524,6 +527,13 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 #define DB_GID_SIZE DB_XIDDATASIZE
 #endif
     dodefine(DB_GID_SIZE);
+
+    printf("typedef struct xid_t { /* This struct is intended to be binary compatible with the XID in the XA architecture.  See source:/import/opengroup.org/C193.pdf */\n"
+           "    long formatID;                  /* format identifier */\n"
+           "    long gtrid_length;              /* value from 1 through 64 */\n"
+           "    long bqual_length;              /* value from 1 through 64 */\n"
+           "    char data[DB_GID_SIZE];\n"
+           "} XID;\n");
 
    //Typedef toku_off_t
     printf("#ifndef TOKU_OFF_T_DEFINED\n"

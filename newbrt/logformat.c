@@ -117,7 +117,7 @@ const struct logtype logtypes[] = {
                            NULLFIELD}}, // record all transactions
     // prepared txns need a gid
     {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
-				   {"GID",   "gid", 0}, // prepared transactions need a gid, and have no parentxid.
+				   {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
 				   {"u_int64_t", "rollentry_raw_count", 0}, 
 				   {"FILENUMS",  "open_filenums", 0},
 				   {"u_int8_t",  "force_fsync_on_commit", 0}, 
@@ -133,7 +133,7 @@ const struct logtype logtypes[] = {
     // Records produced by transactions
     {"xbegin", 'b', FA{{"TXNID", "parentxid", 0},NULLFIELD}},
     {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}},
-    {"xprepare",'P', FA{{"TXNID", "xid", 0}, {"GID", "gid", 0},NULLFIELD}},
+    {"xprepare",'P', FA{{"TXNID", "xid", 0}, {"XIDP", "xa_xid", 0}, NULLFIELD}},
     {"xabort", 'q', FA{{"TXNID", "xid", 0},NULLFIELD}},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"TXNID",      "xid", 0},
@@ -479,24 +479,15 @@ generate_log_reader (void) {
     fprintf(cf, "  return 0;\n");
     fprintf(cf, "}\n\n");
 
-    int free_count=0;
-    DO_LOGTYPES(lt, {
-            free_count=0;
-            fprintf(cf, "static void toku_log_free_log_entry_%s_resources (struct logtype_%s *data)", lt->name, lt->name);
-            fprintf(cf, " {\n");
-            DO_FIELDS(ft, lt, {
-                    if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
-                        fprintf(cf, "    toku_free_BYTESTRING(data->%s);\n", ft->name);
-                        free_count++;
-                    }
-                    else if ( strcmp(ft->type, "FILENUMS") == 0 ) {
-                        fprintf(cf, "    toku_free_FILENUMS(data->%s);\n", ft->name);
-                        free_count++;
-                    }
-                });
-            if ( free_count == 0 ) fprintf(cf, "    struct logtype_%s *dummy __attribute__ ((unused)) = data;\n", lt->name);
-            fprintf(cf, "}\n\n");
-        });
+    DO_LOGTYPES(lt, ({
+            fprintf(cf, "static void toku_log_free_log_entry_%s_resources (struct logtype_%s *data", lt->name, lt->name);
+	    if (!lt->fields->type) fprintf(cf, " __attribute__((__unused__))");
+            fprintf(cf, ") {\n");
+            DO_FIELDS(ft, lt,
+		      fprintf(cf, "    toku_free_%s(data->%s);\n", ft->type, ft->name);
+		      );
+	    fprintf(cf, "}\n\n");
+	    }));
     fprintf2(cf, hf, "void toku_log_free_log_entry_resources (struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");

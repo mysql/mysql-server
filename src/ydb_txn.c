@@ -8,6 +8,7 @@
 #include "checkpoint.h"
 #include "log_header.h"
 #include "ydb_txn.h"
+#include <valgrind/helgrind.h>
 
 static int 
 toku_txn_release_locks(DB_TXN* txn) {
@@ -216,7 +217,7 @@ toku_txn_abort_only(DB_TXN * txn,
 }
 
 static int
-toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+toku_txn_xa_prepare (DB_TXN *txn, XID *xid) {
     if (!txn) return EINVAL;
     if (txn->parent) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -232,14 +233,24 @@ toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     }
     assert(!db_txn_struct_i(txn)->child);
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    GID gids = {gid};
-    int r = toku_txn_prepare_txn(ttxn, gids);
+    int r = toku_txn_prepare_txn(ttxn, xid);
     TOKULOGGER logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
     bool do_fsync;
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
     return r;
+}
+
+static int
+toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+    XID xid;
+    ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
+    xid.formatID=0x756b6f54; // "Toku"
+    xid.gtrid_length=DB_GID_SIZE/2;  // The maximum allowed gtrid length is 64.  See the XA spec in source:/import/opengroup.org/C193.pdf page 20.
+    xid.bqual_length=DB_GID_SIZE/2; // The maximum allowed bqual length is 64.
+    memcpy(xid.data, gid, DB_GID_SIZE);
+    return toku_txn_xa_prepare(txn, &xid);
 }
 
 int 
@@ -322,6 +333,11 @@ locked_txn_abort(DB_TXN *txn) {
 static int
 locked_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     toku_ydb_lock(); int r = toku_txn_prepare (txn, gid); toku_ydb_unlock(); return r;
+}
+
+static int
+locked_txn_xa_prepare (DB_TXN *txn, XID *xid) {
+    toku_ydb_lock(); int r = toku_txn_xa_prepare (txn, xid); toku_ydb_unlock(); return r;
 }
 
 int 
@@ -420,6 +436,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
     STXN(commit_with_progress);
     STXN(id);
     STXN(prepare);
+    STXN(xa_prepare);
     STXN(txn_stat);
 #undef STXN
 

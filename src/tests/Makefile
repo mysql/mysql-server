@@ -270,6 +270,7 @@ BDB_DONTRUN_TESTS = \
 	shutdown-3344 \
         stat64 stat64-create-modify-times stat64_flatten stat64-null-txn stat64-root-changes \
 	stress-gc \
+	test-xa-prepare \
         test1324 \
         test1426 \
         test1572 \

@@ -3548,11 +3548,11 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
 	return 0;
     }
     case TOKUTXN_PREPARING: {
-	GID gid;
-	toku_txn_get_prepared_gid(txn, &gid);
+	XID xa_xid;
+	toku_txn_get_prepared_xa_xid(txn, &xa_xid);
 	int r = toku_log_xstillopenprepared(logger, NULL, 0,
 					    toku_txn_get_txnid(txn),
-					    gid,
+					    &xa_xid,
 					    txn->rollentry_raw_count,
 					    open_filenums,
 					    txn->force_fsync_on_commit,
@@ -3562,7 +3562,6 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
 					    txn->spilled_rollback_tail,
 					    txn->current_rollback);
 	assert(r==0);
-	toku_free(gid.gid);
 	return 0;
     }
     case TOKUTXN_RETIRED:

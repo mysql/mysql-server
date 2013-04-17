@@ -54,11 +54,11 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
 			    bool release_multi_operation_client_lock);
 
-int toku_txn_prepare_txn (TOKUTXN txn, GID gid) __attribute__((warn_unused_result));
+int toku_txn_prepare_txn (TOKUTXN txn, XID *xid) __attribute__((warn_unused_result));
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
 
-void toku_txn_get_prepared_gid (TOKUTXN, GID *);
-// Effect: Return a pointer to the GID.  The value is allocated, so you must free it.
+void toku_txn_get_prepared_xa_xid (TOKUTXN, XID *);
+// Effect: Fill in the XID information for a transaction.  The caller allocates the XID and the function fills in values.
 
 int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
 
@@ -131,7 +131,12 @@ int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
 TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);
 
-int toku_logger_recover_txn (TOKULOGGER logger, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
+struct tokulogger_preplist {
+    XID xid;
+    DB_TXN *txn;
+};
+int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
+int toku_logger_get_txn_from_xid (TOKULOGGER logger, XID *xid, DB_TXN **txnp);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
