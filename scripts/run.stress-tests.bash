@@ -174,6 +174,21 @@ done
 mkdir -p $log
 mkdir -p $savedir
 
+declare -a pids
+i=0
+
+savepid() {
+    pids[i]=$1
+    (( i = i + 1 ))
+}
+
+killchildren() {
+    for pid in ${pids[@]}
+    do
+        kill $pid
+    done
+}
+
 for exec in ${testnames[@]}
 do
     for table_size in 2000 200000 50000000
@@ -181,11 +196,18 @@ do
         (( small_cachetable = table_size * 50 ))
         suffix="${exec}-${table_size}-${small_cachetable}-$$"
         touch "${log}/${suffix}"
-        loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" &
-        tail -f "${log}/${suffix}" &
+        loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+        tail -f "${log}/${suffix}" & savepid $!
         suffix="${exec}-${table_size}-1000000000-$$"
-        touch "${log}/${suffix}" &
-        loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" &
-        tail -f "${log}/${suffix}" &
+        touch "${log}/${suffix}"
+        loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+        tail -f "${log}/${suffix}" & savepid $!
     done
+done
+
+trap killchildren INT TERM EXIT
+
+for pid in ${pids[@]}
+do
+    wait $pid
 done
