@@ -5,6 +5,7 @@
 #include <sys/types.h>
 /*stdio is needed for the FILE* in db->verify*/
 #include <stdio.h>
+#include <stdint.h>
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -132,7 +133,6 @@ typedef enum {
 #define DB_INIT_MPOOL 524288
 #define DB_CLOSE_DONT_TRIM_LOG 1048576
 #define DB_INIT_TXN 2097152
-#define DB_READ_UNCOMMITTED 134217728
 #define DB_KEYEXIST -30996
 #define DB_LOCK_DEADLOCK -30995
 #define DB_LOCK_NOTGRANTED -30994
@@ -168,6 +168,8 @@ typedef enum {
 #define DB_TXN_WRITE_NOSYNC 4096
 #define DB_TXN_NOWAIT 1024
 #define DB_TXN_SYNC 16384
+#define DB_READ_UNCOMMITTED 134217728
+#define DB_INHERIT_ISOLATION 1
 #endif
 /* TOKUDB specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
