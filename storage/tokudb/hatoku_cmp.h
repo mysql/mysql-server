@@ -28,7 +28,6 @@ typedef enum {
 
 inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type);
 
-int compare_field(uchar* a_buf, Field* a_field, uchar* b_buf, Field* b_field);
 
 uchar* pack_toku_field(
     uchar* to_tokudb,
