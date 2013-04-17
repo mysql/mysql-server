@@ -7079,7 +7079,7 @@ cleanup:
 
 double ha_tokudb::index_only_read_time(uint keynr, double records) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_only_read_time");
-    double ret_val = keyread_time(keynr, 1, records);
+    double ret_val = keyread_time(keynr, 1, (ha_rows)records);
     DBUG_RETURN(ret_val);
 }
 
