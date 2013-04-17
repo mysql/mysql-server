@@ -29,17 +29,17 @@ static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #endif
 #define STATUS_VALUE(x) ydb_db_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ydb_db_layer_status, k, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_db_layer_status, k, c, t, l, inc)
 
 static void
 ydb_db_layer_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS,      UINT64,   "directory write locks", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL, UINT64,   "directory write locks fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_LOGSUPPRESS,                UINT64,   "log suppress", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_LOGSUPPRESS_FAIL,           UINT64,   "log suppress fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS,      nullptr, UINT64,   "directory write locks", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL, nullptr, UINT64,   "directory write locks fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_LOGSUPPRESS,                nullptr, UINT64,   "log suppress", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_LOGSUPPRESS_FAIL,           nullptr, UINT64,   "log suppress fail", TOKU_ENGINE_STATUS);
     ydb_db_layer_status.initialized = true;
 }
 #undef STATUS_INIT

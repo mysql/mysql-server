@@ -111,21 +111,21 @@ typedef struct {
 static YDB_LAYER_STATUS_S ydb_layer_status;
 #define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,t,l,inc) TOKUDB_STATUS_INIT(ydb_layer_status, k, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_layer_status, k, c, t, l, inc)
 
 static void
 ydb_layer_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(YDB_LAYER_TIME_CREATION,              UNIXTIME, "time of environment creation", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_TIME_STARTUP,               UNIXTIME, "time of engine startup", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_TIME_NOW,                   UNIXTIME, "time now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                UINT64,   "db opens", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               UINT64,   "db closes", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               UINT64,   "num open dbs now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               UINT64,   "max open dbs", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           UINT64,   "period, in ms, that recovery log is automatically fsynced", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_TIME_CREATION,              nullptr, UNIXTIME, "time of environment creation", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_TIME_STARTUP,               nullptr, UNIXTIME, "time of engine startup", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_TIME_NOW,                   nullptr, UNIXTIME, "time now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                nullptr, UINT64,   "db opens", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               nullptr, UINT64,   "db closes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               nullptr, UINT64,   "num open dbs now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               nullptr, UINT64,   "max open dbs", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           nullptr, UINT64,   "period, in ms, that recovery log is automatically fsynced", TOKU_ENGINE_STATUS);
 
     STATUS_VALUE(YDB_LAYER_TIME_STARTUP) = time(NULL);
     ydb_layer_status.initialized = true;
@@ -500,18 +500,18 @@ typedef struct {
 
 static PERSISTENT_UPGRADE_STATUS_S persistent_upgrade_status;
 
-#define PERSISTENT_UPGRADE_STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(persistent_upgrade_status, k, t, "upgrade: " l, inc)
+#define PERSISTENT_UPGRADE_STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(persistent_upgrade_status, k, c, t, "upgrade: " l, inc)
 
 static void
 persistent_upgrade_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION,           UINT64,   "original version (at time of environment creation)", TOKU_ENGINE_STATUS);
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,  UINT64,   "version at time of startup", TOKU_ENGINE_STATUS);
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_LAST_LSN_OF_V13,                UINT64,   "last LSN of version 13", TOKU_ENGINE_STATUS);
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_TIME,                       UNIXTIME, "time of upgrade to version 14", TOKU_ENGINE_STATUS);
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_FOOTPRINT,                  UINT64,   "footprint from version 13 to 14", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION,           nullptr, UINT64,   "original version (at time of environment creation)", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,  nullptr, UINT64,   "version at time of startup", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_LAST_LSN_OF_V13,                nullptr, UINT64,   "last LSN of version 13", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_TIME,                       nullptr, UNIXTIME, "time of upgrade to version 14", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_FOOTPRINT,                  nullptr, UINT64,   "footprint from version 13 to 14", TOKU_ENGINE_STATUS);
     persistent_upgrade_status.initialized = true;
 }
 
@@ -1696,17 +1696,17 @@ typedef struct {
 
 static FS_STATUS_S fsstat;
 
-#define FS_STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(fsstat, k, t, "filesystem: " l, inc)
+#define FS_STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(fsstat, k, c, t, "filesystem: " l, inc)
 
 static void
 fs_status_init(void) {
-    FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   FS_STATE, "ENOSPC redzone state", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, UINT64,   "threads currently blocked by full disk", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     UINT64,   "number of operations rejected by enospc prevention (red zone)", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     UNIXTIME, "most recent disk full", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_ENOSPC_COUNT,           UINT64,   "number of write operations that returned ENOSPC", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_FSYNC_TIME,             UINT64,   "fsync time", TOKU_ENGINE_STATUS);
-    FS_STATUS_INIT(FS_FSYNC_COUNT,            UINT64,   "fsync count", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   nullptr, FS_STATE, "ENOSPC redzone state", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, nullptr, UINT64,   "threads currently blocked by full disk", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     nullptr, UINT64,   "number of operations rejected by enospc prevention (red zone)", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     nullptr, UNIXTIME, "most recent disk full", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_COUNT,           nullptr, UINT64,   "number of write operations that returned ENOSPC", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_TIME,             nullptr, UINT64,   "fsync time", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_COUNT,            nullptr, UINT64,   "fsync count", TOKU_ENGINE_STATUS);
     fsstat.initialized = true;
 }
 #undef FS_STATUS_INIT
@@ -1761,23 +1761,23 @@ typedef struct {
 
 static MEMORY_STATUS_S memory_status;
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(memory_status, k, t, "memory: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(memory_status, k, c, t, "memory: " l, inc)
 
 static void
 memory_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(MEMORY_MALLOC_COUNT,       UINT64,  "number of malloc operations", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_FREE_COUNT,         UINT64,  "number of free operations", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_REALLOC_COUNT,      UINT64,  "number of realloc operations", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_MALLOC_FAIL,        UINT64,  "number of malloc operations that failed", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_REALLOC_FAIL,       UINT64,  "number of realloc operations that failed" , TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_REQUESTED,          UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_USED,               UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_FREED,              UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_MAX_IN_USE,         UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_MALLOCATOR_VERSION, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
-    STATUS_INIT(MEMORY_MMAP_THRESHOLD,     UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MALLOC_COUNT,       nullptr, UINT64,  "number of malloc operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_FREE_COUNT,         nullptr, UINT64,  "number of free operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REALLOC_COUNT,      nullptr, UINT64,  "number of realloc operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MALLOC_FAIL,        nullptr, UINT64,  "number of malloc operations that failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REALLOC_FAIL,       nullptr, UINT64,  "number of realloc operations that failed" , TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REQUESTED,          nullptr, UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_USED,               nullptr, UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_FREED,              nullptr, UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MAX_IN_USE,         nullptr, UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MALLOCATOR_VERSION, nullptr, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MMAP_THRESHOLD,     nullptr, UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
     memory_status.initialized = true;  
 }
 #undef STATUS_INIT

@@ -60,25 +60,25 @@
 
 static CHECKPOINT_STATUS_S cp_status;
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(cp_status, k, t, "checkpoint: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(cp_status, k, c, t, "checkpoint: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(CP_PERIOD,                              UINT64,   "period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_FOOTPRINT,                           UINT64,   "footprint", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN,          UNIXTIME, "last checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE, UNIXTIME, "last complete checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_END,            UNIXTIME, "last complete checkpoint ended", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(CP_LAST_LSN,                            UINT64,   "last complete checkpoint LSN", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CHECKPOINT_COUNT,                    UINT64,   "checkpoints taken ", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CHECKPOINT_COUNT_FAIL,               UINT64,   "checkpoints failed", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_WAITERS_NOW,                         UINT64,   "waiters now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_WAITERS_MAX,                         UINT64,   "waiters max", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   UINT64,   "non-checkpoint client wait on mo lock", TOKU_ENGINE_STATUS);
-    STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   UINT64,   "non-checkpoint client wait on cs lock", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_PERIOD,                              nullptr, UINT64,   "period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_FOOTPRINT,                           nullptr, UINT64,   "footprint", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN,          nullptr, UNIXTIME, "last checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE, nullptr, UNIXTIME, "last complete checkpoint began ", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_END,            nullptr, UNIXTIME, "last complete checkpoint ended", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CP_LAST_LSN,                            nullptr, UINT64,   "last complete checkpoint LSN", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_CHECKPOINT_COUNT,                    nullptr, UINT64,   "checkpoints taken ", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_CHECKPOINT_COUNT_FAIL,               nullptr, UINT64,   "checkpoints failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_WAITERS_NOW,                         nullptr, UINT64,   "waiters now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_WAITERS_MAX,                         nullptr, UINT64,   "waiters max", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   nullptr, UINT64,   "non-checkpoint client wait on mo lock", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   nullptr, UINT64,   "non-checkpoint client wait on cs lock", TOKU_ENGINE_STATUS);
     cp_status.initialized = true;
 }
 #undef STATUS_INIT

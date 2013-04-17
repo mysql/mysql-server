@@ -94,6 +94,7 @@ test_main (int argc, char * const argv[]) {
         printf("First all the raw fields:\n");
         for (uint64_t i = 0; i < nrows; i++) {
             printf("%s        ", mystat[i].keyname);
+            printf("%s        ", mystat[i].columnname ? mystat[i].columnname : "(null)");
             printf("%s       ", mystat[i].legend);
             printf("type=%d  val = ", mystat[i].type);
             switch(mystat[i].type) {

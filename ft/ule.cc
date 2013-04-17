@@ -45,16 +45,16 @@ static uint32_t ule_get_innermost_numbytes(ULE ule);
 
 static LE_STATUS_S le_status;
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(le_status, k, t, "le: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(le_status, k, c, t, "le: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(LE_MAX_COMMITTED_XR,   UINT64, "max committed xr", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LE_MAX_PROVISIONAL_XR, UINT64, "max provisional xr", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LE_EXPANDED,           UINT64, "expanded", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LE_MAX_MEMSIZE,        UINT64, "max memsize", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_MAX_COMMITTED_XR,   nullptr, UINT64, "max committed xr", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_MAX_PROVISIONAL_XR, nullptr, UINT64, "max provisional xr", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_EXPANDED,           nullptr, UINT64, "expanded", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_MAX_MEMSIZE,        nullptr, UINT64, "max memsize", TOKU_ENGINE_STATUS);
     le_status.initialized = true;
 }
 #undef STATUS_INIT

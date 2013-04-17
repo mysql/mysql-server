@@ -643,6 +643,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 
     printf("typedef struct __toku_engine_status_row {\n");
     printf("  const char * keyname;                  // info schema key, should not change across revisions without good reason \n");
+    printf("  const char * columnname;               // column for mysql, e.g. information_schema.global_status. TOKUDB_ will automatically be prefixed.\n");
     printf("  const char * legend;                   // the text that will appear at user interface \n");
     printf("  toku_engine_status_display_type type;  // how to interpret the value \n");
     printf("  toku_engine_status_include_type include;  // which kinds of callers should get read this row?\n");

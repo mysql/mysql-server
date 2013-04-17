@@ -272,19 +272,19 @@ bool locktree::manager::memory_tracker::out_of_locks(void) const {
     return m_mgr->m_current_lock_memory >= m_mgr->m_max_lock_memory;
 }
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(status, k, t, "locktree: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
 
 void locktree::manager::status_init(void) {
-    STATUS_INIT(LTM_SIZE_CURRENT,             UINT64,   "memory size", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_SIZE_LIMIT,               UINT64,   "memory size limit", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_ESCALATION_COUNT, UINT64, "number of times lock escalation ran", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_ESCALATION_TIME,          TOKUTIME, "time spent running escalation (seconds)", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_ESCALATION_LATEST_RESULT, UINT64,   "latest post-escalation memory size", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_NUM_LOCKTREES,            UINT64,   "number of locktrees open now", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_LOCK_REQUESTS_PENDING,    UINT64,   "number of pending lock requests", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_STO_NUM_ELIGIBLE,         UINT64,   "number of locktrees eligible for the STO", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_STO_END_EARLY_COUNT,      UINT64,   "number of times a locktree ended the STO early", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LTM_STO_END_EARLY_TIME,       TOKUTIME, "time spent ending the STO early (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_SIZE_CURRENT,             nullptr, UINT64,   "memory size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_SIZE_LIMIT,               nullptr, UINT64,   "memory size limit", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_COUNT, nullptr, UINT64, "number of times lock escalation ran", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_TIME,          nullptr, TOKUTIME, "time spent running escalation (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_LATEST_RESULT, nullptr, UINT64,   "latest post-escalation memory size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_NUM_LOCKTREES,            nullptr, UINT64,   "number of locktrees open now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_LOCK_REQUESTS_PENDING,    nullptr, UINT64,   "number of pending lock requests", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_NUM_ELIGIBLE,         nullptr, UINT64,   "number of locktrees eligible for the STO", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_END_EARLY_COUNT,      nullptr, UINT64,   "number of times a locktree ended the STO early", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_END_EARLY_TIME,       nullptr, TOKUTIME, "time spent ending the STO early (seconds)", TOKU_ENGINE_STATUS);
     status.initialized = true;
 }
 
