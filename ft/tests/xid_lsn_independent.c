@@ -255,12 +255,64 @@ static void test_xid_lsn_independent_shutdown_recovery(int N) {
     shutdown_after_recovery(&logger, &ct);
 }
 
+static void test_xid_lsn_independent_parents(int N) {
+    TOKULOGGER logger;
+    CACHETABLE ct;
+    int r;
+
+    // Lets txns[-1] be NULL
+    TOKUTXN txns_hack[N+1];
+    TOKUTXN *txns=&txns_hack[1];
+
+    int num_non_cascade = N;
+    do {
+        test_setup(&logger, &ct);
+        ZERO_ARRAY(txns_hack);
+
+        for (int i = 0; i < N; i++) {
+            r = toku_txn_begin_txn((DB_TXN*)NULL, txns[i-1], &txns[i], logger, TXN_SNAPSHOT_ROOT);
+            CKERR(r);
+
+            if (i < num_non_cascade) {
+                toku_maybe_log_begin_txn_for_write_operation(txns[i]);
+                invariant(txns[i]->begin_was_logged);
+            }
+            else {
+                invariant(!txns[i]->begin_was_logged);
+            }
+        }
+        for (int i = 0; i < N; i++) {
+            if (i < num_non_cascade) {
+                toku_maybe_log_begin_txn_for_write_operation(txns[i]);
+                invariant(txns[i]->begin_was_logged);
+            }
+            else {
+                invariant(!txns[i]->begin_was_logged);
+            }
+        }
+        toku_maybe_log_begin_txn_for_write_operation(txns[N-1]);
+        for (int i = 0; i < N; i++) {
+            invariant(txns[i]->begin_was_logged);
+        }
+        for (int i = N-1; i >= 0; i--) {
+            r = toku_txn_commit_txn(txns[i], FALSE, NULL, NULL);
+            CKERR(r);
+
+            toku_txn_close_txn(txns[i]);
+        }
+        clean_shutdown(&logger, &ct);
+
+        num_non_cascade /= 2;
+    } while (num_non_cascade > 0);
+}
+
 int test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     for (int i=1; i<=128; i *= 2) {
 	test_xid_lsn_independent(i);
         test_xid_lsn_independent_crash_recovery(i);
         test_xid_lsn_independent_shutdown_recovery(i);
+        test_xid_lsn_independent_parents(i);
     }
     return 0;
 }
