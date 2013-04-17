@@ -9,7 +9,6 @@ extern "C" {
 #if defined(_WIN32)
 #include "misc.h"
 #endif
-#include "dlmalloc.h"
 }
 
 #if !defined(HA_END_SPACE_KEY) || HA_END_SPACE_KEY != 0
@@ -1795,7 +1794,7 @@ int ha_tokudb::get_status() {
         }
         else if (error == 0 && value.size == sizeof(share->version)) {
             share->version = *(uint *)value.data;
-            dlfree(value.data);
+            free(value.data);
             value.data = NULL;
         }
         else {
@@ -1817,7 +1816,7 @@ int ha_tokudb::get_status() {
         }
         else if (error == 0 && value.size == sizeof(share->version)) {
             share->capabilities= *(uint *)value.data;
-            dlfree(value.data);
+            free(value.data);
             value.data = NULL;
         }
         else {
@@ -3450,7 +3449,7 @@ int ha_tokudb::reset(void) {
     if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
         current_row.flags = 0;
         if (current_row.data) {
-            dlfree(current_row.data);
+            free(current_row.data);
             current_row.data = 0;
         }
     }
@@ -4371,7 +4370,7 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->last_auto_increment)) {
             share->last_auto_increment = *(uint *)value.data;
-            dlfree(value.data);
+            free(value.data);
             value.data = NULL;
         }
         else {
@@ -4393,7 +4392,7 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->auto_inc_create_value)) {
             share->auto_inc_create_value = *(uint *)value.data;
-            dlfree(value.data);
+            free(value.data);
             value.data = NULL;
         }
         else {

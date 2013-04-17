@@ -7,7 +7,6 @@ extern "C" {
 #include "misc.h"
 #endif
 #include "toku_os.h"
-#include "dlmalloc.h"
 }
 
 
@@ -121,7 +120,6 @@ static int tokudb_init_func(void *p) {
 #if defined(_WIN32)
     toku_ydb_init();
 #endif
-    setup_dlmalloc();
 
     tokudb_hton = (handlerton *) p;
 
@@ -448,9 +446,9 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     }
   err:
     if (all_logs)
-        dlfree(all_logs);
+        free(all_logs);
     if (free_logs)
-        dlfree(free_logs);
+        free(free_logs);
     free_root(&show_logs_root, MYF(0));
     *root_ptr = old_mem_root;
     TOKUDB_DBUG_RETURN(error);
@@ -494,7 +492,7 @@ void tokudb_cleanup_log_files(void) {
 #endif
         }
 
-        dlfree(names);
+        free(names);
     }
 
     DBUG_VOID_RETURN;
