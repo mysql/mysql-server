@@ -2593,10 +2593,12 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(
             }
             record[null_offset] &= ~key_part->field->null_bit;
         }
+#if !defined(MARIADB_BASE_VERSION)
         //
         // HOPEFULLY TEMPORARY
         //
         assert(table->s->db_low_byte_first);
+#endif
         pos = unpack_toku_key_field(
             record + field_offset(key_part->field, table),
             pos,
@@ -2663,10 +2665,12 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(
             }
             *curr_buff++ = NONNULL_COL_VAL;        // Store NOT NULL marker
         }
+#if !defined(MARIADB_BASE_VERSION)
         //
         // HOPEFULLY TEMPORARY
         //
         assert(table->s->db_low_byte_first);
+#endif
         //
         // accessing field_offset(key_part->field) instead off key_part->offset
         // because key_part->offset is SET INCORRECTLY in add_index
@@ -2851,8 +2855,9 @@ DBT *ha_tokudb::pack_key(
             *buff++ = NONNULL_COL_VAL;
             offset = 1;         // Data is at key_ptr+1
         }
+#if !defined(MARIADB_BASE_VERSION)
         assert(table->s->db_low_byte_first);
-
+#endif
         buff = pack_key_toku_key_field(
             buff,
             (uchar *) key_ptr + offset,
@@ -6146,6 +6151,7 @@ static inline enum row_type
 compression_method_to_row_type(enum toku_compression_method method)
 {
     switch (method) {
+#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
     case TOKU_NO_COMPRESSION:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case TOKU_ZLIB_METHOD:
@@ -6158,6 +6164,7 @@ compression_method_to_row_type(enum toku_compression_method method)
         return ROW_TYPE_TOKU_FAST;
     case TOKU_SMALL_COMPRESSION_METHOD:
         return ROW_TYPE_TOKU_SMALL;
+#endif
     case TOKU_DEFAULT_COMPRESSION_METHOD:
         return ROW_TYPE_DEFAULT;
     default:
@@ -6188,6 +6195,7 @@ static inline enum toku_compression_method
 row_type_to_compression_method(enum row_type type)
 {
     switch (type) {
+#if defined(ROW_TUYPE_TOKU_UNCOMPRESSED)
     case ROW_TYPE_TOKU_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
     case ROW_TYPE_TOKU_ZLIB:
@@ -6200,6 +6208,7 @@ row_type_to_compression_method(enum row_type type)
         return TOKU_SMALL_COMPRESSION_METHOD;
     case ROW_TYPE_TOKU_FAST:
         return TOKU_FAST_COMPRESSION_METHOD;
+#endif
     default:
         DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_FAST by default instead"));
     case ROW_TYPE_DEFAULT:
@@ -6592,6 +6601,7 @@ static inline enum row_type
 row_format_to_row_type(srv_row_format_t row_format)
 {
     switch (row_format) {
+#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
     case SRV_ROW_FORMAT_UNCOMPRESSED:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case SRV_ROW_FORMAT_ZLIB:
@@ -6604,6 +6614,7 @@ row_format_to_row_type(srv_row_format_t row_format)
         return ROW_TYPE_TOKU_SMALL;
     case SRV_ROW_FORMAT_FAST:
         return ROW_TYPE_TOKU_FAST;
+#endif
     default:
         return ROW_TYPE_DEFAULT;
     }
