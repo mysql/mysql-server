@@ -48,7 +48,7 @@ if [[ ! ( ( $ctest_model = Nightly ) || ( $ctest_model = Experimental ) || ( $ct
     usage
 fi
 
-export BDBDIR=/usr/local/BerkeleyDB.$BDBVERSION
+export CMAKE_PREFIX_PATH=/usr/local/BerkeleyDB.$BDBVERSION:$CMAKE_PREFIX_PATH
 
 # delete some characters that cygwin and osx have trouble with
 function sanitize() {
@@ -168,7 +168,6 @@ cmake \
     -D INTEL_CC=ON \
     -D BUILD_TESTING=ON \
     -D USE_BDB=ON \
-    -D BDBDIR=$BDBDIR \
     -D RUN_LONG_TESTS=ON \
     -D USE_CILK=OFF \
     -D USE_CTAGS=OFF \
