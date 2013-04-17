@@ -3439,7 +3439,10 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
             );
         lockretry_wait;
     }
-    if (!error) {
+    if (error == DB_KEYEXIST) {
+        last_dup_key = primary_key;
+    }    
+    else if (!error) {
         trx->stmt_progress.updated++;
         track_progress(thd);
     }
