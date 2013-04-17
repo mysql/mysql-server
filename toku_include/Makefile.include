@@ -99,6 +99,11 @@ LIBPORTABILITY_BUNDLE = $(TOKUROOT)lib/libtokuportability.bundle
 
 PORTABILITY_HEADERS= $(TOKUROOT)linux
 ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
+ifeq ($(CC),icc)
+ifeq ($(CYGWIN),)
+ALWAYS_LINK += -static-intel
+endif
+endif
 C99       = -std=c99
 W64       = #-Wshorten-64-to-32
 BINOUTPUT = -o
