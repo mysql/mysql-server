@@ -36,6 +36,7 @@
    dlmalloc;
    dlrealloc;
    dlfree;
+   setup_dlmalloc;
 
  local: *;
 };
