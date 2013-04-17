@@ -1025,11 +1025,18 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
             }
             record[key_part->null_offset] &= ~key_part->null_bit;
         }
+        /* tokutek change to make pack_key and unpack_key work for
+           decimals */
+        uint unpack_length = key_part->length;
+        if (key_part->field->type() == MYSQL_TYPE_NEWDECIMAL) {
+            Field_new_decimal *field_nd = (Field_new_decimal *) key_part->field;
+            unpack_length += field_nd->precision << 8;
+        }
         pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field), pos,
 #if MYSQL_VERSION_ID < 50123
-                                                    key_part->length);
+                                                    unpack_length);
 #else
-                                                    key_part->length, table->s->db_low_byte_first);
+                                                    unpack_length, table->s->db_low_byte_first);
 #endif
     }
 }
@@ -2241,6 +2248,19 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char name_buff[FN_REFLEN];
     int error;
     char newname[get_name_length(name) + 32];
+
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+        uint i;
+        for (i=0; i<form->s->keys; i++) {
+            KEY *key = &form->s->key_info[i];
+            uint p;
+            for (p=0; p<key->key_parts; p++) {
+                KEY_PART_INFO *key_info = &key->key_part[p];
+                printf("%d:%s:%d:key:%d:%d:type=%d:flags=%x\n", my_tid(), __FILE__, __LINE__,
+                       i, p, key_info->field->type(), key_info->field->flags);
+            }
+        }            
+    }
 
     // a table is a directory of dictionaries
     make_name(newname, name, 0);
