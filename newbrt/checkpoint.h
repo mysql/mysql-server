@@ -20,8 +20,8 @@ u_int32_t toku_get_checkpoint_period_unlocked(CACHETABLE ct);
 
 /******
  *
- * NOTE: multi_operation_lock is highest level lock
- *       checkpoint_safe_lock is next level lock
+ * NOTE: checkpoint_safe_lock is highest level lock
+ *       multi_operation_lock is next level lock
  *       ydb_big_lock is next level lock
  *
  *       Locks must always be taken in this sequence (highest level first).
@@ -61,12 +61,22 @@ int toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_call
 
 int toku_checkpoint_destroy(void);
 
+typedef enum {SCHEDULED_CHECKPOINT  = 0,   // "normal" checkpoint taken on checkpoint thread
+	      CLIENT_CHECKPOINT     = 1,   // induced by client, such as FLUSH LOGS or SAVEPOINT
+	      TXN_COMMIT_CHECKPOINT = 2,   
+	      STARTUP_CHECKPOINT    = 3, 
+	      UPGRADE_CHECKPOINT    = 4,
+	      RECOVERY_CHECKPOINT   = 5,
+	      SHUTDOWN_CHECKPOINT   = 6} checkpoint_caller_t;
+
 // Take a checkpoint of all currently open dictionaries
 // Callbacks are called during checkpoint procedure while checkpoint_safe lock is still held.
 // Callbacks are primarily intended for use in testing.
+// caller_id identifies why the checkpoint is being taken.
 int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 		    void (*callback_f)(void*),  void * extra,
-		    void (*callback2_f)(void*), void * extra2);
+		    void (*callback2_f)(void*), void * extra2,
+		    checkpoint_caller_t caller_id);
 
 
 
@@ -77,13 +87,14 @@ int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
  * (If checkpoint is in progress, it may overwrite status info while it is being read.)
  *****/
 typedef struct {
-    u_int64_t footprint;
+    uint64_t footprint;
     time_t time_last_checkpoint_begin_complete;
     time_t time_last_checkpoint_begin;
     time_t time_last_checkpoint_end;
     uint64_t last_lsn;
     uint64_t checkpoint_count;
     uint64_t checkpoint_count_fail;
+    uint64_t waiters_now;    // how many threads are currently waiting for the checkpoint_safe lock
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);

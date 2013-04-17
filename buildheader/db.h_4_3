@@ -86,6 +86,7 @@ typedef struct __toku_engine_status {
   u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ 
   u_int64_t        checkpoint_count;        /* number of checkpoints taken        */ 
   u_int64_t        checkpoint_count_fail;   /* number of checkpoints failed        */ 
+  u_int64_t        checkpoint_waiters_now;  /* number of threads currently waiting for checkpoint_safe lock */ 
   u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ 
   u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ 
   u_int64_t        txn_begin;               /* number of transactions ever begun             */ 
