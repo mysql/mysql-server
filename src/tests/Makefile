@@ -87,7 +87,9 @@ BDB_DONTRUN_TESTS = \
 	test_dbremove_old \
 	checkpoint_1 \
 	root_fifo_1 \
-	root_fifo_2
+	root_fifo_2 \
+	root_fifo_31 \
+	root_fifo_32 \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
