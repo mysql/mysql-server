@@ -8,6 +8,9 @@ LDFLAGS = -L../lib -l$(LIBTOKUDB) -l$(LIBTOKUPORTABILITY) -Wl,-rpath,../lib
 
 default local: $(TARGETS)
 
+%: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
 %-bdb: %.c
 	$(CC) -D_GNU_SOURCE -DBDB $(CFLAGS) $^ -o $@ -ldb
 
