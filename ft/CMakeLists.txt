@@ -79,14 +79,15 @@ set(FT_SOURCES
   )
 
 add_library(ft SHARED ${FT_SOURCES})
-add_library(ft_static STATIC ${FT_SOURCES})
+add_library(ft_objects OBJECT ${FT_SOURCES})
 ## we're going to link this into libtokudb.so so it needs to have PIC
-add_space_separated_property(TARGET ft_static COMPILE_FLAGS -fPIC)
-maybe_add_gcov_to_libraries(ft ft_static)
+set_target_properties(ft_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+maybe_add_gcov_to_libraries(ft ft_objects)
+add_library(ft_static STATIC $<TARGET_OBJECTS:ft_objects>)
 
 ## depend on other generated targets
 add_dependencies(ft install_tdb_h generate_log_code build_lzma)
-add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
+add_dependencies(ft_objects install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE lzma ${LIBTOKUPORTABILITY})

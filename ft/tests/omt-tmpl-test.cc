@@ -5,11 +5,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__ICL) || defined(__ICC)
-# define static_assert(foo, bar)
-#else
-# include <type_traits>
-#endif
+#include <type_traits>
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <toku_time.h>
@@ -26,7 +22,8 @@ namespace test {
         TXNID one, two, three, four;
     };
 
-    static inline int find_xid_one(const struct four_xids &xids, const TXNID &find) {
+    inline int find_xid_one(const struct four_xids &xids, const TXNID &find);
+    inline int find_xid_one(const struct four_xids &xids, const TXNID &find) {
         if (xids.one > find) {
             return 1;
         }
@@ -36,7 +33,8 @@ namespace test {
         return 0;
     }
 
-    static inline int find_xid_two(const struct four_xids &xids, const TXNID &find) {
+    inline int find_xid_two(const struct four_xids &xids, const TXNID &find);
+    inline int find_xid_two(const struct four_xids &xids, const TXNID &find) {
         if (xids.two > find) {
             return 1;
         }
@@ -46,15 +44,17 @@ namespace test {
         return 0;
     }
 
-    static inline int fx_iter(const struct four_xids &UU(xids), const uint32_t UU(idx), void *const UU(unused)) {
+    inline int fx_iter(const struct four_xids &UU(xids), const uint32_t UU(idx), void *const UU(unused));
+    inline int fx_iter(const struct four_xids &UU(xids), const uint32_t UU(idx), void *const UU(unused)) {
         return 0;
     }
 
     typedef omt<four_xids, four_xids *> fx_omt_t;
-    static_assert(std::is_pod<fx_omt_t>::value, "fx_omt_t isn't POD");
+    ENSURE_POD(fx_omt_t);
     static_assert(24 == sizeof(fx_omt_t), "fx_omt_t is bigger than 24 bytes");
 
-    static inline int find_by_xid(const TOKUTXN &txn, const TXNID &findid) {
+    inline int find_by_xid(const TOKUTXN &txn, const TXNID &findid);
+    inline int find_by_xid(const TOKUTXN &txn, const TXNID &findid) {
         if (txn->txnid64 > findid) {
             return 1;
         }
@@ -64,12 +64,13 @@ namespace test {
         return 0;
     }
 
-    static inline int txn_iter(const TOKUTXN &UU(txn), const uint32_t UU(idx), void *const UU(unused)) {
+    inline int txn_iter(const TOKUTXN &UU(txn), const uint32_t UU(idx), void *const UU(unused));
+    inline int txn_iter(const TOKUTXN &UU(txn), const uint32_t UU(idx), void *const UU(unused)) {
         return 0;
     }
 
     typedef omt<TOKUTXN> txn_omt_t;
-    static_assert(std::is_pod<txn_omt_t>::value, "txn_omt_t isn't POD");
+    ENSURE_POD(txn_omt_t);
     static_assert(24 == sizeof(txn_omt_t), "txn_omt_t is bigger than 24 bytes");
 
     const int NTXNS = 1<<13;
@@ -183,7 +184,8 @@ namespace test {
         printf("memused: %" PRId64 "\n", maxrss);
     }
 
-    static inline int intcmp(const int &a, const int &b) {
+    inline int intcmp(const int &a, const int &b);
+    inline int intcmp(const int &a, const int &b) {
         if (a < b) {
             return -1;
         }
@@ -196,7 +198,8 @@ namespace test {
     typedef omt<int> int_omt_t;
 
     static int intiter_magic = 0xdeadbeef;
-    static int intiter(const int &value __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int *const extra) {
+    inline int intiter(const int &value __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int *const extra);
+    inline int intiter(const int &value __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int *const extra) {
         invariant(*extra == intiter_magic);
         return 0;
     }
@@ -205,7 +208,8 @@ namespace test {
         int count;
         int last;
     };
-    static int intiter2(const int &value, const uint32_t idx __attribute__((__unused__)), struct intiter2extra *const extra) {
+    inline int intiter2(const int &value, const uint32_t idx __attribute__((__unused__)), struct intiter2extra *const extra);
+    inline int intiter2(const int &value, const uint32_t idx __attribute__((__unused__)), struct intiter2extra *const extra) {
         extra->count++;
         invariant(extra->last < value);
         extra->last = value;

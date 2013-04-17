@@ -62,48 +62,9 @@ macro(hostname out)
   string(REGEX REPLACE "\\.tokutek\\.com$" "" ${out} ${fullhostname})
 endmacro(hostname)
 
-## determines the current revision of ${svn_dir}
-macro(get_svn_revision svn_dir out)
-  find_program(CMAKE_SVN_PROG svn)
-  if(CMAKE_SVN_PROG MATCHES "CMAKE_SVN_PROG-NOTFOUND")
-    message(ERROR "can't find svn")
-  endif()
-  find_program(CMAKE_AWK_PROG NAMES awk gawk)
-  if(CMAKE_AWK_PROG MATCHES "CMAKE_AWK_PROG-NOTFOUND")
-    message(ERROR "can't find awk or gawk")
-  endif()
-  execute_process(
-    COMMAND ${CMAKE_SVN_PROG} info ${svn_dir}
-    COMMAND ${CMAKE_AWK_PROG} "/Revision/ { print $2 }"
-    OUTPUT_VARIABLE revision
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  set(${out} ${revision})
-endmacro(get_svn_revision)
-
-## determines whether you have local changes in ${svn_dir} (${out} will be
-## either the empty string if it's clean, or "-dirty" if you have changes)
-macro(get_svn_wc_status svn_dir out)
-  find_program(CMAKE_SVN_PROG svn)
-  if(CMAKE_SVN_PROG MATCHES "CMAKE_SVN_PROG-NOTFOUND")
-    message(ERROR "can't find svn")
-  endif()
-  find_program(CMAKE_AWK_PROG NAMES awk gawk)
-  execute_process(
-    COMMAND ${CMAKE_SVN_PROG} status -q ${svn_dir}
-    OUTPUT_VARIABLE svn_status
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if(svn_status MATCHES "^$")
-    set(${out} "")
-  else()
-    set(${out} "-dirty")
-  endif()
-endmacro(get_svn_wc_status)
-
 ## gather machine info
 uname("-m" machine_type)
 real_executable_name("${CMAKE_CXX_COMPILER}" real_cxx_compiler)
-#get_svn_revision("${CMAKE_CURRENT_SOURCE_DIR}" svn_revision)  ## unused since it confuses cdash about history
-#get_svn_wc_status("${CMAKE_CURRENT_SOURCE_DIR}" wc_status)    ## unused since it confuses cdash about history
 get_filename_component(branchname "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
 hostname(host)
 whoami(user)

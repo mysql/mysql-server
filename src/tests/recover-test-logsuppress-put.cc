@@ -30,7 +30,7 @@ DB_TXN *child;
 // for the handlerton's generate_row_for_put().
 static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
-    src_db = src_db;
+    (void) src_db;
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
 

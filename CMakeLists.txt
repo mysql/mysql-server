@@ -1,9 +1,5 @@
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.9 FATAL_ERROR)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
-
-## this needs to happen before calling project(), when cmake detects some
-## basic things about the compiler
-include(TokuSetupIntelCompiler)
 
 project(TokuDB)
 
@@ -22,13 +18,6 @@ include(TokuMergeLibs)
 ## need a way to change the name of libs we build
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")
 set(LIBTOKUDB "tokudb" CACHE STRING "Name of libtokudb.so")
-
-## add an option for cilk
-option(USE_CILK "Use cilk in tokudb." OFF)
-## can't use cilk without icc
-if (USE_CILK AND (NOT CMAKE_CXX_COMPILER_ID MATCHES Intel))
-  message(FATAL_ERROR "You specified USE_CILK=ON so you need INTEL_CC=ON.")
-endif ()
 
 include_directories(
   ${VALGRIND_INCLUDE_DIR}

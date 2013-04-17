@@ -13,7 +13,7 @@
 
 static int
 put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_data; (void) src_key; (void) src_data;
 
     lazy_assert(src_db != NULL && dest_db != NULL);
 

@@ -1503,7 +1503,7 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
 
     {
         // write a recovery log entry
-        BYTESTRING recover_comment = { strlen("recover"), (char *) "recover" };
+        BYTESTRING recover_comment = { static_cast<uint32_t>(strlen("recover")), (char *) "recover" };
         r = toku_log_comment(renv->logger, NULL, true, 0, recover_comment);
         assert(r == 0);
     }

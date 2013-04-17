@@ -24,7 +24,7 @@ static void copy_dbt(DBT *dest, const DBT *src) {
 }
 
 static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
-    dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_val = dest_val; src_key = src_key; src_val = src_val;
+    (void) dest_db; (void) src_db; (void) dest_key; (void) dest_val; (void) src_key; (void) src_val;
 
     copy_dbt(dest_key, src_key);
     copy_dbt(dest_val, src_val);

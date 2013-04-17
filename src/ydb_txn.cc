@@ -485,8 +485,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
 }
 
 void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
-    struct __toku_db_txn_external *XMALLOC(eresult);
-    memset(eresult, 0, sizeof(*eresult));
+    struct __toku_db_txn_external *XCALLOC(eresult);
     DB_TXN *result = &eresult->external_part;
     result->mgrp = env;
     txn_func_init(result);
@@ -494,13 +493,12 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     result->parent = NULL;
     
 #if !TOKUDB_NATIVE_H
-    MALLOC(db_txn_struct_i(result));
+    CALLOC(db_txn_struct_i(result));
     if (!db_txn_struct_i(result)) {
         toku_free(result);
         return ENOMEM;
     }
 #endif
-    memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
 
     {
         int r = toku_lth_create(&db_txn_struct_i(result)->lth);
@@ -511,6 +509,7 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
 
     toku_txn_set_container_db_txn(tokutxn, result);
 
+    toku_mutex_init(&db_txn_struct_i(result)->txn_mutex, NULL);
     (void) __sync_fetch_and_add(&env->i->open_txns, 1);
 }
 

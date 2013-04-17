@@ -13,7 +13,7 @@ int
 test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     char *XMALLOC_N(5, m);
-    m=m;
+    (void)m;
     toku_free(m);
     return 0;
 }

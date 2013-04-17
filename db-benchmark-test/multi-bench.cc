@@ -76,7 +76,7 @@ static int inserter(struct keygen *keygen, DB_ENV *env, DB *db) {
         if (r != 0)
             break;
         
-        if (verbose) printf("%d: %" PRIu64 "\n", (int) pthread_self(), k);
+        if (verbose) printf("%" PRIdPTR ": %" PRIu64 "\n", (intptr_t) pthread_self(), k);
 
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);
@@ -95,7 +95,7 @@ static int inserter(struct keygen *keygen, DB_ENV *env, DB *db) {
 }
 
 static void *inserter_wrap(void *arg) {
-    if (verbose) printf("%d\n", (int) pthread_self());
+    if (verbose) printf("%" PRIdPTR "\n", (intptr_t) pthread_self());
     struct inserter_arg *inserter_arg = (struct inserter_arg *) arg;
     int r = inserter(inserter_arg->keygen, inserter_arg->env, inserter_arg->db);
     assert(r == 0);

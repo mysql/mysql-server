@@ -27,25 +27,29 @@ namespace test {
 static inline uint32_t fudge(const uint32_t x) { return x + 300; }
 static inline uint32_t defudge(const uint32_t fx) { return fx - 300; }
 
-static int test_iterator(const uint32_t &v, const uint32_t idx, bool *const UU(unused)) {
+int test_iterator(const uint32_t &v, const uint32_t idx, bool *const UU(unused));
+int test_iterator(const uint32_t &v, const uint32_t idx, bool *const UU(unused)) {
     invariant(defudge(v) == idx);
     return 0;
 }
 
-static int check_iterator_before(const uint32_t &v, const uint32_t idx, bool *const called) {
+int check_iterator_before(const uint32_t &v, const uint32_t idx, bool *const called);
+int check_iterator_before(const uint32_t &v, const uint32_t idx, bool *const called) {
     invariant(defudge(v) == idx);
     invariant(idx % 10 < 5);
     called[idx] = true;
     return 0;
 }
 
-static int check_iterator_after(const uint32_t &v, const uint32_t UU(idx), bool *const called) {
+int check_iterator_after(const uint32_t &v, const uint32_t UU(idx), bool *const called);
+int check_iterator_after(const uint32_t &v, const uint32_t UU(idx), bool *const called) {
     invariant(defudge(v) % 10 >= 5);
     called[defudge(v)] = true;
     return 0;
 }
 
-static int die(const uint32_t &UU(v), const uint32_t UU(idx), void *const UU(unused)) {
+int die(const uint32_t &UU(v), const uint32_t UU(idx), void *const UU(unused));
+int die(const uint32_t &UU(v), const uint32_t UU(idx), void *const UU(unused)) {
     abort();
     return 0; // hahaha
 }
@@ -109,7 +113,8 @@ static void run_test(uint32_t nelts) {
 
 typedef omt<uint32_t, uint32_t, true> stress_omt;
 
-static int int_heaviside(const uint32_t &v, const uint32_t &target) {
+int int_heaviside(const uint32_t &v, const uint32_t &target);
+int int_heaviside(const uint32_t &v, const uint32_t &target) {
     return (v > target) - (v < target);
 }
 
@@ -145,7 +150,7 @@ static void generate_range(struct random_data *rng, const struct stress_shared &
     if (range_limit > 1000) {
         range_limit = 1000;
     }
-    *begin = rand_choices(rng, nelts);
+    *begin = rand_choices(rng, nelts - 1);
     if (*begin + range_limit > nelts) {
         range_limit = nelts - *begin;
     }
@@ -157,7 +162,8 @@ struct pair {
     uint32_t limit;
 };
 
-static int mark_read_iterator(const uint32_t &UU(v), const uint32_t idx, struct pair * const pair) {
+int mark_read_iterator(const uint32_t &UU(v), const uint32_t idx, struct pair * const pair);
+int mark_read_iterator(const uint32_t &UU(v), const uint32_t idx, struct pair * const pair) {
     invariant(defudge(v) == idx);
     invariant(idx >= pair->begin);
     invariant(idx < pair->limit);
@@ -211,7 +217,8 @@ public:
     }
 };
 
-static int use_array_ftor(const uint32_t &v, const uint32_t UU(idx), array_ftor<uint32_t> *const fp) {
+int use_array_ftor(const uint32_t &v, const uint32_t UU(idx), array_ftor<uint32_t> *const fp);
+int use_array_ftor(const uint32_t &v, const uint32_t UU(idx), array_ftor<uint32_t> *const fp) {
     array_ftor<uint32_t> &f = *fp;
     f(v);
     return 0;
@@ -266,7 +273,8 @@ static void simulate_reader_marks_on_array(struct reader_extra *const reader, co
     }
 }
 
-static int copy_marks(const uint32_t &v, const uint32_t idx, bool * const is_marked) {
+int copy_marks(const uint32_t &v, const uint32_t idx, bool * const is_marked);
+int copy_marks(const uint32_t &v, const uint32_t idx, bool * const is_marked) {
     invariant(defudge(v) == idx);
     is_marked[idx] = true;
     return 0;

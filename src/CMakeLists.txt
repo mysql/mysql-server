@@ -26,21 +26,9 @@ target_link_libraries(${LIBTOKUDB} LINK_PUBLIC z)
 ## make the static library
 add_library(tokudb_static_conv STATIC ${tokudb_srcs})
 add_dependencies(tokudb_static_conv install_tdb_h generate_log_code)
-add_space_separated_property(TARGET tokudb_static_conv COMPILE_FLAGS -fPIC)
-set(tokudb_required_libs tokudb_static_conv lock_tree_static range_tree_static
-    ft_static lzma ${LIBTOKUPORTABILITY} z ${CMAKE_THREAD_LIBS_INIT} dl)
-if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
-  find_library(IRC_LIBRARIES NAMES libirc.a irc PATHS ENV LIBRARY_PATH)
-  add_library(irc_fullpath STATIC IMPORTED)
-  set_target_properties(irc_fullpath PROPERTIES IMPORTED_LOCATION ${IRC_LIBRARIES})
-  list(APPEND tokudb_required_libs irc_fullpath)
-endif ()
-set(CMAKE_TOP_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/..")
-merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_required_libs}")
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
-  target_link_libraries(${LIBTOKUDB} LINK_PRIVATE -nodefaultlibs)
-endif ()
+set_target_properties(tokudb_static_conv PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set(tokudb_source_libs tokudb_static_conv lock_tree_static range_tree_static ft_static lzma ${LIBTOKUPORTABILITY} z ${CMAKE_THREAD_LIBS_INIT} dl)
+merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_source_libs}")
 
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
@@ -50,10 +38,8 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif ()
 
 ## add gcov and define _GNU_SOURCE
-maybe_add_gcov_to_libraries(${LIBTOKUDB} tokudb_static_conv)
-set_property(TARGET ${LIBTOKUDB} tokudb_static_conv APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
-
-set_targets_need_intel_libs(${LIBTOKUDB})
+maybe_add_gcov_to_libraries(${LIBTOKUDB} ${LIBTOKUDB}_static)
+set_property(TARGET ${LIBTOKUDB} ${LIBTOKUDB}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 
 install(
   TARGETS ${LIBTOKUDB} ${LIBTOKUDB}_static

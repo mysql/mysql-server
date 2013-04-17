@@ -17,6 +17,9 @@
 # include <malloc.h>
 #elif defined(HAVE_SYS_MALLOC_H)
 # include <sys/malloc.h>
+# if defined(HAVE_MALLOC_MALLOC_H)
+#  include <malloc/malloc.h>
+# endif
 #endif
 #include "test.h"
 #include <toku_byteswap.h>
@@ -30,12 +33,12 @@ static uint64_t htonl64(uint64_t x) {
 #endif
 }
 
-typedef size_t (*malloc_usable_size_fun_t)(void *p);
 #if defined(HAVE_MALLOC_USABLE_SIZE)
+typedef size_t (*malloc_usable_size_fun_t)(void *p);
 size_t malloc_usable_size(void *p) __THROW;
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
 #elif defined(HAVE_MALLOC_SIZE)
-size_t malloc_size(void *p) __THROW;
+typedef size_t (*malloc_usable_size_fun_t)(const void *p);
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
 #endif
 

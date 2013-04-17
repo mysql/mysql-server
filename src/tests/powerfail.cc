@@ -54,7 +54,7 @@ static void close_dbs (void) {
 }
 
 static long shuffle (long l, int i) {
-    i=i;
+    (void)i;
     return l;
 }
 

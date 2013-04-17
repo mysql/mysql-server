@@ -43,7 +43,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_log_comment(logger, &lsn, 0, now(), bs0);
     assert(r == 0);
 
-    sleep(10);
+    sleep(11);
 
     BYTESTRING bs1 = { .len = 5, .data = (char *) "world" };
     r = toku_log_comment(logger, &lsn, 0, now(), bs1);

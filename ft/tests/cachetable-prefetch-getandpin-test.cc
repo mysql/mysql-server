@@ -126,11 +126,11 @@ static void cachetable_prefetch_maybegetandpin_test (bool do_partial_fetch) {
     r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, true, NULL);
     assert(r == 0 && v == 0 && size == 2);
 
-    struct timeval tend; 
+    struct timeval tend;
     gettimeofday(&tend, NULL);
 
-    assert(tdelta_usec(&tend, &tstart) >= 2000000); 
-    
+    assert(tdelta_usec(&tend, &tstart) >= 1900000);
+
     toku_cachetable_verify(ct);
 
     r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(1));

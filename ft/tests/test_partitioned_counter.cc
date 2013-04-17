@@ -292,7 +292,7 @@ static void *reader_test_fun (void *ta_v) {
 	assert(lastval <= thisval);
 	assert(thisval <= ta->limit+2);
 	lastval = thisval;
-	if (verboseness_cmdarg && (0==(thisval & (thisval-1)))) printf("ufc=%ld Thisval=%ld\n", ta->unfinished_count,thisval);
+	if (verboseness_cmdarg && (0==(thisval & (thisval-1)))) printf("ufc=%" PRIu64 " Thisval=%" PRIu64 "\n", ta->unfinished_count,thisval);
     }
     uint64_t thisval = read_partitioned_counter(ta->pc);
     assert(thisval==ta->limit+2); // we incremented two extra times in the test

@@ -151,8 +151,8 @@ check_results(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows)
 static int UU() 
 put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
 
-    src_db = src_db;
-    extra = extra;
+    (void) src_db;
+    (void) extra;
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
 
