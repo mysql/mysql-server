@@ -428,9 +428,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     unused_flags &= ~DB_THREAD;
 
     if (unused_flags!=0) {
-	static char string[100];
-	snprintf(string, 100, "Extra flags not understood by tokudb: %u\n", unused_flags);
-	return toku_ydb_do_error(env, EINVAL, string);
+	return toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
     }
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
@@ -2751,7 +2749,7 @@ static int toku_db_lt_panic(DB* db, int r) {
     if (r < 0) env->i->panic_string = toku_strdup(toku_lt_strerror((TOKU_LT_ERROR)r));
     else       env->i->panic_string = toku_strdup("Error in locktree.\n");
 
-    return toku_ydb_do_error(env, r, env->i->panic_string);
+    return toku_ydb_do_error(env, r, "%s", env->i->panic_string);
 }
 
 static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
