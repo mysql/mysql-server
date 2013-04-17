@@ -415,9 +415,7 @@ int toku_loader_close(DB_LOADER *loader)
             r = ft_loader_close_and_redirect(loader);
         }
     }
-    toku_ydb_lock();
     free_loader(loader);
-    toku_ydb_unlock();
     if (r==0)
         (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
     else
@@ -439,9 +437,7 @@ int toku_loader_abort(DB_LOADER *loader)
     if (!(loader->i->loader_flags & LOADER_USE_PUTS) ) {
         r = toku_ft_loader_abort(loader->i->ft_loader, TRUE);
     }
-    toku_ydb_lock();
     free_loader(loader);
-    toku_ydb_unlock();
     return r;
 }
 
