@@ -170,6 +170,45 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     toku_brtnode_free(&n);
 }
 
+static void 
+dump_block_translation(struct brt_header *h, u_int64_t offset) {
+    if (offset < h->translated_blocknum_limit) {
+        struct block_translation_pair *bx = &h->block_translation[offset];
+        printf("%lu: %ld %ld\n", offset, bx->diskoff, bx->size);
+    }
+}
+
+static int 
+bxpcmp(const void *a, const void *b) {
+    const struct block_translation_pair *bxpa = a;
+    const struct block_translation_pair *bxpb = b;
+    if (bxpa->diskoff < bxpb->diskoff) return -1;
+    if (bxpa->diskoff > bxpb->diskoff) return +1;
+    return 0;
+}
+
+static void 
+dump_fragmentation(struct brt_header *h) {
+    u_int64_t totalsize = 0;
+    u_int64_t fragsize = 0;
+    u_int64_t i;
+    for (i = 0; i < h->translated_blocknum_limit; i++) {
+        totalsize += h->block_translation[i].size;
+    }
+    size_t n = h->translated_blocknum_limit * sizeof (struct block_translation_pair);
+    struct block_translation_pair *bx = malloc(n);
+    memcpy(bx, h->block_translation, n);
+    qsort(bx, h->translated_blocknum_limit, sizeof (struct block_translation_pair), bxpcmp);
+    for (i = 0; i < h->translated_blocknum_limit - 1; i++) {
+        // printf("%lu %ld %ld\n", i, bx[i].diskoff, bx[i].size);
+        fragsize += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
+    }
+    free(bx);
+    printf("totalsize: %lu\n", totalsize);
+    printf("fragsize: %lu\n", fragsize);
+    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsize / (double)totalsize));
+}
+
 static void
 readline (char *line, int maxline) {
     int i = 0;
@@ -231,6 +270,13 @@ int main (int argc, const char *argv[]) {
                 dump_node(f, off, h);
             } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
                 dump_data = strtol(fields[1], NULL, 10);
+	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
+     	        u_int64_t offset = 0;
+	        if (nfields == 2)
+		    offset = strtoll(fields[1], NULL, 10);
+	        dump_block_translation(h, offset);
+	    } else if (strcmp(fields[0], "fragmentation") == 0) {
+	        dump_fragmentation(h);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }
