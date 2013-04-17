@@ -3202,10 +3202,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     DBUG_PRINT("primary", ("index: %d", primary_key));
     DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
 
-    if (keynr == active_index && cursor) {
-        error = cursor->c_del(cursor, 0);
-    }
-    else if (keynr == primary_key) {  // Unique key
+    if (keynr == primary_key) {  // Unique key
         DBUG_PRINT("Primary key", ("index: %d", keynr));
         error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , DB_DELETE_ANY);
     }
