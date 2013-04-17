@@ -149,3 +149,50 @@
    fun:_dlerror_run
    fun:dlsym
 }
+{
+   dyld_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/dyld
+   ...
+}
+{
+   dyld_on_OSX
+   Memcheck:Value8
+   ...
+   obj:/usr/lib/dyld
+   ...
+}
+{
+   dyld_on_OSX
+   Memcheck:Cond
+   ...
+   obj:/usr/lib/dyld
+   ...
+}
+{
+   ctime_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   ...
+   fun:asctime_r
+   ...
+}
+{
+   ctime_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   ...
+   fun:ctime
+   ...
+}
+{
+   pthread_join_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:pthread_join
+   ...
+}
