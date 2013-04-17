@@ -51,8 +51,8 @@ void get_var_field_info(
     }
 
     *start_offset = data_start_offset;
+    assert(data_end_offset >= data_start_offset);
     *field_len = data_end_offset - data_start_offset;
-
 }
 
 void get_blob_field_info(

@@ -44,6 +44,22 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 }
 #endif
 
+struct hot_poll_fun_extra {
+    uint current_table;
+    uint num_tables;
+};
+
+static int hot_poll_fun(void *extra, float progress) {
+    HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
+    if (context->thd->killed) {
+        sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
+        return ER_ABORTING_CONNECTION;
+    }
+    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, progress*100);
+    thd_proc_info(context->thd, context->write_status_msg);
+    return 0;
+}
+
 volatile int ha_tokudb_optimize_wait = 0; // debug
 
 // flatten all DB's in this table, to do so, just do a full scan on every DB

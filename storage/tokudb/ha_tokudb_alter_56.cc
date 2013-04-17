@@ -1161,7 +1161,7 @@ cleanup:
 
 static bool 
 column_rename_supported(
-    Alter_info* alter_info, 
+    Alter_inplace_info *ha_alter_info,
     TABLE* orig_table, 
     TABLE* new_table
     ) 
@@ -1174,12 +1174,10 @@ column_rename_supported(
         retval = false;
         goto cleanup;
     }
-#if 0 // TODO
-    if (alter_info->contains_first_or_after) {
+    if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER) {
         retval = false;
         goto cleanup;
     }
-#endif
     for (uint i = 0; i < orig_table->s->fields; i++) {
         Field* orig_field = orig_table->field[i];
         Field* new_field = new_table->field[i];
@@ -1311,7 +1309,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             // now need to verify that one and only one column
             // has changed only its name. If we find anything to
             // the contrary, we don't allow it, also check indexes
-            bool cr_supported = column_rename_supported(ha_alter_info->alter_info, table, altered_table);
+            bool cr_supported = column_rename_supported(ha_alter_info, table, altered_table);
             if (cr_supported)
                 result = HA_ALTER_INPLACE_NO_LOCK;
         }
@@ -1332,7 +1330,8 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;;
     } else
     // add column
-    if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_COLUMN) {
+    if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_COLUMN ||
+        ha_alter_info->handler_flags == Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER) {
         u_int32_t added_columns[altered_table->s->fields];
         u_int32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
@@ -1348,7 +1347,8 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         }
     } else
     // drop column
-    if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_COLUMN) {
+    if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_COLUMN ||
+        ha_alter_info->handler_flags == Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER) {
         u_int32_t dropped_columns[table->s->fields];
         u_int32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
@@ -1395,8 +1395,8 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         ha_alter_info->handler_flags == Alter_inplace_info::DROP_UNIQUE_INDEX) {
         error = alter_table_drop_index(altered_table, ha_alter_info);
     } else
-    if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_COLUMN || 
-        ha_alter_info->handler_flags == Alter_inplace_info::DROP_COLUMN) {
+    if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN || 
+        ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN) {
         error = alter_table_add_or_drop_column(altered_table, ha_alter_info);
     }
 
