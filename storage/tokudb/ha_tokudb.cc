@@ -710,7 +710,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
     // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
-    changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
+    last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
     transaction = NULL;
 }
 
@@ -1779,7 +1779,6 @@ void ha_tokudb::get_status() {
         }
 
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
-            share->org_rows = share->rows = table_share->max_rows ? table_share->max_rows : HA_TOKUDB_MAX_ROWS;
             DB_TXN *transaction = NULL;
             int r = 0;
             if (tokudb_init_flags & DB_INIT_TXN)
@@ -1797,7 +1796,11 @@ void ha_tokudb::get_status() {
                     if (!cursor->c_get(cursor, &last_key, &row, DB_FIRST)) {
                         uint i;
                         uchar *pos = (uchar *) row.data;
-                        share->org_rows = share->rows = uint4korr(pos);
+                        //
+                        // used to put read estimate of row count here.
+                        // no longer do so, so for backward compatibility,
+                        // just move pos by 4 bytes
+                        //
                         pos += 4;
                         for (i = 0; i < table_share->keys; i++) {
                             share->rec_per_key[i] = uint4korr(pos);
@@ -1837,7 +1840,7 @@ static int write_status(DB * status_block, char *buff, uint length) {
 
 static void update_status(TOKUDB_SHARE * share, TABLE * table) {
     TOKUDB_DBUG_ENTER("update_status");
-    if (share->rows != share->org_rows || (share->status & STATUS_TOKUDB_ANALYZE)) {
+    if (share->status & STATUS_TOKUDB_ANALYZE) {
         pthread_mutex_lock(&share->mutex);
         if (!share->status_block) {
             /*
@@ -1857,7 +1860,11 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
         }
         {
             char rec_buff[4 + MAX_KEY * 4], *pos = rec_buff;
-            int4store(pos, share->rows);
+            //
+            // we used to store estimate of row count here
+            // no longer do so, so for backwards compatibility,
+            // just move ptr up 4 bytes
+            //
             pos += 4;
             for (uint i = 0; i < table->s->keys; i++) {
                 int4store(pos, share->rec_per_key[i]);
@@ -1866,7 +1873,6 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
             DBUG_PRINT("info", ("updating status for %s", share->table_name));
             (void) write_status(share->status_block, rec_buff, (uint) (pos - rec_buff));
             share->status &= ~STATUS_TOKUDB_ANALYZE;
-            share->org_rows = share->rows;
         }
       end:
         pthread_mutex_unlock(&share->mutex);
@@ -1881,7 +1887,7 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
 */
 ha_rows ha_tokudb::estimate_rows_upper_bound() {
     TOKUDB_DBUG_ENTER("ha_tokudb::estimate_rows_upper_bound");
-    DBUG_RETURN(share->rows + HA_TOKUDB_EXTRA_ROWS);
+    DBUG_RETURN(stats.records + HA_TOKUDB_EXTRA_ROWS);
 }
 
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
@@ -1996,10 +2002,9 @@ int ha_tokudb::write_row(uchar * record) {
                 break;
         }
     }
-    if (error == DB_KEYEXIST)
+    if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
-    else if (!error)
-        changed_rows++;
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2281,10 +2286,6 @@ int ha_tokudb::delete_row(const uchar * record) {
         if (error != DB_LOCK_DEADLOCK && error != DB_LOCK_NOTGRANTED)
             break;
     }
-#ifdef CANT_COUNT_DELETED_ROWS
-    if (!error)
-        changed_rows--;
-#endif
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -3043,7 +3044,7 @@ void ha_tokudb::position(const uchar * record) {
 //      0, always success
 //
 int ha_tokudb::info(uint flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld %ld", this, flag, share->rows, changed_rows);
+    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d", this, flag);
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         u_int64_t num_rows = 0;
@@ -3269,8 +3270,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     }
     else {
         lock.type = TL_UNLOCK;  // Unlocked
-        thread_safe_add(share->rows, changed_rows, &share->mutex);
-        changed_rows = 0;
         if (!--trx->tokudb_lock_count) {
             if (trx->stmt) {
                 /*
@@ -4153,7 +4152,6 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
             goto err;
     }
     pthread_mutex_lock(&share->mutex);
-    share->rows = stat->bt_ndata;
     share->status |= STATUS_TOKUDB_ANALYZE;        // Save status on close
     share->version++;           // Update stat in table
     pthread_mutex_unlock(&share->mutex);
