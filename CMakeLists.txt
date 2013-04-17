@@ -55,19 +55,6 @@ else ()
         $(MAKE) -C src/liblzma install
     )
 endif ()
-ExternalProject_Add_StepTargets(ep_lzma autoreconf)
-ExternalProject_Add_Step(ep_lzma autoreconf
-  COMMAND autoreconf -fi
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta
-  DEPENDEES update patch
-  DEPENDERS configure
-  DEPENDS
-  ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/configure.ac
-  ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/Makefile.am
-  ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/src/Makefile.am
-  ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/src/liblzma/Makefile.am
-  ${CMAKE_CURRENT_SOURCE_DIR}/xz-4.999.9beta/src/liblzma/api/Makefile.am
-  )
 add_custom_target(build_lzma DEPENDS ep_lzma)
 
 add_library(lzma STATIC IMPORTED)
