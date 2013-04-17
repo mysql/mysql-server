@@ -659,6 +659,7 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
         if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
             uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
             uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
+            uint32_t number_of_offsets = offset_end - offset_start;
 
             // make the expand varchar offsets message
             DBT expand;
@@ -673,11 +674,11 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
             expand_ptr[0] = UPDATE_OP_EXPAND_VARCHAR_OFFSETS;
             expand_ptr += sizeof (uchar);
         
+            memcpy(expand_ptr, &number_of_offsets, sizeof number_of_offsets);
+            expand_ptr += sizeof number_of_offsets;
+
             memcpy(expand_ptr, &offset_start, sizeof offset_start);
             expand_ptr += sizeof offset_start;
-
-            memcpy(expand_ptr, &offset_end, sizeof offset_end);
-            expand_ptr += sizeof offset_end;
 
             // and broadcast it into the tree
             error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
@@ -720,8 +721,6 @@ change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *ta
         return false;
     if (old_field->max_display_length() > new_field->max_display_length()) 
         return false;
-    if (field_in_key(table, old_field))
-        return false;
     if (ctx->table_kc_info->num_offset_bytes > ctx->altered_table_kc_info->num_offset_bytes)
         return false; // something is wrong
     if (ctx->table_kc_info->num_offset_bytes < ctx->altered_table_kc_info->num_offset_bytes)
@@ -739,6 +738,10 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
+        if (field_in_key(table, old_field))
+            return false;
+        if (field_in_key(altered_table, new_field))
+            return false;
         // varchar(X) -> varchar(Y)
         if (!change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;
@@ -840,7 +843,7 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             // make the expand int field message
             DBT expand;
 	    memset(&expand, 0, sizeof(expand));
-            expand.size = 1+4+4+4+4;
+            expand.size = 1+4+4+4;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
@@ -850,18 +853,19 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             expand_ptr[0] = operation;
             expand_ptr += sizeof (uchar);
 
-            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
-            memcpy(expand_ptr, &old_offset, sizeof old_offset);
-            expand_ptr += sizeof old_offset;
+            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
+            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
+            assert(old_offset <= new_offset);
+
+            // for the first altered field, old_offset == new_offset.  for the subsequent altered fields, the new_offset
+            // should be used as it includes the length changes from the previous altered fields.
+            memcpy(expand_ptr, &new_offset, sizeof new_offset);
+            expand_ptr += sizeof new_offset;
 
             uint32_t old_length = ctx->table_kc_info->field_lengths[expand_field_num];
             assert(old_length == old_field->pack_length());
             memcpy(expand_ptr, &old_length, sizeof old_length);
             expand_ptr += sizeof old_length;
-
-            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
-            memcpy(expand_ptr, &new_offset, sizeof new_offset);
-            expand_ptr += sizeof new_offset;
 
             uint32_t new_length = ctx->altered_table_kc_info->field_lengths[expand_field_num];
             assert(new_length == new_field->pack_length());
@@ -905,8 +909,6 @@ change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_
     // shrink is not supported
     if (old_field->pack_length() > new_field->pack_length())
         return false;
-    if (field_in_key(table, old_field))
-        return false;
     ctx->expand_fixed_update_needed = true;
     return true;
 }
@@ -945,6 +947,10 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
+        if (field_in_key(table, old_field))
+            return false;
+        if (field_in_key(altered_table, new_field))
+            return false;
         if (!change_type_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;            
     }
