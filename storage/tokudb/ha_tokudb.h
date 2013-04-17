@@ -161,8 +161,8 @@ private:
     ulong max_row_length(const uchar * buf);
     int pack_row(DBT * row, const uchar * record);
     void unpack_key(uchar * record, DBT const *key, uint index);
-    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
-    DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
+    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
+    DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length);
     int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
     int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys);
