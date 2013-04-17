@@ -17,6 +17,8 @@
 #include "rwlock.h"
 #include "toku_worker.h"
 #include "log_header.h"
+#include "checkpoint.h"
+#include "minicron.h"
 
 #if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
 #error
@@ -142,6 +144,7 @@ struct cachetable {
     LSN lsn_of_checkpoint_in_progress;
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
     struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread
+    struct minicron checkpointer; // the periodic checkpointing thread
 };
 
 // Lock the cachetable
@@ -188,6 +191,32 @@ struct cachefile {
     int (*end_checkpoint_userdata)(CACHEFILE cf, void *userdata); // after checkpointing cachefiles call this function.
 };
 
+static int
+checkpoint_thread (void *cachetable_v)
+// Effect:  If checkpoint_period>0 thn periodically run a checkpoint.
+//  If someone changes the checkpoint_period (calling toku_set_checkpoint_period), then the checkpoint will run sooner or later.
+//  If someone sets the checkpoint_shutdown boolean , then this thread exits. 
+// This thread notices those changes by waiting on a condition variable.
+{
+    char *error_string;
+    CACHETABLE ct = cachetable_v;
+    printf("%s:%d Checkpointing\n", __FILE__, __LINE__);
+    int r = toku_checkpoint(ct, ct->logger, &error_string);
+    if (r) {
+	if (error_string) {
+	    fprintf(stderr, "%s:%d Got error %d while doing: %s\n", __FILE__, __LINE__, r, error_string);
+	} else {
+	    fprintf(stderr, "%s:%d Got error %d while doing checkpoint\n", __FILE__, __LINE__, r);
+	}
+	abort(); // Don't quite know what to do with these errors.
+    }
+    return r;
+}
+
+int toku_set_checkpoint_period (CACHETABLE ct, u_int32_t new_period) {
+    return toku_minicron_change_period(&ct->checkpointer, new_period);
+}
+
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
 #if defined __linux__
     {
@@ -208,6 +237,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->logger = logger;
     toku_init_workers(&ct->wq, &ct->threadpool);
     ct->mutex = workqueue_lock_ref(&ct->wq);
+    toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     *result = ct;
     return 0;
 }
@@ -1271,6 +1301,10 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
 /* Require that it all be flushed. */
 int toku_cachetable_close (CACHETABLE *ctp) {
     CACHETABLE ct=*ctp;
+    {
+	int  r = toku_minicron_shutdown(&ct->checkpointer);
+	assert(r==0);
+    }
     int r;
     cachetable_lock(ct);
     if ((r=cachetable_flush_cachefile(ct, 0))) {

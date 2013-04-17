@@ -54,6 +54,7 @@ BRT_SOURCES = \
   log_code \
   memarena \
   mempool \
+  minicron \
   omt \
   recover \
   roll \
