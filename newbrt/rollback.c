@@ -685,10 +685,12 @@ static int find_filenum (OMTVALUE v, void *hv) {
 
 //Notify a transaction that it has touched a brt.
 int toku_txn_note_brt (TOKUTXN txn, struct brt_header* h) {
-    toku_brtheader_maybe_add_txn_ref(h, txn);
+    BOOL ref_added = toku_brtheader_maybe_add_txn_ref(h, txn);
     // Insert reference to brt into transaction
-    int r = toku_omt_insert(txn->open_brt_headers, h, find_filenum, h, 0);
-    assert(r==0);
+    if (ref_added) {
+        int r = toku_omt_insert(txn->open_brt_headers, h, find_filenum, h, 0);
+        assert(r==0);
+    }
     return 0;
 }
 
