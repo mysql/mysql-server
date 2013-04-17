@@ -3990,22 +3990,26 @@ void ha_tokudb::track_progress(THD* thd) {
             bool first = true;
             int r;
             if (trx->stmt_progress.queried) {
-                r = sprintf(next_status, "Queried about %llu rows", trx->stmt_progress.queried); assert(r >= 0);
+                r = sprintf(next_status, "Queried about %llu row%s", trx->stmt_progress.queried, trx->stmt_progress.queried == 1 ? "" : "s"); 
+                assert(r >= 0);
                 next_status += r;
                 first = false;
             }
             if (trx->stmt_progress.inserted) {
-                r = sprintf(next_status, "%sInserted about %llu rows", first ? "" : ", ", trx->stmt_progress.inserted); assert(r >= 0);
+                r = sprintf(next_status, "%sInserted about %llu row%s", first ? "" : ", ", trx->stmt_progress.inserted, trx->stmt_progress.inserted == 1 ? "" : "s"); 
+                assert(r >= 0);
                 next_status += r;
                 first = false;
             }
             if (trx->stmt_progress.updated) {
-                r = sprintf(next_status, "%sUpdated about %llu rows", first ? "" : ", ", trx->stmt_progress.updated); assert(r >= 0);
+                r = sprintf(next_status, "%sUpdated about %llu row%s", first ? "" : ", ", trx->stmt_progress.updated, trx->stmt_progress.updated == 1 ? "" : "s"); 
+                assert(r >= 0);
                 next_status += r;
                 first = false;
             }
             if (trx->stmt_progress.deleted) {
-                r = sprintf(next_status, "%sDeleted about %llu rows", first ? "" : ", ", trx->stmt_progress.deleted); assert(r >= 0);
+                r = sprintf(next_status, "%sDeleted about %llu row%s", first ? "" : ", ", trx->stmt_progress.deleted, trx->stmt_progress.deleted == 1 ? "" : "s"); 
+                assert(r >= 0);
                 next_status += r;
                 first = false;
             }
