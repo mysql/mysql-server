@@ -2169,8 +2169,6 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     result = allocate_block(&out, &lblock);
     lazy_assert(result == 0); // can not fail since translations reserved above
     struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
-    struct subtree_estimates est = zero_estimates;
-    est.exact = TRUE;
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
 
@@ -2215,6 +2213,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		progress_allocation -= progress_this_node;
 		old_n_rows_remaining = n_rows_remaining;
 
+                struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
 		allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
 
 		n_pivots++;
@@ -2238,9 +2237,6 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    }
 	
 	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size);
-	    est.nkeys++;
-	    est.ndata++;
-	    est.dsize+=key.size + val.size;
 	    n_rows_remaining--;
 	}
 
@@ -2249,6 +2245,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     }
 
     if (lbuf) {
+        struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
         allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
         {
             int p = progress_allocation/2;
@@ -2856,9 +2853,7 @@ static int setup_nonleaf_block (int n_children,
         toku_free(pivots[n_children-1].data);
         pivots[n_children-1] = zero_dbt;
 
-        struct subtree_estimates new_subtree_estimates; 
-        memset(&new_subtree_estimates, 0, sizeof new_subtree_estimates);
-        new_subtree_estimates.exact = TRUE;
+        struct subtree_estimates new_subtree_estimates = zero_estimates;
 
         struct subtree_info *XMALLOC_N(n_children, subtrees_array);
         int32_t fingerprint = 0;

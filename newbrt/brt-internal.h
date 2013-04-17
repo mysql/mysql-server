@@ -52,12 +52,10 @@ struct subtree_estimates {
 
 static struct subtree_estimates const zero_estimates __attribute__((__unused__)) = {0,0,0,TRUE};
 
-#if 0
 static inline struct subtree_estimates __attribute__((__unused__))
 make_subtree_estimates (u_int64_t nkeys, u_int64_t ndata, u_int64_t dsize, BOOL exact) {
-    return (struct subtree_estimates){.nkeys=nkeys, .ndata=ndata, .dsize=dsize, .exact=exact};
+    return (struct subtree_estimates){nkeys, ndata, dsize, exact};
 }
-#endif
 
 static inline void __attribute__((__unused__))
 subtract_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
