@@ -44,7 +44,7 @@ test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=.
 ifeq ($(VGRIND),)
 	./$< $(TEST_EXTRA_ARGS) $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full -show-reachable=yes --log-file=$<.check.valgrind ./$< $(TEST_EXTRA_ARGS) >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< $(TEST_EXTRA_ARGS) >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
