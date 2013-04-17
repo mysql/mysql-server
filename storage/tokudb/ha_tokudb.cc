@@ -197,6 +197,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
             }
             if (share->key_file[i]) { 
                 error = share->key_file[i]->close(share->key_file[i], 0);
+                assert(error == 0);
                 if (error) {
                     result = error;
                 }
@@ -216,6 +217,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         my_free(share->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
 
         if (share->status_block && (error = share->status_block->close(share->status_block, 0))) {
+            assert(error == 0);
             result = error;
         }
         
@@ -1053,7 +1055,8 @@ int ha_tokudb::open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
 cleanup:
     if (error) {
         if (*ptr) {
-            (*ptr)->close(*ptr, 0);
+            int r = (*ptr)->close(*ptr, 0);
+            assert(r==0);
             *ptr = NULL;
         }
     }
@@ -1099,10 +1102,11 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
 exit:
     if (error) {
         if (share->file) {
-            share->file->close(
+            int r = share->file->close(
                 share->file,
                 0
                 );
+            assert(r==0);
             share->file = NULL;
             share->key_file[primary_key] = NULL;
         }
@@ -1149,7 +1153,8 @@ int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* na
 cleanup:
     if (error) {
         if (*ptr) {
-            (*ptr)->close(*ptr, 0);
+            int r = (*ptr)->close(*ptr, 0);
+            assert(r==0);
             *ptr = NULL;
         }
     }
@@ -4761,7 +4766,8 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
     error = 0;
 exit:
     if (file) {
-        file->close(file, 0);
+        int r = file->close(file, 0);
+        assert(r==0);
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -5022,7 +5028,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = 0;
 cleanup:
     if (status_block != NULL) {
-        status_block->close(status_block, 0);
+        int r = status_block->close(status_block, 0);
+        assert(r==0);
     }
     if (txn) {
         if (error) {
@@ -5180,11 +5187,11 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     if (error) { goto cleanup; }
 
     error = status_cursor->c_close(status_cursor);
-    if (error) { goto cleanup; }
     status_cursor = NULL;
+    if (error) { goto cleanup; }
 
     error = status_db->close(status_db, 0);
-    if (error) { goto cleanup; }
+    assert(error == 0);
     status_db = NULL;
     
     //
@@ -5199,7 +5206,8 @@ cleanup:
         status_cursor->c_close(status_cursor);
     }
     if (status_db) {
-        status_db->close(status_db, 0);
+        int r = status_db->close(status_db, 0);
+        assert(r==0);
     }
     if (txn) {
         if (error) {
@@ -5837,10 +5845,11 @@ cleanup:
             curr_index = curr_num_DBs;
             for (uint i = 0; i < num_of_keys; i++, curr_index++) {
                 if (share->key_file[curr_index]) {
-                    share->key_file[curr_index]->close(
+                    int r = share->key_file[curr_index]->close(
                         share->key_file[curr_index],
                         0
                         );
+                    assert(r==0);
                     share->key_file[curr_index] = NULL;
                 }
             }
@@ -5887,7 +5896,8 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     
     for (uint i = 0; i < num_of_keys; i++) {
         uint curr_index = key_num[i];
-        share->key_file[curr_index]->close(share->key_file[curr_index],0);
+        int r = share->key_file[curr_index]->close(share->key_file[curr_index],0);
+        assert(r==0);
         share->key_file[curr_index] = NULL;
 
         error = remove_key_name_from_status(share->status_block, table_arg->key_info[curr_index].name, txn);
@@ -6060,7 +6070,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     bool is_pk = (keynr == primary_key);
     
     error = share->key_file[keynr]->close(share->key_file[keynr], 0);
-    if (error) { goto cleanup; }
+    assert(error == 0);
 
     share->key_file[keynr] = NULL;
     if (is_pk) { share->file = NULL; }
