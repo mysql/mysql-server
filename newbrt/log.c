@@ -1115,13 +1115,16 @@ static int find_filenum (OMTVALUE v, void *brtv) {
     FILENUM fnumfind = toku_cachefile_filenum(brtfind->cf);
     if (fnum.fileid<fnumfind.fileid) return -1;
     if (fnum.fileid>fnumfind.fileid) return +1;
+    if (brt < brtfind) return -1;
+    if (brt > brtfind) return +1;
     return 0;
 }
 
-
+//Notify a transaction that it has touched a brt.
 int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     OMTVALUE txnv;
     u_int32_t index;
+    // Does brt already know about transaction txn?
     int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv, &index, NULL);
     if (r==0) {
 	// It's already there.
@@ -1129,8 +1132,10 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
 	return 0;
     }
     // Otherwise it's not there.
+    // Insert reference to transaction into brt
     r = toku_omt_insert_at(brt->txns, txn, index);
     assert(r==0);
+    // Insert reference to brt into transaction
     r = toku_omt_insert(txn->open_brts, brt, find_filenum, brt, 0);
     assert(r==0);
     return 0;
