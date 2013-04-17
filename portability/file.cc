@@ -411,7 +411,7 @@ int toku_fsync_directory(const char *fname) {
         len = sp - fname + 1;
         MALLOC_N(len+1, dirname);
         if (dirname == NULL) {
-            result = get_error_errno();;
+            result = get_error_errno();
         } else {
             strncpy(dirname, fname, len);
             dirname[len] = 0;
@@ -419,7 +419,7 @@ int toku_fsync_directory(const char *fname) {
     } else {
         dirname = toku_strdup(".");
         if (dirname == NULL) {
-            result = get_error_errno();;
+            result = get_error_errno();
         }
     }
 

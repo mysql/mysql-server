@@ -2490,7 +2490,7 @@ static int loader_do_i (FTLOADER bl,
                         int progress_allocation // how much progress do I need to add into bl->progress by the end..
                         )
 /* Effect: Handle the file creating for one particular DB in the bulk loader. */
-/* Requires: The data is fully extracted, so we can do merges out of files and write the brt file. */
+/* Requires: The data is fully extracted, so we can do merges out of files and write the ft file. */
 {
     //printf("doing i use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
     struct merge_fileset *fs = &(bl->fs[which_db]);
