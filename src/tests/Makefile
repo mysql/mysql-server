@@ -741,7 +741,7 @@ loader-tests: $(LOADER_TESTS)
 
 UNPACKED_DIRS = env_preload.4.1.1.cleanshutdown env_preload.4.1.1.flat.cleanshutdown env_preload.4.1.1.node4k.cleanshutdown
 %.cleanshutdown: %.cleanshutdown.tar.bz2
-	bzip2 $< | tar xf -
+	bzcat $< | tar xf -
 upgrade-test-1.tdbrun: $(UNPACKED_DIRS)
 
 clean:
