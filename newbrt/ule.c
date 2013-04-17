@@ -194,7 +194,7 @@ toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse) {
     uint32_t idx;
     TXNID rval;
     int r;
-    r = toku_omt_find_zero(live_list_reverse, toku_find_pair_by_xid, &xc, &pairv, &idx);
+    r = toku_omt_find_zero(live_list_reverse, toku_find_pair_by_xid, (void *)xc, &pairv, &idx);
     if (r==0) {
         pair = pairv;
         invariant(pair->xid1 == xc); //sanity check
@@ -229,7 +229,7 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, OMT live_list_reverse) {
 }
 
 static void
-garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
+garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_root_txns) {
     if (ule->num_cuxrs == 1) goto done;
     // will fail if too many num_cuxrs
     BOOL necessary_static[MAX_TRANSACTION_RECORDS];
@@ -250,6 +250,12 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
         TXNID tl1;
         TXNID xc = ule->uxrs[curr_committed_entry].xid;
 
+        BOOL is_xc_live = toku_is_txn_in_live_root_txn_list(live_root_txns, xc);
+        if (is_xc_live) {
+            curr_committed_entry--;
+            continue;            
+        }
+
         tl1 = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
         //
         // If we find that the committed transaction is in the live list,
@@ -261,8 +267,10 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
         // This issue was found while testing flusher threads, and was fixed for #3979
         //
         if (tl1 == xc) {
-            curr_committed_entry--;
-            continue;
+            // if tl1 == xc, that means xc should be live and show up in 
+            // live_root_txns, which we check above. So, if we get
+            // here, something is wrong.
+            assert(false);
         }
         if (tl1 == TXNID_NONE) {
             // set tl1 to youngest live transaction older than ule->uxrs[curr_committed_entry]->xid
@@ -338,6 +346,7 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       void **maybe_free,
                        OMT snapshot_xids,
 		       OMT live_list_reverse,
+		       OMT live_root_txns,
                        int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
     int rval;
@@ -351,8 +360,8 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    if (snapshot_xids && live_list_reverse) {
-	garbage_collection(&ule, snapshot_xids, live_list_reverse);
+    if (snapshot_xids && live_list_reverse && live_root_txns) {
+	garbage_collection(&ule, snapshot_xids, live_list_reverse, live_root_txns);
     }
     rval = le_pack(&ule,                // create packed leafentry
 		   new_leafentry_memorysize, 
@@ -394,13 +403,15 @@ garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
                           struct mempool *mp,
                           void **maybe_free,
                           OMT snapshot_xids,
-                          OMT live_list_reverse) {
+                          OMT live_list_reverse,
+                          OMT live_root_txns) {
     int r = 0;
     ULE_S ule;
     le_unpack(&ule, old_leaf_entry);
     assert(snapshot_xids);
     assert(live_list_reverse);
-    garbage_collection(&ule, snapshot_xids, live_list_reverse);
+    assert(live_root_txns);
+    garbage_collection(&ule, snapshot_xids, live_list_reverse, live_root_txns);
     r = le_pack(&ule,
                 new_leaf_entry_memory_size,
                 new_leaf_entry,

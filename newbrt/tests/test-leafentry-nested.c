@@ -399,7 +399,7 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
                                &result_memsize,
                                &le_result,
                                NULL, 
-                               NULL, NULL, NULL, NULL, &ignoreme);
+                               NULL, NULL, NULL, NULL, NULL, &ignoreme);
     CKERR(r);
 
     if (le_result)
