@@ -176,9 +176,7 @@ status_init(void)
     STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions");
     STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions");
     STATUS_INIT(FT_MSN_DISCARDS,                           PARCOUNT, "messages ignored by leaf due to msn");
-    //STATUS_INIT(FT_MAX_WORKDONE,                           UINT64, "max workdone over all buffers");
     STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN");
-    //STATUS_INIT(FT_MAX_SEARCH_EXCESS_RETRIES,              UINT64, "max excess search retries (retries - tree height) due to TRY_AGAIN");
     STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree");
     STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            PARCOUNT, "searches requiring more tries than the height of the tree plus three");
     STATUS_INIT(FT_DISK_FLUSH_LEAF,                        PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)");
@@ -192,7 +190,6 @@ status_init(void)
     STATUS_INIT(FT_MSG_BYTES_IN,                           PARCOUNT, "bytes of messages injected at root (all trees)");
     STATUS_INIT(FT_MSG_BYTES_OUT,                          PARCOUNT, "bytes of messages flushed from h1 nodes to leaves");
     STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)");
-    //STATUS_INIT(FT_MSG_BYTES_MAX,                          UINT64, "max bytes of messages ever in trees (estimate)");
     STATUS_INIT(FT_MSG_NUM,                                PARCOUNT, "messages injected at root");
     STATUS_INIT(FT_MSG_NUM_BROADCAST,                      PARCOUNT, "broadcast messages injected at root");
     STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      PARCOUNT, "basements decompressed as a target of a query");
@@ -2452,9 +2449,6 @@ static void inject_message_in_locked_node(FT ft, FTNODE node, int childnum, FT_M
         uint64_t msgsize = ft_msg_size(cmd);
         STATUS_INC(FT_MSG_BYTES_IN, msgsize);
         STATUS_INC(FT_MSG_BYTES_CURR, msgsize);
-        //if (STATUS_VALUE(FT_MSG_BYTES_CURR) > STATUS_VALUE(FT_MSG_BYTES_MAX)) {
-        //    STATUS_VALUE(FT_MSG_BYTES_MAX) = STATUS_VALUE(FT_MSG_BYTES_CURR);
-        //}
         STATUS_INC(FT_MSG_NUM, 1);
         if (ft_msg_applies_all(cmd)) {
             STATUS_INC(FT_MSG_NUM_BROADCAST, 1);
@@ -5107,9 +5101,6 @@ try_again:
         }
         if (retrycount > tree_height) {         // if at least one node was read from disk more than once
             STATUS_INC(FT_SEARCH_TRIES_GT_HEIGHT, 1);
-            //uint excess_tries = retrycount - tree_height;
-            //if (excess_tries > STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES))
-            //    STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES) = excess_tries;
             if (retrycount > (tree_height+3))
                 STATUS_INC(FT_SEARCH_TRIES_GT_HEIGHTPLUS3, 1);
         }
