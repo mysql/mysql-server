@@ -470,6 +470,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
     struct timeval t1,t2;
     int iteration;
     for (i=0, iteration=0; i<n_elements; i+=items_per_iteration, iteration++) {
+	if (verbose) printf("%3d ", iteration);
 	if (!noserial) {
 	    gettimeofday(&t1,0);
 	    serial_insert_from(i);
@@ -483,7 +484,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 	gettimeofday(&t2,0);
 	if (verbose) printf("random %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
         }
-	if (verbose) printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
+	if (verbose) printf("cumulative %10.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
     }
 }
 
@@ -694,6 +695,12 @@ static int test_main (int argc, char *const argv[]) {
             return 1;
         }
         total_n_items = items_per_iteration * (long long)n_iterations;
+	i++;
+    }
+    if (i<argc) {
+	fprintf(stderr, "Extra arguments?\n");
+	print_usage(argv[0]);
+	return 1;
     }
     if (verbose) {
 	if (!noserial) printf("serial ");
