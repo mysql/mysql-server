@@ -17,6 +17,7 @@ static realloc_fun_t t_realloc = 0;
 static realloc_fun_t t_xrealloc = 0;
 
 static LOCAL_MEMORY_STATUS_S status;
+int toku_memory_do_stats = 0;
 
 int
 toku_memory_startup(void) {
@@ -107,11 +108,13 @@ void *
 toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
-        size_t used = my_malloc_usable_size(p);
-        __sync_add_and_fetch(&status.malloc_count, 1);
-        __sync_add_and_fetch(&status.requested,size);
-        __sync_add_and_fetch(&status.used, used);
-        set_max(status.used, status.freed);
+        if (toku_memory_do_stats) {
+            size_t used = my_malloc_usable_size(p);
+            __sync_add_and_fetch(&status.malloc_count, 1);
+            __sync_add_and_fetch(&status.requested,size);
+            __sync_add_and_fetch(&status.used, used);
+            set_max(status.used, status.freed);
+        }
     } else {
         __sync_add_and_fetch(&status.malloc_fail, 1);
     }
@@ -131,12 +134,14 @@ toku_realloc(void *p, size_t size) {
     size_t used_orig = p ? my_malloc_usable_size(p) : 0;
     void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
     if (q) {
-	size_t used = my_malloc_usable_size(q);
-	__sync_add_and_fetch(&status.realloc_count, 1);
-	__sync_add_and_fetch(&status.requested, size);
-	__sync_add_and_fetch(&status.used, used);
-	__sync_add_and_fetch(&status.freed, used_orig);
-	set_max(status.used, status.freed);
+        if (toku_memory_do_stats) {
+            size_t used = my_malloc_usable_size(q);
+            __sync_add_and_fetch(&status.realloc_count, 1);
+            __sync_add_and_fetch(&status.requested, size);
+            __sync_add_and_fetch(&status.used, used);
+            __sync_add_and_fetch(&status.freed, used_orig);
+            set_max(status.used, status.freed);
+        }
     } else {
 	__sync_add_and_fetch(&status.realloc_fail, 1);
     }
@@ -158,9 +163,11 @@ toku_strdup(const char *s) {
 void
 toku_free(void *p) {
     if (p) {
-	size_t used = my_malloc_usable_size(p);
-	__sync_add_and_fetch(&status.free_count, 1);
-	__sync_add_and_fetch(&status.freed, used);
+        if (toku_memory_do_stats) {
+            size_t used = my_malloc_usable_size(p);
+            __sync_add_and_fetch(&status.free_count, 1);
+            __sync_add_and_fetch(&status.freed, used);
+        }
 	if (t_free)
 	    t_free(p);
 	else
@@ -178,11 +185,13 @@ toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
-    size_t used = my_malloc_usable_size(p);
-    __sync_add_and_fetch(&status.malloc_count, 1);
-    __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
-    set_max(status.used, status.freed);
+    if (toku_memory_do_stats) {
+        size_t used = my_malloc_usable_size(p);
+        __sync_add_and_fetch(&status.malloc_count, 1);
+        __sync_add_and_fetch(&status.requested, size);
+        __sync_add_and_fetch(&status.used, used);
+        set_max(status.used, status.freed);
+    }
     return p;
 }
 
@@ -200,12 +209,14 @@ toku_xrealloc(void *v, size_t size) {
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
     if (p == 0)  // avoid function call in common case
         resource_assert(p);
-    size_t used = my_malloc_usable_size(p);
-    __sync_add_and_fetch(&status.realloc_count, 1);
-    __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
-    __sync_add_and_fetch(&status.freed, used_orig);
-    set_max(status.used, status.freed);
+    if (toku_memory_do_stats) {
+        size_t used = my_malloc_usable_size(p);
+        __sync_add_and_fetch(&status.realloc_count, 1);
+        __sync_add_and_fetch(&status.requested, size);
+        __sync_add_and_fetch(&status.used, used);
+        __sync_add_and_fetch(&status.freed, used_orig);
+        set_max(status.used, status.freed);
+    }
     return p;
 }
 

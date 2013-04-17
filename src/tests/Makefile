@@ -693,7 +693,6 @@ test_update_stress.tdbrun: VGRIND=
 stress-test.tdbrun: VGRIND=
 stress-test.bdbrun: VGRIND=
 hot-optimize-table-tests.tdbrun: VGRIND=
-perf_checkpoint_var.tdbrun: VGRIND=
 
 
 libs:
@@ -1052,7 +1051,11 @@ maxsize-for-loader-A.tdbrun: maxsize-for-loader.tdb
 maxsize-for-loader-B.tdbrun: maxsize-for-loader.tdb
 	./$< -e $@                  2> /dev/null $(SUMMARIZE_CMD)
 
-perf%.tdb: CPPFLAGS+=-DDONT_DEPRECATE_MALLOC
+# dont run perf tests with valgrind
+perf_%.tdbrun: VGRIND=
+
+# build some perf test with malloc 
+perf_%.tdb: CPPFLAGS+=-DDONT_DEPRECATE_MALLOC
 
 clean:
 	rm -f $(ALL_BINS)
