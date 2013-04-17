@@ -146,11 +146,11 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
     }
     for (int i=0; i<fi->n_files; i++) {
 	if (fi->file_infos[i].is_open) {
-	    assert(is_error);
+	    invariant(is_error);
 	    fclose(fi->file_infos[i].file); // don't check for errors, since we are in an error case.
 	}
 	if (fi->file_infos[i].is_extant) {
-	    assert(is_error);
+	    invariant(is_error);
 	    unlink(fi->file_infos[i].fname);
 	    toku_free(fi->file_infos[i].fname);
 	}
@@ -173,7 +173,7 @@ static int open_file_add (struct file_infos *fi,
 	fi->n_files_limit *=2;
 	XREALLOC_N(fi->n_files_limit, fi->file_infos);
     }
-    assert(fi->n_files < fi->n_files_limit);
+    invariant(fi->n_files < fi->n_files_limit);
     fi->file_infos[fi->n_files].is_open   = TRUE;
     fi->file_infos[fi->n_files].is_extant = TRUE;
     fi->file_infos[fi->n_files].fname     = fname;
@@ -196,9 +196,9 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     int result = 0;
     int r = toku_pthread_mutex_lock(&fi->lock); resource_assert(r==0);
     int i = idx.idx;
-    assert(i>=0 && i<fi->n_files);
-    assert(!fi->file_infos[i].is_open);
-    assert(fi->file_infos[i].is_extant);
+    invariant(i>=0 && i<fi->n_files);
+    invariant(!fi->file_infos[i].is_open);
+    invariant(fi->file_infos[i].is_extant);
     fi->file_infos[i].file = fopen(fi->file_infos[i].fname, mode);
     if (fi->file_infos[i].file==NULL) { result = errno; goto error; }
     fi->file_infos[i].is_open = TRUE;
@@ -213,10 +213,10 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
     { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
-    assert(fi->n_files_open>0);
+    invariant(fi->n_files_open>0);
     fi->n_files_open--;
-    assert(idx.idx >=0 && idx.idx < fi->n_files);
-    assert(fi->file_infos[idx.idx].is_open);
+    invariant(idx.idx >=0 && idx.idx < fi->n_files);
+    invariant(fi->file_infos[idx.idx].is_open);
     fi->file_infos[idx.idx].is_open = FALSE;
     int r = fclose(fi->file_infos[idx.idx].file);
     { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
@@ -226,12 +226,12 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
-    assert(fi->n_files_extant>0);
+    invariant(fi->n_files_extant>0);
     fi->n_files_extant--;
     int id = idx.idx;
-    assert(id >=0 && id < fi->n_files);
-    assert(!fi->file_infos[id].is_open); // must be closed before we unlink
-    assert(fi->file_infos[id].is_extant); // must still exist
+    invariant(id >=0 && id < fi->n_files);
+    invariant(!fi->file_infos[id].is_open); // must be closed before we unlink
+    invariant(fi->file_infos[id].is_extant); // must still exist
     fi->file_infos[id].is_extant = FALSE;
     int r = unlink(fi->file_infos[id].fname);  if (r!=0) r=errno;
     toku_free(fi->file_infos[id].fname);
@@ -418,8 +418,8 @@ static void brt_loader_set_panic(BRTLOADER bl, int error) {
 // One of the tests uses this.
 FILE *toku_bl_fidx2file (BRTLOADER bl, FIDX i) {
     { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
-    assert(i.idx >=0 && i.idx < bl->file_infos.n_files);
-    assert(bl->file_infos.file_infos[i.idx].is_open);
+    invariant(i.idx >=0 && i.idx < bl->file_infos.n_files);
+    invariant(bl->file_infos.file_infos[i.idx].is_open);
     FILE *result=bl->file_infos.file_infos[i.idx].file;
     { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
     return result;
@@ -724,7 +724,7 @@ static void* extractor_thread (void *blv) {
 	    int rq = queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
 	    BL_TRACE(blt_extract_deq);
 	    if (rq==EOF) break;
-	    assert(rq==0); // other errors are arbitrarily bad.
+	    invariant(rq==0); // other errors are arbitrarily bad.
 	}
 	struct rowset *primary_rowset = (struct rowset *)item;
 
@@ -1436,7 +1436,7 @@ static int merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE
 	if (n_rows_done%rows_per_report==0) {
 	    // need to update the progress.
 	    double fraction_of_remaining_we_just_did = (double)rows_per_report / (double)(n_rows - n_rows_done + rows_per_report);
-	    assert(0<= fraction_of_remaining_we_just_did && fraction_of_remaining_we_just_did<=1);
+	    invariant(0<= fraction_of_remaining_we_just_did && fraction_of_remaining_we_just_did<=1);
 	    int progress_just_done = fraction_of_remaining_we_just_did * progress_allocation;
 	    progress_allocation -= progress_just_done;
 	    r = update_progress(progress_just_done, bl, "in file merge");
@@ -1696,7 +1696,7 @@ static inline void dbout_init(struct dbout *out) {
 }
 
 static inline void dbout_destroy(struct dbout *out) {
-    assert(out->fd == -1);
+    invariant(out->fd == -1);
     toku_free(out->translation);
     out->translation = NULL;
 }
@@ -1726,10 +1726,10 @@ static void seek_align_locked(struct dbout *out) {
     if (r!=out->current_off) {
 	fprintf(stderr, "Seek failed %s (errno=%d)\n", strerror(errno), errno);
     }
-    assert(r==out->current_off);
-    assert(out->current_off >= old_current_off);
-    assert(out->current_off < old_current_off+alignment);
-    assert(out->current_off % alignment == 0);
+    invariant(r==out->current_off);
+    invariant(out->current_off >= old_current_off);
+    invariant(out->current_off < old_current_off+alignment);
+    invariant(out->current_off % alignment == 0);
 }
 
 static void seek_align(struct dbout *out) {
@@ -1824,7 +1824,7 @@ static inline long int loader_random(void) {
 }
 
 static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *desc, int64_t lblocknum) {
-    assert(lblocknum < out->n_translations_limit);
+    invariant(lblocknum < out->n_translations_limit);
     struct leaf_buf *MALLOC(lbuf);
     assert(lbuf);
     lbuf->blocknum = lblocknum;
@@ -1936,8 +1936,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     }
 
     out.translation[0].off = -2LL; out.translation[0].size = 0; // block 0 is NULL
-    assert(1==RESERVED_BLOCKNUM_TRANSLATION);
-    assert(2==RESERVED_BLOCKNUM_DESCRIPTOR);
+    invariant(1==RESERVED_BLOCKNUM_TRANSLATION);
+    invariant(2==RESERVED_BLOCKNUM_DESCRIPTOR);
     out.translation[1].off = -1;                                // block 1 is the block translation, filled in later
     out.translation[2].off = -1;                                // block 2 is the descriptor
     seek_align(&out);
@@ -2034,11 +2034,11 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	// write the descriptor
 	{
 	    seek_align(&out);
-	    assert(out.n_translations >= RESERVED_BLOCKNUM_DESCRIPTOR);
-	    assert(out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off == -1);
+	    invariant(out.n_translations >= RESERVED_BLOCKNUM_DESCRIPTOR);
+	    invariant(out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off == -1);
 	    out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].off = out.current_off;
 	    size_t desc_size = 4+toku_serialize_descriptor_size(descriptor);
-	    assert(desc_size>0);
+	    invariant(desc_size>0);
 	    out.translation[RESERVED_BLOCKNUM_DESCRIPTOR].size = desc_size;
 	    struct wbuf wbuf;
 	    char *MALLOC_N(desc_size, buf);
@@ -2136,7 +2136,7 @@ static int loader_do_i (BRTLOADER bl,
     //printf("doing i use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
     struct merge_fileset *fs = &(bl->fs[which_db]);
     struct rowset *rows = &(bl->rows[which_db]);
-    assert(rows->data==NULL); // the rows should be all cleaned up already
+    invariant(rows->data==NULL); // the rows should be all cleaned up already
 
     // a better allocation would be to figure out roughly how many merge passes we'll need.
     int allocation_for_merge = (2*progress_allocation)/3;
@@ -2225,9 +2225,9 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
 	result = update_progress(0, bl, "did index");
 	if (result) goto error;
     }
-    assert(bl->file_infos.n_files_open   == 0);
-    assert(bl->file_infos.n_files_extant == 0);
-    assert(bl->progress == PROGRESS_MAX);
+    invariant(bl->file_infos.n_files_open   == 0);
+    invariant(bl->file_infos.n_files_extant == 0);
+    invariant(bl->progress == PROGRESS_MAX);
  error:
     brtloader_destroy(bl, (BOOL)(result!=0));
     BL_TRACE(blt_close);
@@ -2251,7 +2251,7 @@ int toku_brt_loader_close (BRTLOADER bl,
     if (bl->extractor_live) {
         r = finish_extractor(bl);
         lazy_assert(r == 0); // LAZY !!! should check this error code and cleanup if needed.
-        assert(!bl->extractor_live);
+        lazy_assert(!bl->extractor_live);
     }
 
     // check for an error during extraction
@@ -2318,7 +2318,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     putbuf_bytes(&lbuf->dbuf, key, keylen);
     putbuf_bytes(&lbuf->dbuf, val, vallen);
     int le_len = 1+4+4+keylen+vallen;
-    assert(le_off + le_len == lbuf->dbuf.off);
+    invariant(le_off + le_len == lbuf->dbuf.off);
     u_int32_t this_x = x1764_memory(lbuf->dbuf.buf + le_off, le_len);
     u_int32_t this_prod = lbuf->rand4fingerprint * this_x;
     lbuf->local_fingerprint += this_prod;
@@ -2331,7 +2331,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
-    assert(out->current_off%4096==0);
+    invariant(out->current_off%4096==0);
     int result = toku_os_write(out->fd, data, len);
     if (result == 0)
         out->current_off+=len;
@@ -2470,7 +2470,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
     }
     unsigned int checksum = x1764_memory(ttable.buf, ttable.off);
     putbuf_int32(&ttable, checksum);
-    assert(bt_size_on_disk==ttable.off);
+    invariant(bt_size_on_disk==ttable.off);
     int result = toku_os_pwrite(out->fd, ttable.buf, ttable.off, off_of_translation);
     dbuf_destroy(&ttable);
     *off_of_translation_p = off_of_translation;
@@ -2610,7 +2610,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
                                 DBT *pivots, /* must free this array, as well as the things it points t */
                                 struct subtree_info *subtree_info, int height, const struct descriptor *desc)
 {
-    assert(height>0);
+    invariant(height>0);
 
     int result = 0;
 
@@ -2706,7 +2706,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 	//  3) We put the 16th pivot into the next pivots file.
 	{
 	    int r = fseek(toku_bl_fidx2file(bl, pivots_fidx), 0, SEEK_SET);
-	    if (r!=0) { assert(errno!=0); return errno; }
+	    if (r!=0) { invariant(errno!=0); return errno; }
 	}
 
 	FIDX next_pivots_file;
@@ -2784,7 +2784,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
             }
 	}
         if (result == 0)
-            assert(n_subtrees_used == sts->n_subtrees);
+            invariant(n_subtrees_used == sts->n_subtrees);
 
         cilk_sync;
 
