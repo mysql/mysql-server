@@ -118,8 +118,12 @@ extern "C" {
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
+    int r;
 #if defined(_WIN32)
-    toku_ydb_init();
+    r = toku_ydb_init();
+    if (r) {
+        goto error;
+    }
 #endif
 
     tokudb_hton = (handlerton *) p;
@@ -168,7 +172,6 @@ static int tokudb_init_func(void *p) {
     tokudb_log_file_size = max(tokudb_log_file_size, 10 * 1024 * 1024L);
     DBUG_PRINT("info", ("computing tokudb_log_file_size: %ld\n", tokudb_log_file_size));
 #endif
-    int r;
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
         goto error;
