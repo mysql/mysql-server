@@ -1519,6 +1519,7 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
  * Returns 0 on success, otherwise an error number.
  * Destroy the rowset after finishing it.
  * Note: There is no sense in trying to calculate progress by this function since it's done concurrently with the loader->put operation.
+ * Note first time called: invariant: fs->have_sorted_output == FALSE
  */
 {
     //printf(" sort_and_write use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
@@ -1562,6 +1563,7 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
                         }
                     }
                 }
+                // Note: if result == 0 then invariant fs->have_sorted_output == TRUE
 	    }
 	}
     }
