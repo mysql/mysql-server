@@ -2431,9 +2431,15 @@ int ha_tokudb::write_row(uchar * record) {
     bool has_null;
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
+    bool is_replace_into;
     tokudb_trx_data *trx = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     declare_lockretry;
+
+
+    thd = ha_thd();
+    is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
+        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
     //
     // this can only fail if we have not opened the environment
@@ -2499,8 +2505,7 @@ int ha_tokudb::write_row(uchar * record) {
     // first the primary key (because it must be unique, has highest chance of failure)
     //
     put_flags = share->key_type[primary_key];
-    thd = ha_thd();
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace_into) {
         put_flags = DB_YESOVERWRITE;
     }
     //
@@ -2513,11 +2518,7 @@ int ha_tokudb::write_row(uchar * record) {
     // to do. We cannot do this if curr_num_DBs > 1, because then we lose
     // consistency between indexes
     //
-    if ( ( (thd_sql_command(thd) == SQLCOM_REPLACE) || 
-           (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT) 
-          ) && 
-         (curr_num_DBs == 1)
-        ) {
+    if (is_replace_into && (curr_num_DBs == 1)) {
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
     }
  
