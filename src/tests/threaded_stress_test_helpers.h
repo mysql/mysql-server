@@ -121,7 +121,7 @@ struct worker_extra {
 static void lock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        if (0) toku_pthread_mutex_lock(we->operation_lock_mutex);
+        toku_pthread_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_lock(we->operation_lock, we->operation_lock_mutex);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -129,14 +129,14 @@ static void lock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        if (0) toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        toku_pthread_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
 static void unlock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        if (0) toku_pthread_mutex_lock(we->operation_lock_mutex);
+        toku_pthread_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_unlock(we->operation_lock);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -144,7 +144,7 @@ static void unlock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        if (0) toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        toku_pthread_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
