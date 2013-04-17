@@ -543,11 +543,16 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     int r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
-    if (r == 0) {
-        assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
-        *new_ftp = t;
+    if (r != 0) {
+        goto cleanup;
     }
+    assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
+    *new_ftp = t;
 
+ cleanup:
+    if (r != 0) {
+        toku_ft_handle_close(t);
+    }
     return r;
 }
 
