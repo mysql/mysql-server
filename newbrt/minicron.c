@@ -116,6 +116,7 @@ toku_minicron_change_period(struct minicron *p, u_int32_t new_period)
 int
 toku_minicron_shutdown(struct minicron *p) {
     int r = toku_pthread_mutex_lock(&p->mutex);        assert(r==0);
+    assert(!p->do_shutdown);
     p->do_shutdown = TRUE;
     //printf("%s:%d signalling\n", __FILE__, __LINE__);
     r = toku_pthread_cond_signal(&p->condvar);         assert(r==0);
