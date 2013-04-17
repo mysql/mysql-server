@@ -5,6 +5,8 @@
 #ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "omt.h"
+
 // these routines in rollback.c
 
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv);
@@ -29,5 +31,8 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
 // these routines in roll.c
 int toku_rollback_fileentries (int fd, TOKUTXN txn, YIELDF yield, void *yieldv);
 int toku_commit_fileentries (int fd, TOKUTXN txn, YIELDF yield,void *yieldv);
+
+//Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
+int find_xid (OMTVALUE v, void *txnv);
 
 #endif

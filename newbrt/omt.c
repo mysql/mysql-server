@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef void *OMTVALUE;
 #include "toku_assert.h"
 #include "memory.h"
 #include "omt.h"

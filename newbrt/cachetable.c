@@ -18,6 +18,7 @@
 #include "log_header.h"
 #include "checkpoint.h"
 #include "minicron.h"
+#include "log-internal.h"
 
 #if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
 #error
@@ -1520,8 +1521,9 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
 }
 
 static int
-log_open_txn (TOKULOGGER logger, TOKUTXN txn, void *UU(v))
-{
+log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *loggerv) {
+    TOKUTXN    txn    = txnv;
+    TOKULOGGER logger = loggerv;
     if (toku_logger_txn_parent(txn)==NULL) { // only have to log the open root transactions
 	int r = toku_log_xstillopen(logger, NULL, 0,
 				    toku_txn_get_txnid(txn),
@@ -1575,7 +1577,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	    }
 	    // Log all the open transactions
 	    {
-		int r = toku_logger_iterate_over_live_txns (logger, log_open_txn, NULL);
+                int r = toku_omt_iterate(logger->live_txns, log_open_txn, logger);
 		assert(r==0);
 	    }
 	    // Log all the open files

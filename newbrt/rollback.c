@@ -30,22 +30,36 @@ void toku_rollback_txn_close (TOKUTXN txn) {
 	toku_free(txn->rollentry_filename);
     }
 
-    list_remove(&txn->live_txns_link);
+    {
+        //Remove txn from list (omt) of live transactions
+        OMTVALUE txnagain;
+        u_int32_t idx;
+        int r;
+        r = toku_omt_find_zero(txn->logger->live_txns, find_xid, txn, &txnagain, &idx, NULL);
+        assert(r==0);
+        assert(txn==txnagain);
+        r = toku_omt_delete_at(txn->logger->live_txns, idx);
+        assert(r==0);
+    }
+
     assert(oldest_living_xid <= txn->txnid64);
     assert(oldest_living_xid < MAX_TXNID);
     if (txn->txnid64 == oldest_living_xid) {
         TOKULOGGER logger = txn->logger;
-        LSN oldest_live_txn_lsn = {MAX_TXNID};
-        {
-            struct list *l;
-            for (l=list_head(&logger->live_txns); l!=&logger->live_txns; l=l->next) {
-                TOKUTXN live_txn = list_struct(l, struct tokutxn, live_txns_link);
-                if (oldest_live_txn_lsn.lsn>live_txn->txnid64) {
-                    oldest_live_txn_lsn.lsn=live_txn->txnid64;
-                }
-            }
+
+        OMTVALUE oldest_txnv;
+        int r = toku_omt_fetch(logger->live_txns, 0, &oldest_txnv, NULL);
+        if (r==0) {
+            TOKUTXN oldest_txn = oldest_txnv;
+            assert(oldest_txn != txn); // We just removed it
+            assert(oldest_txn->txnid64 > oldest_living_xid); //Must be newer than the previous oldest
+            oldest_living_xid = oldest_txn->txnid64;
         }
-        oldest_living_xid = oldest_live_txn_lsn.lsn;
+        else {
+            //No living transactions
+            assert(r==EINVAL);
+            oldest_living_xid = MAX_TXNID;
+        }
     }
 
     note_txn_closing(txn);
@@ -183,7 +197,6 @@ int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv) {
         count++;
         if (count%2 == 0) yield(NULL, yieldv);
     }
-    list_remove(&txn->live_txns_link);
     // Read stuff out of the file and roll it back.
     if (txn->rollentry_filename) {
         r = toku_rollback_fileentries(txn->rollentry_fd, txn, yield, yieldv);
@@ -288,8 +301,8 @@ int toku_read_rollback_backwards(BREAD br, struct roll_entry **item, MEMARENA ma
     return 0;
 }
 
-
-static int find_xid (OMTVALUE v, void *txnv) {
+//Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
+int find_xid (OMTVALUE v, void *txnv) {
     TOKUTXN txn = v;
     TOKUTXN txnfind = txnv;
     if (txn->txnid64<txnfind->txnid64) return -1;
