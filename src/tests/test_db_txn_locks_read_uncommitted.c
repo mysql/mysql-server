@@ -27,7 +27,7 @@ put(BOOL success, char txn, int _key, int _data) {
     r = db->put(db, txns[(int)txn],
                     dbt_init(&key, &_key, sizeof(int)),
                     dbt_init(&data, &_data, sizeof(int)),
-                    DB_YESOVERWRITE);
+                    0);
 
     if (success)    CKERR(r);
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);

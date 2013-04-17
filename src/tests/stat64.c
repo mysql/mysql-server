@@ -50,7 +50,7 @@ test_stat64 (unsigned int N) {
 	r=db->put(db, txn,
 		      dbt_init(&key, hello, strlen(hello)+1),
 		      dbt_init(&val, there, strlen(there)+1),
-		      DB_YESOVERWRITE);
+		      0);
 	dsize += strlen(hello)+1 + strlen(there)+1;
 	CKERR(r);
     }

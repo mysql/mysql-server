@@ -71,7 +71,7 @@ test_cursor_delete (int dup_mode) {
         int k = htonl(i);
         int v = htonl(i);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); assert(r == 0);
+        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
     /* verify the sort order with a cursor */

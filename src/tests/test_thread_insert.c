@@ -26,7 +26,7 @@ struct db_inserter {
 static int
 db_put (DB *db, my_t k, my_t v) {
     DBT key, val;
-    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     return r;
 }
 

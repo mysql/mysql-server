@@ -86,7 +86,7 @@ insert_n (u_int32_t ah, int datasize) {
     //    if (verbose) printf("insert an = %0X (ah = %0X)\n", an, ah);
     DBT key = {.size = 4,             .data=&an };
     DBT val = {.size = sizeof(vdata), .data=vdata};
-    int r = db->put(db, NULL, &key, &val, DB_YESOVERWRITE);
+    int r = db->put(db, NULL, &key, &val, 0);
     CKERR(r);
     ninsert++;
 }

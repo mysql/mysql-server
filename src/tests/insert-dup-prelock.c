@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     r = db_init(env, "db0", &db);
     assert(r == 0);
 
-    r = inserter(env, db, maxk, DB_YESOVERWRITE, 0);
+    r = inserter(env, db, maxk, 0, 0);
     assert(r == 0);
 
     r = inserter(env, db, maxk, DB_NOOVERWRITE, DB_KEYEXIST);

@@ -158,7 +158,7 @@ insert(int idx, int64_t i) {
     int r=db->put(db, txn,
 		  &key,
 		  &val,
-		  DB_YESOVERWRITE);
+		  0);
     CKERR(r);
 }
 

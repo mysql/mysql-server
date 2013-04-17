@@ -45,7 +45,7 @@ static void run_test (void) {
     {
 	DBT a={.data="a", .size=2};
 	DBT b={.data="b", .size=2};
-	r = dba->put(dba, txn, &a, &b, DB_YESOVERWRITE);                                CKERR(r);
+	r = dba->put(dba, txn, &a, &b, 0);                                CKERR(r);
     }
 
     r = txn->commit(txn, 0);                                                            CKERR(r);

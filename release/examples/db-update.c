@@ -14,10 +14,6 @@
 #include <arpa/inet.h>
 #include "db.h"
 
-#if defined(BDB)
-#define DB_YESOVERWRITE 0
-#endif
-
 static int verbose = 0;
 
 static int get_int(void *p) {
@@ -83,9 +79,9 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
             int oldc = get_int(oldvalue.data);
             newc = htonl(oldc + c); // newc = oldc + newc
             memcpy(val_buffer, &newc, sizeof newc);
-            r = db->put(db, txn, &key, &value, DB_YESOVERWRITE);
+            r = db->put(db, txn, &key, &value, 0);
 	} else if (r == DB_NOTFOUND) {
-            r = db->put(db, txn, &key, &value, DB_YESOVERWRITE);
+            r = db->put(db, txn, &key, &value, 0);
 	}
 	assert(r == 0);
     }

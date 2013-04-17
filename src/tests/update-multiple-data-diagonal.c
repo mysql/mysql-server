@@ -199,7 +199,7 @@ populate_primary(DB_ENV *env, DB *db, int ndbs, int nrows) {
         int v[ndbs]; get_data(v, i, ndbs);
         DBT key; dbt_init(&key, &k, sizeof k);
         DBT val; dbt_init(&val, &v[0], sizeof v);
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE); assert_zero(r);
+        r = db->put(db, txn, &key, &val, 0); assert_zero(r);
     }
 
     r = txn->commit(txn, 0); assert_zero(r);
@@ -216,7 +216,7 @@ populate_secondary(DB_ENV *env, DB *db, int dbnum, int nrows) {
         int k = get_key(i, dbnum);
         DBT key; dbt_init(&key, &k, sizeof k);
         DBT val; dbt_init(&val, NULL, 0);
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE); assert_zero(r);
+        r = db->put(db, txn, &key, &val, 0); assert_zero(r);
     }
 
     r = txn->commit(txn, 0); assert_zero(r);

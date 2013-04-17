@@ -37,9 +37,9 @@ doit (void) {
     DBT key,data;
     int r;
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
-    r=db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&data, "a", 2), DB_YESOVERWRITE);
-    r=db->put(db, txn, dbt_init(&key, "b", 2), dbt_init(&data, "b", 2), DB_YESOVERWRITE);
-    r=db->put(db, txn, dbt_init(&key, "c", 2), dbt_init(&data, "c", 2), DB_YESOVERWRITE);
+    r=db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&data, "a", 2), 0);
+    r=db->put(db, txn, dbt_init(&key, "b", 2), dbt_init(&data, "b", 2), 0);
+    r=db->put(db, txn, dbt_init(&key, "c", 2), dbt_init(&data, "c", 2), 0);
     r=txn->commit(txn, 0);    assert(r==0);
     
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);

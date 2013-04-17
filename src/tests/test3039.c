@@ -61,7 +61,7 @@ static void create_db (u_int64_t N) {
 	snprintf(data, sizeof(data), "%08lx%08lx%66s", random(), random()%16, "");
 	DBT keyd, datad;
 	{
-	    int r = db->put(db, txn, dbt_init(&keyd, key, strlen(key)+1), dbt_init(&datad, data, strlen(data)+1), DB_YESOVERWRITE);
+	    int r = db->put(db, txn, dbt_init(&keyd, key, strlen(key)+1), dbt_init(&datad, data, strlen(data)+1), 0);
 	    CKERR(r);
 	}
     }

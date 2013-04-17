@@ -55,10 +55,6 @@ abort_txn(void) {
     txn = NULL;
 }
 
-#ifndef DB_YESOVERWRITE
-#define DB_YESOVERWRITE 0
-#endif
-
 static void
 put(u_int32_t k, u_int32_t v) {
     int r;
@@ -66,7 +62,7 @@ put(u_int32_t k, u_int32_t v) {
 
     dbt_init(&key, &k, sizeof(k));
     dbt_init(&val, &v, sizeof(v));
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE); CKERR(r);
+    r = db->put(db, txn, &key, &val, 0); CKERR(r);
 }
 
 static void

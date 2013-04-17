@@ -63,7 +63,7 @@ do_insert_delete_fifo (void)
                 u_int32_t rand3 = myrandom();
 		int vallen = snprintf(v, sizeof v, "%016" PRIu64 "val%08x%08x%08x", i, rand1, rand2, rand3);
 		DBT kt, vt;
-		r = db->put(db, null_txn, dbt_init(&kt, k, keylen) , dbt_init(&vt, v, vallen), DB_YESOVERWRITE);    CKERR(r);
+		r = db->put(db, null_txn, dbt_init(&kt, k, keylen) , dbt_init(&vt, v, vallen), 0);    CKERR(r);
 	    }
 	    if (i%D==0) {
 		// Once every D steps, delete everything until there are only M things left.

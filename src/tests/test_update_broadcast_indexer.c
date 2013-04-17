@@ -87,19 +87,19 @@ static void run_test(void) {
 
     val_data = 1;
     IN_TXN_COMMIT(env, NULL, txn_put1, 0, {
-            CHK(db->put(db, txn_put1, &key, &val, DB_YESOVERWRITE));
+            CHK(db->put(db, txn_put1, &key, &val, 0));
         });
     CHK(env->txn_begin(env, NULL, &txn_read1, DB_TXN_SNAPSHOT));
 
     val_data = 2;
     IN_TXN_COMMIT(env, NULL, txn_put2, 0, {
-            CHK(db->put(db, txn_put2, &key, &val, DB_YESOVERWRITE));
+            CHK(db->put(db, txn_put2, &key, &val, 0));
         });
     CHK(env->txn_begin(env, NULL, &txn_read2, DB_TXN_SNAPSHOT));
 
     val_data = 3;
     IN_TXN_COMMIT(env, NULL, txn_put3, 0, {
-            CHK(db->put(db, txn_put3, &key, &val, DB_YESOVERWRITE));
+            CHK(db->put(db, txn_put3, &key, &val, 0));
         });
     CHK(env->txn_begin(env, NULL, &txn_read3, DB_TXN_SNAPSHOT));
 

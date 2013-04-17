@@ -110,7 +110,6 @@ static void print_defines (void) {
         static uint8_t insert_flags[256];
         dodefine_track_enum(insert_flags, DB_NOOVERWRITE);
         dodefine_track_enum(insert_flags, DB_NODUPDATA);
-        dodefine_from_track_enum(insert_flags, DB_YESOVERWRITE);
         dodefine_from_track_enum(insert_flags, DB_NOOVERWRITE_NO_ERROR);
     }
     dodefine(DB_OPFLAGS_MASK);

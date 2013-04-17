@@ -11,13 +11,6 @@ int verbose;
 
 #define FNAME __FILE__ ".tdb"
 
-#ifndef DB_YESOVERWRITE
-#define BDB 1
-#define DB_YESOVERWRITE 0
-#else
-#define TDB 1
-#endif
-
 int keyeq(Dbt *a, Dbt *b) {
     if (a->get_size() != b->get_size()) return 0;
     return memcmp(a->get_data(), b->get_data(), a->get_size()) == 0;
@@ -135,7 +128,7 @@ void load(Db *db, int n) {
         Dbt key(&k, sizeof k);
         int v = i;
         Dbt val(&v, sizeof v);
-        int r = db->put(0, &key, &val, DB_YESOVERWRITE); assert(r == 0);
+        int r = db->put(0, &key, &val, 0); assert(r == 0);
     }
 
     for (i=0; i<n; i++) {
@@ -143,7 +136,7 @@ void load(Db *db, int n) {
         int v = i;
         Dbt key(&k, sizeof k);
         Dbt val(&v, sizeof v);
-        int r = db->put(0, &key, &val, DB_YESOVERWRITE); assert(r == 0);
+        int r = db->put(0, &key, &val, 0); assert(r == 0);
     }
 }
 

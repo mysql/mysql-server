@@ -299,11 +299,11 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
     dbt_init(&val, &v, sizeof(v));
 
     if (db1) {
-        r = db1->put(db1, txn, &key, &val, DB_YESOVERWRITE);
+        r = db1->put(db1, txn, &key, &val, 0);
             CKERR(r);
     }
     if (db2) {
-        r = db2->put(db2, txn, &key, &val, DB_YESOVERWRITE);
+        r = db2->put(db2, txn, &key, &val, 0);
             CKERR(r);
     }
 }
@@ -375,11 +375,11 @@ insert_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, int offset) {
 	dbt_init(&key, &k, sizeof(k));
 	dbt_init(&val, &v, sizeof(v));
 	if (db1) {
-	    r = db1->put(db1, txn, &key, &val, DB_YESOVERWRITE);
+	    r = db1->put(db1, txn, &key, &val, 0);
             CKERR(r);
 	}
 	if (db2) {
-	    r = db2->put(db2, txn, &key, &val, DB_YESOVERWRITE);
+	    r = db2->put(db2, txn, &key, &val, 0);
             CKERR(r);
 	}
     }

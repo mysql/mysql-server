@@ -71,14 +71,10 @@ static void close_cursor(void) {
     cursor = NULL;
 }
 
-#ifdef USE_BDB
-#define DB_YESOVERWRITE 0
-#endif
-
 static void insert(char k, char d) {
     DBT key;
     DBT data;
-    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof(k)), dbt_init(&data, &d, sizeof(d)), DB_YESOVERWRITE);
+    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof(k)), dbt_init(&data, &d, sizeof(d)), 0);
         CKERR(r);
 }
 

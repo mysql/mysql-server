@@ -213,7 +213,7 @@ test_insert (int n, int which) {
         int k = last++;
         DBT key, val;
         u_int64_t called = num_called;
-        int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &i, sizeof i), DB_YESOVERWRITE);
+        int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &i, sizeof i), 0);
         if (i>0) assert(num_called > called);
         CKERR(r);
     }

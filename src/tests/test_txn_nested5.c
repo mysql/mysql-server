@@ -183,7 +183,7 @@ maybe_insert_or_delete(uint8_t nest, int type) {
                     CKERR(r);
             }
             else {
-                r = db->put(db, txns[nest], &key, &vals[nest], DB_YESOVERWRITE);
+                r = db->put(db, txns[nest], &key, &vals[nest], 0);
                     CKERR(r);
             }
             r = db->put(db, txns[nest], &key, &junkval, DB_NOOVERWRITE_NO_ERROR);

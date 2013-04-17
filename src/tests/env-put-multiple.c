@@ -109,9 +109,9 @@ static void run_test (void) {
         r = txn->commit(txn, 0);
     }
     {
-        //Insert again with DB_YESOVERWRITE, expect it to work.
+        //Insert again with 0, expect it to work.
         for (which = 0; which < num_dbs; which++) {
-            flags[which] = DB_YESOVERWRITE;
+            flags[which] = 0;
         }
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);
@@ -158,9 +158,9 @@ static void run_test (void) {
     {
         //Different number
         magic = 0xFEEDADAD;
-        //Insert again with DB_YESOVERWRITE, using 2 transactions, expect it to fail (unless 0 dbs).
+        //Insert again with 0, using 2 transactions, expect it to fail (unless 0 dbs).
         for (which = 0; which < num_dbs; which++) {
-            flags[which] = DB_YESOVERWRITE;
+            flags[which] = 0;
         }
         DB_TXN *txna;
         r = env->txn_begin(env, NULL, &txna, 0);

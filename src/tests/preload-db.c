@@ -41,7 +41,7 @@ static void preload_dbs(DB **dbs)
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
     uint32_t flags = DB_NOOVERWRITE;
-    flags = DB_YESOVERWRITE;
+    flags = 0;
     for(int i=0;i<MAX_DBS;i++) { 
         db_flags[i] = flags;
         dbt_flags[i] = 0;

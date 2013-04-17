@@ -99,13 +99,13 @@ test_txn_abort (u_int32_t dup_mode) {
     int v2 = 1;
     u_int8_t extra_1 = 1;
     u_int8_t extra_2 = 2;
-    r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init_length(&val, v1, extra_1, value1), DB_YESOVERWRITE); 
+    r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init_length(&val, v1, extra_1, value1), 0); 
         CKERR(r);
     r = txn->commit(txn, DB_TXN_NOSYNC); 
     txn = NULL;
 
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init_length(&val, v2, extra_2, value2), DB_YESOVERWRITE); 
+    r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init_length(&val, v2, extra_2, value2), 0); 
         CKERR(r);
     r = db->del(db, txn, dbt_init(&key, &k, sizeof k), DB_DELETE_ANY);
         CKERR(r);

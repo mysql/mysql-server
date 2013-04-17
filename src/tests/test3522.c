@@ -37,7 +37,7 @@ insert(int i, DB_TXN *txn)
     int r=db->put(db, txn,
 		  dbt_init(&key, hello, strlen(hello)+1),
 		  dbt_init(&val, there, strlen(there)+1),
-		  DB_YESOVERWRITE);
+		  0);
     CKERR(r);
 }
 

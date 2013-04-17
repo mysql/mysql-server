@@ -125,7 +125,7 @@ test_insert_zero_length_keys (int n, int dup_mode, const char *fname) {
         char v[n]; memset(v, i, n);
         DBT key;
         DBT val;
-        r = db->put(db, null_txn, dbt_init(&key, &k, 0), dbt_init(&val, &v, i), DB_YESOVERWRITE);
+        r = db->put(db, null_txn, dbt_init(&key, &k, 0), dbt_init(&val, &v, i), 0);
         if (r != 0) {
             if (verbose) printf("db->put %d %d = %d\n", n, n, r);
             assert(r == 0);

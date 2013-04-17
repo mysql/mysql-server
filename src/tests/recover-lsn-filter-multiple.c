@@ -75,7 +75,7 @@ static void run_test (void) {
         CHK(dbb->change_descriptor(dbb, txn_desc, &descriptor, 0));
     });
     DB *dbs[num_dbs] = {dba, dbb};
-    uint32_t flags[num_dbs] = {DB_YESOVERWRITE, DB_YESOVERWRITE};
+    uint32_t flags[num_dbs] = {0, 0};
     // txn_begin; insert <a,a>; txn_abort
     {
         DB_TXN *txn;

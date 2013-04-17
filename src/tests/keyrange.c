@@ -34,7 +34,7 @@ static void test (void) {
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	snprintf(val, 100, "%08llu", (unsigned long long)2*i+1);
 	DBT k,v;
-	r = db->put(db, txn, dbt_init(&k, key, 1+strlen(key)), dbt_init(&v,val, 1+strlen(val)), DB_YESOVERWRITE);
+	r = db->put(db, txn, dbt_init(&k, key, 1+strlen(key)), dbt_init(&v,val, 1+strlen(val)), 0);
 	assert(r == 0);
     }
     r=txn->commit(txn, 0);    assert(r==0);

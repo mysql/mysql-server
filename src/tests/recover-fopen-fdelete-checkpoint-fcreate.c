@@ -15,7 +15,7 @@ static void put_something(DB_ENV *env, DB *db, char *k, char *v) {
     DBT val={.data=v, .size=strlen(v)};
     DB_TXN *txn;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);                                CKERR(r);
+    r = db->put(db, txn, &key, &val, 0);                                CKERR(r);
     r = txn->commit(txn, 0);                                                          CKERR(r);
 }
 

@@ -99,14 +99,13 @@ get_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
 #ifdef USE_TDB
 #define EINVAL_FOR_TDB_OK_FOR_BDB EINVAL
 #else
-#define DB_YESOVERWRITE 0   //This is just so test numbers stay the same.
 #define EINVAL_FOR_TDB_OK_FOR_BDB 0
 #endif
 
 
 PUT_TEST put_tests[] = {
     {0,                 DB_NODUPDATA,    EINVAL, 0, 0},  //r_expect must change to 0, once implemented.
-    {0,                 DB_YESOVERWRITE, 0,      0, 0},
+    {0,                 0, 0,      0, 0},
     {0,                 DB_NOOVERWRITE,  0,      0, 0},
     {0,                 0,               0,      0, 0},
 };
@@ -115,9 +114,9 @@ const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
 GET_TEST get_tests[] = {
     {{0,                 0,                         0, 0, 0}, 0          , 0,           0, 0},
     {{0,                 0,                         0, 0, 0}, 0          , 0,           0, 0},
-    {{0,                 DB_YESOVERWRITE,           0, 0, 0}, 0          , 0,           0, 0},
-    {{0,                 DB_YESOVERWRITE,           0, 0, 0}, 0          , 0,           0, 0},
-    {{0,                 DB_YESOVERWRITE,           0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
+    {{0,                 0,           0, 0, 0}, 0          , 0,           0, 0},
+    {{0,                 0,           0, 0, 0}, 0          , 0,           0, 0},
+    {{0,                 0,           0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
     {{0,                 0,                         0, 0, 0}, DB_RMW,      EINVAL,      0, 0},
 };
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);

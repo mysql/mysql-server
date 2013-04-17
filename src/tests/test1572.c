@@ -50,7 +50,7 @@ four_billion_subtransactions (int do_something_in_children, int use_big_incremen
 	    r=db->put(db, xchild,
 		      dbt_init(&key, hello, strlen(hello)+1),
 		      dbt_init(&val, there, strlen(there)+1),
-		      DB_YESOVERWRITE);
+		      0);
 	    CKERR(r);
 	}
 	r=xchild->commit(xchild, 0); CKERR(r);
