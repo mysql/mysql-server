@@ -34,19 +34,11 @@ extern "C" {
 #define TOKU_METADB_NAME ".\\tokudb_meta.tokudb"
 
 static inline void *thd_data_get(THD *thd, int slot) {
-#if MYSQL_VERSION_ID <= 50123
-    return thd->ha_data[slot];
-#else
     return thd->ha_data[slot].ha_ptr;
-#endif
 }
 
 static inline void thd_data_set(THD *thd, int slot, void *data) {
-#if MYSQL_VERSION_ID <= 50123
-    thd->ha_data[slot] = data;
-#else
     thd->ha_data[slot].ha_ptr = data;
-#endif
 }
 
 
