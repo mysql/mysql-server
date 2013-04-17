@@ -160,6 +160,9 @@ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=ye
        --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
        --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
        --gen-suppressions=$(SUPPRESSIONS)
+ifeq ($(DB_ATTACH),1)
+	VGRIND+=--db-attach=yes
+endif
 
 HGRIND=valgrind --quiet --tool=helgrind --error-exitcode=1
 
