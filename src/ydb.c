@@ -4382,6 +4382,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     if (dbtype!=DB_BTREE && dbtype!=DB_UNKNOWN) return EINVAL;
     int is_db_excl    = flags & DB_EXCL;    unused_flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  unused_flags&=~DB_CREATE;
+    int is_db_hot_index  = flags & DB_IS_HOT_INDEX;  unused_flags&=~DB_IS_HOT_INDEX;
 
     //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
                                             unused_flags&=~DB_READ_UNCOMMITTED;
@@ -4435,7 +4436,13 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         create_iname_hint(dname, hint);
         iname = create_iname(db->dbenv, id, hint, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
-        r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE for performance only, avoid unnecessary query
+        //
+        // DB_YESOVERWRITE for performance only, avoid unnecessary query
+        // if we are creating a hot index, per #3166, we do not want the write lock  in directory grabbed.
+        // directory read lock is grabbed in toku_db_get above
+        //
+        u_int32_t put_flags = DB_YESOVERWRITE | ((is_db_hot_index) ? DB_PRELOCKED_WRITE : 0); 
+        r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, put_flags);  
     }
 
     // we now have an iname
@@ -4484,6 +4491,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
                                             flags&=~DB_READ_UNCOMMITTED;
                                             flags&=~DB_READ_COMMITTED;
                                             flags&=~DB_SERIALIZABLE;
+                                            flags&=~DB_IS_HOT_INDEX;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
