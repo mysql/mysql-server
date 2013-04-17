@@ -492,6 +492,7 @@ void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__vi
 void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_recover_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_recover_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
+void db_env_set_loader_size_factor (uint32_t) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif

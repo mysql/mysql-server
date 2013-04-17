@@ -39,6 +39,10 @@ int toku_brt_loader_abort(BRTLOADER bl,
 
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
+// For test purposes only
+void toku_brtloader_set_size_factor (uint32_t factor);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

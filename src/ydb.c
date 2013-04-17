@@ -5636,6 +5636,7 @@ int db_env_set_func_realloc (void *(*f)(void*, size_t)) {
 int db_env_set_func_free (void (*f)(void*)) {
     return toku_set_func_free(f);
 }
+
 // Got to call dlmalloc, or else it won't get included.
 void setup_dlmalloc (void) {
     db_env_set_func_malloc(dlmalloc);
@@ -5667,6 +5668,14 @@ void db_env_set_recover_callback (void (*callback_f)(void*), void* extra) {
 void db_env_set_recover_callback2 (void (*callback_f)(void*), void* extra) {
     toku_recover_set_callback2(callback_f, extra);
 }
+
+void db_env_set_loader_size_factor (uint32_t factor) {
+    toku_brtloader_set_size_factor(factor);
+}
+
+
+
+
 
 // HACK: To ensure toku_pthread_yield gets included in the .so
 // non-static would require a prototype in a header
