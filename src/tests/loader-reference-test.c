@@ -52,11 +52,11 @@ static void test_loader(DB **dbs)
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
-    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
+    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
     r = loader->set_error_callback(loader, NULL, NULL);
     CKERR(r);
-    r = loader->set_poll_function(loader, NULL);
+    r = loader->set_poll_function(loader, NULL, NULL);
     CKERR(r);
     
     // using loader->put, put values into DB

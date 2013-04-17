@@ -852,7 +852,8 @@ static int loader_do_i (BRTLOADER bl,
 }
 
 int toku_brt_loader_close (BRTLOADER bl,
-			   void (*error_callback)(DB *, int i, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra
+			   void (*error_callback)(DB *, int i, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra,
+			   int (*poll_function)(void *extra, float progress), void *poll_extra
 			   )
 /* Effect: Close the bulk loader.
  * Return all the file descriptors in the array fds. */
@@ -865,6 +866,9 @@ int toku_brt_loader_close (BRTLOADER bl,
 	if (result!=0) goto error;
         toku_free((void*)bl->new_fnames_in_env[i]);
 	bl->new_fnames_in_env[i] = NULL;
+	if (poll_function && poll_function(poll_extra, (float)i/(float)bl->N)) {
+	    goto error;
+	}
     }
     result = brtloader_fi_close (&bl->file_infos, bl->fprimary_rows); if (result) goto error;
     result = brtloader_fi_unlink(&bl->file_infos, bl->fprimary_rows); if (result) goto error;

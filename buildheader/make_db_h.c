@@ -405,7 +405,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("struct __toku_loader {\n");
     printf("  struct __toku_loader_internal *i;\n");
     printf("  int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra), void *error_extra); /* set the error callback */\n");
-    printf("  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
+    printf("  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress), void *poll_extra);             /* set the polling function */\n");
     printf("  int (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
     printf("  int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
     printf("  int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */\n");
@@ -491,7 +491,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
-                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags, void *extra)",
+                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
                              "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"
