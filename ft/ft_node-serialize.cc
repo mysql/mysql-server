@@ -2583,48 +2583,53 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 }
 
 
-
-static int
-toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
-                                       enum toku_compression_method method,
-                               /*out*/ size_t *n_bytes_to_write,
-                               /*out*/ char  **bytes_to_write) {
+void
+toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized) {
     // get the size of the serialized node
     size_t calculated_size = serialize_rollback_log_size(log);
 
+    serialized->len = calculated_size;
+    serialized->n_sub_blocks = 0;
     // choose sub block parameters
-    int n_sub_blocks = 0, sub_block_size = 0;
+    int sub_block_size = 0;
     size_t data_size = calculated_size - node_header_overhead;
-    choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &n_sub_blocks);
-    lazy_assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+    choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &serialized->n_sub_blocks);
+    lazy_assert(0 < serialized->n_sub_blocks && serialized->n_sub_blocks <= max_sub_blocks);
     lazy_assert(sub_block_size > 0);
 
     // set the initial sub block size for all of the sub blocks
-    struct sub_block sub_block[n_sub_blocks];
-    for (int i = 0; i < n_sub_blocks; i++) 
-        sub_block_init(&sub_block[i]);
-    set_all_sub_block_sizes(data_size, sub_block_size, n_sub_blocks, sub_block);
+    for (int i = 0; i < serialized->n_sub_blocks; i++) 
+        sub_block_init(&serialized->sub_block[i]);
+    set_all_sub_block_sizes(data_size, sub_block_size, serialized->n_sub_blocks, serialized->sub_block);
 
     // allocate space for the serialized node
-    char *XMALLOC_N(calculated_size, buf);
+    XMALLOC_N(calculated_size, serialized->data);
     // serialize the node into buf
-    serialize_rollback_log_node_to_buf(log, buf, calculated_size, n_sub_blocks, sub_block);
-
-    //Compress and malloc buffer to write
-    int result = serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block, method,
-                                                        n_bytes_to_write, bytes_to_write);
-    toku_free(buf);
-    return result;
+    serialize_rollback_log_node_to_buf(log, serialized->data, calculated_size, serialized->n_sub_blocks, serialized->sub_block);
+    serialized->blocknum = log->blocknum;
 }
 
 int
-toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
-                                FT h, 
-                                bool for_checkpoint) {
+toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
+                                FT h, bool for_checkpoint) {
     size_t n_to_write;
     char *compressed_buf;
+    struct serialized_rollback_log_node serialized_local;
+
+    if (is_serialized) {
+        invariant_null(log);
+    } else {
+        invariant_null(serialized_log);
+        serialized_log = &serialized_local;
+        toku_serialize_rollback_log_to_memory_uncompressed(log, serialized_log);
+    }
+    BLOCKNUM blocknum = serialized_log->blocknum;
+
     {
-        int r = toku_serialize_rollback_log_to_memory(log, h->h->compression_method, &n_to_write, &compressed_buf);
+        //Compress and malloc buffer to write
+        int r = serialize_uncompressed_block_to_memory(serialized_log->data,
+                serialized_log->n_sub_blocks, serialized_log->sub_block,
+                h->h->compression_method, &n_to_write, &compressed_buf);
         if (r!=0) return r;
     }
 
@@ -2636,7 +2641,10 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
         toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     }
     toku_free(compressed_buf);
-    log->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
+    if (!is_serialized) {
+        toku_static_serialized_rollback_log_destroy(&serialized_local);
+        log->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
+    }
     return 0;
 }
 

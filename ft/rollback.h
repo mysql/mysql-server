@@ -8,6 +8,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "omt.h"
+#include "sub_block.h"
 
 void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint);
 
@@ -80,5 +81,25 @@ struct rollback_log_node {
     size_t             rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
     PAIR               ct_pair;
 };
+
+struct serialized_rollback_log_node {
+    char *data;
+    uint32_t len;
+    int n_sub_blocks;
+    BLOCKNUM blocknum;
+    struct sub_block sub_block[max_sub_blocks];
+};
+
+static inline void
+toku_static_serialized_rollback_log_destroy(SERIALIZED_ROLLBACK_LOG_NODE log) {
+    toku_free(log->data);
+}
+
+static inline void
+toku_serialized_rollback_log_destroy(SERIALIZED_ROLLBACK_LOG_NODE log) {
+    toku_static_serialized_rollback_log_destroy(log);
+    toku_free(log);
+}
+
 
 #endif // TOKU_ROLLBACK_H
