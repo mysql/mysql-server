@@ -770,7 +770,7 @@ static int tokutrace_db_get_cmp_byte_stream(DB* db, DBT* byte_stream) {
     void* data = NULL;
     KEY* key   = NULL;
     if (byte_stream->flags != DB_DBT_MALLOC) { return EINVAL; }
-    bzero((void *) &byte_stream, sizeof(*byte_stream));
+    bzero((void *) byte_stream, sizeof(*byte_stream));
 
     u_int32_t num_fields = 0;
     if (!db->app_private) { num_fields = 1; }
