@@ -223,54 +223,6 @@ is_column_default_null(TABLE* src_table, u_int32_t field_index) {
 }
 #endif
 
-#define UP_COL_ADD_OR_DROP 0
-
-#define COL_DROP 0xaa
-#define COL_ADD 0xbb
-
-#define COL_FIXED 0xcc
-#define COL_VAR 0xdd
-#define COL_BLOB 0xee
-
-#define STATIC_ROW_MUTATOR_SIZE 1+8+2+8+8+8
-
-/*
-how much space do I need for the mutators?
-static stuff first:
-1 - UP_COL_ADD_OR_DROP
-8 - old null, new null
-2 - old num_offset, new num_offset
-8 - old fixed_field size, new fixed_field_size
-8 - old and new length of offsets
-8 - old and new starting null bit position
-TOTAL: 27
-
-dynamic stuff:
-4 - number of columns
-for each column:
-1 - add or drop
-1 - is nullable
-4 - if nullable, position
-1 - if add, whether default is null or not
-1 - if fixed, var, or not
- for fixed, entire default
- for var, 4 bytes length, then entire default
- for blob, nothing
-So, an upperbound is 4 + num_fields(12) + all default stuff
-
-static blob stuff:
-4 - num blobs
-1 byte for each num blobs in old table
-So, an upperbound is 4 + kc_info->num_blobs
-
-dynamic blob stuff:
-for each blob added:
-1 - state if we are adding or dropping
-4 - blob index
-if add, 1 len bytes
- at most, 4 0's
-So, upperbound is num_blobs(1+4+1+4) = num_columns*10
-*/
 static u_int32_t 
 fill_static_row_mutator(
     uchar* buf, 
