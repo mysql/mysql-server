@@ -183,28 +183,30 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
 		void (*callback2_f)(void*), void * extra2) {
     int r;
 
-    checkpoint_footprint = 0;
+    checkpoint_footprint = 1;
     assert(initialized);
     multi_operation_checkpoint_lock();
+    checkpoint_footprint = 2;
     checkpoint_safe_checkpoint_lock();
+    checkpoint_footprint = 3;
     ydb_lock();
     
-    checkpoint_footprint = 1;
+    checkpoint_footprint = 4;
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
-    checkpoint_footprint = 2;
+    checkpoint_footprint = 5;
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, error_string, callback2_f, extra2);
     }
 
-    checkpoint_footprint = 3;
+    checkpoint_footprint = 6;
     checkpoint_safe_checkpoint_unlock();
-    checkpoint_footprint = 4;
+    checkpoint_footprint = 0;
 
     return r;
 }
