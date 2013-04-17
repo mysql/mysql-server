@@ -75,6 +75,8 @@
    toku_test_db_redirect_dictionary;
    toku_test_get_latest_lsn;
 
+   toku_checkpointing_user_data_status;
+
  local: *;
 };
 
