@@ -26,6 +26,7 @@ static void insert(DB_LOADER *loader, int k, int val_size) {
 
     // generate the key
     char key_buffer[8];
+    memset(key_buffer, 0, sizeof key_buffer);
     int newa = htonl(k);
     memcpy(key_buffer, &newa, sizeof newa);
 

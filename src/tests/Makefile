@@ -126,6 +126,7 @@ BDB_DONTRUN_TESTS = \
         keyrange-dupsort \
         keyrange-dupsort-unflat \
         keyrange-unflat \
+	loader-blobs-create-leaf \
         loader-cleanup-test \
 	loader-create-abort \
 	loader-create-close \
