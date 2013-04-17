@@ -721,6 +721,24 @@ exit:
 }
 
 
+static void
+compress_internal_node_partition(BRTNODE node, int i)
+{
+    // if we should evict, compress the
+    // message buffer into a sub_block
+    assert(BP_STATE(node, i) == PT_AVAIL);
+    assert(node->height > 0);
+    SUB_BLOCK sb = NULL;
+    sb = toku_xmalloc(sizeof(struct sub_block));
+    sub_block_init(sb);
+    toku_create_compressed_partition_from_available(node, i, sb);
+    
+    // now free the old partition and replace it with this
+    destroy_nonleaf_childinfo(BNC(node,i));
+    set_BSB(node, i, sb);
+    BP_STATE(node,i) = PT_COMPRESSED;
+}
+
 // callback for partially evicting a node
 int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* bytes_freed, void* UU(extraargs)) {
     BRTNODE node = (BRTNODE)brtnode_pv;
@@ -740,17 +758,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* by
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    // if we should evict, compress the
-                    // message buffer into a sub_block
-                    SUB_BLOCK sb = NULL;
-                    sb = toku_xmalloc(sizeof(struct sub_block));
-                    sub_block_init(sb);
-                    toku_create_compressed_partition_from_available(node, i, sb);
-
-                    // now free the old partition and replace it with this
-                    destroy_nonleaf_childinfo(BNC(node,i));
-                    set_BSB(node, i, sb);
-                    BP_STATE(node,i) = PT_COMPRESSED;
+                    cilk_spawn compress_internal_node_partition(node, i);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -760,6 +768,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* by
                 continue;
             }
         }
+        cilk_sync;
     }
     //
     // partial eviction strategy for basement nodes:
