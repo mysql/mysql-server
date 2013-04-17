@@ -121,7 +121,7 @@ struct worker_extra {
 static void lock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        toku_pthread_mutex_lock(we->operation_lock_mutex);
+        if (0) toku_pthread_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_lock(we->operation_lock, we->operation_lock_mutex);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -129,14 +129,14 @@ static void lock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        if (0) toku_pthread_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
 static void unlock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        toku_pthread_mutex_lock(we->operation_lock_mutex);
+        if (0) toku_pthread_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_unlock(we->operation_lock);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -144,7 +144,7 @@ static void unlock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        if (0) toku_pthread_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
@@ -283,6 +283,20 @@ static int generate_row_for_put(
 }
 
 static int UU() nop(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra)) {
+    return 0;
+}
+
+static int UU() xmalloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra)) {
+    size_t s = 256;
+    void *p = toku_xmalloc(s);
+    toku_free(p);
+    return 0;
+}
+
+static int UU() malloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra)) {
+    size_t s = 256;
+    void *p = malloc(s);
+    free(p);
     return 0;
 }
 

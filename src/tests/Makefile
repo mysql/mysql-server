@@ -158,9 +158,11 @@ BDB_DONTRUN_TESTS = \
 	multiprocess \
 	mvcc-create-table \
         mvcc-many-committed \
+	perf_checkpoint_var \
+	perf_malloc_free \
 	perf_nop \
 	perf_ptquery \
-	perf_checkpoint_var \
+	perf_xmalloc_free \
 	prelock-read-read \
 	prelock-read-write \
 	prelock-write-read \
@@ -1049,6 +1051,9 @@ maxsize-for-loader-A.tdbrun: maxsize-for-loader.tdb
 	$(TDBVGRIND) ./$< -e $@  -f 2> /dev/null $(SUMMARIZE_CMD)
 maxsize-for-loader-B.tdbrun: maxsize-for-loader.tdb
 	./$< -e $@                  2> /dev/null $(SUMMARIZE_CMD)
+
+perf%.tdb: CPPFLAGS+=-DDONT_DEPRECATE_MALLOC
+
 clean:
 	rm -f $(ALL_BINS)
 	rm -rf dir.* *.check.output *.check.valgrind
