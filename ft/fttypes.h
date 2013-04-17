@@ -38,6 +38,7 @@ typedef struct ftnode_leaf_basement_node *BASEMENTNODE;
 typedef struct ftnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
 typedef struct sub_block *SUB_BLOCK;
 typedef struct ft *FT;
+typedef struct ft_header *FT_HEADER;
 typedef struct ft_options *FT_OPTIONS;
 struct wbuf;
 struct dbuf;
@@ -252,6 +253,7 @@ typedef int (*ft_compare_func)(DB *, const DBT *, const DBT *);
 typedef void (*setval_func)(const DBT *, void *);
 typedef int (*ft_update_func)(DB *, const DBT *, const DBT *, const DBT *, setval_func, void *);
 typedef void (*on_redirect_callback)(FT_HANDLE, void*);
+typedef void (*remove_ft_ref_callback)(FT, void*);
 
 #define UU(x) x __attribute__((__unused__))
 

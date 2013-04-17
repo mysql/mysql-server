@@ -197,7 +197,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     //Verify it is empty
     assert(!t->ft->panic);
     //Must have no data blocks (rollback logs or otherwise).
-    toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->root_blocknum);
+    toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->h->root_blocknum);
     BOOL is_empty;
     is_empty = toku_ft_is_empty_fast(t);
     assert(is_empty);
@@ -216,26 +216,26 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
     if (!logger->is_panicked && cf) {
         FT_HANDLE ft_to_close;
         {   //Find "brt"
-            FT h = toku_cachefile_get_userdata(cf);
-            if (!h->panic && recovery_failed) {
-                r = toku_ft_set_panic(h, EINVAL, "Recovery failed");
+            FT ft = toku_cachefile_get_userdata(cf);
+            if (!ft->panic && recovery_failed) {
+                r = toku_ft_set_panic(ft, EINVAL, "Recovery failed");
                 assert_zero(r);
             }
             //Verify it is safe to close it.
-            if (!h->panic) { //If paniced, it is safe to close.
-                assert(!h->dirty);  //Must not be dirty.
+            if (!ft->panic) { //If paniced, it is safe to close.
+                assert(!ft->h->dirty);  //Must not be dirty.
                 //Must have no data blocks (rollback logs or otherwise).
-                toku_block_verify_no_data_blocks_except_root_unlocked(h->blocktable, h->root_blocknum);
+                toku_block_verify_no_data_blocks_except_root_unlocked(ft->blocktable, ft->h->root_blocknum);
             }
-            assert(!h->dirty);
-            ft_to_close = toku_ft_get_some_existing_ft_handle(h);
+            assert(!ft->h->dirty);
+            ft_to_close = toku_ft_get_some_existing_ft_handle(ft);
             assert(ft_to_close);
             {
                 BOOL is_empty;
                 is_empty = toku_ft_is_empty_fast(ft_to_close);
                 assert(is_empty);
             }
-            assert(!h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
+            assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
         }
 
         r = toku_ft_handle_close(ft_to_close, FALSE, ZERO_LSN);

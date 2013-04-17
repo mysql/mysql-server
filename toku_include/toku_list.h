@@ -19,6 +19,13 @@ struct toku_list {
     struct toku_list *next, *prev;
 };
 
+static inline int toku_list_num_elements_est(struct toku_list *head) {
+    if (head->next == head) return 0;
+    if (head->next == head->prev) return 1;
+    return 2;
+}
+
+
 static inline void toku_list_init(struct toku_list *head) {
     head->next = head->prev = head;
 }

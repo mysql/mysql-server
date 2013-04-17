@@ -335,67 +335,129 @@ u_int32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
 
 enum ft_type {FT_CURRENT=1, FT_CHECKPOINT_INPROGRESS};
 
+struct ft_header {
+    enum ft_type type;
+
+    int dirty;
+
+    // Free-running counter incremented once per checkpoint (toggling LSB).
+    // LSB indicates which header location is used on disk so this
+    // counter is effectively a boolean which alternates with each checkpoint.
+    uint64_t checkpoint_count;
+    // LSN of creation of "checkpoint-begin" record in log.
+    LSN checkpoint_lsn;
+
+    // see brt_layout_version.h.  maybe don't need this if we assume
+    // it's always the current version after deserializing
+    const int layout_version;
+    // different (<) from layout_version if upgraded from a previous
+    // version (useful for debugging)
+    const int layout_version_original;
+    // build_id (svn rev number) of software that wrote this node to
+    // disk. (read from disk, overwritten when written to disk, I
+    // think).
+    const uint32_t build_id;
+    // build_id of software that created this tree
+    const uint32_t build_id_original;
+
+    // time this tree was created
+    const uint64_t time_of_creation;
+    // and the root transaction id that created it
+    TXNID root_xid_that_created;
+    // last time this header was serialized to disk (read from disk,
+    // overwritten when written to disk)
+    uint64_t time_of_last_modification;
+    // last time that this tree was verified
+    uint64_t time_of_last_verification;
+
+    // this field is protected by tree_lock, see comment for tree_lock
+    BLOCKNUM root_blocknum;
+
+    const unsigned int flags;
+    const unsigned int nodesize;
+    const unsigned int basementnodesize;
+    const enum toku_compression_method compression_method;
+
+    // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
+    // This is decremented from our currnt MIN_MSN so as not to clash
+    // with any existing 'normal' MSN's.
+    MSN highest_unused_msn_for_upgrade;
+
+    // last time that a hot optimize operation was begun
+    uint64_t time_of_last_optimize_begin;
+    // last time that a hot optimize operation was successfully completed
+    uint64_t time_of_last_optimize_end;
+    // the number of hot optimize operations currently in progress on this tree
+    uint32_t count_of_optimize_in_progress;
+    // the number of hot optimize operations in progress on this tree at the time of the last crash  (this field is in-memory only)
+    uint32_t count_of_optimize_in_progress_read_from_disk;
+    // all messages before this msn have been applied to leaf nodes
+    MSN msn_at_start_of_last_completed_optimize;
+    
+    STAT64INFO_S on_disk_stats;
+
+};
+
 // brt_header is always the current version.
 struct ft {
-    enum ft_type type;
-    FT checkpoint_header;
+    FT_HEADER h;
+    FT_HEADER checkpoint_header;
+
+    // These are (mostly) read-only.
+
     CACHEFILE cf;
+    // unique id for dictionary
+    DICTIONARY_ID dict_id;
+    ft_compare_func compare_fun;
+    ft_update_func update_fun;
+
+    // protected by locktree
+    DESCRIPTOR_S descriptor;
+    // protected by locktree and user. User 
+    // makes sure this is only changed
+    // when no activity on tree
+    DESCRIPTOR_S cmp_descriptor;
+
+    // These are not read-only:
+
     // lock used by a thread to pin the root node to start a descent into 
     // the tree. This lock protects the blocknum of the root node (root_blocknum). Any 
     // thread that wants to descend down the tree starting at the root 
     // must grab this lock before pinning the root.
-    toku_mutex_t tree_lock; 
-    u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
-                                // LSB indicates which header location is used on disk so this
-                                // counter is effectively a boolean which alternates with each checkpoint.
-    LSN checkpoint_lsn;         // LSN of creation of "checkpoint-begin" record in log.  
-    int dirty;
-    DICTIONARY_ID dict_id;      // unique id for dictionary
-    int panic;                  // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
-    char *panic_string;         // A malloced string that can indicate what went wrong.
-    int layout_version;
-    int layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
-    int layout_version_read_from_disk;  // transient, not serialized to disk
-    uint32_t build_id;                  // build_id (svn rev number) of software that wrote this node to disk
-    uint32_t build_id_original;         // build_id of software that created this tree (read from disk, overwritten when written to disk)
-    uint64_t time_of_creation;          // time this tree was created
-    uint64_t time_of_last_modification; // last time this header was serialized to disk (read from disk, overwritten when written to disk)
-    uint64_t time_of_last_verification; // last time that this tree was verified
-    unsigned int nodesize;
-    unsigned int basementnodesize;
-    // this field is protected by tree_lock, see comment for tree_lock
-    BLOCKNUM root_blocknum;            // roots of the dictionary
-    unsigned int flags;
-    DESCRIPTOR_S descriptor;
-    DESCRIPTOR_S cmp_descriptor;
+    toku_mutex_t tree_lock;
 
+    // protected by blocktable lock
     BLOCK_TABLE blocktable;
+
+    // protected by atomic builtins
+    STAT64INFO_S in_memory_stats;
+
+    // transient, not serialized to disk.  updated when we do write to
+    // disk.  tells us whether we can do partial eviction (we can't if
+    // the on-disk layout version is from before basement nodes)
+    int layout_version_read_from_disk;
+
     // If a transaction created this BRT, which one?
     // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
     // 0 if no such transaction
+    // only one thread can write to these at once, this is enforced by
+    // the lock tree
     TXNID txnid_that_created_or_locked_when_empty;
-    TXNID root_that_created_or_locked_when_empty;
     TXNID txnid_that_suppressed_recovery_logs;
-    TXNID root_xid_that_created;
-    struct toku_list live_ft_handles;
-    OMT txns; // transactions that are using this header    
-    bool pinned_by_checkpoint;  //Keep this header around for checkpoint, like a transaction
 
-    ft_compare_func compare_fun;
-    ft_update_func update_fun;
-    STAT64INFO_S in_memory_stats;
-    STAT64INFO_S on_disk_stats;
-    STAT64INFO_S checkpoint_staging_stats;
-    uint64_t time_of_last_optimize_begin;     // last time that a hot optimize operation was begun
-    uint64_t time_of_last_optimize_end;       // last time that a hot optimize operation was successfully completed
-    uint32_t count_of_optimize_in_progress;   // the number of hot optimize operations currently in progress on this tree
-    uint32_t count_of_optimize_in_progress_read_from_disk;   // the number of hot optimize operations in progress on this tree at the time of the last crash  (this field is in-memory only)
-    MSN      msn_at_start_of_last_completed_optimize;   // all messages before this msn have been applied to leaf nodes
-    enum toku_compression_method compression_method;
-    // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
-    // This is decremented from our currnt MIN_MSN so as not to clash
-    // with any existing 'normal' MSN's.
-    MSN      highest_unused_msn_for_upgrade;
+    // protects modifying live_ft_handles, txns, and pinned_by_checkpoint
+    toku_mutex_t ft_ref_lock;
+    struct toku_list live_ft_handles;
+    // transactions that are using this header.  you should only be able
+    // to modify this if you have a valid handle in the list of live brts
+    OMT txns;
+    // Keep this header around for checkpoint, like a transaction
+    bool pinned_by_checkpoint;
+
+    // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
+    int panic;
+    // A malloced string that can indicate what went wrong.
+    char *panic_string;
 };
 
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
@@ -464,9 +526,14 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 
 void toku_verify_or_set_counts(FTNODE);
 
-int toku_serialize_ft_size (FT h);
-int toku_serialize_ft_to (int fd, FT h);
-int toku_serialize_ft_to_wbuf (struct wbuf *, FT h, int64_t address_translation, int64_t size_translation);
+int toku_serialize_ft_size (FT_HEADER h);
+int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf);
+int toku_serialize_ft_to_wbuf (
+    struct wbuf *wbuf, 
+    FT_HEADER h, 
+    DISKOFF translation_location_on_disk, 
+    DISKOFF translation_size_on_disk
+    );
 enum deserialize_error_code toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
@@ -579,7 +646,6 @@ struct ft_cursor {
 // is required, such as for flushes.
 //
 static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) {
-    invariant(h->type == FT_CURRENT);
     bfe->type = ftnode_fetch_all;
     bfe->h = h;
     bfe->search = NULL;
@@ -608,7 +674,7 @@ static inline void fill_bfe_for_subset_read(
     BOOL disable_prefetching
     )
 {
-    invariant(h->type == FT_CURRENT);
+    invariant(h->h->type == FT_CURRENT);
     bfe->type = ftnode_fetch_subset;
     bfe->h = h;
     bfe->search = search;
@@ -627,7 +693,7 @@ static inline void fill_bfe_for_subset_read(
 // Currently used for stat64.
 //
 static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
-    invariant(h->type == FT_CURRENT);
+    invariant(h->h->type == FT_CURRENT);
     bfe->type = ftnode_fetch_none;
     bfe->h = h;
     bfe->search = NULL;
@@ -659,7 +725,7 @@ static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
 static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
                                          FT h,
                                          FT_CURSOR c) {
-    invariant(h->type == FT_CURRENT);
+    invariant(h->h->type == FT_CURRENT);
     bfe->type = ftnode_fetch_prefetch;
     bfe->h = h;
     bfe->search = NULL;

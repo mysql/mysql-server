@@ -74,7 +74,7 @@ int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *blocknum, int n
 
 int toku_testsetup_root(FT_HANDLE brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
-    brt->ft->root_blocknum = blocknum;
+    brt->ft->h->root_blocknum = blocknum;
     return 0;
 }
 

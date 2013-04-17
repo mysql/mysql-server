@@ -507,7 +507,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->root_xids_that_created);
-    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->root_xid_that_created;
+    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->h->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
     for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
@@ -2206,11 +2206,12 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     if (bl->root_xids_that_created)
         root_xid_that_created = bl->root_xids_that_created[which_db];
 
-    struct ft h; 
-    toku_ft_init(&h, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method);
+    // TODO: (Zardosht/Yoni/Leif), do this code properly
+    struct ft ft;
+    toku_ft_init(&ft, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method);
 
     struct dbout out;
-    dbout_init(&out, &h);
+    dbout_init(&out, &ft);
     out.fd = fd;
     out.current_off = 8192; // leave 8K reserved at beginning
     out.n_translations = 3; // 3 translations reserved at the beginning
@@ -2333,7 +2334,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     }
 
     if (deltas.numrows || deltas.numbytes) {
-        toku_ft_update_stats(&h.in_memory_stats, deltas);
+        toku_ft_update_stats(&ft.in_memory_stats, deltas);
     }
 
     cleanup_maxkey(&maxkey);
@@ -2375,7 +2376,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
     {
 	invariant(sts.n_subtrees==1);
-	out.h->root_blocknum = make_blocknum(sts.subtrees[0].block);
+	out.h->h->root_blocknum = make_blocknum(sts.subtrees[0].block);
 	toku_free(sts.subtrees); sts.subtrees = NULL;
 
 	// write the descriptor
@@ -2766,16 +2767,15 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 static int
 write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk) {
     int result = 0;
-
-    out->h->checkpoint_staging_stats = out->h->in_memory_stats; // #4184
-    unsigned int size = toku_serialize_ft_size (out->h);
+    unsigned int size = toku_serialize_ft_size (out->h->h);
     struct wbuf wbuf;
     char *MALLOC_N(size, buf);
     if (buf == NULL) {
         result = errno;
     } else {
         wbuf_init(&wbuf, buf, size);
-        toku_serialize_ft_to_wbuf(&wbuf, out->h, translation_location_on_disk, translation_size_on_disk);
+        out->h->h->on_disk_stats = out->h->in_memory_stats;
+        toku_serialize_ft_to_wbuf(&wbuf, out->h->h, translation_location_on_disk, translation_size_on_disk);
         if (wbuf.ndone != size)
             result = EINVAL;
         else

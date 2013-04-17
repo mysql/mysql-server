@@ -85,34 +85,34 @@ dump_descriptor(DESCRIPTOR d) {
 
 static void
 dump_header (int f, FT *header, CACHEFILE cf) {
-    FT h;
+    FT ft;
     int r;
     char timestr[26];
-    r = toku_deserialize_ft_from (f, MAX_LSN, &h);
+    r = toku_deserialize_ft_from (f, MAX_LSN, &ft);
     assert(r==0);
-    h->cf = cf;
+    ft->cf = cf;
     printf("ft:\n");
-    printf(" layout_version=%d\n", h->layout_version);
-    printf(" layout_version_original=%d\n", h->layout_version_original);
-    printf(" layout_version_read_from_disk=%d\n", h->layout_version_read_from_disk);
-    printf(" build_id=%d\n", h->build_id);
-    printf(" build_id_original=%d\n", h->build_id_original);
-    format_time(h->time_of_creation, timestr);
-    printf(" time_of_creation=         %"PRIu64"    %s\n", h->time_of_creation, timestr);
-    format_time(h->time_of_last_modification, timestr);
-    printf(" time_of_last_modification=%"PRIu64"    %s\n", h->time_of_last_modification, timestr);
-    printf(" dirty=%d\n", h->dirty);
-    printf(" checkpoint_count=%" PRId64 "\n", h->checkpoint_count);
-    printf(" checkpoint_lsn=%" PRId64 "\n", h->checkpoint_lsn.lsn);
-    printf(" nodesize=%u\n", h->nodesize);
-    printf(" basementnodesize=%u\n", h->basementnodesize);
-    printf(" compression_method=%u\n", (unsigned) h->compression_method);
-    printf(" unnamed_root=%" PRId64 "\n", h->root_blocknum.b);
-    printf(" flags=%u\n", h->flags);
-    dump_descriptor(&h->descriptor);
-    printf(" estimated numrows=%" PRId64 "\n", h->in_memory_stats.numrows);
-    printf(" estimated numbytes=%" PRId64 "\n", h->in_memory_stats.numbytes);
-    *header = h;
+    printf(" layout_version=%d\n", ft->h->layout_version);
+    printf(" layout_version_original=%d\n", ft->h->layout_version_original);
+    printf(" layout_version_read_from_disk=%d\n", ft->layout_version_read_from_disk);
+    printf(" build_id=%d\n", ft->h->build_id);
+    printf(" build_id_original=%d\n", ft->h->build_id_original);
+    format_time(ft->h->time_of_creation, timestr);
+    printf(" time_of_creation=         %"PRIu64"    %s\n", ft->h->time_of_creation, timestr);
+    format_time(ft->h->time_of_last_modification, timestr);
+    printf(" time_of_last_modification=%"PRIu64"    %s\n", ft->h->time_of_last_modification, timestr);
+    printf(" dirty=%d\n", ft->h->dirty);
+    printf(" checkpoint_count=%" PRId64 "\n", ft->h->checkpoint_count);
+    printf(" checkpoint_lsn=%" PRId64 "\n", ft->h->checkpoint_lsn.lsn);
+    printf(" nodesize=%u\n", ft->h->nodesize);
+    printf(" basementnodesize=%u\n", ft->h->basementnodesize);
+    printf(" compression_method=%u\n", (unsigned) ft->h->compression_method);
+    printf(" unnamed_root=%" PRId64 "\n", ft->h->root_blocknum.b);
+    printf(" flags=%u\n", ft->h->flags);
+    dump_descriptor(&ft->descriptor);
+    printf(" estimated numrows=%" PRId64 "\n", ft->in_memory_stats.numrows);
+    printf(" estimated numbytes=%" PRId64 "\n", ft->in_memory_stats.numbytes);
+    *header = ft;
 }
 
 static int
@@ -506,14 +506,14 @@ main (int argc, const char *const argv[]) {
 
     const char *n = argv[0];
     int f = open(n, O_RDWR + O_BINARY);  assert(f>=0);
-    FT h;
+    FT ft;
     // create a cachefile for the header
     int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
     assert(r == 0);
     CACHEFILE cf;
     r = toku_cachetable_openfd (&cf, ct, f, n);
     assert(r==0);
-    dump_header(f, &h, cf);
+    dump_header(f, &ft, cf);
     if (interactive) {
         while (1) {
             printf("ftdump>"); fflush(stdout);
@@ -530,25 +530,25 @@ main (int argc, const char *const argv[]) {
 	    if (strcmp(fields[0], "help") == 0) {
 		interactive_help();
 	    } else if (strcmp(fields[0], "header") == 0) {
-		toku_ft_free(h);
-		dump_header(f, &h, cf);
+		toku_ft_free(ft);
+		dump_header(f, &ft, cf);
 	    } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
 		BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
-		dump_block(f, blocknum, h);
+		dump_block(f, blocknum, ft);
 	    } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
 		BLOCKNUM off = make_blocknum(getuint64(fields[1]));
-		dump_node(f, off, h);
+		dump_node(f, off, ft);
 	    } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
 		dump_data = strtol(fields[1], NULL, 10);
 	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
 		u_int64_t offset = 0;
 		if (nfields == 2)
 		    offset = getuint64(fields[1]);
-		dump_block_translation(h, offset);
+		dump_block_translation(ft, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
-		dump_fragmentation(f, h);
+		dump_fragmentation(f, ft);
             } else if (strcmp(fields[0], "garbage") == 0) {
-                dump_garbage_stats(f, h);
+                dump_garbage_stats(f, ft);
 	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
 		u_int64_t offset = getuint64(fields[1]);
 		u_int64_t size = getuint64(fields[2]);
@@ -565,18 +565,18 @@ main (int argc, const char *const argv[]) {
 	    }
 	}
     } else if (rootnode) {
-	dump_node(f, h->root_blocknum, h);
+	dump_node(f, ft->h->root_blocknum, ft);
     } else {
 	printf("Block translation:");
 
-	toku_dump_translation_table(stdout, h->blocktable);
+	toku_dump_translation_table(stdout, ft->blocktable);
 
 	struct __dump_node_extra info;
 	info.f = f;
-	info.h = h;
-	toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+	info.h = ft;
+	toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
 				dump_node_wrapper, &info, TRUE, TRUE);
     }
-    toku_ft_free(h);
+    toku_ft_free(ft);
     return 0;
 }

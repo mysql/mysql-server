@@ -67,9 +67,9 @@
 static CHECKPOINT_STATUS_S cp_status;
 
 #define STATUS_INIT(k,t,l) { \
-	cp_status.status[k].keyname = #k; \
-	cp_status.status[k].type    = t;  \
-	cp_status.status[k].legend  = "checkpoint: " l; \
+        cp_status.status[k].keyname = #k; \
+        cp_status.status[k].type    = t;  \
+        cp_status.status[k].legend  = "checkpoint: " l; \
     }
 
 static void
@@ -106,7 +106,7 @@ status_init(void) {
 void
 toku_checkpoint_get_status(CACHETABLE ct, CHECKPOINT_STATUS statp) {
     if (!cp_status.initialized)
-	status_init();
+        status_init();
     STATUS_VALUE(CP_PERIOD) = toku_get_checkpoint_period_unlocked(ct);
     *statp = cp_status;
 }
@@ -193,7 +193,7 @@ checkpoint_safe_checkpoint_unlock(void) {
 void 
 toku_multi_operation_client_lock(void) {
     if (locked_mo)
-	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
     toku_pthread_rwlock_rdlock(&multi_operation_lock);   
 }
 
@@ -205,7 +205,7 @@ toku_multi_operation_client_unlock(void) {
 void 
 toku_checkpoint_safe_client_lock(void) {
     if (locked_cs)
-	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
     toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
     toku_multi_operation_client_lock();
 }
@@ -241,23 +241,23 @@ toku_checkpoint_destroy(void) {
 // Take a checkpoint of all currently open dictionaries
 int 
 toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
-		void (*callback_f)(void*),  void * extra,
-		void (*callback2_f)(void*), void * extra2,
-		checkpoint_caller_t caller_id) {
+                void (*callback_f)(void*),  void * extra,
+                void (*callback2_f)(void*), void * extra2,
+                checkpoint_caller_t caller_id) {
     int r;
     int footprint_offset = (int) caller_id * 1000;
 
     assert(initialized);
 
     if (locked_cs) {
-	if (caller_id == SCHEDULED_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_SCHED_CS), 1);
-	else if (caller_id == CLIENT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_CLIENT_CS), 1);
-	else if (caller_id == TXN_COMMIT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_TXN_CS), 1);
-	else 
-	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_OTHER_CS), 1);
+        if (caller_id == SCHEDULED_CHECKPOINT)
+            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_SCHED_CS), 1);
+        else if (caller_id == CLIENT_CHECKPOINT)
+            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_CLIENT_CS), 1);
+        else if (caller_id == TXN_COMMIT_CHECKPOINT)
+            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_TXN_CS), 1);
+        else 
+            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_OTHER_CS), 1);
     }
 
     (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAITERS_NOW), 1);
@@ -265,27 +265,29 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     (void) __sync_fetch_and_sub(&STATUS_VALUE(CP_WAITERS_NOW), 1);
 
     if (STATUS_VALUE(CP_WAITERS_NOW) > STATUS_VALUE(CP_WAITERS_MAX))
-	STATUS_VALUE(CP_WAITERS_MAX) = STATUS_VALUE(CP_WAITERS_NOW);  // threadsafe, within checkpoint_safe lock
+        STATUS_VALUE(CP_WAITERS_MAX) = STATUS_VALUE(CP_WAITERS_NOW);  // threadsafe, within checkpoint_safe lock
 
     SET_CHECKPOINT_FOOTPRINT(10);
     if (locked_mo) {
-	if (caller_id == SCHEDULED_CHECKPOINT)
-	    STATUS_VALUE(CP_WAIT_SCHED_MO)++;           // threadsafe, within checkpoint_safe lock
-	else if (caller_id == CLIENT_CHECKPOINT)
-	    STATUS_VALUE(CP_WAIT_CLIENT_MO)++;
-	else if (caller_id == TXN_COMMIT_CHECKPOINT)
-	    STATUS_VALUE(CP_WAIT_TXN_MO)++;
-	else 
-	    STATUS_VALUE(CP_WAIT_OTHER_MO)++;
+        if (caller_id == SCHEDULED_CHECKPOINT)
+            STATUS_VALUE(CP_WAIT_SCHED_MO)++;           // threadsafe, within checkpoint_safe lock
+        else if (caller_id == CLIENT_CHECKPOINT)
+            STATUS_VALUE(CP_WAIT_CLIENT_MO)++;
+        else if (caller_id == TXN_COMMIT_CHECKPOINT)
+            STATUS_VALUE(CP_WAIT_TXN_MO)++;
+        else 
+            STATUS_VALUE(CP_WAIT_OTHER_MO)++;
     }
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20);
     ydb_lock();
+    toku_ft_open_close_lock();
     
     SET_CHECKPOINT_FOOTPRINT(30);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
+    toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
@@ -299,7 +301,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (r==0 && logger) {
         last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
-	STATUS_VALUE(CP_LAST_LSN) = last_completed_checkpoint_lsn.lsn;
+        STATUS_VALUE(CP_LAST_LSN) = last_completed_checkpoint_lsn.lsn;
     }
 
     SET_CHECKPOINT_FOOTPRINT(60);
@@ -307,9 +309,9 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE) = STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN);
 
     if (r == 0)
-	STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
+        STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
     else
-	STATUS_VALUE(CP_CHECKPOINT_COUNT_FAIL)++;
+        STATUS_VALUE(CP_CHECKPOINT_COUNT_FAIL)++;
 
     STATUS_VALUE(CP_FOOTPRINT) = 0;
     checkpoint_safe_checkpoint_unlock();

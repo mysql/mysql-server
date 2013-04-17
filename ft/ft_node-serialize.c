@@ -881,8 +881,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
         int r = toku_serialize_ftnode_to_memory(
             node,
             ndd,
-            h->basementnodesize,
-            h->compression_method,
+            h->h->basementnodesize,
+            h->h->compression_method,
             do_rebalancing,
             FALSE, // in_parallel
             &n_to_write,
@@ -1786,7 +1786,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         // of messages in the buffer.
         MSN lowest;
         u_int64_t amount = n_in_this_buffer;
-        lowest.msn = __sync_sub_and_fetch(&bfe->h->highest_unused_msn_for_upgrade.msn, amount);
+        lowest.msn = __sync_sub_and_fetch(&bfe->h->h->highest_unused_msn_for_upgrade.msn, amount);
         if (highest_msn.msn == 0) {
             highest_msn.msn = lowest.msn + n_in_this_buffer;
         }
@@ -2035,7 +2035,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // Whatever this is must be less than the MSNs of every message above
     // it, so it's ok to take it here.
-    bn->max_msn_applied = bfe->h->highest_unused_msn_for_upgrade;
+    bn->max_msn_applied = bfe->h->h->highest_unused_msn_for_upgrade;
     bn->stale_ancestor_messages_applied = false;
     node->max_msn_applied_to_node_on_disk = bn->max_msn_applied;
 
@@ -2625,7 +2625,7 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
     size_t n_to_write;
     char *compressed_buf;
     {
-        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, h->compression_method, &n_to_write, &compressed_buf);
+        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, h->h->compression_method, &n_to_write, &compressed_buf);
 	if (r!=0) return r;
     }
 
@@ -2949,9 +2949,9 @@ toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h)
     FTNODE_DISK_DATA unused_ndd = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, h);
-    e = deserialize_ftnode_from_fd(fd, h->root_blocknum, 0, &unused_node, &unused_ndd,
-                                       &bfe, &h->on_disk_stats);
-    h->in_memory_stats = h->on_disk_stats;
+    e = deserialize_ftnode_from_fd(fd, h->h->root_blocknum, 0, &unused_node, &unused_ndd,
+                                       &bfe, &h->h->on_disk_stats);
+    h->in_memory_stats = h->h->on_disk_stats;
 
     if (unused_node) {
         toku_ftnode_free(&unused_node);

@@ -104,11 +104,15 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
+    toku_ft_init(brt_h,
+                 make_blocknum(0),
+                 ZERO_LSN,
+                 TXNID_NONE,
+                 4*1024*1024,
+                 128*1024,
+                 TOKU_DEFAULT_COMPRESSION_METHOD);
     brt->ft = brt_h;
-    brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
-    brt_h->basementnodesize = 128*1024;
-    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     brt_h->compare_fun = long_key_cmp;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -237,11 +241,15 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
+    toku_ft_init(brt_h,
+                 make_blocknum(0),
+                 ZERO_LSN,
+                 TXNID_NONE,
+                 4*1024*1024,
+                 128*1024,
+                 TOKU_DEFAULT_COMPRESSION_METHOD);
     brt->ft = brt_h;
-    brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
-    brt_h->basementnodesize = 128*1024;
-    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     brt_h->compare_fun = long_key_cmp;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
