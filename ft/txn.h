@@ -82,8 +82,6 @@ typedef enum {
     TXN_CLOSE,             // should be sum of aborts and commits
     TXN_NUM_OPEN,          // should be begin - close
     TXN_MAX_OPEN,          // max value of num_open
-    TXN_OLDEST_LIVE,       // xid of oldest live transaction
-    TXN_OLDEST_STARTTIME,  // start time of oldest live txn
     TXN_STATUS_NUM_ROWS
 } txn_status_entry;
 

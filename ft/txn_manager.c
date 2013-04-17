@@ -29,7 +29,7 @@ struct txn_manager {
     struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
 };
 
-static TXN_STATUS_S txn_manager_status;
+static TXN_MANAGER_STATUS_S txn_manager_status;
 BOOL garbage_collection_debug = FALSE;
 
 
@@ -170,7 +170,7 @@ static TXNID txn_manager_get_oldest_living_xid_unlocked(
     time_t * oldest_living_starttime
     );
 
-void toku_txn_manager_get_status(TOKULOGGER logger, TXN_STATUS s) {
+void toku_txn_manager_get_status(TOKULOGGER logger, TXN_MANAGER_STATUS s) {
     if (!txn_manager_status.initialized) {
         status_init();
     }

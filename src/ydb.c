@@ -2039,6 +2039,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += FT_FLUSHER_STATUS_NUM_ROWS;
     num_rows += FT_HOT_STATUS_NUM_ROWS;
     num_rows += TXN_STATUS_NUM_ROWS;
+    num_rows += TXN_MANAGER_STATUS_NUM_ROWS;
     num_rows += LOGGER_STATUS_NUM_ROWS;
     num_rows += MEMORY_STATUS_NUM_ROWS;
     num_rows += FS_STATUS_NUM_ROWS;
@@ -2163,6 +2164,13 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             toku_txn_get_status(&txnstat);
             for (int i = 0; i < TXN_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = txnstat.status[i];
+            }
+        }
+        {
+            TXN_MANAGER_STATUS_S txn_manager_stat;
+            toku_txn_manager_get_status(env->i->logger, &txn_manager_stat);
+            for (int i = 0; i < TXN_MANAGER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = txn_manager_stat.status[i];
             }
         }
         {
