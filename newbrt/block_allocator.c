@@ -74,8 +74,8 @@ destroy_block_allocator (BLOCK_ALLOCATOR *bap) {
 static void
 grow_blocks_array_by (BLOCK_ALLOCATOR ba, u_int64_t n_to_add) {
     if (ba->n_blocks + n_to_add > ba->blocks_array_size) {
-	int new_size = ba->n_blocks + n_to_add;
-	int at_least = ba->blocks_array_size * 2;
+	u_int64_t new_size = ba->n_blocks + n_to_add;
+	u_int64_t at_least = ba->blocks_array_size * 2;
 	if (at_least > new_size) {
 	    new_size = at_least;
 	}
