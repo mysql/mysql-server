@@ -146,21 +146,3 @@ class ha_tokudb : public handler {
   private:
     int __close(int mutex_is_locked);
 };
-
-#ifdef UNDEF
-
-extern const u_int32_t tdb_DB_TXN_NOSYNC;
-extern const u_int32_t tdb_DB_RECOVER;
-extern const u_int32_t tdb_DB_PRIVATE;
-extern const u_int32_t tdb_DB_DIRECT_DB;
-extern const u_int32_t tdb_DB_DIRECT_LOG;
-extern bool tokudb_shared_data;
-extern u_int32_t tokudb_init_flags, tokudb_env_flags, tokudb_lock_type, tokudb_lock_types[];
-extern ulong tokudb_max_lock, tokudb_log_buffer_size;
-extern ulonglong tokudb_cache_size;
-extern ulong tokudb_region_size, tokudb_cache_parts;
-extern char *tokudb_home, *tokudb_tmpdir, *tokudb_logdir;
-extern long tokudb_lock_scan_time;
-extern TYPELIB tokudb_lock_typelib;
-
-#endif
