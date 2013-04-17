@@ -239,6 +239,8 @@ int test_main (int argc, const char *argv[]) {
         write_dbfile(template, n, output_name, TRUE, i);
     }
 
+    r = system(unlink_all); CKERR(r);
+
     return 0;
 }
 

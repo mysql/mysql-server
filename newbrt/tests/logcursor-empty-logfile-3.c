@@ -150,5 +150,9 @@ test_main (int argc, const char *argv[]) {
 
         r = toku_logger_close(&logger);
     }
+
+    r = system(rmrf);
+    CKERR(r);
+
     return 0;
 }

@@ -32,6 +32,9 @@ run_test(void) {
     r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, 0); 
     assert(r == DB_RUNRECOVERY);
 
+    r = system("rm -rf " TESTDIR);
+    CKERR(r);
+
     return 0;
 }
 

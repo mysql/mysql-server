@@ -539,15 +539,16 @@ int test_main (int argc, const char *argv[]) {
 	if (tend>=0 && tend<event_limit) event_limit=tend;
 	if (verbose) printf("event_limit=%d\n", event_limit);
 
-    for (int i = tstart+1; i <= event_limit; i++) {
-        reset_event_counts();
-        reset_my_malloc_counts();
-        event_count_trigger = i;
-        r = system(unlink_all); CKERR(r);
-        r = toku_os_mkdir(directory, 0755); CKERR(r);
-        if (verbose) printf("event=%d\n", i);
-	test(directory, TRUE);
-    }
+	for (int i = tstart+1; i <= event_limit; i++) {
+	    reset_event_counts();
+	    reset_my_malloc_counts();
+	    event_count_trigger = i;
+	    r = system(unlink_all); CKERR(r);
+	    r = toku_os_mkdir(directory, 0755); CKERR(r);
+	    if (verbose) printf("event=%d\n", i);
+	    test(directory, TRUE);
+	}
+	r = system(unlink_all); CKERR(r);
     }
 
     return 0;

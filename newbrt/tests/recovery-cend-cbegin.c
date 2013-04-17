@@ -39,6 +39,10 @@ run_test(void) {
                        NULL, NULL,
                        0);
     assert(r == 0);
+
+    r = system("rm -rf " TESTDIR);
+    CKERR(r);
+
     return 0;
 }
 

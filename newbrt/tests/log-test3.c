@@ -24,5 +24,7 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
     r = toku_logger_close(&logger);
     assert(r == 0);
+    r = system(rmrf);
+    CKERR(r);
     return 0;
 }

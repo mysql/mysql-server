@@ -227,6 +227,10 @@ int test_main (int argc, const char *argv[]) {
     assert (olen>0 && olen<templen);
 
     test_write_dbfile(template, nrows, output_name);
+
+    r = system(unlink_all);
+    CKERR(r);
+
     return 0;
 }
 

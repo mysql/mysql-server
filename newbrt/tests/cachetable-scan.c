@@ -105,5 +105,6 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     open_file();
     writeit();
     readit();
+    unlink(fname);
     return 0;
 }
