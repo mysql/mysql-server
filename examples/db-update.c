@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
     bool do_txn = false;
     u_int64_t cachesize = 1000000000;
     u_int32_t pagesize = 0;
+    u_int32_t checkpoint_period = 60;
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -214,6 +215,10 @@ int main(int argc, char *argv[]) {
             val_size = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--checkpoint_period") == 0 && i+1 < argc) {
+            checkpoint_period = atoi(argv[++i]);
+            continue;
+        }
 
         assert(0);
     }
@@ -230,6 +235,15 @@ int main(int argc, char *argv[]) {
     r = db_env_create(&db_env, 0); assert(r == 0);
 #if defined(TOKUDB)
     db_env->set_update(db_env, my_update_callback);
+#endif
+#if defined(TOKUDB)
+    if (checkpoint_period) {
+        r = db_env->checkpointing_set_period(db_env, checkpoint_period);
+        assert(r == 0);
+        u_int32_t period;
+        r = db_env->checkpointing_get_period(db_env, &period);
+        assert(r == 0 && period == checkpoint_period);
+    }
 #endif
     if (cachesize) {
         if (verbose) printf("cachesize %llu\n", (unsigned long long)cachesize);
