@@ -65,8 +65,8 @@ rand_bytes_limited(void *dest, int size)
 static void
 insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_out, XIDS xids, int pfx)
 {
-    int keylen = (random() % 1024) + 16;
-    int vallen = (random() % 1024) + 16;
+    int keylen = (random() % 128) + 16;
+    int vallen = (random() % 128) + 16;
     void *key = toku_xmalloc(keylen + (sizeof pfx));
     void *val = toku_xmalloc(vallen);
     *(int *) key = pfx;
@@ -101,21 +101,21 @@ static void
 insert_random_message_to_leaf(BRT t, BRTNODE leafnode, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
-    int vallen = (random() % 1024) + 16;
-    struct of_pair {
-	int32_t pfx;
-	char    key[keylen];
-    } keyp;
+    int vallen = (random() % 128) + 16;
+    uint32_t *pfxp;
+    char key[(sizeof *pfxp) + keylen];
     char val[vallen];
-    keyp.pfx = pfx;
-    rand_bytes_limited(&keyp.key, keylen);
+    pfxp = (uint32_t *) &key[0];
+    *pfxp = pfx;
+    char *randkeyp = &key[sizeof *pfxp];
+    rand_bytes_limited(randkeyp, keylen);
     rand_bytes(val, vallen);
     MSN msn = next_dummymsn();
 
     DBT keydbt_s, *keydbt, valdbt_s, *valdbt;
     keydbt = &keydbt_s;
     valdbt = &valdbt_s;
-    toku_fill_dbt(keydbt, &keyp, keylen + (sizeof pfx));
+    toku_fill_dbt(keydbt, key, (sizeof *pfxp) + keylen);
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
     msg.type = BRT_INSERT;
@@ -142,21 +142,21 @@ static void
 insert_same_message_to_leaves(BRT t, BRTNODE child1, BASEMENTNODE blb1, BRTNODE child2, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
-    int vallen = (random() % 1024) + 16;
-    struct of_pair {
-	int32_t pfx;
-	char    key[keylen];
-    } keyp;
+    int vallen = (random() % 128) + 16;
+    uint32_t *pfxp;
+    char key[(sizeof *pfxp) + keylen];
     char val[vallen];
-    keyp.pfx = pfx;
-    rand_bytes_limited(&keyp.key, keylen);
+    pfxp = (uint32_t *) &key[0];
+    *pfxp = pfx;
+    char *randkeyp = &key[sizeof *pfxp];
+    rand_bytes_limited(randkeyp, keylen);
     rand_bytes(val, vallen);
     MSN msn = next_dummymsn();
 
     DBT keydbt_s, *keydbt, valdbt_s, *valdbt;
     keydbt = &keydbt_s;
     valdbt = &valdbt_s;
-    toku_fill_dbt(keydbt, &keyp, keylen + (sizeof pfx));
+    toku_fill_dbt(keydbt, key, (sizeof *pfxp) + keylen);
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
     msg.type = BRT_INSERT;
@@ -244,12 +244,12 @@ static void
 flush_to_internal(BRT t) {
     int r;
 
-    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
-    BRT_MSG_S **MALLOC_N(128*1024,child_messages);
-    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
-    bool *MALLOC_N(128*1024,child_messages_is_fresh);
-    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
-    memset(child_messages_is_fresh, 0, 128*1024*(sizeof child_messages_is_fresh[0]));
+    BRT_MSG_S **MALLOC_N(4096,parent_messages);  // 128k / 32 = 4096
+    BRT_MSG_S **MALLOC_N(4096,child_messages);
+    bool *MALLOC_N(4096,parent_messages_is_fresh);
+    bool *MALLOC_N(4096,child_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
+    memset(child_messages_is_fresh, 0, 4096*(sizeof child_messages_is_fresh[0]));
 
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123, xids_234;
@@ -260,20 +260,20 @@ flush_to_internal(BRT t) {
 
     NONLEAF_CHILDINFO child_bnc = toku_create_empty_nl();
     int i;
-    for (i = 0; toku_bnc_memory_used(child_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(child_bnc) < 128*1024; ++i) {
         insert_random_message(child_bnc, &child_messages[i], &child_messages_is_fresh[i], xids_123, 0);
     }
     int num_child_messages = i;
 
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
-    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 128*1024; ++i) {
         insert_random_message(parent_bnc, &parent_messages[i], &parent_messages_is_fresh[i], xids_234, 0);
     }
     int num_parent_messages = i;
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     destroy_nonleaf_childinfo(BNC(child, 0));
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
@@ -359,12 +359,12 @@ static void
 flush_to_internal_multiple(BRT t) {
     int r;
 
-    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
-    BRT_MSG_S **MALLOC_N(128*1024,child_messages);
-    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
-    bool *MALLOC_N(128*1024,child_messages_is_fresh);
-    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
-    memset(child_messages_is_fresh, 0, 128*1024*(sizeof child_messages_is_fresh[0]));
+    BRT_MSG_S **MALLOC_N(4096,parent_messages);  // 128k / 32 = 4096
+    BRT_MSG_S **MALLOC_N(4096,child_messages);
+    bool *MALLOC_N(4096,parent_messages_is_fresh);
+    bool *MALLOC_N(4096,child_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
+    memset(child_messages_is_fresh, 0, 4096*(sizeof child_messages_is_fresh[0]));
 
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123, xids_234;
@@ -383,7 +383,7 @@ flush_to_internal_multiple(BRT t) {
         }
     }
     int total_size = 0;
-    for (i = 0; total_size < 4*M; ++i) {
+    for (i = 0; total_size < 128*1024; ++i) {
         total_size -= toku_bnc_memory_used(child_bncs[i%8]);
         insert_random_message(child_bncs[i%8], &child_messages[i], &child_messages_is_fresh[i], xids_123, i%8);
         total_size += toku_bnc_memory_used(child_bncs[i%8]);
@@ -396,14 +396,14 @@ flush_to_internal_multiple(BRT t) {
     int num_child_messages = i;
 
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
-    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 128*1024; ++i) {
         insert_random_message(parent_bnc, &parent_messages[i], &parent_messages_is_fresh[i], xids_234, 0);
     }
     int num_parent_messages = i;
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 1, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_nonleaf_childinfo(BNC(child, i));
         set_BNC(child, i, child_bncs[i]);
@@ -508,12 +508,12 @@ static void
 flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int r;
 
-    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
-    LEAFENTRY *MALLOC_N(128*1024,child_messages);
-    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
-    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
-    int *MALLOC_N(128*1024,parent_messages_applied);
-    memset(parent_messages_applied, 0, 128*1024*(sizeof parent_messages_applied[0]));
+    BRT_MSG_S **MALLOC_N(4096,parent_messages);  // 128k / 32 = 4096
+    LEAFENTRY *MALLOC_N(4096,child_messages);
+    bool *MALLOC_N(4096,parent_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
+    int *MALLOC_N(4096,parent_messages_applied);
+    memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123, xids_234;
@@ -534,7 +534,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -542,7 +542,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     }
 
     int total_size = 0;
-    for (i = 0; total_size < 4*M; ++i) {
+    for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
         insert_random_message_to_leaf(t, child, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
@@ -567,12 +567,12 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     }
 
     {
-        int num_stale = random() % 10000;
-        memset(&parent_messages_is_fresh[num_stale], true, (128*1024 - num_stale) * (sizeof parent_messages_is_fresh[0]));
+        int num_stale = random() % 2000;
+        memset(&parent_messages_is_fresh[num_stale], true, (4096 - num_stale) * (sizeof parent_messages_is_fresh[0]));
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 128*1024; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;
@@ -610,7 +610,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     } else {
         BRTNODE XMALLOC(parentnode);
         BLOCKNUM parentblocknum = { 17 };
-        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+        toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
         destroy_nonleaf_childinfo(BNC(parentnode, 0));
         set_BNC(parentnode, 0, parent_bnc);
         BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -737,12 +737,12 @@ static void
 flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int r;
 
-    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
-    LEAFENTRY *MALLOC_N(128*1024,child_messages);
-    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
-    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
-    int *MALLOC_N(128*1024,parent_messages_applied);
-    memset(parent_messages_applied, 0, 128*1024*(sizeof parent_messages_applied[0]));
+    BRT_MSG_S **MALLOC_N(4096,parent_messages);  // 128k / 32 = 4k
+    LEAFENTRY *MALLOC_N(4096,child_messages);
+    bool *MALLOC_N(4096,parent_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
+    int *MALLOC_N(4096,parent_messages_applied);
+    memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123, xids_234;
@@ -761,7 +761,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child, i));
         set_BLB(child, i, child_blbs[i]);
@@ -769,7 +769,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     }
 
     int total_size = 0;
-    for (i = 0; total_size < 4*M; ++i) {
+    for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
         insert_random_message_to_leaf(t, child, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
@@ -790,12 +790,12 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     }
 
     {
-        int num_stale = random() % 10000;
-        memset(&parent_messages_is_fresh[num_stale], true, (128*1024 - num_stale) * (sizeof parent_messages_is_fresh[0]));
+        int num_stale = random() % 2000;
+        memset(&parent_messages_is_fresh[num_stale], true, (4096 - num_stale) * (sizeof parent_messages_is_fresh[0]));
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 128*1024; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;
@@ -821,7 +821,9 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     }
 
     for (i = 0; i < num_parent_messages; ++i) {
-        if (make_leaf_up_to_date && !parent_messages_is_fresh[i]) {
+        if (make_leaf_up_to_date &&
+            dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
+            !parent_messages_is_fresh[i]) {
             assert(parent_messages_applied[i] == 1);
         } else {
             assert(parent_messages_applied[i] == 0);
@@ -830,7 +832,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -910,12 +912,12 @@ static void
 compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int r;
 
-    BRT_MSG_S **MALLOC_N(128*1024,parent_messages);  // 4m / 32 = 128k
-    LEAFENTRY *MALLOC_N(128*1024,child_messages);
-    bool *MALLOC_N(128*1024,parent_messages_is_fresh);
-    memset(parent_messages_is_fresh, 0, 128*1024*(sizeof parent_messages_is_fresh[0]));
-    int *MALLOC_N(128*1024,parent_messages_applied);
-    memset(parent_messages_applied, 0, 128*1024*(sizeof parent_messages_applied[0]));
+    BRT_MSG_S **MALLOC_N(4096,parent_messages);  // 128k / 32 = 4k
+    LEAFENTRY *MALLOC_N(4096,child_messages);
+    bool *MALLOC_N(4096,parent_messages_is_fresh);
+    memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
+    int *MALLOC_N(4096,parent_messages_applied);
+    memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123, xids_234;
@@ -938,8 +940,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(child1), XMALLOC(child2);
     BLOCKNUM blocknum = { 42 };
-    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
-    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(child1, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
+    toku_initialize_empty_brtnode(child2, blocknum, 0, 8, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     for (i = 0; i < 8; ++i) {
         destroy_basement_node(BLB(child1, i));
         set_BLB(child1, i, child1_blbs[i]);
@@ -950,7 +952,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     }
 
     int total_size = 0;
-    for (i = 0; total_size < 4*M; ++i) {
+    for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child1_blbs[i%8]->n_bytes_in_buffer;
         insert_same_message_to_leaves(t, child1, child1_blbs[i%8], child2, child2_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
@@ -977,12 +979,12 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     }
 
     {
-        int num_stale = random() % 10000;
-        memset(&parent_messages_is_fresh[num_stale], true, (128*1024 - num_stale) * (sizeof parent_messages_is_fresh[0]));
+        int num_stale = random() % 2000;
+        memset(&parent_messages_is_fresh[num_stale], true, (4096 - num_stale) * (sizeof parent_messages_is_fresh[0]));
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 128*1024; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;
@@ -1014,7 +1016,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
-    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0, my_header);
+    toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 128*1024, 0, my_header);
     destroy_nonleaf_childinfo(BNC(parentnode, 0));
     set_BNC(parentnode, 0, parent_bnc);
     BP_STATE(parentnode, 0) = PT_AVAIL;
@@ -1094,8 +1096,6 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     toku_free(parent_messages_applied);
 }
 
-static int slow = 0;
-
 static void
 parse_args(int argc, const char *argv[]) {
     const char *progname=argv[0];
@@ -1105,8 +1105,6 @@ parse_args(int argc, const char *argv[]) {
             verbose=1;
         } else if (strcmp(argv[0],"-q")==0) {
             verbose=0;
-        } else if (strcmp(argv[0],"--slow")==0) {
-            slow=1;
         } else {
             fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
             exit(1);
@@ -1126,38 +1124,26 @@ test_main (int argc, const char *argv[]) {
     assert(r==0);
     unlink(fname);
     BRT t;
-    r = toku_open_brt(fname, 1, &t, 4*M, 64*1024, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 128*1024, 4096, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     r = toku_brt_set_update(t, orthopush_flush_update_fun); assert(r==0);
 
-    // normally, just check a few things, but if --slow is provided, then
-    // be thorough about it and repeat tests (since they're randomized)
-    if (!slow) {;
+    for (int i = 0; i < 10; ++i) {
         flush_to_internal(t);
+    }
+    for (int i = 0; i < 10; ++i) {
         flush_to_internal_multiple(t);
+    }
+    for (int i = 0; i < 3; ++i) {
+        flush_to_leaf(t, false, false);
+        flush_to_leaf(t, false, true);
         flush_to_leaf(t, true, false);
+        flush_to_leaf(t, true, true);
+    }
+    for (int i = 0; i < 10; ++i) {
         flush_to_leaf_with_keyrange(t, false);
         flush_to_leaf_with_keyrange(t, true);
         compare_apply_and_flush(t, false);
         compare_apply_and_flush(t, true);
-    } else {
-        for (int i = 0; i < 10; ++i) {
-            flush_to_internal(t);
-        }
-        for (int i = 0; i < 10; ++i) {
-            flush_to_internal_multiple(t);
-        }
-        for (int i = 0; i < 3; ++i) {
-            flush_to_leaf(t, false, false);
-            flush_to_leaf(t, false, true);
-            flush_to_leaf(t, true, false);
-            flush_to_leaf(t, true, true);
-        }
-        for (int i = 0; i < 10; ++i) {
-            flush_to_leaf_with_keyrange(t, false);
-            flush_to_leaf_with_keyrange(t, true);
-            compare_apply_and_flush(t, false);
-            compare_apply_and_flush(t, true);
-        }
     }
 
     r = toku_close_brt_nolsn(t, 0);          assert(r==0);

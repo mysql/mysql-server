@@ -122,7 +122,6 @@ if(BUILD_TESTING)
   ## some take even longer, with valgrind
   set(extra_long_tests
     subblock-test-checksum
-    orthopush-flush
     benchmark-test
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 5400)
