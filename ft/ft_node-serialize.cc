@@ -762,7 +762,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
                                   bool do_rebalancing,
                                   bool in_parallel, // for loader is true, for toku_ftnode_flush_callback, is false
                           /*out*/ size_t *n_bytes_to_write,
-                          /*out*/ size_t *n_uncompresed_bytes,
+                          /*out*/ size_t *n_uncompressed_bytes,
                           /*out*/ char  **bytes_to_write)
 {
     toku_assert_entire_node_in_memory(node);
@@ -807,10 +807,10 @@ toku_serialize_ftnode_to_memory (FTNODE node,
     // size of header + disk size of the n+1 sub_block's created above
     uint32_t total_node_size = (serialize_node_header_size(node) // uncompressed header
                                  + sb_node_info.compressed_size   // compressed nodeinfo (without its checksum)
-                                 + 4);                            // nodinefo's checksum
+                                 + 4);                            // nodeinfo's checksum
     uint32_t total_uncompressed_size = (serialize_node_header_size(node) // uncompressed header
                                  + sb_node_info.uncompressed_size   // uncompressed nodeinfo (without its checksum)
-                                 + 4);                            // nodinefo's checksum
+                                 + 4);                            // nodeinfo's checksum
     // store the BP_SIZESs
     for (int i = 0; i < node->n_children; i++) {
         uint32_t len         = sb[i].compressed_size + 4; // data and checksum
@@ -848,7 +848,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
     assert(curr_ptr - data == total_node_size);
     *bytes_to_write = data;
     *n_bytes_to_write = total_node_size;
-    *n_uncompresed_bytes = total_uncompressed_size;
+    *n_uncompressed_bytes = total_uncompressed_size;
 
     //
     // now that node has been serialized, go through sub_block's and free
