@@ -27,25 +27,16 @@ static inline void test_mutex_unlock(void) {
     int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 
-// hook my_malloc_always_fails into malloc to control malloc and verify
-// the correct recovery from malloc failures
-#if defined(__linux__)
-#define DO_MALLOC_HOOK 1
-#else
-#define DO_MALLOC_HOOK 0
-#endif
-#if DO_MALLOC_HOOK
-static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
-    n = n; p = p;
-    return 0;
+static void *my_malloc_always_fails(size_t n UU()) {
+    errno = ENOMEM;
+    return NULL;
 }
-#endif
 
 // verify that cachetable creation and close works
 
 static void
 test_cachetable_create(void) {
-    CACHETABLE ct = 0;
+    CACHETABLE ct = NULL;
     int r;
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
@@ -54,20 +45,15 @@ test_cachetable_create(void) {
 }
 
 // verify that cachetable create with no memory returns ENOMEM
-#if DO_MALLOC_HOOK
-
 static void
 test_cachetable_create_no_memory (void) {
-    void *(*orig_malloc_hook)(size_t, const __malloc_ptr_t) = __malloc_hook;
-    __malloc_hook = my_malloc_always_fails;
-    CACHETABLE ct = 0;
+    toku_set_func_malloc(my_malloc_always_fails);
+    CACHETABLE ct = NULL;
     int r;
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r == ENOMEM);
-    __malloc_hook = orig_malloc_hook;
+    toku_set_func_malloc(NULL);
 }
-
-#endif
 
 static const int test_object_size = 1;
 
@@ -715,12 +701,9 @@ static void test_size_flush(void) {
 int
 test_main (int argc, const char *argv[]) {
     // defaults
-#if defined(__linux__)
     int do_malloc_fail = 0;
-#endif
 
     // parse args
-    default_parse_args(argc, argv);
     int i;
     for (i=1; i<argc; i++) {
         const char *arg = argv[i];
@@ -728,12 +711,14 @@ test_main (int argc, const char *argv[]) {
             verbose++;
             continue;
         }
-#if defined(__linux__)
+        if (strcmp(arg, "-q") == 0) {
+            if (verbose > 0) verbose--;
+            continue;
+        }
         if (strcmp(arg, "-malloc-fail") == 0) {
             do_malloc_fail = 1;
             continue;
         }
-#endif
     }
 
     test_mutex_init();
@@ -743,10 +728,8 @@ test_main (int argc, const char *argv[]) {
     test_multi_filehandles();
 #endif
     test_cachetable_create();
-#if DO_MALLOC_HOOK
     if (do_malloc_fail)
         test_cachetable_create_no_memory();    // fails with valgrind
-#endif
     for (i=0; i<1; i++) {
         test0();
         test_nested_pin();

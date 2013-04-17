@@ -65,17 +65,10 @@ my_thread_f (void *arg) {
     return arg;
 }
 
-#if defined(__linux__)
-#define DO_MALLOC_HOOK 1
-#else
-#define DO_MALLOC_HOOK 0
-#endif
-#if DO_MALLOC_HOOK
-static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
-    n = n; p = p;
-    return 0;
+static void *my_malloc_always_fails(size_t n UU()) {
+    errno = ENOMEM;
+    return NULL;
 }
-#endif
 
 static int
 usage (void) {
@@ -126,21 +119,17 @@ test_main (int argc, const char *argv[]) {
     assert(toku_thread_pool_get_current_threads(threadpool) == max_threads);
     my_threadpool_destroy(&my_threadpool, max_threads);
     
-#if DO_MALLOC_HOOK
     if (do_malloc_fail) {
         if (verbose) printf("test threadpool_create with malloc failure\n");
         // test threadpool malloc fails causes ENOMEM
-        // glibc supports this.  see malloc.h
-        threadpool = 0;
 
-        void *(*orig_malloc_hook) (size_t, const __malloc_ptr_t) = __malloc_hook;
-        __malloc_hook = my_malloc_always_fails;
+        toku_set_func_malloc(my_malloc_always_fails);
         int r;
+        threadpool = NULL;
         r = toku_thread_pool_create(&threadpool, 0); assert(r == ENOMEM);
         r = toku_thread_pool_create(&threadpool, 1); assert(r == ENOMEM);
-        __malloc_hook = orig_malloc_hook;
+        toku_set_func_malloc(NULL);
     }
-#endif
 
     return 0;
 }
