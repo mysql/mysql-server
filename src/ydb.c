@@ -5964,7 +5964,7 @@ db_version(int *major, int *minor, int *patch) {
 #define str(X) #X
     return "tokudb " xstr(DB_VERSION_MAJOR) "." xstr(DB_VERSION_MINOR) "." xstr(DB_VERSION_PATCH) " build " xstr(TOKUDB_REVISION);
 #else
-    return DB_VERSION_STRING;
+#error
 #endif
 }
  

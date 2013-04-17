@@ -12,10 +12,6 @@ DEPEND_COMPILE += \
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
-ifneq ($(TOKUDB_REVISION),)
-CPPFLAGS += -DTOKUDB_REVISION=$(TOKUDB_REVISION)
-endif
-
 YDB=ydb.$(AEXT)
 YDB_BUNDLE=ydb.bundle
 TYDB=tydb.$(AEXT)
