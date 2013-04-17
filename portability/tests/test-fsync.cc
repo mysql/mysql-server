@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "test.h"
 #include "toku_time.h"
+#include <portability/toku_path.h>
 
 
 int verbose = 0;
@@ -223,11 +224,10 @@ int test_main(int argc, char *const argv[]) {
             continue;
         }
     }
-    r = system("rm -rf " ENVDIR);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    CKERR(r);
-    r = chdir(ENVDIR);
+    r = chdir(TOKU_TEST_FILENAME);
     CKERR(r);
 
     int fds[N];

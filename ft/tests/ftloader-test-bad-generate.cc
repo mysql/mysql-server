@@ -13,6 +13,7 @@
 #include "ftloader-internal.h"
 #include "ftloader-error-injector.h"
 #include "memory.h"
+#include <portability/toku_path.h>
 
 
 static void copy_dbt(DBT *dest, const DBT *src) {

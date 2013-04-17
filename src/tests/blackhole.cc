@@ -23,12 +23,12 @@ static void fill_dbt(DBT *dbt, void *data, size_t size) {
 
 static void setup (bool use_txns) {
     int r;
-    r = system("rm -rf " ENVDIR); CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_env_create(&env, 0); CKERR(r);
-    r = env->open(env, ENVDIR, 0, 0);
+    r = env->open(env, TOKU_TEST_FILENAME, 0, 0);
     int txnflags = use_txns ? (DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN) : 0;
-    r = env->open(env, ENVDIR, DB_CREATE|DB_PRIVATE|txnflags, 0777);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE|DB_PRIVATE|txnflags, 0777);
 
     // create a regular db and a blackhole db
     r = db_create(&db, env, 0); CKERR(r);

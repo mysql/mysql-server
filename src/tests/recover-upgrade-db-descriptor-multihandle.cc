@@ -53,9 +53,10 @@ change_descriptor(DB* db, int which, DB_ENV* env) {
 static void
 do_x1_shutdown (bool do_commit, bool do_abort) {
     int r;
-    r = system("rm -rf " ENVDIR); CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-    r = toku_os_mkdir(ENVDIR"/data", S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    char datadir[TOKU_PATH_MAX+1];
+    r = toku_os_mkdir(toku_path_join(datadir, 2, TOKU_TEST_FILENAME, "data"), S_IRWXU+S_IRWXG+S_IRWXO);                                    CKERR(r);
     DB_ENV *env;
     DB *dba, *dbb;
     r = db_env_create(&env, 0);                                                         CKERR(r);
@@ -63,7 +64,7 @@ do_x1_shutdown (bool do_commit, bool do_abort) {
 #if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                   CKERR(r);
 #endif
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
@@ -102,14 +103,16 @@ do_x1_recover (bool did_commit) {
     DB_ENV *env;
     DB *dba;
     int r;
-    r = system("rm -rf " ENVDIR"/data"); /* Delete dictionaries */                          CKERR(r);
-    r = toku_os_mkdir(ENVDIR"/data", S_IRWXU+S_IRWXG+S_IRWXO);                              CKERR(r);
+    char datadir[TOKU_PATH_MAX+1];
+    toku_path_join(datadir, 2, TOKU_TEST_FILENAME, "data");
+    toku_os_recursive_delete(datadir);
+    r = toku_os_mkdir(datadir, S_IRWXU+S_IRWXG+S_IRWXO);                                    CKERR(r);
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->set_data_dir(env, "data");                                                     CKERR(r);
 #if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                       CKERR(r);
 #endif
-    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
     DBT aa, ab;
@@ -152,7 +155,7 @@ do_x1_recover_only (void) {
     int r;
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }
@@ -163,7 +166,7 @@ do_x1_no_recover (void) {
     int r;
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);

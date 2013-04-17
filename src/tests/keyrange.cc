@@ -19,7 +19,7 @@ static DB_TXN *txn = NULL;
 static DB *db = NULL;
 static uint32_t db_page_size = 4096;
 static uint32_t db_basement_size = 4096;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 static uint64_t nrows = 30000;
 static bool get_all = true;
 static bool use_loader = false;
@@ -211,7 +211,6 @@ static int
 usage(void) {
     fprintf(stderr, "-v (verbose)\n");
     fprintf(stderr, "-q (quiet)\n");
-    fprintf(stderr, "--envdir %s\n", envdir);
     fprintf(stderr, "--nrows %" PRIu64 " (number of rows)\n", nrows);
     fprintf(stderr, "--nrows %" PRIu64 " (number of rows)\n", nrows);
     fprintf(stderr, "--loader %u (use the loader to load the keys)\n", use_loader);
@@ -232,10 +231,6 @@ test_main (int argc , char * const argv[]) {
         if (strcmp(argv[i], "-q") == 0) {
             if (verbose > 0)
                 verbose--;
-            continue;
-        }
-        if (strcmp(argv[i], "--envdir") == 0 && i+1 < argc) {
-            envdir = argv[++i];
             continue;
         }
         if (strcmp(argv[i], "--nrows") == 0 && i+1 < argc) {
@@ -265,11 +260,8 @@ test_main (int argc , char * const argv[]) {
         return usage();
     }
 
-    char rmcmd[32 + strlen(envdir)]; 
-    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
-    int r;
-    r = system(rmcmd); CKERR(r);
-    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
+    toku_os_recursive_delete(envdir);
+    int r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
     run_test();
 

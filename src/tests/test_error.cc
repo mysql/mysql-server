@@ -22,15 +22,14 @@ test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     {
 	DB_ENV *env;
 	r = db_env_create(&env, 0); assert(r==0);
 	env->set_errfile(env,0); // Turn off those annoying errors
-	r = env->open(env, ENVDIR, (uint32_t) -1, 0644);
+	r = env->open(env, TOKU_TEST_FILENAME, (uint32_t) -1, 0644);
 	CKERR2(r, EINVAL);
 	assert(n_handle_error==0);
 	r = env->close(env, 0); assert(r==0);
@@ -40,7 +39,8 @@ test_main (int argc, char *const argv[]) {
     for (do_errpfx=0; do_errpfx<2; do_errpfx++) {
 	for (do_errfile=0; do_errfile<2; do_errfile++) {
 	    for (do_errcall=0; do_errcall<2; do_errcall++) {
-		char errfname[] = ENVDIR ".errs";
+		char errfname[TOKU_PATH_MAX+1];
+                toku_path_join(errfname, 2, TOKU_TEST_FILENAME, "errfile");
 		unlink(errfname);
 		{
 		    DB_ENV *env;
@@ -59,7 +59,7 @@ test_main (int argc, char *const argv[]) {
 			env->set_errfile(env, write_here);
 		    if (do_errcall) 
 			env->set_errcall(env, handle_error);
-		    r = env->open(env, ENVDIR, (uint32_t) -1, 0644);
+		    r = env->open(env, TOKU_TEST_FILENAME, (uint32_t) -1, 0644);
 		    assert(r==EINVAL);
 		    r = env->close(env, 0); assert(r==0);
 		    fclose(write_here);

@@ -42,15 +42,14 @@ put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, con
 static void run_test (void) {
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     // create a txn that never closes, forcing recovery to run from the beginning of the log
     {
@@ -127,7 +126,7 @@ static void run_recover (void) {
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r);
 
     // verify the data
     {

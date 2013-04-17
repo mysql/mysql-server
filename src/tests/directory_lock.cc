@@ -188,9 +188,8 @@ int test_main (int argc, char * const argv[]) {
     in_val.flags = DB_DBT_USERMEM;
     in_key.ulen = sizeof(in_key_data);
     in_val.ulen = sizeof(in_val_data);
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
     DB_LOADER* loader = NULL;
     uint32_t put_flags = 0;
@@ -202,7 +201,7 @@ int test_main (int argc, char * const argv[]) {
     r = env->set_generate_row_callback_for_del(env, del_multiple_callback);
     CKERR(r);
     env->set_update(env, update_fun);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
     DB* db;
     DB* db2;

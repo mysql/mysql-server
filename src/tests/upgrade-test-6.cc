@@ -202,7 +202,7 @@ static void test_loader(DB **dbs)
 
 
 char *free_me = NULL;
-char *env_dir = ENVDIR; // the default env_dir.
+char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 char *tmp_subdir = "tmp.subdir";
 
 #define OLDDATADIR "../../../../tokudb.data/"

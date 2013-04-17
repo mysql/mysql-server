@@ -107,7 +107,7 @@ test_msnfilter(int do_verify) {
     int r;
 
     // cleanup
-    char fname[]= __SRCFILE__ ".ft_handle";
+    const char *fname = TOKU_TEST_FILENAME;
     r = unlink(fname);
     if (r != 0) {
         assert(r == -1);

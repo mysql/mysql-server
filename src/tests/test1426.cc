@@ -29,7 +29,7 @@ empty_cachetable (void)
 #ifdef TOKUDB
     r = env->set_cachesize(env, 0, 10000000, 1);                          CKERR(r);
 #endif
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
     r = db_create(&db, env, 0);                                           CKERR(r);
     r = db->open(db, null_txn, "main", 0,     DB_BTREE, 0, 0666);         CKERR(r);
 }
@@ -38,15 +38,14 @@ static void
 do_insert_delete_fifo (void)
 {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     
     r = db_env_create(&env, 0);                                           CKERR(r);
 #ifdef TOKUDB
     r = env->set_cachesize(env, 0, 10000000, 1);                          CKERR(r);
 #endif
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
     r = db_create(&db, env, 0);                                           CKERR(r);
     r = db->set_pagesize(db, 4096);                                       CKERR(r);
     r = db->open(db, null_txn, "main", 0,     DB_BTREE, DB_CREATE, 0666); CKERR(r);

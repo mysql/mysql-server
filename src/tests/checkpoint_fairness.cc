@@ -20,7 +20,7 @@
 
 DB_ENV *env;
 DB     *db;
-const char   *env_dir = ENVDIR;
+const char   *env_dir = TOKU_TEST_FILENAME;
 
 const int n_threads = 100;
 volatile int reader_start_count = 0;

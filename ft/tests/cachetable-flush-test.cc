@@ -13,13 +13,16 @@ test_cachetable_def_flush (int n) {
     int r;
     CACHETABLE ct;
     toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
-    char fname1[] = __SRCFILE__ "test1.dat";
-    unlink(fname1);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
+    char fname1[TOKU_PATH_MAX+1];
+    unlink(toku_path_join(fname1, 2, TOKU_TEST_FILENAME, "test1.dat"));
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    char fname2[] = __SRCFILE__ "test2.dat";
-    unlink(fname2);
+    char fname2[TOKU_PATH_MAX+1];
+    unlink(toku_path_join(fname2, 2, TOKU_TEST_FILENAME, "test2.dat"));
     CACHEFILE f2;
     r = toku_cachetable_openf(&f2, ct, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 

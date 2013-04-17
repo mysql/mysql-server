@@ -13,14 +13,12 @@ int test_main(int argc, char * const argv[])
     (void) argc;
     (void) argv;
 
-    char buf[200];
-    snprintf(buf, 200, "rm -rf " ENVDIR);
-    r = system(buf); { int chk_r = r; CKERR(chk_r); }
-    r = toku_os_mkdir(ENVDIR, 0755); { int chk_r = r; CKERR(chk_r); }
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); { int chk_r = r; CKERR(chk_r); }
 
     // set things up
     r = db_env_create(&db_env, 0); { int chk_r = r; CKERR(chk_r); }
-    r = db_env->open(db_env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0755); { int chk_r = r; CKERR(chk_r); }
+    r = db_env->open(db_env, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0755); { int chk_r = r; CKERR(chk_r); }
     r = db_create(&db, db_env, 0); { int chk_r = r; CKERR(chk_r); }
     r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); { int chk_r = r; CKERR(chk_r); }
 

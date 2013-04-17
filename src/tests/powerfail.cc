@@ -60,11 +60,10 @@ static long shuffle (long l, int i) {
 
 static void do_write (void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
 
     open_dbs();
     // DB[0] contains the pairs TXN TXN
@@ -120,7 +119,7 @@ static void maxf (DBT *k, DBT *v, void *extrav) {
 static void do_check (long N) {
     int r;
     r = db_env_create(&env, 0);                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
     open_dbs();
     DB_TXN *txn = 0;
     r = env->txn_begin(env, 0, &txn, 0);                                CKERR(r);

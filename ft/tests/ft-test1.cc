@@ -13,7 +13,7 @@ static void test1 (void) {
     FT_HANDLE t;
     int r;
     CACHETABLE ct;
-    char fname[]= __SRCFILE__ ".ft_handle";
+    const char *fname = TOKU_TEST_FILENAME;
     DBT k,v;
     
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);

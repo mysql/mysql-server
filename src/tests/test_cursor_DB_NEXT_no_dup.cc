@@ -22,14 +22,13 @@ static DB_TXN* null_txn = NULL;
 
 static void setup_env(void) {
     assert(!env && !db && !cursor);
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);
         CKERR(r);
     assert(env);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_THREAD|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_THREAD|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
     assert(env);
 }

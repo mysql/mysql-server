@@ -24,7 +24,7 @@ test_cursor_delete2 (void) {
     DBT key,val;
 
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
-    r = dbenv->open(dbenv, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE|DB_INIT_TXN, 0);       CKERR(r);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE|DB_INIT_TXN, 0);       CKERR(r);
 
     r = db_create(&db, dbenv, 0);                                                            CKERR(r);
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
@@ -66,10 +66,8 @@ test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   
-    int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     
     test_cursor_delete2();
 

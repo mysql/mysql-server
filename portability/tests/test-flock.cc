@@ -9,14 +9,15 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "toku_portability.h"
+#include <portability/toku_path.h>
 
 int main(void) {
-    int fd = toku_os_lock_file(__SRCFILE__);
+    int fd = toku_os_lock_file(TOKU_TEST_FILENAME);
     assert(fd != -1);
     pid_t pid = fork();
     assert(pid != -1);
     if (pid == 0) {
-        int fd2 = toku_os_lock_file(__SRCFILE__);
+        int fd2 = toku_os_lock_file(TOKU_TEST_FILENAME);
         assert(fd2 == -1);
 	return 0;
     } else {

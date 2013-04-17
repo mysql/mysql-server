@@ -23,14 +23,13 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 int test_main (int argc, char * const argv[]) {
   parse_args(argc, argv);
   int r;
-  r = system("rm -rf " ENVDIR);
-  CKERR(r);
-  toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+  toku_os_recursive_delete(TOKU_TEST_FILENAME);
+  toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
   DB_ENV *env;
   r = db_env_create(&env, 0);                                                         CKERR(r);
   env->set_errfile(env, stderr);
   r = env->set_default_bt_compare(env, int64_dbt_cmp); CKERR(r);
-  r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+  r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
   DB *db;
   {

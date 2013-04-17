@@ -64,11 +64,10 @@ static void
 setup(void)
 {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);      CKERR(r);
     r = db_create(&db, env, 0);                                         CKERR(r);
     r = db->open(db, NULL, dbname, NULL, DB_BTREE, DB_CREATE, 0666);    CKERR(r);
 }
@@ -137,7 +136,7 @@ get_file_pathname(void) {
     iname.flags |= DB_DBT_MALLOC;
     int r = env->get_iname(env, &dname, &iname);
     CKERR(r);
-    sprintf(path, "%s/%s", ENVDIR, (char*)iname.data);
+    sprintf(path, "%s/%s", TOKU_TEST_FILENAME, (char*)iname.data);
     toku_free(iname.data);
     if (verbose) printf("path = %s\n", path);
 }

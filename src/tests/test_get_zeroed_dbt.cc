@@ -21,7 +21,7 @@ test_get (void) {
     int r;
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
     r = db_create (&db, env, 0);                                        assert(r == 0);
@@ -38,10 +38,8 @@ test_get (void) {
 int
 test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
-    int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_get();
     return 0;

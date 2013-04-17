@@ -32,9 +32,8 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
     int r;
     DB_TXN * const null_txn = 0;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
 
     // Create an empty file
@@ -47,7 +46,7 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->set_redzone(env, 0);                                         CKERR(r);
         r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
-	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+	r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
 	r = db->open(db, null_txn, "main", 0,     DB_BTREE, DB_CREATE, 0666); CKERR(r);
@@ -64,7 +63,7 @@ static void do_1381_maybe_lock (int do_loader, uint64_t *raw_count) {
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->set_redzone(env, 0);                                         CKERR(r);
         r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
-	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+	r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
 	r = db->open(db, null_txn, "main", 0,     DB_BTREE, 0, 0666);         CKERR(r);

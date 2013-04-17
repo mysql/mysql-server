@@ -75,14 +75,14 @@ del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const D
 static void
 run_test(int ndbs, int nrows) {
     int r;
-    r = system("rm -rf " ENVDIR); assert_zero(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         assert_zero(r);
     r = env->set_generate_row_callback_for_put(env, put_callback);                      assert_zero(r);
     r = env->set_generate_row_callback_for_del(env, del_callback);                      assert_zero(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      assert_zero(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      assert_zero(r);
 
     DB *db[ndbs];
     for (int dbnum = 0; dbnum < ndbs; dbnum++) {
@@ -161,7 +161,7 @@ run_recover(int ndbs, int UU(nrows)) {
     r = db_env_create(&env, 0);                                                             assert_zero(r);
     r = env->set_generate_row_callback_for_put(env, put_callback);                          assert_zero(r);
     r = env->set_generate_row_callback_for_del(env, del_callback);                          assert_zero(r);
-    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               assert_zero(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               assert_zero(r);
     verify_all(env, ndbs);
     r = env->close(env, 0);                                                                 assert_zero(r);
 }

@@ -82,20 +82,14 @@ static void root_fifo_verify(DB_ENV *env, int n, int expectn) {
     r = db->close(db, 0); assert(r == 0); db = null_db;
 }
 
-static void root_fifo_41(int n, int ntxn, bool do_populate, char const* dirname) {
+static void root_fifo_41(int n, int ntxn, bool do_populate) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
 
-    if (dirname==NULL) dirname=ENVDIR;
+    const char *dirname = TOKU_TEST_FILENAME;
 
     // create the env
-    {
-	int size = 20+strlen(dirname);
-	char rmstring[size];
-	snprintf(rmstring, size, "rm -rf %s", dirname);
-	r = system(rmstring);
-	CKERR(r);
-    }
+    toku_os_recursive_delete(dirname);
     toku_os_mkdir(dirname, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // populate
@@ -165,7 +159,6 @@ static int parseint (char const *str) {
 }
 
 int test_main(int argc, char *const argv[]) {
-    char const* dirname = NULL;
     int i;
     int n = -1;
     int ntxn = -1;
@@ -183,9 +176,6 @@ int test_main(int argc, char *const argv[]) {
 	    ntxn = parseint(argv[++i]);
         } else if (strcmp(argv[i], "-populate") == 0) {
             do_populate = true;
-        } else if (strcmp(argv[i], "-h")==0) {
-	    assert(i+1<argc);
-	    dirname = argv[++i];
 	} else {
 	    fprintf(stderr, "What is this argument? %s\n", argv[i]);
 	    exit(1);
@@ -193,12 +183,12 @@ int test_main(int argc, char *const argv[]) {
     }
               
     if (n >= 0)
-        root_fifo_41(n, ntxn == -1 ? 1 : ntxn, do_populate, dirname);
+        root_fifo_41(n, ntxn == -1 ? 1 : ntxn, do_populate);
     else {
         for (i=0; i<100; i++) {
             for (ntxn=1; ntxn<=4; ntxn++) {
-                root_fifo_41(i, ntxn, false, dirname);
-                root_fifo_41(i, ntxn, true, dirname);
+                root_fifo_41(i, ntxn, false);
+                root_fifo_41(i, ntxn, true);
             }
         }
     }

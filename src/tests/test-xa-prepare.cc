@@ -6,8 +6,6 @@
 #include "test.h"
 #include <sys/wait.h>
 
-#define ENVDIR2 ENVDIR "2"
-
 static void clean_env (const char *envdir) {
     const int len = strlen(envdir)+100;
     char cmd[len];
@@ -54,7 +52,7 @@ static void test1 (void) {
     bool do_fork = true;
     if (!do_fork || 0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env_and_prepare(&env, ENVDIR, false);
+	setup_env_and_prepare(&env, TOKU_TEST_FILENAME, false);
 	{
 	    TOKU_XA_XID l[1];
 	    long count=-1;
@@ -77,12 +75,13 @@ static void test1 (void) {
     }
     
     DB_ENV *env2;
-    setup_env_and_prepare(&env2, ENVDIR2, true);
+    char envdir2[TOKU_PATH_MAX+1];
+    setup_env_and_prepare(&env2, toku_path_join(envdir2, 2, TOKU_TEST_FILENAME, "envdir2"), true);
 
     // Now we can look at env2 in the debugger to see if we managed to make it the same
 
     DB_ENV *env;
-    setup_env(&env, ENVDIR);
+    setup_env(&env, TOKU_TEST_FILENAME);
 
     {
 	TOKU_XA_XID l[1];

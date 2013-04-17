@@ -30,19 +30,12 @@
 DB_ENV *env;
 enum {NUM_DBS=5};
 
-char *free_me = NULL;
-const char *env_dir = ENVDIR; // the default env_dir.
+const char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 
 static void run_cachetable_race_test(void) 
 {
     int r;
-    {
-	int len = strlen(env_dir) + 20;
-	char syscmd[len];
-	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
-	assert(r<len);
-	r = system(syscmd);                                                                                   CKERR(r);
-    }
+    toku_os_recursive_delete(env_dir);
     r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
@@ -87,7 +80,6 @@ static void do_args(int argc, char * const argv[]);
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     run_cachetable_race_test();
-    if (free_me) toku_free(free_me);
 
     return 0;
 }
@@ -106,22 +98,13 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: [-h] [-v] [-q] [-e <env>] -s\n%s\n", cmd);
+	    fprintf(stderr, "Usage: [-h] [-v] [-q] -s\n%s\n", cmd);
 	    fprintf(stderr, "  where -h               print this message\n");
 	    fprintf(stderr, "        -v               verbose (multiple times for more verbosity)\n");
 	    fprintf(stderr, "        -q               quiet (default is verbosity==1)\n");
 	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");
 	    exit(resultcode);
-	} else if (strcmp(argv[0], "-e")==0) {
-            argc--; argv++;
-	    if (free_me) toku_free(free_me);
-	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
-	    char full_env_dir[len];
-	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
-	    assert(r<len);
-	    env_dir = toku_strdup(full_env_dir);
-            free_me = (char *) env_dir;
         } else if (strcmp(argv[0], "-s")==0) {
 	    printf("\nTesting loader with size_factor=1\n");
 	    db_env_set_loader_size_factor(1);            

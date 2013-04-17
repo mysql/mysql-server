@@ -7,7 +7,7 @@
 #include "test.h"
 #include <toku_time.h>
 
-static const char fname[]= __SRCFILE__ ".ft_handle";
+static const char *fname = TOKU_TEST_FILENAME;
 
 static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 

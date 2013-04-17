@@ -23,8 +23,8 @@ checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
                n, snap_all, flags); 
         fflush(stdout); 
     }
-    dir_create();
-    env_startup(0, 0);
+    dir_create(TOKU_TEST_FILENAME);
+    env_startup(TOKU_TEST_FILENAME, 0, 0);
     int run;
     int r;
     DICTIONARY_S db_control;
@@ -43,7 +43,7 @@ checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
         snapshot(&db_test, snap_all);
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, NULL, NULL);
-        db_replace(&db_test, NULL);
+        db_replace(TOKU_TEST_FILENAME, &db_test, NULL);
         r = compare_dbs(db_test.db, db_control.db);
 	assert(r==0);
     }
@@ -61,8 +61,8 @@ checkpoint_test_2(uint32_t flags, uint32_t n) {
 	printf("Verify that inserts done during checkpoint are effective\n");
         fflush(stdout); 
     }
-    dir_create();
-    env_startup(0, 0);
+    dir_create(TOKU_TEST_FILENAME);
+    env_startup(TOKU_TEST_FILENAME, 0, 0);
     int run;
     int r;
     DICTIONARY_S db_control;

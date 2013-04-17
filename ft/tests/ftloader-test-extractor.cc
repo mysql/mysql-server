@@ -13,6 +13,7 @@
 #include "ftloader.h"
 #include "ftloader-internal.h"
 #include "memory.h"
+#include <portability/toku_path.h>
 
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -168,7 +169,7 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
         f[i].f = fopen(tname, "r"); 
 	if (f[i].f == NULL) {
 	    int error = errno;
-	    fprintf(stderr, "%s:%d errno=%d %s\n", __SRCFILE__, __LINE__, error, strerror(error));
+	    fprintf(stderr, "%s:%d errno=%d %s\n", __FILE__, __LINE__, error, strerror(error));
 	    if (error == EMFILE)
 		fprintf(stderr, "may need to increase the nofile ulimit\n");
 	}
@@ -407,8 +408,7 @@ int test_main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    assert(argc == 1);
-    const char *testdir = argv[0];
+    const char *testdir = TOKU_TEST_FILENAME;
     char unlink_all[strlen(testdir)+20];
     snprintf(unlink_all, strlen(testdir)+20, "rm -rf %s", testdir);
     int r;

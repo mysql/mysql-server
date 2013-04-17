@@ -45,7 +45,7 @@ int littlenode = 0;
 
 #define OLDDATADIR "../../../../tokudb.data/"
 
-char *env_dir = ENVDIR; // the default env_dir.
+char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 char *db_v5_dir = "dir.preload-db.c.tdb";
 char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.cleanshutdown";
 char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.2.0.node4k.cleanshutdown";

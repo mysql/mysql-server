@@ -107,7 +107,7 @@ static void checkpoint_pending(void) {
     const int test_limit = N;
     int r;
     toku_cachetable_create(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER);
-    char fname1[] = __SRCFILE__ "test1.dat";
+    const char *fname1 = TOKU_TEST_FILENAME;
     r = unlink(fname1); if (r!=0) CKERR2(get_error_errno(), ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     create_dummy_functions(cf);

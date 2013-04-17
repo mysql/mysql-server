@@ -9,22 +9,17 @@
 #include "logcursor.h"
 #include "test.h"
 
-#ifndef dname
-#define dname __SRCFILE__ ".dir"
-#endif
-#define rmrf "rm -rf " dname "/"
-
 int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
-    r = system(rmrf); CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
 
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_set_lg_max(logger, 32); assert(r == 0);
-    r = toku_logger_open(dname, logger); assert(r == 0);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger); assert(r == 0);
     BYTESTRING hello = (BYTESTRING) { 5, (char *) "hello"};
     LSN comment_lsn;
     toku_log_comment(logger, &comment_lsn, true, 0, hello);
@@ -37,12 +32,12 @@ test_main (int argc __attribute__((__unused__)),
 
     // verify all log entries prior the begin checkpoint are trimmed
     TOKULOGCURSOR lc = NULL;
-    r = toku_logcursor_create(&lc, dname); assert(r == 0);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME); assert(r == 0);
     struct log_entry *le = NULL;
     r = toku_logcursor_first(lc, &le); assert(r == 0);
     assert(le->cmd == LT_begin_checkpoint);
     r = toku_logcursor_destroy(&lc); assert(r == 0);
     
-    r = system(rmrf); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
     return 0;
 }

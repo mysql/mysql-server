@@ -30,7 +30,6 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/loader-stress-test4.tdb
   ydb/maxsize-for-loader-B.tdb
   ydb/preload-db-nested.tdb
-  ydb/recovery_fileops_unit.tdb
   ydb/stress-gc.tdb
   ydb/stress-gc2.tdb
   ydb/stress-test.bdb
@@ -206,7 +205,6 @@ set(long_running_tests
   ydb/manyfiles.tdb
   ydb/preload-db-nested.tdb
   ydb/recover_stress.tdb
-  ydb/recovery_fileops_unit.tdb
   ydb/root_fifo_1.tdb
   ydb/root_fifo_2.tdb
   ydb/root_fifo_31.tdb

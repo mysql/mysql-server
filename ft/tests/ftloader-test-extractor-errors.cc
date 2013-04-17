@@ -14,6 +14,7 @@
 #include "ftloader-internal.h"
 #include "ftloader-error-injector.h"
 #include "memory.h"
+#include <portability/toku_path.h>
 
 
 static void copy_dbt(DBT *dest, const DBT *src) {
@@ -210,8 +211,7 @@ int test_main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
-    assert(argc == 1);
-    const char *testdir = argv[0];
+    const char *testdir = TOKU_TEST_FILENAME;
 
     if (ascending_keys + descending_keys + random_keys == 0)
         ascending_keys = 1;

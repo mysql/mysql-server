@@ -15,14 +15,13 @@ static void
 test_abort_create (void) {
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     env->set_errfile(env, stdout);
-    r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
     if (r != 0) printf("%s:%d:%d:%s\n", __FILE__, __LINE__, r, db_strerror(r));
     assert(r == 0);
 
@@ -51,11 +50,10 @@ test_abort_create (void) {
         filename = toku_xstrdup("test.db");
 #endif
 	toku_struct_stat statbuf;
-        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
-        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
-        toku_free(filename);
-	r = toku_stat(fullfile, &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);
 	assert(r==0);
+        toku_free(filename);
     }
 
     r = db->close(db, 0);
@@ -74,7 +72,8 @@ test_abort_create (void) {
         }
 #endif
         toku_struct_stat statbuf;
-        r = toku_stat(ENVDIR "/test.db", &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, "test.db"), &statbuf);
         assert(r!=0);
         assert(errno==ENOENT);
     }

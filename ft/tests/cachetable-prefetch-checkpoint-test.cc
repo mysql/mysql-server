@@ -69,7 +69,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
-    char fname1[] = __SRCFILE__ "test1.dat";
+    const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);

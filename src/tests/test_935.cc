@@ -19,16 +19,15 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
     int r;
 
     // setup test directory
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // setup environment
     DB_ENV *env;
     {
         r = db_env_create(&env, 0); assert(r == 0);
         env->set_errfile(env, stdout);
-        r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+        r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
         assert(r == 0);
     }
 

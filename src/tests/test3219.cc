@@ -66,12 +66,12 @@ lookup(int i, DB_TXN *txn)
 static void
 setup (void) {
     int r;
-    r = system("rm -rf " ENVDIR);                                                     CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&env, 0);                                                       CKERR(r);
     r = env->set_redzone(env, 0);                                                     CKERR(r);
     r = env->set_cachesize(env, 0, 128*1024, 1);                                      CKERR(r);
-    r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);                                                       CKERR(r);
     r = db->set_pagesize(db, 4096);                                                   CKERR(r);
     {

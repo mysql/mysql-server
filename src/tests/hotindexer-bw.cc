@@ -315,9 +315,10 @@ static void run_test(void)
 {
     int r;
     toku_mutex_init(&put_lock, NULL);
-    r = system("rm -rf " ENVDIR);                                                CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
-    r = toku_os_mkdir(ENVDIR "/log", S_IRWXU+S_IRWXG+S_IRWXO);                   CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
+    char logname[TOKU_PATH_MAX+1];
+    r = toku_os_mkdir(toku_path_join(logname, 2, TOKU_TEST_FILENAME, "log"), S_IRWXU+S_IRWXG+S_IRWXO);                   CKERR(r);
 
     r = db_env_create(&env, 0);                                                  CKERR(r);
     r = env->set_redzone(env, 0);                                                CKERR(r);
@@ -326,7 +327,7 @@ static void run_test(void)
     generate_permute_tables();
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);      CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     env->set_errfile(env, stderr);
     r = env->checkpointing_set_period(env, 0);                                   CKERR(r);
 

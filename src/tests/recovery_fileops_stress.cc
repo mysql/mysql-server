@@ -249,8 +249,8 @@ static void run_test(int iter){
 
     if (iter == 0) {
         // create working directory
-        r = system("rm -rf " ENVDIR);                                                                     CKERR(r);
-        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                               CKERR(r);
+        toku_os_recursive_delete(TOKU_TEST_FILENAME);
+        r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);                                               CKERR(r);
     }
     else
         recovery_flags += DB_RECOVER;
@@ -452,7 +452,7 @@ static void env_startup(int recovery_flags) {
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
     r=env->set_redzone(env, 0);                                     CKERR(r);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
     //Disable auto-checkpointing.
     r = env->checkpointing_set_period(env, 0);                      CKERR(r);
 }

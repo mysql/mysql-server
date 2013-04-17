@@ -39,8 +39,8 @@ static int increment_update (DB *db __attribute__((__unused__)),
 }
 
 static void setup (void) {
-    { int r = system("rm -rf " ENVDIR);                       CKERR(r); }
-    { int r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);   CKERR(r); }
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    { int r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);   CKERR(r); }
     { int r=db_env_create(&env, 0);                           CKERR(r); }
     env->set_errfile(env, stderr);
     env->set_update(env, increment_update);

@@ -755,7 +755,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 
 
 static int run_test_count = 0;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 
 static void run_test(enum test_type t, int trigger) 
 {
@@ -768,9 +768,7 @@ static void run_test(enum test_type t, int trigger)
 	fflush(stdout);
     }
 
-    char rm_cmd[strlen("rm -rf ") + strlen(envdir) + 1];
-    sprintf(rm_cmd, "rm -rf %s", envdir);
-    r = system(rm_cmd);                                                                                       CKERR(r);
+    toku_os_recursive_delete(envdir);
     r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
@@ -978,7 +976,6 @@ static void usage(const char *cmd) {
     fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
     fprintf(stderr, "        -r <num_rows>   Number of rows to put (default=%d).\n", default_NUM_ROWS);
     fprintf(stderr, "        -t <elo> <ehi>  Instrument only events <elo> to <ehi> (default: instrument all).\n");
-    fprintf(stderr, "        -e <envname>    Create a directory called <envname> for the db environment.\n");
 }
 
 static void do_args(int argc, char * const argv[]) {
@@ -1023,9 +1020,6 @@ static void do_args(int argc, char * const argv[]) {
 	    event_trigger_hi = atoi(argv[0]);
 	} else if (strcmp(argv[0], "-s")==0) {
 	    db_env_set_loader_size_factor(1);
-        } else if (strcmp(argv[0],"-e") == 0 && argc > 1) {
-            argc--; argv++;
-            envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

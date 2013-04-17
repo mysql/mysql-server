@@ -95,7 +95,7 @@ foreach(tool ftdump tdb_logprint tdb-recover ftverify)
   add_executable(${tool} ${tool})
   add_dependencies(${tool} install_tdb_h)
   target_link_libraries(${tool} ft_static util_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
-  add_common_options_to_binary_targets(${tool})
+  add_space_separated_property(TARGET ${tool} COMPILE_FLAGS -fvisibility=hidden)
 endforeach(tool)
 
 # link in math.h library just for this tool.

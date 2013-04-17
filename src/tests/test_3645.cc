@@ -144,9 +144,8 @@ test_evictions (void) {
     const char * const fname = "test.bulk_fetch.ft_handle";
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
     DB_ENV *env;
@@ -154,7 +153,7 @@ test_evictions (void) {
     r=env->set_default_bt_compare(env, int_dbt_cmp); CKERR(r);
     // set the cache size to 10MB
     r = env->set_cachesize(env, 0, 100000, 1); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, 10); 
     CKERR(r);
 

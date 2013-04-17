@@ -475,7 +475,7 @@ static void test_loader(DB **dbs)
     }
 }
 
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 const char *tmp_subdir = "tmp.subdir";
 
 #define OLDDATADIR "../../../../tokudb.data/"

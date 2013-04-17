@@ -9,6 +9,7 @@
 #include "checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"
+#include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
@@ -152,19 +153,16 @@ walk_tree(const char *fname, int n) {
 
 static void
 init_logdir(const char *logdir) {
-    int error;
-
-    char cmd[32+strlen(logdir)];
-    sprintf(cmd, "rm -rf %s", logdir);
-    error = system(cmd);
-    assert(error == 0);
-
-    error = toku_os_mkdir(logdir, 0777);
+    toku_os_recursive_delete(logdir);
+    int error = toku_os_mkdir(logdir, 0777);
     assert(error == 0);
 }
 
 static void
 run_test(const char *logdir, const char *ftfile, int n) {
+    char lastdir[TOKU_PATH_MAX+1];
+    char *last = getcwd(lastdir, TOKU_PATH_MAX);
+    assert(last != nullptr);
     init_logdir(logdir);
     int error = chdir(logdir);
     assert(error == 0);
@@ -172,20 +170,21 @@ run_test(const char *logdir, const char *ftfile, int n) {
     create_populate_tree(".", ftfile, n);
     walk_tree(ftfile, n);
 
-    error = chdir("..");
+    error = chdir(last);
     assert(error == 0);
 }
     
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
 
-    const char *logdir = __SRCFILE__ ".dir";
-    const char *ftfile =  __SRCFILE__ ".ft_handle";
-    char cmd[32+strlen(ftfile)];
-    sprintf(cmd, "rm -rf %s", ftfile);
-    int error = system(cmd);
-    assert(error == 0);
+    char logdir[TOKU_PATH_MAX+1];
+    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "logdir");
+    char ftfile[TOKU_PATH_MAX+1];
+    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "ftfile");
 
     run_test(logdir, ftfile, 0);
     run_test(logdir, ftfile, 1000);

@@ -17,16 +17,15 @@ DB *db;
 
 static void initialize (void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, 0777);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, 0777);
 
     // setup environment
     {
         r = db_env_create(&env, 0); assert(r == 0);
 	r = env->set_redzone(env, 0);    CKERR(r);
         env->set_errfile(env, stdout);
-        r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, 0777); 
+        r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, 0777); 
         assert(r == 0);
     }
 

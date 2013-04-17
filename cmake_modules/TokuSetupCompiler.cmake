@@ -23,7 +23,8 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 endif ()
 
 ## add TOKU_PTHREAD_DEBUG for debug builds
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG=1)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO TOKU_PTHREAD_DEBUG=1)
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
@@ -108,17 +109,21 @@ set_ldflags_if_supported(
 ## set extra debugging flags and preprocessor definitions
 set(CMAKE_C_FLAGS_DEBUG "-g3 -O0 ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 ${CMAKE_CXX_FLAGS_DEBUG}")
-#set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG _FORTIFY_SOURCE=2)
+
+## The default for this is -g -O2 -DNDEBUG.
+## Since we want none of those for drd, we just overwrite it.
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g3 -O1")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g3 -O1")
 
 ## set extra release flags
 if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   # have tried -flto and -O4, both make our statically linked executables break apple's linker
-  set(CMAKE_C_FLAGS_RELEASE "-g -O3")
-  set(CMAKE_CXX_FLAGS_RELEASE "-g -O3")
+  set(CMAKE_C_FLAGS_RELEASE "-g -O3 ${CMAKE_C_FLAGS_RELEASE} -UNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 ${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG")
 else ()
   # we overwrite this because the default passes -DNDEBUG and we don't want that
-  set(CMAKE_C_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin")
-  set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin")
+  set(CMAKE_C_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin ${CMAKE_C_FLAGS_RELEASE} -UNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin ${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG")
   set(CMAKE_EXE_LINKER_FLAGS "-g -fuse-linker-plugin ${CMAKE_EXE_LINKER_FLAGS}")
   set(CMAKE_SHARED_LINKER_FLAGS "-g -fuse-linker-plugin ${CMAKE_SHARED_LINKER_FLAGS}")
 endif ()
@@ -169,9 +174,9 @@ set(CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
 check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
 check_cxx_compiler_flag(-std=c++0x HAVE_STDCXX0X)
 if (HAVE_STDCXX11)
-  add_definitions(-std=c++11)
+  set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 elseif (HAVE_STDCXX0X)
-  add_definitions(-std=c++0x)
+  set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
 else ()
   message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11 or -std=c++0x, you need one that does.")
 endif ()
@@ -197,11 +202,3 @@ function(maybe_add_gcov_to_libraries)
     endforeach(lib)
   endif (USE_GCOV)
 endfunction(maybe_add_gcov_to_libraries)
-
-## adds -fvisibility=hidden
-## good for binaries
-function(add_common_options_to_binary_targets)
-  foreach(tgt ${ARGN})
-    add_space_separated_property(TARGET ${tgt} COMPILE_FLAGS "-fvisibility=hidden")
-  endforeach(tgt)
-endfunction(add_common_options_to_binary_targets)

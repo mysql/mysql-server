@@ -41,7 +41,7 @@ static void *start_a_thread (void *i_p) {
     return 0;
 }
 
-char *env_path;
+const char *env_path;
 
 static void
 test_groupcommit (int nthreads) {
@@ -139,7 +139,7 @@ int log_max_n_threads_over_10 = 2;
 static void
 my_parse_args (int argc, char *const argv[]) {
     verbose=1; // use -q to turn off the talking.
-    env_path = toku_strdup(ENVDIR);
+    env_path = TOKU_TEST_FILENAME;
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
@@ -159,14 +159,6 @@ my_parse_args (int argc, char *const argv[]) {
 		resultcode=1;
 		goto do_usage;
 	    }
-	} else if (strcmp(argv[1],"-p")==0) {
-	    argc--;
-	    argv++;
-	    if (argc<=1) { resultcode=1; goto do_usage; }
-	    int size = strlen(ENVDIR) + 10 + strlen(argv[1]);
-	    REALLOC_N(size, env_path);
-	    assert(env_path);
-	    snprintf(env_path, size, "%s.%s", ENVDIR, argv[1]);
 	} else if (strcmp(argv[1], "-h")==0) {
 	do_usage:
 	    fprintf(stderr, "Usage:\n%s [-v|-q] [-n LOG(MAX_N_THREADS/10)] [-h]\n", argv0);
@@ -194,14 +186,7 @@ test_main (int argc, char *const argv[]) {
     db_env_set_num_bucket_mutexes(32);
 #endif
 
-    {
-	int size=20+strlen(env_path);
-	char command[size];
-	snprintf(command, size, "rm -rf %s", env_path);
-        int r;
-	r = system(command);
-        CKERR(r);
-    }
+    toku_os_recursive_delete(env_path);
     { int r=toku_os_mkdir(env_path, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0); }
 
     test_groupcommit(1);  printtdiff(1);
@@ -209,6 +194,5 @@ test_main (int argc, char *const argv[]) {
     for (int i=0; i<log_max_n_threads_over_10; i++) {
 	do_test(10 << i);
     }
-    toku_free(env_path);
     return 0;
 }

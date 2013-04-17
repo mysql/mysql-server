@@ -34,7 +34,7 @@ set_property(TARGET ${LIBTOKUDB} tokudb_static_conv APPEND PROPERTY COMPILE_DEFI
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS -fvisibility=hidden -fvisibility-inlines-hidden)
+  add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
   add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/export.map")
 endif ()
 

@@ -214,14 +214,19 @@ init_logdir(const char *logdir) {
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
 
-    const char *logdir = __SRCFILE__ ".dir";
+    char logdir[TOKU_PATH_MAX+1];
+    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "logdir");
     init_logdir(logdir);
     int error = chdir(logdir);
     assert(error == 0);
 
     const int n = 10;
-    const char *ftfile =  __SRCFILE__ ".ft_handle";
+    char ftfile[TOKU_PATH_MAX+1];
+    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "ftfile");
     create_populate_tree(".", ftfile, n);
     test_provdel(".", ftfile, n);
 

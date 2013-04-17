@@ -11,15 +11,15 @@ tdbdump=$1; shift
 
 echo doing $bin
 $bin --no-shutdown
-rm -rf $envdir.recover
-mkdir $envdir.recover
-cp $envdir/tokudb.directory $envdir.recover/
-cp $envdir/tokudb.environment $envdir.recover/
-cp $envdir/tokudb.rollback $envdir.recover/
-cp $envdir/*.tokulog* $envdir.recover/
+rm -rf $envdir/recoverdir
+mkdir $envdir/recoverdir
+cp $envdir/tokudb.directory $envdir/recoverdir/
+cp $envdir/tokudb.environment $envdir/recoverdir/
+cp $envdir/tokudb.rollback $envdir/recoverdir/
+cp $envdir/*.tokulog* $envdir/recoverdir/
 echo doing recovery
-$tdbrecover $envdir.recover $envdir.recover
+$tdbrecover $envdir/recoverdir $envdir/recoverdir
 echo dump and compare
 $tdbdump -h $envdir foo.db >$envdir/foo.dump
-$tdbdump -h $envdir.recover foo.db >$envdir.recover/foo.dump
-diff -q $envdir/foo.dump $envdir.recover/foo.dump
+$tdbdump -h $envdir/recoverdir foo.db >$envdir/recoverdir/foo.dump
+diff -q $envdir/foo.dump $envdir/recoverdir/foo.dump

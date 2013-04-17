@@ -14,17 +14,12 @@ static inline size_t max(size_t a, size_t b) {
 
 static void
 test_env (const char *envdir0, const char *envdir1, int expect_open_return) {
-    char rmcmd[32 + max(strlen(envdir0), strlen(envdir1)) + 1];
     int r;
-    sprintf(rmcmd, "rm -rf %s", envdir0);
-    r = system(rmcmd);
-    CKERR(r);
+    toku_os_recursive_delete(envdir0);
     r = toku_os_mkdir(envdir0, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
     if (strcmp(envdir0, envdir1) != 0) {
-        sprintf(rmcmd, "rm -rf %s", envdir1);
-        r = system(rmcmd);
-        CKERR(r);
+        toku_os_recursive_delete(envdir1);
         r = toku_os_mkdir(envdir1, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
     }
@@ -177,40 +172,42 @@ test_logdir (const char *envdir0, const char *datadir0, const char *envdir1, con
 static char *
 full_name(const char *subdir) {
     char wd[256];
-    assert(getcwd(wd, sizeof wd) != NULL);
+    char *cwd = getcwd(wd, sizeof wd);
+    assert(cwd != NULL);
     char *XMALLOC_N(strlen(wd) + strlen(subdir) + 2, path);
-    sprintf(path, "%s/%s", wd, subdir);
-    return path;
+    return toku_path_join(path, 2, cwd, subdir);
 }
 
-static void
-unlink_dir (const char *dir) {
-    int len = strlen(dir)+100;
-    char cmd[len];
-    snprintf(cmd, len, "rm -rf %s", dir);
-    int r = system(cmd);
-    CKERR(r);
-}
 
 int
 test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
 
-    const char *env0 = ENVDIR "e0";
-    const char *env1 = ENVDIR "e1";
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU|S_IRWXG|S_IRWXO);
+    assert_zero(r);
+
+    char env0[TOKU_PATH_MAX+1];
+    char env1[TOKU_PATH_MAX+1];
+    toku_path_join(env0, 2, TOKU_TEST_FILENAME, "e0");
+    toku_path_join(env1, 2, TOKU_TEST_FILENAME, "e1");
     test_env(env0, env1, 0);
     test_env(env0, env0, EWOULDBLOCK);
-    char *data0 = full_name(ENVDIR "d0");
-    char *data1 = full_name(ENVDIR "d1");
+    char data0rel[TOKU_PATH_MAX+1];
+    char data1rel[TOKU_PATH_MAX+1];
+    toku_path_join(data0rel, 2, TOKU_TEST_FILENAME, "d0");
+    toku_path_join(data1rel, 2, TOKU_TEST_FILENAME, "d1");
+    char *data0 = full_name(data0rel);
+    char *data1 = full_name(data1rel);
     test_datadir(env0, data0, env1, data1, 0);
     test_datadir(env0, data0, env1, data0, EWOULDBLOCK);
     test_logdir(env0, data0, env1, data1, 0);
     test_logdir(env0, data0, env1, data0, EWOULDBLOCK);
 
-    unlink_dir(env0);
-    unlink_dir(env1);
-    unlink_dir(data0);
-    unlink_dir(data1);
+    toku_os_recursive_delete(env0);
+    toku_os_recursive_delete(env1);
+    toku_os_recursive_delete(data0);
+    toku_os_recursive_delete(data1);
 
     toku_free(data0);
     toku_free(data1);

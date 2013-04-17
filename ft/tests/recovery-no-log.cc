@@ -8,16 +8,13 @@
 #include "test.h"
 
 
-#define TESTDIR __SRCFILE__ ".dir"
-
 static int 
 run_test(void) {
     int r;
 
     // setup the test dir
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
-    r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
 
     // redirect stderr
     int devnul = open(DEV_NULL_FILE, O_WRONLY);
@@ -29,11 +26,10 @@ run_test(void) {
     r = tokudb_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
-		       NULL_logger, TESTDIR, TESTDIR, 0, 0, 0, NULL, 0); 
+		       NULL_logger, TOKU_TEST_FILENAME, TOKU_TEST_FILENAME, 0, 0, 0, NULL, 0); 
     assert(r != 0);
 
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

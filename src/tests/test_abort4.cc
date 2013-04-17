@@ -25,19 +25,14 @@ uint32_t find_num;
 long closemode = -1; // must be set to 0 or 1 on command line
 long logsize   = -2; // must be set to a number from -1 to 20 inclusive, on command line.
 
-// ENVDIR is defined in the Makefile
-// And can be overridden by -e
-static const char *envdir = ENVDIR;
-
 static void
 init(void) {
     int r;
-    char rm_cmd[strlen("rm -rf ") + strlen(envdir) + 1];
-    sprintf(rm_cmd, "rm -rf %s", envdir);
-    r = system(rm_cmd);                                                                                       CKERR(r);
-    r=toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+;
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->open(db, null_txn, "foo.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     CKERR(r);
@@ -136,13 +131,10 @@ verify_and_tear_down(int close_first) {
         filename = toku_xstrdup("foo.db");
 #endif
 	toku_struct_stat statbuf;
-	int size = strlen(filename) + strlen(envdir) + sizeof("/");
-        char fullfile[size];
-        int sp = snprintf(fullfile, size, "%s/%s", envdir, filename);
-	assert(sp<size);
-        toku_free(filename);
-	r = toku_stat(fullfile, &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);
 	assert(r==0);
+        toku_free(filename);
     }
     CKERR(r);
     if (close_first) {
@@ -210,9 +202,6 @@ parse_my_args (int argc, char * const argv[]) {
 	} else if (strcmp(argv[1],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[1],"-e") == 0 && argc > 2) {
-            argc--; argv++;
-            envdir = argv[1];
 	} else if (strcmp(argv[1],"-c") == 0 && argc > 2) {
 	    argc--; argv++;
 	    closemode = parseint(argv[1]);
@@ -221,7 +210,7 @@ parse_my_args (int argc, char * const argv[]) {
 	    logsize = parseint(argv[1]);
 	} else if (strcmp(argv[1], "-h")==0) {
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-q] [-h] [-e <envdir>] -c <closemode (0 or 1)> -l <log of size, -1, or 0 through 20>\n", argv0);
+	    fprintf(stderr, "Usage:\n%s [-v|-q] [-h] -c <closemode (0 or 1)> -l <log of size, -1, or 0 through 20>\n", argv0);
 	    exit(resultcode);
 	} else {
 	    resultcode=1;

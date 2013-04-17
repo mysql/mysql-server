@@ -81,13 +81,12 @@ do_abort_delete_first_or_last(int N,
 			      int first // 1 for first, 0 for last
 			      ) {
     int r,i;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); assert(r==0);
     env->set_errfile(env, stderr);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->set_pagesize(db, 4096); // Use a small page
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
@@ -122,7 +121,9 @@ do_abort_delete_first_or_last(int N,
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
 #if defined(TOKUDB) && defined(__unix__)
-    r=system("../../utils/tokudb_dump -h " ENVDIR " foo.db > " DEV_NULL_FILE);
+    char cmd[sizeof("../../utils/tokudb_dump -h  foo.db >") + 2 * TOKU_PATH_MAX];
+    snprintf(cmd, sizeof(cmd), "../../utils/tokudb_dump -h %s foo.db > %s", TOKU_TEST_FILENAME, DEV_NULL_FILE);
+    r=system(cmd);
     CKERR(r);
 #endif
 }

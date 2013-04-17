@@ -2021,7 +2021,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 300000,
     .num_bucket_mutexes = 1024,
-    .envdir = ENVDIR,
+    .envdir = nullptr,
     .update_function = update_op_callback,
     .generate_put_callback = nullptr,
     .generate_del_callback = nullptr,
@@ -2037,7 +2037,7 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 1<<30,
     .num_bucket_mutexes = 1024 * 1024,
-    .envdir = ENVDIR,
+    .envdir = nullptr,
     .update_function = nullptr,
     .generate_put_callback = nullptr,
     .generate_del_callback = nullptr,
@@ -2084,6 +2084,7 @@ static struct cli_args UU() get_default_args(void) {
         .disperse_keys = false,
         .direct_io = false,
         };
+    DEFAULT_ARGS.env_args.envdir = TOKU_TEST_FILENAME;
     return DEFAULT_ARGS;
 }
 
@@ -2091,6 +2092,7 @@ static struct cli_args UU() get_default_args_for_perf(void) {
     struct cli_args args = get_default_args();
     args.num_elements = 1000000; //default of 1M
     args.env_args = DEFAULT_PERF_ENV_ARGS;
+    args.env_args.envdir = TOKU_TEST_FILENAME;
     return args;
 }
 

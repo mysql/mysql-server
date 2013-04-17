@@ -35,15 +35,15 @@ static DB *db;
 
 static void create_db (uint64_t N) {
     n_rows = N;
-    { int r = system("rm -rf " ENVDIR);                                        CKERR(r); }
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     { int r = db_env_create(&env, 0);                                          CKERR(r); }
     env->set_errfile(env, stderr);
 #ifdef TOKUDB
     env->set_redzone(env, 0);
 #endif
     { int r = env->set_cachesize(env, 0, 400*4096, 1);                        CKERR(r); }
-    { int r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r); }
+    { int r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r); }
     DB_TXN *txn;
     { int r = env->txn_begin(env, NULL, &txn, 0);                              CKERR(r); }
     { int r = db_create(&db, env, 0);                                          CKERR(r); }

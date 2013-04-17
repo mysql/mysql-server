@@ -21,8 +21,7 @@ enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
 CACHETABLE ct;
 FT_HANDLE t;
-int fnamelen;
-char *fname;
+const char *fname = TOKU_TEST_FILENAME;
 
 int curr_child_to_flush;
 int num_flushes_called;
@@ -81,15 +80,10 @@ doit (void) {
     BLOCKNUM node_leaf[2];
     int r;
     
-    fnamelen = strlen(__SRCFILE__) + 20;
-    XMALLOC_N(fnamelen, fname);
-
-    snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
     toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
-    toku_free(fname);
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 

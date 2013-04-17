@@ -8,8 +8,6 @@
 #include "test.h"
 
 
-#define TESTDIR __SRCFILE__ ".dir"
-
 static int 
 run_test(void) {
     // leave this many bytes in file
@@ -24,9 +22,8 @@ run_test(void) {
 
     while ( 1 ) {
         // setup the test dir
-        r = system("rm -rf " TESTDIR);
-        CKERR(r);
-        r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
+        toku_os_recursive_delete(TOKU_TEST_FILENAME);
+        r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
 
         // create the log
         TOKULOGGER logger;
@@ -34,7 +31,7 @@ run_test(void) {
         BYTESTRING world  = { (uint32_t) strlen("world"), (char *) "world" };
         BYTESTRING there  = { (uint32_t) strlen("there"), (char *) "there" };
         r = toku_logger_create(&logger); assert(r == 0);
-        r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+        r = toku_logger_open(TOKU_TEST_FILENAME, logger); assert(r == 0);
         LSN beginlsn;
         // all logs must contain a valid checkpoint
         toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0);
@@ -53,8 +50,8 @@ run_test(void) {
         r = toku_dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
         r = close(devnul);                      assert(r==0);
 
-        char fname[256];
-        sprintf(fname, "%s/%s%d", TESTDIR, "log000000000000.tokulog", TOKU_LOG_VERSION);
+        char fname[TOKU_PATH_MAX+1];
+        sprintf(fname, "%s/%s%d", TOKU_TEST_FILENAME, "log000000000000.tokulog", TOKU_LOG_VERSION);
 
         r = toku_stat(fname, &st); assert(r==0);
         if ( st.st_size - trim > magic_begin_end_checkpoint_sz ) {
@@ -68,13 +65,12 @@ run_test(void) {
 			   NULL_prepared_txn_callback,
 			   NULL_keep_cachetable_callback,
 			   NULL_logger,
-			   TESTDIR, TESTDIR, 0, 0, 0, NULL, 0); 
+			   TOKU_TEST_FILENAME, TOKU_TEST_FILENAME, 0, 0, 0, NULL, 0); 
         assert(r == 0);
         
         trim += 1;
     }
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
     return 0;
 }
 

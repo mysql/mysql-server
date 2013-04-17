@@ -7,23 +7,27 @@
 
 #include "test.h"
 
-
-#define TESTDIR __SRCFILE__ ".dir"
-#define TESTFILE __SRCFILE__ ".dir.bogus"
-
 static int 
 run_test(void) {
     int r;
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
+
+    char testdir[TOKU_PATH_MAX+1];
+    char testfile[TOKU_PATH_MAX+1];
+    toku_path_join(testdir, 2, TOKU_TEST_FILENAME, "dir");
+    toku_path_join(testfile, 2, TOKU_TEST_FILENAME, "file");
 
     // setup the test dir
-    r = system("rm -rf " TESTDIR " " TESTFILE);
-    CKERR(r);
-    r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
+    r = toku_os_mkdir(testdir, S_IRWXU); assert(r == 0);
 
     // create the log
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
-    r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+    r = toku_logger_open(testdir, logger); assert(r == 0);
     BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
     toku_log_comment(logger, NULL, true, 0, hello);
     r = toku_logger_close(&logger); assert(r == 0);
@@ -35,15 +39,20 @@ run_test(void) {
     r = close(devnul);                      assert(r==0);
 
     // run recovery
-    r = system("touch " TESTFILE); CKERR(r);
+    {
+        char buf[TOKU_PATH_MAX+sizeof("touch ")];
+        strcpy(buf, "touch ");
+        strncat(buf, testfile, TOKU_PATH_MAX);
+        r = system(buf); CKERR(r);
+    }
     r = tokudb_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
 		       NULL_logger,
-		       TESTFILE, TESTDIR, 0, 0, 0, NULL, 0); 
+		       testfile, testdir, 0, 0, 0, NULL, 0); 
     assert(r != 0);
 
-    r = system("rm -rf " TESTDIR " " TESTFILE); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

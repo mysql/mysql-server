@@ -10,24 +10,22 @@
 #include "checkpoint.h"
 
 
-#define TESTDIR __SRCFILE__ ".dir"
-#define FILENAME "test0.ft_handle"
+#define FILENAME "test0.ft"
 
 static void test_it (int N) {
     FT_HANDLE brt;
     int r;
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
-    r = toku_os_mkdir(TESTDIR, S_IRWXU);                                                                    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);                                                                    CKERR(r);
 
     TOKULOGGER logger;
     r = toku_logger_create(&logger);                                                                        CKERR(r);
-    r = toku_logger_open(TESTDIR, logger);                                                                  CKERR(r);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger);                                                                  CKERR(r);
 
 
     CACHETABLE ct;
     toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
-    toku_cachetable_set_env_dir(ct, TESTDIR);
+    toku_cachetable_set_env_dir(ct, TOKU_TEST_FILENAME);
 
     toku_logger_set_cachetable(logger, ct);
 

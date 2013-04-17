@@ -15,13 +15,12 @@ const char *nameb="b.db";
 
 static void run_test (void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                          CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
 
     DB *db;  
     r = db_create(&db, env, 0);                                                          CKERR(r);
@@ -37,16 +36,17 @@ static void run_test (void) {
 #else
         assert(r != 0);
 #endif
-    r = toku_os_mkdir(ENVDIR "/bdir", 0777); assert(r == 0);
+    char path[TOKU_PATH_MAX+1];
+    r = toku_os_mkdir(toku_path_join(path, 2, TOKU_TEST_FILENAME, "bdir"), 0777); assert(r == 0);
     r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
     r = db->close(db, 0);                                                                CKERR(r);
 
     r = env->close(env, 0);                                                              CKERR(r);
 
-    r = toku_os_mkdir(ENVDIR "/cdir", 0777); assert(r == 0);
+    r = toku_os_mkdir(toku_path_join(path, 2, TOKU_TEST_FILENAME, "cdir"), 0777); assert(r == 0);
     r = db_env_create(&env, 0);                                                          CKERR(r);
     r = env->set_data_dir(env, "cdir");                                                  CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
 
     r = db_create(&db, env, 0);                                                          CKERR(r);
     r = db->open(db, NULL, "c.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);

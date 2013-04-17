@@ -12,6 +12,7 @@
 #include "ftloader.h"
 #include "ftloader-internal.h"
 #include "memory.h"
+#include <portability/toku_path.h>
 
 
 static int my_malloc_count = 0;

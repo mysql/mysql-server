@@ -25,7 +25,7 @@ test_env_open_flags (int env_open_flags, int expectr) {
     assert(r == 0);
     env->set_errfile(env, 0);
 
-    r = env->open(env, ENVDIR, env_open_flags, 0644);
+    r = env->open(env, TOKU_TEST_FILENAME, env_open_flags, 0644);
     if (r != expectr && verbose) printf("env open flags=%x expectr=%d r=%d\n", env_open_flags, expectr, r);
 
     r = env->close(env, 0);
@@ -37,13 +37,12 @@ test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   
-    int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
 #ifdef USE_TDB
-    toku_set_trace_file(ENVDIR "/trace.tktrace");
+    char tracefile[TOKU_PATH_MAX+1];
+    toku_set_trace_file(toku_path_join(tracefile, 2, TOKU_TEST_FILENAME, "trace.tktrace"));
 #endif
 
     /* test flags */

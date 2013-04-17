@@ -14,7 +14,7 @@ static DB * const null_db = 0;
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args (argc, argv);
-    const char *n = __SRCFILE__ "dump.ft_handle";
+    const char *n = TOKU_TEST_FILENAME;
     int r;
     FT_HANDLE t;
     CACHETABLE ct;
@@ -35,5 +35,6 @@ test_main(int argc, const char *argv[]) {
     r = toku_close_ft_handle_nolsn(t, 0); assert(r==0);
     toku_cachetable_close(&ct);
     fclose(f);
+    toku_os_recursive_delete("test-dump-ft.out");
     return 0;
 }

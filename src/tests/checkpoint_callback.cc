@@ -37,8 +37,8 @@ checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
                n, snap_all, flags); 
         fflush(stdout); 
     }
-    dir_create();
-    env_startup(0, false);
+    dir_create(TOKU_TEST_FILENAME);
+    env_startup(TOKU_TEST_FILENAME, 0, false);
     int run;
     int r;
     DICTIONARY_S db_control;
@@ -58,7 +58,7 @@ checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
 	assert(callback_2_count == run+1);
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, NULL, NULL);
-        db_replace(&db_test, NULL);
+        db_replace(TOKU_TEST_FILENAME, &db_test, NULL);
         r = compare_dbs(db_test.db, db_control.db);
 	assert(r==0);
     }

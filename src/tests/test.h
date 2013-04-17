@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <toku_htonl.h>
+#include <portability/toku_path.h>
 #include <portability/toku_crash.h>
 #include "toku_assert.h"
 #include <signal.h>

@@ -19,16 +19,15 @@ const char *nameb=NAMEB;
 
 static void run_test (void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
 
     r = db_env_create(&env, 0);                                                         CKERR(r);
 #if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
 #endif
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     DB *dba;
     r = db_create(&dba, env, 0);                                                        CKERR(r);
@@ -62,28 +61,35 @@ static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    r = system("rm -rf " ENVDIR "/saveddbs");
-    CKERR(r);
-    r = toku_os_mkdir(ENVDIR "/saveddbs", S_IRWXU+S_IRWXG+S_IRWXO);
+    char saveddbs[TOKU_PATH_MAX+1];
+    toku_path_join(saveddbs, 2, TOKU_TEST_FILENAME, "saveddbs");
+    toku_os_recursive_delete(saveddbs);
+    r = toku_os_mkdir(saveddbs, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
-    r = system("mv " ENVDIR "/" NAMEB_HINT "*.tokudb " ENVDIR "/saveddbs/");
+    char glob[TOKU_PATH_MAX+1];
+    toku_path_join(glob, 2, TOKU_TEST_FILENAME, NAMEB_HINT "*.tokudb");
+    char cmd[2 * TOKU_PATH_MAX + sizeof("mv  ")];
+    snprintf(cmd, sizeof(cmd), "mv %s %s", glob, saveddbs);
+    r = system(cmd);
     CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
 #if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
 #endif
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
 
-    r = system("rm -rf " ENVDIR "/" NAMEB_HINT "*.tokudb");
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", glob);
+    r = system(cmd);
     CKERR(r);
 
-    r = system("mv "  ENVDIR "/saveddbs/*.tokudb " ENVDIR "/");
+    snprintf(cmd, sizeof(cmd), "mv %s/*.tokudb %s", saveddbs, TOKU_TEST_FILENAME);
+    r = system(cmd);
     CKERR(r);
 
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }
@@ -96,7 +102,7 @@ static void run_no_recover (void) {
 #if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
 #endif
-    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }

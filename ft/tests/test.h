@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <string.h>
+#include <portability/toku_path.h>
 
 #include "ft.h"
 #include "key.h"

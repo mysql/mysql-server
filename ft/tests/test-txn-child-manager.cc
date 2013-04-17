@@ -9,10 +9,6 @@
 #include "toku_os.h"
 #include "checkpoint.h"
 
-
-#define TESTDIR __SRCFILE__ ".dir"
-#define FILENAME "test0.ft"
-
 #include "test-ft-txns.h"
 
 static int txn_child_manager_test_cb(TOKUTXN txn, void* extra) {
@@ -43,7 +39,7 @@ void txn_child_manager_unit_test::run_child_txn_test() {
     TOKULOGGER logger;
     CACHETABLE ct;
     int r = 0;
-    test_setup(&logger, &ct);
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
     // create the root transaction
     TOKUTXN root_txn = NULL;
     r = toku_txn_begin_txn(
@@ -87,7 +83,7 @@ void txn_child_manager_unit_test::run_test() {
     TOKULOGGER logger;
     CACHETABLE ct;
     int r = 0;
-    test_setup(&logger, &ct);
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
     // create the root transaction
     TOKUTXN root_txn = NULL;
     r = toku_txn_begin_txn(

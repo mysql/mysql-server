@@ -25,7 +25,7 @@ run_test(void) {
 
     r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
 
-    r = env->open(env, ENVDIR, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     DB *src_db = NULL;
     r = db_create(&src_db, env, 0); assert_zero(r);
@@ -81,8 +81,8 @@ test_main(int argc, char * const argv[]) {
         }
     }
 
-    r = system("rm -rf " ENVDIR); assert_zero(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     run_test();
 

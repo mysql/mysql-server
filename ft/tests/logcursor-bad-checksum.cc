@@ -6,24 +6,14 @@
 #include "logcursor.h"
 #include "test.h"
 
-#if defined(HAVE_LIMITS_H)
-# include <limits.h>
-#endif
-#if defined(HAVE_SYS_SYSLIMITS_H)
-# include <sys/syslimits.h>
-#endif
-
-#define dname __SRCFILE__ ".dir"
-#define rmrf "rm -rf " dname "/"
-
 // log a couple of timestamp entries and verify the log by walking 
 // a cursor through the log entries
 
 static void corrupt_the_checksum(void) {
     // change the LSN in the first log entry of log 0.  this will cause an checksum error.
-    char logname[PATH_MAX];
+    char logname[TOKU_PATH_MAX+1];
     int r;
-    sprintf(logname, dname "/" "log000000000000.tokulog%d", TOKU_LOG_VERSION);
+    sprintf(logname,  "%s/log000000000000.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
     FILE *f = fopen(logname, "r+b"); assert(f);
     r = fseek(f, 025, SEEK_SET); assert(r == 0);
     char c = 100;
@@ -36,9 +26,8 @@ test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
 
     int r;
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
     TOKULOGGER logger;
     LSN lsn = ZERO_LSN;
 
@@ -47,7 +36,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logger_create(&logger); 
     assert(r == 0);
 
-    r = toku_logger_open(dname, logger);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger);
     assert(r == 0);
 
     BYTESTRING bs0 = { .len = 5, .data = (char *) "hello" };
@@ -71,7 +60,7 @@ test_main (int argc, const char *argv[]) {
     TOKULOGCURSOR lc = NULL;
     struct log_entry *le;
     
-    r = toku_logcursor_create(&lc, dname);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0 && lc != NULL);
 
     r = toku_logcursor_next(lc, &le);
@@ -81,7 +70,7 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && lc == NULL);
 
     // walk backwards
-    r = toku_logcursor_create(&lc, dname);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0 && lc != NULL);
 
     r = toku_logcursor_prev(lc, &le);
@@ -90,8 +79,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logcursor_destroy(&lc);
     assert(r == 0 && lc == NULL);
 
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

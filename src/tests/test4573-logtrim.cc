@@ -13,8 +13,8 @@ int test_main (int UU(argc), char UU(*const argv[])) {
     int r;
     pid_t pid;
 
-    r = system("rm -rf " ENVDIR);                                                       CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                 CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);                                 CKERR(r);
 
     const int N = 5;
 
@@ -22,7 +22,7 @@ int test_main (int UU(argc), char UU(*const argv[])) {
 	DB_ENV *env;
 	r = db_env_create(&env, 0);                                                         CKERR(r);
 	r = env->set_lg_max(env, my_lg_max);                                                CKERR(r);
-	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+	r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 	DB_TXN *txn;
 	r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
 	DB *db;
@@ -59,7 +59,7 @@ int test_main (int UU(argc), char UU(*const argv[])) {
     // Now run recovery to see what happens.
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     DB *db;
@@ -81,7 +81,7 @@ int test_main (int UU(argc), char UU(*const argv[])) {
     r = db->close(db, 0);                                                               CKERR(r);
     r = env->close(env, 0);                                                             CKERR(r);
 
-    //r = system("rm -rf " ENVDIR);                                 CKERR(r);
+    //toku_os_recursive_delete(TOKU_TEST_FILENAME);
     
     return 0;
 }

@@ -1,14 +1,15 @@
 if(BUILD_TESTING)
+  function(add_locktree_test bin)
+    add_toku_test(locktree ${bin} ${ARGN})
+  endfunction(add_locktree_test)
+
   file(GLOB srcs *.cc)
   foreach(src ${srcs})
     get_filename_component(base ${src} NAME_WE)
 
-    ## each source file test_foo.cc creates lt_test_foo
-    ## need lt_ prefix so that we have unique target names for cmake
-    add_executable(lt_${base} ${base})
-    add_common_options_to_binary_targets(lt_${base})
-    target_link_libraries(lt_${base} locktree ft ${LIBTOKUPORTABILITY})
-    add_test(locktree/${base} lt_${base})
-
+    add_executable(${base} ${base})
+    add_space_separated_property(TARGET ${base} COMPILE_FLAGS -fvisibility=hidden)
+    target_link_libraries(${base} locktree ft ${LIBTOKUPORTABILITY})
+    add_locktree_test(${base})
   endforeach(src)
 endif(BUILD_TESTING)

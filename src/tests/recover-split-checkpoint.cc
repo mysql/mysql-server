@@ -31,9 +31,8 @@ static void test_checkpoint_callback2(void *extra) {
 
 static void run_test (bool do_commit, bool do_abort) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0);                                                         CKERR(r);
@@ -42,7 +41,7 @@ static void run_test (bool do_commit, bool do_abort) {
     db_env_set_checkpoint_callback2(test_checkpoint_callback2, env);
 
     r = env->set_lg_max(env, 1024);                                                     CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     DB_TXN *txn = NULL;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
@@ -67,7 +66,7 @@ static void run_recover (bool did_commit) {
     int r;
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
 }
 
@@ -75,7 +74,7 @@ static void run_recover_only (void) {
     int r;
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
 }
 
@@ -83,7 +82,7 @@ static void run_no_recover (void) {
     int r;
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
     r = env->close(env, 0);                                                                 CKERR(r);
 }

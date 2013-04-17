@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 typedef struct {
     uint32_t db_flags;
@@ -47,15 +47,14 @@ static void
 setup (uint32_t flags) {
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
     r = db_env_create(&dbenv, 0); assert(r == 0);
 #ifdef USE_TDB
     r = dbenv->set_redzone(dbenv, 0);                              CKERR(r);
 #endif
-    r = dbenv->open(dbenv, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
     if (flags) {

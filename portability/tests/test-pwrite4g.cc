@@ -10,6 +10,7 @@
 #include <memory.h>
 #include <string.h>
 #include <stdio.h>
+#include <portability/toku_path.h>
 
 static int iszero(char *cp, size_t n) {
     size_t i;
@@ -19,15 +20,10 @@ static int iszero(char *cp, size_t n) {
     return 1;
 }
 
-int test_main(int argc, char *const argv[]) {
-    assert(argc==2); // first arg is the directory to put the data file into.
-    char short_fname[] = "pwrite4g.data";
-    int fname_len = strlen(short_fname) + strlen(argv[1]) + 5;
-    char fname[fname_len];
-    snprintf(fname, fname_len, "%s/%s", argv[1], short_fname);
+int test_main(int UU(argc), char *const UU(argv[])) {
     int r;
-    unlink(fname);
-    int fd = open(fname, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
+    unlink(TOKU_TEST_FILENAME);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
     char *XMALLOC_N_ALIGNED(512, 512, buf);
     memset(buf, 0, 512);

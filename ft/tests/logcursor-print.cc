@@ -6,21 +6,18 @@
 #include "test.h"
 #include "logcursor.h"
 
-#define LOGDIR __SRCFILE__ ".dir"
-
 int test_main(int argc, const char *argv[]) {
     int r;
 
     default_parse_args(argc, argv);
 
-    r = system("rm -rf " LOGDIR);
-    assert(r == 0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
-    r = toku_os_mkdir(LOGDIR, S_IRWXU);    
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
     assert(r == 0);
 
     TOKULOGCURSOR lc;
-    r = toku_logcursor_create(&lc, LOGDIR);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0);
 
     toku_logcursor_print(lc);

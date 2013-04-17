@@ -208,7 +208,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -359,7 +359,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     struct ftnode sn, *dn;
     const int keylens = 256*1024, vallens = 0, nrows = 8;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
@@ -505,7 +505,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     struct ftnode sn, *dn;
     const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
@@ -649,7 +649,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     const size_t key_size = 8;
     const size_t val_size = 512*1024;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
@@ -798,7 +798,7 @@ static void
 test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -950,7 +950,7 @@ static void
 test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -1069,7 +1069,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
     FTNODE_DISK_DATA src_ndd = NULL;
@@ -1212,7 +1212,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 

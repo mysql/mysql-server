@@ -38,9 +38,8 @@ test_txn_nested(int do_commit) {
     if (verbose) printf("test_txn_nested:%d\n", do_commit);
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     DB *db;
@@ -50,7 +49,7 @@ test_txn_nested(int do_commit) {
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db,stderr); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE+DB_AUTO_COMMIT, 0666); assert(r == 0);

@@ -346,15 +346,15 @@ static void run_test(void)
 {
     int r;
 
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
 //    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -397,7 +397,7 @@ static void run_recover (void) {
 
     // run recovery
     int r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r); 
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r); 
 
     // now verify contents of data_dir, should be no temp files, no loader-created iname files
     if (verbose)

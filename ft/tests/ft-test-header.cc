@@ -16,7 +16,7 @@ static void test_header (void) {
     FT_HANDLE t;
     int r;
     CACHETABLE ct;
-    char fname[]= __SRCFILE__ ".ft_handle";
+    const char *fname = TOKU_TEST_FILENAME;
 
     // First create dictionary
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);

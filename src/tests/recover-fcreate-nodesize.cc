@@ -15,8 +15,8 @@ static const char *namea="a.db"; uint32_t nodesizea = 0;
 static const char *nameb="b.db"; uint32_t nodesizeb = 64*1024;
 
 static void do_remove(DB_ENV *env, const char *filename) {
-    int r;
 #if TOKUDB
+    int r;
     DBT dname;
     DBT iname;
     dbt_init(&dname, filename, strlen(filename)+1);
@@ -24,28 +24,27 @@ static void do_remove(DB_ENV *env, const char *filename) {
     iname.flags |= DB_DBT_MALLOC;
     r = env->get_iname(env, &dname, &iname); CKERR(r);
     if (verbose) printf("%s -> %s\n", filename, (char *) iname.data);
-    char rmcmd[32 + strlen(ENVDIR) + strlen((char*)iname.data)];
-    sprintf(rmcmd, "rm %s/%s", ENVDIR, (char *) iname.data);
-    r = system(rmcmd); CKERR(r);
+    char rmpath[TOKU_PATH_MAX+1];
+    toku_path_join(rmpath, 2, TOKU_TEST_FILENAME, iname.data);
+    toku_os_recursive_delete(rmpath);
     toku_free(iname.data);
 #else
     (void) env;
-    char rmcmd[32 + strlen(ENVDIR) + strlen(filename)];
-    sprintf(rmcmd, "rm %s/%s", ENVDIR, filename);
-    r = system(rmcmd); CKERR(r);
+    char rmpath[TOKU_PATH_MAX+1];
+    toku_path_join(rmpath, 2, TOKU_TEST_FILENAME, filename);
+    toku_os_recursive_delete(rmpath);
 #endif
 }    
 
 static void run_test (void) {
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
@@ -82,7 +81,7 @@ static void run_recover (void) {
     // run recovery
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     
     // verify that the trees have the correct nodesizes
     uint32_t pagesize;
@@ -111,7 +110,7 @@ static void run_no_recover (void) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }
