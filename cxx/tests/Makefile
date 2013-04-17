@@ -23,7 +23,7 @@ LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz
 ifneq ($(OSX),)
  VGRIND=
 else
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../../newbrt/valgrind.suppressions
 endif
 
 default: build
