@@ -21,6 +21,7 @@ struct rbuf {
     unsigned int  size;
     unsigned int  ndone;
 };
+#define RBUF_INITIALIZER ((struct rbuf){.buf = NULL, .size=0, .ndone=0})
 
 static inline void rbuf_init(struct rbuf *r, unsigned char *buf, unsigned int size) {
     r->buf = buf;

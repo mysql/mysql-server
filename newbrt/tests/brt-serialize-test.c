@@ -105,9 +105,9 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         fill_bfe_for_min_read(&bfe, brt_h, NULL, string_key_cmp);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
         assert(r==0);
-        // assert all bp's are compressed
+        // assert all bp's are compressed or on disk.
         for (int i = 0; i < (*dn)->n_children; i++) {
-            assert(BP_STATE(*dn,i) == PT_COMPRESSED);
+            assert(BP_STATE(*dn,i) == PT_COMPRESSED || BP_STATE(*dn, i) == PT_ON_DISK);
         }
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
