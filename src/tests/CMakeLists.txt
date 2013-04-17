@@ -47,6 +47,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       del-multiple-srcdb
       directory_lock
       diskfull
+      dump-env
       env-put-multiple
       env_startup
       execute-updates
