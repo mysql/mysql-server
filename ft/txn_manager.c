@@ -359,16 +359,22 @@ int toku_txn_manager_start_txn(
     bool for_recovery)
 {
     int r;
+    XIDS xids;
+    TOKUTXN txn;
 
     // Do as much (safe) work as possible before serializing on the txn_manager lock.
     XIDS parent_xids;
-    if (parent == NULL)
+    if (parent == NULL) {
         parent_xids = xids_get_root_xids();
-    else
+    } else {
         parent_xids = parent->xids;
+    }
+    r = xids_create_unknown_child(parent_xids, &xids);
+    if (r != 0) {
+        return r;
+    }
 
-    TOKUTXN txn;
-    r = toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, for_recovery);
+    r = toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, xids, for_recovery);
     if (r != 0) {
         // logger is panicked
         return r;
@@ -393,11 +399,9 @@ int toku_txn_manager_start_txn(
         invariant(for_recovery);
         txn_manager->last_xid = max_xid(txn_manager->last_xid, xid);
     }
-    XIDS xids;
-    r = xids_create_child(parent_xids, &xids, xid);
-    assert_zero(r);
+    xids_finalize_with_child(txn->xids, xid);
 
-    toku_txn_update_xids_in_txn(txn, xid, xids);
+    toku_txn_update_xids_in_txn(txn, xid);
 
     if (!for_recovery) {
         // TODO(leif): this would be WRONG during recovery.  We cannot
