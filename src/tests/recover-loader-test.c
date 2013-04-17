@@ -51,7 +51,7 @@ static const int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT
 static BOOL do_test=FALSE, do_recover=FALSE;
 
 static DB_ENV *env;
-static int NUM_ROWS=100000;
+static int NUM_ROWS=50000000;
 static int USE_PUTS=0;
 
 enum {MAX_NAME=128};
