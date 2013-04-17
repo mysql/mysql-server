@@ -1,12 +1,9 @@
-# TODO(leif): will need to be smarter about this when we do trunk/tags/branches
-set(TOKU_SVNROOT "${TokuDB_SOURCE_DIR}/../.." CACHE FILEPATH "The top of the tokudb source tree, usod to find xz sources, jemalloc sources, test data files, etc.")
-
 include(ExternalProject)
 
 ## add jemalloc with an external project
-set(JEMALLOC_SOURCE_DIR "${TOKU_SVNROOT}/jemalloc-3.3.0" CACHE FILEPATH "Where to find jemalloc sources.")
+set(JEMALLOC_SOURCE_DIR "${TokuDB_SOURCE_DIR}/third_party/jemalloc" CACHE FILEPATH "Where to find jemalloc sources.")
 if (NOT EXISTS "${JEMALLOC_SOURCE_DIR}/configure")
-  message(FATAL_ERROR "Can't find jemalloc sources.  Please check them out to ${JEMALLOC_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or JEMALLOC_SOURCE_DIR.")
+  message(FATAL_ERROR "Can't find jemalloc sources.  Please check them out to ${JEMALLOC_SOURCE_DIR} or modify JEMALLOC_SOURCE_DIR.")
 endif ()
 set(jemalloc_configure_opts "CC=${CMAKE_C_COMPILER}" "--with-jemalloc-prefix=" "--with-private-namespace=tokudb_jemalloc_internal_" "--enable-cc-silence")
 if (NOT CMAKE_BUILD_TYPE MATCHES Release)
