@@ -120,39 +120,6 @@ toku_create_new_ftnode (
 }
 
 int
-toku_pin_ftnode(
-    FT_HANDLE brt,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    UNLOCKERS unlockers,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS bounds,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    FTNODE *node_p,
-    bool* msgs_applied)
-{
-    toku_cachetable_begin_batched_pin(brt->ft->cf);
-    int r = toku_pin_ftnode_batched(
-        brt,
-        blocknum,
-        fullhash,
-        unlockers,
-        ancestors,
-        bounds,
-        bfe,
-        lock_type,
-        apply_ancestor_messages,
-        false,
-        node_p,
-        msgs_applied
-        );
-    toku_cachetable_end_batched_pin(brt->ft->cf);
-    return r;
-}
-
-int
 toku_pin_ftnode_batched(
     FT_HANDLE brt,
     BLOCKNUM blocknum,

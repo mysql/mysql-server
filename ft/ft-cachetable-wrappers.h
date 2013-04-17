@@ -54,28 +54,6 @@ toku_create_new_ftnode (
     );
 
 /**
- * toku_pin_ftnode either pins a ftnode, if the operation is fast (because
- * a partial fetch is not required and there is no contention for the node)
- * or it returns TOKUDB_TRY_AGAIN after unlocking its ancestors (using 
- * unlockers and ancestors) and bringing the necessary pieces of the node
- * into memory.
- */
-int
-toku_pin_ftnode(
-    FT_HANDLE brt,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    UNLOCKERS unlockers,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS pbounds,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    FTNODE *node_p,
-    bool* msgs_applied
-    );
-
-/**
  * Batched version of toku_pin_ftnode, see cachetable batched API for more
  * details.
  */
