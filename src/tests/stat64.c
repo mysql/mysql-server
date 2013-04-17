@@ -73,7 +73,9 @@ test_stat64 (unsigned int N) {
         assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
         assert(s.bt_ndata == s.bt_nkeys);
         assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
-        assert(s.bt_fsize > N);
+        // cannot reliably test bt_fsize, because it
+	// measures the size of the file on disk.
+        //assert(s.bt_fsize > N);
     }
     r=txn->commit(txn, 0); CKERR(r);
 
@@ -107,7 +109,9 @@ test_stat64 (unsigned int N) {
         assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
         assert(s.bt_ndata == s.bt_nkeys);
         assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
-        assert(s.bt_fsize > N);
+        // cannot reliably test bt_fsize, because it
+	// measures the size of the file on disk.
+        //assert(s.bt_fsize > N);
     }
     r=txn->commit(txn, 0); CKERR(r);
 
