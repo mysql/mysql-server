@@ -216,10 +216,9 @@ uint_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
 
 #include <memory.h>
 
-unsigned int seed = 0xFEEDFACE;
-
 static uint64_t __attribute__((__unused__))
 random64(void) {
+    const unsigned int seed = 0xFEEDFACE;
     static int seeded = 0;
     if (!seeded) {
         seeded = 1;

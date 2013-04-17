@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include "toku_random.h"
 
-using namespace toku;
 bool fast = false;
 
 DB_ENV *env;

@@ -430,8 +430,3 @@ int toku_fsync_directory(const char *fname) {
     toku_free(dirname);
     return result;
 }
-
-FILE *toku_os_fmemopen(void *buf, size_t size, const char *mode) {
-    return fmemopen(buf, size, mode);
-}
-
