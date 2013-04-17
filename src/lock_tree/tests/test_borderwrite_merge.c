@@ -134,6 +134,12 @@ static void runtest(void) {
     lt_unlock('a');
     close_tree();
 
+    setup_tree();
+    lt_insert_write_range(0, 'a', 5, 10);
+    lt_insert_write_range(0, 'a', 20, 30);
+    lt_insert_write_range(0, 'a', 1, 35);
+    lt_unlock('a');
+    close_tree();
 }
 
 static void init_test(void) {

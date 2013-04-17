@@ -58,6 +58,8 @@ toku__rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(tree);
     if (tree->i.ranges_len < num) {
         u_int32_t temp_len = tree->i.ranges_len;
+        if (temp_len == 0)
+            temp_len = 1;
         while (temp_len < num) 
             temp_len *= 2;
         size_t start_size = toku_rt_memory_size(tree);
