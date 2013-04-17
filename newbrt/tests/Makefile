@@ -169,7 +169,7 @@ else
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
 	else \
-		test 0 = 1; \
+		cat $<.check.valgrind; test 0 = 1; \
 	fi \
 	$(SUMMARIZE_CMD)
 endif

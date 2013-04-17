@@ -2593,10 +2593,10 @@ toku_brt_broadcast_commit_all (BRT brt)
 
 // Effect: Insert the key-val pair into brt.
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
-    return toku_brt_maybe_insert(brt, key, val, txn, ZERO_LSN);
+    return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN);
 }
 
-int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, LSN oplsn) {
+int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
     int r = 0;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2628,7 +2628,7 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, LSN oplsn) 
     }
 
     LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
+    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
         r = 0;
     } else {
         BRT_MSG_S brtcmd = { BRT_INSERT, message_xids, .u.id={key,val}};
@@ -2638,10 +2638,10 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, LSN oplsn) 
 }
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
-    return toku_brt_maybe_delete(brt, key, txn, ZERO_LSN);
+    return toku_brt_maybe_delete(brt, key, txn, FALSE, ZERO_LSN);
 }
 
-int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, LSN oplsn) {
+int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
     int r;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2666,7 +2666,7 @@ int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, LSN oplsn) {
     }
     
     LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
+    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
         r = 0;
     } else {
         DBT val;
@@ -4531,10 +4531,10 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
 /* ********************************* delete **************************************/
 
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
-    return toku_brt_maybe_delete_both(brt, key, val, txn, ZERO_LSN);
+    return toku_brt_maybe_delete_both(brt, key, val, txn, FALSE, ZERO_LSN);
 }
 
-int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, LSN oplsn) {
+int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
     XIDS message_xids;
@@ -4562,7 +4562,7 @@ int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, LSN opl
     }
 
     LSN treelsn = toku_brt_checkpoint_lsn(brt);
-    if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
+    if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
         r = 0;
     } else {
         BRT_MSG_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
