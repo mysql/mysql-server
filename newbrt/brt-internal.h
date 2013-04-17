@@ -251,7 +251,7 @@ void toku_verify_or_set_counts(BRTNODE, BOOL);
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
-int toku_deserialize_brtheader_from (int fd, LSN required_lsn, struct brt_header **brth);
+int toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 
@@ -272,7 +272,7 @@ struct brtenv {
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
-extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN required_lsn, struct brt_header **header, BOOL* was_open);
+extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
 static const BRTNODE null_brtnode=0;
