@@ -17,7 +17,6 @@
 #include "ydb-internal.h"
 #include "le-cursor.h"
 #include "indexer.h"
-#include "brt-internal.h"
 #include "toku_atomic.h"
 #include "tokuconst.h"
 #include "brt.h"
@@ -284,14 +283,6 @@ build_index(DB_INDEXER *indexer) {
     return result;
 }
 
-static void
-require_local_checkpoint (BRT brt, TOKUTXN txn) {
-    toku_brtheader_lock(brt->h);
-    toku_list_push(&txn->checkpoint_before_commit,
-                   &brt->h->checkpoint_before_commit_link);
-    toku_brtheader_unlock(brt->h);
-}
-
 static int 
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
@@ -310,7 +301,7 @@ close_indexer(DB_INDEXER *indexer) {
         for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
             db = indexer->i->dest_dbs[which_db];
             brt = db_struct_i(db)->brt;
-            require_local_checkpoint(brt, tokutxn);
+            toku_brt_require_local_checkpoint(brt, tokutxn);
         }
 
         // Disassociate the indexer from the hot db and free_indexer
