@@ -33,7 +33,7 @@ static void lc_print_logcursor (TOKULOGCURSOR lc)  {
     printf("  n_logfiles = %d\n", lc->n_logfiles);
     printf("  cur_logfiles_index = %d\n", lc->cur_logfiles_index);
     printf("  cur_fp = %p\n", lc->cur_fp);
-    printf("  cur_lsn = %lu\n", lc->cur_lsn.lsn);
+    printf("  cur_lsn = %"PRIu64"\n", lc->cur_lsn.lsn);
     printf("  last_direction = %d\n", lc->last_direction);
 }
 
