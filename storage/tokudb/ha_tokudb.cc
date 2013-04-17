@@ -48,18 +48,20 @@ static const char *ha_tokudb_exts[] = {
     ha_tokudb_ext,
     NullS
 };
-#define declare_lockretry \
-    int lockretrycount;
 
 #define lockretryN(N) \
-  for (lockretrycount=0; lockretrycount<(N); lockretrycount++)
+  for (int lockretrycount=0; lockretrycount<(N); lockretrycount++)
 
 #define lockretry lockretryN(100)
 
 #define lockretry_wait \
     do { \
-        if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) \
+        if (error != DB_LOCK_NOTGRANTED) { \
+            break;  \
+        } \
+        if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) { \
             TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
+        } \
         usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
     } while (0)
 
@@ -1608,14 +1610,6 @@ int ha_tokudb::remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* tr
     //
     // transaction to be used for putting metadata into status.tokudb
     //
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { 
-        goto cleanup;
-    }
-
-    //
-    // transaction to be used for putting metadata into status.tokudb
-    //
     if (transaction == NULL) {
         error = db_env->txn_begin(db_env, 0, &txn, 0);
         if (error) { 
@@ -2700,8 +2694,6 @@ int ha_tokudb::write_row(uchar * record) {
     tokudb_trx_data *trx = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
 
-    declare_lockretry;
-
     is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
         (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
@@ -2789,8 +2781,6 @@ int ha_tokudb::write_row(uchar * record) {
                                  &row, 
                                  put_flags
                                  );
-        if (error != DB_LOCK_NOTGRANTED) 
-            break;
         lockretry_wait;
     }
 
@@ -2824,8 +2814,6 @@ int ha_tokudb::write_row(uchar * record) {
                                                     &row, 
                                                     put_flags
                                                     );
-                if (error != DB_LOCK_NOTGRANTED) 
-                    break;
                 lockretry_wait;
             }
         }
@@ -2838,8 +2826,6 @@ int ha_tokudb::write_row(uchar * record) {
                                                     &prim_key, 
                                                     put_flags
                                                     );
-                if (error != DB_LOCK_NOTGRANTED) 
-                    break;
                 lockretry_wait;
             }
         }
@@ -4479,9 +4465,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     // QQQ this is here to allow experiments without transactions
     int error = 0;
     tokudb_trx_data *trx = NULL;
-#if 0
-    declare_lockretry;
-#endif
 
 
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
