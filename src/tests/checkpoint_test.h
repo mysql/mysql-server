@@ -463,7 +463,8 @@ verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
 static void UU()
 snapshot(DICTIONARY d, int do_checkpoint) {
     if (do_checkpoint) {
-        env->txn_checkpoint(env, 0, 0, 0);
+        int r = env->txn_checkpoint(env, 0, 0, 0);
+        CKERR(r);
     }
     else {
         db_shutdown(d);

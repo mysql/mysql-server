@@ -105,6 +105,7 @@ BDB_DONTRUN_TESTS = \
 	checkpoint_callback \
 	recovery_stress \
 	recovery_fileops_stress \
+	recovery_fileops_unit \
 	test_txn_nested1 \
 	test_txn_nested2 \
 	test_txn_nested3 \
@@ -503,6 +504,58 @@ recover_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	done && \
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
 	) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+recovery_fileops_unit.tdbrun: SHELL=/bin/bash
+recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	rm -rf dir.$@.errors
+	mkdir dir.$@.errors
+	( \
+        Oset="c d r"; \
+        aset="0 1"; \
+        bset="0 1"; \
+        cset="0 1 2"; \
+        fset="0 1"; \
+        count=0; \
+        for O in $$Oset; do \
+           if test $$O = c ; then \
+              gset="0"; \
+              hset="0"; \
+           else \
+              gset="0 1 2 3 4 5"; \
+              hset="0 1"; \
+           fi; \
+           for a in $$aset; do \
+              for b in $$bset; do \
+                 if test $$b -eq 0 ; then \
+                    dset="0"; \
+                    eset="0"; \
+                 else \
+                    dset="0 1"; \
+                    eset="0 1"; \
+                 fi; \
+                 for c in $$cset; do \
+                    for d in $$dset; do \
+                       for e in $$eset; do \
+                          for f in $$fset; do \
+                             for g in $$gset; do \
+                                for h in $$hset; do \
+                                   errorfile=dir.$@.errors/crash.$$O.$$a.$$b.$$c.$$d.$$e.$$f.$$g.$$h; \
+                                   combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$"; \
+                                   ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile && { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
+                                   grep 'HAPPY CRASH' $$errorfile >/dev/null || { cat $$errorfile; echo Error: incorrect crash in $$errorfile ; exit 1; }; \
+                                   $(TDBVGRIND) ./$< $(VERBVERBOSE) -r $$combination || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
+                                   count=$$(($$count + 1)); \
+                                done; \
+                             done; \
+                          done; \
+                       done; \
+                    done; \
+                 done; \
+              done; \
+           done; \
+        done; \
+        echo $$count tests passed; \
+	) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
