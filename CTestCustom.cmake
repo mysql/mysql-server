@@ -102,12 +102,12 @@ endif()
 
 set(perf_tests
   perf_checkpoint_var.tdb
-  perf_cursor_nop.c
-  perf_malloc_free.c
-  perf_nop.c
-  perf_ptquery.c
-  perf_ptquery2.c
-  perf_xmalloc_free.c
+  perf_cursor_nop.tdb
+  perf_malloc_free.tdb
+  perf_nop.tdb
+  perf_ptquery.tdb
+  perf_ptquery2.tdb
+  perf_xmalloc_free.tdb
   )
 
 ## we also don't need to run perf tests every time
