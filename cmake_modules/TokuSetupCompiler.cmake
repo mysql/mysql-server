@@ -116,12 +116,14 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
   ## set icc warnings
   set(WARN_CFLAGS
     -Wall
+    -Werror
     -Wcheck  ## icc version of -Wextra
     )
 else()
   ## set gcc warnings
   set(WARN_CFLAGS
     -Wall
+    -Werror
     -Wextra
     -Wcast-align
     -Wbad-function-cast
