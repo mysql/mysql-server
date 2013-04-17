@@ -81,11 +81,9 @@ count_temp(char * dirname) {
     DIR * dir = opendir(dirname);
     
     struct dirent *ent;
-    while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
+    while ((ent=readdir(dir)))
+	if ((ent->d_type == DT_UNKNOWN || ent->d_type == DT_REG) && strncmp(ent->d_name, loader_temp_prefix, 6) == 0)
 	    n++;
-	}
-    }
     closedir(dir);
     return n;
 }
