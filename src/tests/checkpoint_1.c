@@ -247,6 +247,10 @@ snapshot(DICTIONARY d, int do_checkpoint) {
     }
 }
 
+// Only useful for single threaded testing, 
+// but can be accessed from checkpoint_callback.
+static DICTIONARY test_dictionary = NULL;
+
 static void
 checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     env_startup();
@@ -255,6 +259,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     init_dictionary(&db_control, flags, "control");
     DICTIONARY_S db_test;
     init_dictionary(&db_test, flags, "test");
+    test_dictionary = &db_test;
 
     db_startup(&db_test, NULL);
     db_startup(&db_control, NULL);
@@ -285,12 +290,22 @@ runtests(u_int32_t flags, u_int32_t n, int snap_all) {
     checkpoint_test_1(flags, n, snap_all);
 }
 
+// Purpose is to scribble over test db while checkpoint is 
+// in progress.
+void checkpoint_callback(void * extra) {
+    DICTIONARY d = (DICTIONARY) extra;
+    int i;
+    char name[MAX_NAME*2];
+    fill_name(d, name, sizeof(name));
 
-void checkpoint_callback(void * UU(extra)) {
     if (verbose) {
-	printf("checkpoint callback called\n");
+	printf("checkpoint callback inserting randomly into %s\n",
+	       name);
 	fflush(stdout);
     }
+    for (i=0; i < 1024; i++)
+	insert_random(d->db, NULL, NULL);
+    
 }
 
 int
@@ -311,7 +326,7 @@ test_main (int argc, const char *argv[]) {
         }
     }
 
-    db_env_set_checkpoint_callback(checkpoint_callback, NULL);
+    db_env_set_checkpoint_callback(checkpoint_callback, (void*) test_dictionary);
     runtests(0,4,1);
 
     return 0;
