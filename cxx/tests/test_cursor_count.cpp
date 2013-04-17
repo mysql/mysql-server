@@ -334,7 +334,14 @@ int main(int argc, char *argv[]) {
 
     int r;
 
+#if defined(USE_ENV) && USE_ENV
+    DbEnv env(DB_CXX_NO_EXCEPTIONS);
+    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    Db db(&env, DB_CXX_NO_EXCEPTIONS);
+#else
     Db db(0, DB_CXX_NO_EXCEPTIONS);
+#endif
+
     r = db.set_flags(DB_DUP + DB_DUPSORT); assert(r == 0);
     unlink(FNAME);
     r = db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
