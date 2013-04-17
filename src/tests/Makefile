@@ -107,7 +107,6 @@ BDB_DONTRUN_TESTS = \
 	cursor-isolation \
 	cursor-set-del-rmw \
 	cursor-set-range-rmw \
-	db-put-simple-deadlock \
 	del-simple \
 	del-multiple \
 	del-multiple-huge-primary-row \
