@@ -12,7 +12,7 @@ int main() {
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     
-    for (duplicates = 0; duplicates < 2; duplicates++) {
+    for (duplicates = FALSE; duplicates < TRUE; duplicates++) {
         r = toku_lt_create(&lt, duplicates, dbpanic, mgr,
                            get_compare_fun_from_db, get_dup_compare_from_db,
                            toku_malloc, toku_free, toku_realloc);

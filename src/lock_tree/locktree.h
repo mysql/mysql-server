@@ -513,4 +513,8 @@ void toku_lt_add_ref(toku_lock_tree* tree);
 
 int toku_lt_remove_ref(toku_lock_tree* tree);
 
+int toku__lt_point_cmp(const toku_point* x, const toku_point* y);
+
+toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
+
 #endif

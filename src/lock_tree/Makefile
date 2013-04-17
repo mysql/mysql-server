@@ -14,6 +14,7 @@ VISIBILITY = -fvisibility=hidden
 CFLAGS = -Wall -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 ifeq ($(CC),icc)
 CFLAGS += -g
+CFLAGS += -Werror
 CFLAGS += -diag-disable 177
 CFLAGS += -diag-disable 589
 CFLAGS += -diag-disable 981
