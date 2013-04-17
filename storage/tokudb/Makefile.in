@@ -17,6 +17,7 @@
 #called from the top level Makefile
 
 
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
@@ -57,6 +58,13 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
+LIBRARIES = $(noinst_LIBRARIES)
+libtokudb_a_AR = $(AR) $(ARFLAGS)
+libtokudb_a_LIBADD =
+am_libtokudb_a_OBJECTS = libtokudb_a-hatoku_hton.$(OBJEXT) \
+	libtokudb_a-hatoku_cmp.$(OBJEXT) \
+	libtokudb_a-ha_tokudb.$(OBJEXT)
+libtokudb_a_OBJECTS = $(am_libtokudb_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -85,8 +93,8 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(ha_tokudb_la_SOURCES)
-DIST_SOURCES = $(ha_tokudb_la_SOURCES)
+SOURCES = $(libtokudb_a_SOURCES) $(ha_tokudb_la_SOURCES)
+DIST_SOURCES = $(libtokudb_a_SOURCES) $(ha_tokudb_la_SOURCES)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
@@ -396,27 +404,25 @@ MYSQLDATAdir = $(localstatedir)
 MYSQLSHAREdir = $(pkgdatadir)
 MYSQLBASEdir = $(prefix)
 MYSQLLIBdir = $(pkglibdir)
-TOKUDBdir = $(top_builddir)/../tokudb/release
 INCLUDES = -I$(top_builddir)/include \
 			-I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir) \
-			-I$(TOKUDBdir)/include
+			-I$(TOKUFRACTALTREE)/include
 
 LDADD = 
 noinst_HEADERS = 
 EXTRA_LTLIBRARIES = ha_tokudb.la
 pkglib_LTLIBRARIES = @plugin_tokudb_shared_target@
-ha_tokudb_la_LIBADD = -L$(TOKUDBdir)/lib -ltokudb -ltokuportability
-ha_tokudb_la_LDFLAGS = -module -rpath $(MYSQLLIBdir)
+ha_tokudb_la_LIBADD = -L$(TOKUFRACTALTREE)/lib -ltokudb -ltokuportability
+ha_tokudb_la_LDFLAGS = -module -rpath $(pkglibdir)/plugin
 ha_tokudb_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_PLUGIN
 ha_tokudb_la_SOURCES = hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
-
-#EXTRA_LIBRARIES =	libtokudb.a
-#noinst_LIBRARIES =	@plugin_tokudb_static_target@
-#libtokudb_a_CXXFLAGS =	$(AM_CFLAGS)
-#libtokudb_a_SOURCES =	ha_tokudb.cc
+EXTRA_LIBRARIES = libtokudb.a
+noinst_LIBRARIES = @plugin_tokudb_static_target@
+libtokudb_a_CXXFLAGS = $(AM_CFLAGS)
+libtokudb_a_SOURCES = hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
 EXTRA_DIST = CMakeLists.txt plug.in
 all: all-am
 
@@ -451,6 +457,13 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+libtokudb.a: $(libtokudb_a_OBJECTS) $(libtokudb_a_DEPENDENCIES) 
+	-rm -f libtokudb.a
+	$(libtokudb_a_AR) libtokudb.a $(libtokudb_a_OBJECTS) $(libtokudb_a_LIBADD)
+	$(RANLIB) libtokudb.a
 install-pkglibLTLIBRARIES: $(pkglib_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
 	test -z "$(pkglibdir)" || $(MKDIR_P) "$(DESTDIR)$(pkglibdir)"
@@ -490,6 +503,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_tokudb_la-ha_tokudb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_tokudb_la-hatoku_cmp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_tokudb_la-hatoku_hton.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtokudb_a-ha_tokudb.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtokudb_a-hatoku_cmp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtokudb_a-hatoku_hton.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -511,6 +527,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+
+libtokudb_a-hatoku_hton.o: hatoku_hton.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-hatoku_hton.o -MD -MP -MF $(DEPDIR)/libtokudb_a-hatoku_hton.Tpo -c -o libtokudb_a-hatoku_hton.o `test -f 'hatoku_hton.cc' || echo '$(srcdir)/'`hatoku_hton.cc
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-hatoku_hton.Tpo $(DEPDIR)/libtokudb_a-hatoku_hton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hatoku_hton.cc' object='libtokudb_a-hatoku_hton.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-hatoku_hton.o `test -f 'hatoku_hton.cc' || echo '$(srcdir)/'`hatoku_hton.cc
+
+libtokudb_a-hatoku_hton.obj: hatoku_hton.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-hatoku_hton.obj -MD -MP -MF $(DEPDIR)/libtokudb_a-hatoku_hton.Tpo -c -o libtokudb_a-hatoku_hton.obj `if test -f 'hatoku_hton.cc'; then $(CYGPATH_W) 'hatoku_hton.cc'; else $(CYGPATH_W) '$(srcdir)/hatoku_hton.cc'; fi`
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-hatoku_hton.Tpo $(DEPDIR)/libtokudb_a-hatoku_hton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hatoku_hton.cc' object='libtokudb_a-hatoku_hton.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-hatoku_hton.obj `if test -f 'hatoku_hton.cc'; then $(CYGPATH_W) 'hatoku_hton.cc'; else $(CYGPATH_W) '$(srcdir)/hatoku_hton.cc'; fi`
+
+libtokudb_a-hatoku_cmp.o: hatoku_cmp.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-hatoku_cmp.o -MD -MP -MF $(DEPDIR)/libtokudb_a-hatoku_cmp.Tpo -c -o libtokudb_a-hatoku_cmp.o `test -f 'hatoku_cmp.cc' || echo '$(srcdir)/'`hatoku_cmp.cc
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-hatoku_cmp.Tpo $(DEPDIR)/libtokudb_a-hatoku_cmp.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hatoku_cmp.cc' object='libtokudb_a-hatoku_cmp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-hatoku_cmp.o `test -f 'hatoku_cmp.cc' || echo '$(srcdir)/'`hatoku_cmp.cc
+
+libtokudb_a-hatoku_cmp.obj: hatoku_cmp.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-hatoku_cmp.obj -MD -MP -MF $(DEPDIR)/libtokudb_a-hatoku_cmp.Tpo -c -o libtokudb_a-hatoku_cmp.obj `if test -f 'hatoku_cmp.cc'; then $(CYGPATH_W) 'hatoku_cmp.cc'; else $(CYGPATH_W) '$(srcdir)/hatoku_cmp.cc'; fi`
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-hatoku_cmp.Tpo $(DEPDIR)/libtokudb_a-hatoku_cmp.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hatoku_cmp.cc' object='libtokudb_a-hatoku_cmp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-hatoku_cmp.obj `if test -f 'hatoku_cmp.cc'; then $(CYGPATH_W) 'hatoku_cmp.cc'; else $(CYGPATH_W) '$(srcdir)/hatoku_cmp.cc'; fi`
+
+libtokudb_a-ha_tokudb.o: ha_tokudb.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-ha_tokudb.o -MD -MP -MF $(DEPDIR)/libtokudb_a-ha_tokudb.Tpo -c -o libtokudb_a-ha_tokudb.o `test -f 'ha_tokudb.cc' || echo '$(srcdir)/'`ha_tokudb.cc
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-ha_tokudb.Tpo $(DEPDIR)/libtokudb_a-ha_tokudb.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='ha_tokudb.cc' object='libtokudb_a-ha_tokudb.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-ha_tokudb.o `test -f 'ha_tokudb.cc' || echo '$(srcdir)/'`ha_tokudb.cc
+
+libtokudb_a-ha_tokudb.obj: ha_tokudb.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -MT libtokudb_a-ha_tokudb.obj -MD -MP -MF $(DEPDIR)/libtokudb_a-ha_tokudb.Tpo -c -o libtokudb_a-ha_tokudb.obj `if test -f 'ha_tokudb.cc'; then $(CYGPATH_W) 'ha_tokudb.cc'; else $(CYGPATH_W) '$(srcdir)/ha_tokudb.cc'; fi`
+@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/libtokudb_a-ha_tokudb.Tpo $(DEPDIR)/libtokudb_a-ha_tokudb.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='ha_tokudb.cc' object='libtokudb_a-ha_tokudb.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtokudb_a_CXXFLAGS) $(CXXFLAGS) -c -o libtokudb_a-ha_tokudb.obj `if test -f 'ha_tokudb.cc'; then $(CYGPATH_W) 'ha_tokudb.cc'; else $(CYGPATH_W) '$(srcdir)/ha_tokudb.cc'; fi`
 
 ha_tokudb_la-hatoku_hton.lo: hatoku_hton.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ha_tokudb_la_CXXFLAGS) $(CXXFLAGS) -MT ha_tokudb_la-hatoku_hton.lo -MD -MP -MF $(DEPDIR)/ha_tokudb_la-hatoku_hton.Tpo -c -o ha_tokudb_la-hatoku_hton.lo `test -f 'hatoku_hton.cc' || echo '$(srcdir)/'`hatoku_hton.cc
@@ -614,7 +672,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(HEADERS)
+all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(HEADERS)
 installdirs:
 	for dir in "$(DESTDIR)$(pkglibdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
@@ -645,8 +703,8 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-pkglibLTLIBRARIES \
-	mostlyclean-am
+clean-am: clean-generic clean-libtool clean-noinstLIBRARIES \
+	clean-pkglibLTLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -705,18 +763,19 @@ uninstall-am: uninstall-pkglibLTLIBRARIES
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-pkglibLTLIBRARIES ctags distclean \
-	distclean-compile distclean-generic distclean-libtool \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-pkglibLTLIBRARIES \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-pkglibLTLIBRARIES
+	clean-libtool clean-noinstLIBRARIES clean-pkglibLTLIBRARIES \
+	ctags distclean distclean-compile distclean-generic \
+	distclean-libtool distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-pdf install-pdf-am \
+	install-pkglibLTLIBRARIES install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags uninstall uninstall-am \
+	uninstall-pkglibLTLIBRARIES
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
