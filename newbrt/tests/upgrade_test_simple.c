@@ -69,19 +69,19 @@ static int
 insert_something(BRT t, CACHETABLE UU(ct), void *UU(extra))
 {
     assert(t);
-
-    return 0;
-}
-
-static int
-scan_tree(BRT t, CACHETABLE UU(ct), void *UU(extra))
-{
-    assert(t);
-
+    int r = 0;
+    unsigned int dummy_value = 1 << 31;
+    DBT key;
+    DBT val;
+    toku_fill_dbt(&key, &dummy_value, sizeof(unsigned int));
+    toku_fill_dbt(&val, &dummy_value, sizeof(unsigned int));
+    r = toku_brt_insert (t, &key, &val, 0);
+    CKERR(r);
     return 0;
 }
 
 typedef int (*tree_cb)(BRT t, CACHETABLE ct, void *extra);
+
 static int
 with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
 {
@@ -118,6 +118,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
 #define TMPBRTFMT "%s-tmpdata.brt"
 static const char *origbrt_5_0 = "upgrade_test_data.brt.5.0";
 static const char *origbrt_4_2 = "upgrade_test_data.brt.4.2";
+static const char *not_flat_4_2 = "upgrade_test_data.brt.4.2.not.flat";
 
 static int
 run_test(const char *prog, const char *origbrt) {
@@ -144,9 +145,6 @@ run_test(const char *prog, const char *origbrt) {
     fraction = 1.0;
     r = with_open_tree(tempbrt, do_hot_optimize, &fraction);
     CKERR(r);
-    r = with_open_tree(tempbrt, scan_tree, NULL);
-    CKERR(r);
-
     r = unlink(tempbrt);
     CKERR(r);
 
@@ -161,6 +159,9 @@ test_main(int argc __attribute__((__unused__)), const char *argv[])
     r = run_test(argv[0], origbrt_5_0);
     CKERR(r);
     r = run_test(argv[0], origbrt_4_2);
+    CKERR(r);
+
+    r = run_test(argv[0], not_flat_4_2);
     CKERR(r);
 
     return r;
