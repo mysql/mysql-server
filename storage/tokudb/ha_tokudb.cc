@@ -11,6 +11,10 @@
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
 
+#if !defined(HA_END_SPACE_KEY) || HA_END_SPACE_KEY != 0
+#error
+#endif
+
 unsigned long my_getphyspages() {
     return sysconf(_SC_PHYS_PAGES);
 }
@@ -1625,73 +1629,41 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     DBUG_ENTER("ha_tokudb::index_read");
     DBT row;
     int error;
-    KEY *key_info = &table->key_info[active_index];
-    int do_prev = 0;
 
     table->in_use->status_var.ha_read_key_count++;
     bzero((void *) &row, sizeof(row));
-    if (find_flag == HA_READ_BEFORE_KEY) {
-        find_flag = HA_READ_KEY_OR_NEXT;
-        do_prev = 1;
-    } else if (find_flag == HA_READ_PREFIX_LAST_OR_PREV) {
-        find_flag = HA_READ_AFTER_KEY;
-        do_prev = 1;
-    }
-    if (key_len == key_info->key_length && !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
-        if (find_flag == HA_READ_KEY_EXACT) {
-            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET);
-            error = read_row(error, buf, active_index, &row, 0, 0);
-        } else if (find_flag == HA_READ_AFTER_KEY) {
-            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET_RANGE);
-            if (error == 0) {
-                DBT curkey; memset(&curkey, 0, sizeof curkey); curkey.flags = DB_DBT_REALLOC;
-                DBT curval; memset(&curval, 0, sizeof curval); curval.flags = DB_DBT_REALLOC;
-                error = cursor->c_get(cursor, &curkey, &curval, DB_CURRENT);
-                if (error == 0 && tokudb_cmp_packed_key(share->key_file[active_index], &curkey, &last_key) == 0) {
-                    error = cursor->c_get(cursor, &curkey, &row, DB_NEXT);
-                }
-                if (curkey.data) free(curkey.data);
-                if (curval.data) free(curval.data);
+    pack_key(&last_key, active_index, key_buff, key, key_len);
+
+    switch (find_flag) {
+    case HA_READ_KEY_EXACT:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET);
+        error = read_row(error, buf, active_index, &row, 0, 0);
+        break;
+    case HA_READ_AFTER_KEY:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0) {
+            DBT orig_key;
+            pack_key(&orig_key, active_index, key_buff2, key, key_len);
+            if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) == 0) {
+                error = cursor->c_get(cursor, &last_key, &row, DB_NEXT);
             }
-            error = read_row(error, buf, active_index, &row, 0, 0);
-        } else if (find_flag == HA_READ_KEY_OR_NEXT) {
-            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET_RANGE);
-            error = read_row(error, buf, active_index, &row, 0, 0);
-        } else {
-            assert(0);
-#if 0
-            if (find_flag == HA_READ_AFTER_KEY) {
-                assert(0);
-                key_info->handler.bdb_return_if_eq = 1;
-            }
-            error = read_row(cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, 
-                                           (find_flag == HA_READ_KEY_EXACT ? DB_SET : DB_SET_RANGE)), buf, active_index, &row, (DBT *) 0, 0);
-            key_info->handler.bdb_return_if_eq = 0;
-#endif
         }
-    } else {
-        /* read of partial key */
-        pack_key(&last_key, active_index, key_buff, key, key_len);
-        /* Store for compare */
-        memcpy(key_buff2, key_buff, (key_len = last_key.size));
-        /*
-           If HA_READ_AFTER_KEY is set, return next key, else return first
-           matching key.
-         */
-        assert(0);
-        key_info->handler.bdb_return_if_eq = (find_flag == HA_READ_AFTER_KEY ? 1 : -1);
-        error = read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE), buf, active_index, &row, (DBT *) 0, 0);
-        key_info->handler.bdb_return_if_eq = 0;
-        if (!error && find_flag == HA_READ_KEY_EXACT) {
-            /* Ensure that we found a key that is equal to the current one */
-            if (!error && tokudb_key_cmp(table, key_info, key_buff2, key_len))
-                error = HA_ERR_KEY_NOT_FOUND;
-        }
+        error = read_row(error, buf, active_index, &row, 0, 0);
+        break;
+    case HA_READ_KEY_OR_NEXT:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        error = read_row(error, buf, active_index, &row, 0, 0);
+        break;
+    case HA_READ_BEFORE_KEY:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0)
+            error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+        break;
+    default:
+        assert(0); // QQQ need BEFORE(k), etc.
+        break;
     }
-    if (do_prev) {
-        bzero((void *) &row, sizeof(row));
-        error = read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV), buf, active_index, &row, &last_key, 1);
-    }
+
     DBUG_RETURN(error);
 }
 
