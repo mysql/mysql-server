@@ -651,21 +651,22 @@ static int generate_row_for_put(
 // int if the key size is exactly 4, and it treats
 // the key as an 8 byte int if the key size is 8 or more.
 
-static uint64_t breverse(uint64_t v)
+static int64_t breverse(int64_t v)
 // Effect: return the bits in i, reversed
 // Notes: implementation taken from http://graphics.stanford.edu/~seander/bithacks.html#BitReverseObvious
 // Rationale: just a hack to spread out the keys during loading, doesn't need to be fast but does need to be correct.
 {
-    uint64_t r = v; // r will be reversed bits of v; first get LSB of v
+    uint64_t k = v; // r will be reversed bits of v; first get LSB of v
     int s = sizeof(v) * CHAR_BIT - 1; // extra shift needed at end
 
     for (v >>= 1; v; v >>= 1) {
-        r <<= 1;
-        r |= v & 1;
+        k <<= 1;
+        k |= v & 1;
         s--;
     }
-    r <<= s; // shift when v's highest bits are zero
-    return r;
+    k <<= s; // shift when v's highest bits are zero
+    int64_t r = k;
+    return r < 0 ? -r : r;
 }
 
 static void
@@ -673,10 +674,10 @@ fill_key_buf(int64_t key, uint8_t *data, struct cli_args *args) {
 // Effect: Fill data with a specific little-endian integer, 4 or 8 bytes long
 //         depending on args->key_size, possibly padded with zeroes.
 // Requires: *data is at least sizeof(uint64_t)
-    invariant(key >= 0);
     if (args->disperse_keys) {
         key = breverse(key);
     }
+    invariant(key >= 0);
     if (args->key_size == sizeof(int)) {
         const int key32 = key;
         memcpy(data, &key32, sizeof(key32));
