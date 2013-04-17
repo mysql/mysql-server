@@ -13,7 +13,7 @@ DB *db;
 void initialize (void) {
     int r;
     system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    toku_os_mkdir(ENVDIR, 0777);
 
     // setup environment
     {
