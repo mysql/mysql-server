@@ -56,6 +56,8 @@ int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = DB_YESOVERWRITE;
 double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 int do_append = 0;
+int do_checkpoint_period = 0;
+u_int32_t checkpoint_period = 0;
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -113,11 +115,20 @@ static void benchmark_setup (void) {
         if (r != 0) 
             printf("WARNING: set_cachesize %d\n", r);
     }
-
     {
 	r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	assert(r == 0);
     }
+
+#if TOKUDB
+    if (do_checkpoint_period) {
+        r = dbenv->checkpointing_set_period(dbenv, checkpoint_period);
+        assert(r == 0);
+        u_int32_t period;
+        r = dbenv->checkpointing_get_period(dbenv, &period);
+        assert(r == 0 && period == checkpoint_period);
+    }
+#endif
 
     r = db_create(&db, dbenv, 0);
     assert(r == 0);
@@ -323,6 +334,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --append              append to an existing file\n");
+    fprintf(stderr, "    --checkpoint-period %d       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -373,22 +385,6 @@ int main (int argc, const char *argv[]) {
 	    verbose--; if (verbose<0) verbose=0;
 	} else if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
-        } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
-            if (i+1 >= argc) return print_usage(argv[0]);
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_TXN;
-            else
-                env_open_flags &= ~DB_INIT_TXN;
-        } else if (strcmp(arg, "--DB_INIT_LOG") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOG;
-            else
-                env_open_flags &= ~DB_INIT_LOG;
-        } else if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOCK;
-            else
-                env_open_flags &= ~DB_INIT_LOCK;
         } else if (strcmp(arg, "--noserial") == 0) {
 	    noserial=1;
 	} else if (strcmp(arg, "--norandom") == 0) {
@@ -444,6 +440,26 @@ int main (int argc, const char *argv[]) {
             srandom(atoi(argv[++i]));
         } else if (strcmp(arg, "--append") == 0) {
             do_append = 1;
+        } else if (strcmp(arg, "--checkpoint-period") == 0) {
+            if (i+1 >= argc) return print_usage(argv[9]);
+            do_checkpoint_period = 1;
+            checkpoint_period = (u_int32_t) atoi(argv[++i]);
+        } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_TXN;
+            else
+                env_open_flags &= ~DB_INIT_TXN;
+        } else if (strcmp(arg, "--DB_INIT_LOG") == 0) {
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_LOG;
+            else
+                env_open_flags &= ~DB_INIT_LOG;
+        } else if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_LOCK;
+            else
+                env_open_flags &= ~DB_INIT_LOCK;
         } else {
 	    return print_usage(argv[0]);
 	}
