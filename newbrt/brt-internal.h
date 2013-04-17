@@ -253,12 +253,12 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_cmd_type, char
 int toku_set_func_fsync (int (*fsync_function)(int));
 
 // These two go together to do lookups in a brtnode using the keys in a command.
-struct cmd_leafval_bessel_extra {
+struct cmd_leafval_heaviside_extra {
     BRT t;
     BRT_CMD cmd;
     int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
-int toku_cmd_leafval_bessel (OMTVALUE leafentry, void *extra);
+int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
 int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
