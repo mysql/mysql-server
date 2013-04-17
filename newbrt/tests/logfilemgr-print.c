@@ -1,7 +1,7 @@
 #include "test.h"
 #include "logfilemgr.h"
 
-int test_main(int argc, const char *argv[]) {
+int test_main(int argc __attribute__((unused)), const char *argv[] __attribute__((unused))) {
     int r;
 
     TOKULOGFILEMGR lfm = NULL;

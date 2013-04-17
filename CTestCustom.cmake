@@ -160,5 +160,4 @@ endif()
 
 list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "xz-4.999.9beta/src/liblzma"              # don't complain about warnings in xz source
-  "tokudb/portability/tests/test-rwlock.c"  # non-static functions seem to be on purpose
   )

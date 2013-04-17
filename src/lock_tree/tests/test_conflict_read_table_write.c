@@ -9,12 +9,6 @@
 
 #include "test.h"
 
-static void sortit(txnid_set *txns) {
-    size_t n = txnid_set_size(txns);
-    for (size_t i = 1; i < n; i++)
-        assert(txnid_set_get(txns, i) > txnid_set_get(txns, i-1));
-}
-
 int main(int argc, const char *argv[]) {
     int r;
 
@@ -52,8 +46,6 @@ int main(int argc, const char *argv[]) {
     assert(r == 0 && lt);
 
     DBT key_l; dbt_init(&key_l, "L", 1);
-
-    txnid_set conflicts; 
 
     const TXNID txn_a = 1;
     toku_lock_request a_r_t; toku_lock_request_init(&a_r_t, txn_a, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_READ);

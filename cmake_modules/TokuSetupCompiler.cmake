@@ -58,15 +58,16 @@ endfunction(maybe_add_gcov_to_libraries)
 
 include(CheckCCompilerFlag)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 ## adds a compiler flag if the compiler supports it
-function(set_cflags_if_supported)
+macro(set_cflags_if_supported)
   foreach(flag ${ARGN})
     check_c_compiler_flag(${flag} HAVE_${flag})
     if (HAVE_${flag})
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
     endif ()
   endforeach(flag)
-endfunction(set_cflags_if_supported)
+endmacro(set_cflags_if_supported)
 
 ## disable some warnings
 set_cflags_if_supported(
@@ -115,15 +116,11 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
 
   ## set icc warnings
   set(WARN_CFLAGS
-    -Wall
-    -Werror
     -Wcheck  ## icc version of -Wextra
     )
 else()
   ## set gcc warnings
   set(WARN_CFLAGS
-    -Wall
-    -Werror
     -Wextra
     -Wcast-align
     -Wbad-function-cast

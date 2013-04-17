@@ -238,7 +238,6 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             assert(!h->dirty); // it should not have been dirtied by the toku_brt_is_empty test.
         }
 
-        char *error_string_ignore = NULL;
         r = toku_brt_close(brt_to_close, FALSE, ZERO_LSN);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
