@@ -231,16 +231,21 @@ dump_block_translation(FT h, uint64_t offset) {
 }
 
 static void
-dump_fragmentation(int UU(f), FT h) {
+dump_fragmentation(int UU(f), FT h, int tsv) {
     int64_t used_space;
     int64_t total_space;
     toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
     int64_t fragsizes = total_space - used_space;
 
-    printf("used_size\t%" PRId64 "\n",  used_space);
-    printf("total_size\t%" PRId64 "\n", total_space);
-    printf("fragsizes\t%" PRId64 "\n", fragsizes);
-    printf("fragmentation\t%.1f\n", 100. * ((double)fragsizes / (double)(total_space)));
+    if (tsv) {
+        printf("%" PRId64 "\t%" PRId64 "\t%" PRId64 "\t%.1f\n", used_space, total_space, fragsizes,
+               100. * ((double)fragsizes / (double)(total_space)));
+    } else {
+        printf("used_size\t%" PRId64 "\n",  used_space);
+        printf("total_size\t%" PRId64 "\n", total_space);
+        printf("fragsizes\t%" PRId64 "\n", fragsizes);
+        printf("fragmentation\t%.1f\n", 100. * ((double)fragsizes / (double)(total_space)));
+    }
 }
 
 typedef struct {
@@ -415,7 +420,7 @@ split_fields (char *line, char *fields[], int maxfields) {
 
 static int
 usage(const char *arg0) {
-    printf("Usage: %s [--nodata] [--i[nteractive]|--fragmentation|--translation-table|--rootnode] ftfilename\n", arg0);
+    printf("Usage: %s [--nodata] [--i[nteractive]|--fragmentation [--tsv]|--translation-table|--rootnode] ftfilename\n", arg0);
     return 1;
 }
 
@@ -461,6 +466,7 @@ main (int argc, const char *const argv[]) {
     int fragmentation = 0;
     int translation_table = 0;
     int rootnode = 0;
+    int tsv = 0;
 
     const char *arg0 = argv[0];
     argc--; argv++;
@@ -471,6 +477,8 @@ main (int argc, const char *const argv[]) {
 	    interactive = 1;
 	} else if (strcmp(argv[0], "--fragmentation") == 0) {
 	    fragmentation = 1;
+	} else if (strcmp(argv[0], "--tsv") == 0) {
+	    tsv = 1;
 	} else if (strcmp(argv[0], "--translation-table") == 0) {
 	    translation_table = 1;
 	} else if (strcmp(argv[0], "--rootnode") == 0) {
@@ -533,7 +541,7 @@ main (int argc, const char *const argv[]) {
 		    offset = getuint64(fields[1]);
 		dump_block_translation(ft, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
-		dump_fragmentation(f, ft);
+		dump_fragmentation(f, ft, tsv);
 	    } else if (strcmp(fields[0], "nodesizes") == 0) {
 		dump_nodesizes(f, ft);
             } else if (strcmp(fields[0], "garbage") == 0) {
@@ -556,7 +564,7 @@ main (int argc, const char *const argv[]) {
     } else if (rootnode) {
 	dump_node(f, ft->h->root_blocknum, ft);
     } else if (fragmentation) {
-        dump_fragmentation(f, ft);
+        dump_fragmentation(f, ft, tsv);
     } else if (translation_table) {
         toku_dump_translation_table_pretty(stdout, ft->blocktable);
     } else {
