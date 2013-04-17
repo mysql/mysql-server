@@ -315,6 +315,7 @@ static int fetch_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKE
     assert((long)extraargs==42);
     *value=0;
     *dirtyp = 0;
+    *sizep = make_pair_attr(0);
     return 0;
 }
 
