@@ -3,7 +3,8 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-// The purpose of this test is to test the extractor component of the brt loader
+// The purpose of this test is to test the error recovery of the extractor.  We inject errors into the extractor and
+// verify that the extractor error state is set.
 
 #define DONT_DEPRECATE_MALLOC
 #define DONT_DEPRECATE_WRITES
@@ -166,9 +167,9 @@ static int compare_int(DB *dest_db, const DBT *akey, const DBT *bkey) {
     return qsort_compare_ints(akey->data, bkey->data);
 }
 
-static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
+static void populate_rowset(struct rowset *rowset, int seq, int nrows, int keys[]) {
     for (int i = 0; i < nrows; i++) {
-        int k = htonl(seq * nrows + i);
+        int k = keys[i];
         int v = seq * nrows + i;
         DBT key = { .size = sizeof k, .data = &k };
         DBT val = { .size = sizeof v, .data = &v };
@@ -176,10 +177,28 @@ static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
     }
 }
 
-static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
-    if (verbose) printf("%s %d %d\n", __FUNCTION__, nrows, nrowsets);
+static void shuffle(int a[], int n) {
+    for (int i = 0; i < n; i++) {
+        int r = random() % n;
+        int t = a[i]; a[i] = a[r]; a[r] = t;
+    }
+}
+
+static int ascending_keys = 0;
+static int descending_keys = 0;
+static int random_keys = 0;
+
+static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char *testdir) {
+    if (verbose) printf("%s %d %d %s\n", __FUNCTION__, nrows, nrowsets, testdir);
 
     int r;
+
+    int nkeys = nrows * nrowsets;
+    int *keys = toku_malloc(nkeys * sizeof (int)); assert(keys);
+    for (int i = 0; i < nkeys; i++)
+        keys[i] = ascending_keys ? i : nkeys - i;
+    if (random_keys)
+        shuffle(keys, nkeys);
 
     // open the brtloader. this runs the extractor.
     const int N = 1;
@@ -194,6 +213,9 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
         compares[i] = compare_int;
     }
 
+    char temp[strlen(testdir) + 1 + strlen("tempXXXXXX") + 1];
+    sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
+
     BRTLOADER loader;
     r = toku_brt_loader_open(&loader, NULL, generate, NULL, N, dbs, descriptors, fnames, compares, "tempXXXXXX", ZERO_LSN);
     assert(r == 0);
@@ -203,9 +225,8 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
         rowset[i] = (struct rowset *) toku_malloc(sizeof (struct rowset));
         assert(rowset[i]);
         init_rowset(rowset[i], toku_brtloader_get_rowset_budget_for_testing());
-        populate_rowset(rowset[i], i, nrows);
+        populate_rowset(rowset[i], i, nrows, &keys[i*nrows]);
     }
-
 
     // setup error injection
     toku_set_func_malloc(my_malloc);
@@ -241,9 +262,8 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     r = toku_brt_loader_abort(loader, TRUE);
     assert(r == 0);
 
-    expect_fail = expect_fail;
+    toku_free(keys);
 }
-
 static int nrows = 1;
 static int nrowsets = 2;
 
@@ -292,6 +312,12 @@ int test_main (int argc, const char *argv[]) {
         } else if (strcmp(argv[0],"--max_error_limit") == 0 && argc >= 1) {
             argc--; argv++;
             max_error_limit = atoi(argv[0]);
+        } else if (strcmp(argv[0],"--asc") == 0) {
+            ascending_keys = 1;
+        } else if (strcmp(argv[0],"--dsc") == 0) {
+            descending_keys = 1;
+        } else if (strcmp(argv[0],"--random") == 0) {
+            random_keys = 1;
 	} else if (argc!=1) {
             return usage(progname);
 	    exit(1);
@@ -302,8 +328,14 @@ int test_main (int argc, const char *argv[]) {
 	argc--; argv++;
     }
 
+    assert(argc == 1);
+    const char *testdir = argv[0];
+
+    if (ascending_keys + descending_keys + random_keys == 0)
+        ascending_keys = 1;
+
     // callibrate
-    test_extractor(nrows, nrowsets, FALSE);
+    test_extractor(nrows, nrowsets, FALSE, testdir);
 
     // run tests
     int error_limit = event_count;
@@ -315,7 +347,7 @@ int test_main (int argc, const char *argv[]) {
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;
-        test_extractor(nrows, nrowsets, TRUE);
+        test_extractor(nrows, nrowsets, TRUE, testdir);
     }
 
     return 0;

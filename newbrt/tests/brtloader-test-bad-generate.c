@@ -111,7 +111,7 @@ static int compare_int(DB *dest_db, const DBT *akey, const DBT *bkey) {
 
 static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
     for (int i = 0; i < nrows; i++) {
-        int k = htonl(seq + i);
+        int k = seq + i;
         int v = seq + i;
         DBT key = { .size = sizeof k, .data = &k };
         DBT val = { .size = sizeof v, .data = &v };
