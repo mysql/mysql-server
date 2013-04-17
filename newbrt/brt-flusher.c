@@ -295,10 +295,10 @@ ctm_maybe_merge_child(struct flusher_advice *fa,
                       BRTNODE child,
                       void *extra)
 {
-    default_merge_child(fa, h, parent, childnum, child, extra);
     if (child->height == 0) {
         (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_completed, 1);
     }
+    default_merge_child(fa, h, parent, childnum, child, extra);
 }
 
 static void
