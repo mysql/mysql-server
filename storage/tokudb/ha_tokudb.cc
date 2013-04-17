@@ -1777,11 +1777,67 @@ void ha_tokudb::get_status() {
     }
     
     //
-    // do nothing for now
-    // previously added info from status.tokudb
-    // as of now, that info is not needed so removed dead code
+    // get capabilities and version
     //
+    
+    //
+    // transaction to be used for putting metadata into status.tokudb
+    //
+    DB_TXN* txn = NULL;
+    DBT key, value;
+    HA_METADATA_KEY curr_key;
+    bzero(&key, sizeof(key));
+    bzero(&value, sizeof(value));
+    key.data = &curr_key;
+    key.size = sizeof(curr_key);
+    value.flags = DB_DBT_MALLOC;
+    int error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { DBUG_VOID_RETURN; }
 
+    if (share->status_block) {
+        int error;
+        //
+        // get version
+        //
+        curr_key = hatoku_version;
+        error = share->status_block->get(
+            share->status_block, 
+            txn, 
+            &key, 
+            &value, 
+            0
+            );
+        if (error == DB_NOTFOUND) {
+            share->version = 0;
+        }
+        else if (error == 0 && value.size == sizeof(share->version)) {
+            share->version = *(uint *)value.data;
+        }
+        else {
+            // error case
+        }
+        //
+        // get capabilities
+        //
+        curr_key = hatoku_capabilities;
+        error = share->status_block->get(
+            share->status_block, 
+            txn, 
+            &key, 
+            &value, 
+            0
+            );
+        if (error == DB_NOTFOUND) {
+            share->capabilities= 0;
+        }
+        else if (error == 0 && value.size == sizeof(share->version)) {
+            share->capabilities= *(uint *)value.data;
+        }
+        else {
+            // error case
+        }
+    }
+    txn->commit(txn,0);
     pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
@@ -3385,8 +3441,16 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     int error;
     char dirname[get_name_length(name) + 32];
     char newname[get_name_length(name) + 32];
+    DB_TXN* txn = NULL;
 
     uint i;
+
+    //
+    // transaction to be used for putting metadata into status.tokudb
+    //
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { TOKUDB_DBUG_RETURN(error); }
+
 
     //
     // tracing information about what type of table we are creating
@@ -3476,20 +3540,45 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         }
     }
 
-    /* Create the status block to save information from last status command */
-    /* QQQ Is DB_BTREE the best option here ? (QUEUE can't be used in sub tables) */
-    // QQQ what is the status DB used for?
 
-    DB *status_block;
+    /* Create the status block to save information from last status command */
+    DB *status_block = NULL;
     if (!(error = (db_create(&status_block, db_env, 0)))) {
         make_name(newname, name, "status");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
         if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
+            DBT key;
+            DBT value;
+            HA_METADATA_KEY curr_key_data;
+            uint version = HA_TOKU_VERSION;
+            uint capabilities = HA_TOKU_CAP;
+            bzero(&key, sizeof(key));
+            bzero(&value, sizeof(value));
+            key.data = &curr_key_data;
+            key.size = sizeof(curr_key_data);
             //
-            // do nothing for now, used to write initial data for status.tokudb
-            // this data no longer needed
+            // insert metadata into status.tokudb
             //
+
+            //
+            // insert version
+            //
+            curr_key_data = hatoku_version;
+            value.data = &version;
+            value.size = sizeof(version);
+            error = status_block->put(status_block, txn, &key, &value, 0);
+            if (error) { goto quit_status; }
+            //
+            // insert capabilities
+            //
+            curr_key_data = hatoku_capabilities;
+            value.data = &capabilities;
+            value.size = sizeof(capabilities);
+            error = status_block->put(status_block, txn, &key, &value, 0);
+            if (error) { goto quit_status; }
+        quit_status:
+            if (!error) { txn->commit(txn, 0); }
         }
         if (tokudb_debug & TOKUDB_DEBUG_OPEN)
             TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
