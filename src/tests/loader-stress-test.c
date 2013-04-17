@@ -220,6 +220,7 @@ static void test_loader(DB **dbs)
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
+    uint64_t before_puts = toku_test_get_latest_lsn(env);
     // using loader->put, put values into DB
     DBT key, val;
     unsigned int k, v;
@@ -232,6 +233,8 @@ static void test_loader(DB **dbs)
         CKERR(r);
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
+    uint64_t after_puts = toku_test_get_latest_lsn(env);
+    assert(before_puts == after_puts);
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
     poll_count=0;

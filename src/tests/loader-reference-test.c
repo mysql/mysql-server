@@ -60,6 +60,7 @@ static void test_loader(DB **dbs)
     r = loader->set_poll_function(loader, NULL, NULL);
     CKERR(r);
     
+    uint64_t before_puts = toku_test_get_latest_lsn(env);
     // using loader->put, put values into DB
     DBT key, val;
     for(int i=0;i<NUM_KV_PAIRS;i++) {
@@ -68,6 +69,8 @@ static void test_loader(DB **dbs)
         r = loader->put(loader, &key, &val);
         CKERR(r);
     }
+    uint64_t after_puts = toku_test_get_latest_lsn(env);
+    assert(before_puts == after_puts);
 
     // close the loader
     r = loader->close(loader);
@@ -103,8 +106,12 @@ static void run_test(void)
     int r;
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    r = toku_os_mkdir(ENVDIR "/log", S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
+    r = env->set_lg_dir(env, "log");
+    CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);                                                      CKERR(r);
     r = env->set_default_dup_compare(env, int64_dbt_cmp);                                                     CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
