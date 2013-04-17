@@ -203,8 +203,6 @@ extern int toku_ft_do_push_cmd; // control whether push occurs eagerly.
 
 DICTIONARY_ID toku_ft_get_dictionary_id(FT_HANDLE);
 
-int toku_ft_height_of_root(FT_HANDLE, int *height)  __attribute__ ((warn_unused_result)); // for an open brt, return the current height.
-
 enum ft_flags {
     //TOKU_DB_DUP             = (1<<0),  //Obsolete #2862
     //TOKU_DB_DUPSORT         = (1<<1),  //Obsolete #2862
