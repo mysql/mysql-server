@@ -115,24 +115,24 @@ check_a_bunch:
 	$(VGRIND) ./test_get_not_found  $(SUMMARIZE_CMD)
 
 check_db_create: db_create
-	rm -f $@.tdb
+	rm -rf $@.tdb
 	$(VGRIND) ./db_create -s main $@.tdb  $(SUMMARIZE_CMD)
 check_db_create_DSM: db_create
-	rm -f $@.tdb
+	rm -rf $@.tdb
 	$(VGRIND) ./db_create -D -S -s main $@.tdb  $(SUMMARIZE_CMD)
 
-check_db_create_1:
-	$(VGRIND) ./db_create > $@.out ; test $$? -ne 0  $(SUMMARIZE_CMD)
-check_db_create_2:
-	$(VGRIND) ./db_create -h 2> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
-check_db_create_3:
-	$(VGRIND) ./db_create --help 2> $@.out; test $$? -ne 0 $(SUMMARIZE_CMD)
-check_db_create_4:
-	$(VGRIND) ./db_create -s 2> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
+check_db_create_1: db_create
+	$(VGRIND) ./db_create &> $@.out ; test $$? -ne 0  $(SUMMARIZE_CMD)
+check_db_create_2: db_create
+	$(VGRIND) ./db_create -h &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
+check_db_create_3: db_create
+	$(VGRIND) ./db_create --help &> $@.out; test $$? -ne 0 $(SUMMARIZE_CMD)
+check_db_create_4: db_create
+	$(VGRIND) ./db_create -s &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
 	rm -f permissions.tdb 
 	./db_create permissions.tdb 1 1 && \
 	 chmod -w permissions.tdb && \
-	 (./db_create permissions.tdb 2 2 2> check_permissions.out; test $$? -ne 0) \
+	 (./db_create permissions.tdb 2 2 &> check_permissions.out; test $$? -ne 0) \
 	 $(SUMMARIZE_CMD)

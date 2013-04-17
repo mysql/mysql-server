@@ -44,8 +44,8 @@ static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *arg
 }
 
 static int usage() {
-    printf("db_create [-s DBNAME] [-D] [-S] DBFILE [KEY VAL]*\n");
-    printf("[--set_data_dir DIRNAME]\n");
+    fprintf(stderr, "db_create [-s DBNAME] [-D] [-S] DBFILE [KEY VAL]*\n");
+    fprintf(stderr, "[--set_data_dir DIRNAME]\n");
     return 1;
 }
 
