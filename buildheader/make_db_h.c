@@ -442,6 +442,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) %s;\n", VISIBLE);
     printf("int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) %s;\n", VISIBLE);
     printf("int db_env_set_func_realloc (void *(*)(void*, size_t)) %s;\n", VISIBLE);
+    printf("void db_env_set_checkpoint_callback (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
