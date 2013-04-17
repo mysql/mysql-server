@@ -19,7 +19,7 @@ static void test2 (int memcheck, int limit) {
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun, null_db);
     if (verbose) printf("%s:%d did setup\n", __FILE__, __LINE__);
     assert(r==0);
     for (i=0; i<limit; i++) { // 4096

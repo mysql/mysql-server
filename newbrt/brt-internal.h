@@ -41,6 +41,7 @@ enum { BRT_CMD_OVERHEAD = (1 + sizeof(MSN))     // the type plus MSN
 };
 
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 22 };
+enum { BRT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
 
 struct nodeheader_in_file {
     int n_in_buffer;
@@ -389,6 +390,7 @@ struct brt_header {
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
     int64_t num_blocks_to_upgrade;      // Number of v13 blocks still not newest version. When we release layout 15 we may need to turn this to an array or add more variables.  
     unsigned int nodesize;
+    unsigned int basementnodesize;
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
@@ -419,6 +421,7 @@ struct brt {
     struct toku_list cursors;
 
     unsigned int nodesize;
+    unsigned int basementnodesize;
     unsigned int flags;
     BOOL did_set_flags;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
@@ -442,6 +445,7 @@ struct brt {
 
 /* serialization code */
 int toku_serialize_brtnode_to_memory (BRTNODE node,
+                                      unsigned int basementnodesize,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ char  **bytes_to_write);
 int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);

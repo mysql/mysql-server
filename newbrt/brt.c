@@ -1024,6 +1024,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 void 
 toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
     assert(t->h->nodesize > 0);
+    assert(t->h->basementnodesize > 0);
     if (height == 0) 
         assert(n_children > 0);
 
@@ -3493,7 +3494,7 @@ toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN opls
 	r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs);
 	if (r!=0) return r;
     }
-    
+
     LSN treelsn;
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
 	r = 0;
@@ -3514,7 +3515,7 @@ toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) {
 /* ******************** open,close and create  ********************** */
 
 // Test only function (not used in running system). This one has no env
-int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
+int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, int basementnodesize, CACHETABLE cachetable, TOKUTXN txn,
 		   int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
     int r;
@@ -3524,6 +3525,7 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, 
     if (r != 0)
 	return r;
     r = toku_brt_set_nodesize(brt, nodesize); assert_zero(r);
+    r = toku_brt_set_basementnodesize(brt, basementnodesize); assert_zero(r);
     r = toku_brt_set_bt_compare(brt, compare_fun); assert_zero(r);
 
     r = toku_brt_open(brt, fname, is_create, only_create, cachetable, txn, db);
@@ -3624,20 +3626,21 @@ brtheader_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v)
 static int brtheader_note_pin_by_checkpoint (CACHEFILE cachefile, void *header_v);
 static int brtheader_note_unpin_by_checkpoint (CACHEFILE cachefile, void *header_v);
 
-static int 
+static int
 brt_init_header_partial (BRT t, TOKUTXN txn) {
     int r;
     t->h->flags = t->flags;
     if (t->h->cf!=NULL) assert(t->h->cf == t->cf);
     t->h->cf = t->cf;
     t->h->nodesize=t->nodesize;
+    t->h->basementnodesize=t->basementnodesize;
     t->h->num_blocks_to_upgrade = 0;
     t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
 
     compute_and_fill_remembered_hash(t);
 
-    t->h->root_put_counter = global_root_put_counter++; 
-	    
+    t->h->root_put_counter = global_root_put_counter++;
+
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
@@ -3890,7 +3893,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 	if (r==ENOENT && is_create) {
 	    toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, use_reserved_filenum, reserved_filenum);
 	    if (0) {
-		died1:
+                died1:
 		if (did_create)
 		    toku_cachetable_unreserve_filenum(cachetable, reserved_filenum);
 		goto died0;
@@ -3904,7 +3907,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 		if (r != 0) goto died1;
 	    }
 	    txn_created = (BOOL)(txn!=NULL);
-	    r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize);
+	    r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize, t->basementnodesize);
 	    if (r!=0) goto died1;
 	    r = brt_create_file(t, fname_in_cwd, &fd);
 	}
@@ -3912,13 +3915,13 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 	fname_in_cwd = NULL;
 	if (r != 0) goto died1;
 	// TODO: #2090
-	r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, 
+	r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd,
 					      fname_in_env,
 					      use_reserved_filenum||did_create, reserved_filenum, did_create);
 	if (r != 0) goto died1;
     }
     if (r!=0) {
-	died_after_open: 
+	died_after_open:
 	toku_cachefile_close(&t->cf, 0, FALSE, ZERO_LSN);
 	goto died1;
     }
@@ -3948,6 +3951,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 	if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, max_acceptable_lsn, &t->h, &was_already_open))!=0) goto died_after_open;
 	found_it:
 	t->nodesize = t->h->nodesize;		      /* inherit the pagesize from the file */
+        t->basementnodesize = t->h->basementnodesize;
 	if (!t->did_set_flags) {
 	    r = verify_builtin_comparisons_consistent(t, t->flags);
 	    if (r!=0) goto died_after_read_and_pin;
@@ -4043,6 +4047,8 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
     r = toku_brt_set_update(t, old_brt->update_fun);
     assert_zero(r);
     r = toku_brt_set_nodesize(t, old_brt->nodesize);
+    assert_zero(r);
+    r = toku_brt_set_basementnodesize(t, old_brt->basementnodesize);
     assert_zero(r);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
     r = brt_open(t, fname_in_env, 0, 0, ct, txn, old_brt->db, FILENUM_NONE, old_h->dict_id, MAX_LSN);
@@ -4336,6 +4342,16 @@ int toku_brt_set_nodesize(BRT brt, unsigned int nodesize) {
 
 int toku_brt_get_nodesize(BRT brt, unsigned int *nodesize) {
     *nodesize = brt->nodesize;
+    return 0;
+}
+
+int toku_brt_set_basementnodesize(BRT brt, unsigned int basementnodesize) {
+    brt->basementnodesize = basementnodesize;
+    return 0;
+}
+
+int toku_brt_get_basementnodesize(BRT brt, unsigned int *basementnodesize) {
+    *basementnodesize = brt->basementnodesize;
     return 0;
 }
 
@@ -4683,6 +4699,7 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->flags = 0;
     brt->did_set_flags = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
+    brt->basementnodesize = BRT_DEFAULT_BASEMENT_NODE_SIZE;
     brt->compare_fun = toku_builtin_compare_fun;
     brt->update_fun = NULL;
     int r = toku_omt_create(&brt->txns);

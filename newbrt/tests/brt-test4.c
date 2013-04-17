@@ -22,7 +22,7 @@ static void test4 (int nodesize, int count, int memcheck) {
     toku_memory_check=memcheck;
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = toku_open_brt(fname, 1, &t, nodesize, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, nodesize, nodesize / 8, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];
 	int rv = random();

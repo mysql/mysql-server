@@ -11,7 +11,7 @@ static const char fname[]= __FILE__ ".brt";
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static void test3 (int nodesize, int count, int memcheck) {
+static void test3 (int nodesize, int basementnodesize, int count, int memcheck) {
     BRT t;
     int r;
     struct timeval t0,t1;
@@ -22,7 +22,7 @@ static void test3 (int nodesize, int count, int memcheck) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     gettimeofday(&t0, 0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, nodesize, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];
@@ -46,25 +46,25 @@ static void test3 (int nodesize, int count, int memcheck) {
 static void brt_blackbox_test (void) {
     if (verbose) printf("test3 slow\n");
     toku_memory_check=0;
-    test3(2048, 1<<15, 1);
+    test3(2048, 512, 1<<15, 1);
     if (verbose) printf("test3 fast\n");
 
     //if (verbose) toku_pma_show_stats();
 
-    test3(1<<15, 1024, 1);
+    test3(1<<15, 1<<12, 1024, 1);
     if (verbose) printf("test3 fast\n");
 
-    test3(1<<18, 1<<20, 0);
+    test3(1<<18, 1<<15, 1<<20, 0);
 
     toku_memory_check = 1;
 
-//    test3(1<<19, 1<<20, 0);
+//    test3(1<<19, 1<<16, 1<<20, 0);
 
-//    test3(1<<20, 1<<20, 0);
+//    test3(1<<20, 1<<17, 1<<20, 0);
 
-//    test3(1<<20, 1<<21, 0);
+//    test3(1<<20, 1<<17, 1<<21, 0);
 
-//    test3(1<<20, 1<<22, 0);
+//    test3(1<<20, 1<<17, 1<<22, 0);
 
 }
 

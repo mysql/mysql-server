@@ -455,8 +455,6 @@ array_item (OMTVALUE lev, u_int32_t idx, void *vsi) {
     return 0;
 }
 
-#define BN_MAX_SIZE 128*1024
-
 struct sum_info {
     unsigned int dsum;
     unsigned int msum;
@@ -475,7 +473,7 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
 
 // There must still be at least one child
 static void
-rebalance_brtnode_leaf(BRTNODE node)
+rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 {
     assert(node->height == 0);
     assert(node->dirty);
@@ -499,14 +497,14 @@ rebalance_brtnode_leaf(BRTNODE node)
         toku_omt_iterate(curr_omt, array_item, &ai);
         curr_le += toku_omt_size(curr_omt);
     }
-    
+
     // figure out the new pivots
     u_int32_t curr_pivot = 0;
     u_int32_t num_le_in_curr_bn = 0;
     u_int32_t bn_size_so_far = 0;
     for (u_int32_t i = 0; i < num_le; i++) {
         u_int32_t curr_size = leafentry_disksize(array[i]);
-        if ((bn_size_so_far + curr_size > BN_MAX_SIZE) && (num_le_in_curr_bn != 0)) {
+        if ((bn_size_so_far + curr_size > basementnodesize) && (num_le_in_curr_bn != 0)) {
             // cap off the current basement node to end with the element before i
             new_pivots[curr_pivot] = i-1;
             curr_pivot++;
@@ -514,7 +512,7 @@ rebalance_brtnode_leaf(BRTNODE node)
             bn_size_so_far = 0;
         }
         num_le_in_curr_bn++;
-        bn_size_so_far += curr_size;        
+        bn_size_so_far += curr_size;
     }
 
     // now we need to fill in the new basement nodes and pivots
@@ -534,7 +532,6 @@ rebalance_brtnode_leaf(BRTNODE node)
         min_dsn = (curr_dsn.dsn < min_dsn.dsn) ? curr_dsn : min_dsn;
         max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
     }
-    
 
     // Now destroy the old stuff;
     toku_destroy_brtnode_internals(node);
@@ -546,7 +543,7 @@ rebalance_brtnode_leaf(BRTNODE node)
 
     XMALLOC_N(num_children-1, node->childkeys);
     node->n_children = num_children;
-    XMALLOC_N(num_children, node->bp);    
+    XMALLOC_N(num_children, node->bp);
     for (int i = 0; i < num_children; i++) {
         set_BLB(node, i, toku_create_empty_bn());
     }
@@ -581,9 +578,9 @@ rebalance_brtnode_leaf(BRTNODE node)
         memcpy(bn_array, &array[curr_start], num_in_bn*(sizeof(array[0])));
         toku_omt_destroy(&BLB_BUFFER(node, i));
         int r = toku_omt_create_steal_sorted_array(
-            &BLB_BUFFER(node, i), 
-            &bn_array, 
-            num_in_bn, 
+            &BLB_BUFFER(node, i),
+            &bn_array,
+            num_in_bn,
             num_in_bn
             );
         lazy_assert_zero(r);
@@ -597,7 +594,7 @@ rebalance_brtnode_leaf(BRTNODE node)
         BLB_MAX_MSN_APPLIED(node,i) = max_msn;
     }
     node->max_msn_applied_to_node_on_disk = max_msn;
-    
+
     // now the subtree estimates
     toku_brt_leaf_reset_calc_leaf_stats(node);
 
@@ -611,16 +608,17 @@ rebalance_brtnode_leaf(BRTNODE node)
 //
 int
 toku_serialize_brtnode_to_memory (BRTNODE node,
+                                  unsigned int basementnodesize,
                           /*out*/ size_t *n_bytes_to_write,
                           /*out*/ char  **bytes_to_write)
 {
     toku_assert_entire_node_in_memory(node);
 
     if (node->height == 0) {
-        rebalance_brtnode_leaf(node);
+        rebalance_brtnode_leaf(node, basementnodesize);
     }
     const int npartitions = node->n_children;
-    
+
     // Each partition represents a compressed sub block
     // For internal nodes, a sub block is a message buffer
     // For leaf nodes, a sub block is a basement node
@@ -704,7 +702,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
         toku_free(sb[i].compressed_ptr);
         toku_free(sb[i].uncompressed_ptr);
     }
-    
+
     return 0;
 }
 
@@ -714,7 +712,8 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
     size_t n_to_write;
     char *compressed_buf = NULL;
     {
-	int r = toku_serialize_brtnode_to_memory (node, &n_to_write, &compressed_buf);
+	int r = toku_serialize_brtnode_to_memory(node, h->basementnodesize,
+                                                 &n_to_write, &compressed_buf);
 	if (r!=0) return r;
     }
 
@@ -1413,6 +1412,7 @@ serialize_brt_header_min_size (u_int32_t version) {
 
     switch(version) {
         case BRT_LAYOUT_VERSION_15:
+            size += 4;  // basement node size
         case BRT_LAYOUT_VERSION_14:
             size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_13:
@@ -1420,7 +1420,7 @@ serialize_brt_header_min_size (u_int32_t version) {
                      +4 // build_id_original
                      +8 // time_of_creation
                      +8 // time_of_last_modification
-                    ); 
+                    );
             // fall through
         case BRT_LAYOUT_VERSION_12:
 	    size += (+8 // "tokudata"
@@ -1479,6 +1479,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     }
     wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade);
     wbuf_TXNID(wbuf, h->root_xid_that_created);
+    wbuf_int(wbuf, h->basementnodesize);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -1745,6 +1746,9 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         // at this layer, this new field is the only difference between versions 13 and 14
         rbuf_TXNID(&rc, &h->root_xid_that_created);
     }
+    if (h->layout_version >= BRT_LAYOUT_VERSION_15) {
+        h->basementnodesize = rbuf_int(&rc);
+    }
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
@@ -1795,6 +1799,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
                 upgrade++;
                 //Fall through on purpose
             case BRT_LAYOUT_VERSION_14:
+                h->basementnodesize = 128*1024;  // basement nodes added in v15
+                //fall through on purpose
             case BRT_LAYOUT_VERSION_15:
                 invariant(h->layout_version == BRT_LAYOUT_VERSION);
                 h->upgrade_brt_performed = FALSE;

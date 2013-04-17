@@ -17,7 +17,7 @@ static void test_flat (void) {
     CACHETABLE ct;
     int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
     BRT t;
-    r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);   assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 1<<12, 1<<9, ct, null_txn, toku_builtin_compare_fun, null_db);   assert(r==0);
     u_int64_t i;
     for (i=0; i<limit; i++) {
 	char key[100],val[100];

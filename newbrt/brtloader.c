@@ -71,6 +71,7 @@ static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *strea
 // Different values for these sizes may be used for testing.
 static uint32_t size_factor = 1024;
 static uint32_t default_loader_nodesize = BRT_DEFAULT_NODE_SIZE;
+static uint32_t default_loader_basementnodesize = BRT_DEFAULT_BASEMENT_NODE_SIZE;
 
 enum { EXTRACTOR_QUEUE_DEPTH = 2,
        FILE_BUFFER_SIZE  = 1<<24,
@@ -2203,12 +2204,12 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
 }
 
 CILK_BEGIN
-static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl);
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize);
+static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize);
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize);
 CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
-static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid, uint32_t target_nodesize);
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid, uint32_t target_nodesize, uint32_t target_basementnodesize);
 
 static void drain_writer_q(QUEUE q) {
     void *item;
@@ -2253,7 +2254,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 QUEUE q,
 					 uint64_t total_disksize_estimate,
                                          int which_db,
-                                         uint32_t target_nodesize)
+                                         uint32_t target_nodesize,
+                                         uint32_t target_basementnodesize)
 // Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
 {
     // set the number of fractal tree writer threads so that we can partition memory in the merger
@@ -2354,7 +2356,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    uint64_t used_here = lbuf->off + 1000;             // leave 1000 for various overheads.
 	    uint64_t target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
 	    uint64_t used_here_with_next_key = used_here + this_leafentry_size;
-	    if (lbuf->nkeys > 0 && 
+	    if (lbuf->nkeys > 0 &&
                 ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && lbuf->off > remaining_amount))) {
 
 		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
@@ -2372,8 +2374,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
                     if (result == 0) result = r;
 		    break;
 		}
-	    
-		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl);
+
+		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl, target_basementnodesize);
                 lbuf = NULL;
 
 		r = allocate_block(&out, &lblock);
@@ -2384,7 +2386,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
                 }
 		lbuf = start_leaf(&out, descriptor, lblock, le_xid, target_nodesize);
 	    }
-	
+
 	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size, this_leafentry_size);
 	    n_rows_remaining--;
 
@@ -2408,7 +2410,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         allocate_node(&sts, lblock, est);
         {
             int p = progress_allocation/2;
-            finish_leafnode(&out, lbuf, p, bl);
+            finish_leafnode(&out, lbuf, p, bl, target_basementnodesize);
             progress_allocation -= p;
         }
     }
@@ -2434,7 +2436,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         }
     }
 
-    r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor, target_nodesize);
+    r = write_nonleaves(bl, pivots_file, &out, &sts, descriptor, target_nodesize, target_basementnodesize);
     if (r) {
         result = r; goto error;
     }
@@ -2466,10 +2468,10 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
             if (r) {
                 result = r; goto error;
             }
-	}
-    
-	long long off_of_translation;
-	r = write_translation_table(&out, &off_of_translation);
+        }
+
+        long long off_of_translation;
+        r = write_translation_table(&out, &off_of_translation);
         if (r) {
             result = r; goto error;
         }
@@ -2478,28 +2480,28 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         if (bl->root_xids_that_created) {
             root_xid_that_created = bl->root_xids_that_created[which_db];
         }
-	r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn, root_xid_that_created, target_nodesize); 
+        r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize);
         if (r) {
             result = r; goto error;
         }
 
-	r = update_progress(progress_allocation, bl, "wrote tdb file");
+        r = update_progress(progress_allocation, bl, "wrote tdb file");
         if (r) {
             result = r; goto error;
         }
     }
 
     r = fsync(out.fd);
-    if (r) { 
-        result = errno; goto error; 
+    if (r) {
+        result = errno; goto error;
     }
 
     // Do we need to pay attention to user_said_stop?  Or should the guy at the other end of the queue pay attention and send in an EOF.
 
- error: 
+ error:
     {
         int rr = toku_os_close(fd);
-        if (rr) 
+        if (rr)
             result = errno;
     }
     out.fd = -1;
@@ -2520,14 +2522,16 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       QUEUE                    q,
 				       uint64_t                 total_disksize_estimate,
                                        int                      which_db,
-                                       uint32_t                 target_nodesize)
+                                       uint32_t                 target_nodesize,
+                                       uint32_t                 target_basementnodesize)
 // This is probably only for testing.
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;
+    target_basementnodesize = target_basementnodesize == 0 ? default_loader_basementnodesize : target_basementnodesize;
 #if defined(__cilkplusplus)
-    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize);
+    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize);
 #else
-    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize);
+    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize);
 #endif
 }
 
@@ -2536,9 +2540,9 @@ static void* fractal_thread (void *ftav) {
     BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
 #if defined(__cilkplusplus)
-    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize);
+    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize);
 #else
-    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize);
+    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize);
 #endif
     fta->errno_result = r;
     return NULL;
@@ -2575,8 +2579,10 @@ static int loader_do_i (BRTLOADER bl,
             r = errno; goto error;
         }
 
-        uint32_t target_nodesize;
+        uint32_t target_nodesize, target_basementnodesize;
         r = dest_db->get_pagesize(dest_db, &target_nodesize);
+        invariant_zero(r);
+        r = dest_db->get_readpagesize(dest_db, &target_basementnodesize);
         invariant_zero(r);
 
 	// This structure must stay live until the join below.
@@ -2589,6 +2595,7 @@ static int loader_do_i (BRTLOADER bl,
                                            0,
                                            which_db,
                                            target_nodesize,
+                                           target_basementnodesize,
         };
 
 	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
@@ -2781,13 +2788,13 @@ static int write_literal(struct dbout *out, void*data,  size_t len) {
 }
 
 CILK_BEGIN
-static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl) {
+static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize) {
     int result = 0;
 
     // serialize leaf to buffer
     size_t serialized_leaf_size = 0;
     char *serialized_leaf = NULL;
-    result = toku_serialize_brtnode_to_memory(lbuf->node, &serialized_leaf_size, &serialized_leaf);
+    result = toku_serialize_brtnode_to_memory(lbuf->node, target_basementnodesize, &serialized_leaf_size, &serialized_leaf);
 
     // write it out
     if (result == 0) {
@@ -2846,9 +2853,9 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 }
 
 
-static int 
-write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, 
-              LSN load_lsn, TXNID root_xid_that_created, uint32_t target_nodesize) {
+static int
+write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk,
+              LSN load_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize) {
     int result = 0;
 
     struct brt_header h; memset(&h, 0, sizeof h);
@@ -2860,6 +2867,7 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
     h.checkpoint_count = 1;
     h.checkpoint_lsn   = load_lsn;
     h.nodesize         = target_nodesize;
+    h.basementnodesize = target_basementnodesize;
     h.root             = root_blocknum_on_disk;
     h.flags            = 0;
     h.root_xid_that_created = root_xid_that_created;
@@ -2984,7 +2992,7 @@ CILK_BEGIN
 
 static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknum_of_new_node, int n_children,
                                 DBT *pivots, /* must free this array, as well as the things it points t */
-                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize)
+                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize, uint32_t target_basementnodesize)
 {
     //Nodes do not currently touch descriptors
     invariant(height > 0);
@@ -3016,7 +3024,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         size_t n_bytes;
         char *bytes;
         int r;
-        r = toku_serialize_brtnode_to_memory(node, &n_bytes, &bytes);
+        r = toku_serialize_brtnode_to_memory(node, target_basementnodesize, &n_bytes, &bytes);
         if (r) {
             result = r;
         } else {
@@ -3054,7 +3062,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         brt_loader_set_panic(bl, result, TRUE);
 }
 
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize) {
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize) {
     int result = 0;
     int height = 1;
 
@@ -3102,7 +3110,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
                 result = r;
                 break;
             } else {
-                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor, target_nodesize); // frees all the data structures that go into making the node.
+                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_per_block, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize); // frees all the data structures that go into making the node.
                 n_subtrees_used += n_per_block;
             }
 	}
@@ -3125,7 +3133,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
                 if (r) {
                     result = r;
                 } else {
-                    cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor, target_nodesize);
+                    cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_first, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize);
                     n_blocks_left -= n_first;
                     n_subtrees_used += n_first;
                 }
@@ -3144,7 +3152,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
             if (r) {
                 result = r;
             } else {
-                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor, target_nodesize);
+                cilk_spawn write_nonleaf_node(bl, out, blocknum_of_new_node, n_blocks_left, pivots, subtree_info, height, descriptor, target_nodesize, target_basementnodesize);
                 n_subtrees_used += n_blocks_left;
             }
 	}

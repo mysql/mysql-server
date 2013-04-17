@@ -193,6 +193,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -307,6 +308,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -427,6 +429,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -551,6 +554,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -662,6 +666,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -780,6 +785,7 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -917,6 +923,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);

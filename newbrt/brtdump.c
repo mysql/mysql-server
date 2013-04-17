@@ -101,6 +101,7 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
 
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
+    printf(" basementnodesize=%u\n", h->basementnodesize);
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);
     printf(" flags=%u\n", h->flags);
     dump_descriptor(&h->descriptor);

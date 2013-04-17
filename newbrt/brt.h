@@ -28,7 +28,7 @@ C_BEGIN
 //-infinity depending on direction)
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
-int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
+int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 
@@ -44,6 +44,8 @@ int toku_brt_set_flags(BRT, unsigned int flags)  __attribute__ ((warn_unused_res
 int toku_brt_get_flags(BRT, unsigned int *flags)  __attribute__ ((warn_unused_result));
 int toku_brt_set_nodesize(BRT, unsigned int nodesize)  __attribute__ ((warn_unused_result));
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize) __attribute__ ((warn_unused_result));
+int toku_brt_set_basementnodesize(BRT, unsigned int basementnodesize)  __attribute__ ((warn_unused_result));
+int toku_brt_get_basementnodesize(BRT, unsigned int *basementnodesize) __attribute__ ((warn_unused_result));
 
 int toku_brt_set_bt_compare(BRT, brt_compare_func)  __attribute__ ((warn_unused_result));
 brt_compare_func toku_brt_get_bt_compare (BRT brt);

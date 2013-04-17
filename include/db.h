@@ -405,6 +405,8 @@ struct __toku_db {
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
+  int (*get_readpagesize)(DB*,u_int32_t*);
+  int (*set_readpagesize)(DB*,u_int32_t);
   int (*set_indexer)(DB*, DB_INDEXER*);
   void (*get_indexer)(DB*, DB_INDEXER**);
   int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);

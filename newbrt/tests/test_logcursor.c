@@ -178,13 +178,13 @@ int create_logfiles() {
     //xbegin                    'b': lsn=1 parenttxnid=0 crc=00005f1f len=29
     r = toku_log_xbegin(logger, &lsn, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //fcreate                   'F': lsn=2 txnid=1 filenum=0 fname={len=4 data="a.db"} mode=0777 treeflags=0 crc=18a3d525 len=49
-    r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_aname, bs_aname, 0x0777, 0, 0); assert(r==0);
+    r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_aname, bs_aname, 0x0777, 0, 0, 0); assert(r==0);
     //commit                    'C': lsn=3 txnid=1 crc=00001f1e len=29
     r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
     //xbegin                    'b': lsn=4 parenttxnid=0 crc=00000a1f len=29
     r = toku_log_xbegin(logger, &lsn, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //fcreate                   'F': lsn=5 txnid=4 filenum=1 fname={len=4 data="b.db"} mode=0777 treeflags=0 crc=14a47925 len=49
-    r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_bname, bs_bname, 0x0777, 0, 0); assert(r==0);
+    r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_bname, bs_bname, 0x0777, 0, 0, 0); assert(r==0);
     //commit                    'C': lsn=6 txnid=4 crc=0000c11e len=29
     r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
     //xbegin                    'b': lsn=7 parenttxnid=0 crc=0000f91f len=29

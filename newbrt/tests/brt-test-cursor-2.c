@@ -35,7 +35,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, toku_builtin_compare_fun, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, toku_builtin_compare_fun, db);
     assert(r==0);
 
     int i;

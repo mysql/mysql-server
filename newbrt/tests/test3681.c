@@ -24,7 +24,7 @@ static void setup (void) {
     { int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                  assert(r==0); }
     char fname[] = __FILE__ "test1.dat";
     unlink(fname);
-    { int r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);         assert(r==0); }
+    { int r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun, null_db);         assert(r==0); }
 }
 
 
