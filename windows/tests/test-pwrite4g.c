@@ -2,6 +2,15 @@
 #include <fcntl.h>
 #include <test.h>
 #include <assert.h>
+#include <string.h>
+
+static int iszero(char *cp, size_t n) {
+    size_t i;
+    for (i=0; i<n; i++)
+        if (cp[i] != 0) 
+	    return 0;
+    return 1;
+}
 
 int test_main(int argc, char *argv[]) {
     char fname[] = "pwrite4g.data";
@@ -11,8 +20,15 @@ int test_main(int argc, char *argv[]) {
     assert(fd>=0);
     char buf[] = "hello";
     int64_t offset = (1LL<<32) + 100;
-    r = toku_os_pwrite(fd, buf, sizeof(buf), offset);
-    assert(r==sizeof(buf));
+    r = toku_os_pwrite(fd, buf, sizeof buf, offset);
+    assert(r==sizeof buf);
+    char newbuf[sizeof buf];
+    r = pread(fd, newbuf, sizeof newbuf, 100);
+    assert(r==sizeof newbuf);
+    assert(iszero(newbuf, sizeof newbuf));
+    r = pread(fd, newbuf, sizeof newbuf, offset);
+    assert(r==sizeof newbuf);
+    assert(memcmp(newbuf, buf, sizeof newbuf) == 0);
     int64_t fsize;
     r = toku_os_get_file_size(fd, &fsize);
     assert(r == 0);
