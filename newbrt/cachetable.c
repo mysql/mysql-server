@@ -3844,7 +3844,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
     {   // have just written data blocks, so next write the translation and header for each open dictionary
         CACHEFILE cf;
-        //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->checkpoint_userdata) {
                 rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
@@ -3866,9 +3865,27 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
             }
         }
     }
+    
+    cachetable_unlock(ct);
+    // For testing purposes only.  Dictionary has been fsync-ed to disk but log has not yet been written.
+    if (testcallback_f) {
+        testcallback_f(testextra);      
+    }
+    if (logger) {
+        int r = toku_log_end_checkpoint(logger, NULL,
+                                        1, // want the end_checkpoint to be fsync'd
+                                        ct->lsn_of_checkpoint_in_progress.lsn, 
+                                        0,
+                                        ct->checkpoint_num_files,
+                                        ct->checkpoint_num_txns);
+        assert(r==0);
+        toku_logger_note_checkpoint(logger, ct->lsn_of_checkpoint_in_progress);
+    }
+    cachetable_lock(ct);
 
-    {   // everything has been written to file (or at least OS internal buffer)...
-        // ... so fsync and call checkpoint-end function in block translator
+    {   
+        // everything has been written to file and fsynced
+        // ... call checkpoint-end function in block translator
         //     to free obsolete blocks on disk used by previous checkpoint
         CACHEFILE cf;
         //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
@@ -3916,20 +3933,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         }
     }
 
-    // For testing purposes only.  Dictionary has been fsync-ed to disk but log has not yet been written.
-    if (testcallback_f) 
-        testcallback_f(testextra);      
-
-    if (logger) {
-        int r = toku_log_end_checkpoint(logger, NULL,
-                                        1, // want the end_checkpoint to be fsync'd
-                                        ct->lsn_of_checkpoint_in_progress.lsn, 
-                                        0,
-                                        ct->checkpoint_num_files,
-                                        ct->checkpoint_num_txns);
-        assert(r==0);
-        toku_logger_note_checkpoint(logger, ct->lsn_of_checkpoint_in_progress);
-    }
     
     brt_end_checkpoint();
 panic:
