@@ -15,91 +15,6 @@
 
 #include "threaded_stress_test_helpers.h"
 
-uint64_t num_basements_decompressed;
-uint64_t num_buffers_decompressed;
-uint64_t num_basements_fetched;
-uint64_t num_buffers_fetched;
-uint64_t num_pivots_fetched;
-
-static void checkpoint_callback_1(void * extra) {
-    DB_ENV* CAST_FROM_VOIDP(env, extra);
-    uint64_t old_num_basements_decompressed = num_basements_decompressed;
-    uint64_t old_num_buffers_decompressed = num_buffers_decompressed;
-    uint64_t old_num_basements_fetched = num_basements_fetched;
-    uint64_t old_num_buffers_fetched = num_buffers_fetched;
-    uint64_t old_num_pivots_fetched = num_pivots_fetched;
-
-    num_basements_decompressed = 
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
-        
-    num_buffers_decompressed = 
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
-
-    num_basements_fetched = 
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_WRITE");
-
-    num_buffers_fetched = 
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_WRITE");
-
-    num_pivots_fetched = 
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_QUERY") +
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_WRITE");
-        
-    printf("basements decompressed %" PRIu64 " \n", num_basements_decompressed - old_num_basements_decompressed);
-    printf("buffers   decompressed %" PRIu64 " \n", num_buffers_decompressed- old_num_buffers_decompressed);
-    printf("basements fetched      %" PRIu64 " \n", num_basements_fetched - old_num_basements_fetched);
-    printf("buffers fetched        %" PRIu64 " \n", num_buffers_fetched - old_num_buffers_fetched);
-    printf("pivots fetched         %" PRIu64 " \n", num_pivots_fetched - old_num_pivots_fetched);
-    printf("************************************************************\n");
-}
-
-static void checkpoint_callback_2(void * extra) {
-    DB_ENV* CAST_FROM_VOIDP(env, extra);
-    num_basements_decompressed = 
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
-        
-    num_buffers_decompressed = 
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
-    
-    num_basements_fetched = 
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_WRITE");
-    
-    num_buffers_fetched = 
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_WRITE");
-    
-    num_pivots_fetched = 
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_QUERY") +
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_WRITE");
-}
-
-
-
 //
 // This test is a form of stress that does operations on a single dictionary:
 // We create a dictionary bigger than the cachetable (around 4x greater).
@@ -158,8 +73,6 @@ cleanup:
 
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
-    db_env_set_checkpoint_callback(checkpoint_callback_1, env);
-    db_env_set_checkpoint_callback2(checkpoint_callback_2, env);
     //
     // the threads that we want:
     //   - some threads constantly updating random values
