@@ -90,9 +90,11 @@ static void dummy(void) {}
 
 int
 main(int argc, const char *argv[]) {
-    toku_brt_init(dummy, dummy);
+    int rinit = toku_brt_init(dummy, dummy);
+    CKERR(rinit);
     int r = test_main(argc, argv);
-    toku_brt_destroy();
+    int rdestroy = toku_brt_destroy();
+    CKERR(rdestroy);
     return r;
 }
 
