@@ -2980,13 +2980,13 @@ typedef struct {
 
 static inline u_int32_t 
 get_prelocked_flags(u_int32_t flags) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
     return lock_flags;
 }
 
 static inline u_int32_t 
 get_cursor_prelocked_flags(u_int32_t flags, DBC* dbc) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
 
     //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
     if (dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE)
@@ -3876,12 +3876,13 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     u_int32_t lock_flags = get_prelocked_flags(flags);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
+    BOOL do_dir_locking = !(lock_flags&DB_PRELOCKED_FILE_READ);
 
     int r = 0;
     if (unchecked_flags!=0) 
         r = EINVAL;
 
-    if (r == 0) {
+    if (r == 0 && do_dir_locking) {
         r = toku_grab_read_lock_on_directory(db, txn);
     }
     if (r == 0 && error_if_missing) {
@@ -4039,9 +4040,10 @@ env_del_multiple(
         }
 
         //Do locking if necessary.
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (r != 0) goto cleanup;
-
+        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+            r = toku_grab_read_lock_on_directory(db, txn);
+            if (r != 0) goto cleanup;
+        }
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
             r = get_point_lock(db, txn, &del_keys[which_db]);
@@ -4199,7 +4201,7 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE | DB_PRELOCKED_FILE_READ);
     flags &= ~lock_flags;
     flags &= ~DB_ISOLATION_FLAGS;
     // And DB_GET_BOTH is no longer supported. #2862.
@@ -4598,13 +4600,15 @@ static int
 toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    int r;
+    int r = 0;
 
     u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
-    r = toku_grab_read_lock_on_directory(db, txn);
-
+    if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
+        r = toku_grab_read_lock_on_directory(db, txn);
+    }
+    
     if (r == 0)
         r = db_put_check_size_constraints(db, key, val);
     if (r == 0) {
@@ -4751,9 +4755,10 @@ env_put_multiple(
         }
 
         //Do locking if necessary.
-        r = toku_grab_read_lock_on_directory(db, txn);
-        if (r != 0) goto cleanup;
-
+        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+            r = toku_grab_read_lock_on_directory(db, txn);
+            if (r != 0) goto cleanup;
+        }
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
             r = get_point_lock(db, txn, &put_keys[which_db]);
@@ -4857,9 +4862,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
             BOOL key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
             if (!key_eq) {
-                r = toku_grab_read_lock_on_directory(db, txn);
-                if (r != 0) goto cleanup;
-
+                if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+                    r = toku_grab_read_lock_on_directory(db, txn);
+                    if (r != 0) goto cleanup;
+                }
                 //Check overwrite constraints only in the case where 
                 // the keys are not equal.
                 // If the keys are equal, then we do not care of the flag is DB_NOOVERWRITE or DB_YESOVERWRITE
@@ -4892,9 +4898,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 r = db_put_check_size_constraints(db, &curr_new_key, &curr_new_val);
                 if (r != 0) goto cleanup;
 
-                r = toku_grab_read_lock_on_directory(db, txn);
-                if (r != 0) goto cleanup;
-
+                if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+                    r = toku_grab_read_lock_on_directory(db, txn);
+                    if (r != 0) goto cleanup;
+                }
                 // lock new key
                 if (db->i->lt) {
                     r = get_point_lock(db, txn, &curr_new_key);
@@ -5489,6 +5496,13 @@ static int locked_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
     return r;
 }
 
+static int locked_db_pre_acquire_fileops_shared_lock(DB *db, DB_TXN *txn) {
+    toku_ydb_lock();
+    int r = toku_grab_read_lock_on_directory(db, txn);
+    toku_ydb_unlock();
+    return r;
+}
+
 // truncate a database
 // effect: remove all of the rows from a database
 static int 
@@ -5774,6 +5788,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(fd);
     SDB(pre_acquire_table_lock);
     SDB(pre_acquire_fileops_lock);
+    SDB(pre_acquire_fileops_shared_lock);
     SDB(truncate);
     SDB(row_size_supported);
     SDB(getf_set);

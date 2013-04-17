@@ -40,6 +40,10 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     dbt_init(&val, "a", 4);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = db->pre_acquire_fileops_shared_lock(db, txn); CKERR2(r,DB_LOCK_NOTGRANTED);
+    r = txn->commit(txn,0); CKERR(r);
+
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = db->cursor(db, txn, &c, 0); CKERR2(r,DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
@@ -206,6 +210,14 @@ int test_main (int argc, char * const argv[]) {
     verify_shared_ops_fail(env,db);
     r = txna->commit(txna, 0); CKERR(r);
 
+
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
+    r = db->pre_acquire_fileops_shared_lock(db, txna); CKERR(r);
+    r = db->pre_acquire_fileops_shared_lock(db, txnb); CKERR(r);
+    verify_excl_ops_fail(env,db);
+    r = txna->abort(txna); CKERR(r);
+    r = txnb->abort(txnb); CKERR(r);
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
