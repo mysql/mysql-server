@@ -1,3 +1,5 @@
+/* Test bread by writing random data and then reading it using bread_backwards() to see if it gives the right answer.
+ * See test_1305 for another bread test (testing to see if it can read 1GB files) */
 #include "toku_portability.h"
 
 #include <assert.h>
