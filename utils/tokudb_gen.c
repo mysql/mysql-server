@@ -1,6 +1,7 @@
 /* -*- mode: C; c-basic-offset: 3 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include <toku_portability.h>
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -10,6 +11,9 @@
 #include <errno.h>
 #include <getopt.h>
 #include <db.h>
+#if IS_TDB
+#include <ydb.h>
+#endif
 
 #include "tokudb_common.h"
 
@@ -22,9 +26,9 @@ typedef struct {
 gen_globals g;
 #include "tokudb_common_funcs.h"
 
-int   usage(void);
-void  generate_keys(void);
-int   get_delimiter(char* str);
+static int   usage(void);
+static void  generate_keys(void);
+static int   get_delimiter(char* str);
 
 
 
@@ -49,7 +53,7 @@ bool           force_unique   = true;
 bool           duplicates     = false;
 bool           dupsort        = false;
 
-int main (int argc, char *argv[]) {
+static int test_main (int argc, char *argv[]) {
    int ch;
 
    /* Set up the globals. */
@@ -81,14 +85,14 @@ int main (int argc, char *argv[]) {
          }
          case ('o'): {
             if (freopen(optarg, "w", stdout) == NULL) {
-               ERROR(errno, "%s: reopen\n", optarg);
+               PRINT_ERROR(errno, "%s: reopen\n", optarg);
                goto error;
             }
             break;
          }
          case ('r'): {
             if (strtouint32(optarg, &seed, 0, UINT32_MAX, 10)) {
-               ERRORX("%s: (-r) Random seed invalid.", optarg);
+               PRINT_ERRORX("%s: (-r) Random seed invalid.", optarg);
                 goto error;
             }
             set_seed = true;
@@ -96,7 +100,7 @@ int main (int argc, char *argv[]) {
          }
          case ('m'): {
             if (strtouint32(optarg, &lengthmin, 0, UINT32_MAX, 10)) {
-               ERRORX("%s: (-m) Min length of keys/values invalid.", optarg);
+               PRINT_ERRORX("%s: (-m) Min length of keys/values invalid.", optarg);
                 goto error;
             }
             set_lengthmin = true;
@@ -104,7 +108,7 @@ int main (int argc, char *argv[]) {
          }
          case ('M'): {
             if (strtouint32(optarg, &lengthlimit, 1, UINT32_MAX, 10)) {
-               ERRORX("%s: (-M) Limit of key/value length invalid.", optarg);
+               PRINT_ERRORX("%s: (-M) Limit of key/value length invalid.", optarg);
                 goto error;
             }
             set_lengthlimit = true;
@@ -112,7 +116,7 @@ int main (int argc, char *argv[]) {
          }
          case ('n'): {
             if (strtouint64(optarg, &numkeys, 0, UINT64_MAX, 10)) {
-               ERRORX("%s: (-n) Number of keys to generate invalid.", optarg);
+               PRINT_ERRORX("%s: (-n) Number of keys to generate invalid.", optarg);
                 goto error;
             }
             set_numkeys = true;
@@ -141,12 +145,12 @@ int main (int argc, char *argv[]) {
          case ('d'): {
             int temp = get_delimiter(optarg);
             if (temp == EOF) {
-               ERRORX("%s: (-d) Key (or value) delimiter must be one character.",
+               PRINT_ERRORX("%s: (-d) Key (or value) delimiter must be one character.",
                       optarg);
                goto error;
             }
             if (isxdigit(temp)) {
-               ERRORX("%c: (-d) Key (or value) delimiter cannot be a hex digit.",
+               PRINT_ERRORX("%c: (-d) Key (or value) delimiter cannot be a hex digit.",
                       temp);
                goto error;
             }
@@ -156,12 +160,12 @@ int main (int argc, char *argv[]) {
          case ('s'): {
             int temp = get_delimiter(optarg);
             if (temp == EOF) {
-               ERRORX("%s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
+               PRINT_ERRORX("%s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
                       optarg);
                goto error;
             }
             if (isxdigit(temp)) {
-               ERRORX("%c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
+               PRINT_ERRORX("%c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
                       temp);
                goto error;
             }
@@ -185,55 +189,55 @@ int main (int argc, char *argv[]) {
    argv += optind;
 
    if (justheader && !header) {
-      ERRORX("The -h and -H options may not both be specified.\n");
+      PRINT_ERRORX("The -h and -H options may not both be specified.\n");
       goto error;
    }
    if (justfooter && !footer) {
-      ERRORX("The -f and -F options may not both be specified.\n");
+      PRINT_ERRORX("The -f and -F options may not both be specified.\n");
       goto error;
    }
    if (justfooter && justheader) {
-      ERRORX("The -H and -F options may not both be specified.\n");
+      PRINT_ERRORX("The -H and -F options may not both be specified.\n");
       goto error;
    }
    if (justfooter && header) {
-      ERRORX("-F implies -h\n");
+      PRINT_ERRORX("-F implies -h\n");
       header = false;
    }
    if (justheader && footer) {
-      ERRORX("-H implies -f\n");
+      PRINT_ERRORX("-H implies -f\n");
       footer = false;
    }
    if (!leadingspace) {
       if (footer) {
-         ERRORX("-p implies -f\n");
+         PRINT_ERRORX("-p implies -f\n");
          footer = false;
       }
       if (header) {
-         ERRORX("-p implies -h\n");
+         PRINT_ERRORX("-p implies -h\n");
          header = false;
       }
    }
    if (justfooter || justheader) outputkeys = false;
    else if (!set_numkeys)
    {
-      ERRORX("Using default number of keys.  (-n 1024).\n");
+      PRINT_ERRORX("Using default number of keys.  (-n 1024).\n");
       numkeys = 1024;
    }
    if (outputkeys && !set_seed) {
-      ERRORX("Using default seed.  (-r 1).\n");
+      PRINT_ERRORX("Using default seed.  (-r 1).\n");
       seed = 1;
    }
    if (outputkeys && !set_lengthmin) {
-      ERRORX("Using default lengthmin.  (-m 0).\n");
+      PRINT_ERRORX("Using default lengthmin.  (-m 0).\n");
       lengthmin = 0;
    }
    if (outputkeys && !set_lengthlimit) {
-      ERRORX("Using default lengthlimit.  (-M 1024).\n");
+      PRINT_ERRORX("Using default lengthlimit.  (-M 1024).\n");
       lengthlimit = 1024;
    }
    if (outputkeys && lengthmin >= lengthlimit) {
-      ERRORX("Max key size must be greater than min key size.\n");
+      PRINT_ERRORX("Max key size must be greater than min key size.\n");
       goto error;
    }
 
@@ -260,7 +264,7 @@ error:
    return EXIT_FAILURE;
 }
 
-int usage()
+static int usage()
 {
    fprintf(stderr,
            "usage: %s [-PpTuVhHfFDS] [-o output] [-r seed] [-m minsize] [-M limitsize]\n"
@@ -269,7 +273,7 @@ int usage()
    return EXIT_FAILURE;
 }
 
-u_int8_t randbyte()
+static u_int8_t randbyte()
 {
    static u_int32_t   numsavedbits   = 0;
    static u_int64_t   savedbits      = 0;
@@ -286,13 +290,13 @@ u_int8_t randbyte()
 }
 
 /* Almost-uniformly random int from [0,limit) */
-int32_t random_below(int32_t limit)
+static int32_t random_below(int32_t limit)
 {
    assert(limit > 0);
    return random() % limit;
 }
 
-void generate_keys()
+static void generate_keys()
 {
    bool     usedemptykey   = false;
    u_int64_t  numgenerated   = 0;
@@ -361,7 +365,9 @@ int get_delimiter(char* str)
       switch (str[1]) {
          case ('a'): return '\a';
          case ('b'): return '\b';
+#ifndef __ICL
          case ('e'): return '\e';
+#endif
          case ('f'): return '\f';
          case ('n'): return '\n';
          case ('r'): return '\r';

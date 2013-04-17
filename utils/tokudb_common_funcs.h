@@ -7,7 +7,7 @@
 #include "tokudb_common.h"
 
 //DB_ENV->err disabled since it does not use db_strerror
-#define ERROR(retval, ...)                                        \
+#define PRINT_ERROR(retval, ...)                                        \
 if (0) g.dbenv->err(g.dbenv, retval, __VA_ARGS__);                \
 else {                                                            \
    fprintf(stderr, "%s: %s:", g.progname, db_strerror(retval));   \
@@ -16,7 +16,7 @@ else {                                                            \
 }
 
 //DB_ENV->err disabled since it does not use db_strerror, errx does not exist.
-#define ERRORX(...)                                               \
+#define PRINT_ERRORX(...)                                               \
 if (0) g.dbenv->err(g.dbenv, 0, __VA_ARGS__);                     \
 else {                                                            \
    fprintf(stderr, "%s: ", g.progname);                           \
@@ -57,19 +57,19 @@ int name(char* str, type* num, type min, type max, int base)   \
    while (isspace(*str)) str++;                                \
    value = strtofunc(str, &test, base);                        \
    if ((*test != '\0' && *test != '\n') || test == str) {      \
-      ERRORX("%s: Invalid numeric argument\n", str);           \
+      PRINT_ERRORX("%s: Invalid numeric argument\n", str);           \
       errno = EINVAL;                                          \
       goto error;                                              \
    }                                                           \
    if (errno != 0) {                                           \
-      ERROR(errno, "%s\n", str);                               \
+      PRINT_ERROR(errno, "%s\n", str);                               \
    }                                                           \
    if (value < min) {                                          \
-      ERRORX("%s: Less than minimum value (%" frmt ")\n", str, min); \
+      PRINT_ERRORX("%s: Less than minimum value (%" frmt ")\n", str, min); \
       goto error;                                              \
    }                                                           \
    if (value > max) {                                          \
-      ERRORX("%s: Greater than maximum value (%" frmt ")\n", str, max); \
+      PRINT_ERRORX("%s: Greater than maximum value (%" frmt ")\n", str, max); \
       goto error;                                              \
    }                                                           \
    *num = value;                                               \
@@ -78,12 +78,13 @@ error:                                                         \
    return errno;                                               \
 }
 
-DEF_STR_TO(strtoint32,  int32_t,  int64_t,  strtoll,  PRId32);
-DEF_STR_TO(strtouint32, u_int32_t, u_int64_t, strtoull, PRIu32);
-DEF_STR_TO(strtoint64,  int64_t,  int64_t,  strtoll,  PRId64);
-DEF_STR_TO(strtouint64, u_int64_t, u_int64_t, strtoull, PRIu64);
+DEF_STR_TO(strtoint32,  int32_t,  int64_t,  strtoll,  PRId32)
+DEF_STR_TO(strtouint32, u_int32_t, u_int64_t, strtoull, PRIu32)
+DEF_STR_TO(strtoint64,  int64_t,  int64_t,  strtoll,  PRId64)
+DEF_STR_TO(strtouint64, u_int64_t, u_int64_t, strtoull, PRIu64)
 
-void outputbyte(u_int8_t ch)
+static inline void
+outputbyte(u_int8_t ch)
 {
    if (g.plaintext) {
       if (ch == '\\')         printf("\\\\");
@@ -93,7 +94,8 @@ void outputbyte(u_int8_t ch)
    else printf("%02x", ch);
 }
 
-void outputstring(char* str)
+static inline void
+outputstring(char* str)
 {
    char* p;
 
@@ -102,7 +104,8 @@ void outputstring(char* str)
    }
 }
 
-void outputplaintextstring(char* str)
+static inline void
+outputplaintextstring(char* str)
 {
    bool old_plaintext = g.plaintext;
    g.plaintext = true;
@@ -110,7 +113,8 @@ void outputplaintextstring(char* str)
    g.plaintext = old_plaintext;
 }
 
-int hextoint(int ch)
+static inline int
+hextoint(int ch)
 {
    if (ch >= '0' && ch <= '9') {
       return ch - '0';
@@ -124,7 +128,8 @@ int hextoint(int ch)
    return EOF;
 }
 
-int printabletocstring(char* inputstr, char** poutputstr)
+static inline int
+printabletocstring(char* inputstr, char** poutputstr)
 {
    char highch;
    char lowch;
@@ -137,7 +142,7 @@ int printabletocstring(char* inputstr, char** poutputstr)
 
    cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
    if (cstring == NULL) {
-      ERROR(errno, "printabletocstring");
+      PRINT_ERROR(errno, "printabletocstring");
       goto error;
    }
 
@@ -148,21 +153,21 @@ int printabletocstring(char* inputstr, char** poutputstr)
             continue;
          }
          if (highch == '\0' || (lowch = *++inputstr) == '\0') {
-            ERROR(0, "unexpected end of input data or key/data pair");
+            PRINT_ERROR(0, "unexpected end of input data or key/data pair");
             goto error;
          }
          if (!isxdigit(highch)) {
-            ERROR(0, "Unexpected '%c' (non-hex) input.\n", highch);
+            PRINT_ERROR(0, "Unexpected '%c' (non-hex) input.\n", highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            ERROR(0, "Unexpected '%c' (non-hex) input.\n", lowch);
+            PRINT_ERROR(0, "Unexpected '%c' (non-hex) input.\n", lowch);
             goto error;
          }
-         nextch = (hextoint(highch) << 4) | hextoint(lowch);
+         nextch = (char)((hextoint(highch) << 4) | hextoint(lowch));
          if (nextch == '\0') {
             /* Database names are c strings, and cannot have extra NULL terminators. */
-            ERROR(0, "Unexpected '\\00' in input.\n");
+            PRINT_ERROR(0, "Unexpected '\\00' in input.\n");
             goto error;
          }
          *cstring++ = nextch;
@@ -174,18 +179,19 @@ int printabletocstring(char* inputstr, char** poutputstr)
    return EXIT_SUCCESS;
 
 error:
-   ERROR(0, "Quitting out due to errors.\n");
+   PRINT_ERROR(0, "Quitting out due to errors.\n");
    return EXIT_FAILURE;
 }
 
-int verify_library_version()
+static inline int
+verify_library_version()
 {
    int major;
    int minor;
    
    db_version(&major, &minor, NULL);
    if (major != DB_VERSION_MAJOR || minor != DB_VERSION_MINOR) {
-      ERRORX("version %d.%d doesn't match library version %d.%d\n",
+      PRINT_ERRORX("version %d.%d doesn't match library version %d.%d\n",
              DB_VERSION_MAJOR, DB_VERSION_MINOR, major, minor);
       return EXIT_FAILURE;
    }
@@ -199,22 +205,52 @@ static void catch_signal(int signal) {
     if (last_caught == 0) last_caught = SIGINT;
 }
 
-void init_catch_signals(void) {
-    signal(SIGHUP, catch_signal);
+static inline void
+init_catch_signals(void) {
     signal(SIGINT, catch_signal);
-    signal(SIGPIPE, catch_signal);
     signal(SIGTERM, catch_signal);
+#ifdef SIGHUP
+    signal(SIGHUP, catch_signal);
+#endif
+#ifdef SIGPIPE
+    signal(SIGPIPE, catch_signal);
+#endif
 }
 
-int caught_any_signals(void) {
+static inline int
+caught_any_signals(void) {
     return last_caught != 0;
 }
 
-void resend_signals(void) {
+static inline void
+resend_signals(void) {
     if (last_caught) {
         signal(last_caught, SIG_DFL);
         raise(last_caught);
     }
+}
+
+#include <memory.h>
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+#include <ydb.h>
+#endif
+static int test_main (int argc, char *argv[]);
+int
+main(int argc, char *argv[]) {
+    int r;
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+    //toku_ydb_init();
+#endif
+#if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
+    r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
+    r = db_env_set_func_free(toku_free);      assert(r==0);
+    r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
+#endif
+    r = test_main(argc, argv);
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+    //toku_ydb_destroy();
+#endif
+    return r;
 }
 
 #endif /* #if !defined(TOKUDB_COMMON_H) */

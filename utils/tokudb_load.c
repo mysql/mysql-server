@@ -1,6 +1,7 @@
 /* -*- mode: C; c-basic-offset: 3 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include <toku_portability.h>
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -42,18 +43,18 @@ typedef struct {
 load_globals g;
 #include "tokudb_common_funcs.h"
 
-int   usage          ();
-int   longusage      ();
-int   load_database  ();
-int   create_init_env();
-int   read_header    ();
-int   open_database  ();
-int   read_keys      ();
-int   apply_commandline_options();
-int   close_database ();
-int   doublechararray(char** pmem, u_int64_t* size);
+static int   usage          (void);
+static int   longusage      (void);
+static int   load_database  (void);
+static int   create_init_env(void);
+static int   read_header    (void);
+static int   open_database  (void);
+static int   read_keys      (void);
+static int   apply_commandline_options(void);
+static int   close_database (void);
+static int   doublechararray(char** pmem, u_int64_t* size);
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
    int ch;
    int retval;
    char** next_config_option;
@@ -62,8 +63,8 @@ int main(int argc, char *argv[]) {
    memset(&g, 0, sizeof(g));
    g.leadingspace   = true;
    g.overwritekeys  = true;
-   //TODO: g.dbtype         = DB_UNKNOWN; when defined.
-   g.dbtype         = DB_BTREE;
+   g.dbtype         = DB_UNKNOWN;
+   //g.dbtype         = DB_BTREE;
    g.progname       = argv[0];
    g.header         = true;
    
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
 
    next_config_option = g.config_options = (char**) calloc(argc, sizeof(char*));
    if (next_config_option == NULL) {
-      ERROR(errno, "main: calloc\n");
+      PRINT_ERROR(errno, "main: calloc\n");
       goto error;
    }
    while ((ch = getopt(argc, argv, "c:f:h:nP:r:Tt:V")) != EOF) {
@@ -95,17 +96,17 @@ int main(int argc, char *argv[]) {
          }
          case ('n'): {
             /* g.overwritekeys = false; */
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('P'): {
             /* Clear password. */
             memset(optarg, 0, strlen(optarg));
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('r'): {
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('T'): {
@@ -181,7 +182,7 @@ int load_database()
    /* Create a database handle. */
    retval = db_create(&g.db, g.dbenv, 0);
    if (retval != 0) {
-      ERROR(retval, "db_create");
+      PRINT_ERROR(retval, "db_create");
       return EXIT_FAILURE;
    }
 
@@ -195,7 +196,7 @@ int load_database()
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = db->set_flags(db, DB_ENCRYPT))) {
-      ERROR(ret, "DB->set_flags: DB_ENCRYPT");
+      PRINT_ERROR(ret, "DB->set_flags: DB_ENCRYPT");
       goto error;
    }
    */
@@ -243,7 +244,7 @@ int create_init_env()
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = dbenv->set_encrypt(dbenv, g.password, DB_ENCRYPT_AES))) {
-      ERROR(retval, "set_passwd");
+      PRINT_ERROR(retval, "set_passwd");
       goto error;
    }
    */
@@ -262,7 +263,7 @@ int create_init_env()
    ///TODO: UNCOMMENT/IMPLEMENT 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
    if (retval) {
-      ERROR(retval, "DB_ENV->set_cachesize");
+      PRINT_ERROR(retval, "DB_ENV->set_cachesize");
       goto error;
    }
    */
@@ -275,7 +276,7 @@ int create_init_env()
 
    retval = dbenv->open(dbenv, g.homedir ? g.homedir : ".", flags, 0);
    if (retval) {
-      ERROR(retval, "DB_ENV->open");
+      PRINT_ERROR(retval, "DB_ENV->open");
       goto error;
    }
 success:
@@ -295,25 +296,25 @@ if (!strcmp(field, match)) {                                               \
 #define PARSE_UNSUPPORTEDNUMBER(match, dbfunction)                         \
 if (!strcmp(field, match)) {                                               \
    if (strtoint32(value, &num, 1, INT32_MAX, 10)) goto error;              \
-   ERRORX("%s option not supported.\n", field);                            \
+   PRINT_ERRORX("%s option not supported.\n", field);                            \
    goto error;                                                             \
 }
 #define PARSE_IGNOREDNUMBER(match, dbfunction)                             \
 if (!strcmp(field, match)) {                                               \
    if (strtoint32(value, &num, 1, INT32_MAX, 10)) goto error;              \
-   ERRORX("%s option not supported yet (ignored).\n", field);              \
+   PRINT_ERRORX("%s option not supported yet (ignored).\n", field);              \
    continue;                                                               \
 }
 
 #define PARSE_FLAG(match, flag)                          \
 if (!strcmp(field, match)) {                             \
    if (strtoint32(value, &num, 0, 1, 10)) {              \
-      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+      PRINT_ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
              field);                                     \
       goto error;                                        \
    }                                                     \
    if ((retval = db->set_flags(db, flag)) != 0) {        \
-      ERROR(retval, "set_flags: %s", field);             \
+      PRINT_ERROR(retval, "set_flags: %s", field);             \
       goto error;                                        \
    }                                                     \
    continue;                                             \
@@ -322,29 +323,29 @@ if (!strcmp(field, match)) {                             \
 #define PARSE_UNSUPPORTEDFLAG(match, flag)               \
 if (!strcmp(field, match)) {                             \
    if (strtoint32(value, &num, 0, 1, 10)) {              \
-      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+      PRINT_ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
              field);                                     \
       goto error;                                        \
    }                                                     \
-   ERRORX("%s option not supported.\n", field);          \
+   PRINT_ERRORX("%s option not supported.\n", field);          \
    goto error;                                           \
 }
 
 #define PARSE_IGNOREDFLAG(match, flag)                   \
 if (!strcmp(field, match)) {                             \
    if (strtoint32(value, &num, 0, 1, 10)) {              \
-      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+      PRINT_ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
              field);                                     \
       goto error;                                        \
    }                                                     \
-   ERRORX("%s option not supported yet (ignored).\n", field);  \
+   PRINT_ERRORX("%s option not supported yet (ignored).\n", field);  \
    continue;                                             \
 }
 
 #define PARSE_CHAR(match, dbfunction)                    \
 if (!strcmp(field, match)) {                             \
    if (strlen(value) != 1) {                             \
-      ERRORX("%s=%s: Expected 1-byte value",             \
+      PRINT_ERRORX("%s=%s: Expected 1-byte value",             \
              field, value);                              \
       goto error;                                        \
    }                                                     \
@@ -357,11 +358,11 @@ if (!strcmp(field, match)) {                             \
 #define PARSE_UNSUPPORTEDCHAR(match, dbfunction)         \
 if (!strcmp(field, match)) {                             \
    if (strlen(value) != 1) {                             \
-      ERRORX("%s=%s: Expected 1-byte value",             \
+      PRINT_ERRORX("%s=%s: Expected 1-byte value",             \
              field, value);                              \
       goto error;                                        \
    }                                                     \
-   ERRORX("%s option not supported.\n", field);          \
+   PRINT_ERRORX("%s option not supported.\n", field);          \
    goto error;                                           \
 }
 
@@ -393,11 +394,12 @@ int read_header()
    int retval;
    DB* db = g.db;
    DB_ENV* dbenv = g.dbenv;
+   int r;
 
    assert(g.header);
 
    if (g.read_header.data == NULL && (g.read_header.data = (char*)malloc(datasize * sizeof(char))) == NULL) {
-      ERROR(errno, "read_header: malloc");
+      PRINT_ERROR(errno, "read_header: malloc");
       goto error;
    }
    while (!g.eof) {
@@ -413,7 +415,7 @@ int read_header()
          }
          if (ch == '\n') break;
 
-         g.read_header.data[index] = ch;
+         g.read_header.data[index] = (char)ch;
          index++;
 
          /* Ensure room exists for next character/null terminator. */
@@ -433,7 +435,7 @@ int read_header()
       if (!strcmp(field, "VERSION")) {
          if (strtoint32(value, &g.version, 1, INT32_MAX, 10)) goto error;
          if (g.version != 3) {
-            ERRORX("line %"PRIu64": VERSION %d is unsupported", g.linenumber, g.version);
+            PRINT_ERRORX("line %"PRIu64": VERSION %d is unsupported", g.linenumber, g.version);
             goto error;
          }
          continue;
@@ -455,10 +457,10 @@ int read_header()
             continue;
          }
          if (!strcmp(value, "hash") || strcmp(value, "recno") || strcmp(value, "queue")) {
-            ERRORX("db type %s not supported.\n", value);
+            PRINT_ERRORX("db type %s not supported.\n", value);
             goto error;
          }
-         ERRORX("line %"PRIu64": unknown type %s", g.linenumber, value);
+         PRINT_ERRORX("line %"PRIu64": unknown type %s", g.linenumber, value);
          goto error;
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
@@ -467,7 +469,7 @@ int read_header()
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            ERROR(retval, "error reading db name");
+            PRINT_ERROR(retval, "error reading db name");
             goto error;
          }
          continue;
@@ -475,40 +477,43 @@ int read_header()
       if (!strcmp(field, "keys")) {
          int32_t temp;
          if (strtoint32(value, &temp, 0, 1, 10)) {
-            ERROR(0,
+            PRINT_ERROR(0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
-         g.keys = temp;
+         g.keys = (bool)temp;
          if (!g.keys) {
-            ERRORX("keys=0 not supported");
+            PRINT_ERRORX("keys=0 not supported");
             goto error;
          }
          continue;
       }
       PARSE_COMMON_CONFIGURATIONS();
 
-      ERRORX("unknown input-file header configuration keyword \"%s\"", field);
+      PRINT_ERRORX("unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
 success:
-   return EXIT_SUCCESS;
+   r = 0;
 
    if (false) {
 printerror:
-      ERROR(retval, "%s=%s", field, value);
+      r = EXIT_FAILURE;
+      PRINT_ERROR(retval, "%s=%s", field, value);
    }
    if (false) {
 formaterror:
-      ERRORX("line %"PRIu64": unexpected format", g.linenumber);
+      r = EXIT_FAILURE;
+      PRINT_ERRORX("line %"PRIu64": unexpected format", g.linenumber);
    }
 error:
-   return EXIT_FAILURE;
+   return r;
 }
 
 int apply_commandline_options()
 {
+   int r;
    char** next_config_option = g.config_options;
    unsigned index;
    char* field;
@@ -529,14 +534,14 @@ int apply_commandline_options()
       field = g.config_options[index];
 
       if ((value = strchr(field, '=')) == NULL) {
-         ERRORX("command-line configuration uses name=value format");
+         PRINT_ERRORX("command-line configuration uses name=value format");
          goto error;
       }
       value[0] = '\0';
       value++;
 
       if (field[0] == '\0' || value[0] == '\0') {
-         ERRORX("command-line configuration uses name=value format");
+         PRINT_ERRORX("command-line configuration uses name=value format");
          goto error;
       }
 
@@ -546,7 +551,7 @@ int apply_commandline_options()
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            ERROR(retval, "error reading db name");
+            PRINT_ERROR(retval, "error reading db name");
             goto error;
          }
          continue;
@@ -554,21 +559,21 @@ int apply_commandline_options()
       if (!strcmp(field, "keys")) {
          int32_t temp;
          if (strtoint32(value, &temp, 0, 1, 10)) {
-            ERROR(0,
+            PRINT_ERROR(0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
-         g.keys = temp;
+         g.keys = (bool)temp;
          if (!g.keys) {
-            ERRORX("keys=0 not supported");
+            PRINT_ERRORX("keys=0 not supported");
             goto error;
          }
          continue;
       }
       PARSE_COMMON_CONFIGURATIONS();
 
-      ERRORX("unknown input-file header configuration keyword \"%s\"", field);
+      PRINT_ERRORX("unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
    if (value) {
@@ -576,14 +581,15 @@ int apply_commandline_options()
       value[-1] = '=';
       value = NULL;
    }
-   return EXIT_SUCCESS;
+   r = 0;
 
    if (false) {
 printerror:
-      ERROR(retval, "%s=%s", field, value);
+      r = EXIT_FAILURE;
+      PRINT_ERROR(retval, "%s=%s", field, value);
    }
 error:
-   return EXIT_FAILURE;
+   return r;
 }
 
 int open_database()
@@ -604,7 +610,7 @@ int open_database()
       //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
       /*
       if (g.dbtype == DB_UNKNOWN) {
-         ERRORX("no database type specified");
+         PRINT_ERRORX("no database type specified");
          goto error;
       }*/
       SET_BITS(open_flags, DB_CREATE);
@@ -612,21 +618,21 @@ int open_database()
       retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    }
    if (retval != 0) {
-      ERROR(retval, "DB->open: %s", g.database);
+      PRINT_ERROR(retval, "DB->open: %s", g.database);
       goto error;
    }
    //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
    /*
    if ((retval = db->get_type(db, &opened_type)) != 0) {
-      ERROR(retval, "DB->get_type");
+      PRINT_ERROR(retval, "DB->get_type");
       goto error;
    }
    if (opened_type != DB_BTREE) {
-      ERRORX("Unsupported db type %d\n", opened_type);
+      PRINT_ERRORX("Unsupported db type %d\n", opened_type);
       goto error;
    }
    if (g.dbtype != DB_UNKNOWN && opened_type != g.dbtype) {
-      ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, opened_type);
+      PRINT_ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, opened_type);
       goto error;
    }*/
    return EXIT_SUCCESS;
@@ -646,11 +652,11 @@ int doublechararray(char** pmem, u_int64_t* size)
    *size <<= 1;
    if (*size == 0) {
       /* Overflowed u_int64_t. */
-      ERRORX("Line %"PRIu64": Line too long.\n", g.linenumber);
+      PRINT_ERRORX("Line %"PRIu64": Line too long.\n", g.linenumber);
       goto error;
    }
    if ((*pmem = (char*)realloc(*pmem, *size)) == NULL) {
-      ERROR(errno, "doublechararray: realloc");
+      PRINT_ERROR(errno, "doublechararray: realloc");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -659,7 +665,7 @@ error:
    return EXIT_FAILURE;
 }
 
-int get_dbt(DBT* pdbt)
+static int get_dbt(DBT* pdbt)
 {
    DB_ENV* dbenv = g.dbenv;
    /* Need to store a key and value. */
@@ -675,7 +681,7 @@ int get_dbt(DBT* pdbt)
    which = 1 - which;
    if (g.get_dbt.data[which] == NULL &&
       (g.get_dbt.data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
-      ERROR(errno, "get_dbt: malloc");
+      PRINT_ERROR(errno, "get_dbt: malloc");
       goto error;
    }
    
@@ -701,22 +707,22 @@ int get_dbt(DBT* pdbt)
                }
                else if (highch == EOF) {
                   g.eof = true;
-                  ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(highch)) {
-                  ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+                  PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
                   goto error;
                }
 
                lowch = getchar();
                if (lowch == EOF) {
                   g.eof = true;
-                  ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(lowch)) {
-                  ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+                  PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
                   goto error;
                }
 
@@ -728,7 +734,7 @@ int get_dbt(DBT* pdbt)
                   nextch = firstch;
                   break;
                }
-               ERRORX("Line %"PRIu64": Nonprintable character found.", g.linenumber);
+               PRINT_ERRORX("Line %"PRIu64": Nonprintable character found.", g.linenumber);
                goto error;
             }
          }
@@ -740,7 +746,7 @@ int get_dbt(DBT* pdbt)
             if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
             datum = g.get_dbt.data[which];
          }
-         datum[index] = nextch;
+         datum[index] = (char)nextch;
          index++;
       }
       if (firstch == EOF) g.eof = true;
@@ -755,15 +761,15 @@ int get_dbt(DBT* pdbt)
          lowch = getchar();
          if (lowch == EOF) {
             g.eof = true;
-            ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
             goto error;
          }
          if (!isxdigit(highch)) {
-            ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
             goto error;
          }
          if (index == datasize[which]) {
@@ -771,7 +777,7 @@ int get_dbt(DBT* pdbt)
             if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
             datum = g.get_dbt.data[which];
          }
-         datum[index] = (hextoint(highch) << 4) | hextoint(lowch);
+         datum[index] = (char)((hextoint(highch) << 4) | hextoint(lowch));
          index++;
       }
       if (highch == EOF) g.eof = true;
@@ -789,7 +795,7 @@ error:
 #define DB_YESOVERWRITE 0
 #endif
 
-int insert_pair(DBT* key, DBT* data)
+static int insert_pair(DBT* key, DBT* data)
 {
    DB_ENV* dbenv = g.dbenv;
    DB* db = g.db;
@@ -797,7 +803,7 @@ int insert_pair(DBT* key, DBT* data)
    int retval = db->put(db, NULL, key, data, g.overwritekeys ? DB_YESOVERWRITE : DB_NOOVERWRITE);
    if (retval != 0) {
       //TODO: Check for transaction failures/etc.. retry if necessary.
-      ERROR(retval, "DB->put");
+      PRINT_ERROR(retval, "DB->put");
       if (!(retval == DB_KEYEXIST && g.overwritekeys)) goto error;
    }
    return EXIT_SUCCESS;
@@ -834,7 +840,7 @@ int read_keys()
                 //Last entry had no newline.  Done.
                 break;
             }
-            ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
+            PRINT_ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
             goto error;
          }
          g.linenumber++;
@@ -867,13 +873,13 @@ int read_keys()
          }
          default: {
 unexpectedinput:
-            ERRORX("Line %"PRIu64": Unexpected input while reading key.\n", g.linenumber);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected input while reading key.\n", g.linenumber);
             goto error;
          }
       }
 
       if (g.eof) {
-         ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
+         PRINT_ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
          goto error;
       }
       g.linenumber++;
@@ -881,7 +887,7 @@ unexpectedinput:
       switch (spacech) {
          case (EOF): {
             g.eof = true;
-            ERRORX("Line %"PRIu64": Unexpected end of file while reading value.\n", g.linenumber);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected end of file while reading value.\n", g.linenumber);
             goto error;
          }
          case (' '): {
@@ -890,7 +896,7 @@ unexpectedinput:
             break;
          }
          default: {
-            ERRORX("Line %"PRIu64": Unexpected input while reading value.\n", g.linenumber);
+            PRINT_ERRORX("Line %"PRIu64": Unexpected input while reading value.\n", g.linenumber);
             goto error;
          }
       }
@@ -910,7 +916,7 @@ int close_database()
 
    assert(db);
    if ((retval = db->close(db, 0)) != 0) {
-      ERROR(retval, "DB->close");
+      PRINT_ERROR(retval, "DB->close");
       goto error;
    }
    return EXIT_SUCCESS;

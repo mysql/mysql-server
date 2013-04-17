@@ -1,6 +1,7 @@
 /* -*- mode: C; c-basic-offset: 3 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include <toku_portability.h>
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -33,16 +34,16 @@ typedef struct {
 dump_globals g;
 #include "tokudb_common_funcs.h"
 
-int   usage          ();
-int   create_init_env();
-int   dump_database  ();
-int   open_database  ();
-int   dump_pairs     ();
-int   dump_footer    ();
-int   dump_header    ();
-int   close_database ();
+static int   usage          (void);
+static int   create_init_env(void);
+static int   dump_database  (void);
+static int   open_database  (void);
+static int   dump_pairs     (void);
+static int   dump_footer    (void);
+static int   dump_header    (void);
+static int   close_database (void);
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
    int ch;
    int retval;
 
@@ -61,7 +62,7 @@ int main(int argc, char *argv[]) {
    while ((ch = getopt(argc, argv, "d:f:h:klNP:ps:RrVT")) != EOF) {
       switch (ch) {
          case ('d'): {
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('f'): {
@@ -78,22 +79,22 @@ int main(int argc, char *argv[]) {
             break;
          }
          case ('k'): {
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('l'): {
             //TODO: Implement (Requires master database support)
-            ERRORX("-%c option not supported.\n", ch); //YET!
+            PRINT_ERRORX("-%c option not supported.\n", ch); //YET!
             goto error;
          }
          case ('N'): {
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('P'): {
             /* Clear password. */
             memset(optarg, 0, strlen(optarg));
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('p'): {
@@ -105,7 +106,7 @@ int main(int argc, char *argv[]) {
             /*g.recover_flags |= DB_SALVAGE | DB_AGGRESSIVE;*/
 
             //TODO: Implement aggressive recovery (requires db->verify())
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('r'): {
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
             /*g.recover_flags |= DB_SALVAGE;*/
 
             //TODO: Implement recovery (requires db->verify())
-            ERRORX("-%c option not supported.\n", ch);
+            PRINT_ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('s'): {
@@ -147,10 +148,10 @@ int main(int argc, char *argv[]) {
 
    if (g.subdatabase != NULL && IS_SET_ALL(g.recover_flags, DB_SALVAGE)) {
       if (IS_SET_ALL(g.recover_flags, DB_AGGRESSIVE)) {
-         ERRORX("The -s and -R options may not both be specified.\n");
+         PRINT_ERRORX("The -s and -R options may not both be specified.\n");
          goto error;
       }
-      ERRORX("The -s and -r options may not both be specified.\n");
+      PRINT_ERRORX("The -s and -r options may not both be specified.\n");
       goto error;
       
    }
@@ -191,14 +192,14 @@ int dump_database()
    /* Create a database handle. */
    retval = db_create(&g.db, g.dbenv, 0);
    if (retval != 0) {
-      ERROR(retval, "db_create");
+      PRINT_ERROR(retval, "db_create");
       return EXIT_FAILURE;
    }
 
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = db->set_flags(db, DB_ENCRYPT))) {
-      ERROR(ret, "DB->set_flags: DB_ENCRYPT");
+      PRINT_ERROR(ret, "DB->set_flags: DB_ENCRYPT");
       goto error;
    }
    */
@@ -263,7 +264,7 @@ int create_init_env()
    ///TODO: UNCOMMENT/IMPLEMENT 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
    if (retval) {
-      ERROR(retval, "DB_ENV->set_cachesize");
+      PRINT_ERROR(retval, "DB_ENV->set_cachesize");
       goto error;
    }
    */
@@ -276,7 +277,7 @@ int create_init_env()
 
    retval = dbenv->open(dbenv, g.homedir, flags, 0);
    if (retval) {
-      ERROR(retval, "DB_ENV->open");
+      PRINT_ERROR(retval, "DB_ENV->open");
       goto error;
    }
 success:
@@ -313,7 +314,7 @@ int dump_header()
    }
    //TODO: Uncomment when db->get_flags is implemented
    if ((retval = db->get_flags(db, &flags)) != 0) {
-      ERROR(retval, "DB->get_flags");
+      PRINT_ERROR(retval, "DB->get_flags");
       goto error;
    }
    DUMP_IGNORED_FLAG(DB_CHKSUM,    "chksum=1\n");
@@ -350,22 +351,22 @@ int open_database()
 
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    if (retval != 0) {
-      ERROR(retval, "DB->open: %s", g.database);
+      PRINT_ERROR(retval, "DB->open: %s", g.database);
       goto error;
    }
    //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
    /*
    retval = db->get_type(db, &g.opened_dbtype);
    if (retval != 0) {
-      ERROR(retval, "DB->get_type");
+      PRINT_ERROR(retval, "DB->get_type");
       goto error;
    }
    if (g.opened_dbtype != DB_BTREE) {
-      ERRORX("Unsupported db type %d\n", g.opened_dbtype);
+      PRINT_ERRORX("Unsupported db type %d\n", g.opened_dbtype);
       goto error;
    }
    if (g.dbtype != DB_UNKNOWN && g.opened_dbtype != g.dbtype) {
-      ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, g.opened_dbtype);
+      PRINT_ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, g.opened_dbtype);
       goto error;
    }*/
    return EXIT_SUCCESS;
@@ -374,7 +375,7 @@ error:
    return EXIT_FAILURE;
 }
 
-int dump_dbt(DBT* dbt)
+static int dump_dbt(DBT* dbt)
 {
    char* str;
    u_int32_t index;
@@ -414,7 +415,7 @@ int dump_pairs()
    memset(&data, 0, sizeof(data));
 
    if ((retval = db->cursor(db, (DB_TXN*)NULL, &dbc, 0)) != 0) {
-      ERROR(retval, "DB->cursor");
+      PRINT_ERROR(retval, "DB->cursor");
       goto error;
    }
    while ((retval = dbc->c_get(dbc, &key, &data, DB_NEXT)) == 0) {
@@ -423,7 +424,7 @@ int dump_pairs()
       if (dump_dbt(&data) != 0) goto error;
    }
    if (retval != DB_NOTFOUND) {
-      ERROR(retval, "DBC->c_get");
+      PRINT_ERROR(retval, "DBC->c_get");
       goto error;
    }
    
@@ -434,7 +435,7 @@ error:
    }
 cleanup:
    if (dbc && (retval = dbc->c_close(dbc)) != 0) {
-      ERROR(retval, "DBC->c_close");
+      PRINT_ERROR(retval, "DBC->c_close");
       g.exitcode = EXIT_FAILURE;
    }
 success:
@@ -448,7 +449,7 @@ int close_database()
 
    assert(db);
    if ((retval = db->close(db, 0)) != 0) {
-      ERROR(retval, "DB->close");
+      PRINT_ERROR(retval, "DB->close");
       goto error;
    }
    return EXIT_SUCCESS;
