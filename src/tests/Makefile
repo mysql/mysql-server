@@ -109,6 +109,7 @@ BDB_DONTRUN_TESTS = \
         loader-stress-test \
         loader-tpch-load \
         manyfiles \
+	multiprocess \
         powerfail \
 	preload-3.1-db \
         progress \

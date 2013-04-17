@@ -89,6 +89,10 @@ struct __toku_db_env_internal {
     BOOL fs_poller_is_init;    
     uint32_t num_open_dbs;
     uint32_t num_zombie_dbs;
+    int envdir_lockfd;
+    int datadir_lockfd;
+    int logdir_lockfd;
+    int tmpdir_lockfd;
 };
 
 /* *********************************************************
