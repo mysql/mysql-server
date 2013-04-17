@@ -83,7 +83,8 @@ REGRESSION_TESTS_RAW = \
 	log-test5 \
 	log-test6 \
 	log-test7 \
-	log-test-timestamp \
+	logcursor-timestamp \
+	logcursor-empty-logdir \
 	memtest \
 	minicron-test \
 	omt-cursor-test \
@@ -97,6 +98,7 @@ REGRESSION_TESTS_RAW = \
 	test-inc-split \
 	test-leafentry10 \
 	test-leafentry-nested \
+	test_logcursor \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	threadpool-test \

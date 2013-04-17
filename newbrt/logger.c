@@ -48,7 +48,25 @@ int toku_logger_create (TOKULOGGER *resultp) {
 int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->is_open) return EINVAL;
     if (logger->is_panicked) return EINVAL;
+
     int r;
+    TOKULOGCURSOR logcursor;
+    struct log_entry *le;
+    logger->lsn.lsn=0;
+    // In searching existing logfiles for last LSN, have chosen to 
+    // ignore errors that may occur.  In the event of a return error, 
+    // revert to using LSN=0
+    r = toku_logcursor_create(&logcursor, directory);
+    if (r==0) {
+        r = toku_logcursor_last(logcursor, &le);
+        if (r==0)
+            logger->lsn = toku_log_entry_get_lsn(le);
+        toku_logcursor_destroy(&logcursor);
+    }
+    //printf("starting after LSN=%lu\n", logger->lsn.lsn);
+    logger->written_lsn = logger->lsn;
+    logger->fsynced_lsn = logger->lsn;
+
     long long nexti;
     r = toku_logger_find_next_unused_log_file(directory, &nexti);
     if (r!=0) return r;
@@ -56,10 +74,6 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->directory==0) return errno;
     logger->next_log_file_number = nexti;
     open_logfile(logger);
-
-    logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file.
-    logger->written_lsn.lsn = 0;
-    logger->fsynced_lsn.lsn = 0;
 
     logger->is_open = 1;
     if (!logger->write_log_files)

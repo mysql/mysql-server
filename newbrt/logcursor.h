@@ -13,11 +13,14 @@ typedef struct toku_logcursor *TOKULOGCURSOR;
 // All routines return 0 on success
 
 // toku_logcursor_create()
-//   - returns a pointer to a logcursor
+//   - creates a logcursor (lc)
 //   - following toku_logcursor_create()
 //         if toku_logcursor_next() is called, it returns the first entry in the log
 //         if toku_logcursor_prev() is called, it returns the last entry in the log
 int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir);
+// toku_logcursor_create_for_file()
+//   - creates a logcusor (lc) that only knows about the file log_file
+int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const char *log_file);
 // toku_logcursor_destroy()
 //    - frees all resources associated with the logcursor, including the log_entry 
 //       associated with the latest cursor action
