@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL=install
 TOKUROOT=../
-INCLUDEDIRS=-I$(TOKUROOT)include/linux -I$(TOKUROOT)newbrt
+INCLUDEDIRS=-I$(TOKUROOT)include/linux 
 include $(TOKUROOT)include/Makefile.include
 
 OPT_AROPT=-qnoipo #Disable ipo for lib creation even when optimization is on.
