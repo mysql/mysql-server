@@ -1241,11 +1241,6 @@ void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_tim
         STATUS_INC(FT_NONLEAF_SERIALIZE_TOKUTIME, serialize_time);
         STATUS_INC(FT_NONLEAF_COMPRESS_TOKUTIME, compress_time);
     }
-    static int calls;
-    if (calls++ % 10000) {
-        printf("height %d serialize %lf\n", node->height, tokutime_to_seconds(serialize_time));
-        printf("height %d compress %lf\n", node->height, tokutime_to_seconds(compress_time));
-    }
 }
 
 void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time) {
@@ -1255,11 +1250,6 @@ void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize
     } else {
         STATUS_INC(FT_NONLEAF_DESERIALIZE_TOKUTIME, deserialize_time);
         STATUS_INC(FT_NONLEAF_DECOMPRESS_TOKUTIME, decompress_time);
-    }
-    static int calls;
-    if (calls++ % 10000) {
-        printf("height %d deserialize %lf\n", node->height, tokutime_to_seconds(deserialize_time));
-        printf("height %d decompress %lf\n", node->height, tokutime_to_seconds(decompress_time));
     }
 }
 
