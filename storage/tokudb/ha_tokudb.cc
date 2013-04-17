@@ -6697,6 +6697,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = db_create(&status_block, db_env, 0);
     if (error) { goto cleanup; }
 
+    error = status_block->set_pagesize(status_block, 1024);
+    if (error) { goto cleanup; }
+
     error = status_block->open(status_block, txn, newname, NULL, DB_BTREE, DB_CREATE | DB_EXCL, 0);
     if (error) { goto cleanup; }
 
