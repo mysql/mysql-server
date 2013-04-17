@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <portability/toku_pthread.h>
 
 #include "locktree.h"
 
@@ -20,7 +21,8 @@ void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb)
     m_locktree_map.create();
     m_lt_create_callback = create_cb;
     m_lt_destroy_callback = destroy_cb;
-    m_mutex = TOKU_MUTEX_INITIALIZER;
+    ZERO_STRUCT(m_mutex);
+    toku_mutex_init(&m_mutex, nullptr);
 }
 
 void locktree::manager::destroy(void) {

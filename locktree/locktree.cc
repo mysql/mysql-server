@@ -8,6 +8,7 @@
 
 #include <util/growable_array.h>
 
+#include <portability/toku_pthread.h>
 #include <portability/toku_time.h>
 
 #include "locktree.h"
@@ -49,7 +50,8 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     m_sto_score = STO_SCORE_THRESHOLD;
 
     m_lock_request_info.pending_lock_requests.create();
-    m_lock_request_info.mutex = TOKU_MUTEX_INITIALIZER;
+    ZERO_STRUCT(m_lock_request_info.mutex);
+    toku_mutex_init(&m_lock_request_info.mutex, nullptr);
     m_lock_request_info.should_retry_lock_requests = false;
 
     // Threads read the should retry bit without a lock
