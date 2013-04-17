@@ -457,6 +457,7 @@ int toku_serialize_brtnode_to_memory (BRTNODE node,
                                       BRTNODE_DISK_DATA* ndd,
                                       unsigned int basementnodesize,
                                       BOOL do_rebalancing,
+                                      BOOL in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ char  **bytes_to_write);
 int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, BRTNODE_DISK_DATA* ndd, BOOL do_rebalancing, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
