@@ -8,7 +8,6 @@ DEPEND_COMPILE += \
 	$(TOKUROOT)include/db.h \
 	$(TOKUROOT)newbrt/cachetable.h \
 	$(TOKUROOT)newbrt/brt.h \
-	$(TOKUROOT)newbrt/log.c \
 #End of line
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
