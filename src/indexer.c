@@ -25,6 +25,7 @@
 #include "leafentry.h"
 #include "ule.h"
 #include "xids.h"
+#include "log-internal.h"
 
 // for now 
 static INDEXER_STATUS_S status;
@@ -272,22 +273,40 @@ build_index(DB_INDEXER *indexer) {
     return result;
 }
 
+static void
+require_local_checkpoint (BRT brt, TOKUTXN txn) {
+    toku_brtheader_lock(brt->h);
+    toku_list_push(&txn->checkpoint_before_commit,
+                   &brt->h->checkpoint_before_commit_link);
+    toku_brtheader_unlock(brt->h);
+}
+
 static int 
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
     (void) toku_sync_fetch_and_decrement_uint32(&status.current);
 
     toku_ydb_lock();
-/*
-Add all created dbs to the transaction's checkpoint_before_commit list.  (This will cause a local checkpoint of created index files, which is necessary because these files are not necessarily on disk and all the operations to create them are not in the recovery log.)
-Disassociate the indexer from the hot dbs
-*/
-    disassociate_indexer_from_hot_dbs(indexer);
+    {
+        // Add all created dbs to the transaction's checkpoint_before_commit list.  
+        // (This will cause a local checkpoint of created index files, which is necessary 
+        //   because these files are not necessarily on disk and all the operations 
+        //   to create them are not in the recovery log.)
+        DB_TXN     *txn = indexer->i->txn;
+        TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
+        BRT brt;
+        DB *db;
+        for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
+            db = indexer->i->dest_dbs[which_db];
+            brt = db_struct_i(db)->brt;
+            require_local_checkpoint(brt, tokutxn);
+        }
+
+        // Disassociate the indexer from the hot dbs
+        disassociate_indexer_from_hot_dbs(indexer);
+    }
     toku_ydb_unlock();
-/*
-Destroy the hot cursor
-Destroy the indexer object
-*/
+
     free_indexer(indexer);
     if ( r == 0 ) {
         (void) toku_sync_fetch_and_increment_uint64(&status.close);
