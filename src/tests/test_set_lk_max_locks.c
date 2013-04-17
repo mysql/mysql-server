@@ -15,11 +15,7 @@
 
 // ENVDIR is defined in the Makefile
 
-#if TOKUDB
-#define EXTRA_LOCK_NEEDED 2
-#else
-#define EXTRA_LOCK_NEEDED 0
-#endif
+#define EXTRA_LOCK_NEEDED 0 // pre #4472, TokuDB needed some extra locks due to grabbing of directory lock for some operations
 
 static void make_db (int n_locks) {
     DB_ENV *env;
