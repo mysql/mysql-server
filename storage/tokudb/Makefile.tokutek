@@ -19,7 +19,7 @@ GCOV_FLAGS = -ftest-coverage -fprofile-arcs
 endif
 
 ifeq ($(DEBUG),0)
-OPTFLAGS = -O2
+OPTFLAGS = -O3
 MYSQL_FLAGS = 
 CXXFLAGS =
 else
