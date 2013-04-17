@@ -166,7 +166,7 @@ PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
 ALWAYS_LINK= -lz -lpthread 
 ifeq ($(CC),icc)
 # needed for things like intel_fast_memset(), intel_sse2_strlen()
-ALWAYS_LINK+=-lirc
+ALWAYS_LINK+=-Bstatic -lirc -Bdynamic -lstdc++
 endif
 C99       = -std=c99
 W64       = #-Wshorten-64-to-32
@@ -536,7 +536,7 @@ EXPORTMAPFILE=export.map
 EXPORTMAP = -Wl,--version-script=$(EXPORTMAPFILE)
 SHARED=-shared
 ifeq ($(CC),icc)
-SHARED += -static-intel
+SHARED += -static-intel -nodefaultlibs
 endif
 endif
 ifeq ($(SOEXT),dll)
