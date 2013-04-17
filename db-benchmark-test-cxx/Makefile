@@ -47,7 +47,7 @@ clean:
 
 db-benchmark-test-tokudb: ../lib/libtokudb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp
-	$(CXX) $(CXXFLAGS) -I../include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -DDIRSUF=tokudb
+	$(CXX) $(CXXFLAGS) -I../include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -lz -DDIRSUF=tokudb
 
 db-benchmark-test-bdb: db-benchmark-test.cpp
 	$(CXX) $(CXXFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS)                      $< -o $@ -DDIRSUF=bdb

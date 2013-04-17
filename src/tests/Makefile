@@ -32,8 +32,8 @@ endif
   BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib
  endif
  BDB_LDFLAGS += -lpthread
- TDB_LOADLIBES = -L.. -ltokudb -Wl,-rpath,.. -lpthread
- TDB_TRACELOADLIBES = -L.. -ltokudbtrace -Wl,-rpath,.. -lpthread
+ TDB_LOADLIBES = -L.. -ltokudb -Wl,-rpath,.. -lpthread -lz
+ TDB_TRACELOADLIBES = -L.. -ltokudbtrace -Wl,-rpath,.. -lpthread -lz
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
