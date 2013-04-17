@@ -270,7 +270,6 @@ int toku_txn_begin_with_xid (
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
     result->state = TOKUTXN_LIVE;
-    result->do_fsync = FALSE;
 
     // 2954
     r = toku_txn_ignore_init(result);
@@ -330,6 +329,7 @@ int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
 struct xcommit_info {
     int r;
     TOKUTXN txn;
+    bool do_fsync;
 };
 
 //Called during a yield (ydb lock NOT held).
@@ -365,7 +365,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
         toku_poll_txn_progress_function(txn, TRUE, FALSE);
     }
 
-    info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
+    info->r = toku_log_xcommit(txn->logger, (LSN *)0, info->do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
@@ -379,7 +379,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 
     // Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
     // the do_sync state is captured in the txn for txn_close_txn later
-    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
+    bool do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
@@ -388,6 +388,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
         struct xcommit_info info = {
             .r = 0,
             .txn = txn,
+            .do_fsync = do_fsync,
         };
         yield(local_checkpoints_and_log_xcommit, &info, yieldv);
         r = info.r;
@@ -419,7 +420,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
     int r=0;
-    r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
+    r = toku_log_xabort(txn->logger, (LSN *)0, 0, txn->txnid64);
     if (r!=0) 
         return r;
     r = toku_rollback_abort(txn, yield, yieldv, oplsn);
@@ -429,18 +430,13 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 
 void toku_txn_close_txn(TOKUTXN txn) {
     TOKULOGGER logger = txn->logger; // capture these for the fsync after the txn is deleted
-    bool do_fsync = txn->do_fsync;
-    LSN lsn = txn->do_fsync_lsn;
 
     toku_rollback_txn_close(txn); 
     txn = NULL; // txn is no longer valid
 
     if (garbage_collection_debug)
         verify_snapshot_system(logger);
-    if (do_fsync) { // #3590
-        int r = toku_logger_fsync_if_lsn_not_fsynced(logger, lsn);
-        assert_zero(r);
-    }
+
     status.close++;
     return;
 }
