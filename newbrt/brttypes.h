@@ -103,12 +103,14 @@ struct brt_cmd {
 };
 typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
 
+#if !defined(__cplusplus)
 static inline
 BRT_CMD_S
 build_brt_cmd (enum brt_cmd_type type, TXNID xid, DBT *key, DBT *val) {
     BRT_CMD_S result = {type, xid, .u.id={key,val}};
     return result;
 }
+#endif
 
 #define UU(x) x __attribute__((__unused__))
 
