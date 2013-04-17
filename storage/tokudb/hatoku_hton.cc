@@ -750,6 +750,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     error = db_env->get_engine_status(db_env, &engstat);
     if (error == 0) {
+      STATPRINT("time now", engstat.now);
       const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       u_int32_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
       sprintf(buf, "%" PRIu32, lockctr);  
@@ -789,6 +790,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("checkpoint period", buf);
       sprintf(buf, "%" PRIu32, engstat.checkpoint_footprint);
       STATPRINT("checkpoint status code (0 = idle)", buf);
+      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
+      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
+      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
 
       sprintf(buf, "%" PRIu32, engstat.range_locks_max);
       STATPRINT("max range locks", buf);
