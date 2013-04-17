@@ -382,14 +382,12 @@ if(BUILD_TESTING)
   configure_file(run_checkpoint_stress_test.sh . COPYONLY)
   add_test(NAME checkpoint_stress.tdb
     COMMAND run_checkpoint_stress_test.sh $<TARGET_FILE:checkpoint_stress.tdb> 5 5001 137)
-  set_tests_properties(checkpoint_stress.tdb PROPERTIES TIMEOUT 3000)
 
   declare_custom_tests(recover_stress.tdb)
   add_custom_executable(recover stress.tdb checkpoint_stress.c)
   configure_file(run_recover_stress_test.sh . COPYONLY)
   add_test(NAME recover_stress.tdb
     COMMAND run_recover_stress_test.sh $<TARGET_FILE:recover_stress.tdb> 5 5001 137)
-  set_tests_properties(recover_stress.tdb PROPERTIES TIMEOUT 4500)
 
   declare_custom_tests(diskfull.tdb)
   configure_file(run_diskfull_test.sh . COPYONLY)
@@ -609,19 +607,24 @@ if(BUILD_TESTING)
     test_txn_abort5a.tdb
     test_txn_abort6.tdb
     test_txn_nested2.tdb
+    recovery_fileops_stress.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
       test1426.tdb
       root_fifo_1.bdb
+      root_fifo_31.bdb
       test_log10.bdb
       test_log7.bdb
       test_logmax.bdb
+      rowsize.bdb
       )
   endif (BDB_FOUND)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
+    checkpoint_stress.tdb
+    recover_stress.tdb
     test3039.tdb
     loader-dup-test0.tdb
     loader-stress-del.p.loader
