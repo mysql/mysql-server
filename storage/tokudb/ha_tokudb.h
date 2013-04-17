@@ -211,6 +211,7 @@ private:
     // instance of cursor being used for init_xxx and rnd_xxx functions
     //
     DBC *cursor;
+    u_int32_t cursor_flags; // flags for cursor
     //
     // flags that are returned in table_flags()
     //
@@ -432,6 +433,7 @@ public:
 
     ha_rows records_in_range(uint inx, key_range * min_key, key_range * max_key);
 
+    u_int32_t get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd);
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
     int get_status();

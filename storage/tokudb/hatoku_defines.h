@@ -81,6 +81,7 @@ typedef enum {
     hatoku_iso_not_set = 0,
     hatoku_iso_read_uncommitted,
     hatoku_iso_read_committed,
+    hatoku_iso_repeatable_read,
     hatoku_iso_serializable
 } HA_TOKU_ISO_LEVEL;
 
