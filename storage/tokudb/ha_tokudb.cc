@@ -7942,6 +7942,16 @@ int ha_tokudb::delete_all_rows_internal() {
     // zap the row count
     if (error == 0) {
         share->rows = 0;
+	// update auto increment
+	share->last_auto_increment = 0;
+	// calling write_to_status directly because we need to use txn
+	write_to_status(
+	    share->status_block,
+            hatoku_max_ai,
+	    &share->last_auto_increment,
+	    sizeof(share->last_auto_increment), 
+	    txn
+	    );
     }
 
     share->try_table_lock = true;
