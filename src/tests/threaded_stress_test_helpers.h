@@ -234,7 +234,7 @@ static int UU() loader_op(DB_ENV *env, DB** UU(dbp), DB_TXN* txn, ARG UU(arg)) {
     
         for (int i = 0; i < 1000; i++) {
             DBT key, val;
-            int rand_key = random();
+            int rand_key = i;
             int rand_val = random();
             dbt_init(&key, &rand_key, sizeof(rand_key));
             dbt_init(&val, &rand_val, sizeof(rand_val));
