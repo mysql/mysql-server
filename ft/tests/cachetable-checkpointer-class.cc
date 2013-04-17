@@ -154,6 +154,7 @@ void checkpointer_test::test_pending_bits() {
     //
     const uint32_t count = 3;
     ctpair pairs[count];
+    ZERO_ARRAY(pairs);
     add_pairs(&cf, pairs, count, 0);
 
     m_cp.turn_on_pending_bits();
