@@ -807,32 +807,30 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
         printf("  uint64_t largest_unused_block;          //Size of largest contiguous unused space\n");
         printf("} *TOKU_DB_FRAGMENTATION, TOKU_DB_FRAGMENTATION_S;\n");
 
-        const char *extra[] = {
-            "int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
-            "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
-            "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
-            "int (*pre_acquire_fileops_lock)(DB*, DB_TXN*)",
-            "int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*)",
-            "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
-            "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
-            "int (*row_size_supported) (DB *, uint32_t key_size, uint32_t val_size) /* Test whether a row with the given key size and value size is supported. */",
-            "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
-            "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
-            "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
-            "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
-            "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
-            "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
-            "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
-            "int (*get_readpagesize)(DB*,u_int32_t*)",
-            "int (*set_readpagesize)(DB*,u_int32_t)",
-            "int (*set_indexer)(DB*, DB_INDEXER*)",
-            "void (*get_indexer)(DB*, DB_INDEXER**)",
-            "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
-            "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags)",
-            "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags)",
-            NULL
-        };
-        print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
+	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
+			     "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",
+			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
+			     "int (*pre_acquire_fileops_lock)(DB*, DB_TXN*)",
+                 "int (*pre_acquire_fileops_shared_lock)(DB*, DB_TXN*)",
+			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
+			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
+                             "void (*get_max_row_size)(DB*, u_int32_t *max_key_size, u_int32_t *max_row_size) /* Test whether a row size is supported. */",
+                             "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
+                             "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
+			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
+                             "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
+                             "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
+                             "int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
+                             "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
+                             "int (*get_readpagesize)(DB*,u_int32_t*)",
+                             "int (*set_readpagesize)(DB*,u_int32_t)",
+                             "int (*set_indexer)(DB*, DB_INDEXER*)",
+                             "void (*get_indexer)(DB*, DB_INDEXER**)",
+                             "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
+			     "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags)",
+			     "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags)",
+			     NULL};
+	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }
 
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
