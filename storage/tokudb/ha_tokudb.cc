@@ -4088,6 +4088,11 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     error = pack_old_row_for_update(&old_prim_row, old_row, primary_key);
     if (error) { goto cleanup; }
 
+    //
+    // make sure the buffers for the rows are big enough
+    //
+    fix_mult_rec_buff();
+
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
     handle_rec_buff_for_hot_index();
     lockretryN(wait_lock_time){
