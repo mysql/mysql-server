@@ -3241,23 +3241,25 @@ verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     return 0;
 }
 
-int 
-toku_write_descriptor_to_disk(struct brt_header * h, DESCRIPTOR d, int fd) {
+int
+toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd) {
     int r = 0;
     DISKOFF offset;
     //4 for checksum
     toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
     r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
-    return r;
-}
-
-void
-update_descriptor_in_memory(BRT t, const DBT* new_descriptor) {
-    if (t->h->descriptor.dbt.data) {
-        toku_free(t->h->descriptor.dbt.data);
+    if (r) {
+        goto cleanup;
     }
-    t->h->descriptor.dbt.size = new_descriptor->size;
-    t->h->descriptor.dbt.data = toku_memdup(new_descriptor->data, new_descriptor->size);
+    if (h->descriptor.dbt.data) {
+        toku_free(h->descriptor.dbt.data);
+    }
+    h->descriptor.dbt.size = d->dbt.size;
+    h->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
+
+    r = 0;
+cleanup:
+    return r;
 }
 
 int
@@ -3304,11 +3306,10 @@ toku_brt_change_descriptor(
     // write new_descriptor to header
     new_d.dbt = *new_descriptor;
     fd = toku_cachefile_get_and_pin_fd (t->cf);
-    r = toku_write_descriptor_to_disk(t->h, &new_d, fd);
+    r = toku_update_descriptor(t->h, &new_d, fd);
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 
-    update_descriptor_in_memory(t, new_descriptor);    
 cleanup:
     return r;
 }
