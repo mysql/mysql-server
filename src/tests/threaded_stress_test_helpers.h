@@ -890,6 +890,7 @@ static int verify_progress_callback(void *UU(extra), float UU(progress)) {
     if (!run_test) {
         return -1;
     }
+    return 0;
 }
 
 static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
