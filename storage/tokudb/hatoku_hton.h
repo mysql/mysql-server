@@ -3,7 +3,6 @@
 
 #include "db.h"
 
-
 extern handlerton *tokudb_hton;
 
 extern DB_ENV *db_env;
@@ -45,5 +44,7 @@ extern pthread_mutex_t tokudb_mutex;
 extern pthread_mutex_t tokudb_meta_mutex;
 extern uint32_t tokudb_write_status_frequency;
 extern uint32_t tokudb_read_status_frequency;
+
+void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size);
 
 #endif //#ifdef _HATOKU_HTON

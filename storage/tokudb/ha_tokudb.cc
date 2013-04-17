@@ -3922,6 +3922,10 @@ int ha_tokudb::write_row(uchar * record) {
             error = insert_rows_to_dictionaries_mult(&prim_key, &row, txn, thd);
             if (error) { goto cleanup; }
         }
+        if (error == 0) {
+            uint64_t full_row_size = prim_key.size + row.size;
+            toku_hton_update_primary_key_bytes_inserted(full_row_size);
+        }
     }
 
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
