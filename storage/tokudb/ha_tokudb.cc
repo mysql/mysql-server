@@ -221,7 +221,7 @@ static int tdb_init_func(void *p)
   if (db_env_create(&db_env, 0))
     goto error;
   db_env->set_errcall(db_env, tokudb_print_error);
-  db_env->set_errpfx(db_env, "tokudbdb");
+  db_env->set_errpfx(db_env, "tokudb");
   DBUG_PRINT("info",("tokudb_tmpdir: %s\n", tokudb_tmpdir));
   db_env->set_tmp_dir(db_env, tokudb_tmpdir);
   DBUG_PRINT("info",("mysql_data_home: %s\n", mysql_data_home));
@@ -830,10 +830,11 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
 			  tokudb_cmp_packed_key));
     if (!hidden_primary_key)
       file->app_private= (void*) (table->key_info + table_share->primary_key);
+    char newname[strlen(name) + 32];
+    sprintf(newname, "%s/main", name);
+    fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction, 0)) ||
-	(error= (file->open(file, transaction,
-			    fn_format(name_buff, name, "", ha_tokudb_ext,
-				      MY_UNPACK_FILENAME|MY_APPEND_EXT),
+	(error= (file->open(file, transaction, name_buff,
 			    "main", DB_BTREE, open_mode, 0))) ||
 	(error= transaction->commit(transaction, 0)))
     {
@@ -861,6 +862,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
 	  DBUG_RETURN(1);
 	}
 	sprintf(part,"key%02d",++used_keys);
+        sprintf(newname, "%s/%s", name, part);
+        fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
 	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
 	(*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
 	(*ptr)->app_private= (void*) (table->key_info+i);
@@ -1207,9 +1210,11 @@ void ha_tokudb::get_status()
     if (! share->status_block)
     {
       char name_buff[FN_REFLEN];
+      char newname[strlen(share->table_name) + 32];
+      sprintf(newname, "%s/status", share->table_name);
       uint open_mode= (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
 		       | DB_THREAD);
-      fn_format(name_buff, share->table_name, "", ha_tokudb_ext,
+      fn_format(name_buff, newname, "", ha_tokudb_ext,
 		MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if (!db_create(&share->status_block, db_env, 0))
       {
@@ -1287,13 +1292,15 @@ static void update_status(TOKUDB_SHARE *share, TABLE *table)
       */
 
       char name_buff[FN_REFLEN];
+      char newname[strlen(share->table_name) + 32];
+      sprintf(newname, "%s/status", share->table_name);
+				    fn_format(name_buff, newname,
+					      "", ha_tokudb_ext,
+					      MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if (db_create(&share->status_block, db_env, 0))
 	goto end;
       share->status_block->set_flags(share->status_block, 0);
-      if (share->status_block->open(share->status_block, NULL,
-				    fn_format(name_buff,share->table_name,
-					      "", ha_tokudb_ext,
-					      MY_UNPACK_FILENAME|MY_APPEND_EXT),
+      if (share->status_block->open(share->status_block, NULL, name_buff, 
 				    "status", DB_BTREE,
 				    DB_THREAD | DB_CREATE, my_umask))
 	goto end;
@@ -2420,24 +2427,33 @@ int ha_tokudb::create(const char *name, TABLE *form,
 {
   DBUG_ENTER("ha_tokudb::create");
   char name_buff[FN_REFLEN];
-  char part[7];
-  uint index=1;
   int error;
+  char newname[strlen(name) + 32];
 
-  fn_format(name_buff,name,"", ha_tokudb_ext,
-	    MY_UNPACK_FILENAME|MY_APPEND_EXT);
+  error = mkdir(name, 0777);
+  if (error != 0) {
+      DBUG_RETURN(errno);
+  }
+
+  sprintf(newname, "%s/main", name);
+  fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
 
   /* Create the main table that will hold the real rows */
   if ((error= create_sub_table(name_buff,"main",DB_BTREE,0)))
     DBUG_RETURN(error);
 
   primary_key= form->s->primary_key;
+
   /* Create the keys */
+  char part[7];
+  uint index=1;
   for (uint i=0; i < form->s->keys; i++)
   {
     if (i != primary_key)
     {
       sprintf(part,"key%02d",index++);
+      sprintf(newname, "%s/%s", name, part);
+      fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if ((error= create_sub_table(name_buff, part, DB_BTREE,
 				   (form->key_info[i].flags & HA_NOSAME) ? 0 :
 				   DB_DUP+DB_DUPSORT)))
@@ -2451,6 +2467,9 @@ int ha_tokudb::create(const char *name, TABLE *form,
   DB *status_block;
   if (!(error=(db_create(&status_block, db_env, 0))))
   {
+    sprintf(newname, "%s/status", name);
+    fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
+
     if (!(error=(status_block->open(status_block, NULL, name_buff,
 				    "status", DB_BTREE, DB_CREATE, 0))))
     {
@@ -2464,20 +2483,64 @@ int ha_tokudb::create(const char *name, TABLE *form,
   DBUG_RETURN(error);
 }
 
+#include <dirent.h>
 
+static int rmall(const char *dname) {
+    int error = 0;
+    DIR *d = opendir(dname);
+    if (d) {
+        struct dirent *dirent;
+        while ((dirent = readdir(d)) != 0) {
+            if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
+                continue;
+            char fname[strlen(dname) + 1 + strlen(dirent->d_name) + 1];
+            sprintf(fname, "%s/%s", dname, dirent->d_name);
+            if (dirent->d_type == DT_DIR) {
+                error = rmall(fname);
+            } else 
+                error = remove(fname);
+            if (error != 0) {
+                error = errno;
+                break;
+            }
+        }
+        closedir(d);
+        if (error == 0) {
+            error = remove(dname);
+            if (error != 0)
+                error = errno;
+        }
+    } else
+        error = errno;
+    return error;
+}
 
 int ha_tokudb::delete_table(const char *name)
 {
   DBUG_ENTER("ha_tokudb::delete_table");
   int error;
+#if 0
   char name_buff[FN_REFLEN];
-  if ((error=db_create(&file, db_env, 0)))
-    my_errno=error;
-  else
-    error=file->remove(file,fn_format(name_buff,name,"",ha_tokudb_ext,
-				      MY_UNPACK_FILENAME|MY_APPEND_EXT),
-		       NULL,0);
+  char newname[strlen(name) + 32];
+
+  sprintf(newname, "%s/main", name);
+  fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
+  error = db_create(&file, db_env, 0);
+  if (error != 0) goto exit;
+  error = file->remove(file, name_buff, NULL, 0);
+
+  sprintf(newname, "%s/status", name);
+  fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
+  error = db_create(&file, db_env, 0);
+  if (error != 0) goto exit;
+  error = file->remove(file, name_buff, NULL, 0);
+
+exit:
   file= 0;  // Safety
+  my_errno = error;
+#else
+  error = rmall(name);
+#endif
   DBUG_RETURN(error);
 }
 
@@ -2485,6 +2548,7 @@ int ha_tokudb::delete_table(const char *name)
 int ha_tokudb::rename_table(const char * from, const char * to)
 {
   int error;
+#if 0
   char from_buff[FN_REFLEN];
   char to_buff[FN_REFLEN];
 
@@ -2500,6 +2564,11 @@ int ha_tokudb::rename_table(const char * from, const char * to)
 			NULL, fn_format(to_buff, to, "", ha_tokudb_ext,
 					MY_UNPACK_FILENAME|MY_APPEND_EXT), 0);
   }
+#else
+  error = rename(from, to);
+  if (error != 0)
+      error = errno;
+#endif
   return error;
 }
 
