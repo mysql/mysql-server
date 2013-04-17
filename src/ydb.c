@@ -2460,6 +2460,13 @@ toku_maybe_set_env_panic(int code, char * msg) {
     }
 }
 
+// handlerton's call to fractal tree layer on failed assert in handlerton
+static int 
+env_crash(DB_ENV * UU(db_env), const char* msg, const char * fun, const char* file, int line, int caller_errno) {
+    toku_do_assert_fail(msg, fun, file, line, caller_errno);
+    return -1;  // placate compiler
+}
+
 
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
@@ -2501,6 +2508,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
     result->get_engine_status = env_get_engine_status;
     result->get_engine_status_text = env_get_engine_status_text;
+    result->crash = env_crash;  // handlerton's call to fractal tree layer on failed assert
     result->get_iname = env_get_iname;
     SENV(open);
     SENV(close);
