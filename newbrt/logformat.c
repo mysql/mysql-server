@@ -76,6 +76,9 @@ const struct logtype rollbacks[] = {
                             NULLFIELD}},
     {"tablelock_on_empty_table", 'L', FA{{"FILENUM", "filenum", 0},
 					 NULLFIELD}},
+    {"load", 'l', FA{{"BYTESTRING", "old_iname", 0},
+                     {"BYTESTRING", "new_iname", 0},
+                     NULLFIELD}},
 //    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
 //		       {"BYTESTRING", "fname", 0},
 //		       NULLFIELD}},
@@ -163,8 +166,12 @@ const struct logtype logtypes[] = {
                                     {"BYTESTRING", "src_val", 0},
                                     NULLFIELD}},
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
-                          {"BYTESTRING", "comment", 0},
-                          NULLFIELD}},
+                        {"BYTESTRING", "comment", 0},
+                        NULLFIELD}},
+    {"load", 'l', FA{{"u_int64_t", "timestamp", 0},
+                     {"BYTESTRING", "old_iname", 0},
+                     {"BYTESTRING", "new_iname", 0},
+                     NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 

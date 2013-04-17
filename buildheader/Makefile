@@ -31,7 +31,7 @@ runs_installed: sample_offsets
 	./sample_offsets
 sample_offsets_mysql: CPPFLAGS+=$(MYSQL_H)
 sample_offsets_mysql: sample_offsets.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC) $(CFLAGS) -I../toku_include $(CPPFLAGS) $< -o $@
 
 make_db_h_4_1.o: make_db_h.c sample_offsets_32_4_1.h sample_offsets_64_4_1.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.1.25/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=1 -DTDB_NATIVE=0
@@ -78,7 +78,7 @@ make_tdb_h.o: make_db_h.c
 tdb.h: make_tdb_h
 	./make_tdb_h > $@
 
-sample_offsets:
+sample_offsets: CPPFLAGS+=-I../toku_include
 sample_offsets_local: ./db.h
 sample_offsets_local: sample_offsets.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -DLOCAL $< -o $@

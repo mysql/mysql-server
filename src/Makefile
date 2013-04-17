@@ -33,6 +33,7 @@ OBJS_RAW = \
 	ydb \
 	errors \
 	dlmalloc \
+	loader \
 	elocks \
 #\end
 #OBJS automatically defined.

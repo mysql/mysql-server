@@ -145,15 +145,16 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
 }
 
 int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
-    int r = lc_create(lc, log_dir);
+    TOKULOGCURSOR cursor;
+    int r = lc_create(&cursor, log_dir);
     if ( r!=0 ) 
         return r;
 
-    TOKULOGCURSOR cursor = *lc;
     r = toku_logger_find_logfiles(cursor->logdir, &(cursor->logfiles), &(cursor->n_logfiles));
     if (r!=0) {
         toku_logcursor_destroy(&cursor);
-        *lc = NULL;
+    } else {
+	*lc = cursor;
     }
     return r;
 }

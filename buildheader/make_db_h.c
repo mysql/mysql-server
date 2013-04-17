@@ -375,6 +375,17 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
     printf("} DB_BTREE_STAT64;\n");
 
+    //bulk loader
+    printf("typedef struct __toku_loader DB_LOADER;\n");
+    printf("struct __toku_loader_internal;\n");
+    printf("struct __toku_loader {\n");
+    printf("  struct __toku_loader_internal *i;\n");
+    printf("  int  (*set_duplicate_callback)(DB_LOADER *loader, void (*duplicate)(DB *db, int i, DBT *key, DBT *val)); /* set the duplicate callback */\n");
+    printf("  int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
+    printf("  int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
+    printf("  int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
+    printf("};\n");
+
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
     printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
@@ -450,6 +461,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */",
+                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t flags[/*N*/], uint32_t dbt_flags[/*N*/], void *extra)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
                              "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"
@@ -458,7 +470,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "                                             int (*generate_row_for_put)(DB *dest_db, DB *src_db,\n"
                              "                                                                         DBT *dest_key, DBT *dest_val,\n"
                              "                                                                         const DBT *src_key, const DBT *src_val,\n"
-                             "                                                                         void *extra));",
+                             "                                                                         void *extra))",
                              "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
                              "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,\n"
@@ -467,7 +479,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "                                             int (*generate_row_for_del)(DB *dest_db, DB *src_db,\n"
                              "                                                                         DBT *dest_key,\n"
                              "                                                                         const DBT *src_key, const DBT *src_val,\n"
-                             "                                                                         void *extra));",
+                             "                                                                         void *extra))",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

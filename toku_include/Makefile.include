@@ -97,6 +97,7 @@ WERROR    =
 else
 WERROR    = -Werror
 endif
+
 # -Wno-deprecated is needed on gcc 4.4.2 to make the #ident complaints go away.
 # -Wno-strict-aliasing is needed on gcc 4.4.2 to make certain gratuitous warnings go away.
 ifeq ($(GCCVERSION),4.4.2)
@@ -463,6 +464,14 @@ BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS_NOLIB) $(BINOUTPUT)$@
 
 %.$(OEXT):%.c        $(DEPEND_COMPILE)
 	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
+
+CILKPP=/usr/local/cilk/bin/cilk++
+CILKFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -std=c99,$(CFLAGS)) $(CPPFLAGS)
+%$(BINSUF):%.cilk   $(DEPEND_COMPILE)
+	$(CILKPP) $(CILKFLAGS) $< $(LOADLIBES) -o $@
+%.serial$(BINSUF): %.cilk
+	$(CILKPP) -fcilk-stub $(CILKFLAGS) $^ $(LOADLIBES) -o $@
+
 
 %.$(AEXT):
 	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))

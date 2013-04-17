@@ -602,7 +602,6 @@ static int toku_recover_backward_enq_delete_multiple (struct logtype_enq_delete_
     return 0;
 }
 
-
 static int toku_recover_enq_delete_both (struct logtype_enq_delete_both *l, RECOVER_ENV renv) {
     int r;
     TOKUTXN txn = NULL;
@@ -944,6 +943,17 @@ static int toku_recover_comment (struct logtype_comment *UU(l), RECOVER_ENV UU(r
 }
 
 static int toku_recover_backward_comment (struct logtype_comment *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
+    // need to implement
+    assert(1);
+    return 0;
+}
+
+static int toku_recover_backward_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }

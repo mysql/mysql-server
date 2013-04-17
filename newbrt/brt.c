@@ -2893,8 +2893,7 @@ static int brt_create_file(BRT brt, const char *fname, int *fdp) {
 }
 
 // open a file for use by the brt.  if the file does not exist, error
-static int brt_open_file(BRT brt, const char *fname, int *fdp) {
-    brt = brt;
+static int brt_open_file(const char *fname, int *fdp) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
     int fd;
@@ -3099,7 +3098,7 @@ int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, i
     {
         int fd = -1;
         BOOL did_create = FALSE;
-        r = brt_open_file(t, fname, &fd);
+        r = brt_open_file(fname, &fd);
         FILENUM reserved_filenum = t->filenum;
         if (r==ENOENT && is_create) {
             toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, t->did_set_filenum, t->filenum);
@@ -3234,6 +3233,27 @@ int
 toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
     return toku_brt_open_recovery(t, fname, fname_in_env, is_create, only_create, cachetable, txn, db, FALSE);
 }
+
+int toku_redirect_brt (const char *fname_in_env, BRT brt, TOKUTXN txn __attribute__((__unused__)))
+// Effect:   A BRT points to a file.  Change it to point to a different file.
+//  The original file remains unchanged, but the posix file descriptor is closed.  A new file descriptor is opened.
+//  The different file must be a valid BRT file.
+//  The block size and flags in the file must match the existing BRT.
+//  The new file must already have its descriptor in it (and it must match the existing descriptor).
+//  The new file will have the same filenum.
+//  This function should record a log entry for the redirect.  (And should probably fsync the log after writing that entry.)
+//  If the txn aborts, then this operation will be undone
+// Requires: Sufficient locks are held (e.g., the YDB monolithic lock, and possibly a dictionary lock) to prevent race conditions.
+{
+    int fd=0;
+    int r;
+    r = brt_open_file(fname_in_env, &fd);
+    assert(r==0);
+    r = toku_cachetable_redirect(brt->cf, fd, fname_in_env);
+    assert(r = 0);
+    return 0;
+}
+
 
 int toku_brt_get_fd(BRT brt, int *fdp) {
     *fdp = toku_cachefile_fd(brt->cf);
@@ -5047,7 +5067,8 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
             for (i=0; i<node->u.n.n_children; i++) {
                 fprintf(file, "%*schild %d\n", depth, "", i);
                 if (i>0) {
-                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, (unsigned)toku_dtoh32(*(int*)&node->u.n.childkeys[i-1]->key));
+		    char *key = node->u.n.childkeys[i-1]->key;
+                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, (unsigned)toku_dtoh32(*(int*)key));
                 }
                 toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
                                   (i==0) ? lorange : node->u.n.childkeys[i-1]->key,

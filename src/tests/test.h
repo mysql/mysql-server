@@ -1,4 +1,12 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+
+#ifndef __TEST_H
+#define __TEST_H
+
+#if defined(__cilkplusplus) || defined(__cplusplus)
+extern "C" {
+#endif
+
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include <toku_portability.h>
 
@@ -80,9 +88,9 @@ print_engine_status(DB_ENV * UU(env)) {
 
 
 static __attribute__((__unused__)) DBT *
-dbt_init(DBT *dbt, void *data, u_int32_t size) {
+dbt_init(DBT *dbt, const void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
-    dbt->data = data;
+    dbt->data = (void*)data;
     dbt->size = size;
     return dbt;
 }
@@ -143,6 +151,20 @@ int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
     return 0;
 }
 
+static __attribute__((__unused__)) int
+uint_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
+  assert(db && a && b);
+  assert(a->size == sizeof(unsigned int));
+  assert(b->size == sizeof(unsigned int));
+
+  unsigned int x = *(unsigned int *) a->data;
+  unsigned int y = *(unsigned int *) b->data;
+
+    if (x<y) return -1;
+    if (x>y) return 1;
+    return 0;
+}
+
 #if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
 #define BOOL_DEFINED
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
@@ -157,27 +179,6 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #endif
 
 #include <memory.h>
-int test_main (int argc, char *argv[]);
-int
-main(int argc, char *argv[]) {
-    int r;
-#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
-    int rinit = toku_ydb_init();
-    CKERR(rinit);
-#endif
-#if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
-    r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
-    r = db_env_set_func_free(toku_free);      assert(r==0);
-    r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
-#endif
-    toku_os_initialize_settings(1);
-    r = test_main(argc, argv);
-#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
-    int rdestroy = toku_ydb_destroy();
-    CKERR(rdestroy);
-#endif
-    return r;
-}
 
 static int __attribute__((__unused__))
 abort_on_upgrade(DB* UU(pdb),
@@ -249,3 +250,35 @@ toku_hard_crash_on_purpose(void) {
     fflush(stderr);
 }
 
+#if defined(__cilkplusplus) || defined(__cplusplus)
+}
+#endif
+
+int test_main (int argc, char *argv[]);
+int
+#if defined(__cilkplusplus)
+cilk_main(int argc, char *argv[]) 
+#else
+main(int argc, char *argv[]) 
+#endif
+{
+    int r;
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+    int rinit = toku_ydb_init();
+    CKERR(rinit);
+#endif
+#if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
+    r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
+    r = db_env_set_func_free(toku_free);      assert(r==0);
+    r = db_env_set_func_realloc(toku_realloc);   assert(r==0);
+#endif
+    toku_os_initialize_settings(1);
+    r = test_main(argc, argv);
+#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+    int rdestroy = toku_ydb_destroy();
+    CKERR(rdestroy);
+#endif
+    return r;
+}
+
+#endif // __TEST_H

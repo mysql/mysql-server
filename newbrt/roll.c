@@ -372,3 +372,29 @@ toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yi
 {
     return do_nothing_with_filenum(txn, filenum);
 }
+
+int
+toku_commit_load (BYTESTRING UU(old_iname),
+                  BYTESTRING UU(new_iname),
+                  TOKUTXN    UU(txn),
+                  YIELDF     UU(yield),
+                  void      *UU(yield_v),
+                  LSN        UU(oplsn))
+{
+    // need to implement
+    assert(1);
+    return 0;
+}
+
+int
+toku_rollback_load (BYTESTRING UU(old_iname),
+                    BYTESTRING UU(new_iname),
+                    TOKUTXN    UU(txn),
+                    YIELDF     UU(yield),
+                    void      *UU(yield_v),
+                    LSN        UU(oplsn)) 
+{
+    // need to implement
+    assert(1);
+    return 0;
+}

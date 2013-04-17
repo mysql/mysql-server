@@ -46,6 +46,15 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
 } DB_BTREE_STAT64;
+typedef struct __toku_loader DB_LOADER;
+struct __toku_loader_internal;
+struct __toku_loader {
+  struct __toku_loader_internal *i;
+  int  (*set_duplicate_callback)(DB_LOADER *loader, void (*duplicate)(DB *db, int i, DBT *key, DBT *val)); /* set the duplicate callback */
+  int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */
+  int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */
+  int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
+};
 typedef struct __toku_engine_status {
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
@@ -200,16 +209,17 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
+  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t flags[/*N*/], uint32_t dbt_flags[/*N*/], void *extra);
+  void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
                                              void *extra) /* Insert into multiple dbs */;
-  void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
   int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
                                              int (*generate_row_for_put)(DB *dest_db, DB *src_db,
                                                                          DBT *dest_key, DBT *dest_val,
                                                                          const DBT *src_key, const DBT *src_val,
-                                                                         void *extra));;
+                                                                         void *extra));
   int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,
@@ -218,8 +228,8 @@ struct __toku_db_env {
                                              int (*generate_row_for_del)(DB *dest_db, DB *src_db,
                                                                          DBT *dest_key,
                                                                          const DBT *src_key, const DBT *src_val,
-                                                                         void *extra));;
-  void* __toku_dummy0[36];
+                                                                         void *extra));
+  void* __toku_dummy0[35];
   char __toku_dummy1[144];
   void *api1_internal; /* 32-bit offset=356 size=4, 64=bit offset=568 size=8 */
   void* __toku_dummy2[8];
