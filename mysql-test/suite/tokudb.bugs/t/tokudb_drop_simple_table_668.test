@@ -18,7 +18,8 @@ EOF
 
 # remove all tokudb file in the datadir
 system mkdir $MYSQLD_DATADIR/save;
-system mv $MYSQLD_DATADIR/*toku* $MYSQLD_DATADIR/save;
+system mv $MYSQLD_DATADIR/*toku* $MYSQLD_DATADIR/test $MYSQLD_DATADIR/save;
+system mkdir $MYSQLD_DATADIR/test;
 
 # install 6.6.8 tokudb test files
 system cp -r std_data/tokudb_drop_simple_table_668/data/* $MYSQLD_DATADIR;
@@ -56,7 +57,7 @@ EOF
 --source include/wait_until_disconnected.inc
 
 # restore saved datadir
-system rm -rf $MYSQLD_DATADIR/*toku*;
+system rm -rf $MYSQLD_DATADIR/*toku* $MYSQLD_DATADIR/test;
 system mv $MYSQLD_DATADIR/save/* $MYSQLD_DATADIR;
 system rmdir $MYSQLD_DATADIR/save;
 
