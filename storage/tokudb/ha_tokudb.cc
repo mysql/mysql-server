@@ -7860,6 +7860,14 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
         printf("has indexing changes %d, has non indexing changes %d\n", has_indexing_changes, has_non_indexing_changes);
     }
+#ifdef MARIADB_BASE_VERSION
+#if MYSQL_VERSION_ID >= 50203
+    if (table->s->vfields || altered_table->s->vfields) {
+      retval = HA_ALTER_ERROR;
+      goto cleanup;
+    }
+#endif
+#endif
     if (table->s->tmp_table != NO_TMP_TABLE) {
       retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
       goto cleanup;
