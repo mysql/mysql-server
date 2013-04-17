@@ -974,6 +974,7 @@ STRESS_TEST_SRCS = $(wildcard test_stress*.c)
 STRESS_TESTS = $(patsubst %.c,%,$(STRESS_TEST_SRCS))
 TINY_STRESS_TESTS = $(patsubst %,tiny_%.drdrun,$(STRESS_TESTS))
 MID_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
+LARGE_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
 LARGE_STRESS_TESTS = $(patsubst %,large_%.drdrun,$(STRESS_TESTS))
 
 stress_tests.drdrun: $(TINY_STRESS_TESTS) \
@@ -986,6 +987,9 @@ tiny_stress_tests.drdrun: $(TINY_STRESS_TESTS)
 	true
 
 mid_stress_tests.drdrun: $(MID_STRESS_TESTS)
+	true
+
+large_stress_tests.drdrun: $(LARGE_STRESS_TESTS)
 	true
 
 tiny_%.drdrun: %.tdb
