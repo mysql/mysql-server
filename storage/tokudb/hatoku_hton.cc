@@ -1096,9 +1096,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("total_sleep_time", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.max_time_ydb_lock_held);
       STATPRINT("max_time_ydb_lock_held", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);
+      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_ydb_lock_held));
       STATPRINT("total_time_ydb_lock_held", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_since_start);
+      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_since_start));
       STATPRINT("total_time_since_start", buf);
 
 
