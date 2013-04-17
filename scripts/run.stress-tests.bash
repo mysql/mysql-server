@@ -71,7 +71,7 @@ done
 
 src_tests="${toku_toplevel}/src/tests"
 testnames=(recover-test_stress1.tdb \
-           recover-test_stress2.tdb)
+    recover-test_stress2.tdb)
 
 save_failure() {
     dir="$1"; shift
@@ -134,7 +134,7 @@ run_test() {
         echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
     fi
     cd ..
-    rm -rf $rundir
+    rm -rf $rundir "$envdir"
 }
 
 loop_test() {
