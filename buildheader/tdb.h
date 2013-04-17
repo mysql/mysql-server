@@ -63,6 +63,7 @@ typedef enum {
 #define DB_PRIVATE 8388608
 #define DB_RDONLY 32
 #define DB_RECOVER 64
+#define DB_RUNRECOVERY -30975
 #define DB_THREAD 128
 #define DB_TXN_NOSYNC 512
 #define DB_LOCK_DEFAULT 1
@@ -80,6 +81,7 @@ typedef enum {
 #define DB_INIT_LOCK 131072
 #define DB_INIT_LOG 262144
 #define DB_INIT_MPOOL 524288
+#define DB_CLOSE_DONT_TRIM_LOG 1048576
 #define DB_INIT_TXN 2097152
 #define DB_USE_ENVIRON 16384
 #define DB_USE_ENVIRON_ROOT 32768
@@ -292,6 +294,7 @@ int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) 
 int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
+void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif
