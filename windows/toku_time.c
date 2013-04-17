@@ -47,10 +47,3 @@ clock_gettime(clockid_t clockid, toku_timespec_t *ts) {
         return -1;
 }
 
-char *
-ctime_r(const time_t *timep, char *buf) {
-    int r = ctime_s(buf, 26, timep);
-    assert(r == 0);
-    return buf;
-}
-
