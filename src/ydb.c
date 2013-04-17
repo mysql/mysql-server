@@ -902,6 +902,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
+    toku_cachetable_set_lock_unlock_for_io(env->i->cachetable, toku_ydb_lock, toku_ydb_unlock);
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
 
@@ -1752,19 +1753,14 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	{
 	    SCHEDULE_STATUS_S schedstat;
 	    toku_ydb_lock_get_status(&schedstat);
-	    engstat->ydb_lock_ctr = schedstat.ydb_lock_ctr;                        /* how many times has ydb lock been taken/released */ 
-	    engstat->max_possible_sleep = schedstat.max_possible_sleep;            /* max possible sleep time for ydb lock scheduling (constant) */ 
-	    engstat->processor_freq_mhz = schedstat.processor_freq_mhz;            /* clock frequency in MHz */
-	    engstat->max_requested_sleep = schedstat.max_requested_sleep;          /* max sleep time requested, can be larger than max possible */ 
-	    engstat->times_max_sleep_used = schedstat.times_max_sleep_used;        /* number of times the max_possible_sleep was used to sleep */ 
-	    engstat->total_sleepers = schedstat.total_sleepers;                    /* total number of times a client slept for ydb lock scheduling */ 
-	    engstat->total_sleep_time = schedstat.total_sleep_time;                /* total time spent sleeping for ydb lock scheduling */ 
-	    engstat->max_waiters = schedstat.max_waiters;                          /* max number of simultaneous client threads kept waiting for ydb lock  */ 
-	    engstat->total_waiters = schedstat.total_waiters;                      /* total number of times a client thread waited for ydb lock  */ 
-	    engstat->total_clients = schedstat.total_clients;                      /* total number of separate client threads that use ydb lock  */ 
-	    engstat->time_ydb_lock_held_unavailable = schedstat.time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ 
-	    engstat->total_time_ydb_lock_held = schedstat.total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
-	    engstat->max_time_ydb_lock_held = schedstat.max_time_ydb_lock_held;    /* max time client threads held the ydb lock  */ 
+	    engstat->ydb_lock_ctr             = schedstat.ydb_lock_ctr;             /* How many times has ydb lock been taken/released?                                                                      */ 
+	    engstat->num_waiters_now          = schedstat.num_waiters_now;          /* How many are waiting on on the ydb lock right now (including the current lock holder, if any)?                        */
+	    engstat->max_waiters              = schedstat.max_waiters;              /* The maxium of num_waiters_now (since the system booted).                                                              */ 
+	    engstat->total_sleep_time         = schedstat.total_sleep_time;         /* The total time spent (since the system booted) sleeping (by the indexer) to give foreground threads a chance to work .*/ 
+	    engstat->max_time_ydb_lock_held   = schedstat.max_time_ydb_lock_held;   /* Maximum time that the ydb lock was held.                                                                              */ 
+	    engstat->total_time_ydb_lock_held = schedstat.total_time_ydb_lock_held; /* Total time client threads held the ydb lock                                                                           */ 
+	    engstat->total_time_since_start   = schedstat.total_time_since_start;   /* Total time since the lock was created.  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
+
 	}
         {
 	    LE_STATUS_S lestat;                    // Rice's vampire
@@ -1988,18 +1984,12 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
 	n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
 	n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
-	n += snprintf(buff + n, bufsiz - n, "max_possible_sleep               %"PRIu64"\n", engstat.max_possible_sleep);
-	n += snprintf(buff + n, bufsiz - n, "processor_freq_mhz               %"PRIu64"\n", engstat.processor_freq_mhz);
-	n += snprintf(buff + n, bufsiz - n, "max_requested_sleep              %"PRIu64"\n", engstat.max_requested_sleep);
-	n += snprintf(buff + n, bufsiz - n, "times_max_sleep_used             %"PRIu64"\n", engstat.times_max_sleep_used);
-	n += snprintf(buff + n, bufsiz - n, "total_sleepers                   %"PRIu64"\n", engstat.total_sleepers);
+	n += snprintf(buff + n, bufsiz - n, "num_waiters_now                  %"PRIu32"\n", engstat.num_waiters_now);
+	n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu32"\n", engstat.max_waiters);
 	n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
-	n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu64"\n", engstat.max_waiters);
-	n += snprintf(buff + n, bufsiz - n, "total_waiters                    %"PRIu64"\n", engstat.total_waiters);
-	n += snprintf(buff + n, bufsiz - n, "total_clients                    %"PRIu64"\n", engstat.total_clients);
-	n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
 	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
 	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
+	n += snprintf(buff + n, bufsiz - n, "total_time_since_start           %"PRIu64"\n", engstat.total_time_since_start);
 	n += snprintf(buff + n, bufsiz - n, "le_max_committed_xr              %"PRIu64"\n", engstat.le_max_committed_xr);
 	n += snprintf(buff + n, bufsiz - n, "le_max_provisional_xr            %"PRIu64"\n", engstat.le_max_provisional_xr);
 	n += snprintf(buff + n, bufsiz - n, "le_expanded                      %"PRIu64"\n", engstat.le_expanded);
@@ -5943,6 +5933,11 @@ db_env_set_func_open (int (*open_function)(const char *, int, int)) {
 int 
 db_env_set_func_fclose (int (*fclose_function)(FILE*)) {
     return toku_set_func_fclose(fclose_function);
+}
+
+int
+db_env_set_func_pread (ssize_t (*fun)(int, void *, size_t, off_t)) {
+    return toku_set_func_pread(fun);
 }
 
 void 

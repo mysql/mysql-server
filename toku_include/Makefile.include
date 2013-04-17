@@ -98,10 +98,12 @@ endif
 # -Wno-deprecated is needed on gcc 4.4.{1,2} to make the #ident complaints go away.
 # -Wno-strict-aliasing is needed on gcc 4.4.{1,2} to make certain gratuitous warnings go away.
 # -Wno-unused-result is needed on gcc 4.4.1 to make warnings about ignoring the results of certain system calls go away.
+# Gcc 4.4.1-4ubuntu9 cannot handle --combine, but 4.4.4 can.  But 4.5 cannot.
 ifeq ($(GCCVERSION),4.4.2)
  GCC_VERSION_SPECIFIC = -Wno-deprecated 
 else ifeq ($(GCCVERSION),4.4.1)
  GCC_VERSION_SPECIFIC = -Wno-deprecated -Wno-unused-result
+ COMBINE := 0
 endif
 
 WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations

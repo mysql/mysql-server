@@ -165,6 +165,12 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 				CACHETABLE_FLUSH_CALLBACK flush_callback,
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
 
+// Effect:  If the block is in the cachetable, then return it. 
+//   Otherwise call the release_lock_callback, fetch the data (but don't pin it, since we'll just end up pinning it again later),
+//   and return TOKU_DB_TRYAGAIN.
+int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
+					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
 // Maybe get and pin a memory object.
 // Effects:  This function is identical to the get_and_pin function except that it
 // will not attempt to fetch a memory object that is not in the cachetable.
@@ -191,12 +197,28 @@ int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing somethin
 // Effect: Remove an object from the cachetable.  Don't write it back.
 // Requires: The object must be pinned exactly once.
 
-// Prefetch a memory object for a given key into the cachetable
-// Returns: 0 if success
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
                             void *extraargs);
+// Effect: Prefetch a memory object for a given key into the cachetable
+// Precondition: The cachetable mutex is NOT held.
+// Postcondition: The cachetable mutex is NOT held.
+// Returns: 0 if success
+// Implement Note: 
+//  1) The pair's rwlock is acquired (for write) (there is not a deadlock here because the rwlock is a pthread_cond_wait using the cachetable mutex).  
+//  Case A:  Single-threaded.
+//    A1)  Call cachetable_fetch_pair, which
+//      a) Obtains a readlock on the cachefile's fd (to prevent multipler readers at once)
+//      b) Unlocks the cachetable
+//      c) Does the fetch off disk.
+//      d) Locks the cachetable
+//      e) Unlocks the fd lock.
+//      f) Unlocks the pair rwlock.
+//  Case B: Multithreaded
+//      a) Enqueue a cachetable_reader into the workqueue.
+//      b) Unlock the cache table.
+//      c) The enqueue'd job later locks the cachetable, and calls cachetable_fetch_pair (doing the steps in A1 above).
 
 int toku_cachetable_assert_all_unpinned (CACHETABLE);
 
@@ -327,6 +349,11 @@ LEAFLOCK_POOL toku_cachefile_leaflock_pool(CACHEFILE cf);
 void toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir);
 char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
+
+void toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
+// Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
+
+    
 
 int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[]);
 

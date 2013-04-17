@@ -159,6 +159,10 @@ struct cachetable {
     OMT reserved_filenums;
     char *env_dir;
     BOOL set_env_dir; //Can only set env_dir once
+
+    // For releasing locks during I/O.  These are named "ydb_lock_callback" but it could be viewed more generally as being used to release and reacquire locks while I/O is takign place.
+    void (*ydb_lock_callback)(void);
+    void (*ydb_unlock_callback)(void);
 };
 
 // Lock the cachetable
@@ -322,6 +326,14 @@ toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
     toku_free(ct->env_dir);
     ct->env_dir = toku_xstrdup(env_dir);
     ct->set_env_dir = TRUE;
+}
+
+void
+toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void))
+// Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
+{
+    ct->ydb_lock_callback = ydb_lock_callback;
+    ct->ydb_unlock_callback = ydb_unlock_callback;
 }
 
 //
@@ -1128,6 +1140,7 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
             return 0;
         }
         p->state = CTPAIR_IDLE;
+
         rwlock_write_unlock(&p->rwlock);
         if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
         return 0;
@@ -1415,9 +1428,9 @@ static CACHEKEY  get_and_pin_key       = {0};
 static u_int32_t get_and_pin_fullhash  = 0;            
 
 
-int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
-			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
-                                CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
+int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
+				 CACHETABLE_FLUSH_CALLBACK flush_callback, 
+				 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count=0;
@@ -1625,10 +1638,76 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     return r;
 }
 
+int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
+					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs)
+// Effect:  If the block is in the cachetable, then pin it and return it. 
+//   Otherwise call the lock_unlock_callback (to unlock), fetch the data (but don't pin it, since we'll just end up pinning it again later),  and the call (to lock)
+//   and return TOKU_DB_TRYAGAIN.
+{
+    CACHETABLE ct = cf->cachetable;
+    cachetable_lock(ct);
+    int count = 0;
+    PAIR p;
+    for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
+	count++;
+	if (p->key.b==key.b && p->cachefile==cf) {
+	    note_hash_count(count);
+	    // If I/O is currently happening (p->state=CTPAIR_READING) then we must wait.
+	    //   In this case there is rwlock_write_unlock(&p->rwlock);
+	    // If checkpoint is pending (p->checkpoint_pending) then we must cause the write to happen.
+	    //   In this case we need to write_pair_for_checkpoint(ct, p, FALSE)
+	    //   That code sets locks p->rwlock, sets p->state=CTPAIR_WRITING, and eventually unlocks p->rwlock.
+	    // Fortunately, write_pair_for_checkpint releases the cachetable mutex while the write is happening (and then reacquires it).
+	    // We want to drop the cachetable mutex while waiting.
+	    //   FOR CTPAIR_READING, that's not hard (since we just wait on the p->rwlock, which releases the mutex during the wait).
+	    //   For the case where CTPAIR_WRITING is happening, if we wait on the p->rwlock, then we aren't blocking someone..
+	    //   For the case where *we* do the write (and for that other case where someone else is doing the write), the cachetable_write_pair function releases the mutex.
+	    // So all the cases should work right.
+
+	    // Right now we have the cachetable lock.  That means no one is modifying p.
+	    switch (p->state) {
+	    case CTPAIR_INVALID: assert(0);
+	    case CTPAIR_READING:
+	    case CTPAIR_WRITING:
+		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+		// We need to obtain the read lock (waiting for the write to finish), but then we only waited so we could wake up again.  So rather than locking the read lock, and then releasing it we call this function.
+		rwlock_read_lock_and_unlock(&p->rwlock, ct->mutex); // recall that this lock releases and reacquires the ct->mutex.
+		cachetable_unlock(ct);
+		if (ct->ydb_lock_callback) ct->ydb_lock_callback();
+		return TOKUDB_TRY_AGAIN;
+	    case CTPAIR_IDLE:
+		rwlock_read_lock(&p->rwlock, ct->mutex);
+		lru_touch(ct, p);
+		*value = p->value;
+		if (sizep) *sizep = p->size;
+		cachetable_hit++;
+		cachetable_unlock(ct);
+		return 0;
+	    }
+	    assert(0); // cannot get here
+	}
+    }
+    assert(p==0);
+
+    // Not found
+    p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
+    assert(p);
+    rwlock_write_lock(&p->rwlock, ct->mutex);
+    if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+    int r = cachetable_fetch_pair(ct, cf, p);
+    cachetable_unlock(ct);
+    if (ct->ydb_lock_callback) ct->ydb_lock_callback();
+    if (r!=0) return r;
+    else return TOKUDB_TRY_AGAIN;
+}
+
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                            void *extraargs) {
+                            void *extraargs)
+// Effect: See the documentation for this function in cachetable.h
+{
     if (0) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, key.b);
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);

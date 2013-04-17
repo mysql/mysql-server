@@ -22,6 +22,7 @@ static void initialize (void) {
     // setup environment
     {
         r = db_env_create(&env, 0); assert(r == 0);
+	r = env->set_redzone(env, 0); CKERR(r);
         env->set_errfile(env, stdout);
         r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_PRIVATE + DB_CREATE, 0777); 
         assert(r == 0);

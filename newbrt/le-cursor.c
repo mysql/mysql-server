@@ -101,5 +101,3 @@ is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db
     }
     return result;
 }
-    
-

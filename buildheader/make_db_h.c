@@ -73,6 +73,7 @@ enum {
         TOKUDB_ACCEPT                  = -100009,
         TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
         TOKUDB_UPGRADE_FAILURE         = -100011,
+	TOKUDB_TRY_AGAIN               = -100012,
 };
 
 static void print_defines (void) {
@@ -221,6 +222,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_ACCEPT);
     dodefine(TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     dodefine(TOKUDB_UPGRADE_FAILURE);
+    dodefine(TOKUDB_TRY_AGAIN);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
@@ -455,19 +457,13 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  char             creationtime[26];        /* time of environment creation */ \n");
     printf("  char             startuptime[26];         /* time of engine startup */ \n");
     printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
-    printf("  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
-    printf("  u_int64_t        max_possible_sleep;      /* max possible sleep time for ydb lock scheduling (constant) */ \n");
-    printf("  u_int64_t        processor_freq_mhz;      /* clock frequency in MHz */ \n");
-    printf("  u_int64_t        max_requested_sleep;     /* max sleep time requested, can be larger than max possible */ \n");
-    printf("  u_int64_t        times_max_sleep_used;    /* number of times the max_possible_sleep was used to sleep */ \n");
-    printf("  u_int64_t        total_sleepers;          /* total number of times a client slept for ydb lock scheduling */ \n");
-    printf("  u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling */ \n");
-    printf("  u_int64_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock  */ \n");
-    printf("  u_int64_t        total_waiters;           /* total number of times a client thread waited for ydb lock  */ \n");
-    printf("  u_int64_t        total_clients;           /* total number of separate client threads that use ydb lock  */ \n");
-    printf("  u_int64_t        time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ \n");
-    printf("  u_int64_t        max_time_ydb_lock_held;  /* max time a client thread held the ydb lock  */ \n");
-    printf("  u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ \n");
+    printf("  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released?                                                                      */\n");
+    printf("  u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */\n");
+    printf("  u_int32_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */\n");
+    printf("  u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */\n");
+    printf("  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held.                                                                              */\n"); 
+    printf("  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock                                                                           */\n");
+    printf("  u_int64_t        total_time_since_start;  /* Total time since the lock was created.  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */\n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
     printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");
@@ -749,6 +745,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("int db_env_set_func_fopen (FILE* (*)(const char *, const char *)) %s;\n", VISIBLE);
     printf("int db_env_set_func_open (int (*)(const char *, int, int)) %s;\n", VISIBLE);
     printf("int db_env_set_func_fclose (int (*)(FILE*)) %s;\n", VISIBLE);
+    printf("int db_env_set_func_pread (ssize_t (*)(int, void *, size_t, off_t)) %s;\n", VISIBLE);
     printf("void db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) %s;\n", VISIBLE);
     printf("void db_env_set_checkpoint_callback (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_checkpoint_callback2 (void (*)(void*), void*) %s;\n", VISIBLE);
@@ -761,4 +758,3 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("#endif\n");
     return 0;
 }
-

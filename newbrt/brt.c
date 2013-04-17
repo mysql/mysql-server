@@ -4564,7 +4564,8 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
     u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
     {
-        int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+        int rr = toku_cachetable_get_and_pin_nonblocking(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+	if (rr==TOKUDB_TRY_AGAIN) return rr;
         lazy_assert_zero(rr);
     }
 
@@ -4660,6 +4661,8 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 {
     int r, rr;
 
+ try_again:
+
     lazy_assert(brt->h);
 
     *root_put_counter = brt->h->root_put_counter;
@@ -4689,6 +4692,8 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
  return_r:
     rr = toku_unpin_brtnode(brt, node);
     lazy_assert_zero(rr);
+
+    if (r==TOKUDB_TRY_AGAIN) goto try_again;
 
     //Heaviside function (+direction) queries define only a lower or upper
     //bound.  Some queries require both an upper and lower bound.
