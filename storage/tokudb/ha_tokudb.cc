@@ -3552,7 +3552,7 @@ static int create_sub_table(const char *table_name, int flags , DBT* row_descrip
         
     file->set_flags(file, flags);
 
-    error = file->set_descriptor(file, 0, row_descriptor, toku_dbt_up);
+    error = file->set_descriptor(file, 1, row_descriptor, toku_dbt_up);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;
@@ -3855,7 +3855,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             false,
             NULL
             );
-        error = status_block->set_descriptor(status_block, 0, &row_descriptor, toku_dbt_up);
+        error = status_block->set_descriptor(status_block, 1, &row_descriptor, toku_dbt_up);
         if (error) {
             goto cleanup;
         }
