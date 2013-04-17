@@ -36,7 +36,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../ -I../../include -I../../linux -I$(TOKUROOT)toku_include -DUSE_ENV
 CXXFLAGS = $(GCC_VERSION_SPECIFIC) -Werror -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
-LDLIBS = ../../lib/libtokudb_cxx.a -ltokudb -lz -lpthread
+LDLIBS = ../../lib/libtokudb_cxx.a -ltokudb -lz -lpthread -ltokuportability
 RPATH_DIRS=$(TOKUROOT)lib
 
 ifeq ($(CC),icc)

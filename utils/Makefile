@@ -42,7 +42,7 @@ ifeq ($(OS_CHOICE),windows)
 $(UTILS): LINK_FILES+=$(WIN_YDB)
 $(UTILS): $(WIN_YDB)
 else
-$(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT)
+$(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT) $(TOKUROOT)lib/libtokuportability.$(SOEXT)
 NEWBRT_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/newbrt.olist))
 TOKUPORTABILITY_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/tokuportability.olist))
 YDB_OBJS=$(wildcard ../src/*.$(OEXT))
@@ -124,8 +124,8 @@ coverage: $(UTILS)
 %.bdb$(BINSUF): %.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST) -DUSE_BDB=1
 
-%_static$(BINSUF): %.c ../lib/libtokudb.$(AEXT)
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+%_static$(BINSUF): %.c $(TOKUROOT)lib/libtokuportability.$(AEXT)
+	$(CC) $< $(BIN_FROM_C_FLAGS)  $(TOKUROOT)lib/libtokuportability.$(AEXT) $(LINK_MUST_BE_LAST)
 
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)

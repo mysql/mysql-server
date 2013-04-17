@@ -123,8 +123,8 @@ log_print.c log_header.h: log_code.c
 	test 1 = 1
 
 #Needs to be done manually since it does not include newbrt.
-logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
-	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LDFLAGS) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST) $(LIBPORTABILITY)
+logformat$(BINSUF): logformat.c $(LIBPORTABILITY_SO)
+	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LDFLAGS) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST) $(LIBPORTABILITY_SO)
 
 
 libs: $(NEWBRT_SO)
@@ -136,7 +136,7 @@ bins: $(BINS)
 check: bins
 	cd tests;$(MAKE) check
 
-$(BINS): $(NEWBRT_SO) $(LIBPORTABILITY)
+$(BINS): $(NEWBRT_SO) $(LIBPORTABILITY_SO)
 
 foo2:
 	echo $(BINS)

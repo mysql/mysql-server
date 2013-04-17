@@ -3,14 +3,13 @@
 .DEFAULT_GOAL=install
 TOKUROOT=../
 INCLUDEDIRS=-I.
-SKIP_LIBPORTABILITYRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
 
 OPT_AROPT=-qnoipo #Disable ipo for lib creation even when optimization is on.
 
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
-TARGET = $(LIBPORTABILITY)
+TARGET = $(LIBPORTABILITY_SO) $(LIBPORTABILITY_A)
 
 build install: $(TARGET)
 
@@ -21,9 +20,10 @@ else
 LINUX_NOSTDLIB=
 endif
 
-$(TARGET): $(OBJS)
-	echo $(patsubst %,linux/%,$(OBJS)) > ../lib/tokuportability.olist
-	$(CC) -shared $(SYMBOLS) $(OBJS) $(SKIP_WARNING) -o $(TARGET) $(LINUX_NOSTDLIB)
+$(LIBPORTABILITY_SO): $(OBJS)
+	$(CC) -shared $(SYMBOLS) $(OBJS) $(SKIP_WARNING) -o $@ $(LINUX_NOSTDLIB)
+$(LIBPORTABILITY_A): $(OBJS)
+	$(CC) -shared $(SYMBOLS) $(OBJS) $(SKIP_WARNING) -o $@ $(LINUX_NOSTDLIB)
 
 $(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED -D_GNU_SOURCE
 $(OBJS): VISIBILITY=
@@ -33,6 +33,6 @@ check: $(TARGET)
 	cd tests && $(MAKE) check
 
 clean:
-	rm -rf $(TARGET) $(LIBPORTABILITY)
+	rm -rf $(TARGET)
 	cd tests && $(MAKE) clean
 
