@@ -54,14 +54,19 @@
 #include "logger.h"
 #include "checkpoint.h"
 
-// footprint for debugging only
+// footprint for debugging and status reporting only
 static u_int64_t checkpoint_footprint = 0;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
 
+// Call through function pointers because this layer has no access to ydb lock functions.
 static void (*ydb_lock)(void)   = NULL;
 static void (*ydb_unlock)(void) = NULL;
+
+static BOOL initialized = FALSE;     // sanity check
+
+
 
 // Note following static functions are called from checkpoint internal logic only,
 // and use the "writer" calls for locking and unlocking.
@@ -149,7 +154,13 @@ toku_checkpoint_safe_client_unlock(void) {
 }
 
 
-static BOOL initialized = FALSE;
+u_int64_t 
+toku_checkpoint_get_footprint(void) {
+    return checkpoint_footprint;
+}
+
+
+
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
 int 
@@ -185,22 +196,22 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
 		void (*callback2_f)(void*), void * extra2) {
     int r;
 
-    checkpoint_footprint = 1;
+    checkpoint_footprint = 10;
     assert(initialized);
     multi_operation_checkpoint_lock();
-    checkpoint_footprint = 2;
+    checkpoint_footprint = 20;
     checkpoint_safe_checkpoint_lock();
-    checkpoint_footprint = 3;
+    checkpoint_footprint = 30;
     ydb_lock();
     
-    checkpoint_footprint = 4;
+    checkpoint_footprint = 40;
     r = toku_cachetable_begin_checkpoint(ct, logger);
     LSN oldest_live_lsn = toku_logger_get_oldest_living_lsn(logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
-    checkpoint_footprint = 5;
+    checkpoint_footprint = 50;
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
@@ -211,7 +222,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
         r = toku_logger_maybe_trim_log(logger, trim_lsn);
     }
 
-    checkpoint_footprint = 6;
+    checkpoint_footprint = 60;
     checkpoint_safe_checkpoint_unlock();
     checkpoint_footprint = 0;
 

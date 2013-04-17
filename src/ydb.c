@@ -927,6 +927,26 @@ locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const D
     return r;
 }
 
+
+// Do not take ydb lock around or in this function.  
+// If the engine is blocked because some thread is holding the ydb lock, this function
+// can help diagnose the problem.
+// This function only collects information, and it does not matter if something gets garbled
+// because of a race condition.  
+static int
+env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else {
+	engstat->ydb_lock_held = toku_ydb_lock_held();                     // is ydb lock held?
+	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock
+	engstat->checkpoint_footprint = toku_checkpoint_get_footprint();
+    }
+    return r;
+}
+
+
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int toku_db_lt_panic(DB* db, int r);
@@ -952,6 +972,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->checkpointing_resume = env_checkpointing_resume;
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
     result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
+    result->get_engine_status = env_get_engine_status;
     result->open = locked_env_open;
     result->close = locked_env_close;
     result->txn_checkpoint = toku_env_txn_checkpoint;

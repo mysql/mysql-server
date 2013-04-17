@@ -57,3 +57,15 @@ int toku_checkpoint_destroy(void);
 int toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, 
 		    void (*callback_f)(void*),  void * extra,
 		    void (*callback2_f)(void*), void * extra2);
+
+
+
+/****** 
+ * These functions are called from the ydb level.
+ * They return status information and have no side effects.
+ * Some status information may be incorrect because no locks are taken to collect status.
+ * (If checkpoint is in progress, it may overwrite status info while it is being read.)
+ *****/
+
+u_int64_t toku_checkpoint_get_footprint(void);
+
