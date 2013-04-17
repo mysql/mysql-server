@@ -166,6 +166,7 @@ static void run_test(void)
     if (littlenode) {
 	r = env->set_cachesize(env, 0, 512*1024, 1);                                                              CKERR(r); 
     }
+    r = env->set_redzone(env, 0);                                                                             CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
