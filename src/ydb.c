@@ -43,7 +43,7 @@ const u_int32_t __toku_env_default_max_locks = 1000;
 
 static void
 toku_ydb_init_malloc(void) {
-#if defined(TOKU_WINDOWS)
+#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
     //Set the heap (malloc/free/realloc) to use the low fragmentation mode.
     ULONG  HeapFragValue = 2;
 
