@@ -39,10 +39,16 @@ static void cachetable_reader(WORKITEM);
 #define WHEN_TRACE_CT(x) ((void)0)
 #endif
 
+#define TOKU_DO_WAIT_TIME 0
+
 static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
 static u_int64_t cachetable_wait_reading;
 static u_int64_t cachetable_wait;
+#if TOKU_DO_WAIT_TIME
+static u_int64_t cachetable_miss_time;
+static u_int64_t cachetable_wait_time;
+#endif
 
 enum ctpair_state {
     CTPAIR_INVALID = 0, // invalid
@@ -826,6 +832,12 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     return 0;
 }
 
+#if TOKU_DO_WAIT_TIME
+static u_int64_t tdelta(struct timeval *tnew, struct timeval *told) {
+    return (tnew->tv_sec * 1000000ULL + tnew->tv_usec) - (told->tv_sec * 1000000ULL + told->tv_usec);
+}
+#endif
+
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
@@ -837,13 +849,28 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
+#if TOKU_DO_WAIT_TIME
+	    struct timeval t0;
+	    int do_wait_time = 0;
+#endif
             if (p->rwlock.writer || p->rwlock.want_write) {
                 if (p->state == CTPAIR_READING)
                     cachetable_wait_reading++;
                 else
                     cachetable_wait++;
+#if TOKU_DO_WAIT_TIME
+		do_wait_time = 1;
+		gettimeofday(&t0, NULL);
+#endif
             }
             ctpair_read_lock(&p->rwlock, ct->mutex);
+#if TOKU_DO_WAIT_TIME
+	    if (do_wait_time) {
+		struct timeval tnow;
+		gettimeofday(&tnow, NULL);
+		cachetable_wait_time += tdelta(&tnow, &t0);
+	    }
+#endif
             if (p->state == CTPAIR_INVALID) {
                 ctpair_read_unlock(&p->rwlock);
                 if (ctpair_users(&p->rwlock) == 0)
@@ -868,17 +895,26 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN, ZERO_LSN);
         assert(p);
         ctpair_write_lock(&p->rwlock, ct->mutex);
+#if TOKU_DO_WAIT_TIME
+	struct timeval t0;
+	gettimeofday(&t0, NULL);
+#endif
         r = cachetable_fetch_pair(ct, cachefile, p);
         if (r) {
             cachetable_unlock(ct);
             return r;
         }
+        cachetable_miss++;
+#if TOKU_DO_WAIT_TIME
+	struct timeval tnow;
+	gettimeofday(&tnow, NULL);
+	cachetable_miss_time += tdelta(&tnow, &t0);
+#endif
         ctpair_read_lock(&p->rwlock, ct->mutex);
         assert(p->state == CTPAIR_IDLE);
 
 	*value = p->value;
         if (sizep) *sizep = p->size;
-        cachetable_miss++;
     }
     r = maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
