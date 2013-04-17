@@ -683,16 +683,16 @@ if(BUILD_TESTING)
     ydb/recovery_fileops_unit.tdb
     ydb/test3039.tdb
     )
-  if (BDB_FOUND)
-    list(APPEND extra_long_tests
-      ydb/test1426.tdb
-      )
-  endif (BDB_FOUND)
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these really take a long time with valgrind
   set(phenomenally_long_tests
     ydb/checkpoint_stress.tdb
     ydb/recover_stress.tdb
     )
+  if (BDB_FOUND)
+    list(APPEND phenomenally_long_tests
+      ydb/test1426.tdb
+      )
+  endif (BDB_FOUND)
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING)
