@@ -33,13 +33,6 @@ static void cachetable_writer(WORKITEM);
 static void cachetable_reader(WORKITEM);
 #endif
 
-// use cachetable locks 0->no 1->yes
-#define DO_CACHETABLE_LOCK 1
-
-// simulate long latency write operations with usleep. time in milliseconds.
-#define DO_CALLBACK_USLEEP 0
-#define DO_CALLBACK_BUSYWAIT 0
-
 #define TRACE_CACHETABLE 0
 #if TRACE_CACHETABLE
 #define WHEN_TRACE_CT(x) x
@@ -183,18 +176,14 @@ static inline void cachefiles_unlock(CACHETABLE ct) {
 
 // Lock the cachetable
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
-#if DO_CACHETABLE_LOCK
     int r = toku_pthread_mutex_lock(ct->mutex); assert(r == 0);
     cachetable_lock_taken++;
-#endif
 }
 
 // Unlock the cachetable
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
-#if DO_CACHETABLE_LOCK
     cachetable_lock_released++;
     int r = toku_pthread_mutex_unlock(ct->mutex); assert(r == 0);
-#endif
 }
 
 // Wait for cache table space to become available 
@@ -1170,21 +1159,6 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     // write callback
     if (toku_cachefile_is_dev_null_unlocked(cachefile)) dowrite = FALSE;
     flush_callback(cachefile, cachefile->fd, key, value, extraargs, size, dowrite, TRUE, for_checkpoint);
-#if DO_CALLBACK_USLEEP
-    usleep(DO_CALLBACK_USLEEP);
-#endif
-#if DO_CALLBACK_BUSYWAIT
-    struct timeval tstart;
-    gettimeofday(&tstart, 0);
-    long long ltstart = tstart.tv_sec * 1000000 + tstart.tv_usec;
-    while (1) {
-        struct timeval t;
-        gettimeofday(&t, 0);
-        long long lt = t.tv_sec * 1000000 + t.tv_usec;
-        if (lt - ltstart > DO_CALLBACK_BUSYWAIT)
-            break;
-    }
-#endif
 
     cachetable_lock(ct);
     rwlock_read_unlock(&cachefile->fdlock);
