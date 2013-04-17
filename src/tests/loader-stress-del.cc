@@ -14,6 +14,7 @@
 #include <db.h>
 #include <sys/stat.h>
 #include "ydb-internal.h"
+#include <memory.h>
 #include <dlfcn.h>
 
 DB_ENV *env;
@@ -40,18 +41,9 @@ size_t hiwater_start;
 static long long mcount = 0, fcount=0;
 
 
-typedef size_t (*malloc_usable_size_fun_t)(void *p);
-#if defined(HAVE_MALLOC_USABLE_SIZE)
-extern "C" size_t malloc_usable_size(void *p);
-static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
-#elif defined(HAVE_MALLOC_SIZE)
-extern "C" size_t malloc_size(void *p);
-static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
-#endif
-
 static void my_free(void*p) {
     if (p) {
-	water-=malloc_usable_size_f(p);
+        water-=toku_malloc_usable_size(p);
     }
     free(p);
 }
@@ -59,18 +51,18 @@ static void my_free(void*p) {
 static void *my_malloc(size_t size) {
     void *r = malloc(size);
     if (r) {
-	water += malloc_usable_size_f(r);
-	if (water>hiwater) hiwater=water;
+        water += toku_malloc_usable_size(r);
+        if (water>hiwater) hiwater=water;
     }
     return r;
 }
 
 static void *my_realloc(void *p, size_t size) {
-    size_t old_usable = p ? malloc_usable_size_f(p) : 0;
+    size_t old_usable = p ? toku_malloc_usable_size(p) : 0;
     void *r = realloc(p, size);
     if (r) {
-	water -= old_usable;
-	water += malloc_usable_size_f(r);
+        water -= old_usable;
+        water += toku_malloc_usable_size(r);
     }
     return r;
 }
@@ -580,7 +572,7 @@ int test_main(int argc, char * const *argv) {
 	toku_free(progress_infos);
     }
     if (footprint_print) {
-	printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM) mcount=%lld fcount=%lld\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024), mcount, fcount);
+        printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM) mcount=%lld fcount=%lld\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024), mcount, fcount);
         typedef void (*malloc_stats_fun_t)(void);
         malloc_stats_fun_t malloc_stats_f = (malloc_stats_fun_t) dlsym(RTLD_DEFAULT, "malloc_stats");
         if (malloc_stats_f) {
