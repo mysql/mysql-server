@@ -118,7 +118,9 @@ print_le (OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
 static void
 dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, h);
+    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
@@ -227,7 +229,9 @@ static int
 fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
     frag_help_extra *info = extra;
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, info->h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, info->h);
+    int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
     if (r==0) {
         info->blocksizes += size;
         if (n->height == 0) {
@@ -266,14 +270,14 @@ get_unaligned_uint32(unsigned char *p) {
     return *(u_int32_t *)p;
 }
 
-struct sub_block {
+struct dump_sub_block {
   u_int32_t compressed_size;
   u_int32_t uncompressed_size;
   u_int32_t xsum;
 };
 
 static void
-sub_block_deserialize(struct sub_block *sb, unsigned char *sub_block_header) {
+sub_block_deserialize(struct dump_sub_block *sb, unsigned char *sub_block_header) {
     sb->compressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+0));
     sb->uncompressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+4));
     sb->xsum = toku_dtoh32(get_unaligned_uint32(sub_block_header+8));
@@ -288,7 +292,7 @@ verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
 
     unsigned char *sub_block_header = &cp[node_header];
     u_int32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
-    u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct sub_block);
+    u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct dump_sub_block);
     header_length += sizeof (u_int32_t); // CRC
     if (header_length > size) {
         printf("header length too big: %u\n", header_length);
@@ -302,11 +306,11 @@ verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
     }
 
     // deserialize the sub block header
-    struct sub_block sub_block[n_sub_blocks];
+    struct dump_sub_block sub_block[n_sub_blocks];
     sub_block_header += sizeof (u_int32_t);
     for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
         sub_block_deserialize(&sub_block[i], sub_block_header);
-        sub_block_header += sizeof (struct sub_block);
+        sub_block_header += sizeof (struct dump_sub_block);
     }
 
     // verify the sub block header
