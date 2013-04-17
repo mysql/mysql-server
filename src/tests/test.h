@@ -111,11 +111,11 @@ int test_main (int argc, const char *argv[]);
 int
 main(int argc, const char *argv[]) {
 #if defined(_WIN32) || defined(_WIN64)
-    //toku_ydb_init(); //Windows also uses dll (FOR TESTS)
+    toku_ydb_init();
 #endif
     int r = test_main(argc, argv);
 #if defined(_WIN32) || defined(_WIN64)
-    //toku_ydb_destroy(); //Windows also uses dll (FOR TESTS)
+    toku_ydb_destroy();
 #endif
     return r;
 }
