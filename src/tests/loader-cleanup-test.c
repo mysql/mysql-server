@@ -93,6 +93,9 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 	r = -1;
     } else {
 	r = fwrite(ptr, size, nmemb, stream);
+	if (r!=nmemb) {
+	    errno = ferror(stream);
+	}
     }
     return r;
 }
