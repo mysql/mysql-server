@@ -56,6 +56,7 @@ void toku_block_table_swap_for_redirect(BLOCK_TABLE old_bt, BLOCK_TABLE new_bt);
 
 //DEBUG ONLY (ftdump included), tests included
 void toku_blocknum_dump_translation(BLOCK_TABLE bt, BLOCKNUM b);
+void toku_dump_translation_table_pretty(FILE *f, BLOCK_TABLE bt);
 void toku_dump_translation_table(FILE *f, BLOCK_TABLE bt);
 void toku_block_free(BLOCK_TABLE bt, uint64_t offset);
 typedef int(*BLOCKTABLE_CALLBACK)(BLOCKNUM b, int64_t size, int64_t address, void *extra);
