@@ -84,7 +84,6 @@ REGRESSION_TESTS_RAW = \
 	memtest \
 	omt-cursor-test \
 	omt-test \
-	pwrite4g \
 	shortcut \
 	test1305 \
 	test1308a \
