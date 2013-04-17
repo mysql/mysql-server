@@ -1824,6 +1824,7 @@ static void checkpoint_dependent_pairs(
          // and if the pair is pending a checkpoint, it needs to be written out
          if (dependent_dirty[i]) curr_dep_pair->dirty = CACHETABLE_DIRTY;
          if (curr_dep_pair->checkpoint_pending) {
+             cachetable_wait_checkpoint++;
              write_locked_pair_for_checkpoint(ct, curr_dep_pair);
          }
      }
@@ -2175,7 +2176,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             );
         assert(p);
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
-	uint64_t t0 = get_tnow();
+        uint64_t t0 = get_tnow();
 
         // Retrieve the value of the PAIR from disk.
         // The pair being fetched will be marked as pending if a checkpoint happens during the
@@ -2216,6 +2217,7 @@ got_value:
 	// the cachetable lock.
 	//
 	if (p->checkpoint_pending) {
+            cachetable_wait_checkpoint++;
 	    write_locked_pair_for_checkpoint(ct, p);
 	}
     
@@ -2454,6 +2456,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                     // it is clean, then dont run the unlockers, simply 
                     // clear the pending bit and return the PAIR to the user
                     // but this is simpler.
+                    cachetable_wait_checkpoint++;
                     write_pair_for_checkpoint(ct, p);
                 }
                 else {
