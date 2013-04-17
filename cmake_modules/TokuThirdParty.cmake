@@ -46,9 +46,9 @@ if (NOT CMAKE_BUILD_TYPE MATCHES Release)
   list(APPEND xz_configure_opts --enable-debug)
 endif ()
 
-set(XZ_SOURCE_DIR "${TOKU_SVNROOT}/xz-4.999.9beta" CACHE FILEPATH "Where to find sources for xz (lzma).")
+set(XZ_SOURCE_DIR "${TokuDB_SOURCE_DIR}/third_party/xz-4.999.9beta" CACHE FILEPATH "Where to find sources for xz (lzma).")
 if (NOT EXISTS "${XZ_SOURCE_DIR}/configure")
-  message(FATAL_ERROR "Can't find the xz sources.  Please check them out to ${XZ_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or XZ_SOURCE_DIR.")
+    message(FATAL_ERROR "Can't find the xz sources.  Please check them out to ${XZ_SOURCE_DIR} or modify TokuDB_SOURCE_DIR (${TokuDB_SOURCE_DIR}) or XZ_SOURCE_DIR.")
 endif ()
 
 FILE(GLOB XZ_ALL_FILES ${XZ_SOURCE_DIR}/*)
