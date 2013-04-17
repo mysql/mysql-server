@@ -1618,11 +1618,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 /* Delete all keys for new_record */
 int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_record, DBT * prim_key, key_map * keys) {
     int result = 0;
-/* VL
     for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
-*/
-    for (uint keynr = table_share->keys + test(hidden_primary_key); keynr > 0; keynr--) {
-keynr--;
         if (keys->is_set(keynr)) {
             int new_error = remove_key(trans, keynr, record, prim_key);
             if (new_error) {
@@ -1630,7 +1626,6 @@ keynr--;
                 break;          // Let rollback correct things
             }
         }
-keynr++;
     }
     return result;
 }
