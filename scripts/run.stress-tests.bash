@@ -111,7 +111,7 @@ run_test() {
     envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
     cd $rundir
     if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
-        ../$exec -v --test --num_seconds 180 --envdir "$envdir" \
+        ../$exec -v --test --num_seconds 600 --envdir "$envdir" \
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
