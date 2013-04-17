@@ -49,8 +49,8 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     in_val.ulen = sizeof(in_val_data);
     DBT in_keys[2];
     memset(&in_keys, 0, sizeof(in_keys));
-    dbt_init(&key, "a", 4);
-    dbt_init(&val, "a", 4);
+    dbt_init(&key, "a", 2);
+    dbt_init(&val, "a", 2);
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = db->put(
@@ -242,11 +242,11 @@ int test_main (int argc, char * const argv[]) {
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
     DBT key,val;
-    dbt_init(&key, "a", 4);
-    dbt_init(&val, "a", 4);
+    dbt_init(&key, "a", 2);
+    dbt_init(&val, "a", 2);
     r = db->put(db, txna, &key, &val, 0);       CKERR(r);
-    dbt_init(&key, "b", 4);
-    dbt_init(&val, "b", 4);
+    dbt_init(&key, "b", 2);
+    dbt_init(&val, "b", 2);
     r = db->put(db, txnb, &key, &val, 0);       CKERR(r);
     verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
@@ -254,9 +254,9 @@ int test_main (int argc, char * const argv[]) {
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    dbt_init(&key, "a", 4);
+    dbt_init(&key, "a", 2);
     r = db->del(db, txna, &key, DB_DELETE_ANY); CKERR(r);
-    dbt_init(&key, "b", 4);
+    dbt_init(&key, "b", 2);
     r = db->del(db, txnb, &key, DB_DELETE_ANY); CKERR(r);
     verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
@@ -265,9 +265,9 @@ int test_main (int argc, char * const argv[]) {
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    dbt_init(&key, "a", 4);
+    dbt_init(&key, "a", 2);
     r = db->update(db, txna, &key, &val, 0); CKERR(r);
-    dbt_init(&key, "b", 4);
+    dbt_init(&key, "b", 2);
     r = db->update(db, txnb, &key, &val, 0); CKERR(r);
     verify_excl_ops_fail(env,"foo.db");
     r = txna->abort(txna); CKERR(r);
@@ -282,15 +282,15 @@ int test_main (int argc, char * const argv[]) {
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    dbt_init(&key, "a", 4);
-    dbt_init(&val, "a", 4);
+    dbt_init(&key, "a", 2);
+    dbt_init(&val, "a", 2);
     env->put_multiple(
         env, NULL, txna,
         &key, &val,
         1, &db, &in_key, &in_val, &flags);
     CKERR(r);
-    dbt_init(&key, "b", 4);
-    dbt_init(&val, "b", 4);
+    dbt_init(&key, "b", 2);
+    dbt_init(&val, "b", 2);
     env->put_multiple(
         env, NULL, txnb,
         &key, &val,
@@ -303,15 +303,15 @@ int test_main (int argc, char * const argv[]) {
     flags = DB_DELETE_ANY;
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    dbt_init(&key, "a", 4);
-    dbt_init(&val, "a", 4);
+    dbt_init(&key, "a", 2);
+    dbt_init(&val, "a", 2);
     env->del_multiple(
         env, NULL, txna,
         &key, &val,
         1, &db, &in_key, &flags);
     CKERR(r);
-    dbt_init(&key, "b", 4);
-    dbt_init(&val, "b", 4);
+    dbt_init(&key, "b", 2);
+    dbt_init(&val, "b", 2);
     env->del_multiple(
         env, db, txnb,
         &key, &val,
@@ -326,8 +326,8 @@ int test_main (int argc, char * const argv[]) {
     memset(&in_keys, 0, sizeof(in_keys));
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
     r = env->txn_begin(env, NULL, &txnb, 0); CKERR(r);
-    dbt_init(&key, "a", 4);
-    dbt_init(&val, "a", 4);
+    dbt_init(&key, "a", 2);
+    dbt_init(&val, "a", 2);
     env->update_multiple(
         env, NULL, txna,
         &key, &val,
@@ -336,8 +336,8 @@ int test_main (int argc, char * const argv[]) {
         2, in_keys,
         1, &in_val);
     CKERR(r);
-    dbt_init(&key, "b", 4);
-    dbt_init(&val, "b", 4);
+    dbt_init(&key, "b", 2);
+    dbt_init(&val, "b", 2);
     env->update_multiple(
         env, db, txnb,
         &key, &val,

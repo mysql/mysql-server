@@ -29,7 +29,7 @@ int test_main (int argc, char * const argv[]) {
     r = db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666);              CKERR(r);
 
     DBT key,val;
-    r = db->put(db, txna, dbt_init(&key, "a", 4), dbt_init(&val, "a", 4), 0);       CKERR(r);
+    r = db->put(db, txna, dbt_init(&key, "a", 2), dbt_init(&val, "a", 2), 0);       CKERR(r);
 
     r = txna->commit(txna, 0);                                                      CKERR(r);
   }

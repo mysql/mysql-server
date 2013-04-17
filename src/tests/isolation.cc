@@ -30,7 +30,7 @@ int test_main (int argc, char * const argv[]) {
 	r = db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666);              CKERR(r);
 
 	DBT key,val;
-	r = db->put(db, txna, dbt_init(&key, "a", 4), dbt_init(&val, "a", 4), 0);       CKERR(r);
+	r = db->put(db, txna, dbt_init(&key, "a", 2), dbt_init(&val, "a", 2), 0);       CKERR(r);
 
 	r = txna->commit(txna, 0);                                                      CKERR(r);
     }
@@ -44,9 +44,9 @@ int test_main (int argc, char * const argv[]) {
 //	r = env->txn_begin(env, txna, &txnb, DB_READ_UNCOMMITTED);                      CKERR(r);
 	{
 	    DBT key,val;
-	    r = db->put(db, txnx, dbt_init(&key, "x", 4), dbt_init(&val, "x", 4), 0);   CKERR(r);
+	    r = db->put(db, txnx, dbt_init(&key, "x", 2), dbt_init(&val, "x", 2), 0);   CKERR(r);
 	    dbt_init_malloc(&val);
-	    r = db->get(db, txna, dbt_init(&key, "x", 4), &val, 0);                     CKERR(r);
+	    r = db->get(db, txna, dbt_init(&key, "x", 2), &val, 0);                     CKERR(r);
             toku_free(val.data);
             val.data = NULL;
 	}
