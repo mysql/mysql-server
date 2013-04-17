@@ -101,6 +101,7 @@ void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
 ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, off_t off);
+ssize_t toku_os_write (int fd, const void *buf, size_t len);
 
 int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_set_func_malloc  (void *(*)(size_t));
