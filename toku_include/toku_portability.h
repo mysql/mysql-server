@@ -85,7 +85,11 @@ typedef int64_t toku_off_t;
 #if !defined(TOKU_ALLOW_DEPRECATED)
 #   if defined(__ICL) //Windows Intel Compiler
 #       pragma deprecated (creat, fstat, stat, getpid, syscall, sysconf, mkdir, strdup)
-#       pragma poison off_t
+#       pragma poison   off_t
+#       pragma poison   pthread_attr_t       pthread_t
+#       pragma poison   pthread_mutexattr_t  pthread_mutex_t
+#       pragma poison   pthread_condattr_t   pthread_cond_t
+#       pragma poison   pthread_rwlockattr_t pthread_rwlock_t
 #    ifndef DONT_DEPRECATE_MALLOC
 #       pragma deprecated (malloc, free, realloc)
 #    endif

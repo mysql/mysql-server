@@ -2,13 +2,13 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 #ident "$Id:$"
 
+#include "toku_portability.h"
 #include <errno.h>
 #include <string.h>
 
 #include "toku_assert.h"
 #include "brttypes.h"
 #include "minicron.h"
-#include "toku_portability.h"
 
 static void
 toku_gettime (struct timespec *a) {
