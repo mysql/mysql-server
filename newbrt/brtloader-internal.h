@@ -226,7 +226,7 @@ int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, con
 
 int brtloader_init_file_infos (struct file_infos *fi);
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error);
-int brtloader_fi_close (struct file_infos *fi, FIDX idx);
+int brtloader_fi_close (struct file_infos *fi, FIDX idx, BOOL require_open);
 int brtloader_fi_close_all (struct file_infos *fi);
 int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode);
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx);
