@@ -2089,6 +2089,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
                     uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
                     n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
                 }
+                break;
 #if 0
             case MAXCOUNT:
                 {
