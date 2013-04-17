@@ -97,8 +97,7 @@ static int do_verify_results(DB_TXN *txn, DB *db) {
     return r;
 }
 
-int test_main(int argc, char * const argv[]) {
-    parse_args(argc, argv);
+static int run_test(BOOL shutdown_before_update, BOOL shutdown_before_verify) {
     setup();
 
     DB *db;
@@ -111,9 +110,25 @@ int test_main(int argc, char * const argv[]) {
             CHK(do_inserts(txn_1, db));
         });
 
+    if (shutdown_before_update) {
+        CHK(db->close(db, 0));
+        CHK(db_create(&db, env, 0));
+        IN_TXN_COMMIT(env, NULL, txn_reopen, 0, {
+                CHK(db->open(db, txn_reopen, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            });
+    }
+
     IN_TXN_COMMIT(env, NULL, txn_2, 0, {
             CHK(do_updates(txn_2, db));
         });
+
+    if (shutdown_before_verify) {
+        CHK(db->close(db, 0));
+        CHK(db_create(&db, env, 0));
+        IN_TXN_COMMIT(env, NULL, txn_reopen, 0, {
+                CHK(db->open(db, txn_reopen, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            });
+    }
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
             CHK(do_verify_results(txn_3, db));
@@ -122,6 +137,17 @@ int test_main(int argc, char * const argv[]) {
     CHK(db->close(db, 0));
 
     cleanup();
+
+    return 0;
+}
+
+int test_main(int argc, char * const argv[]) {
+    parse_args(argc, argv);
+
+    run_test(FALSE, FALSE);
+    run_test(FALSE, TRUE);
+    run_test(TRUE, FALSE);
+    run_test(TRUE, TRUE);
 
     return 0;
 }
