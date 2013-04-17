@@ -1834,7 +1834,6 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     return r;
 }
 
-
 static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
                                            DB* db, TXNID txn,
                                            const DBT* key_left,
@@ -1864,12 +1863,56 @@ static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
     r = lt_check_borderwrite_conflict(tree, txn, &query);
     if (r != 0)
         goto cleanup;
-    // insert and consolidate into the local write set
-    toku_range to_insert;
-    init_insert(&to_insert, &left, &right, txn);
-    r = consolidate_writes(tree, &to_insert, txn);
-    if (r != 0)
-        goto cleanup;
+    if (key_left == key_right) {
+        // Point write lock.
+        // Need to copy the memory and insert. No merging required in selfwrite.
+        // This is a point, and if merging was possible it would have been dominated by selfwrite.
+
+        // Insert into selfwrite
+        toku_range to_insert;
+        init_insert(&to_insert, &left, &right, txn);
+        if (!ltm_lock_test_incr(tree->mgr, 0)) { 
+            r = TOKUDB_OUT_OF_LOCKS; 
+            goto cleanup;
+        }
+        BOOL dummy = TRUE;
+        r = lt_alloc_extreme(tree, &to_insert, TRUE, &dummy);
+        if (r != 0)
+            goto cleanup;
+        BOOL free_left = FALSE;
+        toku_range_tree* selfwrite;
+        r = lt_selfwrite(tree, txn, &selfwrite);
+        if (r != 0) { 
+            free_left = TRUE; 
+            goto cleanup_left;
+        }
+        assert(selfwrite);
+        r = toku_rt_insert(selfwrite, &to_insert);
+        if (r != 0) { 
+            free_left = TRUE; 
+            goto cleanup_left; 
+        }
+        // Update borderwrite
+        r = lt_borderwrite_insert(tree, &query, &to_insert);
+        if (r != 0) { 
+            r = lt_panic(tree, r); 
+            goto cleanup_left; 
+        }
+        ltm_lock_incr(tree->mgr, 0);
+        r = 0;
+
+    cleanup_left:
+        if (r != 0)
+            if (free_left) 
+                p_free(tree, to_insert.ends.left);
+    } else {
+        // insert and consolidate into the local write set
+        toku_range to_insert;
+        init_insert(&to_insert, &left, &right, txn);
+        r = consolidate_writes(tree, &to_insert, txn);
+        if (r != 0)
+            goto cleanup;
+    }
 cleanup:
     if (tree)
         lt_postprocess(tree);
@@ -1881,13 +1924,11 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 				     const DBT* key_right) {
     int r = ENOSYS;
 
-    r = lt_try_acquire_range_write_lock(tree,   db, txn,
-					key_left, key_right);
+    r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
     if (r == TOKUDB_OUT_OF_LOCKS) {
         r = ltm_do_escalation(tree->mgr);
-        if (r == 0) { 
-	    r = lt_try_acquire_range_write_lock(tree,   db, txn,
-						key_left, key_right);
+        if (r == 0) {
+            r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
 	    if (r == 0) {
 		tree->mgr->status.lock_escalation_successes++;
 	    }
@@ -1911,7 +1952,6 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     return r;
 }
 
-// toku_lt_acquire_write_lock() used only by test programs
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
     return toku_lt_acquire_range_write_lock(tree, db, txn, key, key);
 }   
