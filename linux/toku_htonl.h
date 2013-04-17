@@ -1,7 +1,7 @@
 #ifndef _TOKU_HTONL_H
 #define _TOKU_HTONL_H
 
-#if !__linux__ && !__FreeBSD__
+#if !__linux__ && !__FreeBSD__ && !__sun__
 #error
 #endif
 
