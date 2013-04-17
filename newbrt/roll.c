@@ -134,6 +134,8 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
 
 // Input arg reset_root_xid_that_created TRUE means that this operation has changed the definition of this dictionary.
 // (Example use is for schema change committed with txn that inserted cmdupdatebroadcast message.)
+// The oplsn argument is ZERO_LSN for normal operation.  When this function is called for recovery, it has the LSN of
+// the operation (insert, delete, update, etc).
 static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn,
 			 BOOL reset_root_xid_that_created) {
     CACHEFILE cf;
@@ -156,6 +158,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
         assert(r==0);
         BRT brt = brtv;
 
+	// This is only for recovery.  oplsn is nonzero only for recovery
         LSN treelsn = toku_brt_checkpoint_lsn(brt);
         if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
             r = 0;
