@@ -67,7 +67,9 @@ endif
 
 .PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
-build all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
+build all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS);
+build.tdb: $(UTILS) $(STATIC_UTILS);
+build.bdb: $(BDB_UTILS);
 
 coverage: $(UTILS)
 
