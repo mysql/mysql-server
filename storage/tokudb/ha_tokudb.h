@@ -370,7 +370,7 @@ private:
     void set_query_columns(uint keynr);
     int prelock_range (const key_range *start_key, const key_range *end_key);
     int create_txn(THD* thd, tokudb_trx_data* trx);
-    bool may_table_be_empty();
+    bool may_table_be_empty(DB_TXN *txn);
     int delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete);
     int delete_or_rename_dictionary( const char* from_name, const char* to_name, const char* index_name, bool is_key, DB_TXN* txn, bool is_delete);
     int truncate_dictionary( uint keynr, DB_TXN* txn );
