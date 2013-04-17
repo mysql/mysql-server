@@ -42,6 +42,7 @@ ifneq ($(CC),icc)
 CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else
 CFLAGS += -g
+CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used
 endif
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
