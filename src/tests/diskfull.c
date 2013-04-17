@@ -211,9 +211,5 @@ int
 test_main (int argc, char * const argv[]) {
     diskfull_parse_args(argc, argv);
     do_writes_that_fail();
-    if (fail_at != FAIL_NEVER && write_count <= fail_at) {
-	// The makefile expects the code to fail if the -C argument is passed.  If we didn't make enough calls to pwrite() then fail anyway.
-	assert(0);
-    }
     return 0;
 }
