@@ -280,7 +280,7 @@ void checkpointer_test::test_end_checkpoint() {
     assert(pending_pairs == count / 2);
 
     // 5. Call end checkpoint
-    m_cp.end_checkpoint(false, NULL, NULL);
+    m_cp.end_checkpoint(NULL, NULL);
 
     pending_pairs = get_number_pending_pairs(m_cp.m_list);
     assert(pending_pairs == 0);

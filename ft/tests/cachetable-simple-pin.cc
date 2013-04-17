@@ -26,7 +26,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-        bool UU(is_clone), bool UU(aggressive)
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -81,7 +81,7 @@ run_test (void) {
 
     // now this should mark the pair for checkpoint
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
 
     //
     // now we pin the pair again, and verify in flush callback that the pair is being checkpointed
@@ -96,7 +96,7 @@ run_test (void) {
     check_me = false;
     r = toku_cachetable_end_checkpoint(
         cp, 
-        false, 
+        NULL, 
         NULL,
         NULL
         );

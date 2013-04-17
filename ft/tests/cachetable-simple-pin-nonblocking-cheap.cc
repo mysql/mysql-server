@@ -17,7 +17,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-        bool UU(is_clone), bool UU(aggressive)
+        bool UU(is_clone)
        ) {
   if (w) {
     assert(c);

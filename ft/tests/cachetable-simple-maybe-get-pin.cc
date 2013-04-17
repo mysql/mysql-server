@@ -52,7 +52,7 @@ cachetable_test (void) {
     assert(r==0);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp); assert(r == 0);
+    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
     // now these should fail, because the node should be pending a checkpoint
     r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
     assert(r==-1);
@@ -60,7 +60,7 @@ cachetable_test (void) {
     assert(r==-1);
     r = toku_cachetable_end_checkpoint(
         cp, 
-        false, 
+        NULL, 
         NULL,
         NULL
         );

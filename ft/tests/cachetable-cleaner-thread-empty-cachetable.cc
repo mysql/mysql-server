@@ -26,10 +26,10 @@ cachetable_test (void) {
     
     usleep(4000000);
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp); assert(r == 0);
+    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
     r = toku_cachetable_end_checkpoint(
         cp,
-        false,
+        NULL,
         NULL,
         NULL
         );

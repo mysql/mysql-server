@@ -22,7 +22,7 @@ static void f_flush (CACHEFILE f,
 		     bool write_me,
 		     bool keep_me,
 		     bool for_checkpoint     __attribute__((__unused__)),
-        bool UU(is_clone), bool UU(aggressive)
+        bool UU(is_clone)
 		     ) {
     assert(size.size==BLOCKSIZE);
     if (write_me) {

@@ -717,8 +717,7 @@ void toku_ftnode_flush_callback (
     bool write_me,
     bool keep_me,
     bool for_checkpoint,
-    bool is_clone,
-    bool aggressive
+    bool is_clone
     )
 {
     FT h = (FT) extraargs;
@@ -732,7 +731,7 @@ void toku_ftnode_flush_callback (
         }
         if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
             toku_assert_entire_node_in_memory(ftnode);
-            int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint, aggressive);
+            int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
             assert_zero(r);
             ftnode->layout_version_read_from_disk = FT_LAYOUT_VERSION;
         }

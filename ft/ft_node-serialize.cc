@@ -861,7 +861,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
 }
 
 int
-toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint, bool aggressive) {
+toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint) {
 
     size_t n_to_write;
     char *compressed_buf = NULL;
@@ -885,7 +885,7 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
             h->h->basementnodesize,
             h->h->compression_method,
             do_rebalancing,
-            aggressive, // in_parallel
+            false, // in_parallel
             &n_to_write,
             &compressed_buf
             );
