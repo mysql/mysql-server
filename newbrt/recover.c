@@ -143,7 +143,7 @@ static void recover_yield(voidfp UU(f), void *UU(extra)) {
     // nothing
 }
 
-static void toku_recover_commit (LSN UU(lsn), TXNID xid, RECOVER_ENV env) {
+static void toku_recover_commit (LSN lsn, TXNID xid, RECOVER_ENV env) {
     int r;
 
     // find the transaction by transaction id
@@ -152,7 +152,7 @@ static void toku_recover_commit (LSN UU(lsn), TXNID xid, RECOVER_ENV env) {
     assert(r == 0);
 
     // commit the transaction
-    r = toku_txn_commit_txn(txn, TRUE, recover_yield, NULL);
+    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, lsn);
     assert(r == 0);
 
     // close the transaction
@@ -164,7 +164,7 @@ static int toku_recover_backward_commit (struct logtype_commit *UU(l), RECOVER_E
     return 0;
 }
 
-static void toku_recover_xabort (LSN UU(lsn), TXNID xid, RECOVER_ENV env) {
+static void toku_recover_xabort (LSN lsn, TXNID xid, RECOVER_ENV env) {
     int r;
 
     // find the transaction by transaction id
@@ -173,7 +173,7 @@ static void toku_recover_xabort (LSN UU(lsn), TXNID xid, RECOVER_ENV env) {
     assert(r == 0);
 
     // abort the transaction
-    r = toku_txn_abort_txn(txn, recover_yield, NULL);
+    r = toku_txn_abort_with_lsn(txn, recover_yield, NULL, lsn);
     assert(r == 0);
 
     // close the transaction
@@ -285,21 +285,21 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER
     return 0;
 }
 
-static void toku_recover_enq_insert (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV env) {
+static void toku_recover_enq_insert (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV env) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(&env->fmap, filenum, &pair);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
     }    
-    // TODO compare file LSN with this XID
+
     TOKUTXN txn;
     r = toku_txnid2txn(env->logger, xid, &txn);
     assert(r == 0);
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
     toku_fill_dbt(&valdbt, val.data, val.len);
-    r = toku_brt_insert(pair->brt, &keydbt, &valdbt, txn);
+    r = toku_brt_maybe_insert(pair->brt, &keydbt, &valdbt, txn, lsn);
     assert(r == 0);
 }
 
@@ -308,21 +308,21 @@ static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), R
     return 0;
 }
 
-static void toku_recover_enq_delete_both (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV env) {
+static void toku_recover_enq_delete_both (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV env) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(&env->fmap, filenum, &pair);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
     }    
-    // TODO compare file LSN with this XID
+
     TOKUTXN txn;
     r = toku_txnid2txn(env->logger, xid, &txn);
     assert(r == 0);
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
     toku_fill_dbt(&valdbt, val.data, val.len);
-    r = toku_brt_delete_both(pair->brt, &keydbt, &valdbt, txn);
+    r = toku_brt_maybe_delete_both(pair->brt, &keydbt, &valdbt, txn, lsn);
     assert(r == 0);
 }
 
@@ -331,20 +331,20 @@ static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both
     return 0;
 }
 
-static void toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, RECOVER_ENV env) {
+static void toku_recover_enq_delete_any (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, RECOVER_ENV env) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(&env->fmap, filenum, &pair);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
     }    
-    // TODO compare file LSN with this XID
+
     TOKUTXN txn;
     r = toku_txnid2txn(env->logger, xid, &txn);
     assert(r == 0);
     DBT keydbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
-    r = toku_brt_delete(pair->brt, &keydbt, txn);
+    r = toku_brt_maybe_delete(pair->brt, &keydbt, txn, lsn);
     assert(r == 0);
 }
 

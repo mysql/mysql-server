@@ -9,12 +9,12 @@
 
 // these routines in rollback.c
 
-int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv);
-int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv);
+int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
+int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
 void toku_rollback_txn_close (TOKUTXN txn);
 
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv);
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv);
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
 
 void *toku_malloc_in_rollback(TOKUTXN txn, size_t size);
 void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len);
@@ -29,8 +29,8 @@ int toku_logger_txn_rolltmp_raw_count(TOKUTXN txn, u_int64_t *raw_count);
 int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
 
 // these routines in roll.c
-int toku_rollback_fileentries (int fd, TOKUTXN txn, YIELDF yield, void *yieldv);
-int toku_commit_fileentries (int fd, TOKUTXN txn, YIELDF yield,void *yieldv);
+int toku_rollback_fileentries (int fd, TOKUTXN txn, YIELDF yield, void *yieldv, LSN lsn);
+int toku_commit_fileentries (int fd, TOKUTXN txn, YIELDF yield,void *yieldv, LSN lsn);
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
 int find_xid (OMTVALUE v, void *txnv);

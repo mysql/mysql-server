@@ -7,8 +7,13 @@
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger);
 int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid);
-int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv);
-int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv);
+
+int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv);
+int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn);
+
+int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv);
+int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn);
+
 void toku_txn_close_txn(TOKUTXN txn);
 XIDS toku_txn_get_xids (TOKUTXN);
 

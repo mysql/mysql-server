@@ -16,7 +16,8 @@ toku_commit_fcreate (TXNID UU(xid),
 		     BYTESTRING UU(bs_fname),
 		     TOKUTXN    UU(txn),
 		     YIELDF     UU(yield),
-		     void      *UU(yield_v))
+		     void      *UU(yield_v),
+                     LSN        UU(oplsn))
 {
     return 0;
 }
@@ -27,7 +28,8 @@ toku_rollback_fcreate (TXNID      UU(xid),
 		       BYTESTRING bs_fname,
 		       TOKUTXN    txn,
 		       YIELDF     yield,
-		       void*      yield_v)
+		       void*      yield_v,
+                       LSN        UU(oplsn))
 {
     yield(toku_checkpoint_safe_client_lock, yield_v);
     char *fname = fixup_fname(&bs_fname);
@@ -59,11 +61,20 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
+static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn) {
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
+
+    OMTVALUE brtv=NULL;
+    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+    assert(r==0);
+    BRT brt = brtv;
+
+    LSN treelsn = toku_brt_checkpoint_lsn(brt);
+    if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn)
+        return 0;
 
     DBT key_dbt,data_dbt;
     XIDS xids = toku_txn_get_xids(txn);
@@ -72,11 +83,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
 				data
 				? toku_fill_dbt(&data_dbt, data->data, data->len)
 				: toku_init_dbt(&data_dbt) }};
-    OMTVALUE brtv=NULL;
-    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
 
-    assert(r==0);
-    BRT brt = brtv;
     r = toku_brt_root_put_cmd(brt, &brtcmd);
     return r;
 }
@@ -90,11 +97,11 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
 }
 
 
-int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv)) {
+int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN oplsn) {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
 #else
-    key = key;
+    key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }
@@ -105,12 +112,13 @@ toku_commit_cmdinsertboth (FILENUM    filenum,
 			   BYTESTRING data,
 			   TOKUTXN    txn,
 			   YIELDF     UU(yield),
-			   void *     UU(yieldv))
+			   void *     UU(yieldv),
+                           LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
 #else
-    key = key; data = data;
+    key = key; data = data; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }
@@ -120,9 +128,10 @@ toku_rollback_cmdinsert (FILENUM    filenum,
 			 BYTESTRING key,
 			 TOKUTXN    txn,
 			 YIELDF     UU(yield),
-			 void *     UU(yieldv))
+			 void *     UU(yieldv),
+                         LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
 }
 
 int
@@ -131,9 +140,10 @@ toku_rollback_cmdinsertboth (FILENUM    filenum,
 			     BYTESTRING data,
 			     TOKUTXN    txn,
 			     YIELDF     UU(yield),
-			     void *     UU(yieldv))
+			     void *     UU(yieldv),
+                             LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
 }
 
 int
@@ -142,10 +152,11 @@ toku_commit_cmddeleteboth (FILENUM    filenum,
 			   BYTESTRING data,
 			   TOKUTXN    txn,
 			   YIELDF     UU(yield),
-			   void *     UU(yieldv))
+			   void *     UU(yieldv),
+                           LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE_BOTH
-    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
 #else
     xid = xid; key = key; data = data;
     return do_nothing_with_filenum(txn, filenum);
@@ -158,20 +169,22 @@ toku_rollback_cmddeleteboth (FILENUM    filenum,
 			     BYTESTRING data,
 			     TOKUTXN    txn,
 			     YIELDF     UU(yield),
-			     void *     UU(yieldv))
+			     void *     UU(yieldv),
+                             LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
 }
 
 int
-toku_commit_cmddelete (FILENUM filenum,
+toku_commit_cmddelete (FILENUM    filenum,
 		       BYTESTRING key,
-		       TOKUTXN txn,
+		       TOKUTXN    txn,
 		       YIELDF     UU(yield),
-		       void *     UU(yieldv))
+		       void *     UU(yieldv),
+                       LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
-    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
 #else
     xid = xid; key = key;
     return do_nothing_with_filenum(txn, filenum);
@@ -183,16 +196,18 @@ toku_rollback_cmddelete (FILENUM    filenum,
 			 BYTESTRING key,
 			 TOKUTXN    txn,
 			 YIELDF     UU(yield),
-			 void *     UU(yieldv))
+			 void *     UU(yieldv),
+                         LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
 }
 
 int
 toku_commit_fileentries (int        fd,
 			 TOKUTXN    txn,
 			 YIELDF     yield,
-			 void *     yieldv)
+			 void *     yieldv,
+                         LSN        oplsn)
 {
     BREAD f = create_bread_from_fd_initialize_at(fd);
     int r=0;
@@ -202,7 +217,7 @@ toku_commit_fileentries (int        fd,
         struct roll_entry *item;
         r = toku_read_rollback_backwards(f, &item, ma);
         if (r!=0) goto finish;
-        r = toku_commit_rollback_item(txn, item, yield, yieldv);
+        r = toku_commit_rollback_item(txn, item, yield, yieldv, oplsn);
         if (r!=0) goto finish;
 	memarena_clear(ma);
 	count++;
@@ -218,7 +233,8 @@ int
 toku_rollback_fileentries (int        fd,
 			   TOKUTXN    txn,
 			   YIELDF     yield,
-			   void *     yieldv)
+			   void *     yieldv,
+                           LSN        oplsn)
 {
     BREAD f = create_bread_from_fd_initialize_at(fd);
     assert(f);
@@ -229,7 +245,7 @@ toku_rollback_fileentries (int        fd,
         struct roll_entry *item;
         r = toku_read_rollback_backwards(f, &item, ma);
         if (r!=0) goto finish;
-        r = toku_abort_rollback_item(txn, item, yield, yieldv);
+        r = toku_abort_rollback_item(txn, item, yield, yieldv, oplsn);
         if (r!=0) goto finish;
 	memarena_clear(ma);
 	count++;
@@ -245,12 +261,13 @@ int
 toku_commit_rollinclude (BYTESTRING bs,
 			 TOKUTXN    txn,
 			 YIELDF     yield,
-			 void *     yieldv) {
+			 void *     yieldv,
+                         LSN        oplsn) {
     int r;
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-    r = toku_commit_fileentries(fd, txn, yield, yieldv);
+    r = toku_commit_fileentries(fd, txn, yield, yieldv, oplsn);
     assert(r==0);
     r = close(fd);
     assert(r==0);
@@ -263,13 +280,14 @@ int
 toku_rollback_rollinclude (BYTESTRING bs,
 			   TOKUTXN    txn,
 			   YIELDF     yield,
-			   void *     yieldv)
+			   void *     yieldv,
+                           LSN        oplsn)
 {
     int r;
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-    r = toku_rollback_fileentries(fd, txn, yield, yieldv);
+    r = toku_rollback_fileentries(fd, txn, yield, yieldv, oplsn);
     assert(r==0);
     r = close(fd);
     assert(r==0);
@@ -281,8 +299,9 @@ toku_rollback_rollinclude (BYTESTRING bs,
 int
 toku_rollback_tablelock_on_empty_table (FILENUM filenum,
                                         TOKUTXN txn,
-                                        YIELDF yield,
-                                        void* yield_v)
+                                        YIELDF  yield,
+                                        void*   yield_v,
+                                        LSN     UU(oplsn))
 {
     yield(toku_checkpoint_safe_client_lock, yield_v);
     // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
@@ -307,7 +326,7 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
 }
 
 int
-toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v))
+toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v), LSN UU(oplsn))
 {
     return do_nothing_with_filenum(txn, filenum);
 }

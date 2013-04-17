@@ -7,58 +7,7 @@
 #include "txn.h"
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
-    if (logger->is_panicked) return EINVAL;
-    TAGMALLOC(TOKUTXN, result);
-    if (result==0) 
-        return errno;
-    int r;
-    r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
-    if (r!=0) goto died;
-    r = toku_omt_create(&result->open_brts);
-    if (r!=0) goto died;
-    result->txnid64 = result->first_lsn.lsn;
-    XIDS parent_xids;
-    if (parent_tokutxn==NULL)
-        parent_xids = xids_get_root_xids();
-    else
-        parent_xids = parent_tokutxn->xids;
-    if ((r=xids_create_child(parent_xids, &result->xids, result->txnid64)))
-        goto died;
-    result->logger = logger;
-    result->parent = parent_tokutxn;
-    result->oldest_logentry = result->newest_logentry = 0;
-
-    result->rollentry_arena = memarena_create();
-
-    if (toku_omt_size(logger->live_txns) == 0) {
-        assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
-        logger->oldest_living_xid = result->txnid64;
-    }
-    assert(logger->oldest_living_xid <= result->txnid64);
-
-    {
-        //Add txn to list (omt) of live transactions
-        u_int32_t idx;
-        r = toku_omt_insert(logger->live_txns, result, find_xid, result, &idx);
-        if (r!=0) goto died;
-
-        if (logger->oldest_living_xid == result->txnid64)
-            assert(idx == 0);
-        else
-            assert(idx > 0);
-    }
-
-    result->rollentry_resident_bytecount=0;
-    result->rollentry_raw_count = 0;
-    result->rollentry_filename = 0;
-    result->rollentry_fd = -1;
-    result->rollentry_filesize = 0;
-    *tokutxn = result;
-    return 0;
-died:
-    // TODO memory leak
-    toku_logger_panic(logger, r);
-    return r; 
+    return toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, 0);
 }
 
 int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid) {
@@ -67,7 +16,11 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     if (result==0) 
         return errno;
     int r;
-    result->first_lsn.lsn = xid;
+    if (xid == 0) {
+        r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
+        if (r!=0) goto died;
+    } else
+        result->first_lsn.lsn = xid;
     r = toku_omt_create(&result->open_brts);
     if (r!=0) goto died;
     result->txnid64 = result->first_lsn.lsn;
@@ -109,6 +62,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->rollentry_filesize = 0;
     *tokutxn = result;
     return 0;
+
 died:
     // TODO memory leak
     toku_logger_panic(logger, r);
@@ -117,18 +71,26 @@ died:
 
 
 // Doesn't close the txn, just performs the commit operations.
-int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv) {
+int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv) {
+    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN);
+}
+
+int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn) {
     int r;
     // panic handled in log_commit
     r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (r!=0)
         return r;
-    r = toku_rollback_commit(txn, yield, yieldv);
+    r = toku_rollback_commit(txn, yield, yieldv, oplsn);
     return r;
 }
 
 // Doesn't close the txn, just performs the abort operations.
-int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv) {
+int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv) {
+    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN);
+}
+
+int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn) {
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -137,7 +99,7 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv) {
     r = toku_log_xabort(txn->logger, (LSN*)0, 0, txn->txnid64);
     if (r!=0) 
         return r;
-    r = toku_rollback_abort(txn, yield, yieldv);
+    r = toku_rollback_abort(txn, yield, yieldv, oplsn);
     return r;
 }
 
@@ -153,6 +115,10 @@ XIDS toku_txn_get_xids (TOKUTXN txn) {
 
 BOOL toku_txnid_older(TXNID a, TXNID b) {
     return (BOOL)(a < b); // TODO need modulo 64 arithmetic
+}
+
+BOOL toku_txnid_newer(TXNID a, TXNID b) {
+    return (BOOL)(a > b); // TODO need modulo 64 arithmetic
 }
 
 BOOL toku_txnid_eq(TXNID a, TXNID b) {
