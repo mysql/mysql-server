@@ -27,7 +27,7 @@ typedef pthread_rwlockattr_t  toku_pthread_rwlockattr_t;
 typedef pthread_key_t toku_pthread_key_t;
 typedef struct timespec toku_timespec_t;
 
-#define TOKU_PTHREAD_DEBUG 1
+#define TOKU_PTHREAD_DEBUG 0
 
 typedef struct toku_mutex {
     pthread_mutex_t pmutex;
