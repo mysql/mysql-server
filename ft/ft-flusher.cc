@@ -1220,7 +1220,8 @@ maybe_merge_pinned_leaf_nodes(
 {
     unsigned int sizea = toku_serialize_ftnode_size(a);
     unsigned int sizeb = toku_serialize_ftnode_size(b);
-    if ((sizea + sizeb)*4 > (nodesize*3)) {
+    uint32_t num_leafentries = get_leaf_num_entries(a) + get_leaf_num_entries(b);
+    if (num_leafentries > 1 && (sizea + sizeb)*4 > (nodesize*3)) {
         // the combined size is more than 3/4 of a node, so don't merge them.
         *did_merge = false;
         if (sizea*4 > nodesize && sizeb*4 > nodesize) {

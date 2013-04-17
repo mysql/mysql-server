@@ -155,6 +155,7 @@ bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
 enum reactivity get_nonleaf_reactivity (FTNODE node);
 enum reactivity get_node_reactivity (FTNODE node, uint32_t nodesize);
+uint32_t get_leaf_num_entries(FTNODE node);
 
 
 // data of an available partition of a leaf ftnode
