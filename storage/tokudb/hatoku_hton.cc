@@ -265,6 +265,9 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 
+    r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
+    assert(!r);
+
     DBUG_RETURN(FALSE);
 
 error:
@@ -537,7 +540,7 @@ static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Ve
 
 static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
 
-static MYSQL_SYSVAR_ULONG(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 0, 0, ~0L, 0);
+static MYSQL_SYSVAR_ULONG(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 555, 0, ~0L, 0);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
