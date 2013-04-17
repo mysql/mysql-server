@@ -99,9 +99,6 @@ typedef struct {
 } YDB_LAYER_STATUS_S, *YDB_LAYER_STATUS;
 
 static YDB_LAYER_STATUS_S ydb_layer_status;
-#ifdef STATUS_VALUE
-#undef STATUS_VALUE
-#endif
 #define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
 
 #define STATUS_INIT(k,t,l) { \
