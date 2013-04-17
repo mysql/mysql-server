@@ -26,7 +26,7 @@ static const int vallen = 64 - sizeof(long) - (sizeof(((LEAFENTRY)NULL)->type)  
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
-static const char fname[]= __FILE__ ".brt";
+static const char fname[]= __SRCFILE__ ".brt";
 
 static int omt_long_cmp(OMTVALUE p, void *q)
 {
@@ -142,7 +142,7 @@ test_split_on_boundary(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -201,7 +201,7 @@ test_split_with_everything_on_the_left(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -272,7 +272,7 @@ test_split_on_boundary_of_last_node(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -336,7 +336,7 @@ test_split_at_begin(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -404,7 +404,7 @@ test_split_at_end(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -474,7 +474,7 @@ test_split_odd_nodes(void)
 {
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd >= 0);
 
     int r;

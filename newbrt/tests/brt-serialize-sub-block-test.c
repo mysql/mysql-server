@@ -12,7 +12,7 @@
 static void test_sub_block(int n) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
 
-    const char fname[]= __FILE__ ".brt";
+    const char fname[]= __SRCFILE__ ".brt";
     const int nodesize = 4*1024*1024;
     const int basementnodesize = 128*1024;
     const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;

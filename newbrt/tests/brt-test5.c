@@ -15,7 +15,7 @@ static void test5 (void) {
     int *values;
     int i;
     CACHETABLE ct;
-    char fname[]= __FILE__ ".brt";
+    char fname[]= __SRCFILE__ ".brt";
     
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;

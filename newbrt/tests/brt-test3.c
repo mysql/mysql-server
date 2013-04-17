@@ -6,7 +6,7 @@
 #include "test.h"
 #include <toku_time.h>
 
-static const char fname[]= __FILE__ ".brt";
+static const char fname[]= __SRCFILE__ ".brt";
 
 static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 

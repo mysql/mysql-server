@@ -13,7 +13,7 @@
 #endif
 
 #ifndef dname
-#define dname __FILE__ ".dir"
+#define dname __SRCFILE__ ".dir"
 #endif
 #define rmrf "rm -rf " dname "/"
 

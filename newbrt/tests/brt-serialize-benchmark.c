@@ -56,7 +56,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     const int nodesize = (1<<22);
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -182,7 +182,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     const int nodesize = (1<<22);
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 

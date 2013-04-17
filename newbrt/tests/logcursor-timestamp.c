@@ -13,7 +13,7 @@ static u_int64_t now(void) {
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
-#define dname __FILE__ ".dir"
+#define dname __SRCFILE__ ".dir"
 #define rmrf "rm -rf " dname "/"
 
 // log a couple of timestamp entries and verify the log by walking 

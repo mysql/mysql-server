@@ -51,7 +51,7 @@ static int f_fetch (CACHEFILE f,
     return 0;
 }
 
-const char fname[] = __FILE__ ".dat";
+const char fname[] = __SRCFILE__ ".dat";
 
 CACHETABLE t;
 CACHEFILE f;

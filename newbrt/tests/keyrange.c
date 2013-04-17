@@ -12,7 +12,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static char fname[]= __FILE__ ".brt";
+static char fname[]= __SRCFILE__ ".brt";
 static CACHETABLE ct;
 static BRT t;
 

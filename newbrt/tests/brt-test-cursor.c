@@ -5,7 +5,7 @@
 #include "includes.h"
 #include "test.h"
 
-static const char fname[]= __FILE__ ".brt";
+static const char fname[]= __SRCFILE__ ".brt";
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;

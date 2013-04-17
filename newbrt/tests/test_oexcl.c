@@ -6,7 +6,7 @@
 
 #include "includes.h"
 
-#define fname __FILE__ ".tmp"
+#define fname __SRCFILE__ ".tmp"
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {

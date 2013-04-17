@@ -47,7 +47,7 @@ test_dup_in_leaf(int do_verify) {
     int r;
 
     // cleanup
-    char fname[]= __FILE__ ".brt";
+    char fname[]= __SRCFILE__ ".brt";
     r = unlink(fname);
     assert(r == 0 || (r == -1 && errno == ENOENT));
 

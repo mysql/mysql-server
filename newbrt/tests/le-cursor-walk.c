@@ -171,8 +171,8 @@ int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
-    const char *logdir = __FILE__ ".dir";
-    const char *brtfile =  __FILE__ ".brt";
+    const char *logdir = __SRCFILE__ ".dir";
+    const char *brtfile =  __SRCFILE__ ".brt";
     char cmd[32+strlen(brtfile)];
     sprintf(cmd, "rm -rf %s", brtfile);
     int error = system(cmd);

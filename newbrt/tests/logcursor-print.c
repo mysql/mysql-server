@@ -1,7 +1,7 @@
 #include "test.h"
 #include "logcursor.h"
 
-#define LOGDIR __FILE__ ".dir"
+#define LOGDIR __SRCFILE__ ".dir"
 
 int test_main(int argc, const char *argv[]) {
     int r;

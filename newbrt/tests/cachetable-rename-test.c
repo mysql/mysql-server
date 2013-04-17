@@ -91,7 +91,7 @@ static void test_rename (void) {
     int i;
     int r;
     test_mutex_init();
-    const char fname[] = __FILE__ "rename.dat";
+    const char fname[] = __SRCFILE__ "rename.dat";
     r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);

@@ -4,7 +4,7 @@
 #include "test.h"
 #include "includes.h"
 
-#define TESTDIR __FILE__ ".dir"
+#define TESTDIR __SRCFILE__ ".dir"
 
 static int 
 run_test(void) {

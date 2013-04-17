@@ -289,7 +289,7 @@ test_prefetching(void) {
     const int nodesize = 1024;
     struct brtnode sn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
