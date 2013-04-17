@@ -1028,7 +1028,7 @@ int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
         file->descriptor.size - row_desc_offset,
         false
         );
-	return cmp;
+    return cmp;
 }
 
 //TODO: QQQ Only do one direction for prefix.
