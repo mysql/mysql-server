@@ -2042,6 +2042,17 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->search_root_retries = brt_stat.search_root_retries;
 	    engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
 	    engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;	    
+	    engstat->cleaner_total_nodes = brt_stat.cleaner_total_nodes;
+	    engstat->cleaner_h1_nodes = brt_stat.cleaner_h1_nodes;
+	    engstat->cleaner_hgt1_nodes = brt_stat.cleaner_hgt1_nodes;
+	    engstat->cleaner_empty_nodes = brt_stat.cleaner_empty_nodes;
+	    engstat->cleaner_nodes_dirtied = brt_stat.cleaner_nodes_dirtied;
+	    engstat->cleaner_max_buffer_size = brt_stat.cleaner_max_buffer_size;
+	    engstat->cleaner_min_buffer_size = brt_stat.cleaner_min_buffer_size;
+	    engstat->cleaner_total_buffer_size = brt_stat.cleaner_total_buffer_size;
+	    engstat->cleaner_max_buffer_workdone = brt_stat.cleaner_max_buffer_workdone;
+	    engstat->cleaner_min_buffer_workdone = brt_stat.cleaner_min_buffer_workdone;
+	    engstat->cleaner_total_buffer_workdone = brt_stat.cleaner_total_buffer_workdone;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2261,6 +2272,19 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "search_root_retries              %"PRIu64"\n", engstat.search_root_retries);
 	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_height           %"PRIu64"\n", engstat.search_tries_gt_height);
 	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_heightplus3      %"PRIu64"\n", engstat.search_tries_gt_heightplus3);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_total_nodes              %"PRIu64"\n", engstat.cleaner_total_nodes);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_h1_nodes                 %"PRIu64"\n", engstat.cleaner_h1_nodes);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_hgt1_nodes               %"PRIu64"\n", engstat.cleaner_hgt1_nodes);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_empty_nodes              %"PRIu64"\n", engstat.cleaner_empty_nodes);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_nodes_dirtied            %"PRIu64"\n", engstat.cleaner_nodes_dirtied);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_size          %"PRIu64"\n", engstat.cleaner_max_buffer_size);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_size          %"PRIu64"\n", engstat.cleaner_min_buffer_size);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_size        %"PRIu64"\n", engstat.cleaner_total_buffer_size);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_workdone      %"PRIu64"\n", engstat.cleaner_max_buffer_workdone);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu32"\n", engstat.cleaner_period);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu32"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);

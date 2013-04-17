@@ -86,8 +86,8 @@ typedef struct __toku_engine_status {
   u_int64_t        checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ 
   u_int32_t        checkpoint_count;        /* number of checkpoints taken        */ 
   u_int32_t        checkpoint_count_fail;   /* number of checkpoints failed        */ 
-  u_int32_t        cleaner_period;          /* delay between automatic checkpoints  */ 
-  u_int32_t        cleaner_iterations;      /* delay between automatic checkpoints  */ 
+  u_int32_t        cleaner_period;          /* delay between executions of cleaner  */ 
+  u_int32_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ 
   u_int64_t        txn_begin;               /* number of transactions ever begun             */ 
   u_int64_t        txn_commit;              /* txn commit operations                         */ 
   u_int64_t        txn_abort;               /* txn abort operations                          */ 
@@ -168,6 +168,17 @@ typedef struct __toku_engine_status {
   uint64_t         search_root_retries;         /* number of searches that required the root node to be fetched more than once */ 
   uint64_t         search_tries_gt_height;      /* number of searches that required more tries than the height of the tree */ 
   uint64_t         search_tries_gt_heightplus3; /* number of searches that required more tries than the height of the tree plus three */ 
+  uint64_t         cleaner_total_nodes;           /* total number of nodes whose buffers are potentially flushed by cleaner thread */
+  uint64_t         cleaner_h1_nodes;              /* number of nodes of height one whose message buffers are flushed by cleaner thread */
+  uint64_t         cleaner_hgt1_nodes;            /* number of nodes of height > 1 whose message buffers are flushed by cleaner thread */
+  uint64_t         cleaner_empty_nodes;           /* number of nodes that are selected by cleaner, but whose buffers are empty */
+  uint64_t         cleaner_nodes_dirtied;         /* number of nodes that are made dirty by the cleaner thread */
+  uint64_t         cleaner_max_buffer_size;       /* max number of bytes in message buffer flushed by cleaner thread */
+  uint64_t         cleaner_min_buffer_size;       /* min number of bytes in message buffer flushed by cleaner thread */
+  uint64_t         cleaner_total_buffer_size;     /* total number of bytes in message buffers flushed by cleaner thread */
+  uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */
+  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */
+  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 

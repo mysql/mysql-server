@@ -747,6 +747,17 @@ typedef struct brt_status {
     uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
     uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
     uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
+    uint64_t  cleaner_total_nodes;         // total number of nodes whose buffers are potentially flushed by cleaner thread
+    uint64_t  cleaner_h1_nodes;            // number of nodes of height one whose message buffers are flushed by cleaner thread
+    uint64_t  cleaner_hgt1_nodes;          // number of nodes of height > 1 whose message buffers are flushed by cleaner thread
+    uint64_t  cleaner_empty_nodes;         // number of nodes that are selected by cleaner, but whose buffers are empty
+    uint64_t  cleaner_nodes_dirtied;       // number of nodes that are made dirty by the cleaner thread
+    uint64_t  cleaner_max_buffer_size;     // max number of bytes in message buffer flushed by cleaner thread
+    uint64_t  cleaner_min_buffer_size;
+    uint64_t  cleaner_total_buffer_size;
+    uint64_t  cleaner_max_buffer_workdone; // max workdone value of any message buffer flushed by cleaner thread
+    uint64_t  cleaner_min_buffer_workdone;
+    uint64_t  cleaner_total_buffer_workdone;
 } BRT_STATUS_S, *BRT_STATUS;
 
 void toku_brt_get_status(BRT_STATUS);
