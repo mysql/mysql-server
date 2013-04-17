@@ -164,7 +164,10 @@ int toku_loader_create_loader(DB_ENV *env,
     // lock tables and check empty
     for(int i=0;i<N;i++) {
         if (!(loader_flags&DB_PRELOCKED_WRITE)) {
-            r = dbs[i]->pre_acquire_table_lock(dbs[i], txn);
+            toku_ydb_lock(); //Must hold ydb lock for acquiring locks
+            BOOL using_puts = (loader->i->loader_flags & LOADER_USE_PUTS) != 0;
+            r = toku_db_pre_acquire_table_lock(dbs[i], txn, !using_puts);
+            toku_ydb_unlock();
             if (r!=0) break;
         }
         r = verify_empty(dbs[i], txn);
