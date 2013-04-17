@@ -452,13 +452,15 @@ bool tokudb_flush_logs(handlerton * hton) {
     TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
-    if ((error = db_env->log_flush(db_env, 0))) {
-        my_error(ER_ERROR_DURING_FLUSH_LOGS, MYF(0), error);
-        result = 1;
-    }
-    if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0))) {
-        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-        result = 1;
+    if (tokudb_init_flags & DB_INIT_LOG) {
+        if ((error = db_env->log_flush(db_env, 0))) {
+            my_error(ER_ERROR_DURING_FLUSH_LOGS, MYF(0), error);
+            result = 1;
+        }
+        if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0))) {
+            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+            result = 1;
+        }
     }
     TOKUDB_DBUG_RETURN(result);
 }
@@ -941,6 +943,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     uint max_key_length;
     int error;
 
+    if (tokudb_init_flags & DB_INIT_TXN)
+        open_flags += DB_AUTO_COMMIT;
+
     /* Open primary key */
     hidden_primary_key = 0;
     if ((primary_key = table_share->primary_key) >= MAX_KEY) {
@@ -1015,7 +1020,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         char newname[strlen(name) + 32];
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-        if ((error = file->open(file, 0, name_buff, NULL, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
+        if ((error = file->open(file, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
             my_free(alloc_ptr, MYF(0));
@@ -1062,7 +1067,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                     (*ptr)->api_internal = file->app_private;
                     (*ptr)->set_dup_compare(*ptr, hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_primary_key);
                 }
-                if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
+                if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
                     __close(1);
                     my_errno = error;
                     TOKUDB_DBUG_RETURN(1);
@@ -1337,7 +1342,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
 
 int ha_tokudb::read_last() {
     int do_commit = 0;
-    if (transaction == NULL) {
+    if (transaction == NULL && (tokudb_init_flags & DB_INIT_TXN)) {
         int r = db_env->txn_begin(db_env, 0, &transaction, 0);
         assert(r == 0);
         do_commit = 1;
@@ -1401,7 +1406,9 @@ void ha_tokudb::get_status() {
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
             share->org_rows = share->rows = table_share->max_rows ? table_share->max_rows : HA_TOKUDB_MAX_ROWS;
             DB_TXN *transaction = NULL;
-            int r = db_env->txn_begin(db_env, 0, &transaction, 0);
+            int r = 0;
+            if (tokudb_init_flags & DB_INIT_TXN)
+                r = db_env->txn_begin(db_env, 0, &transaction, 0);
             if (r == 0) {
                 r = share->status_block->cursor(share->status_block, transaction, &cursor, 0);
                 if (r == 0) {
@@ -1424,7 +1431,9 @@ void ha_tokudb::get_status() {
                     }
                     cursor->c_close(cursor);
                 }
-                r = transaction->commit(transaction, 0);
+                if (transaction) {
+                    r = transaction->commit(transaction, 0);
+                }
                 transaction = NULL;
             }
             cursor = NULL;
