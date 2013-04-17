@@ -58,7 +58,7 @@ status_init(toku_ltm* mgr) {
     STATUS_INIT(LTM_LOCKS_LIMIT, UINT64, "number of locks allowed");
     STATUS_INIT(LTM_LOCKS_CURR, 	UINT64, "number of locks in existence"); 
     STATUS_INIT(LTM_LOCK_MEMORY_LIMIT, 	UINT64, "maximum amount of memory allowed for locks"); 
-    STATUS_INIT(LTM_LOCK_MEMORY_CURR, 		UINT64, "maximum amount of memory allowed for locks");
+    STATUS_INIT(LTM_LOCK_MEMORY_CURR, 		UINT64, "memory in use for locks");
     STATUS_INIT(LTM_LOCK_ESCALATION_SUCCESSES, 	UINT64, "number of times lock escalation succeeded");
     STATUS_INIT(LTM_LOCK_ESCALATION_FAILURES, 	UINT64, "number of times lock escalation failed");
     STATUS_INIT(LTM_READ_LOCK, 			UINT64, "number of times read lock taken successfully");
