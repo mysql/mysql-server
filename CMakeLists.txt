@@ -15,6 +15,9 @@ include(TokuSetupCompiler)
 include(TokuSetupCTest)
 include(TokuThirdParty)
 
+set(TOKU_CMAKE_SCRIPT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(TokuMergeLibs)
+
 ## need a way to change the name of libs we build
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")
 set(LIBTOKUDB "tokudb" CACHE STRING "Name of libtokudb.so")
