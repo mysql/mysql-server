@@ -691,7 +691,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
     __attribute__((__warn_unused_result__));
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 				   ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
-                                   struct brtnode_fetch_extra *bfe,
+                                   struct brtnode_fetch_extra *bfe, BOOL apply_ancestor_messages,
 				   BRTNODE *node_p);
 void toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,

@@ -307,7 +307,8 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 // see comments for toku_pin_brtnode
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 				   ANCESTORS ancestors, struct pivot_bounds const * const bounds,
-                                   struct brtnode_fetch_extra *bfe,
+                                   struct brtnode_fetch_extra *bfe, 
+                                   BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
 				   BRTNODE *node_p) {
     void *node_v;
     int r = toku_cachetable_get_and_pin(
@@ -327,7 +328,7 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         );
     assert(r==0);
     BRTNODE node = node_v;
-    maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
+    if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
     *node_p = node;
 }
 
@@ -547,7 +548,7 @@ toku_verify_estimates (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bo
                 BRTNODE childnode;
                 struct brtnode_fetch_extra bfe;
                 fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
-		toku_pin_brtnode_holding_lock(t, childblocknum, fullhash, &next_ancestors, &next_bounds, &bfe, &childnode);
+		toku_pin_brtnode_holding_lock(t, childblocknum, fullhash, &next_ancestors, &next_bounds, &bfe, TRUE, &childnode);
                 for (int i=0; i<childnode->n_children; i++) {
             	    child_estimate += BP_SUBTREE_EST(childnode, i).ndata;
                 }
@@ -3592,7 +3593,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     // get the root node
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
-    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
+    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
 
     toku_assert_entire_node_in_memory(node);
     cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
@@ -6701,7 +6702,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_min_read(&bfe, brt->h, brt->db, brt->compare_fun);
 	toku_pin_brtnode_holding_lock(brt, nodename, fullhash,
-				      ancestors, bounds, &bfe,
+				      ancestors, bounds, &bfe, FALSE,
 				      &node);
 	assert(node->fullhash==fullhash);
     }
@@ -6789,7 +6790,7 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->h, brt->db, brt->compare_fun);
     BRTNODE node;
-    toku_pin_brtnode_holding_lock(brt, root, fullhash, (ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
+    toku_pin_brtnode_holding_lock(brt, root, fullhash, (ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
 
     s->nkeys = s->ndata = s->dsize = 0;
     int i;
