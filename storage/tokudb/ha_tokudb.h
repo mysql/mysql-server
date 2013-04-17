@@ -5,14 +5,6 @@
 #include <db.h>
 #include "hatoku_cmp.h"
 
-typedef struct st_col_pack_info {
-    u_int32_t col_pack_val; //offset if fixed, pack_index if var
-} COL_PACK_INFO;
-
-typedef struct st_multi_col_pack_info {
-    u_int32_t var_len_offset; //where the fixed length stuff ends and the offsets for var stuff begins
-    u_int32_t len_of_offsets; //length of the offset bytes in a packed row
-} MULTI_COL_PACK_INFO;
 
 //
 // This object stores table information that is to be shared
@@ -49,6 +41,7 @@ typedef struct st_tokudb_share {
     // key is hidden
     //
     DB *key_file[MAX_KEY +1];
+    u_int32_t mult_put_flags[MAX_KEY+1];
     uint status, version, capabilities;
     uint ref_length;
     //
@@ -61,14 +54,8 @@ typedef struct st_tokudb_share {
     uint ai_field_index;
     bool ai_first_col;
 
-    MY_BITMAP key_filters[MAX_KEY+1];
-    uchar* field_lengths; //stores the field lengths of fixed size fields (255 max)
-    uchar* length_bytes; // stores the length of lengths of varchars and varbinaries
-    u_int32_t* blob_fields; // list of indexes of blob fields
-    u_int32_t num_blobs;
-    MULTI_COL_PACK_INFO mcp_info[MAX_KEY+1];
-    COL_PACK_INFO* cp_info[MAX_KEY+1];
-    u_int32_t num_offset_bytes; //number of bytes needed to encode the offset
+    KEY_AND_COL_INFO kc_info;
+    
     // 
     // we want the following optimization for bulk loads, if the table is empty, 
     // attempt to grab a table lock. emptiness check can be expensive, 
@@ -76,9 +63,11 @@ typedef struct st_tokudb_share {
     // to tell us to not try it again. 
     // 
     bool try_table_lock; 
+
+    bool has_unique_keys;
 } TOKUDB_SHARE;
 
-#define HA_TOKU_VERSION 2
+#define HA_TOKU_VERSION 3
 //
 // no capabilities yet
 //
@@ -109,6 +98,8 @@ typedef enum {
 } TABLE_LOCK_TYPE;
 
 int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx);
+int generate_keys_vals_for_put(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
+int cleanup_keys_vals_for_put(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
 
 
 class ha_tokudb : public handler {
@@ -134,6 +125,7 @@ private:
     // number of bytes allocated in rec_buff
     //
     ulong alloced_rec_buff_length;
+    u_int32_t max_key_length;
     //
     // buffer used to temporarily store a "packed key" 
     // data pointer of a DBT will end up pointing to this
@@ -155,6 +147,13 @@ private:
     // does not carry any state throughout the class.
     //
     uchar *primary_key_buff;
+
+    //
+    // individual key buffer for each index
+    //
+    uchar* mult_key_buff[MAX_KEY];
+    uchar* mult_rec_buff[MAX_KEY];
+    ulong alloced_mult_rec_buff_length;
 
     //
     // when unpacking blobs, we need to store it in a temporary
@@ -237,11 +236,13 @@ private:
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
 
     bool fix_rec_buff_for_blob(ulong length);
+    void fix_mult_rec_buff();
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
     int pack_row(
         DBT * row, 
+        uchar* buf,
         const uchar* record,
         uint index
         );
@@ -283,12 +284,16 @@ private:
     int create_txn(THD* thd, tokudb_trx_data* trx);
     bool may_table_be_empty();
     int delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete);
-    int delete_or_rename_dictionary( const char* from_name, const char* to_name, char* index_name, bool is_key, DB_TXN* txn, bool is_delete);
+    int delete_or_rename_dictionary( const char* from_name, const char* to_name, const char* index_name, bool is_key, DB_TXN* txn, bool is_delete);
     int truncate_dictionary( uint keynr, DB_TXN* txn );
-    int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn);
-    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn);
+    int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, u_int32_t keynr);
+    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info);
     void trace_create_table_info(const char *name, TABLE * form);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
+    int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
+    int insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
+    int insert_rows_to_dictionaries_mult(uchar* row, u_int32_t row_size, DB_TXN* txn, THD* thd);
+    int test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
 
  
 public:

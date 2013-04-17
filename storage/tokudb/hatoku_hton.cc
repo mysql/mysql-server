@@ -106,7 +106,7 @@ u_int32_t tokudb_write_status_frequency;
 u_int32_t tokudb_read_status_frequency;
 my_bool tokudb_prelock_empty;
 #ifdef TOKUDB_VERSION
- char *tokudb_version = TOKUDB_VERSION;
+char *tokudb_version = (char *)TOKUDB_VERSION;
 #else
  char *tokudb_version;
 #endif
@@ -273,6 +273,9 @@ static int tokudb_init_func(void *p) {
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
 
+    r = db_env->set_multiple_callbacks(db_env, generate_keys_vals_for_put, cleanup_keys_vals_for_put, NULL, NULL);
+    assert(!r);
+
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
@@ -284,7 +287,6 @@ static int tokudb_init_func(void *p) {
 
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
-
 
     r = db_create(&metadata_db, db_env, 0);
     if (r) {
