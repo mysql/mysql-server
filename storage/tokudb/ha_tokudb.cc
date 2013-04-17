@@ -1137,8 +1137,7 @@ int generate_row_for_put(
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
-    const DBT *src_val,
-    void *extra
+    const DBT *src_val
     ) 
 {
     return tokudb_generate_row(

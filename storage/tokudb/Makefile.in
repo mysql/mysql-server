@@ -45,7 +45,8 @@ subdir = storage/tokudb
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -105,6 +106,8 @@ ALLOCA = @ALLOCA@
 AMDEP_FALSE = @AMDEP_FALSE@
 AMDEP_TRUE = @AMDEP_TRUE@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -404,6 +407,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 MYSQLDATAdir = $(localstatedir)
 MYSQLSHAREdir = $(pkgdatadir)
