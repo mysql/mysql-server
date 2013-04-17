@@ -90,6 +90,7 @@ BDB_DONTRUN_TESTS = \
 	del-simple \
 	del-multiple \
 	del-multiple-huge-primary-row \
+	directory_lock \
         diskfull \
         env-put-multiple \
         env_startup \
