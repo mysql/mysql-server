@@ -620,7 +620,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
         parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
-        BOOL* msgs_applied;
+        BOOL msgs_applied;
         maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied);
 
         FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
