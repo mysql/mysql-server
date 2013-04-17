@@ -1307,8 +1307,17 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       SHOWVAL(disk_flush_nonleaf);
       SHOWVAL(disk_flush_leaf_for_checkpoint);
       SHOWVAL(disk_flush_nonleaf_for_checkpoint);
+      SHOWVAL(create_leaf);
+      SHOWVAL(create_nonleaf);
       SHOWVAL(destroy_leaf);
       SHOWVAL(destroy_nonleaf);
+      SHOWVAL(split_leaf);
+      SHOWVAL(split_nonleaf);
+      SHOWVAL(merge_leaf);
+      SHOWVAL(merge_nonleaf);
+      SHOWVAL(dirty_leaf);
+      SHOWVAL(dirty_nonleaf);
+      SHOWVAL(balance_leaf);
       SHOWVAL(msg_bytes_in);
       SHOWVAL(msg_bytes_out);
       SHOWVAL(msg_bytes_curr);
