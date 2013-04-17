@@ -67,5 +67,8 @@ int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 // Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.
 void toku_brtheader_update_cmp_descriptor(struct brt_header* h);
 
+void toku_brt_header_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
+void toku_brt_header_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);
+
 
 #endif

@@ -969,4 +969,14 @@ toku_brtheader_update_cmp_descriptor(struct brt_header* h) {
         );
 }
 
+void
+toku_brt_header_update_stats(STAT64INFO headerstats, STAT64INFO_S delta) {
+    (void) __sync_fetch_and_add(&(headerstats->numrows),  delta.numrows);
+    (void) __sync_fetch_and_add(&(headerstats->numbytes), delta.numbytes);
+}
 
+void
+toku_brt_header_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta) {
+    (void) __sync_fetch_and_sub(&(headerstats->numrows),  delta.numrows);
+    (void) __sync_fetch_and_sub(&(headerstats->numbytes), delta.numbytes);
+}

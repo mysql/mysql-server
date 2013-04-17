@@ -2143,7 +2143,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
 
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl, uint32_t target_basementnodesize);
 static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize);
-static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size);
+static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size, STAT64INFO stats_to_update);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk);
 
@@ -2269,6 +2269,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     DBT maxkey = make_dbt(0, 0); // keep track of the max key of the current node
 
+    STAT64INFO_S deltas = ZEROSTATS;
     while (result == 0) {
 	void *item;
 	{
@@ -2327,7 +2328,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		lbuf = start_leaf(&out, descriptor, lblock, le_xid, target_nodesize);
 	    }
 
-	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size, this_leafentry_size);
+	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size, this_leafentry_size, &deltas);
 	    n_rows_remaining--;
 
             update_maxkey(&maxkey, &key); // set the new maxkey to the current key
@@ -2341,6 +2342,10 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
         if (result == 0)
             result = brt_loader_get_error(&bl->error_callback); // check if an error was posted and terminate this quickly
+    }
+
+    if (deltas.numrows || deltas.numbytes) {
+        toku_brt_header_update_stats(&h.in_memory_stats, deltas);
     }
 
     cleanup_maxkey(&maxkey);
@@ -2679,7 +2684,7 @@ int toku_brt_loader_get_error(BRTLOADER bl, int *error) {
     return 0;
 }
 
-static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size) {
+static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size, STAT64INFO stats_to_update) {
     lbuf->nkeys++; // assume NODUP
     lbuf->ndata++;
     lbuf->dsize += keylen + vallen;
@@ -2694,7 +2699,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
-    toku_brt_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &workdone, NULL);
+    toku_brt_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &workdone, stats_to_update);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {

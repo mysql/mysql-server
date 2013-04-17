@@ -50,13 +50,6 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
-typedef struct {
-    int64_t numrows;           // delta versions in basements could be negative
-    int64_t numbytes;
-} STAT64INFO_S, *STAT64INFO;
-
-static const STAT64INFO_S ZEROSTATS = {0,0};
-
 //
 // Field in brtnode_fetch_extra that tells the 
 // partial fetch callback what piece of the node

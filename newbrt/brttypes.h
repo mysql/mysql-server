@@ -106,6 +106,13 @@ typedef struct __toku_msn { u_int64_t msn; } MSN;
 #define MIN_MSN  ((MSN){(u_int64_t)1 << 62})  // first 2^62 values reserved for messages created before Dr. No (for upgrade)
 #define MAX_MSN  ((MSN){UINT64_MAX})
 
+typedef struct {
+    int64_t numrows;           // delta versions in basements could be negative
+    int64_t numbytes;
+} STAT64INFO_S, *STAT64INFO;
+
+static const STAT64INFO_S ZEROSTATS = {0,0};
+
 /* At the brt layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
  * With the introduction of the loader (ticket 2216), it is possible for the file that holds
