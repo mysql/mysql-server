@@ -3,19 +3,14 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-
 /* Verify a BRT. */
 /* Check:
- *   the fingerprint of every node (local check)
- *   the child's fingerprint matches the parent's copy
- *   the tree is of uniform depth (and the height is correct at every node)
- *   For non-dup trees: the values to the left are < the values to the right
- *      and < the pivot
- *   For dup trees: the values to the left are <= the values to the right
- *     the pivots are < or <= left values (according to the PresentL bit)
- *     the pivots are > or >= right values (according to the PresentR bit)
- *
- * Note: We don't yet have DUP trees, so thee checks on duplicate trees are unimplemented. (Nov 1 2007)
+ *   The fingerprint of every node (local check)
+ *   The child's fingerprint matches the parent's copy (probably don't actually do thi syet)
+ *   The tree is of uniform depth (and the height is correct at every node)
+ *   For each pivot key:  the max of the stuff to the left is <= the pivot key < the min of the stuff to the right.
+ *   For each leaf node:  All the keys are in strictly increasing order.
+ *   For each nonleaf node:  All the messages have keys that are between the associated pivot keys ( left_pivot_key < message <= right_pivot_key)
  */
 
 #include "includes.h"
@@ -49,94 +44,99 @@ static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
 			       toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
 }
-
-// all this because we dont have nested functions
-struct verify_pair_arg {
-    BRT brt;
-    int i;
-    bytevec thislorange;
-    ITEMLEN thislolen;
-    bytevec thishirange;
-    ITEMLEN thishilen;
-    int *resultp;
-};
-
-struct check_increasing_arg {
-    BRT brt;
-    LEAFENTRY prev;
-};
-
-// Make sure that they are in increasing order.
-static int check_increasing (OMTVALUE lev, u_int32_t idx, void *arg) {
-    struct check_increasing_arg *ciarg = (struct check_increasing_arg *)arg;
-    LEAFENTRY v=lev;
-    LEAFENTRY prev = ciarg->prev;
-    if (idx>0)
-        assert(compare_leafentries(ciarg->brt, prev, v)<0);
-    ciarg->prev=v;
-    return 0;
+static int compare_pair_to_leafentry (BRT brt, struct kv_pair *a, LEAFENTRY b) {
+    DBT x,y;
+    int cmp = brt->compare_fun(brt->db,
+			       toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
+			       toku_fill_dbt(&y, le_key(b), le_keylen(b)));
+    return cmp;
 }
 
-int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
+int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
+			 struct kv_pair *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+			 struct kv_pair *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+			 int recurse)
+{
     int result=0;
     BRTNODE node;
     void *node_v;
-    int r;
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
-    if ((r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL,
-					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h)))
-	return r;
+    {
+	int r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL,
+					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+	if (r) return r;
+    }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
     assert(node->fullhash==fullhash);
+    if (height==-1) {
+	height = node->height;
+    }
+    assert(node->height  ==height);
     verify_local_fingerprint(node);
     if (node->height>0) {
-	int i;
-	for (i=0; i< node->u.n.n_children; i++) {
-	    bytevec thislorange,thishirange;
-	    ITEMLEN thislolen,  thishilen;
-	    if (node->u.n.n_children==0 || i==0) {
-		thislorange=lorange;
-		thislolen  =lolen;
-	    } else {
-		thislorange=kv_pair_key(node->u.n.childkeys[i-1]);
-		thislolen  =toku_brt_pivot_key_len(node->u.n.childkeys[i-1]);
+	// Verify that all the pivot keys are in order.
+	for (int i=0; i<node->u.n.n_children-2; i++) {
+	    int compare = compare_pairs(brt, node->u.n.childkeys[i], node->u.n.childkeys[i+1]);
+	    assert(compare<0);
+	}
+	// Verify that all the pivot keys are lesser_pivot < pivot <= greatereq_pivot
+	for (int i=0; i<node->u.n.n_children-1; i++) {
+	    if (lesser_pivot) {
+		int compare = compare_pairs(brt, lesser_pivot, node->u.n.childkeys[i]);
+		assert(compare < 0);
 	    }
-	    if (node->u.n.n_children==0 || i+1>=node->u.n.n_children) {
-		thishirange=hirange;
-		thishilen  =hilen;
-	    } else {
-		thishirange=kv_pair_key(node->u.n.childkeys[i]);
-		thishilen  =toku_brt_pivot_key_len(node->u.n.childkeys[i]);
+	    if (greatereq_pivot) {
+		int compare = compare_pairs(brt, greatereq_pivot, node->u.n.childkeys[i]);
+		assert(compare >= 0);
 	    }
 	}
-	//if (lorange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)lorange);
-	//if (hirange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)hirange);
-	for (i=0; i<node->u.n.n_children-2; i++) {
-	    assert(compare_pairs(brt, node->u.n.childkeys[i], node->u.n.childkeys[i+1])<0);
-	}
-	for (i=0; i<node->u.n.n_children; i++) {
-	    if (i>0) {
-		//printf(" %s:%d i=%d %p v=%s\n", __FILE__, __LINE__, i, node->u.n.childkeys[i-1], (char*)kv_pair_key(node->u.n.childkeys[i-1]));
-		DBT k1,k2,k3;
-		toku_fill_dbt(&k2, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(node->u.n.childkeys[i-1]));
-		if (lorange) assert(brt->compare_fun(brt->db, toku_fill_dbt(&k1, lorange, lolen), &k2) <0);
-		if (hirange) assert(brt->compare_fun(brt->db, &k2, toku_fill_dbt(&k3, hirange, hilen)) <=0);
-	    }
-	    if (recurse) {
-		result|=toku_verify_brtnode(brt, BNC_BLOCKNUM(node, i),
-                                            (i==0) ? lorange : kv_pair_key(node->u.n.childkeys[i-1]),
-                                            (i==0) ? lolen   : toku_brt_pivot_key_len(node->u.n.childkeys[i-1]),
-                                            (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
-                                            (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(node->u.n.childkeys[i]),
-                                            recurse);
+
+	// Verify that messages in the buffers are in the right place.
+	{/*nothing*/} // To do later.
+	
+	// Verify that the subtrees have the right properties.
+	if (recurse) {
+	    for (int i=0; i<node->u.n.n_children; i++) {
+		int r = toku_verify_brtnode(brt, BNC_BLOCKNUM(node, i), height-1,
+					    (i==0)                      ? lesser_pivot        : node->u.n.childkeys[i-1],
+					    (i==node->u.n.n_children-1) ? greatereq_pivot     : node->u.n.childkeys[i],
+					    recurse);
+		assert(r==0);
 	    }
 	}
     } else {
-        struct check_increasing_arg ciarg = { brt , 0 };
-	toku_omt_iterate(node->u.l.buffer, check_increasing, &ciarg);
+	/* It's a leaf.  Make sure every leaf value is between the pivots, and that the leaf values are sorted. */
+	for (u_int32_t i=0; i<toku_omt_size(node->u.l.buffer); i++) {
+	    OMTVALUE le_v;
+	    {
+		int r = toku_omt_fetch(node->u.l.buffer, i, &le_v, NULL);
+		assert(r==0);
+	    }
+	    LEAFENTRY le = le_v;
+
+	    if (lesser_pivot) {
+		int compare = compare_pair_to_leafentry(brt, lesser_pivot, le);
+		assert(compare < 0);
+	    }
+	    if (greatereq_pivot) {
+		int compare = compare_pair_to_leafentry(brt, greatereq_pivot, le);
+		assert(compare >= 0);
+	    }
+	    if (0<i) {
+		OMTVALUE prev_le_v;
+		int r = toku_omt_fetch(node->u.l.buffer, i-1, &prev_le_v, NULL);
+		assert(r==0);
+		LEAFENTRY prev_le = prev_le_v;
+		int compare = compare_leafentries(brt, prev_le, le);
+		assert(compare<0);
+	    }
+	}
     }
-    if ((r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0))) return r;
+    {
+	int r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0);
+	if (r) return r;
+    }
     return result;
 }
 
@@ -145,8 +145,10 @@ int toku_verify_brt (BRT brt) {
     assert(brt->h);
     u_int32_t root_hash;
     rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
-    int n_pinned = toku_cachefile_count_pinned(brt->cf, 0);
-    int r = toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1);
-    assert(n_pinned ==  toku_cachefile_count_pinned(brt->cf, 0));
+    int n_pinned_before = toku_cachefile_count_pinned(brt->cf, 0);
+    int r = toku_verify_brtnode(brt, *rootp, -1, NULL, NULL, 1);
+    int n_pinned_after  = toku_cachefile_count_pinned(brt->cf, 0);
+    assert(n_pinned_before==n_pinned_after); // this may stop working if we release the ydb lock (in some future version of the code).
     return r;
 }
+

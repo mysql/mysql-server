@@ -5298,7 +5298,7 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
 
 /* ********************* debugging dump ************************ */
 static int
-toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
+toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_pair *lorange, struct kv_pair *hirange) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -5310,11 +5310,11 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
     fprintf(file, "%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
     lazy_assert(node->fullhash==fullhash);
-    result=toku_verify_brtnode(brt, blocknum, lorange, lolen, hirange, hilen, 0);
+    result=toku_verify_brtnode(brt, blocknum, -1, lorange, hirange, 0);
     fprintf(file, "%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
         fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",
-               depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)lorange, (char*)hirange);
+		depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)kv_pair_key(lorange), (char*)kv_pair_key(hirange));
         //printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
         {
             int i;
@@ -5346,18 +5346,15 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
                     fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, (unsigned)toku_dtoh32(*(int*)key));
                 }
                 toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
-                                  (i==0) ? lorange : node->u.n.childkeys[i-1]->key,
-                                  (i==0) ? lolen   : toku_brt_pivot_key_len(node->u.n.childkeys[i-1]),
-                                  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i]->key,
-                                  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(node->u.n.childkeys[i])
-                                  );
+                                  (i==0) ? lorange : node->u.n.childkeys[i-1],
+                                  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i]);
             }
         }
     } else {
         fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange (key only)=",
                 depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer);
-        if (lorange) { toku_print_BYTESTRING(file, lolen, (void*)lorange); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
-        if (hirange) { toku_print_BYTESTRING(file, hilen, (void*)hirange); } else { fprintf(file, "\\infty"); }
+        if (lorange) { toku_print_BYTESTRING(file, kv_pair_keylen(lorange), kv_pair_key(lorange)); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
+        if (hirange) { toku_print_BYTESTRING(file, kv_pair_keylen(hirange), kv_pair_key(hirange)); } else { fprintf(file, "\\infty"); }
 	fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
 		node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, (int)node->u.l.leaf_stats.exact);
 	fprintf(file, "\n");
@@ -5386,7 +5383,7 @@ int toku_dump_brt (FILE *f, BRT brt) {
     u_int32_t fullhash;
     toku_dump_translation_table(f, brt->h->blocktable);
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
-    return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0, 0, 0);
+    return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0);
 }
 
 int toku_brt_truncate (BRT brt) {
