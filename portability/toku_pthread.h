@@ -32,8 +32,8 @@ typedef struct timespec toku_timespec_t;
 
 typedef struct toku_mutex {
     pthread_mutex_t pmutex;
-    bool locked;
 #if TOKU_PTHREAD_DEBUG
+    bool locked;
     pthread_t owner; // = pthread_self(); // for debugging
 #endif
 } toku_mutex_t;
@@ -42,12 +42,16 @@ static inline void
 toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     int r = pthread_mutex_init(&mutex->pmutex, attr);
     assert_zero(r);
+#if TOKU_PTHREAD_DEBUG
     mutex->locked = false;
+#endif
 }
 
 static inline void
 toku_mutex_destroy(toku_mutex_t *mutex) {
-    assert(!mutex->locked);
+#if TOKU_PTHREAD_DEBUG
+    invariant(!mutex->locked);
+#endif
     int r = pthread_mutex_destroy(&mutex->pmutex);
     assert_zero(r);
 }
@@ -56,28 +60,34 @@ static inline void
 toku_mutex_lock(toku_mutex_t *mutex) {
     int r = pthread_mutex_lock(&mutex->pmutex);
     assert_zero(r);
-    assert(!mutex->locked);
-    mutex->locked = true;
 #if TOKU_PTHREAD_DEBUG
+    invariant(!mutex->locked);
+    mutex->locked = true;
     mutex->owner = pthread_self();
 #endif
 }
 
 static inline void
 toku_mutex_unlock(toku_mutex_t *mutex) {
-    assert(mutex->locked);
-    mutex->locked = false;
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->locked);
+    mutex->locked = false;
     mutex->owner = 0;
 #endif
     int r = pthread_mutex_unlock(&mutex->pmutex);
     assert_zero(r);
 }
 
-static inline bool
-toku_mutex_is_locked(toku_mutex_t *mutex) {
-    return mutex->locked;
+#if TOKU_PTHREAD_DEBUG
+static inline void
+toku_mutex_assert_locked(toku_mutex_t *mutex) {
+    invariant(mutex->locked);
 }
+#else
+static inline void
+toku_mutex_assert_locked(toku_mutex_t *mutex __attribute__((unused))) {
+}
+#endif
 
 typedef struct toku_cond {
     pthread_cond_t pcond;
@@ -97,31 +107,31 @@ toku_cond_destroy(toku_cond_t *cond) {
 
 static inline void
 toku_cond_wait(toku_cond_t *cond, toku_mutex_t *mutex) {
-    assert(mutex->locked);
-    mutex->locked = false;
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->locked);
+    mutex->locked = false;
     mutex->owner = 0;
 #endif
     int r = pthread_cond_wait(&cond->pcond, &mutex->pmutex);
     assert_zero(r);
-    assert(!mutex->locked);
-    mutex->locked = true;
 #if TOKU_PTHREAD_DEBUG
+    invariant(!mutex->locked);
+    mutex->locked = true;
     mutex->owner = pthread_self();
 #endif
 }
 
 static inline int 
 toku_cond_timedwait(toku_cond_t *cond, toku_mutex_t *mutex, toku_timespec_t *wakeup_at) {
-    assert(mutex->locked);
-    mutex->locked = false;
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->locked);
+    mutex->locked = false;
     mutex->owner = 0;
 #endif
     int r = pthread_cond_timedwait(&cond->pcond, &mutex->pmutex, wakeup_at);
-    assert(!mutex->locked);
-    mutex->locked = true;
 #if TOKU_PTHREAD_DEBUG
+    invariant(!mutex->locked);
+    mutex->locked = true;
     mutex->owner = pthread_self();
 #endif
     return r;
