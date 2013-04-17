@@ -757,6 +757,12 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("ydb lock", lockstat);
       STATPRINT("ydb lock counter", buf);
 
+      lockstat = (engstat.logger_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      lockctr =  engstat.logger_lock_ctr >> 1;   // lsb indicates if locked
+      sprintf(buf, "%" PRIu32, lockctr);  
+      STATPRINT("logger lock", lockstat);
+      STATPRINT("logger lock counter", buf);
+
       lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
       sprintf(buf, "%" PRIu32, lockctr);  
