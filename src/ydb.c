@@ -2024,14 +2024,15 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	{
 	    MEMORY_STATUS_S memory_status;
 	    toku_memory_get_status(&memory_status);
-	    engstat->malloc_count  = memory_status.malloc_count;
-	    engstat->free_count    = memory_status.free_count;
-	    engstat->realloc_count = memory_status.realloc_count;
-	    engstat->malloc_fail   = memory_status.malloc_fail;
-	    engstat->realloc_fail  = memory_status.realloc_fail;
-	    engstat->mem_requested = memory_status.requested;
-	    engstat->mem_used      = memory_status.used;
-	    engstat->mem_freed     = memory_status.freed;
+	    engstat->malloc_count   = memory_status.malloc_count;
+	    engstat->free_count     = memory_status.free_count;
+	    engstat->realloc_count  = memory_status.realloc_count;
+	    engstat->malloc_fail    = memory_status.malloc_fail;
+	    engstat->realloc_fail   = memory_status.realloc_fail;
+	    engstat->mem_requested  = memory_status.requested;
+	    engstat->mem_used       = memory_status.used;
+	    engstat->mem_freed      = memory_status.freed;
+	    engstat->max_mem_in_use = memory_status.max_in_use;
 	}
     }
     return r;
@@ -2213,6 +2214,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "mem_requested                    %"PRIu64"\n", engstat.mem_requested);
 	n += snprintf(buff + n, bufsiz - n, "mem_used                         %"PRIu64"\n", engstat.mem_used);
 	n += snprintf(buff + n, bufsiz - n, "mem_freed                        %"PRIu64"\n", engstat.mem_freed);
+	n += snprintf(buff + n, bufsiz - n, "max_mem_in_use                   %"PRIu64"\n", engstat.max_mem_in_use);
     }
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";

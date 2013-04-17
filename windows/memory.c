@@ -25,6 +25,17 @@ toku_memory_get_status(MEMORY_STATUS s) {
 }
 
 
+// max_in_use may be slightly off because use of max_in_use is not thread-safe.
+// It is not worth the overhead to make it completely accurate.
+static inline void 
+set_max(uint64_t sum_used, uint64_t sum_freed) {
+    uint64_t in_use = (sum_used - sum_freed);
+    if ((!(in_use & 0x8000000000000000)) // if wrap due to another thread, ignore bogus "negative" value
+	&& (in_use > status.max_in_use)) {
+	status.max_in_use = in_use;
+    }
+}
+
 
 void *toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
@@ -32,7 +43,8 @@ void *toku_malloc(size_t size) {
       size_t used = malloc_usable_size(p);
       __sync_add_and_fetch(&status.malloc_count, 1L);
       __sync_add_and_fetch(&status.requested, size);
-      __sync_add_and_fetch(&status.used, used);
+      uint64_t sum_used = __sync_add_and_fetch(&status.used, used);
+      set_max(sum_used, status.freed);
     }
     else
       __sync_add_and_fetch(&status.malloc_fail, 1L);
@@ -55,8 +67,9 @@ toku_realloc(void *p, size_t size) {
 	size_t used = malloc_usable_size(q);
 	__sync_add_and_fetch(&status.realloc_count, 1L);
 	__sync_add_and_fetch(&status.requested, size);
-	__sync_add_and_fetch(&status.used, used);
-	__sync_add_and_fetch(&status.freed, used_orig);
+	uint64_t sum_used  = __sync_add_and_fetch(&status.used, used);
+	uint64_t sum_freed = __sync_add_and_fetch(&status.freed, used_orig);
+	set_max(sum_used, sum_freed);
     }
     else
 	__sync_add_and_fetch(&status.realloc_fail, 1L);
@@ -101,7 +114,8 @@ toku_xmalloc(size_t size) {
     size_t used = malloc_usable_size(p);
     __sync_add_and_fetch(&status.malloc_count, 1L);
     __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
+    uint64_t sum_used = __sync_add_and_fetch(&status.used, used);
+    set_max(sum_used, status.freed);
     return p;
 }
 
@@ -122,8 +136,9 @@ toku_xrealloc(void *v, size_t size) {
     size_t used = malloc_usable_size(p);
     __sync_add_and_fetch(&status.realloc_count, 1L);
     __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
-    __sync_add_and_fetch(&status.freed, used_orig);
+    uint64_t sum_used  = __sync_add_and_fetch(&status.used, used);
+    uint64_t sum_freed = __sync_add_and_fetch(&status.freed, used_orig);
+    set_max(sum_used, sum_freed);
     return p;
 }
 
