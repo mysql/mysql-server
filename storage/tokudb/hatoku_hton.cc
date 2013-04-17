@@ -517,22 +517,44 @@ void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
     TXN_PROGRESS_INFO progress_info = (TXN_PROGRESS_INFO)extra;
     int r;
     if (progress->stalled_on_checkpoint) {
-        r = sprintf(
-            progress_info->status, 
-            "Writing committed changes to disk, processed %"PRId64" out of %"PRId64, 
-            progress->entries_processed, 
-            progress->entries_total
-            ); 
-        assert(r >= 0);
+        if (progress->is_commit) {
+            r = sprintf(
+                progress_info->status, 
+                "Writing committed changes to disk, processing commit of transaction, %"PRId64" out of %"PRId64, 
+                progress->entries_processed, 
+                progress->entries_total
+                ); 
+            assert(r >= 0);
+        }
+        else {
+            r = sprintf(
+                progress_info->status, 
+                "Writing committed changes to disk, processing abort of transaction, %"PRId64" out of %"PRId64, 
+                progress->entries_processed, 
+                progress->entries_total
+                ); 
+            assert(r >= 0);
+        }
     }
     else {
-        r = sprintf(
-            progress_info->status, 
-            "processed %"PRId64" out of %"PRId64, 
-            progress->entries_processed, 
-            progress->entries_total
-            ); 
-        assert(r >= 0);
+        if (progress->is_commit) {
+            r = sprintf(
+                progress_info->status, 
+                "processing commit of transaction, %"PRId64" out of %"PRId64, 
+                progress->entries_processed, 
+                progress->entries_total
+                ); 
+            assert(r >= 0);
+        }
+        else {
+            r = sprintf(
+                progress_info->status, 
+                "processing abort of transaction, %"PRId64" out of %"PRId64, 
+                progress->entries_processed, 
+                progress->entries_total
+                ); 
+            assert(r >= 0);
+        }
     }
     thd_proc_info(progress_info->thd, progress_info->status);
 }
