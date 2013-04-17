@@ -204,7 +204,6 @@ static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA*
 static void
 test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
-    const int nodesize = 1024;
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -215,7 +214,6 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
 #define POSTSERIALIZE_MSN_ON_DISK ((MSN) { MIN_MSN.msn + 84 })
 
     sn.max_msn_applied_to_node_on_disk = PRESERIALIZE_MSN_ON_DISK;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -362,7 +360,6 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -509,7 +506,6 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -653,7 +649,6 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -797,7 +792,6 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
 
 static void
 test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
-    const int nodesize = 1024;
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -805,7 +799,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     int r;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -950,7 +943,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
 
 static void
 test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
-    const int nodesize = 1024;
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -958,7 +950,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     int r;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -1070,7 +1061,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
 static void
 test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
-    const int nodesize = 1024;
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -1080,7 +1070,6 @@ test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     FTNODE_DISK_DATA dest_ndd = NULL;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -1214,7 +1203,6 @@ test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
 static void
 test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
-    const int nodesize = 1024;
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -1224,7 +1212,6 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     char *hello_string;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;

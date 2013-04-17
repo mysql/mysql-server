@@ -351,7 +351,7 @@ void toku_node_save_ct_pair(void *value_data, PAIR p) {
 
 static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
     FTNODE XMALLOC(node);
-    toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->nodesize, ft->h->flags);
+    toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->flags);
     BP_STATE(node,0) = PT_AVAIL;
 
     uint32_t fullhash = toku_cachetable_hash(ft->cf, blocknum);

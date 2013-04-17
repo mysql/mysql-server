@@ -386,7 +386,7 @@ static void serialize_ftnode_info(FTNODE node,
     wbuf_init(&wb, sb->uncompressed_ptr, sb->uncompressed_size);
 
     wbuf_MSN(&wb, node->max_msn_applied_to_node_on_disk);
-    wbuf_nocrc_uint(&wb, node->nodesize);
+    wbuf_nocrc_uint(&wb, 0); // write a dummy value for where node->nodesize used to be
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
     // pivot information
@@ -1259,7 +1259,7 @@ deserialize_ftnode_info(
     rbuf_init(&rb, (unsigned char *) sb->uncompressed_ptr, data_size);
 
     node->max_msn_applied_to_node_on_disk = rbuf_msn(&rb);
-    node->nodesize = rbuf_int(&rb);
+    (void)rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
     if (node->layout_version_read_from_disk < FT_LAYOUT_VERSION_19) {
@@ -2126,7 +2126,7 @@ deserialize_and_upgrade_ftnode(FTNODE node,
     // The remaining offsets into the rbuf do not map to the current
     // version, so we need to fill in the blanks and ignore older
     // fields.
-    node->nodesize = rbuf_int(&rb); // 1. nodesize
+    (void)rbuf_int(&rb); // 1. nodesize
     node->flags = rbuf_int(&rb);    // 2. flags
     node->height = rbuf_int(&rb);   // 3. height
 

@@ -208,10 +208,19 @@ never_recursively_flush(FTNODE UU(child), void* UU(extra))
     return false;
 }
 
+/**
+ * Flusher thread ("normal" flushing) implementation.
+ */
+struct flush_status_update_extra {
+    int cascades;
+    uint32_t nodesize;
+};
+
 static bool
-recurse_if_child_is_gorged(FTNODE child, void* UU(extra))
+recurse_if_child_is_gorged(FTNODE child, void* extra)
 {
-    return toku_ft_nonleaf_is_gorged(child);
+    struct flush_status_update_extra *fste = (flush_status_update_extra *)extra;
+    return toku_ft_nonleaf_is_gorged(child, fste->nodesize);
 }
 
 int
@@ -268,13 +277,6 @@ flusher_advice_init(
     fa->extra = extra;
 }
 
-/**
- * Flusher thread ("normal" flushing) implementation.
- */
-struct flush_status_update_extra {
-    int cascades;
-};
-
 static void
 flt_update_status(FTNODE child,
                  int UU(dirtied),
@@ -288,9 +290,10 @@ flt_update_status(FTNODE child,
 }
 
 static void
-flt_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra *fste)
+flt_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra *fste, uint32_t nodesize)
 {
     fste->cascades = 0;
+    fste->nodesize = nodesize;
     flusher_advice_init(fa,
                         pick_heaviest_child,
                         dont_destroy_basement_nodes,
@@ -434,9 +437,10 @@ ct_update_status(FTNODE child,
 }
 
 static void
-ct_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra* fste)
+ct_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_extra* fste, uint32_t nodesize)
 {
     fste->cascades = 0;
+    fste->nodesize = nodesize;
     flusher_advice_init(fa,
                         pick_heaviest_child,
                         do_destroy_basement_nodes,
@@ -739,16 +743,11 @@ ftleaf_split(
             );
     }
 
-    //printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_ftnode_size(node), node->nodesize);
 
     assert(node->height==0);
-    assert(node->nodesize>0);
     toku_assert_entire_node_in_memory(node);
     verify_all_in_mempool(node);
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
-
-    //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
-    //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
 
     // variables that say where we will do the split. We do it in the basement node indexed at
     // at last_bn_on_left and at the index last_le_on_left_within_bn within that basement node.
@@ -791,9 +790,7 @@ ftleaf_split(
                 0,
                 num_children_in_b,
                 h->h->layout_version,
-                h->h->nodesize,
                 h->h->flags);
-            assert(B->nodesize > 0);
             B->fullhash = fullhash;
         }
         else {
@@ -987,8 +984,6 @@ ft_split_child(
     assert(toku_bnc_nbytesinbuf(BNC(node, childnum))==0); // require that the buffer for this child is empty
     FTNODE nodea, nodeb;
     DBT splitk;
-    // printf("%s:%d node %" PRIu64 "->u.n.n_children=%d height=%d\n", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children, node->height);
-    assert(h->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
 
     // for test
     call_flusher_thread_callback(flt_flush_before_split);
@@ -1167,7 +1162,9 @@ maybe_merge_pinned_leaf_nodes(
     DBT *parent_splitk,
     bool *did_merge,
     bool *did_rebalance,
-    DBT *splitk)
+    DBT *splitk,
+    uint32_t nodesize
+    )
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = true.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute the leafentries evenly between a and b, and set *did_rebalance = true.
@@ -1175,10 +1172,10 @@ maybe_merge_pinned_leaf_nodes(
 {
     unsigned int sizea = toku_serialize_ftnode_size(a);
     unsigned int sizeb = toku_serialize_ftnode_size(b);
-    if ((sizea + sizeb)*4 > (a->nodesize*3)) {
+    if ((sizea + sizeb)*4 > (nodesize*3)) {
         // the combined size is more than 3/4 of a node, so don't merge them.
         *did_merge = false;
-        if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) {
+        if (sizea*4 > nodesize && sizeb*4 > nodesize) {
             // no need to do anything if both are more than 1/4 of a node.
             *did_rebalance = false;
             toku_clone_dbt(splitk, *parent_splitk);
@@ -1248,7 +1245,9 @@ maybe_merge_pinned_nodes(
     FTNODE b,
     bool *did_merge,
     bool *did_rebalance,
-    DBT *splitk)
+    DBT *splitk,
+    uint32_t nodesize
+    )
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = true.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute a and b evenly and set *did_merge = false and *did_rebalance = true
@@ -1282,7 +1281,7 @@ maybe_merge_pinned_nodes(
         }
     }
     if (a->height == 0) {
-        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk);
+        maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk, nodesize);
     } else {
         maybe_merge_pinned_nonleaf_nodes(parent_splitk, a, b, did_merge, did_rebalance, splitk);
     }
@@ -1374,7 +1373,7 @@ ft_merge_child(
         toku_init_dbt(&splitk);
         DBT *old_split_key = &node->childkeys[childnuma];
         unsigned int deleted_size = old_split_key->size;
-        maybe_merge_pinned_nodes(node, &node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk);
+        maybe_merge_pinned_nodes(node, &node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk, h->h->nodesize);
         if (childa->height>0) {
             for (int i=0; i+1<childa->n_children; i++) {
                 assert(childa->childkeys[i].data);
@@ -1541,7 +1540,7 @@ flush_some_child(
     // we wont be splitting/merging child
     // and we have already replaced the bnc
     // for the root with a fresh one
-    enum reactivity child_re = get_node_reactivity(child);
+    enum reactivity child_re = get_node_reactivity(child, h->h->nodesize);
     if (parent && child_re == RE_STABLE) {
         toku_unpin_ftnode_off_client_thread(h, parent);
         parent = NULL;
@@ -1571,7 +1570,7 @@ flush_some_child(
     // let's get the reactivity of the child again,
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
-    child_re = get_node_reactivity(child);
+    child_re = get_node_reactivity(child, h->h->nodesize);
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
@@ -1716,7 +1715,7 @@ toku_ftnode_cleaner_callback(
     if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
         struct flusher_advice fa;
         struct flush_status_update_extra fste;
-        ct_flusher_advice_init(&fa, &fste);
+        ct_flusher_advice_init(&fa, &fste, h->h->nodesize);
         flush_some_child(h, node, &fa);
     } else {
         toku_unpin_ftnode_off_client_thread(h, node);
@@ -1754,7 +1753,7 @@ static void flush_node_fun(void *fe_v)
 
     struct flusher_advice fa;
     struct flush_status_update_extra fste;
-    flt_flusher_advice_init(&fa, &fste);
+    flt_flusher_advice_init(&fa, &fste, fe->h->h->nodesize);
 
     if (fe->bnc) {
         // In this case, we have a bnc to flush to a node
@@ -1774,7 +1773,7 @@ static void flush_node_fun(void *fe_v)
         // If so, call flush_some_child on the node, and it is the responsibility
         // of flush_some_child to unlock the node
         // otherwise, we unlock the node here.
-        if (fe->node->height > 0 && toku_ft_nonleaf_is_gorged(fe->node)) {
+        if (fe->node->height > 0 && toku_ft_nonleaf_is_gorged(fe->node, fe->h->h->nodesize)) {
             flush_some_child(fe->h, fe->node, &fa);
         }
         else {

@@ -124,7 +124,7 @@ check_node_info_checksum(struct rbuf *rb)
 void
 read_legacy_node_info(FTNODE node, struct rbuf *rb, int version)
 {
-    node->nodesize = rbuf_int(rb); // 1. nodesize
+    (void)rbuf_int(rb); // 1. nodesize
     node->flags = rbuf_int(rb);    // 2. flags
     node->height = rbuf_int(rb);   // 3. height
     

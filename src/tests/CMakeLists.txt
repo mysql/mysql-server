@@ -223,6 +223,7 @@ if(BUILD_TESTING)
       test_bulk_fetch
       test_compression_methods
       test_cmp_descriptor
+      test_db_change_pagesize
       test_db_change_xxx
       test_cursor_delete_2119
       test_db_descriptor

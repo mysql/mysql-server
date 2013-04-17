@@ -56,7 +56,6 @@ long_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 static void
 test_serialize_leaf(int valsize, int nelts, double entropy) {
     //    struct ft_handle source_ft;
-    const int nodesize = (1<<22);
     struct ftnode *sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -66,7 +65,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     XCALLOC(sn);
 
     sn->max_msn_applied_to_node_on_disk.msn = 0;
-    sn->nodesize = nodesize;
     sn->flags = 0x11223344;
     sn->thisnodename.b = 20;
     sn->layout_version = FT_LAYOUT_VERSION;
@@ -181,7 +179,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 static void
 test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     //    struct ft_handle source_ft;
-    const int nodesize = (1<<22);
     struct ftnode sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -190,7 +187,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;

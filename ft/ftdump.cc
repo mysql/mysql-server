@@ -137,7 +137,6 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &diskoffset, &disksize);
     printf(" diskoffset  =%" PRId64 "\n", diskoffset);
     printf(" disksize    =%" PRId64 "\n", disksize);
-    printf(" nodesize    =%u\n", n->nodesize);
     printf(" serialize_size =%u\n", toku_serialize_ftnode_size(n));
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);

@@ -278,7 +278,6 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
 static void
 test_prefetching(void) {
     //    struct ft_handle source_ft;
-    const int nodesize = 1024;
     struct ftnode sn;
 
     int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
@@ -287,7 +286,6 @@ test_prefetching(void) {
 
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
