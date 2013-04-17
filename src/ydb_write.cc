@@ -185,9 +185,10 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_
         //Do any checking required by the flags.
         r = db_put_check_overwrite_constraint(db, txn, key, lock_flags, flags);
     }
+    //Do locking if necessary. Do not grab the lock again if this DB had a unique
+    //check performed because the lock was already grabbed by its cursor callback.
     bool do_locking = (bool)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     if (r == 0 && do_locking && !(flags & DB_NOOVERWRITE)) {
-        //Do locking if necessary.
         r = toku_db_get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
@@ -626,8 +627,9 @@ env_put_multiple_internal(
             r = EINVAL; goto cleanup;
         }
 
-        //Do locking if necessary.
-        if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
+        //Do locking if necessary. Do not grab the lock again if this DB had a unique
+        //check performed because the lock was already grabbed by its cursor callback.
+        if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE) && !(remaining_flags[which_db] & DB_NOOVERWRITE)) {
             //Needs locking
             r = toku_db_get_point_write_lock(db, txn, &put_keys[which_db]);
             if (r != 0) goto cleanup;
