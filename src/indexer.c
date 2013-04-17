@@ -290,9 +290,9 @@ ule_prov_info_init(struct ule_prov_info *prov_info, LEAFENTRY le, ULEHANDLE ule)
     prov_info->num_committed = ule_get_num_committed(ule);
     uint32_t n = prov_info->num_provisional;
     if (n > 0) {
-        prov_info->prov_ids = toku_malloc(n * sizeof(prov_info->prov_ids));
-        prov_info->prov_states = toku_malloc(n * sizeof(prov_info->prov_states));
-        prov_info->prov_txns = toku_malloc(n * sizeof(prov_info->prov_txns));
+        XMALLOC_N(n, prov_info->prov_ids);
+        XMALLOC_N(n, prov_info->prov_states);
+        XMALLOC_N(n, prov_info->prov_txns);
     }
 }
 
