@@ -7,6 +7,7 @@
 // pointer value in the FT.
 
 #include "test.h"
+#include <portability/toku_pthread.h>
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
@@ -14,6 +15,7 @@ static DB *db;
 static DB_ENV *env;
 
 static int desc_magic;
+static toku_pthread_rwlock_t rwlock;
 
 static int
 int_cmp(DB *cmpdb, const DBT *a, const DBT *b) {
@@ -24,10 +26,12 @@ int_cmp(DB *cmpdb, const DBT *a, const DBT *b) {
     assert(b->size == sizeof(int));
     assert(cmpdb->cmp_descriptor->dbt.size == sizeof(int));
     int magic = *(int *) cmpdb->cmp_descriptor->dbt.data;
+    toku_pthread_rwlock_rdlock(&rwlock);
     if (magic != desc_magic) {
         printf("got magic %d, wanted desc_magic %d\n", magic, desc_magic);
     }
     assert(magic == desc_magic);
+    toku_pthread_rwlock_rdunlock(&rwlock);
 
     int x = *(int *) a->data;
     int y = *(int *) b->data;
@@ -62,6 +66,7 @@ cleanup(void) {
 
 static void 
 next_descriptor(void) {
+    toku_pthread_rwlock_wrlock(&rwlock);
     IN_TXN_COMMIT(env, NULL, txn, 0, {
         // get a new magic value
         desc_magic++;
@@ -69,13 +74,14 @@ next_descriptor(void) {
         dbt_init(&desc_dbt, &desc_magic, sizeof(int));
         { int chk_r = db->change_descriptor(db, txn, &desc_dbt, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); }
     });
+    toku_pthread_rwlock_wrunlock(&rwlock);
 }
 
 
 static void
 insert_change_descriptor_stress(void) {
-    const int num_changes = 1000000;
-    const int inserts_per_change = 100;
+    const int num_changes = 1000;
+    const int inserts_per_change = 1000;
     const int valsize = 200 - sizeof(int);
     // bigger rows cause more flushes
     DBT key, value;
