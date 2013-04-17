@@ -114,7 +114,7 @@ toku_verify_brtnode (BRT brt,
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h);
+        fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
         int r = toku_cachetable_get_and_pin(
             brt->cf, 
             blocknum, 

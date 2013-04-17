@@ -11,6 +11,7 @@
 #endif
 #define _FILE_OFFSET_BITS 64
 
+#include "toku_assert.h"
 #include <db.h>
 #include <inttypes.h>
 
@@ -59,11 +60,6 @@ typedef struct __toku_msn { u_int64_t msn; } MSN;
 #define ZERO_MSN ((MSN){0})                 // dummy used for message construction, to be filled in when msg is applied to tree
 #define MIN_MSN  ((MSN){(u_int64_t)1000*1000*1000})  // first 1B values reserved for messages created before Dr. No (for upgrade)
 #define MAX_MSN  ((MSN){UINT64_MAX})
-
-typedef struct __toku_dsn { int64_t dsn; } DSN; // DESERIALIZATION sequence number
-#define INVALID_DSN ((DSN){-1})
-#define MIN_DSN ((DSN){0})
-#define MAX_DSN ((DSN){INT64_MAX})
 
 /* At the brt layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
@@ -122,6 +118,68 @@ enum brt_msg_type {
     BRT_UPDATE = 14,
     BRT_UPDATE_BROADCAST_ALL = 15
 };
+
+static inline BOOL
+brt_msg_type_applies_once(enum brt_msg_type type)
+{
+    BOOL ret_val;
+    switch (type) {
+    case BRT_INSERT_NO_OVERWRITE:
+    case BRT_INSERT:
+    case BRT_DELETE_ANY:
+    case BRT_ABORT_ANY:
+    case BRT_COMMIT_ANY:
+    case BRT_UPDATE:
+        ret_val = TRUE;
+        break;
+    case BRT_COMMIT_BROADCAST_ALL:
+    case BRT_COMMIT_BROADCAST_TXN:
+    case BRT_ABORT_BROADCAST_TXN:
+    case BRT_OPTIMIZE:
+    case BRT_OPTIMIZE_FOR_UPGRADE:
+    case BRT_UPDATE_BROADCAST_ALL:
+    case BRT_NONE:
+        ret_val = FALSE;
+        break;
+    default:
+        assert(FALSE);
+    }
+    return ret_val;
+}
+
+static inline BOOL
+brt_msg_type_applies_all(enum brt_msg_type type)
+{
+    BOOL ret_val;
+    switch (type) {
+    case BRT_NONE:
+    case BRT_INSERT_NO_OVERWRITE:
+    case BRT_INSERT:
+    case BRT_DELETE_ANY:
+    case BRT_ABORT_ANY:
+    case BRT_COMMIT_ANY:
+    case BRT_UPDATE:
+        ret_val = FALSE;
+        break;
+    case BRT_COMMIT_BROADCAST_ALL:
+    case BRT_COMMIT_BROADCAST_TXN:
+    case BRT_ABORT_BROADCAST_TXN:
+    case BRT_OPTIMIZE:
+    case BRT_OPTIMIZE_FOR_UPGRADE:
+    case BRT_UPDATE_BROADCAST_ALL:
+        ret_val = TRUE;
+        break;
+    default:
+        assert(FALSE);
+    }
+    return ret_val;
+}
+
+static inline BOOL
+brt_msg_type_does_nothing(enum brt_msg_type type)
+{
+    return (type == BRT_NONE);
+}
 
 typedef struct xids_t *XIDS;
 typedef struct fifo_msg_t *FIFO_MSG;

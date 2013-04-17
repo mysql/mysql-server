@@ -232,12 +232,6 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash
 // Returns: If the the item is already in memory, then return 0 and store it in the
 // void**.  If the item is not in memory, then return a nonzero error number.
 
-int toku_cachetable_get_and_pin_if_in_memory (CACHEFILE /*cachefile*/, CACHEKEY /*key*/, u_int32_t /*fullhash*/, void**/*value*/);
-// Effect: Get and pin an object if it is in memory, (even if doing so would require blocking, e.g., to wait on a checkpoint).
-//  This is similar to maybe_get_and_pin except that maybe_get_and_pin won't block waiting on a checkpoint.
-// Returns: 0 iff the item is in memory (otherwise return a error)
-// Modifies: *value (if returning 0, then the pointer to the value is stored in *value.
-
 int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 // Effect: Like maybe get and pin, but may pin a clean pair.
 
@@ -403,7 +397,6 @@ typedef struct cachetable_status {
     u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
     u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
     u_int64_t maybe_get_and_pin_hits;  // how many times has maybe_get_and_pin(_clean) returned with a node?
-    u_int64_t get_and_pin_if_in_memorys; // how many times has get_and_pin_if_in_memory been called?
     int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
     int64_t   size_limit;              // the limit to the sum of the node sizes
     int64_t   size_max;                // high water mark of size_current (max value size_current ever had)

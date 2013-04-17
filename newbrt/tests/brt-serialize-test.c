@@ -84,18 +84,25 @@ enum brtnode_verify_type {
     read_none
 };
 
+static int
+string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
+{
+    char *s = a->data, *t = b->data;
+    return strcmp(s, t);
+}
+
 static void
 setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE *dn) {
     int r;
     if (bft == read_all) {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, brt_h);
+        fill_bfe_for_min_read(&bfe, brt_h, NULL, string_key_cmp);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
         assert(r==0);
         // assert all bp's are compressed
@@ -118,7 +125,7 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
             }
         }
         // now decompress them
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
         assert(toku_brtnode_pf_req_callback(*dn, &bfe));
         long size;
         r = toku_brtnode_pf_callback(*dn, &bfe, fd, &size);
@@ -1067,9 +1074,9 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     r = xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0);    assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123);  assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234);  assert(r==0);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0, NULL);    assert(r==0);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, NULL);  assert(r==0);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234, NULL);  assert(r==0);
     BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
     //Cleanup:

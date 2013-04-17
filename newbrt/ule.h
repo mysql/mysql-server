@@ -43,6 +43,13 @@ TXNID uxr_get_txnid(UXRHANDLE uxr);
 //1 does much slower debugging
 #define GARBAGE_COLLECTION_DEBUG 0
 
+
+void fast_msg_to_leafentry(
+    BRT_MSG   msg, // message to apply to leafentry
+    size_t *new_leafentry_memorysize, 
+    size_t *new_leafentry_disksize, 
+    LEAFENTRY *new_leafentry_p) ;
+
 int apply_msg_to_leafentry(BRT_MSG   msg,
 			   LEAFENTRY old_leafentry, // NULL if there was no stored data.
 			   size_t *new_leafentry_memorysize, 
