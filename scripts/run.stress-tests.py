@@ -692,8 +692,8 @@ if __name__ == '__main__':
 
     test_group = OptionGroup(parser, 'Scheduler Options', 'Control how the scheduler runs jobs.')
     test_group.add_option('-t', '--test_time', type='int', dest='test_time',
-                          default=600,
-                          help='time to run each test, in seconds [default=600]'),
+                          default=60,
+                          help='time to run each test, in seconds [default=60]'),
     test_group.add_option('-j', '--jobs', type='int', dest='jobs', default=8,
                           help='how many concurrent tests to run [default=8]')
     test_group.add_option('--maxlarge', type='int', dest='maxlarge', default=2,
