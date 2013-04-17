@@ -2443,7 +2443,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
             update_maxkey(&maxkey, &key); // set the new maxkey to the current key
 	}
 
-        result = copy_maxkey(&maxkey); // make a copy of maxkey before the rowset is destroyed
+        r = copy_maxkey(&maxkey); // make a copy of maxkey before the rowset is destroyed
+        if (result == 0)
+            result = r;
 	destroy_rowset(output_rowset);
 	toku_free(output_rowset);
 
