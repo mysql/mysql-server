@@ -154,16 +154,18 @@ static inline int rwlock_writers(RWLOCK rwlock) {
 
 static inline void rwlock_wait_for_users(
     RWLOCK rwlock, 
-    toku_mutex_t *mutex, 
-    toku_cond_t* cond
+    toku_mutex_t *mutex
     ) 
 {
     assert(!rwlock->wait_users_go_to_zero);
+    toku_cond_t cond;
+    toku_cond_init(&cond, NULL);
     while (rwlock_users(rwlock) > 0) {
-        rwlock->wait_users_go_to_zero = cond;
-        toku_cond_wait(cond, mutex);
+        rwlock->wait_users_go_to_zero = &cond;
+        toku_cond_wait(&cond, mutex);
     }
     rwlock->wait_users_go_to_zero = NULL;
+    toku_cond_destroy(&cond);
 }
 
 
