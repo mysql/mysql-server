@@ -6,8 +6,6 @@
 #include "toku_os.h"
 #include <syscall.h>
 
-int toku_os_getpid(void);
-
 static int gettid(void) {
     return syscall(__NR_gettid);
 }

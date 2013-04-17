@@ -3,7 +3,7 @@
 #include <memory.h>
 #include <toku_pthread.h>
 
-void *f(void *arg) {
+static void *f(void *arg) {
     void *vp = toku_malloc(32);
     assert(vp);
     toku_free(vp);
