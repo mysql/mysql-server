@@ -513,8 +513,6 @@ struct ft_handle {
     struct ft_options options;
 };
 
-// FIXME needs toku prefix
-long ftnode_memory_size (FTNODE node);
 PAIR_ATTR make_ftnode_pair_attr(FTNODE node);
 PAIR_ATTR make_invalid_pair_attr(void);
 
@@ -973,12 +971,8 @@ typedef enum {
     FT_UPDATES = 0,
     FT_UPDATES_BROADCAST,
     FT_DESCRIPTOR_SET,
-    FT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
-    FT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
     FT_MSN_DISCARDS,                           // how many messages were ignored by leaf because of msn
-    //FT_MAX_WORKDONE,                           // max workdone value of any buffer
     FT_TOTAL_RETRIES,                          // total number of search retries due to TRY_AGAIN
-    //FT_MAX_SEARCH_EXCESS_RETRIES,              // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
     FT_SEARCH_TRIES_GT_HEIGHT,                 // number of searches that required more tries than the height of the tree
     FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            // number of searches that required more tries than the height of the tree plus three
     FT_DISK_FLUSH_LEAF,                        // number of leaf nodes flushed to disk,    not for checkpoint
@@ -997,6 +991,14 @@ typedef enum {
     FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
     FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
     FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
+    FT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
+    FT_PARTIAL_EVICTIONS_NONLEAF_BYTES,        // number of nonleaf node partial evictions
+    FT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
+    FT_PARTIAL_EVICTIONS_LEAF_BYTES,           // number of leaf node partial evictions
+    FT_FULL_EVICTIONS_LEAF,                    // number of full cachetable evictions on leaf nodes
+    FT_FULL_EVICTIONS_LEAF_BYTES,              // number of full cachetable evictions on leaf nodes (bytes)
+    FT_FULL_EVICTIONS_NONLEAF,                 // number of full cachetable evictions on nonleaf nodes
+    FT_FULL_EVICTIONS_NONLEAF_BYTES,           // number of full cachetable evictions on nonleaf nodes (bytes)
     FT_CREATE_LEAF,                            // number of leaf nodes created
     FT_CREATE_NONLEAF,                         // number of nonleaf nodes created
     FT_DESTROY_LEAF,                           // number of leaf nodes destroyed

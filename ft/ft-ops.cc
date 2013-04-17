@@ -175,8 +175,6 @@ status_init(void)
     STATUS_INIT(FT_UPDATES,                                PARCOUNT, "dictionary updates");
     STATUS_INIT(FT_UPDATES_BROADCAST,                      PARCOUNT, "dictionary broadcast updates");
     STATUS_INIT(FT_DESCRIPTOR_SET,                         PARCOUNT, "descriptor set");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions");
     STATUS_INIT(FT_MSN_DISCARDS,                           PARCOUNT, "messages ignored by leaf due to msn");
     STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN");
     STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree");
@@ -199,6 +197,16 @@ status_init(void)
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, PARCOUNT, "buffers decompressed for prelocked range");
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   PARCOUNT, "buffers decompressed for prefetch");
     STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      PARCOUNT, "buffers decompressed for write");
+
+    // Eviction statistics:
+    STATUS_INIT(FT_FULL_EVICTIONS_LEAF,                    PARCOUNT, "leaf node full evictions");
+    STATUS_INIT(FT_FULL_EVICTIONS_LEAF_BYTES,              PARCOUNT, "leaf node full evictions (bytes)");
+    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF,                 PARCOUNT, "nonleaf node full evictions");
+    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF_BYTES,           PARCOUNT, "nonleaf node full evictions (bytes)");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF_BYTES,           PARCOUNT, "leaf node partial evictions (bytes)");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES,        PARCOUNT, "nonleaf node partial evictions (bytes)");
 
     // Disk read statistics: 
     //
@@ -498,7 +506,7 @@ exit:
     return retval;
 }
 
-long
+static long
 ftnode_memory_size (FTNODE node)
 // Effect: Estimate how much main memory a node requires.
 {
@@ -793,7 +801,7 @@ void toku_ftnode_clone_callback(
 
 static void ft_leaf_run_gc(FTNODE node, FT ft);
 
-void toku_ftnode_flush_callback (
+void toku_ftnode_flush_callback(
     CACHEFILE UU(cachefile),
     int fd,
     BLOCKNUM nodename,
@@ -827,6 +835,14 @@ void toku_ftnode_flush_callback (
     }
     if (!keep_me) {
         if (!is_clone) {
+            long node_size = ftnode_memory_size(ftnode);
+            if (ftnode->height == 0) {
+                STATUS_INC(FT_FULL_EVICTIONS_LEAF, 1);
+                STATUS_INC(FT_FULL_EVICTIONS_LEAF_BYTES, node_size);
+            } else {
+                STATUS_INC(FT_FULL_EVICTIONS_NONLEAF, 1);
+                STATUS_INC(FT_FULL_EVICTIONS_NONLEAF_BYTES, node_size);
+            }
             toku_free(*disk_data);
         }
         else {
@@ -993,8 +1009,11 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
+                    long size_before = ftnode_memory_size(node);
+                    compress_internal_node_partition(node, i, ft->h->compression_method);
+                    long delta = size_before - ftnode_memory_size(node);
                     STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF, 1);
-                    cilk_spawn compress_internal_node_partition(node, i, ft->h->compression_method);
+                    STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES, delta);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1004,7 +1023,6 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
                 continue;
             }
         }
-        cilk_sync;
     }
     //
     // partial eviction strategy for basement nodes:
@@ -1015,17 +1033,23 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
+                long size_before = ftnode_memory_size(node);
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
                 set_BNULL(node, i);
                 BP_STATE(node,i) = PT_ON_DISK;
+                long delta = size_before - ftnode_memory_size(node);
+                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
+                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
+                    long size_before = ftnode_memory_size(node);
                     toku_evict_bn_from_memory(node, i, ft);
+                    long delta = size_before - ftnode_memory_size(node);
+                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
+                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
