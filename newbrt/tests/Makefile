@@ -134,12 +134,14 @@ check_fail:
 check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
 
-# Don't run 1305 under valgrind.  It takes way too long.
-check_test1305: VGRIND=
 
 ifeq ($(SKIP_1305),1)
 check_test1305:
 	@echo SKIPPED SLOW TEST $@
+else
+# Don't run 1305 under valgrind.  It takes way too long.
+check_test1305: test1305$(BINSUF)
+	./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 endif
 
 check_benchmarktest_256: benchmark-test$(BINSUF) $(PTHREAD_LOCAL)
