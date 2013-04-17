@@ -14,7 +14,7 @@
 #include "txn_manager.h"
 #include "rollback_log_node_cache.h"
 #include "huge_page_detection.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 static const int log_format_version=TOKU_LOG_VERSION;
 

@@ -25,7 +25,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 #include <ft/ft-flusher.h>
 #include <ft/cachetable.h>

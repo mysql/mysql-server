@@ -28,7 +28,7 @@
 #include <ft/checkpoint.h>
 #include <portability/toku_atomic.h>
 #include "loader.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

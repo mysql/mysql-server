@@ -29,7 +29,7 @@
 #include "ydb_load.h"
 
 #include "loader.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 enum {MAX_FILE_SIZE=256};
 

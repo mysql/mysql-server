@@ -9,7 +9,7 @@
 #include <portability/toku_pthread.h>
 
 #include "locktree.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 namespace toku {
 
