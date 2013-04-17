@@ -1749,78 +1749,66 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
 
 
 // Read brtheader from file into struct.  Read both headers and use one.
-// If a required_lsn is specified, then use the header with that lsn,
-// or if a header with that lsn is not available, then use the latest
-// header with an earlier lsn than required_lsn.  (There may not be a header
-// with required_lsn if the file did not change since the last checkpoint.)
-// If a required_lsn is not specified, then use the latest header.
+// We want the latest acceptable header whose checkpoint_lsn is no later
+// than max_acceptable_lsn.
 int 
-toku_deserialize_brtheader_from (int fd, LSN required_lsn, struct brt_header **brth) {
+toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth) {
     struct rbuf rb_0;
     struct rbuf rb_1;
     u_int64_t checkpoint_count_0;
     u_int64_t checkpoint_count_1;
     LSN checkpoint_lsn_0;
     LSN checkpoint_lsn_1;
-    int r = 0;
-    int r0;
-    int r1;
     u_int32_t version_0, version_1, version = 0;
+    BOOL h0_acceptable = FALSE;
+    BOOL h1_acceptable = FALSE;
+    struct rbuf *rb = NULL;
+    int r0, r1, r;
 
     {
         toku_off_t header_0_off = 0;
         r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0);
+	if ( (r0==0) && (checkpoint_lsn_0.lsn <= max_acceptable_lsn.lsn) )
+	    h0_acceptable = TRUE;
     }
     {
         toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
         r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
+	if ( (r1==0) && (checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) )
+	    h1_acceptable = TRUE;
     }
-    struct rbuf *rb = NULL;
-    
+
+    // if either header is too new, the dictionary is unreadable
     if (r0!=TOKUDB_DICTIONARY_TOO_NEW && r1!=TOKUDB_DICTIONARY_TOO_NEW) {
-        if (r0==0) {
-	    rb = &rb_0;
-	    version = version_0;
-	}
-        if (r1==0 && (r0!=0 || checkpoint_count_1 > checkpoint_count_0)) {
-	    rb = &rb_1;
-	    version = version_1;
-	}
-        if (r0==0 && r1==0) {
-	    lazy_assert(checkpoint_count_1 != checkpoint_count_0);
-	    if (rb == &rb_0) lazy_assert(version_0 >= version_1);
-	    else lazy_assert(version_0 <= version_1);
-	}
-    }
-  
-    if (required_lsn.lsn != ZERO_LSN.lsn) {  // an upper bound lsn was requested
-	if ((r0==0 && checkpoint_lsn_0.lsn <= required_lsn.lsn) &&
-	    (r1 || checkpoint_lsn_1.lsn > required_lsn.lsn)) {
-	    rb = &rb_0;
-	    version = version_0;
-	}
-	else if ((r1==0 && checkpoint_lsn_1.lsn <= required_lsn.lsn) &&
-		 (r0 || checkpoint_lsn_0.lsn > required_lsn.lsn)) {
-	    rb = &rb_1;
-	    version = version_1;
-	}
-	else if (r0==0 && r1==0) {  // read two good headers and both have qualified lsn
-	    if (checkpoint_lsn_0.lsn > checkpoint_lsn_1.lsn) {
+	if (h0_acceptable && h1_acceptable) {
+	    if (checkpoint_count_0 > checkpoint_count_1) {
+		invariant(checkpoint_count_0 == checkpoint_count_1 + 1);
+		invariant(version_0 >= version_1);
 		rb = &rb_0;
 		version = version_0;
+		r = 0;
 	    }
 	    else {
+		invariant(checkpoint_count_1 == checkpoint_count_0 + 1);
+		invariant(version_1 >= version_0);
 		rb = &rb_1;
 		version = version_1;
+		r = 0;
 	    }
 	}
-	else {
-	    rb = NULL; 
-	    r = -1;  // may need new error code for unable to get required version of file
+	else if (h0_acceptable) {
+	    rb = &rb_0;
+	    version = version_0;
+	    r = 0;
+	}
+	else if (h1_acceptable) {
+	    rb = &rb_1;
+	    version = version_1;
+	    r = 0;
 	}
     }
 
-    if (rb==NULL && r==0) {
+    if (rb==NULL) {
         // We were unable to read either header or at least one is too new.
         // Certain errors are higher priority than others. Order of these if/else if is important.
         if (r0==TOKUDB_DICTIONARY_TOO_NEW || r1==TOKUDB_DICTIONARY_TOO_NEW)
@@ -1831,8 +1819,12 @@ toku_deserialize_brtheader_from (int fd, LSN required_lsn, struct brt_header **b
         else if (r0==TOKUDB_DICTIONARY_NO_HEADER || r1==TOKUDB_DICTIONARY_NO_HEADER) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
         }
-        else r = r0; //Arbitrarily report the error from the first header.
-        lazy_assert(r!=0);
+        else r = r0 ? r0 : r1; //Arbitrarily report the error from the first header, unless it's readable
+
+	// it should not be possible for both headers to be later than the max_acceptable_lsn
+	invariant(!( (r0==0 && checkpoint_lsn_0.lsn > max_acceptable_lsn.lsn) &&
+		     (r1==0 && checkpoint_lsn_1.lsn > max_acceptable_lsn.lsn) ));
+        invariant(r!=0);
     }
 
     if (r==0) r = deserialize_brtheader_versioned(fd, rb, brth, version);

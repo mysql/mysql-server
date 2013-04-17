@@ -3156,10 +3156,10 @@ int toku_brt_alloc_init_header(BRT t, TOKUTXN txn) {
     return r;
 }
 
-int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN required_lsn, struct brt_header **header, BOOL* was_open)
+int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
-// required_lsn is used if a particular version of the file is required based on checkpoint_lsn
+// max_acceptable_lsn is the latest acceptable checkpointed version of the file.
 {
     {
         struct brt_header *h;
@@ -3174,7 +3174,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN required_lsn,
     int r;
     {
         int fd = toku_cachefile_get_and_pin_fd (cf);
-        r = toku_deserialize_brtheader_from(fd, required_lsn, &h);
+        r = toku_deserialize_brtheader_from(fd, max_acceptable_lsn, &h);
         toku_cachefile_unpin_fd(cf);
     }
     if (r!=0) return r;
@@ -3273,10 +3273,10 @@ cleanup:
 }
 
 // This is the actual open, used for various purposes, such as normal use, recovery, and redirect.  
-// fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix)
-// If required_lsn is specified (not ZERO_LSN), then that specific checkpointed version is required.
+// fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix).
+// The checkpointed version (checkpoint_lsn) of the dictionary must be no later than max_acceptable_lsn .
 static int
-brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id, LSN required_lsn) {
+brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id, LSN max_acceptable_lsn) {
     int r;
     BOOL txn_created = FALSE;
 
@@ -3342,7 +3342,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     }
     BOOL was_already_open;
     if (is_create) {
-        r = toku_read_brt_header_and_store_in_cachefile(t->cf, required_lsn, &t->h, &was_already_open);
+        r = toku_read_brt_header_and_store_in_cachefile(t->cf, max_acceptable_lsn, &t->h, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
             r = toku_brt_alloc_init_header(t, txn);
             if (r != 0) goto died_after_read_and_pin;
@@ -3357,7 +3357,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
         }
         else goto found_it;
     } else {
-        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, required_lsn, &t->h, &was_already_open))!=0) goto died_after_open;
+        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, max_acceptable_lsn, &t->h, &was_already_open))!=0) goto died_after_open;
         found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (!t->did_set_flags) {
@@ -3433,11 +3433,11 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
 // (dict_id is assigned by the brt_open() function.)
 int
 toku_brt_open_recovery(BRT t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, 
-		       DB *db, FILENUM use_filenum, LSN required_lsn) {
+		       DB *db, FILENUM use_filenum, LSN max_acceptable_lsn) {
     int r;
     lazy_assert(use_filenum.fileid != FILENUM_NONE.fileid);
     r = brt_open(t, fname_in_env, is_create, only_create, cachetable,
-                 txn, db, use_filenum, DICTIONARY_ID_NONE, required_lsn);
+                 txn, db, use_filenum, DICTIONARY_ID_NONE, max_acceptable_lsn);
     return r;
 }
 
@@ -3445,7 +3445,7 @@ toku_brt_open_recovery(BRT t, const char *fname_in_env, int is_create, int only_
 int
 toku_brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
     int r;
-    r = brt_open(t, fname_in_env, is_create, only_create, cachetable, txn, db, FILENUM_NONE, DICTIONARY_ID_NONE, ZERO_LSN);
+    r = brt_open(t, fname_in_env, is_create, only_create, cachetable, txn, db, FILENUM_NONE, DICTIONARY_ID_NONE, MAX_LSN);
     return r;
 }
 
@@ -3467,7 +3467,7 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
         lazy_assert_zero(r);
     }
     CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
-    r = brt_open(t, fname_in_env, 0, 0, ct, txn, old_brt->db, FILENUM_NONE, old_h->dict_id, ZERO_LSN);
+    r = brt_open(t, fname_in_env, 0, 0, ct, txn, old_brt->db, FILENUM_NONE, old_h->dict_id, MAX_LSN);
     lazy_assert_zero(r);
     if (old_h->descriptor.version==0) {
         lazy_assert(t->h->descriptor.version == 0);
