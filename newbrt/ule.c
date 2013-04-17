@@ -206,7 +206,7 @@ msg_init_empty_ule(ULE ule, BRT_MSG msg) {
 static void 
 msg_modify_ule(ULE ule, BRT_MSG msg) {
     XIDS xids = brt_msg_get_xids(msg);
-    assert(xids_get_num_xids(xids) < MAX_TRANSACTION_RECORDS);
+    assert(xids_get_num_xids(xids) <= MAX_TRANSACTION_RECORDS);
     ule_do_implicit_promotions(ule, xids);
     brt_msg_type type = brt_msg_get_type(msg);
     switch (type) {
@@ -684,7 +684,8 @@ le_full_promotion(LEAFENTRY le,
     assert(le);
     assert(le->num_xrs > 1); //Not committed
     assert(!le_is_provdel(le));
-    assert(le_outermost_uncommitted_xid(le) != 0);
+    TXNID outermost_uncommitted_xid = le_outermost_uncommitted_xid(le);
+    assert(outermost_uncommitted_xid != 0);
 
     size_t old_memsize = leafentry_memsize(le);
     u_int32_t old_keylen;
@@ -705,12 +706,15 @@ le_full_promotion(LEAFENTRY le,
 
     BRT_MSG_S slow_full_promotion_msg = {
         .type = BRT_COMMIT_ANY,
-        .xids = xids_get_root_xids(),
         .u.id = {
             .key = NULL,
             .val = NULL,
         }
     };
+    int r_xids = xids_create_child(xids_get_root_xids(),
+                                   &slow_full_promotion_msg.xids,
+                                   outermost_uncommitted_xid);
+    assert(r_xids==0);
     size_t slow_new_memsize;
     size_t slow_new_disksize;
     LEAFENTRY slow_le;
@@ -771,6 +775,7 @@ le_full_promotion(LEAFENTRY le,
     assert(memcpy(new_key, old_key, old_keylen) == 0);
     assert(memcpy(new_val, old_val, old_vallen) == 0);
 
+    xids_destroy(&slow_full_promotion_msg.xids);
     toku_free(slow_le);
     toku_free(old_key);
     toku_free(old_val);

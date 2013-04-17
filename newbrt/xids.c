@@ -69,11 +69,11 @@ xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
     int rval;
     assert(parent_xids);
     assert(this_xid > xids_get_innermost_xid(parent_xids));
-    u_int8_t num_stored_xids = parent_xids->num_stored_xids + 1;
-    u_int8_t num_xids        = num_stored_xids + 1;
+    u_int32_t num_stored_xids = parent_xids->num_stored_xids + 1;
+    u_int32_t num_xids        = num_stored_xids + 1;
     assert(num_xids > 0);
-    assert(num_xids <= MAX_TRANSACTION_RECORDS);
-    if (num_xids == MAX_TRANSACTION_RECORDS) rval = EINVAL;
+    assert(num_xids <= MAX_TRANSACTION_RECORDS + 1);
+    if (num_xids > MAX_TRANSACTION_RECORDS) rval = EINVAL;
     else {
         XIDS xids = toku_malloc(sizeof(*xids) + num_stored_xids*sizeof(xids->ids[0]));
         if (!xids) rval = ENOMEM;
@@ -94,10 +94,10 @@ xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
 void
 xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
 		        XIDS * xids_p) {		// xids list created
-    u_int8_t num_stored_xids = rbuf_char(rb);
-    u_int8_t num_xids        = num_stored_xids + 1;
+    u_int32_t num_stored_xids = rbuf_char(rb);
+    u_int32_t num_xids        = num_stored_xids + 1;
     assert(num_xids > 0);
-    assert(num_xids < MAX_TRANSACTION_RECORDS);
+    assert(num_xids <= MAX_TRANSACTION_RECORDS);
     XIDS xids = toku_xmalloc(sizeof(*xids) + num_stored_xids*sizeof(xids->ids[0]));
     xids->num_stored_xids = num_stored_xids;
     u_int8_t index;
