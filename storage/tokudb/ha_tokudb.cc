@@ -6257,6 +6257,11 @@ static int create_sub_table(
             goto exit;
         }
     }
+    error = file->set_compression_method(file, compression_method);
+    if (error != 0) {
+        DBUG_PRINT("error", ("Got error: %d when setting compression type %u for table '%s'", error, compression_method, table_name));
+        goto exit;
+    }
 
     create_flags = DB_THREAD | DB_CREATE | DB_EXCL | (is_hot_index ? DB_IS_HOT_INDEX : 0);    
     error = file->open(file, txn, table_name, NULL, DB_BTREE, create_flags, my_umask);
@@ -6264,12 +6269,6 @@ static int create_sub_table(
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
     } 
-
-    error = file->set_compression_method(file, compression_method);
-    if (error != 0) {
-        DBUG_PRINT("error", ("Got error: %d when setting compression type %u for table '%s'", error, compression_method, table_name));
-        goto exit;
-    }
 
     error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX | DB_UPDATE_CMP_DESCRIPTOR : DB_UPDATE_CMP_DESCRIPTOR));
     if (error) {
