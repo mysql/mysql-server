@@ -18,10 +18,12 @@ static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
 
 void *toku_malloc(size_t size) {
+    void *p;
     if (t_malloc)
-	return t_malloc(size);
+	p = t_malloc(size);
     else
-	return os_malloc(size);
+	p = os_malloc(size);
+    return p;
 }
 
 void *
@@ -60,7 +62,6 @@ toku_xrealloc(void *v, size_t size)
 void *
 toku_tagmalloc(size_t size, enum typ_tag typtag)
 {
-    //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
     void *r = toku_malloc(size);
     if (!r) return 0;
     assert(size>sizeof(int));
@@ -71,14 +72,16 @@ toku_tagmalloc(size_t size, enum typ_tag typtag)
 void *
 toku_realloc(void *p, size_t size)
 {
+    void *q;
     if (t_realloc)
-	return t_realloc(p, size);
+	q = t_realloc(p, size);
     else
-	return os_realloc(p, size);
+	q = os_realloc(p, size);
+    return q;
 }
 
 void
-toku_free(void* p)
+toku_free(void *p)
 {
     if (t_free)
 	t_free(p);
