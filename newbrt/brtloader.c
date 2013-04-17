@@ -1472,9 +1472,11 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 
     pqueue_t      *pq;
     pqueue_node_t *pq_nodes = (pqueue_node_t *)toku_malloc(n_sources * sizeof(pqueue_node_t));
+    invariant(pq_nodes != NULL);
 
     {
 	int r = pqueue_init(&pq, n_sources, which_db, dest_db, compare, &bl->error_callback);
+        lazy_assert(r == 0);
 	if (r) return r;
     }
 
@@ -1485,6 +1487,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	int r = loader_read_row_from_dbufio(bfs, i, &keys[i], &vals[i]);
 	BL_TRACE_QUIET(blt_read_row);
 	if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
+        lazy_assert(r == 0);
 	if (r!=0) return r;
 
         pq_nodes[i].key = &keys[i];
@@ -1509,7 +1512,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     if (result==0 && to_q) {
 	XMALLOC(output_rowset);
 	int r = init_rowset(output_rowset, memory_per_rowset(bl));
-	assert(r==0);
+	lazy_assert(r==0);
     }
     
     //printf(" n_rows=%ld\n", n_rows);
@@ -1543,6 +1546,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	} else {
             // write it to the dest file
 	    r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], bl);
+            lazy_assert(r==0);
 	    if (r!=0) return r;
 	}
         
@@ -1558,6 +1562,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		    toku_free(vals[mini].data);  vals[mini].data = NULL;
 		} else {
 		    printf("%s:%d returning\n", __FILE__, __LINE__);
+                    lazy_assert(0);
 		    return r;
 		}
 	    }
@@ -2386,14 +2391,13 @@ static int loader_do_i (BRTLOADER bl,
         }
 
 	// This structure must stay live until the join below.
-        struct fractal_thread_args fta = {.bl                      = bl,
-                                          .descriptor              = descriptor,
-                                          .fd                      = fd,
-                                          .progress_allocation     = progress_allocation,
-                                          .q                       = bl->fractal_queues[which_db],
-					  .total_disksize_estimate = bl->extracted_datasizes[which_db],
-                                          .errno_result            = 0
-        };
+        struct fractal_thread_args fta = { bl,
+                                           descriptor,
+                                           fd,
+                                           progress_allocation,
+                                           bl->fractal_queues[which_db],
+					   bl->extracted_datasizes[which_db],
+                                           0 };
 
 	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
 	if (r) {
