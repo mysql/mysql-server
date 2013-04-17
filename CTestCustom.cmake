@@ -56,6 +56,7 @@ if (NOT @RUN_HELGRIND_TESTS@)
   list(APPEND CTEST_CUSTOM_TESTS_IGNORE
     util/helgrind_test_circular_buffer
     util/helgrind_test_partitioned_counter
+    util/helgrind_test_partitioned_counter_5833
     ydb/helgrind_helgrind1.tdb
     ydb/helgrind_helgrind2.tdb
     ydb/helgrind_helgrind3.tdb
