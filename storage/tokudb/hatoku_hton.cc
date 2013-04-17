@@ -1655,7 +1655,7 @@ static void tokudb_cleaner_iterations_update(THD * thd,
     assert(r==0);
 }
 
-#define DEFAULT_CLEANER_ITERATIONS 1
+#define DEFAULT_CLEANER_ITERATIONS 5
 
 static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
         0, "TokuDB cleaner_iterations", 
