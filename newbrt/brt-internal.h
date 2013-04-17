@@ -760,6 +760,9 @@ typedef struct brt_status {
 void toku_brt_get_status(BRT_STATUS);
 
 void
+brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node);
+
+void
 brt_leaf_apply_cmd_once (
     BASEMENTNODE bn, 
     SUBTREE_EST se,
