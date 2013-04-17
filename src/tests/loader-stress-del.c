@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 26091 2010-12-01 21:13:06Z bperlman $"
+#ident "$Id$"
 
 
 // Need to use malloc for the malloc instrumentation tests

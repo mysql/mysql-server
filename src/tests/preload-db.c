@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 20470 2010-05-20 18:30:04Z bkuszmaul $"
+#ident "$Id$"
 
 #define kv_pair_funcs 1 // pull in kv_pair generators from test.h
 

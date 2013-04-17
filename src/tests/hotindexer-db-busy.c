@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-reference-test.c 23787 2010-09-14 17:31:19Z dwells $"
+#ident "$Id$"
 
 // Verify that the indexer grabs references on the DBs
 
