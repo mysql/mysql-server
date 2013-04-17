@@ -13,7 +13,7 @@
 #include "txn_manager.h"
 
 struct txn_manager {
-    toku_mutex_t txn_manager_lock;  // a lock protecting live_list_reverse and snapshot_txnids for now TODO: revisit this decision
+    toku_mutex_t txn_manager_lock;  // a lock protecting this object
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     OMT live_root_txns; // a sorted tree.
     OMT snapshot_txnids;    //contains TXNID x | x is snapshot txn
@@ -682,7 +682,7 @@ int toku_txn_manager_iter_over_live_txns(
 void toku_txn_manager_add_prepared_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     assert(txn->state==TOKUTXN_LIVE);
-    txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint.  Right now it uses the ydb lock.
+    txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint
     toku_list_push(&txn_manager->prepared_txns, &txn->prepared_txns_link);
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
 }

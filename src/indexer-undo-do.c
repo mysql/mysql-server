@@ -207,7 +207,7 @@ static void fill_prov_info(
             prov_txns[i] = txn;
             if (txn) {
                 prov_states[i] = toku_txn_get_state(txn);
-                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
                     // pin
                     toku_txn_manager_pin_live_txn_unlocked(txn_manager, txn);
                 }
@@ -236,7 +236,7 @@ static void release_txns(
     }
     // see if any txn pinned before bothering to grab txn_manager lock
     for (u_int32_t i = 0; i < num_provisional; i++) {
-        if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+        if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
             assert(prov_txns[i]);
             some_txn_pinned = TRUE;
         }
@@ -244,7 +244,7 @@ static void release_txns(
     if (some_txn_pinned) {
         toku_txn_manager_suspend(txn_manager);
         for (u_int32_t i = 0; i < num_provisional; i++) {
-            if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+            if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
                 toku_txn_manager_unpin_live_txn_unlocked(txn_manager, prov_txns[i]);
             }
         }
