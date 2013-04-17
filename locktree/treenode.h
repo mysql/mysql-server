@@ -24,7 +24,7 @@ namespace toku {
 // - left and right children may be null
 //
 // to build a tree on top of this abstraction, the user:
-// - provides memory for a root node, initializes it via init_root()
+// - provides memory for a root node, initializes it via create_root()
 // - performs tree operations on the root node. memory management
 //   below the root node is handled by the abstraction, not the user.
 // this pattern:
@@ -38,8 +38,11 @@ public:
     // - node is locked and children are never locked
     // - node may be unlocked if no other thread has visibility
 
-    // effect: initialize a treenode, marks it as the root
-    void init_root(comparator *cmp);
+    // effect: create the root node
+    void create_root(comparator *cmp);
+
+    // effect: destroys the root node
+    void destroy_root(void);
 
     // effect: sets the txnid and copies the given range for this node
     void set_range_and_txnid(const keyrange &range, TXNID txnid);
