@@ -36,12 +36,14 @@ flush (
     int UU(fd), 
     CACHEKEY UU(key), 
     void *value, 
+    void** UU(dd),
     void *UU(extraargs), 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
     BOOL write_me, 
     BOOL keep_me, 
-    BOOL UU(for_checkpoint)
+    BOOL UU(for_checkpoint),
+        BOOL UU(is_clone)
     )
 {
     // printf("f");
@@ -61,7 +63,8 @@ fetch (
     int UU(fd), 
     CACHEKEY UU(key), 
     u_int32_t UU(fullhash), 
-    void **UU(value), 
+    void **UU(value),
+    void **UU(dd), 
     PAIR_ATTR *UU(sizep), 
     int *UU(dirtyp), 
     void *UU(extraargs)
@@ -84,7 +87,7 @@ do_update (void *UU(ignore))
 	long size;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));

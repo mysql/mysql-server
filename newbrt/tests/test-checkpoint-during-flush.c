@@ -145,6 +145,7 @@ doit (BOOL after_child_pin) {
         node_root,
         toku_cachetable_hash(t->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -163,6 +164,7 @@ doit (BOOL after_child_pin) {
         node_root,
         toku_cachetable_hash(t->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -199,6 +201,7 @@ doit (BOOL after_child_pin) {
         node_root,
         toku_cachetable_hash(c_brt->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -219,6 +222,7 @@ doit (BOOL after_child_pin) {
         node_leaf,
         toku_cachetable_hash(c_brt->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node

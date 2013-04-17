@@ -25,23 +25,41 @@ int64_t checkpointed_data[NUM_ELEMENTS];
 u_int32_t time_of_test;
 BOOL run_test;
 
+static void 
+clone_callback(
+    void* value_data, 
+    void** cloned_value_data, 
+    PAIR_ATTR* new_attr, 
+    BOOL UU(for_checkpoint), 
+    void* UU(write_extraargs)
+    )
+{
+    new_attr->is_valid = FALSE;
+    int64_t* data_val = toku_xmalloc(sizeof(int64_t));
+    *data_val = *(int64_t *)value_data;
+    *cloned_value_data = data_val;
+    *new_attr = make_pair_attr(8);
+}
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
-       PAIR_ATTR* new_size      __attribute__((__unused__)),
+       PAIR_ATTR* new_size,
        BOOL write_me,
        BOOL keep_me,
-       BOOL checkpoint_me
+       BOOL checkpoint_me,
+        BOOL UU(is_clone)
        ) {
     int64_t val_to_write = *(int64_t *)v;
     size_t data_index = (size_t)k.b;
     if (write_me) {
         usleep(10);
+        *new_size = make_pair_attr(8);
         data[data_index] = val_to_write;
         if (checkpoint_me) checkpointed_data[data_index] = val_to_write;
     }
@@ -56,6 +74,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
+       void** UU(dd),
        PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
@@ -113,6 +132,7 @@ static void move_number_to_child(
     u_int32_t child_fullhash = toku_cachetable_hash(f1, child_key);
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
+    wc.clone_callback = clone_callback;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
@@ -120,6 +140,7 @@ static void move_number_to_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
+        TRUE,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -158,6 +179,7 @@ static void *move_numbers(void *arg) {
         u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
+        wc.clone_callback = clone_callback;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             parent_key,
@@ -165,6 +187,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
+            TRUE,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -222,6 +245,7 @@ static void merge_and_split_child(
     enum cachetable_dirty child_dirty = CACHETABLE_CLEAN;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
+    wc.clone_callback = clone_callback;
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
@@ -229,6 +253,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
+        TRUE,
         NULL,
         1, //num_dependent_pairs
         &f1,
@@ -262,6 +287,7 @@ static void merge_and_split_child(
         &v1,
         &s1,
         wc, fetch, def_pf_req_callback, def_pf_callback,
+        TRUE,
         NULL,
         2, //num_dependent_pairs
         cfs,
@@ -330,6 +356,7 @@ static void *merge_and_split(void *arg) {
         u_int32_t parent_fullhash = toku_cachetable_hash(f1, parent_key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
+        wc.clone_callback = clone_callback;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             parent_key,
@@ -337,6 +364,7 @@ static void *merge_and_split(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
+            TRUE,
             NULL,
             0, //num_dependent_pairs
             NULL,

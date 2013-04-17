@@ -110,6 +110,8 @@ struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
 DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
 const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
 
+void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

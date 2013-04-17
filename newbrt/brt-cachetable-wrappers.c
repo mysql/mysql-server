@@ -127,6 +127,7 @@ toku_pin_brtnode(
     ANCESTORS ancestors,
     const PIVOT_BOUNDS bounds,
     BRTNODE_FETCH_EXTRA bfe,
+    BOOL may_modify_node,
     BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     BRTNODE *node_p,
     BOOL* msgs_applied)
@@ -143,6 +144,7 @@ toku_pin_brtnode(
             toku_brtnode_fetch_callback,
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
+            may_modify_node,
             bfe, //read_extraargs
             unlockers);
     if (r==0) {
@@ -168,6 +170,7 @@ toku_pin_brtnode_holding_lock(
     const PIVOT_BOUNDS bounds,
     BRTNODE_FETCH_EXTRA bfe,
     BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+    BOOL may_modify_node,
     BRTNODE *node_p)
 {
     void *node_v;
@@ -181,6 +184,7 @@ toku_pin_brtnode_holding_lock(
         toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        may_modify_node,
         bfe
         );
     assert(r==0);
@@ -196,6 +200,7 @@ toku_pin_brtnode_off_client_thread(
     BLOCKNUM blocknum,
     u_int32_t fullhash,
     BRTNODE_FETCH_EXTRA bfe,
+    BOOL may_modify_node,
     u_int32_t num_dependent_nodes,
     BRTNODE* dependent_nodes,
     BRTNODE *node_p)
@@ -222,6 +227,7 @@ toku_pin_brtnode_off_client_thread(
         toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        may_modify_node,
         bfe,
         num_dependent_nodes,
         dependent_cf,

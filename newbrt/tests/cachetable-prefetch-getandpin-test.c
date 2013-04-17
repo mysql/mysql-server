@@ -14,12 +14,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     assert(w == FALSE);
 }
@@ -30,6 +32,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
+       void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp       __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
@@ -55,7 +58,7 @@ static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
     }
 }
 
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
+static int pf_callback(void* UU(brtnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
     assert(expect_pf);
     sleep(2);
     *sizep = make_pair_attr(2);
@@ -97,6 +100,7 @@ static void cachetable_prefetch_maybegetandpin_test (BOOL do_partial_fetch) {
             fetch,
             pf_req_callback,
             pf_callback,
+            TRUE, 
             0
             );
         assert(r==0);
@@ -115,9 +119,9 @@ static void cachetable_prefetch_maybegetandpin_test (BOOL do_partial_fetch) {
     void *v = 0;
     long size = 0;
     do_pf = FALSE;
-    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, TRUE, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, TRUE, NULL);
     assert(r == 0 && v == 0 && size == 2);
 
     struct timeval tend; 

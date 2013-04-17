@@ -67,7 +67,8 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     struct brtnode_fetch_extra bfe_all;
     brt_h->compare_fun = string_key_cmp;
     fill_bfe_for_full_read(&bfe_all, brt_h);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_all);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_all);
     BOOL is_leaf = ((*dn)->height == 0);
     assert(r==0);
     for (int i = 0; i < (*dn)->n_children; i++) {
@@ -93,7 +94,7 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     PAIR_ATTR size;
     BOOL req = toku_brtnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
-    toku_brtnode_pf_callback(*dn, &bfe_all, fd, &size);
+    toku_brtnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
     toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
@@ -111,7 +112,7 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
 
     req = toku_brtnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
-    toku_brtnode_pf_callback(*dn, &bfe_all, fd, &size);
+    toku_brtnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
     toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
@@ -124,7 +125,7 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
-
+    toku_free(ndd);
     toku_brtnode_free(dn);
 }
 
@@ -160,8 +161,8 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         TRUE,
         FALSE
         );
-
-    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_subset);
+    BRTNODE_DISK_DATA ndd = NULL;
+    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_subset);
     assert(r==0);
     BOOL is_leaf = ((*dn)->height == 0);
     // at this point, although both partitions are available, only the 
@@ -182,13 +183,13 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
 
     BOOL req = toku_brtnode_pf_req_callback(*dn, &bfe_subset);
     assert(req);
-    toku_brtnode_pf_callback(*dn, &bfe_subset, fd, &attr);
+    toku_brtnode_pf_callback(*dn, ndd, &bfe_subset, fd, &attr);
     assert(BP_STATE(*dn, 0) == PT_AVAIL);
     assert(BP_STATE(*dn, 1) == PT_AVAIL);
     assert(BP_SHOULD_EVICT(*dn, 0));
     assert(!BP_SHOULD_EVICT(*dn, 1));
 
-
+    toku_free(ndd);
     toku_brtnode_free(dn);
 }
 
@@ -206,8 +207,8 @@ test3_leaf(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         &bfe_min,
         brt_h
         );
-
-    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe_min);
+    BRTNODE_DISK_DATA ndd = NULL;
+    int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_min);
     assert(r==0);
     //
     // make sure we have a leaf
@@ -217,6 +218,7 @@ test3_leaf(int fd, struct brt_header *brt_h, BRTNODE *dn) {
         assert(BP_STATE(*dn, i) == PT_ON_DISK);
     }
     toku_brtnode_free(dn);
+    toku_free(ndd);
 }
 
 static void
@@ -296,8 +298,8 @@ test_serialize_nonleaf(void) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
-
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
     assert(r==0);
 
     test1(fd, brt_h, &dn);
@@ -309,6 +311,7 @@ test_serialize_nonleaf(void) {
     destroy_nonleaf_childinfo(BNC(&sn, 1));
     toku_free(sn.bp);
     toku_free(sn.childkeys);
+    toku_free(ndd);
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_brtheader_destroy_treelock(brt_h);
@@ -382,8 +385,8 @@ test_serialize_leaf(void) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
-
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
     assert(r==0);
 
     test1(fd, brt_h, &dn);
@@ -408,7 +411,7 @@ test_serialize_leaf(void) {
     toku_blocktable_destroy(&brt_h->blocktable);
     toku_free(brt_h);
     toku_free(brt);
-
+    toku_free(ndd);
     r = close(fd); assert(r != -1);
 }
 

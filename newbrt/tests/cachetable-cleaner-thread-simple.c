@@ -52,6 +52,7 @@ run_test (void) {
                                     def_fetch,
                                     def_pf_req_callback,
                                     def_pf_callback,
+                                    TRUE, 
                                     NULL);
     PAIR_ATTR attr = make_pair_attr(8);
     attr.cache_pressure_size = 100;
@@ -63,6 +64,7 @@ run_test (void) {
                                         def_fetch,
                                         def_pf_req_callback,
                                         def_pf_callback,
+                                        TRUE, 
                                         NULL);
         assert_zero(r);
         // set cachepressure_size to 0

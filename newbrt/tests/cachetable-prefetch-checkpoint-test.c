@@ -20,12 +20,14 @@ static void flush(
     int UU(fd), 
     CACHEKEY key, 
     void *value, 
+    void** UU(dd),
     void *extraargs, 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
     BOOL write_me, 
     BOOL keep_me, 
-    BOOL UU(for_checkpoint)
+    BOOL UU(for_checkpoint),
+        BOOL UU(is_clone)
     ) 
 {
     cf = cf; key = key; value = value; extraargs = extraargs; 
@@ -42,6 +44,7 @@ static int fetch(
     CACHEKEY key, 
     u_int32_t fullhash, 
     void **value, 
+    void** UU(dd),
     PAIR_ATTR *sizep, 
     int *dirtyp, 
     void *extraargs

@@ -12,12 +12,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+       BOOL UU(is_clone)
        ) {
     flush_called = TRUE;
     *new_size = make_pair_attr(8);
@@ -29,7 +31,7 @@ static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
   return TRUE;
 }
 
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* sizep) {
+static int pf_callback(void* UU(brtnode_pv), void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* sizep) {
    assert(pf_req_called);
    assert(flush_called);
    pf_called = TRUE;
@@ -52,7 +54,7 @@ cachetable_test (void) {
   long s1;
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
   wc.flush_callback = flush;
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, NULL);
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, TRUE, NULL);
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
 
   flush_called = FALSE;
@@ -60,7 +62,7 @@ cachetable_test (void) {
   pf_called = FALSE;
   r = toku_cachetable_begin_checkpoint(ct, NULL);
   assert_zero(r);
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, NULL);
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, TRUE, NULL);
   assert_zero(r);
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
   assert_zero(r);

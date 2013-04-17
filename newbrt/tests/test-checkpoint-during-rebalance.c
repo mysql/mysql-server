@@ -183,6 +183,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(t->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -200,6 +201,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(t->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -238,6 +240,7 @@ doit (int state) {
         node_root,
         toku_cachetable_hash(c_brt->h->cf, node_root),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -258,6 +261,7 @@ doit (int state) {
         left_child,
         toku_cachetable_hash(c_brt->h->cf, left_child),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -273,6 +277,7 @@ doit (int state) {
         right_child,
         toku_cachetable_hash(c_brt->h->cf, right_child),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node

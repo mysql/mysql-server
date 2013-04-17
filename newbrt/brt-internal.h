@@ -188,6 +188,22 @@ typedef struct __attribute__((__packed__)) brtnode_child_pointer {
     } u;
 } BRTNODE_CHILD_POINTER;
 
+
+struct brtnode_disk_data {
+    //
+    // stores the offset to the beginning of the partition on disk from the brtnode, and the length, needed to read a partition off of disk
+    // the value is only meaningful if the node is clean. If the node is dirty, then the value is meaningless
+    //  The START is the distance from the end of the compressed node_info data, to the beginning of the compressed partition
+    //  The SIZE is the size of the compressed partition.
+    // Rationale:  We cannot store the size from the beginning of the node since we don't know how big the header will be.
+    //  However, later when we are doing aligned writes, we won't be able to store the size from the end since we want things to align.
+    u_int32_t start;
+    u_int32_t size;
+};
+#define BP_START(node_dd,i) ((node_dd)[i].start)
+#define BP_SIZE(node_dd,i) ((node_dd)[i].size)
+
+
 // a brtnode partition, associated with a child of a node
 struct   __attribute__((__packed__)) brtnode_partition {
     // the following three variables are used for nonleaf nodes
@@ -202,14 +218,6 @@ struct   __attribute__((__packed__)) brtnode_partition {
     //   PT_AVAIL - means the partition is decompressed and in memory
     //
     enum pt_state state; // make this an enum to make debugging easier.  
-    //
-    // stores the offset to the beginning of the partition on disk from the brtnode, and the length, needed to read a partition off of disk
-    // the value is only meaningful if the node is clean. If the node is dirty, then the value is meaningless
-    //  The START is the distance from the end of the compressed node_info data, to the beginning of the compressed partition
-    //  The SIZE is the size of the compressed partition.
-    // Rationale:  We cannot store the size from the beginning of the node since we don't know how big the header will be.
-    //  However, later when we are doing aligned writes, we won't be able to store the size from the end since we want things to align.
-    u_int32_t start,size;
     //
     // pointer to the partition. Depending on the state, they may be different things
     // if state == PT_INVALID, then the node was just initialized and ptr == NULL
@@ -258,11 +266,7 @@ struct brtnode {
 // brtnode partition macros
 // BP stands for brtnode_partition
 #define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
-#define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
-#define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
 #define BP_STATE(node,i) ((node)->bp[i].state)
-#define BP_START(node,i) ((node)->bp[i].start)
-#define BP_SIZE(node,i) ((node)->bp[i].size)
 #define BP_WORKDONE(node, i)((node)->bp[i].workdone)
 
 //
@@ -448,18 +452,21 @@ toku_create_compressed_partition_from_available(
     int childnum, 
     SUB_BLOCK sb
     );
+void rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize);
 int toku_serialize_brtnode_to_memory (BRTNODE node,
+                                      BRTNODE_DISK_DATA* ndd,
                                       unsigned int basementnodesize,
+                                      BOOL do_rebalancing,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ char  **bytes_to_write);
-int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
+int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, BRTNODE_DISK_DATA* ndd, BOOL do_rebalancing, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
                                     struct brt_header *h, int n_workitems, int n_threads,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, struct brt_header *h);
-void toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe);
+void toku_deserialize_bp_from_disk(BRTNODE node, BRTNODE_DISK_DATA ndd, int childnum, int fd, struct brtnode_fetch_extra* bfe);
 void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum, DESCRIPTOR desc, brt_compare_func cmp);
-int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brtnode_fetch_extra* bfe);
+int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, BRTNODE_DISK_DATA* ndd, struct brtnode_fetch_extra* bfe);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -477,6 +484,8 @@ int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISK
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 BASEMENTNODE toku_create_empty_bn(void);
 BASEMENTNODE toku_create_empty_bn_no_buffer(void); // create a basement node with a null buffer.
+NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo);
+BASEMENTNODE toku_clone_bn(BASEMENTNODE orig_bn);
 NONLEAF_CHILDINFO toku_create_empty_nl(void);
 // FIXME needs toku prefix
 void destroy_basement_node (BASEMENTNODE bn);
@@ -529,12 +538,13 @@ struct brtenv {
 };
 
 void toku_brt_status_update_pivot_fetch_reason(struct brtnode_fetch_extra *bfe);
-extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
-extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, PAIR_ATTR *sizep, int*dirty, void*extraargs);
-extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
+extern void toku_brtnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, BOOL for_checkpoint, void* write_extraargs);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL is_clone);
+extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
+extern void toku_brtnode_pe_est_callback(void* brtnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
 extern int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
-int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAIR_ATTR* sizep);
+int toku_brtnode_pf_callback(void* brtnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 extern int toku_brtnode_cleaner_callback( void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
@@ -546,6 +556,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_
     wc.pe_est_callback = toku_brtnode_pe_est_callback;
     wc.pe_callback = toku_brtnode_pe_callback;
     wc.cleaner_callback = toku_brtnode_cleaner_callback;
+    wc.clone_callback = toku_brtnode_clone_callback;
     wc.write_extraargs = h;
     return wc;
 }
@@ -899,6 +910,9 @@ typedef enum {
     BRT_NUM_MSG_BUFFER_FETCHED_WRITE,
     BRT_STATUS_NUM_ROWS
 } brt_status_entry;
+
+void brt_begin_checkpoint(void);
+void brt_end_checkpoint(void);
 
 typedef struct {
     bool initialized;

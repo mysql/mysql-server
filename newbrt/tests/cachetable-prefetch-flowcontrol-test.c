@@ -17,12 +17,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k,
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w,
        BOOL keep,
-       BOOL f_ckpt __attribute__((__unused__))
+       BOOL f_ckpt __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     assert(w == FALSE);
     flush_calls++;
@@ -41,6 +43,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
+       void** UU(dd),
        PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))

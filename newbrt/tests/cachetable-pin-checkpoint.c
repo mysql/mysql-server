@@ -22,18 +22,35 @@ int64_t checkpointed_data[NUM_ELEMENTS];
 u_int32_t time_of_test;
 BOOL run_test;
 
+static void 
+clone_callback(
+    void* value_data, 
+    void** cloned_value_data, 
+    PAIR_ATTR* new_attr, 
+    BOOL UU(for_checkpoint), 
+    void* UU(write_extraargs)
+    )
+{
+    new_attr->is_valid = FALSE;
+    int64_t* data_val = toku_xmalloc(sizeof(int64_t));
+    *data_val = *(int64_t *)value_data;
+    *cloned_value_data = data_val;   
+}
+
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL write_me,
        BOOL keep_me,
-       BOOL checkpoint_me
+       BOOL checkpoint_me,
+        BOOL UU(is_clone)
        ) {
     /* Do nothing */
     int64_t val_to_write = *(int64_t *)v;
@@ -55,6 +72,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
+       void** UU(dd),
        PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
@@ -120,6 +138,7 @@ static void *move_numbers(void *arg) {
         enum cachetable_dirty less_dirty = CACHETABLE_DIRTY;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
+        wc.clone_callback = clone_callback;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             less_key,
@@ -127,6 +146,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
+            TRUE,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -148,6 +168,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
+            TRUE,
             NULL,
             1, //num_dependent_pairs
             &f1,
@@ -181,6 +202,7 @@ static void *move_numbers(void *arg) {
                 &v1,
                 &s1,
                 wc, fetch, def_pf_req_callback, def_pf_callback,
+                TRUE,
                 NULL,
                 1, //num_dependent_pairs
                 &f1,
@@ -210,6 +232,7 @@ static void *read_random_numbers(void *arg) {
         int r1;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
+        wc.clone_callback = clone_callback;
         r1 = toku_cachetable_get_and_pin_nonblocking(
             f1,
             make_blocknum(rand_key1),
@@ -217,6 +240,7 @@ static void *read_random_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
+            FALSE,
             NULL,
             NULL
             );
@@ -259,6 +283,7 @@ static void *checkpoints(void *arg) {
             sum += checkpointed_data[i];
         }
         assert (sum==0);
+        usleep(10*1024);
         num_checkpoints++;
     }
     return arg;

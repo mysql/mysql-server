@@ -91,12 +91,15 @@ static void flush (CACHEFILE f,
                    int UU(fd),
 		   CACHEKEY key,
 		   void*value,
+		   void** UU(dd),
 		   void *extra __attribute__((__unused__)),
 		   PAIR_ATTR size __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 		   BOOL write_me __attribute__((__unused__)),
 		   BOOL keep_me __attribute__((__unused__)),
-		   BOOL for_checkpoint __attribute__((__unused__))) {
+		   BOOL for_checkpoint __attribute__((__unused__)),
+        BOOL UU(is_clone)
+		   ) {
     struct item *it = value;
     int i;
 
@@ -132,7 +135,7 @@ static struct item *make_item (u_int64_t key) {
 }
 
 static CACHEKEY did_fetch={-1};
-static int fetch (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, PAIR_ATTR *sizep __attribute__((__unused__)), int  *dirtyp, void*extraargs) {
+static int fetch (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, void** UU(dd), PAIR_ATTR *sizep __attribute__((__unused__)), int  *dirtyp, void*extraargs) {
     if (verbose) printf("Fetch %" PRId64 "\n", key.b);
     assert (expect_f==f);
     assert((long)extraargs==23);
@@ -232,7 +235,7 @@ static void test0 (void) {
     {
 	void *item_v=0;
 	expect_init(); 
-	r=toku_cachetable_get_and_pin(f, make_blocknum(5), toku_cachetable_hash(f, make_blocknum(5)), &item_v, NULL, wc, fetch, def_pf_req_callback, def_pf_callback, t3);  /* 5P 7U 6P 4P 1P */
+	r=toku_cachetable_get_and_pin(f, make_blocknum(5), toku_cachetable_hash(f, make_blocknum(5)), &item_v, NULL, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, t3);  /* 5P 7U 6P 4P 1P */
 	assert(r==0);
 	assert(((struct item *)item_v)->key.b==5);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
@@ -249,7 +252,7 @@ static void test0 (void) {
 	did_fetch=make_blocknum(-1);
         CACHETABLE_WRITE_CALLBACK wc2 = def_write_callback(t3);
         wc2.flush_callback = flush;
-	r=toku_cachetable_get_and_pin(f, make_blocknum(2), toku_cachetable_hash(f, make_blocknum(2)), &item_v, NULL, wc2, fetch, def_pf_req_callback, def_pf_callback, t3);  /* 2p 5P 7U 6P 1P */
+	r=toku_cachetable_get_and_pin(f, make_blocknum(2), toku_cachetable_hash(f, make_blocknum(2)), &item_v, NULL, wc2, fetch, def_pf_req_callback, def_pf_callback, TRUE, t3);  /* 2p 5P 7U 6P 1P */
 	assert(r==0);
 	assert(did_fetch.b==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key.b==2);
@@ -290,17 +293,22 @@ static void test0 (void) {
 
 static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
 		     void *value,
+		     void** UU(dd),
 		     void *extra  __attribute__((__unused__)),
                      PAIR_ATTR size __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
-		     BOOL for_checkpoint __attribute__ ((__unused__))) {
+		     BOOL for_checkpoint __attribute__ ((__unused__)),
+        BOOL UU(is_clone)
+		     ) {
     int *v = value;
     assert(*v==0);
 }
 static int fetch_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
 		    u_int32_t fullhash  __attribute__((__unused__)),
-                    void**value, PAIR_ATTR *sizep __attribute__((__unused__)), 
+                    void**value, 
+		    void** UU(dd),
+PAIR_ATTR *sizep __attribute__((__unused__)), 
 		    int * dirtyp, void*extraargs) {
     assert((long)extraargs==42);
     *value=0;
@@ -333,7 +341,7 @@ static void test_nested_pin (void) {
     r = toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, make_pair_attr(1), wc);
     assert(r==0);
     r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
-    r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, wc, fetch_n, def_pf_req_callback, def_pf_callback, f2);
+    r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, wc, fetch_n, def_pf_req_callback, def_pf_callback, TRUE, f2);
     assert(r==0);
     assert(vv==&i0);
     assert(i0==0);
@@ -359,15 +367,20 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         int UU(fd),
                         CACHEKEY k       __attribute__((__unused__)),
                         void *v          __attribute__((__unused__)),
+			void** UU(dd),
                         void *extra      __attribute__((__unused__)),
                         PAIR_ATTR size        __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
                         BOOL write_me    __attribute__((__unused__)),
                         BOOL keep_me     __attribute__((__unused__)),
-                        BOOL for_checkpoint __attribute__((__unused__))) {
+                        BOOL for_checkpoint __attribute__((__unused__)),
+        BOOL UU(is_clone)
+                        ) {
 }
 
-static int add123_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
+static int add123_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, 
+			 void** UU(dd),
+PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key.b+123L);
@@ -376,7 +389,9 @@ static int add123_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullh
     return 0;
 }
 
-static int add222_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
+static int add222_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, 
+			 void** UU(dd),
+PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key.b+222L);
@@ -411,12 +426,12 @@ static void test_multi_filehandles (void) {
     wc.flush_callback = null_flush;
     r = toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, make_pair_attr(test_object_size), wc); assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(0)); assert(r==0);
-    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, (void*)123); assert(r==0);
+    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, TRUE, (void*)123); assert(r==0);
     assert((unsigned long)v==124);
-    r = toku_cachetable_get_and_pin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, (void*)123); assert(r==0);
+    r = toku_cachetable_get_and_pin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, TRUE, (void*)123); assert(r==0);
     assert((unsigned long)v==125);
     wc.write_extraargs = (void*)222;
-    r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, wc, add222_fetch, def_pf_req_callback, def_pf_callback, (void*)222); assert(r==0);
+    r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, wc, add222_fetch, def_pf_req_callback, def_pf_callback, TRUE, (void*)222); assert(r==0);
     assert((unsigned long)v==224);
 
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
@@ -439,16 +454,21 @@ static void test_dirty_flush(CACHEFILE f,
                              int UU(fd),
 			     CACHEKEY key,
 			     void *value,
+			     void** UU(dd),
 			     void *extra __attribute__((__unused__)),
 			     PAIR_ATTR size,
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 			     BOOL do_write,
 			     BOOL keep,
-			     BOOL for_checkpoint __attribute__((__unused__))) {
+			     BOOL for_checkpoint __attribute__((__unused__)),
+        BOOL UU(is_clone)
+			     ) {
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size.size, (unsigned)do_write, (unsigned)keep);
 }
 
-static int test_dirty_fetch(CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value_ptr, PAIR_ATTR *size_ptr, int * dirtyp, void *arg) {
+static int test_dirty_fetch(CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value_ptr, 
+			    void** UU(dd),
+PAIR_ATTR *size_ptr, int * dirtyp, void *arg) {
     *value_ptr = arg;
     *dirtyp = 0;
     *size_ptr = make_pair_attr(0);
@@ -495,7 +515,7 @@ static void test_dirty(void) {
     assert(pinned == 0);
 
     r = toku_cachetable_get_and_pin(f, key, hkey, &value, NULL, wc,
-				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -517,7 +537,7 @@ static void test_dirty(void) {
     hkey = toku_cachetable_hash(f, key);
     r = toku_cachetable_get_and_pin(f, key, hkey,
 				    &value, NULL, wc,
-				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -537,7 +557,7 @@ static void test_dirty(void) {
 
     r = toku_cachetable_get_and_pin(f, key, hkey,
 				    &value, NULL, wc,
-				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, 0);
+				    test_dirty_fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
     assert(r == 0);
 
     // cachetable_print_state(t);
@@ -568,12 +588,15 @@ static void test_size_flush_callback(CACHEFILE f,
                                      int UU(fd),
 				     CACHEKEY key,
 				     void *value,
+				     void** UU(dd),
 				     void *extra __attribute__((__unused__)),
 				     PAIR_ATTR size,
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 				     BOOL do_write,
 				     BOOL keep,
-				     BOOL for_checkpoint __attribute__((__unused__))) {
+				     BOOL for_checkpoint __attribute__((__unused__)),
+        BOOL UU(is_clone)
+				     ) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size.size, (unsigned)do_write, (unsigned)keep);
     if (keep) {
         if (do_write) {
@@ -628,7 +651,7 @@ static void test_size_resize(void) {
 
     void *current_value;
     long current_size;
-    r = toku_cachetable_get_and_pin(f, key, hkey, &current_value, &current_size, wc, 0, def_pf_req_callback, def_pf_callback, 0);
+    r = toku_cachetable_get_and_pin(f, key, hkey, &current_value, &current_size, wc, 0, def_pf_req_callback, def_pf_callback, TRUE, 0);
     assert(r == 0);
     assert(current_value == value);
     assert(current_size == new_size);

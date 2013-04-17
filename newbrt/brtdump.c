@@ -123,8 +123,9 @@ static void
 dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     BRTNODE n;
     struct brtnode_fetch_extra bfe;
+    BRTNODE_DISK_DATA ndd = NULL;
     fill_bfe_for_full_read(&bfe, h);
-    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
+    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
@@ -207,6 +208,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	}
     }
     toku_brtnode_free(&n);
+    toku_free(ndd);
 }
 
 static void 
@@ -226,9 +228,10 @@ static int
 fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
     frag_help_extra *info = extra;
     BRTNODE n;
+    BRTNODE_DISK_DATA ndd = NULL;
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, info->h);
-    int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
+    int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     if (r==0) {
         info->blocksizes += size;
         if (n->height == 0) {
@@ -236,6 +239,7 @@ fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra)
             info->leafblocks++;
         }
 	toku_brtnode_free(&n);
+        toku_free(ndd);
     }
     return 0;
 }
@@ -282,9 +286,10 @@ static int
 garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
     garbage_help_extra *info = extra;
     BRTNODE n;
+    BRTNODE_DISK_DATA ndd = NULL;
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, info->h);
-    int r = toku_deserialize_brtnode_from(info->f, b, 0, &n, &bfe);
+    int r = toku_deserialize_brtnode_from(info->f, b, 0, &n, &ndd, &bfe);
     if (r != 0) {
         goto no_node;
     }
@@ -300,6 +305,7 @@ garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
     }
 exit:
     toku_brtnode_free(&n);
+    toku_free(ndd);
 no_node:
     return r;
 }

@@ -39,7 +39,7 @@ cachetable_test (void) {
       for (int i = 0; i < 10; i++) {
           CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
           wc.cleaner_callback = cleaner_callback;
-          r = toku_cachetable_get_and_pin(f1, make_blocknum(i), i, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
+          r = toku_cachetable_get_and_pin(f1, make_blocknum(i), i, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
           r = toku_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(8));
       }
       r = toku_cachefile_flush(f1);

@@ -31,6 +31,7 @@ typedef bool BOOL;
 
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
+typedef struct brtnode_disk_data *BRTNODE_DISK_DATA;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
 typedef struct brtnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
 typedef struct sub_block *SUB_BLOCK;

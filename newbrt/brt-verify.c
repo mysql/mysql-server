@@ -215,6 +215,7 @@ toku_get_node_for_verify(
         blocknum,
         fullhash,
         &bfe,
+        TRUE, // may_modify_node, safe to set to TRUE
         0,
         NULL,
         nodep

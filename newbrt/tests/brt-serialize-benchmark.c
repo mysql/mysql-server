@@ -130,7 +130,8 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -140,7 +141,8 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt_h);
     gettimeofday(&t[0], NULL);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    BRTNODE_DISK_DATA ndd2 = NULL;
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
@@ -165,6 +167,8 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(ndd);
+    toku_free(ndd2);
 
     r = close(fd); assert(r != -1);
 }
@@ -259,7 +263,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -269,7 +274,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt_h);
     gettimeofday(&t[0], NULL);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    BRTNODE_DISK_DATA ndd2 = NULL;
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
@@ -291,6 +297,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(ndd);
+    toku_free(ndd2);
 
     r = close(fd); assert(r != -1);
 }

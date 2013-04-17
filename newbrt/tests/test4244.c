@@ -75,6 +75,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(t->h->cf, node_internal),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node

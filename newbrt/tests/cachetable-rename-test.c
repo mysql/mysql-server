@@ -40,12 +40,15 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
                      int UU(fd),
 		     CACHEKEY k,
 		     void *value,
+		     void** UU(dd),
 		     void *extra      __attribute__((__unused__)),
 		     PAIR_ATTR size        __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
-		     BOOL for_checkpoint    __attribute__((__unused__))) {
+		     BOOL for_checkpoint    __attribute__((__unused__)),
+        BOOL UU(is_clone)
+		     ) {
     int i;
     //printf("Flush\n");
     if (keep_me) return;
@@ -74,6 +77,7 @@ static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
 		    CACHEKEY key       __attribute__((__unused__)),
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value        __attribute__((__unused__)),
+		    void** UU(dd),
 		    PAIR_ATTR *sizep        __attribute__((__unused__)),
 		    int  *dirtyp       __attribute__((__unused__)),
 		    void*extraargs     __attribute__((__unused__))) {
@@ -131,7 +135,7 @@ static void test_rename (void) {
 	    if (verbose) printf("Rename %" PRIx64 " to %" PRIx64 "\n", okey.b, nkey.b);
             CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
             wc.flush_callback = r_flush;
-	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, wc, r_fetch, def_pf_req_callback, def_pf_callback, 0);
+	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, wc, r_fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
 	    if (r == -42) continue;
             assert(r==0);
 	    r = toku_cachetable_rename(f, okey, nkey);

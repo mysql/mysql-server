@@ -10,6 +10,7 @@
 static void 
 pe_est_callback(
     void* UU(brtnode_pv), 
+    void* UU(dd),
     long* bytes_freed_estimate, 
     enum partial_eviction_cost *cost, 
     void* UU(write_extraargs)
@@ -67,6 +68,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
             def_fetch,
             def_pf_req_callback,
             def_pf_callback,
+            TRUE, 
             0
             );
         assert(r==0);
@@ -89,6 +91,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch,
         def_pf_req_callback,
         def_pf_callback,
+        TRUE, 
         0
         );
     assert(r==0);
@@ -109,6 +112,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch, 
         def_pf_req_callback, 
         def_pf_callback, 
+        TRUE,
         NULL, 
         NULL
         );
@@ -123,6 +127,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch, 
         def_pf_req_callback, 
         def_pf_callback, 
+        TRUE, 
         NULL
         );
     assert(r == 0 && v == 0 && size == 1);

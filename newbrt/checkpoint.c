@@ -310,9 +310,9 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
     SET_CHECKPOINT_FOOTPRINT(40);
     if (r==0) {
-	if (callback_f) 
-	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-	r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
+        if (callback_f) 
+            callback_f(extra);      // callback is called with checkpoint_safe_lock still held
+        r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
     }
     SET_CHECKPOINT_FOOTPRINT(50);
     if (r==0 && logger) {

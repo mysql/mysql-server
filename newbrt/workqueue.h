@@ -205,7 +205,9 @@ static int workqueue_n_in_queue (WORKQUEUE wq, int dolock) {
 #include "threadpool.h"
 
 // initialize the work queue and worker 
-void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr);
+void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr, int fraction);
+
+void toku_init_workers_with_num_threads(WORKQUEUE wq, THREADPOOL *tpptr, int num_threads);
 
 // destroy the work queue and worker 
 void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr);

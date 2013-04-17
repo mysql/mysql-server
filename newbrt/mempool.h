@@ -83,6 +83,8 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size
 /* get memory footprint */
 size_t toku_mempool_footprint(struct mempool *mp);
 
+void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

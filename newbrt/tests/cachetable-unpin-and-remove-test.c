@@ -9,6 +9,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
+       void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp       __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
@@ -113,7 +114,7 @@ cachetable_put_evict_remove_test (int n) {
 
     // get 0
     void *v; long s;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(0), hi[0], &v, &s, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(0), hi[0], &v, &s, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
     assert(r == 0);
         
     // remove 0
