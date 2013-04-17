@@ -2650,17 +2650,17 @@ toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock
 }
 
 void 
-toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_usec) {
-    if (lock_wait_time_usec == UINT64_MAX)
+toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec) {
+    if (lock_wait_time_msec == UINT64_MAX)
         mgr->lock_wait_time = max_timeval;
     else
-        mgr->lock_wait_time = (struct timeval) { lock_wait_time_usec / 1000000, lock_wait_time_usec % 1000000 };
+        mgr->lock_wait_time = (struct timeval) { lock_wait_time_msec / 1000, (lock_wait_time_msec % 1000) * 1000 };
 }
 
 void 
-toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_usec) {
+toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec) {
     if (mgr->lock_wait_time.tv_sec == max_timeval.tv_sec && mgr->lock_wait_time.tv_usec == max_timeval.tv_usec)
-        *lock_wait_time_usec = UINT64_MAX;
+        *lock_wait_time_msec = UINT64_MAX;
     else
-        *lock_wait_time_usec = mgr->lock_wait_time.tv_sec * 1000000 + mgr->lock_wait_time.tv_usec;
+        *lock_wait_time_msec = mgr->lock_wait_time.tv_sec * 1000 + mgr->lock_wait_time.tv_usec / 1000;
 }

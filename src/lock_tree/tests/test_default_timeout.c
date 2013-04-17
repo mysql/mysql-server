@@ -38,12 +38,12 @@ int main(int argc, const char *argv[]) {
     toku_ltm_get_lock_wait_time(ltm, &the_wait_time);
     assert(the_wait_time == 0);
 
-    target_wait_time = 1*1000000 + 0;
+    target_wait_time = 1*1000 + 0;
     toku_ltm_set_lock_wait_time(ltm, target_wait_time);
     toku_ltm_get_lock_wait_time(ltm, &the_wait_time);
     assert(the_wait_time == target_wait_time);
 
-    target_wait_time = 2*1000000 + 3;
+    target_wait_time = 2*1000 + 3;
     toku_ltm_set_lock_wait_time(ltm, target_wait_time);
     toku_ltm_get_lock_wait_time(ltm, &the_wait_time);
     assert(the_wait_time == target_wait_time);

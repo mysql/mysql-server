@@ -1762,29 +1762,29 @@ locked_env_set_redzone(DB_ENV *env, int redzone) {
 }
 
 static int
-env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_usec) {
-    toku_ltm_get_lock_wait_time(env->i->ltm, lock_timeout_usec);
+env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
+    toku_ltm_get_lock_wait_time(env->i->ltm, lock_timeout_msec);
     return 0;
 }
 
 static int
-locked_env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_usec) {
+locked_env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
     toku_ydb_lock();
-    int r = env_get_lock_timeout(env, lock_timeout_usec);
+    int r = env_get_lock_timeout(env, lock_timeout_msec);
     toku_ydb_unlock();
     return r;
 }
 
 static int
-env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_usec) {
-    toku_ltm_set_lock_wait_time(env->i->ltm, lock_timeout_usec);
+env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
+    toku_ltm_set_lock_wait_time(env->i->ltm, lock_timeout_msec);
     return 0;
 }
 
 static int
-locked_env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_usec) {
+locked_env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
     toku_ydb_lock();
-    int r = env_set_lock_timeout(env, lock_timeout_usec);
+    int r = env_set_lock_timeout(env, lock_timeout_msec);
     toku_ydb_unlock();
     return r;
 }

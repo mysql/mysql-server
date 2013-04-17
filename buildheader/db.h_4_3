@@ -347,8 +347,8 @@ struct __toku_db_env {
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
   int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max);
   void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
-  int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_usec);
-  int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_usec);
+  int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec);
+  int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec);
   void* __toku_dummy0[11];
   char __toku_dummy1[96];
   void *api1_internal; /* 32-bit offset=244 size=4, 64=bit offset=392 size=8 */

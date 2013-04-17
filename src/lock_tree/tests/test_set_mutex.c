@@ -39,7 +39,7 @@ main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db, toku_malloc, toku_free, toku_realloc);
     assert(r == 0 && ltm);
 
-    toku_ltm_set_lock_wait_time(ltm, 5000000);
+    toku_ltm_set_lock_wait_time(ltm, 5000);
     
     toku_pthread_mutex_t my_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
     toku_ltm_set_mutex(ltm, &my_mutex);
