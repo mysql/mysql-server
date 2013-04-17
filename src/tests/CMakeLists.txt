@@ -617,7 +617,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   foreach(abortrecover_test ${abortrecover_tests})
     get_filename_component(base ${abortrecover_test} NAME_WE)
     add_test(NAME ydb/${base}.abortrecover
-      COMMAND run_abortrecover_test.sh $<TARGET_FILE:${base}.tdb> 137)
+      COMMAND run_abortrecover_test.sh $<TARGET_FILE:${base}.tdb>)
   endforeach(abortrecover_test)
 
   foreach(loader_test ${loader_tests})
