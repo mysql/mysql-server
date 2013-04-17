@@ -1359,8 +1359,27 @@ int tokudb_compare_two_keys(
     }
     new_key_bytes_left = new_key_size - ((u_int32_t)(new_key_ptr - (uchar *)new_key_data));
     saved_key_bytes_left = saved_key_size - ((u_int32_t)(saved_key_ptr - (uchar *)saved_key_data));
-    if (cmp_prefix || (new_key_bytes_left== 0 && saved_key_bytes_left== 0) ) {
+    if (cmp_prefix) {
         ret_val = 0;
+    }
+    //
+    // in this case, read both keys to completion, now read infinity byte
+    //
+    else if (new_key_bytes_left== 0 && saved_key_bytes_left== 0) {
+        if (new_key_inf_val == saved_key_inf_val) {
+            ret_val = 0;
+        }
+        //
+        // one inf byte is neg_inf and other is pos_inf
+        //
+        else {
+            //
+            // if new_key_inf_val is POS, then saved must be NEG,
+            // so return 1. Otherwise, new_key_inf_val is NEG, and
+            // saved is POS, so return -1
+            //
+            ret_val = (new_key_inf_val == COL_POS_INF ) ? 1 : -1;
+        }
     }
     //
     // at this point, one SHOULD be 0
