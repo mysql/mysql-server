@@ -993,6 +993,7 @@ int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
     trx->iso_level = hatoku_iso_not_set;
 
     *out_trx = trx;
+    error = 0;
 cleanup:
     return error;
 }
