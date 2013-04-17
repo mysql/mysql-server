@@ -10,10 +10,15 @@
 
 enum {NUM_INDEXER_INDEXES=1};
 static const int NUM_DBS = NUM_INDEXER_INDEXES + 1; // 1 for source DB
-static const int NUM_ROWS = 10;
-int num_rows;
-typedef enum {FORWARD = 0, BACKWARD} Direction;
-typedef enum {TXN_NONE = 0, TXN_CREATE = 1, TXN_END = 2} TxnWork;
+static const int NUM_ROWS = 100000;
+static int num_rows;
+static const int FORWARD = 0;
+static const int BACKWARD = 1;
+typedef int Direction;
+static const int TXN_NONE = 0;
+static const int TXN_CREATE = 1;
+static const int TXN_END = 2;
+typedef int TxnWork;
 
 DB_ENV *env;
 
@@ -50,7 +55,7 @@ static void * client(void *arg)
     assert(cs->dir == FORWARD || cs->dir == BACKWARD);
 
     int r;
-    if ( cs->txnwork | TXN_CREATE ) { r = env->txn_begin(env, NULL, &cs->txn, 0);  CKERR(r); }
+    if ( cs->txnwork & TXN_CREATE ) { r = env->txn_begin(env, NULL, &cs->txn, 0);  CKERR(r); }
 
     DBT key, val;
     DBT dest_keys[NUM_DBS];
@@ -66,7 +71,8 @@ static void * client(void *arg)
         dest_vals[which].flags = DB_DBT_REALLOC;
     }
 
-    int rr;
+    int rr = 0;
+    int retry = 0;
     for (uint32_t i = 0; i < cs->num; i++ ) {
         DB_TXN *txn;
         env->txn_begin(env, cs->txn, &txn, 0);
@@ -75,16 +81,20 @@ static void * client(void *arg)
         dbt_init(&key, &k, sizeof(k));
         dbt_init(&val, &v, sizeof(v));
 
-        rr = env->put_multiple(env,
-                               cs->dbs[0],
-                               txn,
-                               &key, 
-                               &val,
-                               NUM_DBS,
-                               cs->dbs, // dest dbs
-                               dest_keys,
-                               dest_vals, 
-                               cs->flags);
+        while ( retry++ < 10 ) {
+            rr = env->put_multiple(env,
+                                   cs->dbs[0],
+                                   txn,
+                                   &key, 
+                                   &val,
+                                   NUM_DBS,
+                                   cs->dbs, // dest dbs
+                                   dest_keys,
+                                   dest_vals, 
+                                   cs->flags);
+            if ( rr == 0 ) break;
+            sleep(0);
+        }
         if ( rr != 0 ) {
             if ( verbose ) printf("client[%u] : put_multiple returns %d, i=%u, n=%u, key=%u\n", cs->client_number, rr, i, n, k);
             r = txn->abort(txn); CKERR(r);
@@ -92,9 +102,10 @@ static void * client(void *arg)
         }
         r = txn->commit(txn, 0); CKERR(r);
         n = ( cs->dir == FORWARD ) ? n + 1 : n - 1;
+        retry = 0;
     }
 
-    if ( cs->txnwork | TXN_END )    { r = cs->txn->commit(cs->txn, DB_TXN_SYNC);       CKERR(r); }
+    if ( cs->txnwork & TXN_END )    { r = cs->txn->commit(cs->txn, DB_TXN_SYNC);       CKERR(r); }
     if (verbose) printf("client[%d] done\n", cs->client_number);
 
     for (int which=0; which<NUM_DBS; which++) {
