@@ -718,7 +718,7 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
     uint saved_key_length = saved_key->size;
 
     //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
-    for (; key_part != end && (int) key_length > 0; key_part++) {
+    for (; key_part != end && (int) key_length > 0 && (int) saved_key_length > 0; key_part++) {
         int cmp;
         uint length;
         if (key_part->null_bit) {
@@ -727,6 +727,46 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
             if (*new_key_ptr != *saved_key_ptr++)
                 return ((int) *new_key_ptr - (int) saved_key_ptr[-1]);
             key_length--;
+            saved_key_length--;
+            if (!*new_key_ptr++)
+                continue;
+        }
+        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
+            return cmp;
+        length = key_part->field->packed_col_length(new_key_ptr, key_part->length);
+        new_key_ptr += length;
+        key_length -= length;
+        length = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+        saved_key_ptr += length;
+        saved_key_length -= length;
+    }
+    if (key_length < saved_key_length)
+        return -1;
+    if (key_length > saved_key_length)
+        return 1;
+    return 0;
+}
+
+static int tokudb_prefix_cmp_packed_key(DB * file, const DBT * new_key, const DBT * saved_key) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->app_private;
+    uchar *new_key_ptr = (uchar *) new_key->data;
+    uchar *saved_key_ptr = (uchar *) saved_key->data;
+    KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
+    uint key_length = new_key->size;
+    uint saved_key_length = saved_key->size;
+
+    //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
+    for (; key_part != end && (int) key_length > 0 && (int) saved_key_length > 0; key_part++) {
+        int cmp;
+        uint length;
+        if (key_part->null_bit) {
+            assert(new_key_ptr < (uchar *) new_key->data + new_key->size);
+            assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
+            if (*new_key_ptr != *saved_key_ptr++)
+                return ((int) *new_key_ptr - (int) saved_key_ptr[-1]);
+            key_length--;
+            saved_key_length--;
             if (!*new_key_ptr++)
                 continue;
         }
@@ -1743,7 +1783,13 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
 
     switch (find_flag) {
     case HA_READ_KEY_EXACT:
-        error = cursor->c_get(cursor, &last_key, &row, DB_SET);
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0) {
+            DBT orig_key;
+            pack_key(&orig_key, active_index, key_buff2, key, key_len);
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key))
+                error = DB_NOTFOUND;
+        }
         error = read_row(error, buf, active_index, &row, 0, 0);
         break;
     case HA_READ_AFTER_KEY:
@@ -1752,7 +1798,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             DBT orig_key;
             for (;;) {
                 pack_key(&orig_key, active_index, key_buff2, key, key_len);
-                if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+                if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
                     break;
                 error = cursor->c_get(cursor, &last_key, &row, DB_NEXT);
                 if (error != 0)
@@ -1778,7 +1824,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len);
-            if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
                 error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
         } else 
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
@@ -1790,7 +1836,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             DBT orig_key;
             for (;;) {
                 pack_key(&orig_key, active_index, key_buff2, key, key_len);
-                if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+                if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
                     break;
                 error = cursor->c_get(cursor, &last_key, &row, DB_NEXT);
                 if (error != 0)
