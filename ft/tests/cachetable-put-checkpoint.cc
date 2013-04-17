@@ -42,6 +42,7 @@ static void
 clone_callback(
     void* value_data, 
     void** cloned_value_data, 
+    long* clone_size,
     PAIR_ATTR* new_attr, 
     bool UU(for_checkpoint), 
     void* UU(write_extraargs)
@@ -52,6 +53,7 @@ clone_callback(
     *data_val = *(int64_t *)value_data;
     *cloned_value_data = data_val;
     *new_attr = make_pair_attr(8);
+    *clone_size = 8;
 }
 
 static void

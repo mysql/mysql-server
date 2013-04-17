@@ -7,9 +7,10 @@
 #include "cachetable-test.h"
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
+    *clone_size = 8;
     new_attr->is_valid = false;
 }
 

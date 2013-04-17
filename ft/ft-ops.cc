@@ -746,6 +746,7 @@ void toku_ftnode_checkpoint_complete_callback(void *value_data) {
 void toku_ftnode_clone_callback(
     void* value_data,
     void** cloned_value_data,
+    long* clone_size,
     PAIR_ATTR* new_attr,
     bool for_checkpoint,
     void* write_extraargs
@@ -796,6 +797,7 @@ void toku_ftnode_clone_callback(
     else {
         new_attr->is_valid = false;
     }
+    *clone_size = ftnode_memory_size(cloned_node);
     *cloned_value_data = cloned_node;
 }
 
