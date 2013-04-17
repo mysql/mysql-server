@@ -81,6 +81,7 @@ BDB_DONTRUN_TESTS = \
 	helgrind1 \
 	helgrind2 \
 	helgrind3 \
+	powerfail \
 	test1426 \
 	test1572 \
 	test_logflush \
@@ -519,6 +520,9 @@ test-recover3.tdbrun: VGRIND=
 
 # filesize is too slow with vgrind.
 filesize.tdbrun: VGRIND=
+
+powerfail.tdbrun:
+	@echo must run powerfail by hand $(SUMMARIZE_CMD)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
