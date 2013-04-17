@@ -562,7 +562,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 	    struct brt_header * header_in_node = brtnode->h;
 	    invariant(header_in_node == h);
 	    update_header_stats(&(h->on_disk_stats), &deltas);
-	    if (for_checkpoint || toku_cachefile_is_closing(cachefile)) {
+	    if (for_checkpoint) {
 		update_header_stats(&(h->checkpoint_staging_stats), &deltas);
 	    }
             if (for_checkpoint)
