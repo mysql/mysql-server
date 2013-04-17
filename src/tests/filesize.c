@@ -54,13 +54,14 @@ fill_rand(int n, uint64_t * d) {
     }
 }
 
+#define INSERT_BIG 1500
+#define INSERT_SMALL 0
 static void
-insert_n (u_int32_t ah) {
-    int datasize = 1500;
+insert_n (u_int32_t ah, int datasize) {
     uint64_t vdata[datasize];
     fill_rand(datasize, vdata);
     u_int32_t an = htonl(ah);
-    //    printf("insert an = %0X (ah = %0X)\n", an, ah);
+    //    if (verbose) printf("insert an = %0X (ah = %0X)\n", an, ah);
     DBT key = {.size = 4,             .data=&an };
     DBT val = {.size = sizeof(vdata), .data=vdata};
     int r = db->put(db, NULL, &key, &val, DB_YESOVERWRITE);
@@ -72,7 +73,7 @@ static void
 delete_n (u_int32_t ah)
 {
     u_int32_t an = htonl(ah);
-    //    printf("delete an = %0X (ah = %0X)\n", an, ah);
+    //    if (verbose) printf("delete an = %0X (ah = %0X)\n", an, ah);
     DBT key = {.size = 4,             .data=&an };
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
     if (r == 0)
@@ -101,11 +102,11 @@ scan(int n) {
     r = dbc->c_get(dbc, &k, &v, DB_FIRST);
     if (r==0) {
 	nread++;
-	//	printf("First read, r = %0X, key = %0X (size=%d)\n", r, *(uint32_t*)k.data, k.size);
+	//	if (verbose) printf("First read, r = %0X, key = %0X (size=%d)\n", r, *(uint32_t*)k.data, k.size);
     }
     else if (r == DB_NOTFOUND)  {
 	nread_notfound++;
-	//	printf("First read failed: %d\n", r);
+	//	if (verbose) printf("First read failed: %d\n", r);
     }
     else
 	nread_failed++;
@@ -113,7 +114,7 @@ scan(int n) {
 	r = dbc->c_get(dbc, &k, &v, DB_NEXT);
 	if (r == 0) {
 	    nread++;
-	    //	    printf("read key = %0X (size=%d)\n", *(uint32_t*)k.data, k.size);
+	    //	    if (verbose) printf("read key = %0X (size=%d)\n", *(uint32_t*)k.data, k.size);
 	}
 	else if (r == DB_NOTFOUND)
 	    nread_notfound++;
@@ -135,7 +136,7 @@ get_file_pathname(void) {
     int r = env->get_iname(env, &dname, &iname);
     CKERR(r);
     sprintf(path, "%s/%s", ENVDIR, (char*)iname.data);
-    printf("path = %s\n", path);
+    if (verbose) printf("path = %s\n", path);
 }
 
 
@@ -151,7 +152,7 @@ getsizeM(void) {
 static void
 test_filesize (void)
 {
-    int N=1<<16;
+    int N=1<<14;
     int r, i, sizeM;
 
     get_file_pathname();
@@ -160,13 +161,13 @@ test_filesize (void)
 	int offset = N * iter;
 
 	for (i=0; i<N; i++) {
-	    insert_n(i + offset);
+	    insert_n(i + offset, INSERT_BIG);
 	}
 	
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);
-	sizeM = getsizeM();
-	printf("Filesize after iteration %d insertion and checkpoint = %dM\n", iter, sizeM);
+	int sizefirst = sizeM = getsizeM();
+	if (verbose) printf("Filesize after iteration %d insertion and checkpoint = %dM\n", iter, sizeM);
 	
 	int preserve = 2;
 	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
@@ -177,32 +178,33 @@ test_filesize (void)
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);
 	sizeM = getsizeM();
-	printf("Filesize after iteration %d deletion and checkpoint 1 = %dM\n", iter, sizeM);
+	if (verbose) printf("Filesize after iteration %d deletion and checkpoint 1 = %dM\n", iter, sizeM);
 
-	insert_n(preserve+offset + 1);
+	for (i=0; i<N; i++) {
+	    insert_n(i + offset, INSERT_SMALL);
+	}
+	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
+	    delete_n(i + offset);
+	}
+	scan(N);
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);
 	sizeM = getsizeM();
-	printf("Filesize after iteration %d deletion and checkpoint 2 = %dM\n", iter, sizeM);
+	if (verbose) printf("Filesize after iteration %d deletion and checkpoint 2 = %dM\n", iter, sizeM);
+        assert(sizeM < sizefirst);
 
-	insert_n(preserve+offset+2);
-	r = env->txn_checkpoint(env, 0, 0, 0);
-	CKERR(r);
-	sizeM = getsizeM();
-	printf("Filesize after iteration %d deletion and checkpoint 3 = %dM\n", iter, sizeM);
-
-	printf("ninsert = %d\n", ninsert);
-	printf("nread = %d, nread_notfound = %d, nread_failed = %d\n", nread, nread_notfound, nread_failed);
-	printf("ndelete = %d, ndelete_notfound = %d, ndelete_failed = %d\n", ndelete, ndelete_notfound, ndelete_failed);
+	if (verbose) printf("ninsert = %d\n", ninsert);
+	if (verbose) printf("nread = %d, nread_notfound = %d, nread_failed = %d\n", nread, nread_notfound, nread_failed);
+	if (verbose) printf("ndelete = %d, ndelete_notfound = %d, ndelete_failed = %d\n", ndelete, ndelete_notfound, ndelete_failed);
     }
 }
 
 int test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     parse_args(argc, argv);
     setup();
-    print_engine_status(env);
+    if (verbose) print_engine_status(env);
     test_filesize();
-    print_engine_status(env);
+    if (verbose) print_engine_status(env);
     close_em();
     return 0;
 }
