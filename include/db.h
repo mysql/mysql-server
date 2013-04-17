@@ -13,17 +13,14 @@ extern "C" {
 #define TOKUDB_NATIVE_H 1
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 6
-#define DB_VERSION_PATCH 19
-#ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.19"
-#else
-#define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
-#endif
+/* As of r40364 (post TokuDB 5.2.7), the patch version number is 100+ the BDB header patch version number.*/
+#define DB_VERSION_PATCH 119
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.119"
+#define DB_GID_SIZE 128
 #ifndef TOKU_OFF_T_DEFINED
 #define TOKU_OFF_T_DEFINED
 typedef int64_t toku_off_t;
 #endif
-#define DB_GID_SIZE 128
 typedef struct __toku_db_env DB_ENV;
 typedef struct __toku_db_key_range DB_KEY_RANGE;
 typedef struct __toku_db_lsn DB_LSN;
@@ -37,9 +34,6 @@ typedef struct __toku_db_preplist { DB_TXN *txn; uint8_t gid[DB_GID_SIZE]; } DB_
 typedef u_int32_t db_recno_t;
 typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 #include <tdb-internal.h>
-#ifndef __BIGGEST_ALIGNMENT__
-  #define __BIGGEST_ALIGNMENT__ 16
-#endif
 typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */
   u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
@@ -75,6 +69,8 @@ typedef enum {
     FS_RED = 2,                                     // red zone    (prevent insert operations) 
     FS_BLOCKED = 3                                  // For reporting engine status, completely blocked 
 } fs_redzone_state;
+// engine status info
+// engine status is passed to handlerton as an array of TOKU_ENGINE_STATUS_ROW_S[]
 typedef enum {
    FS_STATE = 0,   // interpret as file system state (redzone) enum 
    UINT64,         // interpret as uint64_t 
@@ -95,7 +91,6 @@ typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5
 } DBTYPE;
-#ifndef _TOKUDB_WRAP_H
 #define DB_VERB_DEADLOCK 1
 #define DB_VERB_RECOVERY 8
 #define DB_VERB_REPLICATION 32
@@ -167,7 +162,6 @@ typedef enum {
 #define DB_READ_COMMITTED 67108864
 #define DB_INHERIT_ISOLATION 1
 #define DB_SERIALIZABLE 2
-#endif
 /* TOKUDB specific error codes */
 #define TOKUDB_OUT_OF_LOCKS -100000
 #define TOKUDB_SUCCEEDED_EARLY -100001
@@ -188,10 +182,6 @@ typedef enum {
 #define LOADER_USE_PUTS 1
 typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);
 typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_val);
-/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
-#ifdef _TOKUDB_WRAP_H
-#undef txn_begin
-#endif
 struct __toku_db_env {
   struct __toku_db_env_internal *i;
 #define db_env_struct_i(x) ((x)->i)
@@ -207,10 +197,9 @@ struct __toku_db_env {
   int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */;
   int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*get_engine_status_num_rows)           (DB_ENV*, uint64_t*)  /* return number of rows in engine status */;
-  void *app_private;
   int (*get_engine_status)                    (DB_ENV*, TOKU_ENGINE_STATUS_ROW, uint64_t, fs_redzone_state*, uint64_t*, char*, int) /* Fill in status struct and redzone state, possibly env panic string */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
-  int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);;
+  int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
   int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
   int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags);
@@ -235,6 +224,7 @@ struct __toku_db_env {
   void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
   int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec);
   int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec);
+  void *app_private;
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);
@@ -298,8 +288,6 @@ struct __toku_db {
 #define db_struct_i(x) ((x)->i)
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
   int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
-  void *app_private;
-  DB_ENV *dbenv;
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   int (*pre_acquire_fileops_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
@@ -318,6 +306,8 @@ struct __toku_db {
   int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);
   int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags);
   int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags);
+  void *app_private;
+  DB_ENV *dbenv;
   void *api_internal;
   int (*close) (DB*, u_int32_t);
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t);
@@ -353,12 +343,12 @@ struct txn_stat {
   u_int64_t rollback_raw_count;
 };
 struct __toku_db_txn {
-  DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/;
-  DB_TXN *parent;
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   struct toku_list open_txns;
   int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*);
   int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*);
+  DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/;
+  DB_TXN *parent;
   void *api_internal;
   int (*abort) (DB_TXN *);
   int (*commit) (DB_TXN*, u_int32_t);
@@ -370,7 +360,6 @@ struct __toku_db_txn_stat {
   DB_TXN_ACTIVE *st_txnarray;
 };
 struct __toku_dbc {
-  DB *dbp;
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
@@ -381,14 +370,12 @@ struct __toku_dbc {
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_pre_acquire_range_lock)(DBC*, const DBT*, const DBT*);
+  DB *dbp;
   int (*c_close) (DBC *);
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t);
 };
-#ifdef _TOKUDB_WRAP_H
-#define txn_begin txn_begin_tokudb
-#endif
 int db_env_create(DB_ENV **, u_int32_t) __attribute__((__visibility__("default")));
 int db_create(DB **, DB_ENV *, u_int32_t) __attribute__((__visibility__("default")));
 char *db_strerror(int) __attribute__((__visibility__("default")));
