@@ -1567,9 +1567,13 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
-	    r = toku_ltm_get_max_locks(ltm, &(engstat->range_locks_max));                   assert(r==0);
-	    r = toku_ltm_get_max_locks_per_db(ltm, &(engstat->range_locks_max_per_index));  assert(r==0);
-	    r = toku_ltm_get_curr_locks(ltm, &(engstat->range_locks_curr));                 assert(r==0);
+	    LTM_STATUS_S ltmstat;
+	    toku_ltm_get_status(ltm, &ltmstat);
+	    engstat->range_locks_max                 = ltmstat.max_locks;
+	    engstat->range_locks_max_per_index       = ltmstat.max_locks_per_db;
+	    engstat->range_locks_curr                = ltmstat.curr_locks;
+	    engstat->range_lock_escalation_successes = ltmstat.lock_escalation_successes;
+	    engstat->range_lock_escalation_failures  = ltmstat.lock_escalation_failures;
 	}
 	{
 	    engstat->inserts            = num_inserts;
@@ -1655,6 +1659,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
     n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_index        %"PRIu32"\n", engstat.range_locks_max_per_index);
     n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu32"\n", engstat.range_lock_escalation_successes);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu32"\n", engstat.range_lock_escalation_failures);
     n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
     n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
     n += snprintf(buff + n, bufsiz - n, "commits                          %"PRIu64"\n", engstat.commits);
