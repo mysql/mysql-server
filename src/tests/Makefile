@@ -126,7 +126,6 @@ BDB_DONTRUN_TESTS = \
         keyrange-dupsort \
         keyrange-dupsort-unflat \
         keyrange-unflat \
-	loader-blobs-create-leaf \
         loader-cleanup-test \
 	loader-create-abort \
 	loader-create-close \
@@ -320,6 +319,7 @@ BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DON
 endif
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
+	loader_blobs_leaf_split \
 	test_blobs_leaf_split \
 	test_truncate_txn_abort \
 	test_db_no_env \
