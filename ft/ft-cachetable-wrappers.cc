@@ -136,6 +136,8 @@ toku_pin_ftnode_batched(
 {
     void *node_v;
     *msgs_applied = false;
+    pair_lock_type needed_lock_type = lock_type;
+try_again_for_write_lock:
     int r = toku_cachetable_get_and_pin_nonblocking_batched(
             brt->ft->cf,
             blocknum,
@@ -146,16 +148,32 @@ toku_pin_ftnode_batched(
             toku_ftnode_fetch_callback,
             toku_ftnode_pf_req_callback,
             toku_ftnode_pf_callback,
-            lock_type,
+            needed_lock_type,
             bfe, //read_extraargs
             unlockers);
     if (r==0) {
-        FTNODE node = (FTNODE) node_v;
+        FTNODE node = static_cast<FTNODE>(node_v);
+        MSN max_msn_in_path;
+        bool needs_ancestors_messages = false;
+        if (apply_ancestor_messages && node->height == 0) {
+            needs_ancestors_messages = toku_ft_leaf_needs_ancestors_messages(brt->ft, node, ancestors, bounds, &max_msn_in_path);
+            if (needs_ancestors_messages && needed_lock_type == PL_READ) {
+                toku_unpin_ftnode_read_only(brt, node);
+                needed_lock_type = PL_WRITE_CHEAP;
+                goto try_again_for_write_lock;
+            }
+        }
         if (end_batch_on_success) {
             toku_cachetable_end_batched_pin(brt->ft->cf);
         }
         if (apply_ancestor_messages && node->height == 0) {
-            toku_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
+            if (needs_ancestors_messages) {
+                invariant(needed_lock_type != PL_READ);
+                toku_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
+            } else {
+                toku_ft_bn_update_max_msn(node, max_msn_in_path);
+            }
+            invariant(needed_lock_type != PL_READ || !*msgs_applied);
         }
         if ((lock_type != PL_READ) && node->height > 0) {
             toku_move_ftnode_messages_to_stale(brt->ft, node);
