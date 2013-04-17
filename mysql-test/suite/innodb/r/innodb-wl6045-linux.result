@@ -31,7 +31,7 @@ main: info: Page::# is empty and uncorrupted
 # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
 # Print the information for debug option.
-find_type: enter: x: 'crc32'  lib: #x#a#
+
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -58,7 +58,7 @@ main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=crc32 for innochecksum tool.
-find_type: enter: x: 'crc32'  lib: #x#a#
+
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
@@ -105,7 +105,7 @@ page-type-dump                    (No default value)
        #	Index page
        #	Undo log page
        #	Inode page
-       #	Insert buffer free list page
+       #	INSERT buffer free list page
        #	Freshly allocated page
        #	Insert buffer bitmap
        #	System page
@@ -120,7 +120,7 @@ Additional information:
 Undo page type: # insert, # update, # other
 Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
 # Print the information for debug option.
-find_type: enter: x: 'none'  lib: #x#a#
+
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -147,7 +147,7 @@ main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=none for innochecksum tool.
-find_type: enter: x: 'none'  lib: #x#a#
+
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
@@ -168,7 +168,7 @@ main: info: Page::# is empty and uncorrupted
 # Test[4] for read from standard input for innochecksum tool with rewrite of "innodb" checksum.
 # Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
 # Print the information for debug option.
-find_type: enter: x: 'innodb'  lib: #x#a#
+
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -195,7 +195,7 @@ main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=innodb for innochecksum tool.
-find_type: enter: x: 'innodb'  lib: #x#a#
+
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style:calculated = #; recorded checksum = #

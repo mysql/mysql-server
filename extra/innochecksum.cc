@@ -279,40 +279,29 @@ open_file(
  Read the content of file
 
  @param  [in,out]	buf			read the file in buffer
- @param  [in]		min_page		minimum page size read buffer
+ @param  [in]		partial_page_read	enable when to read the
+						remaining buffer for first page.
  @param  [in]		physical_page_size	Physical/Commpressed page size.
  @param  [in,out]	fil_in			file pointer created for the
 						tablespace.
  @retval no. of bytes read.
 */
 ulong read_file(
-	byte*	buf,
-	byte*	min_page,
+	byte**	buf,
 	bool	partial_page_read,
 	ulong	physical_page_size,
 	FILE**	fil_in)
 {
 	ulong bytes = 0;
-	/* page to read the remaining buffer for first page. */
-	byte* page;
-
 	if (partial_page_read) {
-		page = (unsigned char*) malloc(
-				sizeof(unsigned char)
-				* (physical_page_size - UNIV_PAGE_SIZE_MIN));
-
-		bytes = fread(page, 1,
+		bytes = fread(*buf + UNIV_PAGE_SIZE_MIN, 1,
 				physical_page_size - UNIV_PAGE_SIZE_MIN,
 				*fil_in);
-
-		memcpy(buf, min_page, UNIV_PAGE_SIZE_MIN);
-		memcpy(buf + UNIV_PAGE_SIZE_MIN, page,
-			physical_page_size - UNIV_PAGE_SIZE_MIN);
 
 		bytes += UNIV_PAGE_SIZE_MIN;
 
 	} else {
-		bytes = fread(buf, 1, physical_page_size, *fil_in);
+		bytes = fread(*buf, 1, physical_page_size, *fil_in);
 	}
 	return bytes;
 }
@@ -958,9 +947,9 @@ int main(
 	/* our input filename. */
 	char*		filename;
 	/* Buffer to store pages read. */
-	uchar		buf[UNIV_PAGE_SIZE_MAX];
-	/* Buffer the minimum page size for first page. */
-	uchar		min_page[UNIV_PAGE_SIZE_MIN];
+	byte* buf = (uchar*) malloc(
+			sizeof(uchar) * (UNIV_PAGE_SIZE_MAX));
+
 	/* bytes read count */
 	ulong		bytes;
 	/* current time */
@@ -1113,7 +1102,7 @@ int main(
 #endif
 
 		/* Read the minimum page size. */
-		bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, fil_in);
+		bytes = fread(buf, 1, UNIV_PAGE_SIZE_MIN, fil_in);
 		partial_page_read = 1;
 
 		if (bytes != UNIV_PAGE_SIZE_MIN) {
@@ -1128,11 +1117,11 @@ int main(
 		/* enable variable is_system_tablespace when space_id of given
 		file is zero. Use to skip the checksum verification and rewrite
 		for doublewrite pages. */
-		is_system_tablespace = (!memcmp(&space_id, min_page +
+		is_system_tablespace = (!memcmp(&space_id, buf +
 					FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4))
 					? true : false;
 
-		get_page_size(min_page, &logical_page_size,
+		get_page_size(buf, &logical_page_size,
 			      &physical_page_size, &compressed);
 
 		pages = (ulint)(size / physical_page_size);
@@ -1196,7 +1185,7 @@ int main(
 					(fseeko() on stdin doesn't work). So
 					read only the remaining part of page,
 					if partial_page_read is enable. */
-					bytes = read_file(buf, min_page,
+					bytes = read_file(&buf,
 							  partial_page_read,
 							  physical_page_size,
 							  &fil_in);
@@ -1234,7 +1223,7 @@ int main(
 		lastt = 0;
 		while (!feof(fil_in)) {
 
-			bytes = read_file(buf, min_page, partial_page_read,
+			bytes = read_file(&buf, partial_page_read,
 					  physical_page_size,&fil_in);
 			partial_page_read = 0;
 
@@ -1317,6 +1306,7 @@ int main(
 					}
 					/* Save the current file pointer in pos
 					variable */
+					fflush(fil_in);
 					fgetpos(fil_in, &pos);
 				}
 			}
