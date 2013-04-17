@@ -219,7 +219,7 @@ toku_txn_abort_only(DB_TXN * txn,
 static int
 toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     if (!txn) return EINVAL;
-    if (txn->parent) return EINVAL;
+    if (txn->parent) return 0; // make this a NO-OP, MySQL calls this
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively commit any children.
     if (db_txn_struct_i(txn)->child) {
