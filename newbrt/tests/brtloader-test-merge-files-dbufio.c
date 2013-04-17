@@ -176,16 +176,10 @@ static void reset_my_malloc_counts(void) {
 size_t min_malloc_error_size = 0;
 
 static void *my_malloc(size_t n) {
-    void *caller = __builtin_return_address(0);
-    if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
-        goto skip;
     my_malloc_count++;
     if (n >= min_malloc_error_size) {
         my_big_malloc_count++;
         if (my_malloc_event) {
-            caller = __builtin_return_address(1);
-            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_set_func_malloc)
-                goto skip;
             event_count++;
             if (event_count == event_count_trigger) {
                 event_hit();
@@ -195,23 +189,16 @@ static void *my_malloc(size_t n) {
             }
         }
     }
- skip:
     return malloc(n);
 }
 
 static int do_realloc_errors = 1;
 
 static void *my_realloc(void *p, size_t n) {
-    void *caller = __builtin_return_address(0);
-    if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
-        goto skip;
     my_realloc_count++;
     if (n >= min_malloc_error_size) {
         my_big_realloc_count++;
         if (do_realloc_errors) {
-            caller = __builtin_return_address(1);
-            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_set_func_malloc)
-                goto skip;
             event_count++;
             if (event_count == event_count_trigger) {
                 event_hit();
@@ -221,7 +208,6 @@ static void *my_realloc(void *p, size_t n) {
             }
         }
     }
- skip:
     return realloc(p, n);
 }
 
@@ -380,8 +366,8 @@ static void test (const char *directory, BOOL is_error) {
 	assert(r==0);
     }
 
-    toku_set_func_malloc(my_malloc);
-    toku_set_func_realloc(my_realloc);
+    toku_set_func_malloc_only(my_malloc);
+    toku_set_func_realloc_only(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);

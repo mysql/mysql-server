@@ -6246,17 +6246,20 @@ db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FI
 
 int 
 db_env_set_func_malloc (void *(*f)(size_t)) {
-    return toku_set_func_malloc(f);
+    toku_set_func_malloc(f);
+    return 0;
 }
 
 int 
 db_env_set_func_realloc (void *(*f)(void*, size_t)) {
-    return toku_set_func_realloc(f);
+    toku_set_func_realloc(f);
+    return 0;
 }
 
 int 
 db_env_set_func_free (void (*f)(void*)) {
-    return toku_set_func_free(f);
+    toku_set_func_free(f);
+    return 0;
 }
 
 
