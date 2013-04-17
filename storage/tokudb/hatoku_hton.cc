@@ -1028,6 +1028,23 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("dictionary deletes", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes_fail);
       STATPRINT("dictionary deletes fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates);
+      STATPRINT("dictionary updates", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_fail);
+      STATPRINT("dictionary updates fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
+      STATPRINT("dictionary inserts multi", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
+      STATPRINT("dictionary inserts multi fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_deletes);
+      STATPRINT("dictionary deletes multi", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_deletes_fail);
+      STATPRINT("dictionary deletes multi fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_updates);
+      STATPRINT("dictionary updates multi", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_updates_fail);
+      STATPRINT("dictionary updates multi fail", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.point_queries);
       STATPRINT("dictionary point queries", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
