@@ -535,7 +535,7 @@ inline uchar* pack_toku_varstring(
 }
 
 
-inline uchar* pack_toku_varblob(
+inline uchar* pack_toku_blob(
     uchar* to_tokudb, 
     uchar* from_mysql, 
     u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
@@ -863,7 +863,7 @@ uchar* pack_toku_field(
             );
         goto exit;
     case (toku_type_blob):
-        new_pos = pack_toku_varblob(
+        new_pos = pack_toku_blob(
             to_tokudb,
             from_mysql,
             get_length_bytes_from_max(key_part_length),
