@@ -70,7 +70,7 @@ doit (void) {
     gettimeofday(&endt, 0);
     long long ninserts = NINSERTS_PER * NFILES;
     double diff = (endt.tv_sec - startt.tv_sec) + 1e-6*(endt.tv_usec-startt.tv_usec);
-    printf("%lld insertions in %9.6fs, %9.3f ins/s \n", ninserts, diff, ninserts/diff);
+    if (verbose) printf("%lld insertions in %9.6fs, %9.3f ins/s \n", ninserts, diff, ninserts/diff);
 }
 
 int

@@ -121,4 +121,8 @@ void toku_pwrite_lock_destroy(void);
 void maybe_preallocate_in_file (int fd, u_int64_t size);
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
+int toku_brt_note_table_lock (BRT brt, TOKUTXN txn);
+// Effect: Record the fact that the BRT has a table lock (and thus no other txn will modify it until this txn completes.  As a result, we can limit the amount of information in the rollback data structure.
+
+
 #endif

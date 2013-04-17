@@ -33,6 +33,7 @@ SRCS = $(sort $(wildcard *.c))
 
 TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
 BDB_DONTRUN_TESTS = \
+	bug1381 \
 	bug627 \
 	test_abort1 \
 	keyrange \
