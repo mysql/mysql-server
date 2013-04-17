@@ -758,10 +758,10 @@ loader-tests: $(LOADER_TESTS)
 HOTINDEXER_UNDO_TESTS = $(wildcard hotindexer-undo-do-tests/*.test)
 CHECK_HOTINDEXER_UNDO_TESTS = $(patsubst %.test,%.run,$(HOTINDEXER_UNDO_TESTS))
 
-hotindexer-undo-do-test.tdbrun: hotindexer-undo-do-test.tdb$(BINSUF) $(CHECK_HOTINDEXER_UNDO_TESTS)
+hotindexer-undo-do-test.tdbrun: $(CHECK_HOTINDEXER_UNDO_TESTS)
 	true
 
-$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test
+$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF)
 	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
 clean:
