@@ -844,7 +844,7 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
 }
 
 static int recover_lock(const char *lock_dir, int *lockfd) {
-    const char fname[] = "/__recoverylock_dont_delete_me";
+    const char fname[] = "/__tokudb_recoverylock_dont_delete_me";
     int namelen=strlen(lock_dir);
     char lockfname[namelen+sizeof(fname)];
 
