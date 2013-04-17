@@ -7774,10 +7774,37 @@ volatile int ha_tokudb_add_index_wait = 0;
 
 int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
-    while (ha_tokudb_add_index_wait) sleep(1); // debug
-    int error = HA_ERR_WRONG_COMMAND;
+    DB_TXN* txn = NULL;
+    int error;
+    bool incremented_numDBs = false;
+    bool modified_DBs = false;
+    
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
+
+    error = tokudb_add_index(
+        table_arg,
+        key_info,
+        num_of_keys,
+        txn,
+        &incremented_numDBs,
+        &modified_DBs
+        );
+    if (error) { goto cleanup; }
+    
+cleanup:
+    if (error) {
+        if (txn) {
+            restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
+            abort_txn(txn);
+        }
+    }
+    else {
+      commit_txn(txn, 0);
+    }
     TOKUDB_DBUG_RETURN(error);
 }
+
 #endif
 
 volatile int ha_tokudb_drop_indexes_wait = 0; // debug
