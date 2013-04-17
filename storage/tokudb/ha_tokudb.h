@@ -82,7 +82,6 @@ typedef struct st_tokudb_share {
     bool replace_into_fast;
     rw_lock_t num_DBs_lock;
     u_int32_t num_DBs;
-    bool rec_has_buff[MAX_KEY + 1];
 } TOKUDB_SHARE;
 
 #define HA_TOKU_ORIG_VERSION 4
@@ -212,17 +211,14 @@ private:
 
 
     //
-    // individual key buffer for each index
+    // individual DBTs for each index
     //
-    uchar* mult_key_buff[2*(MAX_KEY + 1)];
-    uchar* mult_rec_buff[MAX_KEY + 1];
     DBT mult_key_dbt[2*(MAX_KEY + 1)];
     DBT mult_rec_dbt[MAX_KEY + 1];
     u_int32_t mult_put_flags[MAX_KEY + 1];
     u_int32_t mult_del_flags[MAX_KEY + 1];
     u_int32_t mult_dbt_flags[MAX_KEY + 1];
     
-    ulong alloced_mult_rec_buff_length;
 
     //
     // when unpacking blobs, we need to store it in a temporary
@@ -320,8 +316,6 @@ private:
     
     bool fix_rec_buff_for_blob(ulong length);
     bool fix_rec_update_buff_for_blob(ulong length);
-    void handle_rec_buff_for_hot_index();
-    void fix_mult_rec_buff();
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
