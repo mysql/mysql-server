@@ -143,8 +143,10 @@ toku_multi_operation_client_unlock(void) {
 
 void 
 toku_checkpoint_safe_client_lock(void) {
+    toku_multi_operation_client_lock();
     int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);   
     assert(r == 0);
+    toku_multi_operation_client_unlock();
 }
 
 void 
