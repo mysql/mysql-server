@@ -45,6 +45,15 @@ REGRESSION_TESTS_RAW = \
 	cachetable-count-pinned-test \
 	cachetable-debug-test \
 	cachetable-debug-test \
+	cachetable-checkpoint-test \
+	cachetable-prefetch-maybegetandpin-test \
+	cachetable-prefetch2-test \
+	cachetable-prefetch-close-test \
+	cachetable-prefetch-close-fail-test \
+	cachetable-prefetch-getandpin-test \
+	cachetable-prefetch-getandpin-fail-test \
+	cachetable-prefetch-checkpoint-test \
+	cachetable-prefetch-flowcontrol-test \
 	fifo-test \
 	list-test \
 	keyrange \

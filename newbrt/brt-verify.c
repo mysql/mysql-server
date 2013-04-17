@@ -171,7 +171,7 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
         struct check_increasing_arg ciarg = { brt , 0 };
 	toku_omt_iterate(node->u.l.buffer, check_increasing, &ciarg);
     }
-    if ((r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, 0, 0))) return r;
+    if ((r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0))) return r;
     return result;
 }
 
