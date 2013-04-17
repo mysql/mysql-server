@@ -1199,8 +1199,7 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
     n->height = height;
-    // TODO 3982
-    //    n->optimized_for_upgrade = 0;
+    n->optimized_for_upgrade = 0;
     n->dirty = 1;
     n->totalchildkeylens = 0;
     n->childkeys = 0;
