@@ -1,10 +1,11 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ## generate log_code.c, log_print.c, log_header.c
-## TODO: generate these in the build directory instead
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_code.c PROPERTIES GENERATED TRUE)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_print.c PROPERTIES GENERATED TRUE)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_header.h PROPERTIES GENERATED TRUE)
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/log_code.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/log_print.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/log_header.h
+  PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.c)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
