@@ -585,6 +585,8 @@ main (int argc, const char *const argv[]) {
 	toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
 				dump_node_wrapper, &info, true, true);
     }
+    toku_cachefile_close(&cf, false, ZERO_LSN);
+    toku_cachetable_close(&ct);
     toku_ft_free(ft);
     toku_ft_layer_destroy();
     return 0;
