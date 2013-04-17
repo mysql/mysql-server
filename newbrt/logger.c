@@ -67,8 +67,8 @@ int toku_logger_create (TOKULOGGER *resultp) {
     r = toku_pthread_cond_init(&result->output_condition,       NULL); if (r!=0) goto panic;
     result->input_lock_ctr = 0;
     result->output_condition_lock_ctr = 0;
-    result->output_is_available = TRUE;
     result->swap_ctr = 0;
+    result->output_is_available = TRUE;
     return 0;
 
  panic:
@@ -326,7 +326,6 @@ write_outbuf_to_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
 	assert(r==0);
     }
 }
-
 
 int
 toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
@@ -592,6 +591,20 @@ void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files)
 {
     assert(logger);
     logger->trim_log_files = trim_log_files;
+}
+
+double get_tdiff(void) {
+    static struct timeval prev={0,0};
+    if (prev.tv_sec==0) {
+	gettimeofday(&prev, 0);
+	return 0.0;
+    } else {
+	struct timeval now;
+	gettimeofday(&now, 0);
+	double diff = now.tv_sec - prev.tv_sec + 1e-6*(now.tv_usec - prev.tv_usec);
+	prev = now;
+	return diff;
+    }
 }
 
 int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
