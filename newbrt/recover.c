@@ -51,12 +51,29 @@ void toku_recover_cleanup (void) {
     }
 }
 
+enum backward_state { BS_INIT, BS_SAW_CKPT_END, BS_SAW_CKPT };
+struct backward_scan_state {
+    enum backward_state bs;
+    LSN checkpoint_lsn;
+    int n_live_txns;
+    LSN min_live_txn;
+};
+static struct backward_scan_state initial_bss = {0,{0},0,{0}};
+
 static void
 toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 }
+static int toku_recover_backward_commit (struct logtype_commit *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
+}
+
 static void
 toku_recover_xabort (LSN UU(lsn), TXNID UU(txnid)) {
 }
+static int toku_recover_backward_xabort (struct logtype_xabort *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
+}
+
 
 static void
 create_dir_from_file (const char *fname) {
@@ -109,6 +126,12 @@ static void
 internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum) {
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR|O_BINARY|flags, mode);
+    if (fd<0) {
+	char org_wd[1000];
+	char *wd=getcwd(org_wd, sizeof(org_wd));
+	fprintf(stderr, "%s:%d Could not open file %s, cwd=%s, errno=%d (%s)\n",
+		__FILE__, __LINE__, fixedfname, wd, errno, strerror(errno));
+    }
     assert(fd>=0);
     BRT brt=0;
     int r = toku_brt_create(&brt);
@@ -135,6 +158,12 @@ toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM file
     internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
 }
 
+static int toku_recover_backward_fopen (struct logtype_fopen *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->fname);
+    return 0;
+}
+
+
 // fcreate is like fopen except that the file must be created. Also creates the dir if needed.
 static void
 toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM filenum, BYTESTRING fname,u_int32_t mode) {
@@ -142,6 +171,11 @@ toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM filenum, BYTESTRING 
     toku_free_BYTESTRING(fname);
     create_dir_from_file(fixedfname);
     internal_toku_recover_fopen_or_fcreate(O_CREAT|O_TRUNC, mode, fixedfname, filenum);
+}
+
+static int toku_recover_backward_fcreate (struct logtype_fcreate *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->fname);
+    return 0;
 }
 
 static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
@@ -189,6 +223,10 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
 }
 
+static int toku_recover_backward_fheader (struct logtype_fheader *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
+}
+
 static void
 toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
     struct cf_pair *pair = NULL;
@@ -207,6 +245,13 @@ toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum,
     toku_free(val.data);
 }
 
+static int toku_recover_backward_enqrootentry (struct logtype_enqrootentry *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->key);
+    toku_free_BYTESTRING(l->data);
+    return 0;
+}
+
+
 static void
 toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     struct cf_pair *pair = NULL;
@@ -218,12 +263,17 @@ toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     toku_free_BYTESTRING(fname);
 }
 
+static int toku_recover_backward_brtclose (struct logtype_brtclose *l, struct backward_scan_state *UU(bs)) {
+    toku_free_BYTESTRING(l->fname);
+    return 0;
+}
+
 static void
 toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
 	if (filenum.fileid==cf_pairs[i].filenum.fileid) {
-	    int r = toku_cachefile_close(&cf_pairs[i].cf, 0, 0);
+	    int r = toku_cachefile_close(&cf_pairs[i].cf, 0, 0, ZERO_LSN);
 	    assert(r==0);
 	    cf_pairs[i] = cf_pairs[n_cf_pairs-1];
 	    n_cf_pairs--;
@@ -231,6 +281,10 @@ toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
 	}
     }
     toku_free_BYTESTRING(fname);
+}
+
+static int toku_recover_backward_cfclose (struct logtype_cfclose *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
 }
 
 static void
@@ -243,11 +297,37 @@ toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroo
     pair->brt->h->root = newroot;
     pair->brt->h->root_hash.valid = FALSE;
 }
+static int toku_recover_backward_changeunnamedroot (struct logtype_changeunnamedroot *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
+}
+
 static void
 toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
+static int toku_recover_backward_changenamedroot (struct logtype_changenamedroot *UU(l), struct backward_scan_state *UU(bs)) {
+    return 0;
+}
 
 static int toku_recover_begin_checkpoint (LSN UU(lsn)) {
     return 0;
+}
+
+static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoint *l, struct backward_scan_state *bs) {
+    switch (bs->bs) {
+    case BS_INIT:
+	return 0; // incomplete checkpoint
+    case BS_SAW_CKPT_END:
+	assert(bs->checkpoint_lsn.lsn == l->lsn.lsn);
+	bs->bs = BS_SAW_CKPT;
+	if (bs->n_live_txns==0) {
+	    fprintf(stderr, "Turning around at begin_checkpoint %" PRIu64 "\n", l->lsn.lsn);
+	    return 1;
+	}
+	else return 0;
+    case BS_SAW_CKPT:
+	return 0; // ignore it
+    }
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    abort();
 }
 
 
@@ -255,7 +335,30 @@ static int toku_recover_end_checkpoint (LSN UU(lsn), TXNID UU(txnid)) {
     return 0;
 }
 
-static int toku_recover_fassociate (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(fname)) {
+static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *l, struct backward_scan_state *bs) {
+    switch (bs->bs) {
+    case BS_INIT:
+	bs->bs = BS_SAW_CKPT_END;
+	bs->checkpoint_lsn.lsn = l->txnid;
+	return 0;
+    case BS_SAW_CKPT_END:
+	fprintf(stderr, "%s:%d Should not see two end_checkpoint log entries without an intervening begin_checkpoint\n", __FILE__, __LINE__);
+	abort();
+    case BS_SAW_CKPT:
+	return 0;
+    }
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    abort();
+}
+
+static int toku_recover_fassociate (LSN UU(lsn), FILENUM filenum, BYTESTRING fname) {
+    char *fixedfname = fixup_fname(&fname);
+    toku_free_BYTESTRING(fname);
+    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
+    return 0;
+}
+
+static int toku_recover_backward_fassociate (struct logtype_fassociate *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -263,8 +366,49 @@ static int toku_recover_xstillopen (LSN UU(lsn), TXNID UU(txnid)) {
     return 0;
 }
 
+static int toku_recover_backward_xstillopen (struct logtype_xstillopen *l, struct backward_scan_state *bs) {
+    switch (bs->bs) {
+    case BS_INIT:
+	return 0; // ignore live txns from incomplete checkpoint
+    case BS_SAW_CKPT_END:
+	if (bs->n_live_txns==0) {
+	    bs->min_live_txn = l->lsn;
+	} else {
+	    if (bs->min_live_txn.lsn > l->txnid)  bs->min_live_txn = l->lsn;
+	}
+	bs->n_live_txns++;
+	return 0;
+    case BS_SAW_CKPT:
+	return 0; // ignore live txns from older checkpoints
+    }
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    abort();
+}
+
+
 static int toku_recover_xbegin (LSN UU(lsn), TXNID UU(parent)) {
     return 0;
+}
+
+static int toku_recover_backward_xbegin (struct logtype_xbegin *l, struct backward_scan_state *bs) {
+    switch (bs->bs) {
+    case BS_INIT:
+	return 0; // ignore txns that began after checkpoint
+    case BS_SAW_CKPT_END:
+	return 0; // ignore txns that began during the checkpoint
+    case BS_SAW_CKPT:
+	assert(bs->n_live_txns > 0); // the only thing we are doing here is looking for a live txn, so there better be one
+	// If we got to the min, return nonzero
+	if (bs->min_live_txn.lsn >= l->lsn.lsn) {
+	    fprintf(stderr, "Turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
+	    return 1;
+	} else {
+	    fprintf(stderr, "scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 "\n", l->lsn.lsn, bs->min_live_txn.lsn);
+	    return 0;
+	}
+    }
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    abort();
 }
 
 static int toku_delete_rolltmp_files (const char *log_dir) {
@@ -321,7 +465,8 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
     r = toku_delete_rolltmp_files(log_dir);
     if (r!=0) { failresult=r; goto fail; }
 
-    r = toku_logger_find_logfiles(log_dir, &logfiles);
+    int n_logfiles;
+    r = toku_logger_find_logfiles(log_dir, &logfiles, &n_logfiles);
     if (r!=0) { failresult=r; goto fail; }
     int i;
     toku_recover_init();
@@ -338,20 +483,49 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	assert(wd!=0);
 	//printf("%s:%d data_wd=\"%s\"\n", __FILE__, __LINE__, data_wd);
     }
-    for (i=0; logfiles[i]; i++) {
-	//fprintf(stderr, "Opening %s\n", logfiles[i]);
+
+    FILE *f = NULL;
+    for (i=0; i<n_logfiles; i++) {
+	if (f) fclose(f);
 	r=chdir(org_wd);
 	assert(r==0);
-	FILE *f = fopen(logfiles[i], "r");
+	char *logfile = logfiles[n_logfiles-i-1];
+	f = fopen(logfile, "r");
+	assert(f);
+	//printf("Opened %s\n", logfiles[n_logfiles-i-1]);
+	r = fseek(f, 0, SEEK_END); assert(r==0);
+	struct log_entry le;
+	struct backward_scan_state bs = initial_bss;
+	while (1) {
+	    r = toku_log_fread_backward(f, &le);
+	    if (r==-1) break; // Ran out of file
+	    logtype_dispatch_assign(&le, toku_recover_backward_, r, &bs);
+	    if (r!=0) goto go_forward;
+	}
+    }
+    i--;
+    // We got to the end of the last log
+    if (f) { r=fclose(f); assert(r==0); }
+
+    // Now we go forward from this point
+    while (n_logfiles-i-1<n_logfiles) {
+	//fprintf(stderr, "Opening %s\n", logfiles[i]);
+	int j = n_logfiles-i-1;
+	r=chdir(org_wd);
+	assert(r==0);
+	f = fopen(logfiles[j], "r");
+	assert(f);
 	struct log_entry le;
 	u_int32_t version;
-	//printf("Reading file %s\n", logfiles[i]);
+	//printf("Reading file %d: %s\n", j, logfiles[j]);
 	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
+    go_forward: // we have an open file, so go forward.
+	//printf("Going forward\n");
 	r=chdir(data_wd);
 	assert(r==0);
 	while ((r = toku_log_fread(f, &le))==0) {
-	    //printf("%lld: Got cmd %c\n", (long long)le.u.commit.lsn.lsn, le.cmd);
+	    //printf("doing %c\n", le.cmd);
 	    logtype_dispatch_args(&le, toku_recover_);
 	    entrycount++;
 	}
@@ -365,6 +539,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	    }
 	}
 	fclose(f);
+	i--;
     }
     toku_recover_cleanup();
     for (i=0; logfiles[i]; i++) {

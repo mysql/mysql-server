@@ -35,7 +35,7 @@ cachetable_debug_test (int n) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int num_entries, hash_size; long size_current, size_limit;
     toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit);
@@ -74,7 +74,7 @@ cachetable_debug_test (int n) {
 
     if (verbose) toku_cachetable_print_hash_histogram();
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

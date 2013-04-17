@@ -364,6 +364,24 @@ generate_log_reader (void) {
     fprintf(cf, "  };\n");
     fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.
     fprintf(cf, "}\n\n");
+    fprintf2(cf, hf, "// Return 0 if there is something to read, return -1 if nothing to read, abort if an error.\n");
+    fprintf2(cf, hf, "int toku_log_fread_backward (FILE *infile, struct log_entry *le)");
+    fprintf(hf, ";\n");
+    fprintf(cf, "{\n");
+    fprintf(cf, "  {\n    long pos = ftell(infile);\n    if (pos<=12) return -1;\n  }\n");
+    fprintf(cf, "  int r = fseek(infile, -4, SEEK_CUR);              assert(r==0);\n");
+    //fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  u_int32_t len;\n");
+    fprintf(cf, "  r = toku_fread_u_int32_t_nocrclen(infile, &len);  assert(r==0);\n");
+    //fprintf(cf, "  if (r!=0) return r;\n");
+    fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR) ;          assert(r==0);\n");
+    //fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  r = toku_log_fread(infile, le);                   assert(r==0);\n");
+    //fprintf(cf, "  if (r!=0) return r;\n");
+    fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR);           assert(r==0);\n");
+    //fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  return 0;\n");
+    fprintf(cf, "}\n");
 }
 
 static void

@@ -628,6 +628,7 @@ brtheader_copy_for_checkpoint(struct brt_header *h, LSN checkpoint_lsn) {
     struct brt_header* XMALLOC(ch);
     *ch = *h; //Do a shallow copy
     ch->type = BRTHEADER_CHECKPOINT_INPROGRESS; //Different type
+    //printf("checkpoint_lsn=%" PRIu64 "\n", checkpoint_lsn.lsn);
     ch->checkpoint_lsn = checkpoint_lsn;
     ch->panic_string = NULL;
     
@@ -2976,7 +2977,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         BOOL did_create = FALSE;
         r = brt_open_file(t, fname, is_create, &fd, &did_create);
         if (r != 0) goto died00;
-        r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname);
+        r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname_in_env);
         if (r != 0) goto died00;
         if (did_create) {
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
@@ -2989,7 +2990,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     if (r!=0) {
         died_after_open: 
-        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0);
+        toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0, ZERO_LSN);
         goto died00;
     }
     assert(t->nodesize>0);
@@ -3198,7 +3199,7 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
 }
 
 int
-toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string)
+toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string, LSN lsn)
 {
     struct brt_header *h = header_v;
     assert(h->type == BRTHEADER_CURRENT);
@@ -3208,9 +3209,9 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
     toku_brtheader_unlock(h);
     int r = 0;
     if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
-        //TODO: #1627 put meaningful LSN in for begin_checkpoint
         int r2;
-        r2 = toku_brtheader_begin_checkpoint(cachefile, ZERO_LSN, header_v);
+	//assert(lsn.lsn!=0);
+        r2 = toku_brtheader_begin_checkpoint(cachefile, lsn, header_v);
         if (r==0) r = r2;
         r2 = toku_brtheader_checkpoint(cachefile, h);
         if (r==0) r = r2;
@@ -3283,10 +3284,10 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
     brtheader_note_brt_close(brt);
 
     if (brt->cf) {
+	LSN lsn = ZERO_LSN; // if there is no logger, we use zero for the lsn
         if (logger) {
             assert(brt->fname);
             BYTESTRING bs = {.len=strlen(brt->fname), .data=brt->fname};
-            LSN lsn;
             r = toku_log_brtclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
             if (r!=0) return r;
         }
@@ -3295,7 +3296,7 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
         // printf("%s:%d brt=%p ,brt->h=%p\n", __FILE__, __LINE__, brt, brt->h);
 	if (error_string) assert(*error_string == 0);
-        r = toku_cachefile_close(&brt->cf, logger, error_string);
+        r = toku_cachefile_close(&brt->cf, logger, error_string, lsn);
 	if (r==0 && error_string) assert(*error_string == 0);
     }
     if (brt->fname) toku_free(brt->fname);

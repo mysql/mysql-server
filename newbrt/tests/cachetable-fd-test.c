@@ -11,7 +11,7 @@ cachetable_fd_test (void) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE cf;
-    r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&cf, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int fd1 = toku_cachefile_fd(cf); assert(fd1 >= 0);
 
@@ -39,7 +39,7 @@ cachetable_fd_test (void) {
     r = toku_cachefile_of_filenum(ct, fn, &newcf);
     assert(r == ENOENT);
 
-    r = toku_cachefile_close(&cf, NULL_LOGGER, 0); assert(r == 0 && cf == 0);
+    r = toku_cachefile_close(&cf, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && cf == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 
