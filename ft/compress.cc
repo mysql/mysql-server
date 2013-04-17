@@ -93,7 +93,7 @@ void toku_compress (enum toku_compression_method a,
 	    *destLen = 1;
 	} else {
 	    size_t out_pos = 1;
-	    lzma_ret r = lzma_easy_buffer_encode(lzma_compression_level, LZMA_CHECK_CRC32, NULL,
+	    lzma_ret r = lzma_easy_buffer_encode(lzma_compression_level, LZMA_CHECK_NONE, NULL,
 						 source, sourceLen,
 						 dest, &out_pos, *destLen);
 	    assert(out_pos < *destLen);
