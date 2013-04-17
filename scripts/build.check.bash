@@ -338,6 +338,10 @@ if [ "$arg" = "--windows=yes" -o "$arg" = "--windows=1" ] ; then
     oschoice=windows
 fi
 
+# setup default compiler
+if [ "$CC" = "" ] ; then export CC=gcc; fi
+if [ "$CXX" = "" ] ; then export CXX=g++; fi
+
 # import the environment
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -349,7 +353,10 @@ while [ $# -gt 0 ] ; do
         dowindows=0
     elif [ "$arg" = "--windows=yes" -o "$arg" = "--windows=1" ] ; then
         usage; exit 1
-    elif [[ "$arg" =~ "^--(.*)=(.*)" ]] ; then
+    elif [ $arg = "--gcc44" ] ; then
+	export CC=gcc44
+	export CXX=g++44
+    elif [[ $arg =~ ^--(.*)=(.*) ]] ; then
 	eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
     else
 	usage; exit 1
@@ -361,6 +368,9 @@ if [ $makejobs -eq 0 ] ; then usage; exit 1; fi
 
 if [ $branch = "." ] ; then branch="toku"; fi
 if [ $revision -eq 0 ] ; then revision=`get_latest_svn_revision`; fi
+
+# setup GCCVERSION
+export GCCVERSION=`$CC --version|head -1|cut -f3 -d" "`
 
 build $bdb
 
