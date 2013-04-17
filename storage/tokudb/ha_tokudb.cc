@@ -449,16 +449,29 @@ typedef struct smart_dbt_ai_info {
     ha_tokudb* ha; //instance to ha_tokudb needed for reading the row
     DBT* prim_key; // DBT to store the primary key
     uchar* buf; // buffer to unpack the row
+    //
+    // index into key_file that holds DB* that is indexed on
+    // the primary_key. this->key_file[primary_index] == this->file
+    //
+    uint pk_index;
 } *SMART_DBT_AI_INFO;
 
-static int smart_dbt_ai_callback (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_ai_callback (DBT const *key, DBT const *row, void *context) {
     SMART_DBT_AI_INFO info = (SMART_DBT_AI_INFO)context;
     info->ha->unpack_row(info->buf,row,key, true);
     //
     // copy the key to prim_key
+    // This will be used as the data value for elements in the secondary index
+    // being created
     //
     info->prim_key->size = key->size;
     memcpy(info->prim_key->data, key->data, key->size);
+    //
+    // For clustering keys on tables with a hidden primary key, we need to copy
+    // the primary key to current_ident, because that is what the function
+    // create_dbt_key_from_key uses to create the key in a clustering index
+    //
+    info->ha->extract_hidden_primary_key(info->pk_index,row,key);
     return 0;
 }
 
@@ -4613,6 +4626,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     info.ha = this;
     info.prim_key = &current_primary_key;
     info.buf = tmp_record;
+    info.pk_index = primary_key; // needed so that clustering indexes being created will have right pk info
 
 
     cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
