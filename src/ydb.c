@@ -315,7 +315,9 @@ static int do_recovery (DB_ENV *env) {
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
+    toku_ydb_unlock();
     int r = tokudb_recover(datadir, logdir, env->i->bt_compare, env->i->dup_compare);
+    toku_ydb_lock();
     toku_free(logdir);
     return r;
 }
@@ -467,8 +469,16 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
+#if 1
             r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
             assert(r0 == 0);
+#else
+            // TODO locks?
+            r0 = toku_cachetable_begin_checkpoint(env->i->cachetable, env->i->logger);
+            if (r0 == 0)
+                toku_cachetable_end_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL);
+            assert(r0 == 0);
+#endif
             r0 = toku_logger_shutdown(env->i->logger); assert(r0 == 0);
         }
 	toku_ydb_lock();

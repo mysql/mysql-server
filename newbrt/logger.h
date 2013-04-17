@@ -38,7 +38,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // Effect: find all of the log files whose largest LSN is smaller than the
 // given LSN and delete them.
 // Returns: 0 if success
-int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN lsn);
+int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags);
 int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum);
@@ -85,5 +85,6 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
 TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
+LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger);
 
 #endif

@@ -50,6 +50,8 @@
 #include <toku_portability.h>
 #include "brttypes.h"
 #include "cachetable.h"
+#include "log-internal.h"
+#include "logger.h"
 #include "checkpoint.h"
 
 // footprint for debugging only
@@ -193,6 +195,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
     
     checkpoint_footprint = 4;
     r = toku_cachetable_begin_checkpoint(ct, logger);
+    LSN oldest_live_lsn = toku_logger_get_oldest_living_lsn(logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
@@ -202,6 +205,10 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, error_string, callback2_f, extra2);
+    }
+    if (r==0) {
+        LSN trim_lsn = (oldest_live_lsn.lsn < logger->checkpoint_lsn.lsn) ? oldest_live_lsn : logger->checkpoint_lsn;
+        r = toku_logger_maybe_trim_log(logger, trim_lsn);
     }
 
     checkpoint_footprint = 6;
