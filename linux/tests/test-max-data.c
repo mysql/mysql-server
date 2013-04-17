@@ -4,7 +4,9 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
+#if defined(__linux__)
 #include <bits/wordsize.h>
+#endif
 #include "toku_os.h"
 
 int main(int argc, char *argv[]) {
@@ -28,12 +30,20 @@ int main(int argc, char *argv[]) {
     if (verbose) printf("maxdata=%"PRIu64"\n", maxdata);
 
     // check the data size
-#if __WORDSIZE == 64
+#if defined(__linux__)
+    #if __WORDSIZE == 64
+        assert(maxdata > (1ULL << 32));
+    #elif __WORDSIZE == 32
+        assert(maxdata < (1ULL << 32));
+    #else
+        #error
+    #endif
+#elif __x86_64__
     assert(maxdata > (1ULL << 32));
-#elif __WORDSIZE == 32
+#elif __i386__
     assert(maxdata < (1ULL << 32));
 #else
-#error
+    #error
 #endif
 
     return 0;
