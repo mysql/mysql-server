@@ -1343,6 +1343,7 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
     //Therefore no cursor invalidation is needed.
 
     // brt_leaf_check_leaf_stats(node);
+    node->dirty = 1;
 }
 
 static void
