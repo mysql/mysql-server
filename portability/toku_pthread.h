@@ -145,34 +145,40 @@ toku_pthread_self(void) {
 }
 
 #if 1
-static inline int
+static inline void
 toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
-    return pthread_rwlock_init(rwlock, attr);
+    int r = pthread_rwlock_init(rwlock, attr);
+    assert_zero(r);
 }
 
-static inline int
+static inline void
 toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
-    return pthread_rwlock_destroy(rwlock);
+    int r = pthread_rwlock_destroy(rwlock);
+    assert_zero(r);
 }
 
-static inline int
+static inline void
 toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_rwlock_rdlock(rwlock);
+    int r = pthread_rwlock_rdlock(rwlock);
+    assert_zero(r);
 }
 
-static inline int
+static inline void
 toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_rwlock_unlock(rwlock);
+    int r = pthread_rwlock_unlock(rwlock);
+    assert_zero(r);
 }
 
-static inline int
+static inline void
 toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_rwlock_wrlock(rwlock);
+    int r = pthread_rwlock_wrlock(rwlock);
+    assert_zero(r);
 }
 
-static inline int
+static inline void
 toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_rwlock_unlock(rwlock);
+    int r = pthread_rwlock_unlock(rwlock);
+    assert_zero(r);
 }
 #endif
 

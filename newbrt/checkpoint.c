@@ -130,7 +130,7 @@ static volatile BOOL locked_cs = FALSE;       // true when the checkpoint_safe w
 // and use the "writer" calls for locking and unlocking.
 
 
-static int 
+static void
 multi_operation_lock_init(void) {
     pthread_rwlockattr_t attr;
     pthread_rwlockattr_init(&attr);
@@ -140,61 +140,49 @@ multi_operation_lock_init(void) {
     // TODO: need to figure out how to make writer-preferential rwlocks
     // happen on osx
 #endif
-    int r = toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
+    toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
     pthread_rwlockattr_destroy(&attr);
-    assert(r == 0);
     locked_mo = FALSE;
-    return r;
 }
 
-static int 
+static void
 multi_operation_lock_destroy(void) {
-    int r = toku_pthread_rwlock_destroy(&multi_operation_lock); 
-    assert(r == 0);
-    return r;
+    toku_pthread_rwlock_destroy(&multi_operation_lock);
 }
 
 static void 
 multi_operation_checkpoint_lock(void) {
-    int r = toku_pthread_rwlock_wrlock(&multi_operation_lock);   
-    assert(r == 0);
+    toku_pthread_rwlock_wrlock(&multi_operation_lock);   
     locked_mo = TRUE;
 }
 
 static void 
 multi_operation_checkpoint_unlock(void) {
     locked_mo = FALSE;
-    int r = toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
-    assert(r == 0);
+    toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
 }
 
-static int 
+static void
 checkpoint_safe_lock_init(void) {
-    int r = toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
-    assert(r == 0);
+    toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
     locked_cs = FALSE;
-    return r;
 }
 
-static int 
+static void
 checkpoint_safe_lock_destroy(void) {
-    int r = toku_pthread_rwlock_destroy(&checkpoint_safe_lock); 
-    assert(r == 0);
-    return r;
+    toku_pthread_rwlock_destroy(&checkpoint_safe_lock); 
 }
 
 static void 
 checkpoint_safe_checkpoint_lock(void) {
-    int r = toku_pthread_rwlock_wrlock(&checkpoint_safe_lock);   
-    assert(r == 0);
+    toku_pthread_rwlock_wrlock(&checkpoint_safe_lock);   
     locked_cs = TRUE;
 }
 
 static void 
 checkpoint_safe_checkpoint_unlock(void) {
     locked_cs = FALSE;
-    int r = toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
-    assert(r == 0);
+    toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
 }
 
 
@@ -205,58 +193,45 @@ void
 toku_multi_operation_client_lock(void) {
     if (locked_mo)
 	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
-    int r = toku_pthread_rwlock_rdlock(&multi_operation_lock);   
-    assert(r == 0);
+    toku_pthread_rwlock_rdlock(&multi_operation_lock);   
 }
 
 void 
 toku_multi_operation_client_unlock(void) {
-    int r = toku_pthread_rwlock_rdunlock(&multi_operation_lock); 
-    assert(r == 0);
+    toku_pthread_rwlock_rdunlock(&multi_operation_lock); 
 }
 
 void 
 toku_checkpoint_safe_client_lock(void) {
     if (locked_cs)
 	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
-    int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
-    assert(r == 0);
+    toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
     toku_multi_operation_client_lock();
 }
 
 void 
 toku_checkpoint_safe_client_unlock(void) {
-    int r = toku_pthread_rwlock_rdunlock(&checkpoint_safe_lock); 
-    assert(r == 0);
+    toku_pthread_rwlock_rdunlock(&checkpoint_safe_lock); 
     toku_multi_operation_client_unlock();
 }
 
 
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
-int 
+void
 toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
-    int r = 0;
     ydb_lock   = ydb_lock_callback;
     ydb_unlock = ydb_unlock_callback;
-    if (r==0)
-        r = multi_operation_lock_init();
-    if (r==0)
-        r = checkpoint_safe_lock_init();
-    if (r==0)
-        initialized = TRUE;
-    return r;
+    multi_operation_lock_init();
+    checkpoint_safe_lock_init();
+    initialized = TRUE;
 }
 
-int
+void
 toku_checkpoint_destroy(void) {
-    int r = 0;
-    if (r==0)
-        r = multi_operation_lock_destroy();
-    if (r==0)
-        r = checkpoint_safe_lock_destroy();
+    multi_operation_lock_destroy();
+    checkpoint_safe_lock_destroy();
     initialized = FALSE;
-    return r;
 }
 
 #define SET_CHECKPOINT_FOOTPRINT(x) STATUS_VALUE(CP_FOOTPRINT) = footprint_offset + x
