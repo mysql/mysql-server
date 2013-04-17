@@ -266,7 +266,7 @@ env_fs_poller(void *arg) {
     // Don't issue report if we have not been out of this fs_state for a while, unless we're at system startup
     switch (env->i->fs_state) {
     case FS_RED:
-	if (!in_red) {
+        if (!in_red) {
 	    if (in_yellow) {
 		env->i->fs_state = FS_YELLOW;
 	    } else {
@@ -517,9 +517,9 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
 }
 
 
-// Capture persistent env contents to be read by engine status
+// Capture contents of persistent_environment dictionary so that it can be read by engine status
 static void
-capture_persistent_env (DB_ENV * env, DB_TXN * txn) {
+capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     int r;
     DBT key, val;
     DB *persistent_environment = env->i->persistent_environment;
@@ -671,6 +671,11 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     return r;
 }
 
+
+// The version of the environment (on disk) is the version of the recovery log.  
+// If the recovery log is of the current version, then there is no upgrade to be done.  
+// If the recovery log is of an old version, then replacing it with a new recovery log
+// of the current version is how the upgrade is done.  
 static int
 ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, BOOL * upgrade_in_progress) {
     int r = 0;
@@ -922,7 +927,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	    r = maybe_upgrade_persistent_environment_dictionary(env, txn, last_lsn_of_clean_shutdown_read_from_log);
 	    assert(r==0);
 	}
-	capture_persistent_env(env, txn);
+	capture_persistent_env_contents(env, txn);
     }
     {
         r = toku_db_create(&env->i->directory, env, 0);
