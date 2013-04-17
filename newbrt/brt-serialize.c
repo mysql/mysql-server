@@ -1746,7 +1746,7 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
 
 static int
 deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *log_p,
-                                    TOKUTXN txn, struct brt_header *h, struct rbuf *rb) {
+                                    struct brt_header *h, struct rbuf *rb) {
     TAGMALLOC(ROLLBACK_LOG_NODE, result);
     int r;
     if (result==NULL) {
@@ -1769,10 +1769,6 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
     //TODO: This is hard.. everything is shared in a single dictionary.
     rbuf_TXNID(rb, &result->txnid);
     result->sequence = rbuf_ulonglong(rb);
-    if (result->txnid == txn->txnid64 && result->sequence > txn->num_rollback_nodes) {
-        r = toku_db_badformat();
-        goto died0;
-    }
     result->thislogname = rbuf_blocknum(rb);
     if (result->thislogname.b != blocknum.b) {
         r = toku_db_badformat();
@@ -1827,7 +1823,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
 static int
 deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash,
                                               ROLLBACK_LOG_NODE *log,
-                                              TOKUTXN txn, struct brt_header *h, struct rbuf *rb) {
+                                              struct brt_header *h, struct rbuf *rb) {
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
 
@@ -1835,7 +1831,7 @@ deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blockn
     switch (version) {
         case BRT_LAYOUT_VERSION:
             if (!upgrade)
-                r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, txn, h, rb);
+                r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, h, rb);
             if (r==0) {
                 assert(rollback_log_node);
                 *log = rollback_log_node;
@@ -1851,7 +1847,7 @@ deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blockn
 // Read rollback log node from file into struct.  Perform version upgrade if necessary.
 int
 toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash,
-                                    ROLLBACK_LOG_NODE *logp, TOKUTXN txn, struct brt_header *h) {
+                                    ROLLBACK_LOG_NODE *logp, struct brt_header *h) {
     toku_trace("deserial start");
 
     int r;
@@ -1869,7 +1865,7 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhas
         }
     }
 
-    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, fullhash, logp, txn, h, &rb);
+    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, fullhash, logp, h, &rb);
 
     toku_trace("deserial done");
 
