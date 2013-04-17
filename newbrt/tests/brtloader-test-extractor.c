@@ -170,7 +170,14 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
         merge_file_init(&f[i]);
         char tname[strlen(testdir) + 1 + strlen(tempfiles[i]) + 1];
         sprintf(tname, "%s/%s", testdir, tempfiles[i]);
-        f[i].f = fopen(tname, "r"); assert(f[i].f != NULL);
+        f[i].f = fopen(tname, "r"); 
+	if (f[i].f == NULL) {
+	    int error = errno;
+	    fprintf(stderr, "%s:%d errno=%d %s\n", __FILE__, __LINE__, error, strerror(error));
+	    if (error == EMFILE)
+		fprintf(stderr, "may need to increase the nofile ulimit\n");
+	}
+	assert(f[i].f != NULL);
         if (read_row(f[i].f, &f[i].key, &f[i].val) == 0)
             f[i].row_valid = TRUE;
     }
