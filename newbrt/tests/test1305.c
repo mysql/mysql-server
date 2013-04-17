@@ -11,6 +11,7 @@
 
 #include "../brttypes.h"
 #include "../bread.h"
+#include "test.h"
 
 #define FNAME "test1305.data"
 
@@ -30,8 +31,13 @@ test (u_int64_t fsize) {
     {
 	int fd = open(FNAME, O_CREAT+O_RDWR+O_BINARY, 0777);
 	assert(fd>=0);
-	u_int64_t buf[N_BIGINTS];
+	static u_int64_t buf[N_BIGINTS]; //windows cannot handle this on the stack
 	while (i*BIGINT_SIZE < fsize) {
+            if (verbose>0 && i % (1<<25) == 0) {
+                printf("   %s:test (%"PRIu64") forwards [%"PRIu64"%%]\n", __FILE__, fsize, 100*BIGINT_SIZE*((u_int64_t)i) / fsize);
+                fflush(stdout);
+            }
+
 	    int j;
 	    for (j=0; j<N_BIGINTS; j++) {
 		buf[j] = i++;
@@ -47,6 +53,10 @@ test (u_int64_t fsize) {
 	int fd = open(FNAME, O_RDONLY+O_BINARY);  	assert(fd>=0);
 	BREAD br = create_bread_from_fd_initialize_at(fd, fsize, READBACK_BUFSIZE);
 	while (bread_has_more(br)) {
+            if (verbose>0 && (fsize/BIGINT_SIZE - i) % (1<<25) == 0) {
+                printf("   %s:test (%"PRIu64") backwards [%"PRIu64"%%]\n", __FILE__, fsize, 100*BIGINT_SIZE*((u_int64_t)i) / fsize);
+                fflush(stdout);
+            }
 	    assert(i>0);
 	    i--;
 	    u_int64_t storedi;
@@ -62,7 +72,8 @@ test (u_int64_t fsize) {
     unlink(FNAME);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int main (int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
     test(1LL<<23);
     test(1LL<<30);
     test(1LL<<31);
