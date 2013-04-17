@@ -730,6 +730,7 @@ serialize_and_compress_in_parallel(FTNODE node,
         if (T > 0)
             T = T - 1;
         struct workset ws;
+        ZERO_STRUCT(ws);
         workset_init(&ws);
         struct serialize_compress_work work[npartitions];
         workset_lock(&ws);
