@@ -61,7 +61,7 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -83,7 +83,7 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -105,7 +105,7 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
@@ -126,7 +126,7 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -147,7 +147,7 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
@@ -206,11 +206,11 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -231,11 +231,11 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -255,11 +255,11 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, NULL);
+    toku_brtnode_pe_callback(dn, make_pair_attr(0xffffffff), &attr, brt_h);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);

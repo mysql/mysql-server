@@ -124,7 +124,7 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         if (bft == read_none) {
             if ((*dn)->height == 0) {
                 PAIR_ATTR attr;
-                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -149,14 +149,14 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
