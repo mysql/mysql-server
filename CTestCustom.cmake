@@ -34,6 +34,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/stress-gc2.tdb
   ydb/stress-test.bdb
   ydb/stress-test.tdb
+  ydb/test-5138.tdb
   ydb/test-prepare.tdb
   ydb/test-prepare2.tdb
   ydb/test-prepare3.tdb
