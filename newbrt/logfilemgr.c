@@ -79,17 +79,20 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
             return ENOMEM;
         }
         // find the index
+	// basename is the filename of the i-th logfile
         basename = strrchr(logfiles[i], '/') + 1;
         int version;
         r = sscanf(basename, "log%lld.tokulog%d", &index, &version);
         assert(r==2);  // found index and version
-        assert(version==TOKU_LOG_VERSION);
+        assert(version>=TOKU_LOG_MIN_SUPPORTED_VERSION);
+        assert(version<=TOKU_LOG_VERSION);
         lf_info->index = index;
-        // find last LSN
+        lf_info->version = version;
+        // find last LSN in logfile
         r = toku_logcursor_create_for_file(&cursor, log_dir, basename);
         if (r!=0) 
             return r;
-        r = toku_logcursor_last(cursor, &entry);
+        r = toku_logcursor_last(cursor, &entry);  // set "entry" to last log entry in logfile
         if ( r == 0 ) {
             lf_info->maxlsn = toku_log_entry_get_lsn(entry);
             tmp_lsn = lf_info->maxlsn;

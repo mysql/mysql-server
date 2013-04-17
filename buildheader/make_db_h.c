@@ -72,6 +72,7 @@ enum {
         TOKUDB_NO_DATA                 = -100008,
         TOKUDB_ACCEPT                  = -100009,
         TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
+        TOKUDB_UPGRADE_FAILURE         = -100011,
 };
 
 static void print_defines (void) {
@@ -218,6 +219,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_NO_DATA);
     dodefine(TOKUDB_ACCEPT);
     dodefine(TOKUDB_MVCC_DICTIONARY_TOO_NEW);
+    dodefine(TOKUDB_UPGRADE_FAILURE);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");

@@ -423,36 +423,115 @@ db_use_builtin_key_cmp(DB *db) {
     return r;
 }
 
-static const char * curr_env_ver_key = "current_version";
+// Keys used in persistent environment dictionary:
+// Following keys added in version 12
 static const char * orig_env_ver_key = "original_version";
+static const char * curr_env_ver_key = "current_version";  
+// Following keys added in version 13
+static const char * creation_time_key = "creation_time";
+static const char * last_lsn_of_v12_key = "last_lsn_of_v12";
+static const char * upgrade_13_time_key = "upgrade_13_time";  // Add more keys for future upgrades
 
+// Values read from (or written into) persistent environment,
+// kept here for read-only access from engine status.
+static uint32_t persistent_original_env_version;
+static uint32_t persistent_stored_env_version_at_startup;    // read from curr_env_ver_key, prev version as of this startup
+static time_t   persistent_creation_time;
+static uint64_t persistent_last_lsn_of_v12;
+static time_t   persistent_upgrade_13_time;
 
-// requires: persistent environment dictionary is already open
+// Requires: persistent environment dictionary is already open.
+// Input arg is lsn of clean shutdown of previous version,
+// or ZERO_LSN if no upgrade or if crash between log upgrade and here.
 static int
-maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn) {
+maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN last_lsn_of_clean_shutdown_read_from_log) {
     int r;
-    uint32_t stored_env_version;
     DBT key, val;
+    DB *persistent_environment = env->i->persistent_environment;
 
     toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
     toku_init_dbt(&val);
-    r = toku_db_get(env->i->persistent_environment, txn, &key, &val, 0);
+    r = toku_db_get(persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
-    stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    uint32_t stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    persistent_stored_env_version_at_startup = stored_env_version;
     if (stored_env_version > BRT_LAYOUT_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_NEW;
     else if (stored_env_version < BRT_LAYOUT_MIN_SUPPORTED_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_OLD;
     else if (stored_env_version < BRT_LAYOUT_VERSION) {
-        const uint32_t environment_version = toku_htod32(BRT_LAYOUT_VERSION);
+        const uint32_t curr_env_ver_d = toku_htod32(BRT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
-        toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-        r = toku_db_put(env->i->persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+        toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+        assert(r==0);
+	
+	uint64_t last_lsn_of_v12_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
+	toku_fill_dbt(&key, last_lsn_of_v12_key, strlen(last_lsn_of_v12_key));
+	toku_fill_dbt(&val, &last_lsn_of_v12_d, sizeof(last_lsn_of_v12_d));
+	r = toku_db_put(persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+        assert(r==0);
+	
+	time_t upgrade_13_time_d = toku_htod64(time(NULL));
+	toku_fill_dbt(&key, upgrade_13_time_key, strlen(upgrade_13_time_key));
+	toku_fill_dbt(&val, &upgrade_13_time_d, sizeof(upgrade_13_time_d));
+	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE);
         assert(r==0);
     }
-    // TODO: add key/val for timestamp of VERSION_12_CREATION (could be upgrade)
     return r;
 }
+
+
+// Capture persistent env contents to be read by engine status
+static void
+capture_persistent_env (DB_ENV * env, DB_TXN * txn) {
+    int r;
+    DBT key, val;
+    DB *persistent_environment = env->i->persistent_environment;
+
+    toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
+    toku_init_dbt(&val);
+    r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+    assert(r == 0);
+    uint32_t curr_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    assert(curr_env_version == BRT_LAYOUT_VERSION);
+
+    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
+    toku_init_dbt(&val);
+    r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+    assert(r == 0);
+    persistent_original_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    assert(persistent_original_env_version <= curr_env_version);
+
+    // make no assertions about timestamps, clock may have been reset
+    if (persistent_original_env_version >= BRT_LAYOUT_VERSION_13) {
+	toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
+	toku_init_dbt(&val);
+	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+	assert(r == 0);
+	persistent_creation_time = toku_dtoh64((*(time_t*)val.data));
+    }
+
+    if (persistent_original_env_version != curr_env_version) {
+	// an upgrade was performed at some time, capture info about the upgrade
+	
+	toku_fill_dbt(&key, last_lsn_of_v12_key, strlen(last_lsn_of_v12_key));
+	toku_init_dbt(&val);
+	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+	assert(r == 0);
+	persistent_last_lsn_of_v12 = toku_dtoh64(*(uint32_t*)val.data);
+
+	toku_fill_dbt(&key, upgrade_13_time_key, strlen(upgrade_13_time_key));
+	toku_init_dbt(&val);
+	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+	assert(r == 0);
+	persistent_upgrade_13_time = toku_dtoh64((*(time_t*)val.data));
+    }
+
+}
+
+
+
 
 // return 0 if log exists or ENOENT if log does not exist
 static int
@@ -492,7 +571,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 	assert(r);
     }
 
-    // Test for rollback cachefile
+    // Test for existence of rollback cachefile if it is expected to exist
     if (r == 0 && need_rollback_cachefile) {
 	path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
 	assert(path);
@@ -558,11 +637,11 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 }
 
 static int
-ydb_maybe_upgrade_env (DB_ENV *env) {
+ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, BOOL * upgrade_in_progress) {
     int r = 0;
     if (env->i->open_flags & DB_INIT_TXN && env->i->open_flags & DB_INIT_LOG) {
         toku_ydb_unlock();
-        r = toku_maybe_upgrade_log(env->i->dir, env->i->real_log_dir);
+        r = toku_maybe_upgrade_log(env->i->dir, env->i->real_log_dir, last_lsn_of_clean_shutdown_read_from_log, upgrade_in_progress);
         toku_ydb_lock();
     }
     return r;
@@ -597,6 +676,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
         goto cleanup;
     }
+
+    assert(sizeof(time_t) == sizeof(uint64_t));
 
     HANDLE_EXTRA_FLAGS(env, flags, 
                        DB_CREATE|DB_PRIVATE|DB_INIT_LOG|DB_INIT_TXN|DB_RECOVER|DB_INIT_MPOOL|DB_INIT_LOCK|DB_THREAD);
@@ -678,9 +759,22 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         need_rollback_cachefile = TRUE;
     }
 
-    r = ydb_maybe_upgrade_env(env);
+    LSN last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
+    BOOL upgrade_in_progress = FALSE;
+    r = ydb_maybe_upgrade_env(env, &last_lsn_of_clean_shutdown_read_from_log, &upgrade_in_progress);
     if (r!=0) goto cleanup;
 
+    if (upgrade_in_progress) {
+	// Delete old rollback file.  There was a clean shutdown, so it has nothing useful,
+	// and there is no value in upgrading it.  It is simpler to just create a new one.
+	char* rollback_filename = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+	assert(rollback_filename);
+	r = unlink(rollback_filename);
+	toku_free(rollback_filename);
+	assert(r==0 || errno==ENOENT);	
+	need_rollback_cachefile = FALSE;  // we're not expecting it to exist now
+    }
+    
     r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
     if (r != 0) goto cleanup;
 
@@ -743,10 +837,12 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (env->i->logger) {
+	// if this is a newborn env or if this is an upgrade, then create a brand new rollback file
+	BOOL create_new_rollback_file = newenv | upgrade_in_progress;
 	assert (using_txns);
 	toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
 	toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
-        r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, newenv);
+        r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
         assert(r==0);
     }
 
@@ -766,20 +862,30 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
-	    const uint32_t environment_version = toku_htod32(BRT_LAYOUT_VERSION);
+	    persistent_original_env_version = BRT_LAYOUT_VERSION;
+	    const uint32_t environment_version = toku_htod32(persistent_original_env_version);
+
 	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
 	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
 	    assert(r==0);
+
 	    toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
 	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
 	    assert(r==0);
-	}
-	else {
-	    r = maybe_upgrade_persistent_environment_dictionary(env, txn);
+
+	    time_t creation_time_d = toku_htod64(time(NULL));
+	    toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
+	    toku_fill_dbt(&val, &creation_time_d, sizeof(creation_time_d));
+	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0);
 	    assert(r==0);
 	}
+	else {
+	    r = maybe_upgrade_persistent_environment_dictionary(env, txn, last_lsn_of_clean_shutdown_read_from_log);
+	    assert(r==0);
+	}
+	capture_persistent_env(env, txn);
     }
     {
         r = toku_db_create(&env->i->directory, env, 0);
@@ -805,6 +911,8 @@ cleanup:
             unlock_single_process(env);
         }
     }
+    if (r == 0)
+	errno = 0; // tabula rasa
     return r;
 }
 
@@ -1509,8 +1617,8 @@ format_time(const time_t *timer, char *buf) {
     }
 }
 
-// Do not take ydb lock around or in this function.  
-// If the engine is blocked because some thread is holding the ydb lock, this function
+// Do not take ydb lock or any other lock around or in this function.  
+// If the engine is blocked because some thread is holding a lock, this function
 // can help diagnose the problem.
 // This function only collects information, and it does not matter if something gets garbled
 // because of a race condition.  
@@ -1671,9 +1779,9 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    toku_brt_get_upgrade_status(&brt_upgrade_stat);
 
 	    engstat->upgrade_env_status = toku_log_upgrade_get_footprint();
-	    engstat->upgrade_header     = brt_upgrade_stat.header;
-	    engstat->upgrade_nonleaf    = brt_upgrade_stat.nonleaf;
-	    engstat->upgrade_leaf       = brt_upgrade_stat.leaf;
+	    engstat->upgrade_header     = brt_upgrade_stat.header_12;
+	    engstat->upgrade_nonleaf    = brt_upgrade_stat.nonleaf_12;
+	    engstat->upgrade_leaf       = brt_upgrade_stat.leaf_12;
 	}
     }
     return r;

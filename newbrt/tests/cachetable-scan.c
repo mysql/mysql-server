@@ -33,6 +33,7 @@ static int f_fetch (CACHEFILE f,
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value,
 		    long *sizep,
+		    int  *dirtyp,
 		    void*extraargs     __attribute__((__unused__))) {
     void *buf = toku_malloc(BLOCKSIZE);
     int r = pread(toku_cachefile_get_and_pin_fd(f), buf, BLOCKSIZE, key.b);
@@ -40,6 +41,7 @@ static int f_fetch (CACHEFILE f,
     assert(r==BLOCKSIZE);
     *value = buf;
     *sizep = BLOCKSIZE;
+    *dirtyp = 0;
     return 0;
 }
 

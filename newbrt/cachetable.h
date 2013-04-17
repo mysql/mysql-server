@@ -122,7 +122,7 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void 
 // Returns: 0 if success, otherwise an error number.  The address and size of the object
 // associated with the key are returned.
 // Can access fd (fd is protected by a readlock during call)
-typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs);
+typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),

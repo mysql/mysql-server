@@ -2227,6 +2227,9 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     lbuf->nkeys_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->ndata_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->dsize_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
+
+    putbuf_int32(&lbuf->dbuf, 0);  // optimized_for_upgrade
+
     lbuf->partitions_p        = lbuf->dbuf.off;    lbuf->dbuf.off+=4; lbuf->dbuf.off += stored_sub_block_map_size; // RFP partition map
     lbuf->n_in_buf_p          = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
 

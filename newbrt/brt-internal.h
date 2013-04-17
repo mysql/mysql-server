@@ -6,6 +6,7 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "brt_layout_version.h"
 #include "toku_assert.h"
 #include "block_allocator.h"
 #include "cachetable.h"
@@ -44,7 +45,7 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 struct subtree_estimates {
     // estimate number of rows in the tree by counting the number of rows
     // in the leaves.  The stuff in the internal nodes is likely to be off O(1).
-    u_int64_t nkeys;  // number of distinct keys.
+    u_int64_t nkeys;  // number of distinct keys (obsolete with removal of dupsort, but not worth removing)
     u_int64_t ndata; // number of key-data pairs (previously leafentry_estimate)
     u_int64_t dsize;  // total size of leafentries
     BOOL      exact;  // are the estimates exact?
@@ -82,7 +83,6 @@ struct brtnode_nonleaf_childinfo {
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
 
-typedef struct brtnode *BRTNODE;
 /* Internal nodes. */
 struct brtnode {
     unsigned int nodesize;
@@ -121,6 +121,7 @@ struct brtnode {
         } n;
 	struct leaf {
 	    struct subtree_estimates leaf_stats; // actually it is exact.
+            uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
 	    OMT buffer;
             LEAFLOCK_POOL leaflock_pool;
 	    LEAFLOCK leaflock;
@@ -166,7 +167,7 @@ struct brt_header {
     int layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
     int layout_version_read_from_disk;  // transient, not serialized to disk
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
-    uint64_t num_blocks_to_upgrade;     // Number of blocks still not newest version. When we release layout 13 we may need to turn this to an array.
+    int64_t num_blocks_to_upgrade;      // Number of v12 blocks still not newest version. When we release layout 14 we may need to turn this to an array or add more variables.  
     unsigned int nodesize;
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
@@ -269,7 +270,7 @@ struct brtenv {
 };
 
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
-extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs);
+extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
@@ -352,21 +353,6 @@ void toku_verify_all_in_mempool(BRTNODE node);
 
 int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) ;
 
-enum brt_layout_version_e {
-    BRT_LAYOUT_VERSION_5 = 5,
-    BRT_LAYOUT_VERSION_6 = 6,   // Diff from 5 to 6:  Add leafentry_estimate
-    BRT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
-    BRT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
-    BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
-    BRT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  BRT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
-    BRT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added BRT_CMD 'BRT_INSERT_NO_OVERWRITE', compressed block format, num old blocks
-    BRT_LAYOUT_VERSION_13 = 13, // Diff from 12 to 13: Added MVCC
-    BRT_NEXT_VERSION,           // the version after the current version
-    BRT_LAYOUT_VERSION   = BRT_NEXT_VERSION-1, // A hack so I don't have to change this line.
-    BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION_12 // Minimum version supported
-};
-
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn);
 int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, int fd, LSN checkpoint_lsn, void *header_v);
@@ -380,9 +366,10 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
 
 
 typedef struct brt_upgrade_status {
-    u_int64_t header;
-    u_int64_t nonleaf;
-    u_int64_t leaf;
+    u_int64_t header_12;    // how many headers upgrade from version 12
+    u_int64_t nonleaf_12;
+    u_int64_t leaf_12;
+    u_int64_t optimized_for_upgrade_12; // how many optimize_for_upgrade messages sent
 } BRT_UPGRADE_STATUS_S, *BRT_UPGRADE_STATUS;
 
 void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);

@@ -225,6 +225,7 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 	invariant(hsize==node->u.l.n_bytes_in_buffer);
 	hsize += 4;                                   // add n entries in buffer table
 	hsize += 3*8;                                 // add the three leaf stats, but no exact bit
+        hsize += 4;                                   // optimized_for_upgrade
         size += 4 + 1*stored_sub_block_map_size;      // one partition
 	return size+hsize;
     }
@@ -247,6 +248,7 @@ toku_serialize_brtnode_size (BRTNODE node) {
     } else {
 	result += 4;                                  // n_entries in buffer table
 	result += 3*8;                                // the three leaf stats
+        result += 4;                                   // optimized_for_upgrade
 	result += node->u.l.n_bytes_in_buffer;
         result += 4 + 1*stored_sub_block_map_size;    // one partition
     }
@@ -371,6 +373,8 @@ serialize_leaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], str
     wbuf_nocrc_ulonglong(wbuf, node->u.l.leaf_stats.nkeys);
     wbuf_nocrc_ulonglong(wbuf, node->u.l.leaf_stats.ndata);
     wbuf_nocrc_ulonglong(wbuf, node->u.l.leaf_stats.dsize);
+
+    wbuf_nocrc_int(wbuf, node->u.l.optimized_for_upgrade);
 
     // RFP partition the leaf elements. for now, 1 partition
     const int npartitions = 1;
@@ -732,6 +736,13 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     result->u.l.leaf_stats.dsize = rbuf_ulonglong(rb);
     result->u.l.leaf_stats.exact = TRUE;
 
+    if (result->layout_version >= BRT_LAYOUT_VERSION_13) {
+	result->u.l.optimized_for_upgrade = rbuf_int(rb);
+    }
+    else {
+	result->u.l.optimized_for_upgrade = 0;
+    }
+
     // deserialize the number of partitions
     int npartitions = rbuf_int(rb);
     invariant(npartitions == 1);
@@ -759,14 +770,31 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     u_int32_t actual_sum = 0;
     u_int32_t start_of_data = rb->ndone;
     OMTVALUE *MALLOC_N(n_in_buf, array);
-    for (int i=0; i<n_in_buf; i++) {
-        LEAFENTRY le = (LEAFENTRY)(&rb->buf[rb->ndone]);
-        u_int32_t disksize = leafentry_disksize(le);
-        rb->ndone += disksize;
-        invariant(rb->ndone<=rb->size);
+    if (result->layout_version == BRT_LAYOUT_VERSION) {
+        for (int i=0; i<n_in_buf; i++) {
+            LEAFENTRY le = (LEAFENTRY)(&rb->buf[rb->ndone]);
+            u_int32_t disksize = leafentry_disksize(le);
+            rb->ndone += disksize;
+	    invariant(rb->ndone<=rb->size);
+            array[i]=(OMTVALUE)le;
+            actual_sum += x1764_memory(le, disksize);
+        }
+    }
+    else if (result->layout_version == BRT_LAYOUT_VERSION_12) {
+        for (int i=0; i<n_in_buf; i++) {
+            // these two lines and optimized_for_upgrade logic above are only difference in handling 
+            // versions 12 and 13 at this layer (more logic at higher layer)
+            LEAFENTRY_12 le = (LEAFENTRY_12)(&rb->buf[rb->ndone]); 
+            u_int32_t disksize = leafentry_disksize_12(le);        
+            rb->ndone += disksize;
+            invariant(rb->ndone<=rb->size);
 
-        array[i]=(OMTVALUE)le;
-        actual_sum += x1764_memory(le, disksize);
+            array[i]=(OMTVALUE)le;
+            actual_sum += x1764_memory(le, disksize);
+        }
+    }
+    else {
+        invariant(FALSE);
     }
     toku_trace("fill array");
     u_int32_t end_of_data = rb->ndone;
@@ -822,7 +850,8 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     bytevec magic;
     rbuf_literal_bytes(rb, &magic, 8);
     result->layout_version    = rbuf_int(rb);
-    invariant(result->layout_version == BRT_LAYOUT_VERSION);
+    invariant(result->layout_version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
+    invariant(result->layout_version <= BRT_LAYOUT_VERSION);
     result->layout_version_original = rbuf_int(rb);
     result->layout_version_read_from_disk = result->layout_version;
     result->nodesize = rbuf_int(rb);
@@ -927,8 +956,10 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
 
 static int
 decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
+    // This function exists solely to accomodate future changes in compression.
     int r;
     switch (version) {
+        case BRT_LAYOUT_VERSION_12:
         case BRT_LAYOUT_VERSION:
             r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
             break;
@@ -941,27 +972,87 @@ decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_b
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
     int r = 0;
-    BRTNODE brtnode_12 = NULL;
+    BRTNODE node = NULL;
+    r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &node, h, rb);  // we just filled the node with contents from rbuf
+    if (r==0) {
+        invariant(node);
+        int upgrade = 0;
+        switch (version) {
+            case BRT_LAYOUT_VERSION_12:
+                invariant(node->layout_version == BRT_LAYOUT_VERSION_12);
+                //Any upgrade necessary.
+                if (node->height == 0) {
+                    //leaf
+                    uint32_t i;
+                    OMT omt = node->u.l.buffer;
+                    uint32_t num_les = toku_omt_size(omt);
+                    LEAFENTRY *XCALLOC_N(num_les, new_les);
+                    OMTVALUE v;
 
-    int upgrade = 0;
-    switch (version) {
-        case BRT_LAYOUT_VERSION:
-            if (!upgrade)
-                r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &brtnode_12, h, rb);
-            if (r==0) {
-                lazy_assert(brtnode_12);
-                *brtnode = brtnode_12;
-            }
-            if (upgrade && r == 0) {
-                toku_brtheader_lock(h);
-                lazy_assert(h->num_blocks_to_upgrade>0);
-                h->num_blocks_to_upgrade--;
-                toku_brtheader_unlock(h);
-                (*brtnode)->dirty = 1;
-            }
-            break;    // this is the only break
-        default:
-            lazy_assert(FALSE);
+                    u_int32_t incremental_fingerprint = 0;
+                    u_int32_t incremental_size = 0;
+                    for (i = 0; i < num_les; i++) {
+                        r = toku_omt_fetch(omt, i, &v, NULL);
+                        invariant(r==0);
+                        size_t new_memsize, new_disksize;
+                        // Translate packed version 12 leafentry to packed version 13 leafentry
+                        r = toku_le_upgrade_12_13(v, &new_memsize, &new_disksize, &new_les[i]);
+                        invariant(r==0);
+                        invariant(new_memsize == new_disksize);
+                        incremental_size        += OMT_ITEM_OVERHEAD + new_memsize;
+                        incremental_fingerprint += toku_le_crc(new_les[i]);
+                    }
+                    //Regenerate fingerprint.
+                    node->local_fingerprint = node->rand4fingerprint * incremental_fingerprint;
+                    //Set buffer size.
+                    node->u.l.n_bytes_in_buffer = incremental_size;
+
+                    //Replace mempool (destroy old, create new).
+                    uint8_t *p;
+                    {
+                        void *mpbase = toku_mempool_get_base(&node->u.l.buffer_mempool);
+                        toku_mempool_fini(&node->u.l.buffer_mempool);
+                        toku_free(mpbase);
+                        mpbase = toku_xmalloc(incremental_size);
+                        toku_mempool_init(&node->u.l.buffer_mempool, mpbase, incremental_size);
+                        node->u.l.buffer_mempool.free_offset = incremental_size;
+                        p = mpbase;
+                    }
+                    //p points to beginning of new mempool
+                    for (i = 0; i < num_les; i++) {
+                        size_t len = leafentry_memsize(new_les[i]);
+                        memcpy(p, new_les[i], len);
+                        r = toku_omt_set_at(omt, p, i);
+                        invariant(r==0);
+                        p += len;
+                        toku_free(new_les[i]); //Free malloced version of new leafentry (copy exists in mempool)
+                    }
+		    toku_free(new_les);  // Free array of pointers to new leafentries
+                    //Regenerate nkeys, ndata, dsize
+                    toku_brt_leaf_reset_calc_leaf_stats(node);
+		    toku_sync_fetch_and_increment_uint64(&upgrade_status.leaf_12);  // how many leaf nodes upgraded from v12
+                }
+		else {
+		    toku_sync_fetch_and_increment_uint64(&upgrade_status.nonleaf_12);  // how many nonleaf nodes upgraded from v12
+		}
+                node->flags &= ~TOKU_DB_VALCMP_BUILTIN_12;  // delete obsolete flag
+                node->layout_version = BRT_LAYOUT_VERSION;
+                upgrade++;
+                //Fall through on purpose
+            case BRT_LAYOUT_VERSION:
+                invariant(node->layout_version == BRT_LAYOUT_VERSION);
+                if (upgrade) {
+                    toku_brtheader_lock(h);
+                    invariant(h->num_blocks_to_upgrade>0);
+                    h->num_blocks_to_upgrade--;
+                    toku_brtheader_unlock(h);
+                    node->dirty = 1;
+                }
+                *brtnode = node;
+                break;    // this is the only break
+            default:
+                invariant(FALSE);
+        }
     }
     return r;
 }
@@ -1051,21 +1142,32 @@ cleanup:
 
 int
 toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version upgrade of brt
+    // If someday we need to inject a message to upgrade the brt, this is where 
+    // it should be done.  Whenever an upgrade is done, all nodes will be marked
+    // as dirty, so it makes sense here to always inject an OPTIMIZE message.
+    // (Note, if someday the version number is stored in the translation instead
+    // of in each node, then the upgrade would not necessarily dirty each node.)
     int r = 0;
 
     int version = t->h->layout_version_read_from_disk;
-    if (!t->h->upgrade_brt_performed) {
+    int upgrade = 0;
+    if (!t->h->upgrade_brt_performed) { // upgrade may be necessary
 	switch (version) {
-        case BRT_LAYOUT_VERSION_11:
-            r = 0;
-            //Fall through on purpose.
-        case BRT_LAYOUT_VERSION:
-	    if (r == 0) {
-		t->h->upgrade_brt_performed = TRUE;
-	    }
-	    break;
-        default:
-            lazy_assert(FALSE);
+            case BRT_LAYOUT_VERSION_12:
+                r = 0;
+                upgrade++;
+                //Fall through on purpose.
+            case BRT_LAYOUT_VERSION:
+                if (r == 0 && upgrade) {
+                    r = toku_brt_optimize_for_upgrade(t);
+		    toku_sync_fetch_and_increment_uint64(&upgrade_status.optimized_for_upgrade_12);
+                }
+                if (r == 0) {
+                    t->h->upgrade_brt_performed = TRUE;  // no further upgrade necessary
+                }
+                break;
+            default:
+                invariant(FALSE);
 	}
     }
     if (r) {
@@ -1147,9 +1249,6 @@ serialize_brt_header_min_size (u_int32_t version) {
         case BRT_LAYOUT_VERSION_13:
             size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_12:
-            size += 8;  // Number of blocks in old version.
-	    // fall through to add up bytes in previous version
-        case BRT_LAYOUT_VERSION_11:
 	    size += (+8 // "tokudata"
 		     +4 // version
 		     +4 // original_version
@@ -1161,9 +1260,9 @@ serialize_brt_header_min_size (u_int32_t version) {
 		     +8 // translation_size_on_disk
 		     +8 // translation_address_on_disk
 		     +4 // checksum
-		     );
-	    size+=(+8 // diskoff
-		   +4 // flags
+                     +8 // Number of blocks in old version.
+	             +8 // diskoff
+		     +4 // flags
 		   );
 	    break;
         default:
@@ -1398,7 +1497,9 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
     //TODO: #1924
-    lazy_assert(h->layout_version==BRT_LAYOUT_VERSION);
+    invariant(h->layout_version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
+    invariant(h->layout_version <= BRT_LAYOUT_VERSION);
+    h->layout_version_read_from_disk = h->layout_version;
 
     //Size MUST be in network order regardless of disk order.
     u_int32_t size = rbuf_network_int(&rc);
@@ -1432,8 +1533,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         toku_blocktable_create_from_buffer(&h->blocktable,
                                            translation_address_on_disk,
                                            translation_size_on_disk,
-                                           tbuf,
-                                           FALSE /*not version 11 or older */ );
+                                           tbuf);
         toku_free(tbuf);
     }
 
@@ -1443,7 +1543,10 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     deserialize_descriptor_from(fd, h, &h->descriptor);
     h->layout_version_original = rbuf_int(&rc);    
     h->num_blocks_to_upgrade   = rbuf_ulonglong(&rc);
-    rbuf_TXNID(&rc, &h->root_xid_that_created);
+    if (h->layout_version >= BRT_LAYOUT_VERSION_13) { 
+        // at this layer, this new field is the only difference between versions 12 and 13
+        rbuf_TXNID(&rc, &h->root_xid_that_created);
+    }
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
@@ -1454,36 +1557,46 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 
 
 
-//TODO: When version 13 exists, add case for version 12 that looks like version 10 case,
-// but calls deserialize_brtheader_12() and upgrade_12_13()
+//TODO: When version 14 exists, add case for version 13 that looks like version 12 case,
 static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
     int rval;
-    struct brt_header *brth_12 = NULL;
     int upgrade = 0;
 
-    switch(version) {
-    case BRT_LAYOUT_VERSION:
-	if (!upgrade)
-	    rval = deserialize_brtheader (fd, rb, &brth_12);
-	if (rval == 0) {
-	    lazy_assert(brth_12);
-	    *brth = brth_12;
-	}
-	if (upgrade && rval == 0) {
-            toku_brtheader_lock(*brth);
-            (*brth)->num_blocks_to_upgrade = toku_block_get_blocks_in_use_unlocked((*brth)->blocktable);
-            (*brth)->dirty = 1;
-            toku_brtheader_unlock(*brth);
-        }
-	break;    // this is the only break
-    default:
-	lazy_assert(FALSE);
-    }
+    struct brt_header *h = NULL;
+    rval = deserialize_brtheader (fd, rb, &h); //deserialize from rbuf and fd into header
     if (rval == 0) {
-	lazy_assert((*brth)->layout_version == BRT_LAYOUT_VERSION);
-        (*brth)->layout_version_read_from_disk = version;
-	(*brth)->upgrade_brt_performed = FALSE;
+        invariant(h);
+        switch (version) {
+            case BRT_LAYOUT_VERSION_12:
+                invariant(h->layout_version == BRT_LAYOUT_VERSION_12);
+                {
+                    //Upgrade root_xid_that_created
+                    //Fake creation during the last checkpoint.
+                    h->root_xid_that_created = h->checkpoint_lsn.lsn;
+                }
+                {
+                    //Deprecate 'TOKU_DB_VALCMP_BUILTIN'.  Just remove the flag
+                    h->flags &= ~TOKU_DB_VALCMP_BUILTIN_12;
+                }
+                h->layout_version++;
+		toku_sync_fetch_and_increment_uint64(&upgrade_status.header_12);  // how many header nodes upgraded from v12
+                upgrade++;
+                //Fall through on purpose
+            case BRT_LAYOUT_VERSION:
+                invariant(h->layout_version == BRT_LAYOUT_VERSION);
+                h->upgrade_brt_performed = FALSE;
+                if (upgrade) {
+                    toku_brtheader_lock(h);
+                    h->num_blocks_to_upgrade = toku_block_get_blocks_in_use_unlocked(h->blocktable); //Total number of blocks
+                    h->dirty = 1;
+                    toku_brtheader_unlock(h);
+                }
+                *brth = h;
+                break;    // this is the only break
+            default:
+                invariant(FALSE);
+        }
     }
     return rval;
 }
@@ -1494,14 +1607,14 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 // If that ever changes, then modify this.
 //TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the file AND the header is useless
 static int
-deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *rb, u_int64_t *checkpoint_count, u_int32_t * version_p) {
+deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, struct rbuf *rb, u_int64_t *checkpoint_count, u_int32_t * version_p) {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
                                 4 + // version
                                 4;  // size
     unsigned char prefix[prefix_size];
     rb->buf = NULL;
-    int64_t n = pread(fd, prefix, prefix_size, offset);
+    int64_t n = pread(fd, prefix, prefix_size, offset_of_header);
     if (n==0) r = TOKUDB_DICTIONARY_NO_HEADER;
     else if (n<0) {r = errno; lazy_assert(r!=0);}
     else if (n!=prefix_size) r = EINVAL;
@@ -1546,7 +1659,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
             rb->buf  = toku_xmalloc(rb->size);
         }
         if (r==0) {
-            n = pread(fd, rb->buf, rb->size, offset);
+            n = pread(fd, rb->buf, rb->size, offset_of_header);
             if (n==-1) {
                 r = errno;
                 lazy_assert(r!=0);
@@ -1557,12 +1670,9 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
         //We have an rbuf that represents the header.
         //Size is within acceptable bounds.
         if (r==0) {
-            //Verify checksum
+            //Verify checksum (BRT_LAYOUT_VERSION_12 or later, when checksum function changed)
             u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
             u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
-            if (version<=BRT_LAYOUT_VERSION_11) {
-                calculated_x1764 = ~calculated_x1764;
-            }
             if (calculated_x1764!=stored_x1764) r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
         }
         if (r==0) {
@@ -1837,23 +1947,12 @@ static int
 deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash,
                                               ROLLBACK_LOG_NODE *log,
                                               struct brt_header *h, struct rbuf *rb) {
-    //Upgrade is not necessary really here.  Rollback log nodes do not survive version changes.
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
-
-    int upgrade = 0;
-    switch (version) {
-        case BRT_LAYOUT_VERSION:
-            if (!upgrade)
-                r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, h, rb);
-            if (r==0) {
-                lazy_assert(rollback_log_node);
-                *log = rollback_log_node;
-            }
-            if (upgrade && r == 0) (*log)->dirty = 1;
-            break;    // this is the only break
-        default:
-            lazy_assert(FALSE);
+    invariant(version==BRT_LAYOUT_VERSION); //Rollback log nodes do not survive version changes.
+    r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, h, rb);
+    if (r==0) {
+        *log = rollback_log_node;
     }
     return r;
 }

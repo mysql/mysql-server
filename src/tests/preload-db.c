@@ -21,6 +21,7 @@ enum {ROWS_PER_TRANSACTION=10000};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
+int littlenode = 0;
 enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
@@ -112,7 +113,7 @@ static void run_test(void)
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
-    r = env->checkpointing_set_period(env, 60);                                                                CKERR(r);
+    r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
 
     DBT desc;
     dbt_init(&desc, "foo", sizeof("foo"));
@@ -124,6 +125,10 @@ static void run_test(void)
     for(int i=0;i<NUM_DBS;i++) {
         idx[i] = i;
         r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
+	if (littlenode) {
+	    r=dbs[i]->set_pagesize(dbs[i], 4096);
+	    CKERR(0);	    
+	}
         r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                                         CKERR(r);
         dbs[i]->app_private = &idx[i];
         snprintf(name, sizeof(name), "db_%04x", i);
@@ -176,7 +181,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> %s\n", cmd);
+	    fprintf(stderr, "Usage: -h -c -n -d <num_dbs> -r <num_rows> %s\n", cmd);
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -191,6 +196,8 @@ static void do_args(int argc, char * const argv[]) {
             NUM_ROWS = atoi(argv[0]);
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
+        } else if (strcmp(argv[0], "-n")==0) {
+            littlenode = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

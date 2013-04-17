@@ -68,6 +68,8 @@ int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn)  __attribute__ ((warn
 
 int toku_brt_optimize (BRT brt)  __attribute__ ((warn_unused_result));
 
+int toku_brt_optimize_for_upgrade (BRT brt)  __attribute__ ((warn_unused_result));
+
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type)  __attribute__ ((warn_unused_result));
@@ -176,7 +178,9 @@ enum brt_header_flags {
     //TOKU_DB_DUP             = (1<<0),  //Obsolete #2862
     //TOKU_DB_DUPSORT         = (1<<1),  //Obsolete #2862
     TOKU_DB_KEYCMP_BUILTIN  = (1<<2),
-    //TOKU_DB_VALCMP_BUILTIN  = (1<<3),
+#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_12
+    TOKU_DB_VALCMP_BUILTIN_12  = (1<<3),
+#endif
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater)  __attribute__ ((warn_unused_result));
@@ -237,6 +241,8 @@ BOOL toku_brt_is_recovery_logging_suppressed (BRT) __attribute__ ((warn_unused_r
 #ifndef TOKU_MULTIPLE_MAIN_THREADS
 #define TOKU_MULTIPLE_MAIN_THREADS 0
 #endif
+
+void toku_brt_leaf_reset_calc_leaf_stats(BRTNODE node);
 
 int toku_brt_strerror_r(int error, char *buf, size_t buflen);
 // Effect: LIke the XSI-compliant strerorr_r, extended to db_strerror().

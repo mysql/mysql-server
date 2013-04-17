@@ -39,6 +39,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
        long *sizep,
+       int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
        ) {
 
@@ -47,6 +48,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 
     *value = 0;
     *sizep = 1;
+    *dirtyp = 0;
 
     return 0;
 }

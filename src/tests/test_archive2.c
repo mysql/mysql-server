@@ -48,7 +48,7 @@ test_main (int argc, char *const argv[]) {
 		  dbt_init(&data, there, strlen(there)+1),
 		  0);
 	r=txn->commit(txn, 0);    CKERR(r);
-	r=env->txn_checkpoint(env, 0, 0, 0);
+	r=env->txn_checkpoint(env, 0, 0, 0);  CKERR(r);
     }
 
     {

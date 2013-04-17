@@ -10,7 +10,7 @@ static const int log_format_version=TOKU_LOG_VERSION;
 
 static int open_logfile (TOKULOGGER logger);
 static int toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn);
-static int delete_logfile(TOKULOGGER logger, long long index);
+static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
@@ -573,10 +573,40 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     return r;
 }
 
+// TODO: Put this in portability layer when ready
+// in: file pathname that may have a dirname prefix
+// return: file leaf name
+static char * fileleafname(char *pathname) {
+    const char delimiter = '/';
+    char *leafname = strrchr(pathname, delimiter);
+    if (leafname)
+	leafname++;
+    else
+	leafname = pathname;
+    return leafname;
+}
+
 static int logfilenamecompare (const void *ap, const void *bp) {
     char *a=*(char**)ap;
+    char *a_leafname = fileleafname(a);
     char *b=*(char**)bp;
-    return strcmp(a,b);
+    char * b_leafname = fileleafname(b);
+    int rval;
+    BOOL valid;
+    uint64_t num_a = 0;  // placate compiler
+    uint64_t num_b = 0;
+    uint32_t ver_a = 0;
+    uint32_t ver_b = 0;
+    valid = is_a_logfile_any_version(a_leafname, &num_a, &ver_a);
+    invariant(valid);
+    valid = is_a_logfile_any_version(b_leafname, &num_b, &ver_b);
+    invariant(valid);
+    if (ver_a < ver_b) rval = -1;
+    else if (ver_a > ver_b) rval = +1;
+    else if (num_a < num_b) rval = -1;
+    else if (num_a > num_b) rval = +1;
+    else rval = 0;
+    return rval;
 }
 
 // Return the log files in sorted order
@@ -596,8 +626,9 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     }
     int dirnamelen = strlen(directory);
     while ((de=readdir(d))) {
-	long long thisl;
-        if ( !(is_a_logfile(de->d_name, &thisl)) ) continue; //#2424: Skip over files that don't match the exact logfile template 
+	uint64_t thisl;
+        uint32_t version_ignore;
+        if ( !(is_a_logfile_any_version(de->d_name, &thisl, &version_ignore)) ) continue; //#2424: Skip over files that don't match the exact logfile template 
 	if (n_results+1>=result_limit) {
 	    result_limit*=2;
 	    result = toku_realloc(result, result_limit*sizeof(*result));
@@ -610,8 +641,12 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
 	snprintf(fname, fnamelen, "%s/%s", directory, de->d_name);
 	result[n_results++] = fname;
     }
-    // Return them in increasing order.
-    qsort(result, n_results, sizeof(result[0]), logfilenamecompare);
+    // Return them in increasing order.  Set width to allow for newer log file names ("xxx.tokulog13")
+    // which are one character longer than old log file names ("xxx.tokulog2").  The comparison function
+    // won't look beyond the terminating NUL, so an extra character in the comparison string doesn't matter.
+    // Allow room for terminating NUL after "xxx.tokulog13" even if result[0] is of form "xxx.tokulog2."
+    int width = sizeof(result[0]+2);  
+    qsort(result, n_results, width, logfilenamecompare);
     *resultp    = result;
     *n_logfiles = n_results;
     result[n_results]=0; // make a trailing null
@@ -644,6 +679,7 @@ static int open_logfile (TOKULOGGER logger)
             return ENOMEM;
         lf_info->index = index;
         lf_info->maxlsn = logger->written_lsn; 
+        lf_info->version = TOKU_LOG_VERSION;
         toku_logfilemgr_add_logfile_info(logger->logfilemgr, lf_info);
     }
     logger->fsynced_lsn = logger->written_lsn;
@@ -651,12 +687,12 @@ static int open_logfile (TOKULOGGER logger)
     return 0;
 }
 
-static int delete_logfile(TOKULOGGER logger, long long index)
+static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version)
 // Entry and Exit: This thread has permission to modify the output.
 {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
-    snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, index, TOKU_LOG_VERSION);
+    snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, index, version);
     int r = remove(fname);
     return r;
 }
@@ -675,7 +711,9 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
     
     if ( logger->write_log_files && logger->trim_log_files) {
         while ( n_logfiles > 1 ) { // don't delete current logfile
+            uint32_t log_version;
             lf_info = toku_logfilemgr_get_oldest_logfile_info(lfm);
+            log_version = lf_info->version;
             if ( lf_info->maxlsn.lsn > trim_lsn.lsn ) {
                 // file contains an open LSN, can't delete this or any newer log files
                 break;
@@ -684,7 +722,7 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
             long index = lf_info->index;
             toku_logfilemgr_delete_oldest_logfile_info(lfm);
             n_logfiles--;
-            r = delete_logfile(logger, index);
+            r = delete_logfile(logger, index, log_version);
             if (r!=0) {
                 break;
             }
@@ -1329,7 +1367,7 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
 int
 toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found) {
     BOOL found = FALSE;
-    uint32_t single_version = 0;
+    uint32_t highest_version = 0;
     int r = 0;
 
     struct dirent *de;
@@ -1338,16 +1376,17 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
         r = errno;
     }
     else {
-        // Examine every file in the directory and assert that all log files are of the same version (single_version).
+        // Examine every file in the directory and find highest version
         while ((de=readdir(d))) {
             uint32_t this_log_version;
             uint64_t this_log_number;
             BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
             if (is_log) {
-                if (found)
-                    assert(single_version == this_log_version);
+                if (found) {
+                    highest_version = highest_version > this_log_version ? highest_version : this_log_version;
+                }
                 found = TRUE;
-                single_version = this_log_version;
+                highest_version = this_log_version;
             }
         }
     }
@@ -1358,7 +1397,7 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
     if (r==0) {
         *found_any_logs = found;
         if (found)
-            *version_found = single_version;
+            *version_found = highest_version;
     }
     return r;
 }

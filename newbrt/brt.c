@@ -174,6 +174,10 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 #include "roll.h"
 #include "toku_atomic.h"
 
+
+static const uint32_t this_version = BRT_LAYOUT_VERSION;
+
+
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     TXNID txnid = toku_txn_get_txnid(txn);
@@ -294,6 +298,12 @@ calc_leaf_stats (BRTNODE node) {
     struct fill_leafnode_estimates_state f = {&e, (OMTVALUE)NULL, node};
     toku_omt_iterate(node->u.l.buffer, fill_leafnode_estimates, &f);
     return e;
+}
+
+void
+toku_brt_leaf_reset_calc_leaf_stats(BRTNODE node) {
+    invariant(node->height==0);
+    node->u.l.leaf_stats = calc_leaf_stats(node);
 }
 
 static void __attribute__((__unused__))
@@ -483,13 +493,16 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 }
 
 //fd is protected (must be holding fdlock)
-int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs) {
+int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, 
+				 void **brtnode_pv, long *sizep, int *dirtyp, void *extraargs) {
     lazy_assert(extraargs);
     struct brt_header *h = extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, h);
-    if (r == 0)
+    if (r == 0) {
         *sizep = brtnode_memory_size(*result);
+	*dirtyp = (*result)->dirty;
+    }
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
     return r;
@@ -656,6 +669,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
         n->u.n.childkeys=0;
     } else {
 	n->u.l.leaf_stats = zero_estimates;
+	n->u.l.optimized_for_upgrade = 0;
         int r;
         r = toku_omt_create(&n->u.l.buffer);
         lazy_assert_zero(r);
@@ -1646,6 +1660,9 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
         lazy_assert(toku_omt_size(node->u.l.buffer) == omt_size);
 
         break;
+    case BRT_OPTIMIZE_FOR_UPGRADE:
+	node->dirty = 1;
+	node->u.l.optimized_for_upgrade = *((uint32_t*)(cmd->u.id.val->data)); // record version of software that sent the optimize_for_upgrade message
     case BRT_OPTIMIZE:
         // Apply to all leafentries
         idx = 0;
@@ -1893,6 +1910,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
     case BRT_OPTIMIZE:
+    case BRT_OPTIMIZE_FOR_UPGRADE:
         return brt_nonleaf_cmd_all (t, node, cmd, re_array, did_io);  // send message to all children
     case BRT_NONE:
         break;
@@ -2601,14 +2619,33 @@ toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_ina
     return r;
 }
 
+
+static int brt_optimize (BRT brt, BOOL upgrade);
+
 // Effect: Optimize the brt.
 int
 toku_brt_optimize (BRT brt) {
-    int r = 0;
-    TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-    TXNID oldest = toku_logger_get_oldest_living_xid(logger);
+    int r = brt_optimize(brt, FALSE);
+    return r;
+}
 
-    XIDS root_xids    = xids_get_root_xids();
+int
+toku_brt_optimize_for_upgrade (BRT brt) {
+    int r = brt_optimize(brt, TRUE);
+    return r;
+}
+
+static int
+brt_optimize (BRT brt, BOOL upgrade) {
+    int r = 0;
+
+    TXNID oldest = TXNID_NONE_LIVING;
+    if (!upgrade) {
+	TOKULOGGER logger = toku_cachefile_logger(brt->cf);
+	oldest = toku_logger_get_oldest_living_xid(logger);
+    }
+
+    XIDS root_xids = xids_get_root_xids();
     XIDS message_xids;
     if (oldest == TXNID_NONE_LIVING) {
         message_xids = root_xids;
@@ -2622,8 +2659,16 @@ toku_brt_optimize (BRT brt) {
     DBT val;
     toku_init_dbt(&key);
     toku_init_dbt(&val);
-    BRT_MSG_S brtcmd = { BRT_OPTIMIZE, message_xids, .u.id={&key,&val}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd);
+    if (upgrade) {
+	// maybe there's a better place than the val dbt to put the version, but it seems harmless and is convenient
+	toku_fill_dbt(&val, &this_version, sizeof(this_version));  
+        BRT_MSG_S brtcmd = { BRT_OPTIMIZE_FOR_UPGRADE, message_xids, .u.id={&key,&val}};
+        r = toku_brt_root_put_cmd(brt, &brtcmd);
+    }
+    else {
+        BRT_MSG_S brtcmd = { BRT_OPTIMIZE, message_xids, .u.id={&key,&val}};
+        r = toku_brt_root_put_cmd(brt, &brtcmd);
+    }
     xids_destroy(&message_xids);
     return r;
 }

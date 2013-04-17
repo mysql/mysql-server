@@ -111,7 +111,7 @@ struct __attribute__ ((__packed__)) leafentry {
 
 
 typedef struct leafentry *LEAFENTRY;
-
+typedef struct leafentry_12 *LEAFENTRY_12;
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 
@@ -173,7 +173,6 @@ le_clean(uint8_t *key, uint32_t keylen,
          struct dbuf *d);
 
 
-
 //Callback contract:
 //      Function checks to see if id is accepted by context.
 //  Returns:
@@ -185,6 +184,15 @@ typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
 
 int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
+
+
+size_t
+leafentry_disksize_12(LEAFENTRY_12 le);
+int 
+toku_le_upgrade_12_13(LEAFENTRY_12 old_leafentry, // NULL if there was no stored data.
+		      size_t *new_leafentry_memorysize, 
+		      size_t *new_leafentry_disksize, 
+		      LEAFENTRY *new_leafentry_p);
 
 
 #if defined(__cplusplus) || defined(__cilkplusplus)

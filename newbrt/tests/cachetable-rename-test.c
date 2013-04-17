@@ -75,6 +75,7 @@ static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value        __attribute__((__unused__)),
 		    long *sizep        __attribute__((__unused__)),
+		    int  *dirtyp       __attribute__((__unused__)),
 		    void*extraargs     __attribute__((__unused__))) {
     // fprintf(stderr, "Whoops, this should never be called");
     return -42;

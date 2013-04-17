@@ -21,7 +21,7 @@ struct block_translation_pair {
 };
 
 void toku_blocktable_create_new(BLOCK_TABLE *btp);
-void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer, BOOL invert_checksum);
+void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
 void toku_brtheader_lock(struct brt_header *h);

@@ -17,10 +17,11 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
 }
 
 static int
-fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra) {
+fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, int *dirtyp, void *extra) {
     cf = cf; hash = hash; extra = extra;
     *sizep = (long) key.b;
     *vptr = toku_malloc(*sizep);
+    *dirtyp = 0;
     return 0;
 }
 
@@ -31,6 +32,7 @@ fetch_error (CACHEFILE cf       __attribute__((__unused__)),
 	     u_int32_t fullhash __attribute__((__unused__)),
 	     void **value       __attribute__((__unused__)),
 	     long *sizep        __attribute__((__unused__)),
+	     int  *dirtyp       __attribute__((__unused__)),
 	     void*extraargs     __attribute__((__unused__))
 	     ) {
     return -1;

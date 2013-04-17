@@ -474,7 +474,7 @@ static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM 
 }
 
 static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
-                                      void **rollback_pv, long *sizep, void *extraargs) {
+					 void **rollback_pv, long *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     struct brt_header *h = extraargs;
     assert(h->cf == cachefile);

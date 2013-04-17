@@ -182,9 +182,14 @@ xids_get_serialize_size(XIDS xids){
     return rval;
 }
 
+
+// Include TXNID zero in checksum to maintain compatibility
+// with previously released version.  
 void
 toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids) {
     x1764_add(mm, &xids->num_xids, 1);
+    TXNID zero = 0;
+    x1764_add(mm, &zero, 8);
     u_int8_t index;
     u_int8_t num_xids = xids_get_num_xids(xids);
     for (index = 0; index < num_xids; index++) {
