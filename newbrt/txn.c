@@ -425,7 +425,9 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 			     bool release_multi_operation_client_lock) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
+    BOOL txn_prepared = FALSE;
     if (txn->state==TOKUTXN_PREPARING) {
+        txn_prepared = TRUE;
         txn->state=TOKUTXN_LIVE;
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
@@ -437,9 +439,16 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     int r;
     // panic handled in log_commit
 
-    // Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
-    // the do_sync state is captured in the txn for txn_maybe_fsync_log function
-    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
+    // Child transactions do not actually 'commit'.  They promote their 
+    // changes to parent, so no need to fsync if this txn has a parent. The
+    // do_sync state is captured in the txn for txn_maybe_fsync_log function
+    // Additionally, if the transaction was first prepared, we do not need to 
+    // fsync because the prepare caused an fsync of the log. In this case, 
+    // we do not need an additional of the log. We rely on the client running 
+    // recovery to properly recommit this transaction if the commit 
+    // does not make it to disk. In the case of MySQL, that would be the
+    // binary log.
+    txn->do_fsync = !txn_prepared && !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
