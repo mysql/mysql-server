@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
+#ident "$Id $"
 
 #include "test.h"
 #include "toku_pthread.h"
@@ -15,6 +15,9 @@ int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
 enum {MAGIC=311};
+
+BOOL dup_row_at_end = FALSE; // FALSE: duplicate at the begining.  TRUE: duplicate at the end.   The duplicated row is row 0.
+int  dup_row_id     = 0;     // 0 means to use row 1 if inserting at the end, row NUM_ROWS if inserting at the beginning.  Otherwise insert the row specified here.
 
 //
 //   Functions to create unique key/value pairs, row generators, checkers, ... for each of NUM_DBS
@@ -223,8 +226,9 @@ static void test_loader(DB **dbs)
     // using loader->put, put values into DB
     DBT key, val;
     unsigned int k, v;
-    {   // put a duplicate row in.
-	int i = NUM_ROWS;
+    if (!dup_row_at_end) {
+	// put a duplicate row in.
+	int i = dup_row_id==0 ? NUM_ROWS : dup_row_id;
         k = i;
         v = generate_val(i, 0);
         dbt_init(&key, &k, sizeof(unsigned int));
@@ -249,6 +253,19 @@ static void test_loader(DB **dbs)
         }
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
+    if (dup_row_at_end) {
+	// put a duplicate row in.
+	int i = dup_row_id==0 ? 1 : dup_row_id;
+        k = i;
+        v = generate_val(i, 0);
+        dbt_init(&key, &k, sizeof(unsigned int));
+        dbt_init(&val, &v, sizeof(unsigned int));
+        r = loader->put(loader, &key, &val);
+        CKERR(r);
+        if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
+	error_extra.bad_i = i;
+    }
+
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
     // close the loader
@@ -359,7 +376,10 @@ static void do_args(int argc, char * const argv[]) {
             resultcode=0;
 	do_usage:
 	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d [ -e <envdir> ]\n", cmd, NUM_DBS, NUM_ROWS);
-	    fprintf(stderr, " where -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
+	    fprintf(stderr, " where -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
+	    fprintf(stderr, "       -s               use size factor of 1 (makes internal loader buffers small so certain cases are easier to test)\n");
+	    fprintf(stderr, "       -E               duplicate the first row at the end (not the beginning).\n");
+	    fprintf(stderr, "       -D <rid>         use row id <rid> when duplicating.  (Default is 1 if inserting at end, <numrows> if inserting at beginning\n");
 	    exit(resultcode);
 	} else if (strcmp(argv[0], "-e")==0) {
             argc--; argv++;
@@ -390,6 +410,13 @@ static void do_args(int argc, char * const argv[]) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = 1;
+        } else if (strcmp(argv[0], "-s")==0) {
+	    db_env_set_loader_size_factor(1);            
+	} else if (strcmp(argv[0], "-E")==0) {
+	    dup_row_at_end = TRUE;
+	} else if (strcmp(argv[0], "-D")==0) {
+            argc--; argv++;
+	    dup_row_id = atoi(argv[0]);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
@@ -398,4 +425,5 @@ static void do_args(int argc, char * const argv[]) {
 	argc--;
 	argv++;
     }
+    assert(0<=dup_row_id && dup_row_id<=NUM_ROWS);
 }

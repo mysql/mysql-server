@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-reference-test.c 18771 2010-03-24 14:52:19Z bkuszmaul $"
+#ident "$Id$"
 
 #include "test.h"
 #include "toku_pthread.h"

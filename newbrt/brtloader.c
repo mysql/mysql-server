@@ -1484,14 +1484,10 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
         pq_nodes[i].i   = i;
         r = pqueue_insert(pq, &pq_nodes[i]);
         if (r!=0) {
-            for (int j=0; j<=i; j++) {
-                toku_free(keys[j].data);
-                toku_free(vals[j].data);
-            }
-            pqueue_free(pq);
-            toku_free(pq_nodes);
-	    printf("%s:%d returning %d\n", __FILE__, __LINE__, r); // remove this printf when we know that this path is tested.
-            return r;
+	    result = r;
+	    // path tested by loader-dup-test5.tdbrun
+	    // printf("%s:%d returning\n", __FILE__, __LINE__);
+	    break;
         }
 
 	dataoff[i] = 0;
@@ -1502,14 +1498,14 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     u_int64_t n_rows_done = 0;
 
     struct rowset *output_rowset = NULL;
-    if (to_q) {
+    if (result==0 && to_q) {
 	XMALLOC(output_rowset);
 	int r = init_rowset(output_rowset, memory_per_rowset(bl));
 	assert(r==0);
     }
     
     //printf(" n_rows=%ld\n", n_rows);
-    while (pqueue_size(pq)>0) {
+    while (result==0 && pqueue_size(pq)>0) {
         int r;
         int mini;
         {
@@ -1517,14 +1513,9 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
             pqueue_node_t *node;
             r = pqueue_pop(pq, &node);
             if (r!=0) {
-                for (int i=0; i<n_sources; i++) {
-                    toku_free(keys[i].data);
-                    toku_free(vals[i].data);
-                }
-                pqueue_free(pq);
-                toku_free(pq_nodes);
-		printf("%s:%d returning\n", __FILE__, __LINE__);
-                return r;
+		result = r;
+		printf("%s:%d returning\n", __FILE__, __LINE__); // comment this line out when we get a test that tests this code path.
+		break;
             }
             mini = node->i;
         }
@@ -1555,8 +1546,8 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    if (r!=0) {
 		if (r==EOF) {
                     // on feof, queue size permanently smaller
-		    toku_free(keys[mini].data);
-		    toku_free(vals[mini].data);
+		    toku_free(keys[mini].data);  keys[mini].data = NULL;
+		    toku_free(vals[mini].data);  vals[mini].data = NULL;
 		} else {
 		    printf("%s:%d returning\n", __FILE__, __LINE__);
 		    return r;
@@ -1567,12 +1558,9 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
                 pq_nodes[mini].key = &keys[mini];
                 r = pqueue_insert(pq, &pq_nodes[mini]);
                 if (r!=0) {
-		    // Note: This error path tested by loader-dup-test1.tdbrun
-                    for (int i=0; i<n_sources; i++) {
-                        toku_free(keys[i].data);
-                        toku_free(vals[i].data);
-                    }
+		    // Note: This error path tested by loader-dup-test1.tdbrun (and by loader-dup-test4)
                     result = r;
+		    // printf("%s:%d returning\n", __FILE__, __LINE__);
 		    break;
                 }
             }
@@ -1599,6 +1587,10 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     }
 
     // cleanup
+    for (int i=0; i<n_sources; i++) {
+	toku_free(keys[i].data);  keys[i].data = NULL;
+	toku_free(vals[i].data);  vals[i].data = NULL;
+    }
     if (output_rowset) {
 	destroy_rowset(output_rowset);
 	toku_free(output_rowset);

@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 18792 2010-03-24 22:15:48Z bkuszmaul $"
+#ident "$Id$"
 
 #include "test.h"
 #include "toku_pthread.h"

@@ -652,7 +652,24 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
 
-loader-dup-test.tdbrun:  loader-dup-test1.tdbrun
+loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
+	true $(SUMMARIZE_CMD) #State that this has passed.
+
+loader-dup-test0.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -e 0 $(SUMMARIZE_CMD)
 
 loader-dup-test1.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 500000 -e 1 $(SUMMARIZE_CMD)
+
+loader-dup-test2.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 1000000 -e 2 $(SUMMARIZE_CMD)
+
+loader-dup-test3.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 100 -e 3 $(SUMMARIZE_CMD)
+
+loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -e 4 $(SUMMARIZE_CMD)
+
+loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e 5 $(SUMMARIZE_CMD)
+
