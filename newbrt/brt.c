@@ -2653,7 +2653,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
 static void
 txn_note_doing_work(TOKUTXN txn) {
     if (txn)
-        txn->has_done_work = 1;
+        txn->has_done_work = TRUE;
 }
 
 
@@ -3221,7 +3221,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
             r = verify_builtin_comparisons_consistent(t, t->flags);
             if (r!=0) goto died_after_read_and_pin;
             t->flags = t->h->flags;
-            t->did_set_flags = 1;
+            t->did_set_flags = TRUE;
         } else {
             if (t->flags != t->h->flags) {                /* if flags have been set then flags must match */
                 r = EINVAL; goto died_after_read_and_pin;
