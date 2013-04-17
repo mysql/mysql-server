@@ -105,7 +105,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     return 0;
 }
 
-int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_CMD cmd) {
+int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd) {
     return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->xids);
 }
 
@@ -123,14 +123,14 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
     return 0;
 }
 
-// fill in the BRT_CMD, using the two DBTs for the DBT part.
-int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
+// fill in the BRT_MSG, using the two DBTs for the DBT part.
+int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_MSG cmd, DBT*key, DBT*data) {
     u_int32_t type;
     bytevec keyb,datab;
     unsigned int keylen,datalen;
     int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xids);
     if (r!=0) return r;
-    cmd->type=(enum brt_cmd_type)type;
+    cmd->type=(enum brt_msg_type)type;
     toku_fill_dbt(key, keyb, keylen);
     toku_fill_dbt(data, datab, datalen);
     cmd->u.id.key=key;

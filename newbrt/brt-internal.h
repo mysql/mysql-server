@@ -245,7 +245,7 @@ static const BRTNODE null_brtnode=0;
 //extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 //extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
 extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
-extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_CMD cmd);
+extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_MSG cmd);
 
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
@@ -293,17 +293,17 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_childr
 int toku_testsetup_root(BRT brt, BLOCKNUM);
 int toku_testsetup_get_sersize(BRT brt, BLOCKNUM); // Return the size on disk.
 int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
-int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
 
 // These two go together to do lookups in a brtnode using the keys in a command.
 struct cmd_leafval_heaviside_extra {
     BRT t;
-    BRT_CMD cmd;
+    BRT_MSG cmd;
     int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
 int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 
-int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
+int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd, TOKULOGGER logger);
 
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
 // Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items

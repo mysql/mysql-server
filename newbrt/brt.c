@@ -208,7 +208,7 @@ nonleaf_node_is_gorged (BRTNODE node) {
 }
 
 static int
-brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, enum reactivity *re, BOOL *did_io);
+brtnode_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd, enum reactivity *re, BOOL *did_io);
 
 static int
 flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, BOOL *did_io);
@@ -1229,7 +1229,7 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
 
 //TODO: Rename this function
 static int
-should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
+should_compare_both_keys (BRTNODE node, BRT_MSG cmd)
 // Effect: Return nonzero if we need to compare both the key and the value.
 {
     switch (cmd->type) {
@@ -1247,17 +1247,6 @@ should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
         break;
     }
     abort(); return 0;
-}
-
-//TODO: #1125 remove scaffolding
-static int
-apply_cmd_to_leaf(BRT_CMD cmd,
-		   void *stored_data, // NULL if there was no stored data.
-		   size_t *newlen, size_t *disksize, LEAFENTRY *new_data,
-		   OMT omt, struct mempool *mp, void **maybe_free) {
-    int r = apply_msg_to_leafentry(cmd, stored_data, newlen, disksize, new_data,
-                                       omt, mp, maybe_free);
-    return r;
 }
 
 static int
@@ -1374,7 +1363,7 @@ maybe_do_implicit_promotion_on_query (BRT_CURSOR UU(brtcursor), LEAFENTRY UU(le)
 }
 
 static int
-brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
+brt_leaf_apply_cmd_once (BRTNODE node, BRT_MSG cmd,
                          u_int32_t idx, LEAFENTRY le)
 // Effect: Apply cmd to leafentry
 //   idx is the location where it goes
@@ -1388,7 +1377,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
     // This function may call mempool_malloc_dont_release() to allocate more space.
     // That means the old pointers are guaranteed to still be good, but the data may have been copied into a new mempool.
     // We'll have to release the old mempool later.
-    int r = apply_cmd_to_leaf(cmd, le, &newlen, &newdisksize, &new_le, node->u.l.buffer, &node->u.l.buffer_mempool, &maybe_free);
+    int r = apply_msg_to_leafentry(cmd, le, &newlen, &newdisksize, &new_le, node->u.l.buffer, &node->u.l.buffer_mempool, &maybe_free);
     if (r!=0) return r;
     if (new_le) assert(newdisksize == leafentry_disksize(new_le));
 
@@ -1479,7 +1468,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 }
 
 static int
-brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
+brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
                   enum reactivity *re /*OUT*/
                   )
 // Effect: Put a cmd into a leaf.
@@ -1626,7 +1615,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     return 0;
 }
 
-static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int childnum, BRT_CMD cmd,
+static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int childnum, BRT_MSG cmd,
                                           enum reactivity re_array[], BOOL *did_io)
 {
 
@@ -1740,7 +1729,7 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
 #endif
 }
 
-static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
+static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_MSG cmd,
                                  enum reactivity re_array[], BOOL *did_io)
 // Effect: Insert a message into a nonleaf.  We may put it into a child, possibly causing the child to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
@@ -1762,7 +1751,7 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 }
 
 static int
-brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
+brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_MSG cmd,
                       enum reactivity re_array[], BOOL *did_io)
 // Effect: Put the cmd into a nonleaf node.  We may put it into several children, possibly causing the children to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
@@ -1810,7 +1799,7 @@ brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 }
 
 static int
-brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
+brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
                      enum reactivity re_array[], BOOL *did_io)
 // Effect: Put the cmd into a nonleaf node.  We may put it into a child, possibly causing the child to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
@@ -2319,7 +2308,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
             DBT hk,hv;
 
             //TODO: Factor out (into a function) conversion of fifo_entry to message
-            BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
+            BRT_MSG_S brtcmd = { (enum brt_msg_type)type, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
                                                                        toku_fill_dbt(&hv, val, vallen)} };
 
             int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
@@ -2368,7 +2357,7 @@ flush_some_child (BRT t, BRTNODE node, enum reactivity re_array[], BOOL *did_io)
 
 
 static int
-brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, enum reactivity *re, BOOL *did_io)
+brtnode_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd, enum reactivity *re, BOOL *did_io)
 // Effect: Push CMD into the subtree rooted at NODE, and indicate whether as a result NODE should split or should merge.
 //   If NODE is a leaf, then
 //      put CMD into leaf, applying it to the leafentries
@@ -2416,7 +2405,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, enum reactivity *re, BOOL *di
     }
 }
 
-static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger)
+static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_MSG cmd, TOKULOGGER logger)
 // Effect:  Put CMD into brt by descending into the tree as deeply as we can
 //   without performing I/O (but we must fetch the root),
 //   bypassing only empty FIFOs
@@ -2483,7 +2472,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
     return &brt->h->root;
 }
 
-int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
+int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd, TOKULOGGER logger)
 // Effect:  Flush the root fifo into the brt, and then push the cmd into the brt.
 {
     void *node_v;
@@ -2552,7 +2541,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
         if (r!=0) return r;
     }
 
-    BRT_CMD_S brtcmd = { BRT_INSERT, message_xids, .u.id={key,val}};
+    BRT_MSG_S brtcmd = { BRT_INSERT, message_xids, .u.id={key,val}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     if (r!=0) return r;
     return r;
@@ -2582,7 +2571,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
         if (r!=0) return r;
     }
     DBT val;
-    BRT_CMD_S brtcmd = { BRT_DELETE_ANY, message_xids, .u.id={key, toku_init_dbt(&val)}};
+    BRT_MSG_S brtcmd = { BRT_DELETE_ANY, message_xids, .u.id={key, toku_init_dbt(&val)}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
@@ -4457,7 +4446,7 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
         if (r!=0) return r;
     }
 
-    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
+    BRT_MSG_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, logger);
     return r;
 }
@@ -4537,7 +4526,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fu
             }
         }
     } else {
-        BRT_CMD_S cmd = { BRT_INSERT, 0, .u.id={key,0}};
+        BRT_MSG_S cmd = { BRT_INSERT, 0, .u.id={key,0}};
         struct cmd_leafval_heaviside_extra be = {brt, &cmd, 0};
         u_int32_t idx;
         int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, 0, &idx, NULL);

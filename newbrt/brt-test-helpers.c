@@ -80,7 +80,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     OMTVALUE storeddatav;
     u_int32_t idx;
     DBT keydbt,valdbt;
-    BRT_CMD_S cmd = {BRT_INSERT, xids_get_root_xids(),
+    BRT_MSG_S cmd = {BRT_INSERT, xids_get_root_xids(),
                      .u.id={toku_fill_dbt(&keydbt, key, keylen),
                             toku_fill_dbt(&valdbt, val, vallen)}};
     //Generate a leafentry (committed insert key,val)
@@ -119,7 +119,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     return r;
 }
 
-int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_cmd_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
     void *node_v;
     int r;
     r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,

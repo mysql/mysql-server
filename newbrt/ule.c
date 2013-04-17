@@ -163,7 +163,7 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
     XIDS xids = brt_msg_get_xids(msg);
     assert(xids_get_num_xids(xids) <= MAX_TRANSACTION_RECORDS);
     ule_do_implicit_promotions(ule, xids);
-    brt_msg_type type = brt_msg_get_type(msg);
+    enum brt_msg_type type = brt_msg_get_type(msg);
     switch (type) {
     case BRT_INSERT: ;
 	u_int32_t vallen = brt_msg_get_vallen(msg);

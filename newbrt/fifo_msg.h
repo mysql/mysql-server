@@ -25,7 +25,7 @@ void * fifo_msg_get_key(FIFO_MSG fifo_msg);
 
 void * fifo_msg_get_val(FIFO_MSG fifo_msg);
 
-brt_msg_type fifo_msg_get_type(FIFO_MSG fifo_msg);
+enum brt_msg_type fifo_msg_get_type(FIFO_MSG fifo_msg);
 
 u_int32_t fifo_msg_get_size(FIFO_MSG fifo_msg);
 
