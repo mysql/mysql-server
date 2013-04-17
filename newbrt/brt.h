@@ -28,7 +28,7 @@
 // When lock_only is true, the callback only does optional lock tree locking.
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
-int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
+int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, int basementnodesize, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn, BOOL update_cmp_descriptor);
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 // Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.
@@ -52,6 +52,8 @@ int toku_brt_get_compression_method(BRT, enum toku_compression_method *) __attri
 
 int toku_brt_set_bt_compare(BRT, brt_compare_func)  __attribute__ ((warn_unused_result));
 brt_compare_func toku_brt_get_bt_compare (BRT brt);
+
+void toku_brt_set_redirect_callback(BRT brt, on_redirect_callback redir_cb, void* extra);
 
 // How updates (update/insert/deletes) work:
 // There are two flavers of upsertdels:  Singleton and broadcast.
@@ -98,9 +100,9 @@ int toku_brt_broadcast_update(BRT brt, TOKUTXN txn, const DBT *extra) __attribut
 
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname_in_env,
-		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db)  __attribute__ ((warn_unused_result));
+		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn)  __attribute__ ((warn_unused_result));
 int toku_brt_open_recovery(BRT, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, 
-			   DB *db, FILENUM use_filenum, LSN max_acceptable_lsn)  __attribute__ ((warn_unused_result));
+			   FILENUM use_filenum, LSN max_acceptable_lsn)  __attribute__ ((warn_unused_result));
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
 
@@ -149,13 +151,10 @@ int toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_ty
 int toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 int toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 
-int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t, bool oplsn_valid, LSN oplsn), u_int32_t close_flags, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
-// Effect: Arrange to really (eventually) close a zombie DB.  When it is closed the CLOSE_DB function will be alled.
-// Requires: close_db needs to call toku_close_brt to delete the final reference.
-
+int toku_brt_close (BRT brt, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_close_brt_nolsn (BRT, char **error_string)  __attribute__ ((warn_unused_result));
-int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+int toku_remove_brtheader (struct brt_header* h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_brt_set_panic(BRT brt, int panic, char *panic_string)  __attribute__ ((warn_unused_result));
 
@@ -164,20 +163,7 @@ int toku_dump_brt (FILE *,BRT brt)  __attribute__ ((warn_unused_result));
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 void brt_flush (BRT); /* fsync and clear the caches. */
 
-int toku_brt_get_cursor_count (BRT brt)  __attribute__ ((warn_unused_result));
-// get the number of cursors in the tree
-// returns: the number of cursors.
-// asserts: the number of cursors >= 0.
-
-int toku_brt_flush (BRT brt)  __attribute__ ((warn_unused_result));
-// effect: the tree's cachefile is flushed
-// returns: 0 if success
-
-int toku_brt_truncate (BRT brt)  __attribute__ ((warn_unused_result));
-// effect: remove everything from the tree
-// returns: 0 if success
-
-LSN toku_brt_checkpoint_lsn(BRT brt)  __attribute__ ((warn_unused_result));
+LSN toku_brt_checkpoint_lsn(struct brt_header* h)  __attribute__ ((warn_unused_result));
 
 // create and initialize a cache table
 // cachesize is the upper limit on the size of the size of the values in the table
@@ -226,9 +212,6 @@ int brtenv_checkpoint (BRTENV env)  __attribute__ ((warn_unused_result));
 
 extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 
-// TODO: Get rid of this
-int toku_brt_dbt_set(DBT* key, DBT* key_source);
-
 DICTIONARY_ID toku_brt_get_dictionary_id(BRT);
 
 int toku_brt_height_of_root(BRT, int *height)  __attribute__ ((warn_unused_result)); // for an open brt, return the current height.
@@ -259,8 +242,7 @@ int
 toku_brt_stat64 (BRT, TOKUTXN, struct brtstat64_s *stat) __attribute__ ((warn_unused_result));
 
 int toku_brt_init(void (*ydb_lock_callback)(void),
-                  void (*ydb_unlock_callback)(void),
-                  void (*db_set_brt)(DB*,BRT))
+                  void (*ydb_unlock_callback)(void))
      __attribute__ ((warn_unused_result));
 int toku_brt_destroy(void)  __attribute__ ((warn_unused_result));
 int toku_brt_serialize_init(void) __attribute__ ((warn_unused_result));
@@ -287,7 +269,7 @@ void toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn);
 //           implies: txnid_that_created_or_locked_when_empty matches txn 
 //           implies: toku_txn_note_brt(brt, txn) has been called
 
-int toku_brt_zombie_needed (BRT brt) __attribute__ ((warn_unused_result));
+int toku_brt_header_needed(struct brt_header* h);
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
 int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));

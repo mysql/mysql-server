@@ -195,13 +195,10 @@ static void UU()
 db_delete(DICTIONARY d) {
     db_shutdown(d);
     int r;
-    r = db_create(&d->db, env, 0);
-        CKERR(r);
-    DB *db = d->db;
     {
         char name[MAX_NAME*2];
         fill_name(d, name, sizeof(name));
-        r = db->remove(db, name, NULL, 0);
+        r = env->dbremove(env, NULL, name, NULL, 0);
             CKERR(r);
     }
     null_dictionary(d);
@@ -277,15 +274,6 @@ db_replace(DICTIONARY d, DB_TXN *open_txn) {
     dbcpy(&temp, d, open_txn);
     db_delete(d);
     *d = temp;
-}
-
-static void UU()
-db_truncate(DB* db, DB_TXN *txn) {
-    u_int32_t row_count;
-    u_int32_t flags = 0;
-    int r = db->truncate(db, txn, &row_count, flags);
-    assert(row_count == 0);
-    CKERR(r);
 }
 
 static void UU()

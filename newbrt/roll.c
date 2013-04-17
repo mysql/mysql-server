@@ -133,8 +133,7 @@ toku_rollback_fcreate (FILENUM    filenum,
         goto done;
     }
     // file must be open, because the txn that created it opened it and
-    // noted it, so another client trying to close it would force it
-    // to become a zombie.
+    // noted it,
     assert(r == 0);
     {
         (void)toku_cachefile_get_and_pin_fd(cf);
@@ -162,8 +161,8 @@ done:
 
 static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     FILENUM *filenump=filenumvp;
-    BRT brt = v;
-    FILENUM thisfnum = toku_cachefile_filenum(brt->cf);
+    struct brt_header* h = v;
+    FILENUM thisfnum = toku_cachefile_filenum(h->cf);
     if (thisfnum.fileid<filenump->fileid) return -1;
     if (thisfnum.fileid>filenump->fileid) return +1;
     return 0;
@@ -191,13 +190,13 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
 
     (void)toku_cachefile_get_and_pin_fd(cf);
     if (!toku_cachefile_is_dev_null_unlocked(cf)) {
-        OMTVALUE brtv=NULL;
-        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
+        OMTVALUE hv=NULL;
+        r = toku_omt_find_zero(txn->open_brt_headers, find_brt_from_filenum, &filenum, &hv, NULL);
         assert(r==0);
-        BRT brt = brtv;
+        struct brt_header* h = hv;
 
 	if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
-	    LSN treelsn = toku_brt_checkpoint_lsn(brt);  
+	    LSN treelsn = toku_brt_checkpoint_lsn(h);  
 	    if (oplsn.lsn <= treelsn.lsn) {  // if operation was already applied to tree ...
 		r = 0;                       // ... do not apply it again.
 		goto cleanup;
@@ -214,10 +213,10 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
                                     ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                     : toku_init_dbt(&data_dbt) }};
 
-        r = toku_brt_root_put_cmd(brt->h, &brtcmd);
+        r = toku_brt_root_put_cmd(h, &brtcmd);
 	if (r == 0 && reset_root_xid_that_created) {
 	    TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
-	    toku_reset_root_xid_that_created(brt, new_root_xid_that_created);
+	    toku_reset_root_xid_that_created(h, new_root_xid_that_created);
 	}
     }
 cleanup:
@@ -614,20 +613,19 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
         goto done;
     }
     // file must be open, because the txn that created it opened it and
-    // noted it, so another client trying to close it would force it
-    // to become a zombie.
+    // noted it, 
     assert(r==0);
 
     fd = toku_cachefile_get_and_pin_fd(cf);
     if (!toku_cachefile_is_dev_null_unlocked(cf)) {
-        OMTVALUE brtv=NULL;
-        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
+        OMTVALUE hv=NULL;
+        r = toku_omt_find_zero(txn->open_brt_headers, find_brt_from_filenum, &filenum, &hv, NULL);
         assert(r==0);
-        BRT brt = brtv;
+        struct brt_header* h = hv;
         DESCRIPTOR_S d;
 
         toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);
-        r = toku_update_descriptor(brt->h, &d, fd);
+        r = toku_update_descriptor(h, &d, fd);
         assert(r == 0);
     }
     toku_cachefile_unpin_fd(cf);

@@ -34,7 +34,7 @@ static void setup (void) {
     int r;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, NULL_TXN, toku_builtin_compare_fun, (DB*)0); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, NULL_TXN, toku_builtin_compare_fun); assert(r==0);
 }
 
 static void toku_shutdown (void) {

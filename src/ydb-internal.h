@@ -30,7 +30,6 @@ struct __toku_db_internal {
     struct simple_dbt skey, sval; // static key and value
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
     char *dname;                  // dname is constant for this handle (handle must be closed before file is renamed)
-    BOOL is_zombie;               // True if DB->close has been called on this DB
     struct toku_list dbs_that_must_close_before_abort;
     DB_INDEXER *indexer;
     int refs;                     // reference count including indexers and loaders
@@ -92,7 +91,6 @@ struct __toku_db_env_internal {
     struct minicron fs_poller;                          // Poll the file systems
     BOOL fs_poller_is_init;    
     uint32_t num_open_dbs;
-    uint32_t num_zombie_dbs;
     int envdir_lockfd;
     int datadir_lockfd;
     int logdir_lockfd;
@@ -250,11 +248,9 @@ static inline int
 env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
-void env_note_zombie_db(DB_ENV *env, DB *db);
 void env_panic(DB_ENV * env, int cause, char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);
-void env_note_zombie_db_closed(DB_ENV *env, DB *db);
 int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);
 int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags);
 

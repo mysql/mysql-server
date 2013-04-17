@@ -96,7 +96,7 @@ doit (BOOL after_child_pin) {
     
     r = toku_brt_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink("foo1.brt");
-    r = toku_open_brt("foo1.brt", 1, &t, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt("foo1.brt", 1, &t, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
@@ -189,7 +189,7 @@ doit (BOOL after_child_pin) {
     assert_zero(r);
 
     BRT c_brt;
-    r = toku_open_brt("bar1.brt", 0, &c_brt, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt("bar1.brt", 0, &c_brt, NODESIZE, NODESIZE/2, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     //

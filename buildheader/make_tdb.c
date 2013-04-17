@@ -176,7 +176,6 @@ static void print_defines (void) {
 #endif
     printf("#define DB_BADFORMAT -30500\n"); // private tokudb
     printf("#define DB_DELETE_ANY %d\n", 1<<16); // private tokudb
-    printf("#define DB_TRUNCATE_WITHCURSORS %d\n", 1<<17); // private tokudb
 
     dodefine(DB_FIRST);
     //dodefine(DB_GET_BOTH);          No longer supported #2862.
@@ -409,13 +408,10 @@ static void print_db_struct (void) {
     STRUCT_SETUP(DB, key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
     STRUCT_SETUP(DB, open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
     STRUCT_SETUP(DB, put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DB, remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
-    STRUCT_SETUP(DB, rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
     STRUCT_SETUP(DB, set_errfile,    "void (*%s) (DB *, FILE*)");
     STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
-    STRUCT_SETUP(DB, truncate,       "int (*%s) (DB *, DB_TXN *, u_int32_t *, u_int32_t)");
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, u_int32_t)");
     const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
 			 "int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *)",

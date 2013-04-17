@@ -50,8 +50,7 @@ static void run_test (void) {
     r = db->close(db, 0);                                                               CKERR(r);
 
     // fdelete
-    r = db_create(&db, env, 0);                                                         CKERR(r);
-    r = db->remove(db, namea, NULL, 0);                                                 CKERR(r);
+    r = env->dbremove(env, NULL, namea, NULL, 0);                                       CKERR(r);
 
     // checkpoint
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);

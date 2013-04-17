@@ -14,12 +14,11 @@
 static int recovery_main(int argc, const char *const argv[]);
 
 static void dummy(void) {}
-static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *const argv[]) {
     {
-	int rr = toku_brt_init(dummy, dummy, dummy_set_brt);
+	int rr = toku_brt_init(dummy, dummy);
 	assert(rr==0);
     }
     int r = recovery_main(argc, argv);
@@ -43,11 +42,8 @@ int recovery_main (int argc, const char *const argv[]) {
     }
 
     int r = tokudb_recover(NULL,
-			   NULL_keep_zombie_callback,
 			   NULL_prepared_txn_callback,
 			   NULL_keep_cachetable_callback,
-			   NULL_setup_db_callback,
-			   NULL_close_db_callback,
 			   NULL_logger,
 			   data_dir, log_dir, NULL, NULL, NULL, NULL, 0);
     if (r!=0) {

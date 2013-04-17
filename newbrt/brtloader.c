@@ -486,7 +486,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   CACHETABLE cachetable,
 				   generate_row_for_put_func g,
 				   DB *src_db,
-				   int N, BRT brts[/*N*/],
+				   int N, BRT brts[/*N*/], DB* dbs[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   brt_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,
@@ -528,7 +528,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     MY_CALLOC_N(N, bl->root_xids_that_created);
     for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->h->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
-    for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=brts[i]->db;
+    for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
     for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->h->descriptor;
     MY_CALLOC_N(N, bl->new_fnames_in_env);
@@ -594,7 +594,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
 			  DB *src_db,
-			  int N, BRT brts[/*N*/],
+			  int N, BRT brts[/*N*/], DB* dbs[/*N*/],
 			  const char *new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template,
@@ -615,7 +615,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     int result = 0;
     {
 	int r = toku_brt_loader_internal_init(blp, cachetable, g, src_db,
-					      N, brts,
+					      N, brts, dbs,
 					      new_fnames_in_env,
 					      bt_compare_functions,
 					      temp_file_template,

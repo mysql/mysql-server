@@ -33,7 +33,6 @@ int last_open_descriptor = -1;
 int abort_type;
 int get_table_lock;
 u_int64_t num_called = 0;
-int manual_truncate = 0;
 
 
 static void
@@ -114,10 +113,7 @@ delete_db(void) {
     for (which = 0; which < NUM_DBS; which++) {
         assert(dbs[which] == NULL);
     }
-    DB *db;
-    int r = db_create(&db, env, 0);
-    CKERR(r);
-    r = db->remove(db, FNAME, name, 0);
+    int r = env->dbremove(env, NULL, FNAME, name, 0);
     if (abort_type==2) {
         CKERR2(r, ENOENT); //Abort deleted it
     }
@@ -136,11 +132,6 @@ close_db(int which) {
         r = db->close(db, 0);
         CKERR(r);
         return;
-    }
-    if (manual_truncate) {
-        u_int32_t ignore_row_count;
-        r = db->truncate(db, txn, &ignore_row_count, 0);
-        CKERR(r);
     }
     if (abort_type>0) {
         if (abort_type==2 && dbs[1]) {
@@ -297,13 +288,12 @@ test_main(int argc, char *const argv[]) {
 
     for (abort_type = 0; abort_type < 3; abort_type++) {
         for (get_table_lock = 0; get_table_lock < 2; get_table_lock++) {
-            for (manual_truncate = 0; manual_truncate < 2; manual_truncate++) {
-                name = NULL;
-                runtest();
+            name = NULL;
+            runtest();
 
-                name = "bar";
-                runtest();
-            }
+            name = "bar";
+            runtest();
+            
         }
     }
 

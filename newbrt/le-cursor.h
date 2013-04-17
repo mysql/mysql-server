@@ -36,6 +36,11 @@ int le_cursor_next(LE_CURSOR le_cursor, DBT *le);
 // The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns TRUE.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
 // returns FALSE.
+// TODO: review the DB parameter. it probably makes sense to get rid of it
+// to reduce complexity. instead, we can get the descriptor from:
+// lecursor->brtcursor->brt->h->desc
+// or:
+// some flavor of toku_brtheader_get_desc() etc
 BOOL is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db);
 
 #endif

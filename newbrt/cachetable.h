@@ -101,10 +101,6 @@ void toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum)
 uint64_t toku_cachetable_reserve_memory(CACHETABLE, double fraction);
 void toku_cachetable_release_reserved_memory(CACHETABLE, uint64_t);
 
-// Get access to the asynchronous work queue
-// Returns: a pointer to the work queue
-WORKQUEUE toku_cachetable_get_workqueue (CACHETABLE);
-
 // cachefile operations
 
 void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threads);
@@ -521,12 +517,6 @@ void toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir);
 char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 
-void toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
-// Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
-void toku_cachetable_call_ydb_lock(CACHEFILE cf);
-void toku_cachetable_call_ydb_unlock(CACHEFILE cf);
-
-    
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);
 // Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call remove_background_job()
 

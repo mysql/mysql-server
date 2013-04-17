@@ -43,10 +43,12 @@ static void test_loader_open(int ndbs) {
 
     // open the brtloader. this runs the extractor.
     BRT brts[ndbs];
+    DB* dbs[ndbs];
     const char *fnames[ndbs];
     brt_compare_func compares[ndbs];
     for (int i = 0; i < ndbs; i++) {
         brts[i] = NULL;
+        dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = my_compare;
     }
@@ -57,7 +59,7 @@ static void test_loader_open(int ndbs) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_brt_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, fnames, compares, "", ZERO_LSN, TXNID_NONE);
+        r = toku_brt_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, TXNID_NONE);
         if (r == 0)
             break;
     }

@@ -52,7 +52,7 @@ static void verify_dbfile(int n, const char *name) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_bt_compare(t, compare_ints);
     assert(r==0);
-    r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, name, 0, 0, ct, null_txn); assert(r==0);
 
     if (verbose) traceit("Verifying brt internals");
     r = toku_verify_brt(t);

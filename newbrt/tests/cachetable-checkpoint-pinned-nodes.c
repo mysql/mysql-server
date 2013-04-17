@@ -107,7 +107,7 @@ cachetable_test (void) {
   check_me = FALSE;
 
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

@@ -35,7 +35,7 @@ BOOL ignore_if_was_already_open;
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens) {
     BRTNODE node;
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, n_children);
     int i;
@@ -58,7 +58,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     BRTNODE node;
     assert(testsetup_initialized);
     assert(n_children<=BRT_FANOUT);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, n_children);
     int i;
@@ -77,7 +77,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->h->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     brt->h->root_blocknum = blocknum;
     return 0;
@@ -90,8 +90,8 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     int r  = toku_cachetable_get_and_pin(
-        brt->cf, diskoff,
-        toku_cachetable_hash(brt->cf, diskoff),
+        brt->h->cf, diskoff,
+        toku_cachetable_hash(brt->h->cf, diskoff),
         &node_v,
         NULL,
         get_write_callbacks_for_node(brt->h),
@@ -116,9 +116,9 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     r = toku_cachetable_get_and_pin(
-        brt->cf,
+        brt->h->cf,
         blocknum,
-        toku_cachetable_hash(brt->cf, blocknum),
+        toku_cachetable_hash(brt->h->cf, blocknum),
         &node_v,
         NULL,
         get_write_callbacks_for_node(brt->h),
@@ -191,9 +191,9 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     r = toku_cachetable_get_and_pin(
-        brt->cf,
+        brt->h->cf,
         blocknum,
-        toku_cachetable_hash(brt->cf, blocknum),
+        toku_cachetable_hash(brt->h->cf, blocknum),
         &node_v,
         NULL,
         get_write_callbacks_for_node(brt->h),

@@ -40,9 +40,7 @@ int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags);
-int toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn);
-int db_close_before_brt(DB *db, u_int32_t UU(flags), bool oplsn_valid, LSN oplsn);
-int toku_close_db_internal (DB * db, bool oplsn_valid, LSN oplsn);
+int toku_db_close(DB * db);
 int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, bool is_open);
 int db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra);
 int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags);

@@ -16,13 +16,11 @@ static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute__((__unused__))) {
     int r;
-    DB a_db;
-    DB *db = &a_db;
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                               assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);   assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);   assert(r==0);
     r = toku_brt_cursor(brt, &cursor, NULL, FALSE, FALSE);               assert(r==0);
 
     int i;

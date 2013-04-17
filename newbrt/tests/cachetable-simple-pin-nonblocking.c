@@ -4,7 +4,6 @@
 #include "test.h"
 
 BOOL foo;
-BOOL is_fake_locked;
 
 //
 // This test verifies that get_and_pin_nonblocking works and returns DB_TRYAGAIN when the PAIR is being used.
@@ -54,19 +53,9 @@ static void kibbutz_work(void *fe_v)
     remove_background_job(f1, false);    
 }
 
-static void my_ydb_lock(void) {
-    assert(!is_fake_locked);
-    is_fake_locked = TRUE;
-}
-
-static void my_ydb_unlock(void) {
-    assert(is_fake_locked);
-    is_fake_locked = FALSE;
-}
 
 static void
 run_test (void) {
-    is_fake_locked = TRUE;
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
@@ -76,7 +65,6 @@ run_test (void) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    toku_cachetable_set_lock_unlock_for_io(ct, my_ydb_lock, my_ydb_unlock);
     
     void* v1;
     long s1;
@@ -86,35 +74,27 @@ run_test (void) {
     // test that if we are getting a PAIR for the first time that TOKUDB_TRY_AGAIN is returned
     // because the PAIR was not in the cachetable.
     //
-    is_fake_locked = TRUE;
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
-    assert(is_fake_locked);
     // now it should succeed
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
     assert(r==0);
-    assert(is_fake_locked);
     foo = FALSE;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     // because node is in use, should return TOKUDB_TRY_AGAIN
-    assert(is_fake_locked);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
-    assert(is_fake_locked);
     assert(r==TOKUDB_TRY_AGAIN);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
     assert(foo);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
 
     // now make sure we get TOKUDB_TRY_AGAIN when a partial fetch is involved
-    assert(is_fake_locked);
     // first make sure value is there
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
-    assert(is_fake_locked);
     assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
     // now make sure that we get TOKUDB_TRY_AGAIN for the partial fetch
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, true_def_pf_req_callback, true_def_pf_callback, TRUE, NULL, NULL);
-    assert(is_fake_locked);
     assert(r==TOKUDB_TRY_AGAIN);
 
     //
@@ -122,20 +102,17 @@ run_test (void) {
     // first pin and unpin with dirty
     //
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
-    assert(is_fake_locked);
     assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
     // this should mark the PAIR as pending
     r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
-    assert(is_fake_locked);
     assert(r==TOKUDB_TRY_AGAIN);
-    my_ydb_unlock();
     r = toku_cachetable_end_checkpoint(
         ct, 
         NULL, 
-        my_ydb_lock,
-        my_ydb_unlock,
+        fake_ydb_lock,
+        fake_ydb_unlock,
         NULL,
         NULL
         );
@@ -144,7 +121,8 @@ run_test (void) {
     
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); 
+    assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     
     

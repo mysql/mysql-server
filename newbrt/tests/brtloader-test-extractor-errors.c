@@ -88,10 +88,12 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char
     // open the brtloader. this runs the extractor.
     const int N = 1;
     BRT brts[N];
+    DB* dbs[N];
     const char *fnames[N];
     brt_compare_func compares[N];
     for (int i = 0; i < N; i++) {
         brts[i] = NULL;
+        dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = compare_int;
     }
@@ -100,7 +102,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail, const char
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     BRTLOADER loader;
-    r = toku_brt_loader_open(&loader, NULL, generate, NULL, N, brts, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE);
+    r = toku_brt_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, TXNID_NONE);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

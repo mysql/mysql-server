@@ -33,9 +33,7 @@ open_db(void) {
 
 static void
 delete_db(void) {
-    int r = db_create(&db, env, 0);
-    CKERR(r);
-    r = db->remove(db, FNAME, name, 0);
+    int r = env->dbremove(env, NULL, FNAME, name, 0); CKERR(r);
 }
 
 static void

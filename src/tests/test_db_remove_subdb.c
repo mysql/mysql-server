@@ -33,11 +33,9 @@ test_main (int UU(argc), char UU(*const argv[])) {
     // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
     r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
-    r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "DoesNotExist.db", NULL, 0);       assert(r==ENOENT);
+    r=env->dbremove(env, NULL, "DoesNotExist.db", NULL, 0);       assert(r==ENOENT);
 
-    r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "DoesNotExist.db", "SubDb", 0);    assert(r==ENOENT);
+    r=env->dbremove(env, NULL, "DoesNotExist.db", "SubDb", 0);    assert(r==ENOENT);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "first", DB_BTREE, DB_CREATE, 0666); CKERR(r);
@@ -46,8 +44,7 @@ test_main (int UU(argc), char UU(*const argv[])) {
     db->put(db, NULL, &key, &data, 0);
     r=db->close(db, 0);         assert(r==0);
 
-    r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "master.db", "second", 0); assert(r==ENOENT);
+    r=env->dbremove(env, NULL, "master.db", "second", 0); assert(r==ENOENT);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "second", DB_BTREE, DB_CREATE, 0666); assert(r==0);
@@ -67,11 +64,9 @@ test_main (int UU(argc), char UU(*const argv[])) {
     db->put(db, NULL, &key, &data, 0);
     r=db->close(db, 0);         assert(r==0);
 
-    r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "master.db", "second", 0); assert(r==0);
+    r=env->dbremove(env, NULL, "master.db", "second", 0); assert(r==0);
 
-    r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "master.db", "second", 0); assert(r==ENOENT);
+    r=env->dbremove(env, NULL, "master.db", "second", 0); assert(r==ENOENT);
 
     memset(&key, 0, sizeof(key));
     memset(&data, 0, sizeof(data));

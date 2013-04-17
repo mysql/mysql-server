@@ -36,11 +36,8 @@ run_test(void) {
 
     // run recovery
     r = tokudb_recover(NULL,
-		       NULL_keep_zombie_callback,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
-		       NULL_setup_db_callback,
-		       NULL_close_db_callback,
 		       NULL_logger, TESTDIR, TESTDIR,
                        toku_builtin_compare_fun,
                        NULL, NULL, NULL,

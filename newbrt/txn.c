@@ -193,7 +193,7 @@ toku_txn_create_txn (
         return errno;
     result->starttime = time(NULL);  // getting timestamp in seconds is a cheap call
     int r;
-    r = toku_omt_create(&result->open_brts);
+    r = toku_omt_create(&result->open_brt_headers);
     if (r!=0) goto died;
 
     result->logger = logger;
@@ -343,8 +343,8 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
     COPY_FROM_INFO(rollentry_raw_count);
     uint32_t i;
     for (i = 0; i < info->num_brts; i++) {
-        BRT brt = info->open_brts[i];
-        int r = toku_txn_note_brt(txn, brt);
+        struct brt_header* h = info->open_brt_headers[i];
+        int r = toku_txn_note_brt(txn, h);
         assert_zero(r);
     }
     COPY_FROM_INFO(force_fsync_on_commit );
@@ -601,8 +601,8 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
     if (garbage_collection_debug)
         verify_snapshot_system(txn->logger);
 
-    if (txn->open_brts)
-        toku_omt_destroy(&txn->open_brts);
+    if (txn->open_brt_headers)
+        toku_omt_destroy(&txn->open_brt_headers);
     xids_destroy(&txn->xids);
     toku_txn_ignore_free(txn); // 2954
     toku_free(txn);

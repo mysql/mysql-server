@@ -38,7 +38,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
 
     int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, string_cmp, null_db); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, string_cmp); assert(r==0);
 
     for (int i = 0; i < count; ++i) {
         char key[100],val[100];
@@ -52,7 +52,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r == 0);
-    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, string_cmp, null_db); assert(r == 0);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, string_cmp); assert(r == 0);
 
     for (int n = 0; n < count/100; ++n) {
         int i = n * 100;

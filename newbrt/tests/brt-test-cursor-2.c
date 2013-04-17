@@ -8,7 +8,6 @@
 static const char fname[]= __FILE__ ".brt";
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static int
 save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
@@ -23,8 +22,8 @@ save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, voi
 // Verify that different cursors return different data items when a DBT is initialized to all zeros (no flags)
 // Note: The BRT test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
 // so this test is a little bit obsolete.
-static void test_multiple_brt_cursor_dbts(int n, DB *db) {
-    if (verbose) printf("test_multiple_brt_cursors:%d %p\n", n, db);
+static void test_multiple_brt_cursor_dbts(int n) {
+    if (verbose) printf("test_multiple_brt_cursors:%d\n", n);
 
     int r;
     CACHETABLE ct;
@@ -36,7 +35,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, toku_builtin_compare_fun, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     int i;
@@ -90,20 +89,17 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor(DB *db) {
-    test_multiple_brt_cursor_dbts(1, db);
-    test_multiple_brt_cursor_dbts(2, db);
-    test_multiple_brt_cursor_dbts(3, db);
+static void test_brt_cursor(void) {
+    test_multiple_brt_cursor_dbts(1);
+    test_multiple_brt_cursor_dbts(2);
+    test_multiple_brt_cursor_dbts(3);
 }
 
 
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
-
-    DB a_db;
-    DB *db = &a_db;
-    test_brt_cursor(db);
+    test_brt_cursor();
     if (verbose) printf("test ok\n");
     return 0;
 }

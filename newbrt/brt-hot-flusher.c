@@ -255,9 +255,7 @@ toku_brt_hot_optimize(BRT brt,
     (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_HOT_NUM_STARTED), 1);
 
     {
-        toku_cachetable_call_ydb_lock(brt->h->cf);
         toku_brt_header_note_hot_begin(brt);
-        toku_cachetable_call_ydb_unlock(brt->h->cf);
     }
 
     // Higher level logic prevents a dictionary from being deleted or
@@ -356,9 +354,7 @@ toku_brt_hot_optimize(BRT brt,
         if (r == 0) { success = true; }
 
         {
-            toku_cachetable_call_ydb_lock(brt->h->cf);
             toku_brt_header_note_hot_complete(brt, success, msn_at_start_of_hot);
-            toku_cachetable_call_ydb_unlock(brt->h->cf);
         }
 
         if (success) {

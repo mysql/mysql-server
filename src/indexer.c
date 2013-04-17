@@ -181,7 +181,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     XCALLOC_N(N, indexer->i->fnums);
     if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
     for(int i=0;i<indexer->i->N;i++) {
-        indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->brt->cf);
+        indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->brt->h->cf);
     }
     indexer->i->filenums.num       = N;
     indexer->i->filenums.filenums  = indexer->i->fnums;

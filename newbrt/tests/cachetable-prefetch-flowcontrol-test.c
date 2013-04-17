@@ -104,7 +104,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
 #endif
 
     char *error_string;
-    r = toku_cachefile_close(&f1, &error_string, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, &error_string, FALSE, ZERO_LSN); assert(r == 0);
     if (verbose) printf("%s:%d 0x%x 0x%x\n", __FUNCTION__, __LINE__,
 	evicted_keys, (1 << (2*cachetable_size_limit))-1);
     assert(evicted_keys == (1 << (2*cachetable_size_limit))-1);

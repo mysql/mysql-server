@@ -756,18 +756,6 @@ static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operat
     return 0;
 }
 
-static int UU() truncate_me(DB_TXN *txn, ARG UU(arg), void* UU(operation_extra)) {
-    int r;
-    for ( int i = 0; i < arg->num_DBs; i++) {
-        u_int32_t row_count = 0;
-        r = (*arg->dbp)->truncate(*arg->dbp, txn, &row_count, 0);
-        assert(r == 0);
-    }
-    return 0;
-}
-
-
-
 struct test_time_extra {
     int num_seconds;
     bool crash_at_end;

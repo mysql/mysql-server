@@ -135,7 +135,7 @@ toku_pin_brtnode(
     void *node_v;
     *msgs_applied = FALSE;
     int r = toku_cachetable_get_and_pin_nonblocking(
-            brt->cf,
+            brt->h->cf,
             blocknum,
             fullhash,
             &node_v,
