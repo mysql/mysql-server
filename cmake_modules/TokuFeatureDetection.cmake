@@ -38,9 +38,9 @@ check_include_files(unistd.h HAVE_UNISTD_H)
 include(CheckSymbolExists)
 
 ## check whether we can set the mmap threshold like we can in gnu libc's malloc
-check_symbol_exists(M_MMAP_THRESHOLD "malloc.h;sys/malloc.h" HAVE_M_MMAP_THRESHOLD)
+check_symbol_exists(M_MMAP_THRESHOLD "malloc.h" HAVE_M_MMAP_THRESHOLD)
 ## check whether we have CLOCK_REALTIME
-check_symbol_exists(CLOCK_REALTIME "time.h;sys/time.h" HAVE_CLOCK_REALTIME)
+check_symbol_exists(CLOCK_REALTIME "time.h" HAVE_CLOCK_REALTIME)
 
 include(CheckFunctionExists)
 
