@@ -1,4 +1,0 @@
-ROOT = ../../
-build default: src/tests.builddir
-check: src/tests.checkdir
-include $(ROOT)Makefile.include
