@@ -90,21 +90,28 @@ void memarena_close(MEMARENA *map) {
     *map = 0;
 }
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <crtdbg.h>
+#endif
+
 void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     int i;
     char **other_bufs = dest->other_bufs;
-    static int counter = 0;
-    counter++;
+    static int move_counter = 0;
+    move_counter++;
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
     if (other_bufs == 0) {
+        extern int toku_malloc_counter, toku_realloc_counter, toku_free_counter;
 #if defined(_WIN32)
-        extern int _CrtCheckMemory(void);
+        printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
 #endif
-        printf("Z: counter:%d dest:%p %p %d source:%p %p %d errno:%d\n", 
-               counter, 
+        printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n", 
+               move_counter, 
                dest, dest->other_bufs, dest->n_other_bufs, 
                source, source->other_bufs, source->n_other_bufs,
                errno);
+        printf("toku_memory_counters: %d %d %d\n", toku_malloc_counter, toku_realloc_counter, toku_free_counter);
         assert(other_bufs);
     }
     dest->other_bufs = other_bufs;
