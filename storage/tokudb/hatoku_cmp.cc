@@ -29,11 +29,43 @@ inline TOKU_TYPE mysql_to_toku_type (enum_field_types mysql_type) {
 }
 
 
+int compare_field(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    Field* field,
+    u_int32_t key_part_length, //I really hope this is temporary as I phase out the pack_cmp stuff
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) {
+    int ret_val = 0;
+    TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
+    switch(toku_type) {
+    case (toku_type_int):
+        ret_val = cmp_toku_int(
+            a_buf, 
+            b_buf, 
+            field->flags & UNSIGNED_FLAG, 
+            field->pack_length()
+            );
+        *a_bytes_read = field->pack_length();
+        *b_bytes_read = field->pack_length();
+        goto exit;
+    default:
+        *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
+        *b_bytes_read = field->packed_col_length(a_buf, key_part_length);
+        ret_val = field->pack_cmp(a_buf, b_buf, key_part_length, 0);
+        goto exit;
+    }
+    assert(false);
+exit:
+    return ret_val;
+}
+
 
 //
 // assuming MySQL in little endian, and we are storing in little endian
 //
-uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, int num_bytes) {
+uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
     case (2):
@@ -50,7 +82,7 @@ uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, int num_bytes) {
 //
 // assuming MySQL in little endian, and we are unpacking to little endian
 //
-uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, int num_bytes) {
+uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
     case (2):
@@ -64,12 +96,12 @@ uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, int num_bytes) {
     return from_tokudb+num_bytes;
 }
 
-int cmp_toku_int (uchar* a, uchar* b, bool is_signed, int num_bytes) {
+int cmp_toku_int (uchar* a, uchar* b, bool is_unsigned, u_int32_t num_bytes) {
     int ret_val = 0;
     //
     // case for unsigned integers
     //
-    if (!is_signed) {
+    if (is_unsigned) {
         u_int32_t a_num, b_num = 0;
         u_int64_t a_big_num, b_big_num = 0;
         switch (num_bytes) {
@@ -222,12 +254,21 @@ int tokudb_compare_two_keys(
             saved_key_length--;
             if (!*new_key_ptr++) { continue; }
         }
-        new_key_field_length     = key_part->field->packed_col_length(new_key_ptr,   key_part->length);
-        saved_key_field_length   = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+        cmp = compare_field(
+            new_key_ptr, 
+            saved_key_ptr,
+            key_part->field,
+            key_part->length,
+            &new_key_field_length,
+            &saved_key_field_length
+            );
+        if (cmp) {
+            return cmp;
+        }
+
         assert(new_key_length >= new_key_field_length);
         assert(saved_key_length >= saved_key_field_length);
-        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
-            return cmp;
+
         new_key_ptr      += new_key_field_length;
         new_key_length   -= new_key_field_length;
         saved_key_ptr    += saved_key_field_length;
@@ -290,12 +331,21 @@ int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const DBT * ne
             saved_key_length--;
             if (!*new_key_ptr++) { continue; }
         }
-        new_key_field_length     = key_part->field->packed_col_length(new_key_ptr,   key_part->length);
-        saved_key_field_length   = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+        cmp = compare_field(
+            new_key_ptr, 
+            saved_key_ptr,
+            key_part->field,
+            key_part->length,
+            &new_key_field_length,
+            &saved_key_field_length
+            );
+        if (cmp) {
+            return cmp;
+        }
+
         assert(new_key_length >= new_key_field_length);
         assert(saved_key_length >= saved_key_field_length);
-        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
-            return cmp;
+
         new_key_ptr      += new_key_field_length;
         new_key_length   -= new_key_field_length;
         saved_key_ptr    += saved_key_field_length;
@@ -342,12 +392,21 @@ int tokudb_compare_two_clustered_keys(KEY *key, KEY* primary_key, const DBT * ne
                     saved_key_length--;
                     if (!*new_key_ptr++) { continue; }
                 }
-                new_key_field_length     = key_part->field->packed_col_length(new_key_ptr,   key_part->length);
-                saved_key_field_length   = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+                cmp = compare_field(
+                    new_key_ptr, 
+                    saved_key_ptr,
+                    key_part->field,
+                    key_part->length,
+                    &new_key_field_length,
+                    &saved_key_field_length
+                    );
+                if (cmp) {
+                    return cmp;
+                }
+                
                 assert(new_key_length >= new_key_field_length);
                 assert(saved_key_length >= saved_key_field_length);
-                if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
-                    return cmp;
+                
                 new_key_ptr      += new_key_field_length;
                 new_key_length   -= new_key_field_length;
                 saved_key_ptr    += saved_key_field_length;
