@@ -155,7 +155,7 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
         int r = toku_os_get_file_size(fd, &file_size);
         if (r != 0) { // debug #2463
             int the_errno = errno;
-            fprintf(stderr, "%s:%d fd=%d size=%"PRIu64"r=%d errno=%d\n", __FUNCTION__, __LINE__, fd, size, r, the_errno); fflush(stderr);
+            fprintf(stderr, "%s:%d fd=%d size=%"PRIu64" r=%d errno=%d\n", __FUNCTION__, __LINE__, fd, size, r, the_errno); fflush(stderr);
         }
         lazy_assert_zero(r);
     }
@@ -649,6 +649,8 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
     int r;
 
     if (memcmp(magic, "tokunode", 8)!=0) {
+	fprintf(stderr, "%s:%d: Bad magic = %"PRIx64"\n", __FUNCTION__, __LINE__, *(uint64_t*)magic); 
+	fflush(stderr);
         r = toku_db_badformat();
         return r;
     }
@@ -694,6 +696,8 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
         r=toku_fifo_create(&BNC_BUFFER(result,i));
         if (r!=0) {
             for (int j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
+	    fprintf(stderr, "%s:%d: non-zero return from toku_fifo_create(): %d\n", __FUNCTION__, __LINE__, r); 
+	    fflush(stderr);	    
             return toku_db_badformat();
         }
 	toku_fifo_size_hint(BNC_BUFFER(result,i), child_buffer_map[i].size);
@@ -706,6 +710,9 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
 	u_int32_t expected_xsum = toku_dtoh32(*(u_int32_t*)(rb->buf+rb->size-4));
 	u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
 	if (expected_xsum!=actual_xsum) {
+	    fprintf(stderr, "%s:%d: Bad checksum: expected = %"PRIx32", actual = %"PRIx32"\n", __FUNCTION__, __LINE__, 
+		    expected_xsum, actual_xsum);
+	    fflush(stderr);
 	    return toku_db_badformat();
 	}
     }
@@ -718,6 +725,8 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     int r;
 
     if (memcmp(magic, "tokuleaf", 8)!=0) {
+	fprintf(stderr, "%s:%d: Bad magic = %"PRIx64"\n", __FUNCTION__, __LINE__, *(uint64_t*)magic); 
+	fflush(stderr);
         r = toku_db_badformat();
         return r;
     }
@@ -792,6 +801,8 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     toku_trace("create omt");
     if (r!=0) {
         toku_free(array);
+	fprintf(stderr, "%s:%d: non-zero return from toku_omt_create_steal_sorted_array(): %d\n", __FUNCTION__, __LINE__, r); 
+	fflush(stderr);	    
         r = toku_db_badformat();
         if (0) { died_1: toku_omt_destroy(&result->u.l.buffer); }
         return r;
@@ -809,10 +820,16 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
 	u_int32_t expected_xsum = rbuf_int(rb);
 	u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
 	if (expected_xsum!=actual_xsum) {
+	    fprintf(stderr, "%s:%d: Bad checksum: expected (hex) = %"PRIx32", actual = %"PRIx32"\n", __FUNCTION__, __LINE__, 
+		    expected_xsum, actual_xsum);
+	    fflush(stderr);
 	    return toku_db_badformat();
 	}
     } 
     if (rb->ndone != rb->size) { //Verify we read exactly the entire block, except for the final checksum.
+	fprintf(stderr, "%s:%d: Bad block size: rb->ndone = %d, rb->size = %d\n", __FUNCTION__, __LINE__, 
+		rb->ndone, rb->size);
+	fflush(stderr);
 	r = toku_db_badformat(); goto died_1;
     }
 
@@ -936,11 +953,23 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, 
     // verify sub block sizes
     for (int i = 0; i < n_sub_blocks; i++) {
         u_int32_t compressed_size = sub_block[i].compressed_size;
-        if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
+        if (compressed_size<=0   || compressed_size>(1<<30)) { 
+	    fprintf(stderr, "%s:%d: bad compressed_size = %"PRIu32", i = %d\n", __FUNCTION__, __LINE__, 
+		    compressed_size, i);
+	    fflush(stderr);
+	    r = toku_db_badformat(); 
+	    return r; 
+	}
 
         u_int32_t uncompressed_size = sub_block[i].uncompressed_size;
         if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
-        if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
+        if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { 
+	    fprintf(stderr, "%s:%d: bad uncompressed_size = %"PRIu32", i = %d\n", __FUNCTION__, __LINE__, 
+		    uncompressed_size, i);
+	    fflush(stderr);
+	    r = toku_db_badformat(); 
+	    return r; 
+	}
     }
 
     // sum up the uncompressed size of the sub blocks
@@ -1104,12 +1133,16 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
         if (memcmp(magic, "tokuleaf", 8)!=0 &&
             memcmp(magic, "tokunode", 8)!=0 &&
             memcmp(magic, "tokuroll", 8)!=0) {
+	    fprintf(stderr, "%s:%d: Bad magic: %"PRIx64"\n", __FUNCTION__, __LINE__, *(uint64_t*)magic); 
+	    fflush(stderr);
             r = toku_db_badformat();
             goto cleanup;
         }
         u_int8_t *version = raw_block + uncompressed_version_offset;
         layout_version = toku_dtoh32(*(uint32_t*)version);
         if (layout_version < BRT_LAYOUT_MIN_SUPPORTED_VERSION || layout_version > BRT_LAYOUT_VERSION) {
+	    fprintf(stderr, "%s:%d: Bad layout: %d (decimal)\n", __FUNCTION__, __LINE__, layout_version);
+	    fflush(stderr);
             r = toku_db_badformat();
             goto cleanup;
         }
@@ -1145,6 +1178,8 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash,
         u_int8_t *magic = rb.buf + uncompressed_magic_offset;
         if (memcmp(magic, "tokuleaf", 8)!=0 &&
             memcmp(magic, "tokunode", 8)!=0) {
+	    fprintf(stderr, "%s:%d: Bad magic = %"PRIx64"\n", __FUNCTION__, __LINE__, *(uint64_t*)magic); 
+	    fflush(stderr);
             r = toku_db_badformat();
             goto cleanup;
         }
@@ -1981,11 +2016,17 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
     result->sequence = rbuf_ulonglong(rb);
     result->thislogname = rbuf_blocknum(rb);
     if (result->thislogname.b != blocknum.b) {
+	fprintf(stderr, "%s:%d: Bad blocknum in rollback log: result->thislogname.b = %"PRIx64", blocknum.b = %"PRIx64"\n", __FUNCTION__, __LINE__, 
+		result->thislogname.b, blocknum.b);
+	fflush(stderr);
         r = toku_db_badformat();
         goto died0;
     }
     result->thishash    = toku_cachetable_hash(h->cf, result->thislogname);
     if (result->thishash != fullhash) {
+	fprintf(stderr, "%s:%d: Bad hash in rollback log: result->thishash.b = %"PRIx32", fullhash = %"PRIx32"\n", __FUNCTION__, __LINE__, 
+		result->thishash, fullhash);
+	fflush(stderr);
         r = toku_db_badformat();
         goto died0;
     }
@@ -2009,6 +2050,8 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
         unsigned char* item_buf = (unsigned char*)item_vec;
         r = toku_parse_rollback(item_buf, rollback_fsize-4, &item, result->rollentry_arena);
         if (r!=0) {
+	    fprintf(stderr, "%s:%d: non-zero return from toku_parse_rollback(): %d\n", __FUNCTION__, __LINE__, r); 
+	    fflush(stderr);	    
             r = toku_db_badformat();
             goto died1;
         }
@@ -2060,6 +2103,8 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhas
     {
         u_int8_t *magic = rb.buf + uncompressed_magic_offset;
         if (memcmp(magic, "tokuroll", 8)!=0) {
+	    fprintf(stderr, "%s:%d: Bad magic: %"PRIx64"\n", __FUNCTION__, __LINE__, *(uint64_t*)magic); 
+	    fflush(stderr);
             r = toku_db_badformat();
             goto cleanup;
         }
