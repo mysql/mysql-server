@@ -326,6 +326,8 @@ close_brt:;
         int rr = toku_close_brt(brt, NULL); assert(rr == 0);
         toku_free(fixedfname);
         toku_free(fake_db); //Free memory allocated for the fake db.
+        if (r==ENOENT) //Not an error to simply be missing.
+            r = 0;
         return r;
     }
 
@@ -378,16 +380,32 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER
 }
 
 // fdelete is a transactional file delete.
-static int toku_recover_fdelete (struct logtype_fdelete *UU(l), RECOVER_ENV UU(renv)) {
-    //TODO: #2037
-    //Put entry in rolltmp.
-    assert(FALSE);
+static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
+    TOKUTXN txn = NULL;
+    int r = toku_txnid2txn(renv->logger, l->txnid, &txn);
+    assert(r == 0);
+    //TODO: #??? (insert ticket number) bug that could leave orphaned files here.
+    if (txn == NULL)
+        return 0;
+    char *fixediname = fixup_fname(&l->iname);
+    { //Skip if does not exist.
+        toku_struct_stat buf;
+        r = toku_stat(fixediname, &buf);
+        if (r==-1 && errno==ENOENT)
+            goto cleanup;
+    }
+    DBT iname_dbt;
+    toku_fill_dbt(&iname_dbt, fixediname, strlen(fixediname)+1);
+    r = toku_brt_remove_on_commit(txn, &iname_dbt, &iname_dbt);
+    assert(r==0);
+cleanup:
+    toku_free(fixediname);
+    return 0;
 }
 
 static int toku_recover_backward_fdelete (struct logtype_fdelete *UU(l), RECOVER_ENV UU(renv)) {
-    //TODO: #2037
-    //Do we do anything here?  Perhaps open it?
-    assert(FALSE);
+    // nothing
+    return 0;
 }
 
 static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV renv) {

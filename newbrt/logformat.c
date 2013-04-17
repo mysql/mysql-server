@@ -112,8 +112,6 @@ const struct logtype logtypes[] = {
     {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"TXNID",      "txnid", 0},
-                        {"u_int8_t",   "file_was_open", 0},
-			{"FILENUM",    "filenum", 0},
 			{"BYTESTRING", "iname", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
