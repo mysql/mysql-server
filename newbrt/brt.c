@@ -3474,6 +3474,9 @@ cleanup:
 
 static void 
 brt_update_cmp_descriptor(BRT t) {
+    if (t->h->cmp_descriptor.dbt.data != NULL) {
+        toku_free(t->h->cmp_descriptor.dbt.data);
+    }
     t->h->cmp_descriptor.dbt.size = t->h->descriptor.dbt.size;
     t->h->cmp_descriptor.dbt.data = toku_xmemdup(
         t->h->descriptor.dbt.data, 
