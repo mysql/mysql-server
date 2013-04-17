@@ -90,7 +90,8 @@ enum brt_msg_type {
     BRT_ABORT_ANY = 4,   // Abort any commands on any matching key.
     BRT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
     BRT_COMMIT_ANY  = 6,
-    BRT_COMMIT_BOTH = 7
+    BRT_COMMIT_BOTH = 7,
+    BRT_COMMIT_BROADCAST_ALL = 8 // Broadcast to all leafentries, (commit all transactions).
 };
 
 typedef struct xids_t *XIDS;

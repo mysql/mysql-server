@@ -303,7 +303,7 @@ struct cmd_leafval_heaviside_extra {
 };
 int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 
-int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd, TOKULOGGER logger);
+int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd);
 
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
 // Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
