@@ -16,12 +16,14 @@
 #endif
 
 const char *pname;
-enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_HEAVI } run_mode = RUN_HWC;
+enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_HEAVI, RUN_RANGE} run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
 u_int32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
+static u_int64_t start_range = 0, end_range = 0;
+static int n_experiments = 2;
 
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
@@ -53,8 +55,7 @@ char *dbfilename = "bench.db";
 
 static void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
-    argc--;
-    argv++;
+    argc--; argv++;
     int specified_run_mode=0;
     while (argc>0) {
 	if (strcmp(*argv,"--verify-lwc")==0) {
@@ -78,25 +79,32 @@ static void parse_args (int argc, const char *argv[]) {
 	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
 	else if (strcmp(*argv, "--count")==0)            {
 	    char *end;
-	    argv++; argc--;
+            argc--; argv++; 
 	    errno=0; limitcount=strtol(*argv, &end, 10); assert(errno==0);
 	    printf("Limiting count to %ld\n", limitcount);
         } else if (strcmp(*argv, "--cachesize")==0 && argc>0) {
             char *end;
-            argv++; argc--;
+            argc--; argv++; 
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
 	} else if (strcmp(*argv, "--env") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
 	    dbdir = *argv;
         } else if (strcmp(*argv, "--mysql") == 0) {
             do_mysql = 1;
+        } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
+            run_mode = RUN_RANGE;
+            argc--; argv++;
+            start_range = strtoll(*argv, NULL, 10);
+            argc--; argv++;
+            end_range = strtoll(*argv, NULL, 10);
+        } else if (strcmp(*argv, "--experiments") == 0 && argc > 1) {
+            argc--; argv++;
+            n_experiments = strtol(*argv, NULL, 10);
 	} else {
             exit(print_usage(pname));
 	}
-	argc--;
-	argv++;
+	argc--; argv++;
     }
     //Prelocking is meaningless without transactions
     if (do_txns==0) {
@@ -180,7 +188,7 @@ static double gettime (void) {
 static void scanscan_hwc (void) {
     int r;
     int counter=0;
-    for (counter=0; counter<2; counter++) {
+    for (counter=0; counter<n_experiments; counter++) {
 	long long totalbytes=0;
 	int rowcounter=0;
 	double prevtime = gettime();
@@ -229,7 +237,7 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
 static void scanscan_lwc (void) {
     int r;
     int counter=0;
-    for (counter=0; counter<2; counter++) {
+    for (counter=0; counter<n_experiments; counter++) {
 	struct extra_count e = {0,0};
 	double prevtime = gettime();
 	DBC *dbc;
@@ -248,6 +256,49 @@ static void scanscan_lwc (void) {
 	double tdiff = thistime-prevtime;
 	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
     }
+}
+
+static void scanscan_range (void) {
+    int fnull = open("/dev/null", O_WRONLY); assert(fnull >= 0); // use with strace
+    int r;
+    double tstart = gettime();
+    DBC *dbc;
+    r = db->cursor(db, tid, &dbc, 0); assert(r==0);
+
+    int counter;
+    for (counter=0; counter<n_experiments; counter++) {
+
+        // generate a random key in the key range
+        u_int64_t k = (start_range + (random() % (end_range - start_range))) * (1<<6);
+        char kv[8];
+        int i;
+        for (i=0; i<8; i++)
+            kv[i] = k >> (56-8*i);
+        DBT key; memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
+        DBT val; memset(&val, 0, sizeof val);
+
+        // set the cursor to the random key
+        write(fnull, "s", 1);
+        r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag); assert(r==0);
+        write(fnull, "e", 1);
+
+#if 0
+	long rowcounter=0;
+	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
+	    rowcounter++;
+	    if (limitcount>0 && rowcounter>=limitcount) break;
+	}
+#endif
+    }
+
+    r = dbc->c_close(dbc);                                      
+    assert(r==0);	
+
+    double tend = gettime();
+    double tdiff = tend-tstart;
+    printf("Range %d %f\n", n_experiments, tdiff);
+
+    close(fnull);
 }
 
 struct extra_heavi {
@@ -301,7 +352,7 @@ static int copy_and_counttotalbytes (DBT const *key, DBT const *val, void *extra
 static void scanscan_heaviside (void) {
     int r;
     int counter=0;
-    for (counter=0; counter<2; counter++) {
+    for (counter=0; counter<n_experiments; counter++) {
 	struct extra_heavi e;
         memset(&e, 0, sizeof(e));
         e.key.flags = DB_DBT_REALLOC;
@@ -366,7 +417,7 @@ checkbytes (DBT const *key, DBT const *data, void *extrav) {
 static void scanscan_verify (void) {
     int r;
     int counter=0;
-    for (counter=0; counter<2; counter++) {
+    for (counter=0; counter<n_experiments; counter++) {
 	struct extra_verify v;
 	v.totalbytes=0;
 	v.rowcounter=0;
@@ -410,6 +461,7 @@ int main (int argc, const char *argv[]) {
     case RUN_LWC:    scanscan_lwc();    break;
     case RUN_VERIFY: scanscan_verify(); break;
     case RUN_HEAVI:  scanscan_heaviside(); break;
+    case RUN_RANGE:  scanscan_range();  break;
 #else
     default:         assert(0);         break;
 #endif
