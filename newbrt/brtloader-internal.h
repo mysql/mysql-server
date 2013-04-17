@@ -110,9 +110,6 @@ int brt_loader_call_error_function(brtloader_error_callback);
 int brt_loader_set_error_and_callback(brtloader_error_callback, int error, DB *db, int which_db, DBT *key, DBT *val);
 
 struct brtloader_s {
-    int panic;
-    int panic_errno;
-
     generate_row_for_put_func generate_row_for_put;
     brt_compare_func *bt_compare_funs;
 
@@ -128,6 +125,9 @@ struct brtloader_s {
     QUEUE primary_rowset_queue; // main thread enqueues rowsets in this queue (in maybe 64MB chunks).  The extractor thread removes them, sorts them, adn writes to file.
     toku_pthread_t     extractor_thread;     // the thread that takes primary rowset and does extraction and the first level sort and write to file.
     BOOL extractor_live;
+
+    BOOL panic;
+    int panic_errno;
     
     struct rowset *rows; // secondary rows that have been put, but haven't been sorted and written to a file.
     u_int64_t n_rows; // how many rows have been put?
@@ -153,6 +153,8 @@ struct brtloader_s {
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
     toku_pthread_t *fractal_threads;
     BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
+
+    pthread_mutex_t mutex;
 };
 
 // Set the number of rows in the loader.  Used for test.

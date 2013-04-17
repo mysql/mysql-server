@@ -147,10 +147,13 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
+
 // full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
 void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
 void toku_os_full_write (int fd, const void *buf, size_t len) __attribute__((__visibility__("default")));
+
 // os_write returns 0 on success, otherwise an errno.
+int toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
 int toku_os_write (int fd, const void *buf, size_t len) __attribute__((__visibility__("default")));
 
 // wrapper around fsync
