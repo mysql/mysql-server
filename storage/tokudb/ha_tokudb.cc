@@ -4679,6 +4679,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         if ((num_processed % 1000) == 0) {
             sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, share->rows);
             thd_proc_info(thd, status_msg);
+            if (thd->killed) {
+                error = ER_ABORTING_CONNECTION;
+                txn->commit(txn, 0);
+                goto cleanup;
+            }
         }
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
     }
@@ -4707,6 +4712,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
             if (error && error != DB_NOTFOUND) {
                 tmp_cursor->c_close(tmp_cursor);
+                tmp_cursor = NULL;
                 txn->commit(txn, 0);
                 goto cleanup;
             }
@@ -4714,6 +4720,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             if ((num_processed % 1000) == 0) {
                 sprintf(status_msg, "Adding indexes: Applied %llu of %llu rows in key-%s.", num_processed, share->rows, key_info[i].name);
                 thd_proc_info(thd, status_msg);
+                if (thd->killed) {
+                    error = ER_ABORTING_CONNECTION;
+                    txn->commit(txn, 0);
+                    goto cleanup;
+                }
             }
         }
         
@@ -4727,6 +4738,10 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     error = 0;
 cleanup:
     if (error) {
+        if (tmp_cursor) {            
+            tmp_cursor->c_close(tmp_cursor);
+            tmp_cursor = NULL;
+        }
         //
         // We need to delete all the files that may have been created
         // The DB's must be closed and removed
