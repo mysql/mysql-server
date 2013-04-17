@@ -230,51 +230,6 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
     return result;
 }
 
-static int get_name_length(const char *name) {
-    int n = 0;
-    const char *newname = name;
-    if (tokudb_data_dir) {
-        n += strlen(tokudb_data_dir) + 1;
-        if (strncmp("./", name, 2) == 0) 
-            newname = name + 2;
-    }
-    n += strlen(newname);
-    n += strlen(ha_tokudb_ext);
-    return n;
-}
-
-
-//
-// returns maximum length of dictionary name, such as key-NAME
-// NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
-//
-#define MAX_DICT_NAME_LEN NAME_CHAR_LEN + 10
-
-//
-// returns maximum length of path to a dictionary
-//
-static int get_max_dict_name_path_length(const char *tablename) {
-    int n = 0;
-    n += get_name_length(tablename);
-    n += 1; //for the '/'
-    n += MAX_DICT_NAME_LEN;
-    n += strlen(ha_tokudb_ext);
-    return n;
-}
-
-static void make_name(char *newname, const char *tablename, const char *dictname) {
-    const char *newtablename = tablename;
-    char *nn = newname;
-    if (tokudb_data_dir) {
-        nn += sprintf(nn, "%s/", tokudb_data_dir);
-        if (strncmp("./", tablename, 2) == 0)
-            newtablename = tablename + 2;
-    }
-    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
-    if (dictname)
-        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
-}
-
 
 #define HANDLE_INVALID_CURSOR() \
     if (cursor == NULL) { \
@@ -364,6 +319,15 @@ static int smart_dbt_ai_callback (DBT const *key, DBT const *row, void *context)
 //
 static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
   return 0;
+}
+
+static int smart_dbt_metacallback (DBT const *key, DBT  const *row, void *context) {
+    DBT* val = (DBT *)context;
+    val->data = my_malloc(row->size, MYF(MY_WME|MY_ZEROFILL));
+	if (val->data == NULL) return ENOMEM;
+	memcpy(val->data, row->data, row->size);
+	val->size = row->size;
+	return 0;
 }
 
 
@@ -848,6 +812,183 @@ const uchar* unpack_toku_field_blob(
 }
 
 
+
+static int add_table_to_metadata(const char *name, TABLE* table) {
+    int error = 0;
+    DBT key;
+    DBT val;
+    DB_TXN* txn = NULL;
+    uchar hidden_primary_key = (table->s->primary_key >= MAX_KEY);
+    pthread_mutex_lock(&tokudb_meta_mutex);
+
+    
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+    
+    bzero((void *)&key, sizeof(key));
+    bzero((void *)&val, sizeof(val));
+    key.data = (void *)name;
+    key.size = strlen(name) + 1;
+    val.data = &hidden_primary_key;
+    val.size = sizeof(hidden_primary_key);
+    error = metadata_db->put(
+        metadata_db,
+        txn,
+        &key,
+        &val,
+        DB_YESOVERWRITE
+        );
+
+cleanup:
+    if (txn) {
+        int r = !error ? txn->commit(txn,0) : txn->abort(txn);
+        assert(!r);
+    }
+    pthread_mutex_unlock(&tokudb_meta_mutex);
+    return error;
+}
+
+static int drop_table_from_metadata(const char *name) {
+    int error = 0;
+    DBT key;
+    DBT data;
+    DB_TXN* txn = NULL;
+    pthread_mutex_lock(&tokudb_meta_mutex);
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+    
+    bzero((void *)&key, sizeof(key));
+    bzero((void *)&data, sizeof(data));
+    key.data = (void *)name;
+    key.size = strlen(name) + 1;
+    error = metadata_db->del(
+        metadata_db, 
+        txn, 
+        &key , 
+        DB_DELETE_ANY
+        );
+
+cleanup:
+    if (txn) {
+        int r = !error ? txn->commit(txn,0) : txn->abort(txn);
+        assert(!r);
+    }
+    pthread_mutex_unlock(&tokudb_meta_mutex);
+    return error;
+}
+
+static int rename_table_in_metadata(const char *from, const char *to) {
+    int error = 0;
+    DBT from_key;
+	DBT to_key;
+	DBT val;
+    DB_TXN* txn = NULL;
+    pthread_mutex_lock(&tokudb_meta_mutex);
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+    
+    bzero((void *)&from_key, sizeof(from_key));
+    bzero((void *)&to_key, sizeof(to_key));
+    bzero((void *)&val, sizeof(val));
+    from_key.data = (void *)from;
+    from_key.size = strlen(from) + 1;
+    to_key.data = (void *)to;
+    to_key.size = strlen(to) + 1;
+    
+    error = metadata_db->getf_set(
+        metadata_db, 
+        txn, 
+        0, 
+        &from_key, 
+        smart_dbt_metacallback, 
+        &val
+        );
+
+    if (error) {
+		goto cleanup;
+    }
+
+    error = metadata_db->put(
+        metadata_db,
+        txn,
+        &to_key,
+        &val,
+        DB_YESOVERWRITE
+        );
+	if (error) {
+		goto cleanup;
+	}
+
+	error = metadata_db->del(
+        metadata_db, 
+        txn, 
+        &from_key, 
+        DB_DELETE_ANY
+        );
+	if (error) {
+		goto cleanup;
+	}
+
+    error = 0;
+
+cleanup:
+    if (txn) {
+        int r = !error ? txn->commit(txn,0) : txn->abort(txn);
+        assert(!r);
+    }
+    my_free(val.data, MYF(MY_ALLOW_ZERO_PTR));
+
+    pthread_mutex_unlock(&tokudb_meta_mutex);
+    return error;
+}
+
+
+static int check_table_in_metadata(const char *name, bool* table_found) {
+    int error = 0;
+    DBT key;
+    DB_TXN* txn = NULL;
+    pthread_mutex_lock(&tokudb_meta_mutex);
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+    
+    bzero((void *)&key, sizeof(key));
+    key.data = (void *)name;
+    key.size = strlen(name) + 1;
+    
+    error = metadata_db->getf_set(
+        metadata_db, 
+        txn, 
+        0, 
+        &key, 
+        smart_dbt_do_nothing, 
+        NULL
+        );
+
+    if (error == 0) {
+        *table_found = true;
+    }
+    else if (error == DB_NOTFOUND){
+        *table_found = false;
+        error = 0;
+    }
+
+cleanup:
+    if (txn) {
+        error = txn->commit(txn,0);
+    }
+    pthread_mutex_unlock(&tokudb_meta_mutex);
+    return error;
+}
+
+
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) 
     // flags defined in sql\handler.h
 {
@@ -1033,10 +1174,24 @@ int ha_tokudb::initialize_share(
     u_int64_t num_rows = 0;
     u_int32_t curr_blob_field_index = 0;
     u_int32_t max_var_bytes = 0;
+    bool table_exists;
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     open_flags += DB_AUTO_COMMIT;
+    THD* thd = ha_thd();
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
+    table_exists = true;
+    error = check_table_in_metadata(name, &table_exists);
+
+    if (error) {
+        goto exit;
+    }
+    if (!table_exists) {
+        sql_print_error("table %s does not exist in metadata, was it moved from someplace else? Not opening table", name);
+        error = HA_ADMIN_FAILED;
+        goto exit;
+    }
+    
     newname = (char *)my_malloc(
         get_max_dict_name_path_length(name),
         MYF(MY_WME|MY_ZEROFILL)
@@ -4331,7 +4486,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
         if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
-            !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE) {
+            !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
             lock_type = TL_WRITE_ALLOW_WRITE;
         }
         lock.type = lock_type;
@@ -4702,6 +4857,12 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         }
     }
 
+    error = add_table_to_metadata(name, form);
+    if (error) {
+        goto cleanup;
+    }
+
+    error = 0;
 cleanup:
     if (status_block != NULL) {
         status_block->close(status_block, 0);
@@ -4709,11 +4870,27 @@ cleanup:
     if (error && dir_path_made) {
         rmall(dirname);
     }
+    if (error) {
+        drop_table_from_metadata(name);
+    }
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(dirname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
+
+int ha_tokudb::discard_or_import_tablespace(my_bool discard) {
+    /*
+    if (discard) {
+        my_errno=HA_ERR_WRONG_COMMAND;
+        return my_errno;
+    }
+    return add_table_to_metadata(share->table_name);
+    */
+    my_errno=HA_ERR_WRONG_COMMAND;
+    return my_errno;
+}
+
 
 //
 // Drops table
@@ -4725,9 +4902,14 @@ cleanup:
 //
 int ha_tokudb::delete_table(const char *name) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
+
     int error;
-    // remove all of the dictionaries in the table directory 
     char* newname = NULL;
+    // remove all of the dictionaries in the table directory 
+    error = drop_table_from_metadata(name);
+    if (error) {
+        goto cleanup;
+    }
     newname = (char *)my_malloc(get_max_dict_name_path_length(name), MYF(MY_WME|MY_ZEROFILL));
     if (newname == NULL) {
         error = ENOMEM;
@@ -4784,6 +4966,8 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     if (error != 0) {
         error = my_errno = errno;
     }
+
+    rename_table_in_metadata(from, to);
 
 cleanup:
     {

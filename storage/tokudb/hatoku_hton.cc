@@ -28,6 +28,7 @@ extern "C" {
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
 
+#define TOKU_METADB_NAME ".\\tokudb_meta.tokudb"
 
 static inline void *thd_data_get(THD *thd, int slot) {
 #if MYSQL_VERSION_ID <= 50123
@@ -44,7 +45,6 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
     thd->ha_data[slot].ha_ptr = data;
 #endif
 }
-
 
 
 
@@ -78,8 +78,10 @@ const char *ha_tokudb_ext = ".tokudb";
 char *tokudb_data_dir;
 ulong tokudb_debug;
 DB_ENV *db_env;
+DB* metadata_db;
 HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
+pthread_mutex_t tokudb_meta_mutex;
 
 
 //my_bool tokudb_shared_data = FALSE;
@@ -125,10 +127,13 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 #endif
+    db_env = NULL;
+    metadata_db = NULL;
 
     tokudb_hton = (handlerton *) p;
 
     VOID(pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST));
+    VOID(pthread_mutex_init(&tokudb_meta_mutex, MY_MUTEX_INIT_FAST));
     (void) hash_init(&tokudb_open_tables, system_charset_info, 32, 0, 0, (hash_get_key) tokudb_get_key, 0, 0);
 
     tokudb_hton->state = SHOW_OPTION_YES;
@@ -287,9 +292,41 @@ static int tokudb_init_func(void *p) {
     assert(!r);
 
 
+    r = db_create(&metadata_db, db_env, 0);
+    if (r) {
+        DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
+        goto error;
+    }
+    
+    metadata_db->set_bt_compare(metadata_db, tokudb_cmp_dbt_key);    
+
+    r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
+    if (r) {
+        sql_print_error("No metadata table exists, so creating it");
+        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
+        if (r) {
+            goto error;
+        }
+        metadata_db->close(metadata_db,0);
+        r = db_create(&metadata_db, db_env, 0);
+        if (r) {
+            DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
+            goto error;
+        }
+        metadata_db->set_bt_compare(metadata_db, tokudb_cmp_dbt_key);    
+        r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
+        if (r) {
+            goto error;
+        }
+    }
+
+
     DBUG_RETURN(FALSE);
 
 error:
+    if (metadata_db) {
+        metadata_db->close(metadata_db, 0);
+    }
     if (db_env) {
         db_env->close(db_env, 0);
         db_env = 0;
@@ -305,6 +342,7 @@ static int tokudb_done_func(void *p) {
         error = 1;
     hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
+    pthread_mutex_destroy(&tokudb_meta_mutex);
 #if defined(_WIN32)
     toku_ydb_destroy();
 #endif
@@ -320,6 +358,9 @@ static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, ME
 int tokudb_end(handlerton * hton, ha_panic_function type) {
     TOKUDB_DBUG_ENTER("tokudb_end");
     int error = 0;
+    if (metadata_db) {
+        metadata_db->close(metadata_db, 0);
+    }
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
@@ -468,6 +509,129 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 
 #endif
 
+
+static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+    TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
+    int error;
+    u_int64_t num_bytes_in_db = 0;
+    DB* curr_db = NULL;
+    DB_TXN* txn = NULL;
+    DBC* tmp_cursor = NULL;
+    DBT curr_key;
+    DBT curr_val;
+    char data_amount_msg[50] = {0};
+    memset(&curr_key, 0, sizeof curr_key); 
+    memset(&curr_val, 0, sizeof curr_val);
+    pthread_mutex_lock(&tokudb_meta_mutex);
+
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto cleanup;
+    }
+    error = metadata_db->cursor(metadata_db, txn, &tmp_cursor, 0);
+    if (error) {
+        goto cleanup;
+    }
+    while (error == 0) {
+        //
+        // do not need this to be super fast, so use old simple API
+        //
+        error = tmp_cursor->c_get(
+            tmp_cursor, 
+            &curr_key, 
+            &curr_val, 
+            DB_NEXT
+            );
+        if (!error) {
+            char* name = (char *)curr_key.data;
+            char* newname = NULL;
+            char name_buff[FN_REFLEN];
+            char* fn_ret = NULL;
+            u_int64_t curr_num_bytes = 0;
+            DB_BTREE_STAT64 dict_stats;
+
+            newname = (char *)my_malloc(
+                get_max_dict_name_path_length(name),
+                MYF(MY_WME|MY_ZEROFILL)
+                );
+            if (newname == NULL) { 
+                error = ENOMEM;
+                goto cleanup;
+            }
+
+            make_name(newname, name, "main");
+            fn_ret = fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME|MY_SAFE_PATH);            
+
+            error = db_create(&curr_db, db_env, 0);
+            if (error) { goto cleanup; }
+            
+            error = curr_db->open(curr_db, 0, name_buff, NULL, DB_BTREE, DB_THREAD, 0);
+            if (error) { goto cleanup; }
+
+            error = curr_db->stat64(
+                curr_db, 
+                txn, 
+                &dict_stats
+                );
+            if (error) { goto cleanup; }
+
+            DBUG_PRINT("info", ("size of %s is %lld hidden_primary_key %d!!\n", name_buff, dict_stats.bt_dsize, *(uchar *)curr_val.data));
+            curr_num_bytes = dict_stats.bt_dsize;
+            if (*(uchar *)curr_val.data) {
+                //
+                // in this case, we have a hidden primary key, do not
+                // want to report space taken up by the hidden primary key to the user
+                //
+                u_int64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
+                curr_num_bytes = (hpk_space > curr_num_bytes) ? 0 : curr_num_bytes - hpk_space;
+            }
+            else {
+				//
+				// one infinity byte per key needs to be subtracted
+				//
+                u_int64_t inf_byte_space = dict_stats.bt_ndata;
+                curr_num_bytes = (inf_byte_space > curr_num_bytes) ? 0 : curr_num_bytes - inf_byte_space;
+            }
+
+            num_bytes_in_db += curr_num_bytes;
+
+            curr_db->close(curr_db, 0);
+            curr_db = NULL;
+            
+            my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
+        }
+    }
+
+    sprintf(data_amount_msg, "Number of bytes in database: %lld", num_bytes_in_db);
+    stat_print(
+        thd, 
+        tokudb_hton_name, 
+        tokudb_hton_name_length, 
+        "Data in tables", 
+        strlen("Data in tables"), 
+        data_amount_msg,
+        strlen(data_amount_msg)
+        );
+
+    error = 0;
+
+cleanup:
+    if (curr_db) {
+        curr_db->close(curr_db, 0);
+    }
+    if (tmp_cursor) {
+        tmp_cursor->c_close(tmp_cursor);
+    }
+    if (txn) {
+        txn->commit(txn, 0);
+    }
+    if (error) {
+        printf("got an error %d in show engine status\n", error);
+    }
+    pthread_mutex_unlock(&tokudb_meta_mutex);
+    TOKUDB_DBUG_RETURN(error);
+}
+
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_logs");
     char **all_logs, **free_logs, **a, **f;
@@ -512,11 +676,16 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
 
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
+    case HA_ENGINE_STATUS:
+        return tokudb_show_engine_status(thd, stat_print);
+        break;
     case HA_ENGINE_LOGS:
         return tokudb_show_logs(thd, stat_print);
+        break;
     default:
-        return FALSE;
+        break;
     }
+    return FALSE;
 }
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer) {
