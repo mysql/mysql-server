@@ -5631,24 +5631,35 @@ int ha_tokudb::delete_all_rows() {
     TOKUDB_DBUG_ENTER("delete_all_rows");
     int error = 0;
 
+    //
+    // prelock so we know right away if there are any potential
+    // deadlocks
+    //
+    error = acquire_table_lock(transaction, lock_write);
+    if (error) {
+        goto cleanup;
+    }
+
     // truncate all dictionaries
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint i = 0; i < curr_num_DBs; i++) {
         DB *db = share->key_file[i];
         u_int32_t row_count = 0;
         error = db->truncate(db, transaction, &row_count, 0);
-        if (error) 
+        if (error) {
             break;
+        }
         // do something with the row_count?
-        if (tokudb_debug)
+        if (tokudb_debug) {
             TOKUDB_TRACE("row_count=%u\n", row_count);
+        }
     }
 
     // zap the row count
-    if (error == 0)
+    if (error == 0) {
         share->rows = 0;
-
-
+    }
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
