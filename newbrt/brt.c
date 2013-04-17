@@ -2818,27 +2818,38 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     return 0;
 }
 
-// open a file for use by the brt.  if the file does not exist, create it.
-static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BOOL *did_create) {
+// open a file for use by the brt
+// Requires:  File does not exist.
+static int brt_create_file(BRT brt, const char *fname, int *fdp) {
     brt = brt;
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
     int fd;
-    *did_create = FALSE;
+    fd = open(fname, O_RDWR | O_BINARY, mode);
+    assert(fd==-1);
+    if (errno != ENOENT) {
+        r = errno;
+        return r;
+    }
+    fd = open(fname, O_RDWR | O_CREAT | O_BINARY, mode);
+    if (fd==-1) {
+        r = errno;
+        return r;
+    }
+    *fdp = fd;
+    return 0;
+}
+
+// open a file for use by the brt.  if the file does not exist, error
+static int brt_open_file(BRT brt, const char *fname, int *fdp) {
+    brt = brt;
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+    int r;
+    int fd;
     fd = open(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
         r = errno;
-        if (errno == ENOENT) {
-            if (!is_create) {
-                return r;
-            }
-            fd = open(fname, O_RDWR | O_CREAT | O_BINARY, mode);
-            if (fd == -1) {
-                r = errno; return r;
-            }
-            *did_create = TRUE;
-        } else
-            return r;
+        return r;
     }
     *fdp = fd;
     return 0;
@@ -3037,15 +3048,29 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     {
         int fd = -1;
         BOOL did_create = FALSE;
-        r = brt_open_file(t, fname, is_create, &fd, &did_create);
-        if (r != 0) goto died00;
-	// TODO: #2090
-        r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, fname_in_env, t->did_set_filenum, t->filenum);
-        if (r != 0) goto died00;
-        if (did_create) {
+        r = brt_open_file(t, fname, &fd);
+        FILENUM reserved_filenum = t->filenum;
+        if (r==ENOENT && is_create) {
+            toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, t->did_set_filenum, t->filenum);
+            if (0) {
+                died1:
+                if (did_create)
+                    toku_cachetable_unreserve_filenum(cachetable, reserved_filenum);
+                goto died00;
+            }
+            if (t->did_set_filenum) assert(reserved_filenum.fileid == t->filenum.fileid);
+            did_create = TRUE;
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode, t->flags, &(t->temp_descriptor));
-            if (r != 0) goto died_after_open;
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, &(t->temp_descriptor));
+            if (r!=0) goto died1;
+            r = brt_create_file(t, fname, &fd);
+        }
+        if (r != 0) goto died1;
+	// TODO: #2090
+        r=toku_cachetable_openfd_with_filenum(&t->cf,
+                                              cachetable, fd, fname_in_env, t->did_set_filenum||did_create, reserved_filenum, did_create);
+        if (r != 0) goto died1;
+        if (did_create) {
 	    if (txn) {
 		BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
 		r = toku_logger_save_rollback_fcreate(txn, toku_cachefile_filenum(t->cf), bs); // bs is a copy of the fname relative to the cwd
@@ -3058,7 +3083,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     if (r!=0) {
         died_after_open: 
         toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0, FALSE, ZERO_LSN);
-        goto died00;
+        goto died1;
     }
     assert(t->nodesize>0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();

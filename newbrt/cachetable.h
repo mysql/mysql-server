@@ -71,7 +71,11 @@ int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, const 
 
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env /*(used for logging)*/);
-int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env, BOOL with_filenum, FILENUM filenum);
+int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env, BOOL with_filenum, FILENUM filenum, BOOL reserved);
+
+int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum);
+
+void toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum);
 
 // Get access to the asynchronous work queue
 // Returns: a pointer to the work queue
