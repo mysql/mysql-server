@@ -1,5 +1,4 @@
-db-insert
+The db-insert program measures the insertion performance of a Tokutek Fractal Tree.
 
-The db-insert directory contains a program that measures insertion performance
-into a Tokutek Fractal Tree. 
+The db-scan program scans all of the key value pairs of a Tokutek Fractal Tree that was built with the db-insert program.
 
