@@ -41,6 +41,5 @@ int recovery_main (int argc, const char *const argv[]) {
 	fprintf(stderr, "Recovery failed\n");
 	return(1);
     }
-    toku_malloc_cleanup();
     return 0;
 }

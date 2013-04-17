@@ -110,7 +110,7 @@ static void *my_malloc(size_t n) {
         (void) toku_sync_fetch_and_increment_int32(&my_big_malloc_count); // my_big_malloc_count++;
         if (do_malloc_errors) {
             caller = __builtin_return_address(1);
-            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
+            if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_set_func_malloc)
                 goto skip;
             if (event_add_and_fetch()== event_count_trigger) {
                 event_hit();
@@ -135,7 +135,7 @@ static void *my_realloc(void *p, size_t n) {
         (void) toku_sync_increment_and_fetch_int32(&my_big_realloc_count); // my_big_realloc_count++;
         if (do_realloc_errors) {
             caller = __builtin_return_address(1);
-            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
+            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_set_func_malloc)
                 goto skip;
             if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();

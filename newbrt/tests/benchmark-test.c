@@ -194,10 +194,7 @@ test_main (int argc, const char *argv[]) {
         fflush(stdout);
     }
     unlink(fname);
-    if (verbose>1) {
-	toku_malloc_report();
-    }
-    toku_malloc_cleanup();
+
     return 0;
 }
 

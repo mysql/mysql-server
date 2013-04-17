@@ -151,6 +151,6 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     }
 }
 #endif
-    toku_malloc_cleanup();
+    
     return 0;
 }

@@ -294,7 +294,7 @@ static void test0 (void) {
     assert(r==0);
     assert(expect_n_flushes==0);
     expect_f = 0;
-    toku_memory_check_all_free();
+    
 }
 
 static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEKEY key __attribute__((__unused__)),
@@ -745,7 +745,7 @@ test_main (int argc, const char *argv[]) {
     }
 
     test_mutex_destroy();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("ok\n");
     return 0;
 }

@@ -102,8 +102,6 @@ test_main (int argc , const char *argv[]) {
     DB a_db;
     DB *db = &a_db;
     test_brt_cursor(db);
-
-    toku_malloc_cleanup();
     if (verbose) printf("test ok\n");
     return 0;
 }

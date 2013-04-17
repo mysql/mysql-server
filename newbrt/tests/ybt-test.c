@@ -47,7 +47,7 @@ static void ybt_test0 (void) {
 
     cleanup_and_free(&v0);
     cleanup_and_free(&v1);
-    toku_memory_check_all_free();
+    
 
     /* See if we can probe to find out how big something is by setting ulen=0 with YBT_USERMEM */
     toku_init_dbt(&t0);
@@ -80,7 +80,7 @@ static void ybt_test0 (void) {
     assert(strcmp(t0.data, "provincial")==0);
     
     toku_free(t0.data);
-    toku_memory_check_all_free();
+    
 }
 
 int

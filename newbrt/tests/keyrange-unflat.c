@@ -65,7 +65,7 @@ test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     test_flat();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("test ok\n");
     return 0;
 }

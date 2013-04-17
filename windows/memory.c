@@ -113,32 +113,6 @@ toku_xstrdup (const char *s)
     return toku_xmemdup(s, strlen(s)+1);
 }
 
-void
-toku_memory_check_all_free (void)
-{
-}
-
-int
-toku_get_n_items_malloced (void)
-{
-    return 0;
-}
-
-void
-toku_print_malloced_items (void)
-{
-}
-
-void
-toku_malloc_report (void)
-{
-}
-
-void
-toku_malloc_cleanup (void)
-{
-}
-
 int
 toku_set_func_malloc(malloc_fun_t f) {
     t_malloc = f;

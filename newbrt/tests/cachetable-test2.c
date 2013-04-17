@@ -250,7 +250,7 @@ test_main (int argc, const char *argv[]) {
     test_mutex_init();
     test_chaining();
     test_mutex_destroy();
-    toku_malloc_cleanup();
+    
     if (verbose) printf("ok\n");
     return 0;
 }

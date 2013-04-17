@@ -137,21 +137,6 @@ ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
     return 0;
 }
 
-/* the ydb reference is used to cleanup the library when there are no more references to it */
-static int toku_ydb_refs = 0;
-
-static inline void ydb_add_ref(void) {
-    ++toku_ydb_refs;
-}
-
-static inline void ydb_unref(void) {
-    assert(toku_ydb_refs > 0);
-    if (--toku_ydb_refs == 0) {
-        /* call global destructors */
-        toku_malloc_cleanup();
-    }
-}
-
 /* env methods */
 static int toku_env_close(DB_ENV *env, u_int32_t flags);
 static int toku_env_set_data_dir(DB_ENV * env, const char *dir);
@@ -935,7 +920,6 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     env->i = NULL;
     toku_free(env);
     env = NULL;
-    ydb_unref();
     if ((flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG))
         r = EINVAL;
     return r;
@@ -1829,7 +1813,6 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
         assert(result->i->open_dbs);
     }
 
-    ydb_add_ref();
     *envp = result;
     r = 0;
 cleanup:
@@ -2272,7 +2255,6 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     if (db->i->dname) toku_free(db->i->dname);
     toku_free(db->i);
     toku_free(db);
-    ydb_unref();
     if (r1) return r1;
     if (r2) return r2;
     if (is_panicked) return EINVAL;
@@ -4880,7 +4862,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         toku_free(result);
         return r;
     }
-    ydb_add_ref();
     *db = result;
     return 0;
 }

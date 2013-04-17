@@ -22,7 +22,7 @@ static void test_dump_empty_db (void) {
     if (verbose) toku_dump_brt(stdout, t);
     r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
 }
 
 /* Test running multiple trees in different files */
@@ -35,7 +35,7 @@ static void test_multiple_files_of_size (int size) {
     if (verbose) printf("test_multiple_files_of_size(%d)\n", size);
     unlink(n0);
     unlink(n1);
-    toku_memory_check_all_free();
+    
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
     r = toku_open_brt(n0, 1, &t0, size, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
     r = toku_open_brt(n1, 1, &t1, size, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
@@ -57,7 +57,7 @@ static void test_multiple_files_of_size (int size) {
     r = toku_close_brt(t0, 0); assert(r==0);
     r = toku_close_brt(t1, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
 
     /* Now see if the data is all there. */
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);      assert(r==0);
@@ -78,7 +78,7 @@ static void test_multiple_files_of_size (int size) {
     r = toku_close_brt(t0, 0); assert(r==0);
     r = toku_close_brt(t1, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
 }
 
 static void test_multiple_files (void) {
@@ -93,7 +93,7 @@ static void test_multiple_brts_one_db_one_file (void) {
     CACHETABLE ct;
     BRT trees[MANYN];
     if (verbose) printf("test_multiple_brts_one_db_one_file:");
-    toku_memory_check_all_free();
+    
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 32, ZERO_LSN, NULL_LOGGER); assert(r==0);
     for (i=0; i<MANYN; i++) {
@@ -117,7 +117,7 @@ static void test_multiple_brts_one_db_one_file (void) {
 	r=toku_close_brt(trees[i], 0); assert(r==0);
     }
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
     if (verbose) printf(" ok\n");
 }
 
@@ -132,14 +132,14 @@ static void  test_read_what_was_written (void) {
     if (verbose) printf("test_read_what_was_written(): "); fflush(stdout);
 
     unlink(fname);
-    toku_memory_check_all_free();
+    
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     r = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);  assert(r==0);
     r = toku_close_brt(brt, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
-    toku_memory_check_all_free();
+    
 
     /* Now see if we can read an empty tree in. */
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);     assert(r==0);
@@ -154,7 +154,7 @@ static void  test_read_what_was_written (void) {
     r = toku_close_brt(brt, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
-    toku_memory_check_all_free();
+    
 
     /* Now see if we can read it in and get the value. */
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
@@ -216,7 +216,7 @@ static void  test_read_what_was_written (void) {
     if (verbose) printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
     r = toku_cachetable_close(&ct); assert(r==0);
 
-    toku_memory_check_all_free();
+    
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
     r = toku_open_brt(fname, 0, &brt, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
@@ -235,7 +235,7 @@ static void  test_read_what_was_written (void) {
     r = toku_close_brt(brt, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
-    toku_memory_check_all_free();
+    
 
 
     if (verbose) printf(" ok\n");
@@ -249,7 +249,7 @@ static void test_cursor_last_empty(void) {
     int r;
     if (verbose) printf("%s", __FUNCTION__);
     unlink(fname);
-    toku_memory_check_all_free();
+    
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
@@ -272,7 +272,7 @@ static void test_cursor_last_empty(void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    toku_memory_check_all_free();
+    
 }
 
 static void test_cursor_next (void) {
@@ -283,7 +283,7 @@ static void test_cursor_next (void) {
     DBT kbt, vbt;
 
     unlink(fname);
-    toku_memory_check_all_free();
+    
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);  assert(r==0);
@@ -323,7 +323,7 @@ static void test_cursor_next (void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    toku_memory_check_all_free();
+    
 
 }
 
@@ -351,7 +351,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     unsigned int i;
 
     unlink(fname);
-    toku_memory_check_all_free();
+    
 
     {
 	char a[4]={0,1,0,0};
@@ -442,7 +442,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	assert(r==0);
     }
     r = toku_cachetable_close(&ct); assert(r==0);
-    toku_memory_check_all_free();
+    
 }
 
 static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
@@ -487,7 +487,7 @@ static void test_brt_limits(void) {
     int bsize = 1024;
     int kvsize = 4;
     while (kvsize < bsize/2) {
-        test_large_kv(bsize, kvsize, kvsize);        toku_memory_check_all_free();
+        test_large_kv(bsize, kvsize, kvsize);        
         kvsize *= 2;
     }
 }
@@ -774,19 +774,19 @@ static void test_insert_delete_lookup(int n) {
 
 
 static void test_brt_delete(void) {
-    test_brt_delete_empty(); toku_memory_check_all_free();
-    test_brt_delete_present(1); toku_memory_check_all_free();
-    test_brt_delete_present(100); toku_memory_check_all_free();
-    test_brt_delete_present(500); toku_memory_check_all_free();
-    test_brt_delete_not_present(1); toku_memory_check_all_free();
-    test_brt_delete_not_present(100); toku_memory_check_all_free();
-    test_brt_delete_not_present(500); toku_memory_check_all_free();
-    test_brt_delete_cursor_first(1); toku_memory_check_all_free();
-    test_brt_delete_cursor_first(100); toku_memory_check_all_free();
-    test_brt_delete_cursor_first(500); toku_memory_check_all_free();
-    test_brt_delete_cursor_first(10000); toku_memory_check_all_free();
-    test_insert_delete_lookup(2);   toku_memory_check_all_free();
-    test_insert_delete_lookup(512); toku_memory_check_all_free();
+    test_brt_delete_empty(); 
+    test_brt_delete_present(1); 
+    test_brt_delete_present(100); 
+    test_brt_delete_present(500); 
+    test_brt_delete_not_present(1); 
+    test_brt_delete_not_present(100); 
+    test_brt_delete_not_present(500); 
+    test_brt_delete_cursor_first(1); 
+    test_brt_delete_cursor_first(100); 
+    test_brt_delete_cursor_first(500); 
+    test_brt_delete_cursor_first(10000); 
+    test_insert_delete_lookup(2);   
+    test_insert_delete_lookup(512); 
 }
 
 static void test_new_brt_cursor_create_close (void) {
@@ -1207,33 +1207,33 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
 
 static void test_new_brt_cursors(int dup_mode) {
     assert(dup_mode==0);
-    test_new_brt_cursor_create_close();           toku_memory_check_all_free();
-    test_new_brt_cursor_first(8, dup_mode);       toku_memory_check_all_free();
-    test_new_brt_cursor_last(8, dup_mode);        toku_memory_check_all_free();
-    test_new_brt_cursor_last(512, dup_mode);      toku_memory_check_all_free();
-    test_new_brt_cursor_next(8, dup_mode);        toku_memory_check_all_free();
-    test_new_brt_cursor_prev(8, dup_mode);        toku_memory_check_all_free();
-    test_new_brt_cursor_current(8, dup_mode);     toku_memory_check_all_free();
-    test_new_brt_cursor_next(512, dup_mode);      toku_memory_check_all_free();
-    test_new_brt_cursor_set_range(512, dup_mode); toku_memory_check_all_free();
-    test_new_brt_cursor_set(512, DB_SET, 0);      toku_memory_check_all_free();
+    test_new_brt_cursor_create_close();           
+    test_new_brt_cursor_first(8, dup_mode);       
+    test_new_brt_cursor_last(8, dup_mode);        
+    test_new_brt_cursor_last(512, dup_mode);      
+    test_new_brt_cursor_next(8, dup_mode);        
+    test_new_brt_cursor_prev(8, dup_mode);        
+    test_new_brt_cursor_current(8, dup_mode);     
+    test_new_brt_cursor_next(512, dup_mode);      
+    test_new_brt_cursor_set_range(512, dup_mode); 
+    test_new_brt_cursor_set(512, DB_SET, 0);      
 }
 
 static void brt_blackbox_test (void) {
     toku_memory_check = 1;
-    test_wrongendian_compare(0, 2);          toku_memory_check_all_free();
-    test_wrongendian_compare(1, 2);          toku_memory_check_all_free();
-    test_wrongendian_compare(1, 257);        toku_memory_check_all_free();
-    test_wrongendian_compare(1, 1000);        toku_memory_check_all_free();
+    test_wrongendian_compare(0, 2);          
+    test_wrongendian_compare(1, 2);          
+    test_wrongendian_compare(1, 257);        
+    test_wrongendian_compare(1, 1000);        
     test_new_brt_cursors(0);
 
-    test_read_what_was_written();         toku_memory_check_all_free(); if (verbose) printf("did read_what_was_written\n");
-    test_cursor_next();                   toku_memory_check_all_free();
-    test_cursor_last_empty();             toku_memory_check_all_free();
-    test_multiple_brts_one_db_one_file(); toku_memory_check_all_free();
-    test_dump_empty_db();                 toku_memory_check_all_free();
-    toku_memory_check_all_free();
-    toku_memory_check_all_free();
+    test_read_what_was_written();          if (verbose) printf("did read_what_was_written\n");
+    test_cursor_next();                   
+    test_cursor_last_empty();             
+    test_multiple_brts_one_db_one_file(); 
+    test_dump_empty_db();                 
+    
+    
     if (verbose) printf("test_multiple_files\n");
     test_multiple_files();
 
@@ -1260,7 +1260,6 @@ test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     brt_blackbox_test();
-    toku_malloc_cleanup();
     if (verbose) printf("test ok\n");
     return 0;
 }
