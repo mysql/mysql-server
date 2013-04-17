@@ -6,9 +6,20 @@
 #endif
 
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_INCLUDE_XA 1
-#else
+#endif
+
+#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#define TOKU_INCLUDE_ALTER_56 0
+#define TOKU_INCLUDE_ALTER_55 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
+#define TOKU_INCLUDE_XA 1
+#endif
+
+#if MYSQL_VERSION_ID < 50500
+#define TOKU_INCLUDE_ALTER_51 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
 #define TOKU_INCLUDE_XA 1
 #endif
@@ -540,7 +551,7 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if TOKU_INCLUDE_ALTER_56
  public:
     enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     bool prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -552,7 +563,8 @@ public:
     int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
  public:
-#elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#endif
+#if TOKU_INCLUDE_ALTER_55
  public:
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add);
     int final_add_index(handler_add_index *add, bool commit);
@@ -562,7 +574,8 @@ public:
     bool is_alter_table_hot();
     void prepare_for_alter();
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
-#else
+#endif
+#if TOKU_INCLUDE_ALTER_51
  public:
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
     int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);

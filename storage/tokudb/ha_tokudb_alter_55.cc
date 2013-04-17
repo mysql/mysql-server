@@ -1,4 +1,4 @@
-#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#if TOKU_INCLUDE_ALTER_55
 
 class ha_tokudb_add_index : public handler_add_index {
 public:
