@@ -126,10 +126,14 @@ private:
     THR_LOCK_DATA lock;         ///< MySQL lock
     TOKUDB_SHARE *share;        ///< Shared lock info
 
-    // maria version of MRR
 #ifdef MARIADB_BASE_VERSION
+    // maria version of MRR
+    DsMrr_impl ds_mrr;
+#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+// maria version of MRR
     DsMrr_impl ds_mrr;
 #endif
+
 
     //
     // last key returned by ha_tokudb's cursor
@@ -549,6 +553,21 @@ public:
                                       char *str, size_t size);
 #endif
 
+// MariaDB MRR introduced in 5.6
+#if !defined(MARIADB_BASE_VERSION)
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                              uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+    int multi_range_read_next(char **range_info);
+    ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                        void *seq_init_param, 
+                                        uint n_ranges, uint *bufsz,
+                                        uint *flags, Cost_estimate *cost);
+    ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                  uint *bufsz, uint *flags, Cost_estimate *cost);
+#endif
+#endif
+
 #if TOKU_INCLUDE_ALTER_56
  public:
     enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -696,6 +715,7 @@ private:
     void invalidate_bulk_fetch();
     int delete_all_rows_internal();
     void close_dsmrr();
+    void reset_dsmrr();
     
 #if TOKU_INCLUDE_WRITE_FRM_DATA
     int write_frm_data(const uchar *frm_data, size_t frm_len);

@@ -5792,7 +5792,7 @@ int ha_tokudb::reset(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::reset");
     key_read = 0;
     using_ignore = 0;
-    close_dsmrr();
+    reset_dsmrr();
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -8073,6 +8073,16 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
 void ha_tokudb::close_dsmrr() {
 #ifdef MARIADB_BASE_VERSION
     ds_mrr.dsmrr_close();
+#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    ds_mrr.dsmrr_close();
+#endif
+}
+
+void ha_tokudb::reset_dsmrr() {
+#ifdef MARIADB_BASE_VERSION
+    ds_mrr.dsmrr_close();
+#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    ds_mrr.reset();
 #endif
 }
 
@@ -8094,6 +8104,14 @@ void ha_tokudb::close_dsmrr() {
 #ifdef MARIADB_BASE_VERSION
 #include  "ha_tokudb_mrr_maria.cc"
 #endif
+
+#if !defined(MARIADB_BASE_VERSION)
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#include  "ha_tokudb_mrr_mysql.cc"
+#endif
+#endif
+
+
 
 // key comparisons
 #include "hatoku_cmp.cc"
