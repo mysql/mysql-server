@@ -26,32 +26,6 @@
 
 #include "includes.h"
 
-static inline void
-toku_verify_estimates (BRT t, BRTNODE node) {
-    if (node->height>0) {
-	int childnum;
-	for (childnum=0; childnum<node->u.n.n_children; childnum++) {
-	    BLOCKNUM childblocknum = BNC_BLOCKNUM(node, childnum);
-	    u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
-	    void *childnode_v;
-	    int r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &childnode_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
-	    assert(r==0);
-	    BRTNODE childnode = childnode_v;
-	    u_int64_t child_estimate = 0;
-	    if (childnode->height==0) {
-		child_estimate = toku_omt_size(childnode->u.l.buffer);
-	    } else {
-		int i;
-		for (i=0; i<childnode->u.n.n_children; i++) {
-		    child_estimate += BNC_SUBTREE_LEAFENTRY_ESTIMATE(childnode, i);
-		}
-	    }
-	    assert(BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum)==child_estimate);
-	    toku_unpin_brtnode(t, childnode);
-	}
-    }
-}
-
 long long n_items_malloced;
 
 static void verify_local_fingerprint_nonleaf (BRTNODE node);
