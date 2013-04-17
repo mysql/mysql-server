@@ -9,6 +9,7 @@
 
 #include "brt-flusher.h"
 #include "includes.h"
+#include "checkpoint.h"
 
 static TOKUTXN const null_txn = NULL;
 static DB * const null_db = NULL;
@@ -102,7 +103,10 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     CKERR(r);
 
     r2 = cb(t, ct, cb_extra);
-
+    r = toku_verify_brt(t);
+    CKERR(r);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CKERR(r);
     r = toku_close_brt_nolsn(t, 0);
     CKERR(r);
     r = toku_cachetable_close(&ct);
