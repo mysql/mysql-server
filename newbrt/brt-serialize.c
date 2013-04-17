@@ -43,7 +43,7 @@ toku_brt_serialize_destroy(void) {
     return 0;
 }
 
-// #define USE_PWRITE_LOCK
+#define USE_PWRITE_LOCK
 
 #ifdef USE_PWRITE_LOCK
 // This mutex protects pwrite from running in parallel, and also protects modifications to the block allocator.
