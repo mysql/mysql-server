@@ -106,7 +106,7 @@ check-4G: $(TARGET_TDB)  $(SCANSCAN_TDB)
 	fgrep "(1048576 rows)" 4g.out > /dev/null
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) 4g.out
 	rm -rf $(BENCHDBS)
 
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): BIN_FROM_C_FLAGS+=-DDIRSUF=tokudb -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include -I$(TOKUROOT)include
