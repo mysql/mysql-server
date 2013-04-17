@@ -88,6 +88,10 @@ static void test_with_threads(void) {
     swapped = __sync_bool_compare_and_swap(&producers_joined, false, true);
     invariant(swapped);
 
+    // kick it in case it's still waiting
+    bool pushed = buf.trypush(1);
+    (void) pushed;  // yes, really ignore it
+
     r = toku_pthread_join(consumer_thd, nullptr);
     invariant_zero(r);
 
