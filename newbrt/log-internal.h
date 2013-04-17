@@ -149,6 +149,10 @@ static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__)))
     return 8;
 }
 
+static inline int toku_logsizeof_FILENUMS (FILENUMS fs) {
+    return 4 + fs.num * toku_logsizeof_FILENUM(fs.filenums[0]);
+}
+
 static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
     return 4+bs.len;
 }

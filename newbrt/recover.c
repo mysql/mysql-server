@@ -166,13 +166,22 @@ struct recover_env {
     TOKULOGGER logger;
     brt_compare_func bt_compare;
     brt_compare_func dup_compare;
+    generate_keys_vals_for_put_func generate_keys_vals_for_put;
+    cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put;
+    generate_keys_for_del_func      generate_keys_for_del;
+    cleanup_keys_for_del_func       cleanup_keys_for_del;
     struct scan_state ss;
     struct file_map fmap;
     BOOL goforward;
 };
 typedef struct recover_env *RECOVER_ENV;
 
-static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_compare_func dup_compare, size_t cachetable_size) {
+static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_compare_func dup_compare,
+                             generate_keys_vals_for_put_func generate_keys_vals_for_put,
+                             cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put,
+                             generate_keys_for_del_func      generate_keys_for_del,
+                             cleanup_keys_for_del_func       cleanup_keys_for_del,
+                             size_t cachetable_size) {
     int r;
 
     r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, 0);
@@ -183,6 +192,10 @@ static int recover_env_init (RECOVER_ENV renv, brt_compare_func bt_compare, brt_
     toku_logger_set_cachetable(renv->logger, renv->ct);
     renv->bt_compare = bt_compare;
     renv->dup_compare = dup_compare;
+    renv->generate_keys_vals_for_put = generate_keys_vals_for_put;
+    renv->cleanup_keys_vals_for_put = cleanup_keys_vals_for_put;
+    renv->generate_keys_for_del = generate_keys_for_del;
+    renv->cleanup_keys_for_del = cleanup_keys_for_del;
     file_map_init(&renv->fmap);
     renv->goforward = FALSE;
 
@@ -463,7 +476,7 @@ static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV re
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, l->key.data, l->key.len);
     toku_fill_dbt(&valdbt, l->value.data, l->value.len);
-    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn);
+    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE);
     assert(r == 0);
 
     return 0;
@@ -473,6 +486,136 @@ static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), R
     // nothing
     return 0;
 }
+
+static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple *l, RECOVER_ENV renv) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    if (txn == NULL) {
+        //This is a straddle txn.
+        assert(renv->ss.ss == FORWARD_OLDER_CHECKPOINT_BEGIN); //cannot happen after checkpoint begin
+        return 0;
+    }
+#if 0
+                                int (*generate_keys_vals_for_put) (DBT *row, uint32_t num_dbs, DB *dbs[num_dbs], DBT keys[num_dbs], DBT vals[num_dbs], void *extra),
+                                int (*cleanup_keys_vals_for_put) (DBT *row, uint32_t num_dbs, DB *dbs[num_dbs], DBT keys[num_dbs], DBT vals[num_dbs], void *extra),
+                                int (*generate_keys_for_del) (DBT *row, uint32_t num_dbs, DB *dbs[num_dbs], DBT keys[num_dbs], void *extra),
+                                int (*cleanup_keys_for_del) (DBT *row, uint32_t num_dbs, DB *dbs[num_dbs], DBT keys[num_dbs], void *extra));
+#endif
+    DB* dbs[l->filenums.num];
+    memset(dbs, 0, sizeof(dbs));
+    uint32_t file;
+    uint32_t num_dbs = 0;
+    for (file = 0; file < l->filenums.num; file++) {
+        struct file_map_tuple *tuple = NULL;
+        r = file_map_find(&renv->fmap, l->filenums.filenums[file], &tuple);
+        if (r!=0) {
+            // if we didn't find a cachefile, then we don't have to do anything for this file.
+            continue;
+        }
+        dbs[num_dbs++] = tuple->brt->db;
+    }
+    if (num_dbs == 0) //All files are closed/deleted.  We're done.
+        return 0;
+    DBT keydbts[num_dbs], valdbts[num_dbs], rowdbt;
+    memset(keydbts, 0, sizeof(keydbts));
+    memset(valdbts, 0, sizeof(valdbts));
+    //Generate all the DBTs
+    toku_fill_dbt(&rowdbt, l->row.data, l->row.len);
+    r = renv->generate_keys_vals_for_put(&rowdbt, num_dbs, dbs, keydbts, valdbts, NULL);
+    assert(r==0);
+
+    uint32_t which_db = 0;
+    for (file = 0; file < l->filenums.num; file++) {
+        struct file_map_tuple *tuple = NULL;
+        r = file_map_find(&renv->fmap, l->filenums.filenums[file], &tuple);
+        if (r!=0) {
+            // if we didn't find a cachefile, then we don't have to do anything for this file.
+            continue;
+        }
+        assert(tuple->brt->db == dbs[which_db]);
+
+        r = toku_brt_maybe_insert(tuple->brt, &keydbts[which_db], &valdbts[which_db], txn, TRUE, l->lsn, FALSE);
+        assert(r == 0);
+        which_db++;
+    }
+    assert(which_db == num_dbs);
+
+    //Do cleanup of all dbts.
+    r = renv->cleanup_keys_vals_for_put(&rowdbt, num_dbs, dbs, keydbts, valdbts, NULL);
+    assert(r==0);
+
+    return 0;
+}
+
+static int toku_recover_backward_enq_insert_multiple (struct logtype_enq_insert_multiple *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple *l, RECOVER_ENV renv) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    if (txn == NULL) {
+        //This is a straddle txn.
+        assert(renv->ss.ss == FORWARD_OLDER_CHECKPOINT_BEGIN); //cannot happen after checkpoint begin
+        return 0;
+    }
+
+    DB* dbs[l->filenums.num];
+    memset(dbs, 0, sizeof(dbs));
+    uint32_t file;
+    uint32_t num_dbs = 0;
+    for (file = 0; file < l->filenums.num; file++) {
+        struct file_map_tuple *tuple = NULL;
+        r = file_map_find(&renv->fmap, l->filenums.filenums[file], &tuple);
+        if (r!=0) {
+            // if we didn't find a cachefile, then we don't have to do anything for this file.
+            continue;
+        }
+        dbs[num_dbs++] = tuple->brt->db;
+    }
+    if (num_dbs == 0) //All files are closed/deleted.  We're done.
+        return 0;
+    DBT keydbts[num_dbs], rowdbt;
+    memset(keydbts, 0, sizeof(keydbts));
+ 
+    //Generate all the DBTs
+    toku_fill_dbt(&rowdbt, l->row.data, l->row.len);
+    r = renv->generate_keys_for_del(&rowdbt, num_dbs, dbs, keydbts, NULL);
+    assert(r==0);
+
+    uint32_t which_db = 0;
+    for (file = 0; file < l->filenums.num; file++) {
+        struct file_map_tuple *tuple = NULL;
+        r = file_map_find(&renv->fmap, l->filenums.filenums[file], &tuple);
+        if (r!=0) {
+            // if we didn't find a cachefile, then we don't have to do anything for this file.
+            continue;
+        }
+        assert(tuple->brt->db == dbs[which_db]);
+
+        r = toku_brt_maybe_delete(tuple->brt, &keydbts[which_db], txn, TRUE, l->lsn, FALSE);
+        assert(r == 0);
+        which_db++;
+    }
+    assert(which_db == num_dbs);
+
+    //Do cleanup of all dbts.
+    r = renv->cleanup_keys_for_del(&rowdbt, num_dbs, dbs, keydbts, NULL);
+    assert(r==0);
+
+    return 0;
+}
+
+static int toku_recover_backward_enq_delete_multiple (struct logtype_enq_delete_multiple *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
 
 static int toku_recover_enq_delete_both (struct logtype_enq_delete_both *l, RECOVER_ENV renv) {
     int r;
@@ -522,7 +665,7 @@ static int toku_recover_enq_delete_any (struct logtype_enq_delete_any *l, RECOVE
     }
     DBT keydbt;
     toku_fill_dbt(&keydbt, l->key.data, l->key.len);
-    r = toku_brt_maybe_delete(tuple->brt, &keydbt, txn, TRUE, l->lsn);
+    r = toku_brt_maybe_delete(tuple->brt, &keydbt, txn, TRUE, l->lsn, FALSE);
     assert(r == 0);
 
     return 0;
@@ -1185,7 +1328,14 @@ int tokudb_recover_delete_rolltmp_files(const char *UU(data_dir), const char *lo
     return r;
 }
 
-int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare, size_t cachetable_size) {
+int tokudb_recover(const char *env_dir, const char *log_dir,
+                   brt_compare_func bt_compare,
+                   brt_compare_func dup_compare,
+                   generate_keys_vals_for_put_func generate_keys_vals_for_put,
+                   cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put,
+                   generate_keys_for_del_func      generate_keys_for_del,
+                   cleanup_keys_for_del_func       cleanup_keys_for_del,
+                   size_t cachetable_size) {
     int r;
     int lockfd = -1;
 
@@ -1202,7 +1352,12 @@ int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt
     int rr = 0;
     if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
-        r = recover_env_init(&renv, bt_compare, dup_compare, cachetable_size);
+        r = recover_env_init(&renv, bt_compare, dup_compare,
+                             generate_keys_vals_for_put,
+                             cleanup_keys_vals_for_put,
+                             generate_keys_for_del,
+                             cleanup_keys_for_del,
+                             cachetable_size);
         assert(r == 0);
 
         rr = do_recovery(&renv, env_dir, log_dir);

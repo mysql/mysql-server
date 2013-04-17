@@ -23,6 +23,7 @@
 #endif
 
 int verbose=1;
+int which;
 
 enum { SERIAL_SPACING = 1<<6 };
 enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
@@ -39,6 +40,8 @@ int pagesize = 0;
 long long cachesize = 128*1024*1024;
 int do_1514_point_query = 0;
 int dupflags = 0;
+int insert_multiple = 0;
+int num_dbs = 1;
 int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
 int prelock  = 0;
@@ -118,9 +121,42 @@ char *dbfilename = "bench.db";
 char *dbname;
 
 DB_ENV *dbenv;
-DB *db;
+enum {MAX_DBS=128};
+DB *dbs[MAX_DBS];
+uint32_t put_flagss[MAX_DBS];
 DB_TXN *parenttid=0;
 DB_TXN *tid=0;
+
+#if defined(TOKUDB)
+static int
+put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **dbs_in, DBT *keys, DBT *vals, void *extra) {
+    assert((int)num_dbs_in == num_dbs);
+    assert(extra == &put_flags); //Verifying extra gets set right.
+    assert(row->size >= 4);
+    int32_t row_keysize = *(int32_t*)row->data;
+    assert(row_keysize == keysize);
+    assert((int)row->size >= 4+keysize);
+    int32_t row_valsize = row->size - 4 - keysize;
+    assert(row_valsize == valsize);
+    void *key = row->data+4;
+    void *val = row->data+4 + keysize;
+    for (which = 0; which < num_dbs; which++) {
+        assert(dbs_in[which] == dbs[which]);
+        keys[which].size = keysize;
+        keys[which].data = key;
+        vals[which].size = valsize;
+        vals[which].data = val;
+    }
+    return 0;
+}
+
+static int
+put_multiple_clean(DBT *UU(row), uint32_t UU(num_dbs_in), DB **UU(dbs_in), DBT *UU(keys), DBT *UU(vals), void *extra) {
+    assert(extra == &put_flags); //Verifying extra gets set right.
+    return 0;
+}
+#endif
+
 
 
 static void benchmark_setup (void) {
@@ -162,6 +198,14 @@ static void benchmark_setup (void) {
         r = dbenv->set_lg_dir(dbenv, log_dir);
         assert(r == 0);
     }
+#if defined(TOKUDB)
+    if (insert_multiple) {
+        r = dbenv->set_multiple_callbacks(dbenv,
+                                          put_multiple_generate, put_multiple_clean,
+                                          NULL, NULL);
+        CKERR(r);
+    }
+#endif
 
     r = dbenv->open(dbenv, dbdir, env_open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     assert(r == 0);
@@ -176,23 +220,33 @@ static void benchmark_setup (void) {
     }
 #endif
 
-    r = db_create(&db, dbenv, 0);
-    assert(r == 0);
+    for (which = 0; which < num_dbs; which++) {
+        r = db_create(&dbs[which], dbenv, 0);
+        assert(r == 0);
+    }
 
     if (do_transactions) {
 	r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
     }
-    if (pagesize && db->set_pagesize) {
-        r = db->set_pagesize(db, pagesize); 
+    for (which = 0; which < num_dbs; which++) {
+        DB *db = dbs[which];
+        if (pagesize && db->set_pagesize) {
+            r = db->set_pagesize(db, pagesize); 
+            assert(r == 0);
+        }
+        if (dupflags) {
+            r = db->set_flags(db, dupflags);
+            assert(r == 0);
+        }
+        char name[strlen(dbfilename)+10];
+        if (which==0)
+            sprintf(name, "%s", dbfilename);
+        else
+            sprintf(name, "%s_%d", dbfilename, which);
+        r = db->open(db, tid, name, NULL, DB_BTREE, DB_CREATE, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+        if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
         assert(r == 0);
     }
-    if (dupflags) {
-        r = db->set_flags(db, dupflags);
-        assert(r == 0);
-    }
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
-    assert(r == 0);
     if (insert1first) {
         if (do_transactions) {
             r=tid->commit(tid, 0);
@@ -215,8 +269,12 @@ static void benchmark_setup (void) {
         r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
     }
     if (do_transactions) {
-	if (singlex)
-            do_prelock(db, tid);
+	if (singlex) {
+            for (which = 0; which < num_dbs; which++) {
+                DB *db = dbs[which];
+                do_prelock(db, tid);
+            }
+        }
         else {
             r=tid->commit(tid, 0);
             assert(r==0);
@@ -272,8 +330,11 @@ static void benchmark_shutdown (void) {
     assert(!tid);
     assert(!parenttid);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    for (which = 0; which < num_dbs; which++) {
+        DB *db = dbs[which];
+        r = db->close(db, 0);
+        assert(r == 0);
+    }
     r = dbenv->close(dbenv, 0);
     assert(r == 0);
 }
@@ -307,21 +368,42 @@ static void fill_array (unsigned char *data, int size) {
 }
 
 static void insert (long long v) {
-    unsigned char kc[keysize], vc[valsize];
+    int r;
+    unsigned char data[keysize+valsize+4];
+    unsigned char *kc = data+4, *vc = data+keysize+4;
     DBT  kt, vt;
-    fill_array(kc, sizeof kc);
+    fill_array(kc, keysize);
     long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
-    fill_array(vc, sizeof vc);
+    fill_array(vc, valsize);
     long_long_to_array(vc, valsize, v);
-    int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
-    CKERR(r);
+    *(uint32_t*)(data) = keysize;
+    if (insert_multiple) {
+        DBT row;
+        fill_dbt(&row, data, sizeof(data));
+#if defined(TOKUDB)
+        r = dbenv->put_multiple(dbenv, tid, &row, num_dbs, dbs, put_flagss, &put_flags); //Extra used just to verify its passed right
+#else
+        r = EINVAL;
+#endif
+        CKERR(r);
+    }
+    else {
+        for (which = 0; which < num_dbs; which++) {
+            DB *db = dbs[which];
+            r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
+            CKERR(r);
+        }
+    }
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
 	    n_insertions_since_txn_began=0;
 	    r = tid->commit(tid, commitflags); assert(r==0);
             tid = NULL;
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
-            do_prelock(db, tid);
+            for (which = 0; which < num_dbs; which++) {
+                DB *db = dbs[which];
+                do_prelock(db, tid);
+            }
 	    n_insertions_since_txn_began=0;
 	}
 	n_insertions_since_txn_began++;
@@ -332,7 +414,10 @@ static void serial_insert_from (long long from) {
     long long i;
     if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
-        do_prelock(db, tid);
+        for (which = 0; which < num_dbs; which++) {
+            DB *db = dbs[which];
+            do_prelock(db, tid);
+        }
     }
     for (i=0; i<items_per_iteration; i++) {
 	insert((from+i)*SERIAL_SPACING);
@@ -351,7 +436,10 @@ static void random_insert_below (long long below) {
     long long i;
     if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
-        do_prelock(db, tid);
+        for (which = 0; which < num_dbs; which++) {
+            DB *db = dbs[which];
+            do_prelock(db, tid);
+        }
     }
     for (i=0; i<items_per_iteration; i++) {
 	insert(llrandom()%below);
@@ -421,6 +509,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --userandom           use random()\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
+    fprintf(stderr, "    --numdbs N            Insert same items into N dbs (1 to %d)\n", MAX_DBS); 
+    fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -448,12 +538,15 @@ test1514(void) {
 
     struct timeval t1,t2;
 
-    r = db->cursor(db, tid, &c, 0); CKERR(r);
-    gettimeofday(&t1,0);
-    r = c->c_getf_set(c, 0, fill_dbt(&kt, kc, keysize), nothing, NULL);
-    gettimeofday(&t2,0);
-    CKERR2(r, DB_NOTFOUND);
-    r = c->c_close(c); CKERR(r);
+    for (which = 0; which < num_dbs; which++) {
+        DB *db = dbs[which];
+        r = db->cursor(db, tid, &c, 0); CKERR(r);
+        gettimeofday(&t1,0);
+        r = c->c_getf_set(c, 0, fill_dbt(&kt, kc, keysize), nothing, NULL);
+        gettimeofday(&t2,0);
+        CKERR2(r, DB_NOTFOUND);
+        r = c->c_close(c); CKERR(r);
+    }
 
     if (verbose) printf("(#1514) Single Point Query %9.6fs\n", toku_tdiff(&t2, &t1));
 }
@@ -476,6 +569,14 @@ int main (int argc, const char *argv[]) {
 	    noserial=1;
 	} else if (strcmp(arg, "--norandom") == 0) {
 	    norandom=1;
+	} else if (strcmp(arg, "--insertmultiple") == 0) {
+            insert_multiple=1;
+	} else if (strcmp(arg, "--numdbs") == 0) {
+	    num_dbs = atoi(argv[++i]);
+            if (num_dbs <= 0 || num_dbs > MAX_DBS) {
+                fprintf(stderr, "--numdbs needs between 1 and %d\n", MAX_DBS);
+                return print_usage(argv[0]);
+            }
 	} else if (strcmp(arg, "--compressibility") == 0) {
 	    compressibility = atof(argv[++i]);
 	    init_random_c(); (void) get_random_c();
@@ -600,13 +701,26 @@ int main (int argc, const char *argv[]) {
 	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
     }
 #if !defined TOKUDB
+    if (insert_multiple) {
+	fprintf(stderr, "--insert_multiple only works on the TokuDB (not BDB)\n");
+	return print_usage(argv[0]);
+    }
     if (check_small_rolltmp) {
 	fprintf(stderr, "--check_small_rolltmp only works on the TokuDB (not BDB)\n");
 	return print_usage(argv[0]);
     }
 #endif
+    if (insert_multiple) {
+        for (which = 0; which < num_dbs; which++) {
+            put_flagss[i] = put_flags;
+        }
+    }
     if (check_small_rolltmp && !singlex) {
 	fprintf(stderr, "--check_small_rolltmp requires --singlex\n");
+	return print_usage(argv[0]);
+    }
+    if (!do_transactions && insert_multiple) {
+	fprintf(stderr, "--insert_multiple requires transactions\n");
 	return print_usage(argv[0]);
     }
     benchmark_setup();

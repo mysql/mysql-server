@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 // Define BDB if you want to compile this to use Berkeley DB
+#include <inttypes.h>
 #ifdef BDB
 #include <db.h>
 #define DIRSUF bdb
@@ -10,7 +11,6 @@
 #define DIRSUF tokudb
 #endif
 
-#include <inttypes.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>

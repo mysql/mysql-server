@@ -679,6 +679,24 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_in
     return 0;
 }
 
+// fills in the fs with malloced data.
+int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, u_int32_t *len) {
+    int r=toku_fread_u_int32_t(f, (u_int32_t*)&fs->num, checksum, len);
+    if (r!=0) return r;
+    fs->filenums = toku_malloc(fs->num * sizeof(FILENUM));
+    u_int32_t i;
+    for (i=0; i<fs->num; i++) {
+	r=toku_fread_FILENUM (f, &fs->filenums[i], checksum, len);
+	if (r!=0) {
+	    toku_free(fs->filenums);
+	    fs->filenums=0;
+	    return r;
+	}
+    }
+    return 0;
+}
+
+
 int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LSN v;
     int r = toku_fread_LSN(inf, &v, checksum, len);
@@ -752,9 +770,33 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, stru
     toku_free(bs.data);
     return 0;
 }
+
 int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
     return toku_logprint_u_int32_t(outf, inf, fieldname, checksum, len, format);
 
+}
+
+static void
+toku_print_FILENUMS (FILE *outf, u_int32_t num, FILENUM *filenums) {
+    fprintf(outf, "{num=%u filenums=\"", num);
+    u_int32_t i;
+    for (i=0; i<num; i++) {
+        if (i>0)
+            fprintf(outf, ",");
+        fprintf(outf, "0x%"PRIx32, filenums[i].fileid);
+    }
+    fprintf(outf, "\"}");
+
+}
+
+int toku_logprint_FILENUMS (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    FILENUMS bs;
+    int r = toku_fread_FILENUMS(inf, &bs, checksum, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=", fieldname);
+    toku_print_FILENUMS(outf, bs.num, bs.filenums);
+    toku_free(bs.filenums);
+    return 0;
 }
 
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {

@@ -200,7 +200,14 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
+  int (*put_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Insert into multiple dbs */;
   void *app_private;
+  int (*del_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Delete from multiple dbs */;
+  int (*set_multiple_callbacks) (DB_ENV *env,
+                               int (*generate_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
+                               int (*cleanup_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
+                               int (*generate_keys_for_del)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra),
+                               int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra)) /* set callbacks for env_(put|del)_multiple */;
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);

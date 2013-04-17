@@ -200,60 +200,66 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
-  void* __toku_dummy0[1];
+  int (*put_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Insert into multiple dbs */;
   void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
-  void* __toku_dummy1[39];
-  char __toku_dummy2[144];
+  int (*del_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Delete from multiple dbs */;
+  int (*set_multiple_callbacks) (DB_ENV *env,
+                               int (*generate_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
+                               int (*cleanup_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
+                               int (*generate_keys_for_del)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra),
+                               int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra)) /* set callbacks for env_(put|del)_multiple */;
+  void* __toku_dummy0[37];
+  char __toku_dummy1[144];
   void *api1_internal; /* 32-bit offset=356 size=4, 64=bit offset=568 size=8 */
-  void* __toku_dummy3[8];
+  void* __toku_dummy2[8];
   int  (*close) (DB_ENV *, u_int32_t); /* 32-bit offset=392 size=4, 64=bit offset=640 size=8 */
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t); /* 32-bit offset=396 size=4, 64=bit offset=648 size=8 */
   int  (*dbrename) (DB_ENV *, DB_TXN *, const char *, const char *, const char *, u_int32_t); /* 32-bit offset=400 size=4, 64=bit offset=656 size=8 */
   void (*err) (const DB_ENV *, int, const char *, ...); /* 32-bit offset=404 size=4, 64=bit offset=664 size=8 */
-  void* __toku_dummy4[3];
+  void* __toku_dummy3[3];
   int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *); /* 32-bit offset=420 size=4, 64=bit offset=696 size=8 */
-  void* __toku_dummy5[5];
+  void* __toku_dummy4[5];
   int (*get_flags) (DB_ENV *, u_int32_t *); /* 32-bit offset=444 size=4, 64=bit offset=744 size=8 */
-  void* __toku_dummy6[4];
+  void* __toku_dummy5[4];
   int  (*get_lg_max) (DB_ENV *, u_int32_t*); /* 32-bit offset=464 size=4, 64=bit offset=784 size=8 */
-  void* __toku_dummy7[4];
+  void* __toku_dummy6[4];
   int  (*get_lk_max_locks) (DB_ENV *, u_int32_t *); /* 32-bit offset=484 size=4, 64=bit offset=824 size=8 */
-  void* __toku_dummy8[22];
+  void* __toku_dummy7[22];
   int  (*log_archive) (DB_ENV *, char **[], u_int32_t); /* 32-bit offset=576 size=4, 64=bit offset=1008 size=8 */
-  void* __toku_dummy9[2];
+  void* __toku_dummy8[2];
   int  (*log_flush) (DB_ENV *, const DB_LSN *); /* 32-bit offset=588 size=4, 64=bit offset=1032 size=8 */
-  void* __toku_dummy10[25];
+  void* __toku_dummy9[25];
   int  (*open) (DB_ENV *, const char *, u_int32_t, int); /* 32-bit offset=692 size=4, 64=bit offset=1240 size=8 */
-  void* __toku_dummy11[30];
+  void* __toku_dummy10[30];
   int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int); /* 32-bit offset=816 size=4, 64=bit offset=1488 size=8 */
-  void* __toku_dummy12[1];
+  void* __toku_dummy11[1];
   int  (*set_data_dir) (DB_ENV *, const char *); /* 32-bit offset=824 size=4, 64=bit offset=1504 size=8 */
-  void* __toku_dummy13[1];
+  void* __toku_dummy12[1];
   void (*set_errcall) (DB_ENV *, void (*)(const DB_ENV *, const char *, const char *)); /* 32-bit offset=832 size=4, 64=bit offset=1520 size=8 */
   void (*set_errfile) (DB_ENV *, FILE*); /* 32-bit offset=836 size=4, 64=bit offset=1528 size=8 */
   void (*set_errpfx) (DB_ENV *, const char *); /* 32-bit offset=840 size=4, 64=bit offset=1536 size=8 */
-  void* __toku_dummy14[2];
+  void* __toku_dummy13[2];
   int  (*set_flags) (DB_ENV *, u_int32_t, int); /* 32-bit offset=852 size=4, 64=bit offset=1560 size=8 */
-  void* __toku_dummy15[2];
+  void* __toku_dummy14[2];
   int  (*set_lg_bsize) (DB_ENV *, u_int32_t); /* 32-bit offset=864 size=4, 64=bit offset=1584 size=8 */
   int  (*set_lg_dir) (DB_ENV *, const char *); /* 32-bit offset=868 size=4, 64=bit offset=1592 size=8 */
-  void* __toku_dummy16[1];
+  void* __toku_dummy15[1];
   int  (*set_lg_max) (DB_ENV *, u_int32_t); /* 32-bit offset=876 size=4, 64=bit offset=1608 size=8 */
-  void* __toku_dummy17[2];
+  void* __toku_dummy16[2];
   int  (*set_lk_detect) (DB_ENV *, u_int32_t); /* 32-bit offset=888 size=4, 64=bit offset=1632 size=8 */
-  void* __toku_dummy18[1];
+  void* __toku_dummy17[1];
   int  (*set_lk_max_locks) (DB_ENV *, u_int32_t); /* 32-bit offset=896 size=4, 64=bit offset=1648 size=8 */
-  void* __toku_dummy19[14];
+  void* __toku_dummy18[14];
   int  (*set_tmp_dir) (DB_ENV *, const char *); /* 32-bit offset=956 size=4, 64=bit offset=1768 size=8 */
-  void* __toku_dummy20[2];
+  void* __toku_dummy19[2];
   int  (*set_verbose) (DB_ENV *, u_int32_t, int); /* 32-bit offset=968 size=4, 64=bit offset=1792 size=8 */
-  void* __toku_dummy21[1];
+  void* __toku_dummy20[1];
   int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t); /* 32-bit offset=976 size=4, 64=bit offset=1808 size=8 */
   int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t); /* 32-bit offset=980 size=4, 64=bit offset=1816 size=8 */
-  void* __toku_dummy22[1];
+  void* __toku_dummy21[1];
   int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t); /* 32-bit offset=988 size=4, 64=bit offset=1832 size=8 */
-  void* __toku_dummy23[2]; /* Padding at the end */ 
-  char __toku_dummy24[16];  /* Padding at the end */ 
+  void* __toku_dummy22[2]; /* Padding at the end */ 
+  char __toku_dummy23[16];  /* Padding at the end */ 
 };
 struct __toku_db_key_range {
   double less; /* 32-bit offset=0 size=8, 64=bit offset=0 size=8 */

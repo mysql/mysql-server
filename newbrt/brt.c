@@ -2629,7 +2629,7 @@ toku_brt_broadcast_commit_all (BRT brt)
 
 // Effect: Insert the key-val pair into brt.
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
-    return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN);
+    return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN, TRUE);
 }
 
 static void
@@ -2638,7 +2638,27 @@ txn_note_doing_work(TOKUTXN txn) {
         txn->has_done_work = 1;
 }
 
-int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
+int
+toku_brt_log_put_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
+    int r = 0;
+    assert(txn);
+    assert(num_brts > 0);
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger) {
+        FILENUM  fnums[num_brts];
+        FILENUMS filenums = {.num = num_brts, .filenums = fnums};
+        int i;
+        for (i = 0; i < num_brts; i++) {
+            fnums[i] = toku_cachefile_filenum(brts[i]->cf);
+        }
+        BYTESTRING rowbs = {.len=row->size, .data=row->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, filenums, xid, rowbs);
+    }
+    return r;
+}
+
+int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
     int r = 0;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2663,7 +2683,7 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
         message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger) {
+    if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
@@ -2681,10 +2701,30 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
 }
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
-    return toku_brt_maybe_delete(brt, key, txn, FALSE, ZERO_LSN);
+    return toku_brt_maybe_delete(brt, key, txn, FALSE, ZERO_LSN, TRUE);
 }
 
-int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
+int
+toku_brt_log_del_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
+    int r = 0;
+    assert(txn);
+    assert(num_brts > 0);
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger) {
+        FILENUM  fnums[num_brts];
+        FILENUMS filenums = {.num = num_brts, .filenums = fnums};
+        int i;
+        for (i = 0; i < num_brts; i++) {
+            fnums[i] = toku_cachefile_filenum(brts[i]->cf);
+        }
+        BYTESTRING rowbs = {.len=row->size, .data=row->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, filenums, xid, rowbs);
+    }
+    return r;
+}
+
+int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
     int r;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2703,7 +2743,7 @@ int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN 
         message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger) {
+    if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs);
         if (r!=0) return r;
