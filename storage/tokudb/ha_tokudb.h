@@ -204,6 +204,7 @@ public:
     }
 
     double scan_time();
+    double read_time(uint index, uint ranges, ha_rows rows);
 
     int open(const char *name, int mode, uint test_if_locked);
     int close(void);

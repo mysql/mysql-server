@@ -3494,6 +3494,47 @@ double ha_tokudb::scan_time() {
 }
 
 //
+// Calculate the time it takes to read a set of ranges through an index
+// This enables us to optimize reads for clustered indexes.
+// Implementation pulled from InnoDB
+// Parameters:
+//          index - index to use
+//          ranges - number of ranges
+//          rows - estimated number of rows in the range
+// Returns:
+//      estimated time measured in disk seeks
+//
+double ha_tokudb::read_time(
+	uint	index,
+	uint	ranges,
+	ha_rows rows
+	)
+{
+    double total_scan;
+    double ret_val; 
+
+    if (index != primary_key) {
+        ret_val = handler::read_time(index, ranges, rows);
+        goto cleanup;
+    }
+
+    total_scan = scan_time();
+
+    if (stats.records < rows) {
+        ret_val = total_scan;
+        goto cleanup;
+    }
+
+    //
+    // one disk seek per range plus the proportional scan time of the rows
+    //
+    ret_val = (ranges + (double) rows / (double) stats.records * total_scan);
+cleanup:
+    return ret_val;
+}
+
+
+//
 // Estimates the number of index records in a range. In case of errors, return
 //   HA_TOKUDB_RANGE_COUNT instead of HA_POS_ERROR. This was behavior
 //   when we got the handlerton from MySQL.
