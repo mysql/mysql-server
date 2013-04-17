@@ -68,7 +68,9 @@ cursor_range_with_delete (u_int32_t flag) {
     r = dbc->c_close(dbc);                          CKERR(r);
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     setup_db("next.db");
     insert();
     cursor_range_with_delete(DB_NEXT);

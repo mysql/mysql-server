@@ -299,7 +299,8 @@ static void usage (const char *argv1) {
     exit(1);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int useseed = 1; 
 

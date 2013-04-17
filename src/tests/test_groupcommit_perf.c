@@ -93,7 +93,8 @@ printtdiff (char *str) {
     if (verbose) printf("%10.6f %s\n", thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec), str);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     system("rm -rf " ENVDIR);

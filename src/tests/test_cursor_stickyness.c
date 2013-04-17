@@ -76,7 +76,8 @@ test_cursor_sticky (int n, int dup_mode) {
 }
 
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int r;
     int i;
 

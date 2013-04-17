@@ -126,7 +126,8 @@ test_data_size_limit (int dup_mode) {
     assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];

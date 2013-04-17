@@ -61,10 +61,11 @@ test_txn_abort (int n) {
     r = env->close(env, 0); assert(r == 0);
 }
 
-int main(int argc, char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
     for (i = 1; i < argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
             verbose++;
             continue;

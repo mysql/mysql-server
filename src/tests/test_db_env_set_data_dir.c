@@ -13,7 +13,9 @@
 
 // ENVDIR is defined in the Makefile
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     DB_ENV *dbenv;
     int r;
 

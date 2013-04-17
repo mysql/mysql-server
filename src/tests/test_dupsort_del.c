@@ -99,7 +99,8 @@ test_dupsort_del (void) {
     r=env->close(env, 0); CKERR(r);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     test_dupsort_del();
     return 0;

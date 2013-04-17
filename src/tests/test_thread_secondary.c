@@ -202,7 +202,9 @@ verify_gone (void) {
     if (key.data) free(key.data);
 }
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     int r;
 
     system("rm -rf " ENVDIR);

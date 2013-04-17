@@ -16,7 +16,8 @@
 DB_ENV *env;
 DB *db;
 
-int main (int UU(argc), char UU(*argv[])) {
+int
+test_main (int UU(argc), const char UU(*argv[])) {
     int r;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);

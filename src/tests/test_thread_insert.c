@@ -52,7 +52,8 @@ usage (void) {
     return 1;
 }
 
-int main(int argc, char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     const char *dbfile = "test.db";
     const char *dbname = "main";
     int nthreads = 2;
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
 
     int i;
     for (i=1; i<argc; i++) {
-        char *arg = argv[i];
+        const char *arg = argv[i];
         if (0 == strcmp(arg, "-h") || 0 == strcmp(arg, "--help")) {
             return usage();
         }

@@ -6,7 +6,7 @@
 #include <db.h>
 #include <assert.h>
 #include <limits.h>
-
+#include "ydb.h"
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0
 #endif
@@ -101,3 +101,17 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #define SET_TRACE_FILE(x) ((void)0)
 #define CLOSE_TRACE_FILE(x) ((void)0)
 #endif
+
+int test_main (int argc, const char *argv[]);
+int
+main(int argc, const char *argv[]) {
+#if defined(_WIN32) || defined(_WIN64)
+    toku_ydb_init();
+#endif
+    int r = test_main(argc, argv);
+#if defined(_WIN32) || defined(_WIN64)
+    toku_ydb_destroy();
+#endif
+    return r;
+}
+

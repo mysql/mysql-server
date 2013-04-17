@@ -1,12 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 #include <stdio.h>
 #include <assert.h>
 #include <toku_portability.h>
 #include <db.h>
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     DB_ENV *dbenv;
     int r;
 

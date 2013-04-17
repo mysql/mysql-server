@@ -72,7 +72,8 @@ doit (void) {
     printf("%lld insertions in %9.6fs, %9.3f ins/s \n", ninserts, diff, ninserts/diff);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     test_setup();

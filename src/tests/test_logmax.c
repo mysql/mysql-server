@@ -101,7 +101,8 @@ test_logmax (int logmax) {
     check_logmax(effective_max);
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     test_logmax(1<<20);
     test_logmax(-1);

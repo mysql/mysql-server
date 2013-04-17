@@ -117,7 +117,8 @@ static void make_db (int n_locks) {
     r=env->close(env, 0);     assert(r==0);
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     make_db(-1);
     make_db(100);
     if (0) {

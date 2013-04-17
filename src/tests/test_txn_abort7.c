@@ -51,7 +51,8 @@ test_abort_create (void) {
 
 }
 
-int main(int UU(argc), char UU(*argv[])) {
+int
+test_main(int UU(argc), const char UU(*argv[])) {
     test_abort_create();
     return 0;
 }

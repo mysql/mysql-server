@@ -63,7 +63,8 @@ test_insert_delete_insert (int dup_mode) {
     r = db->close(db, 0); assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   

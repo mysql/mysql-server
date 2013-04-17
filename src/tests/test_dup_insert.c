@@ -249,7 +249,8 @@ test_nonleaf_insert (int n, int dup_mode) {
     assert(r == 0);
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     int i;
 
     parse_args(argc, argv);

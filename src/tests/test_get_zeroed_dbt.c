@@ -31,7 +31,8 @@ test_get (int dup_mode) {
     r = db->close(db, 0); 
 }
 
-int main (int argc, const char *argv[]) {
+int
+test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);

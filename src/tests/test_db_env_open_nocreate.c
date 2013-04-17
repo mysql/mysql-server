@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 // Try to open an environment where the directory does not exist 
 // Try when the dir exists but is not an initialized env
 // Try when the dir exists and we do DB_CREATE: it should work.
@@ -20,9 +22,10 @@
 #include <unistd.h>
 
 // ENVDIR is defined in the Makefile
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
-int main() {
+int
+test_main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
     DB_ENV *dbenv;
     int r;
     int do_private;

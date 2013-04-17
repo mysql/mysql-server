@@ -114,7 +114,8 @@ test_truncate_txn_commit2 (int n) {
     return 0;
 }
 
-int main(int argc, const char *argv[]) {
+int
+test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
     int nodesize = 1024*1024;
     int leafentry = 25;

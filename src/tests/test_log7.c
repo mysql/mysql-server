@@ -1,6 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "test.h"
+
 /* Test to see if we can do logging and recovery. */
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 /* This test_log7 is like test_log5 except maxcount is larger. */
@@ -14,8 +16,6 @@
 #include <string.h>
 
 // ENVDIR is defined in the Makefile
-
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 struct in_db;
 struct in_db {
@@ -79,7 +79,8 @@ static void make_db (void) {
     }
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int
+test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     make_db();
     return 0;
 }
