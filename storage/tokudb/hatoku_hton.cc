@@ -1113,8 +1113,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     ENGINE_STATUS engstat;
 
 #define showval(v) \
-    snprintf(buf, bufsiz, "%" PRIu64, engstat.%%v); \
-    STATPRINT(%%v, buf);
+    snprintf(buf, bufsiz, "%" PRIu64, engstat.v); \
+    STATPRINT(#v, buf);
 
     error = db_env->get_engine_status(db_env, &engstat, buf, bufsiz);
     if (strlen(buf)) {
@@ -1247,7 +1247,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     showval(cleaner_total_nodes);
     showval(cleaner_h1_nodes);
-    showval(cleaner_hgt1_nodes
+    showval(cleaner_hgt1_nodes);
     showval(cleaner_empty_nodes);
     showval(cleaner_nodes_dirtied);
     showval(cleaner_max_buffer_size);
