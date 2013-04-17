@@ -2157,7 +2157,7 @@ toku_lt_remove_ref(toku_lock_tree *tree) {
     // because toku_ltm_get_lt holds the mgr mutex and add/remove ref
     // holds the tree mutex.
     assert(tree->ref_count > 0);
-    if (tree->ref_count == 1) {
+    if (--tree->ref_count == 0) {
         assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
         ltm_stop_managing_lt_unlocked(tree->mgr, tree);
         do_close = true;
