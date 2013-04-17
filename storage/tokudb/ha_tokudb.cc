@@ -3091,11 +3091,10 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     // foo. The locks for bar will be grabbed when 
                     // trx->tokudb_lock_count has been initialized
                     //
-                    assert(lock.type == TL_WRITE || lock.type == TL_READ_NO_INSERT);
-                    if (lock.type == TL_READ_NO_INSERT) {
+                    if (lock.type <= TL_READ_NO_INSERT) {
                         error = acquire_table_lock(trx->all,lock_read);
                     }
-                    else if (lock.type == TL_WRITE) {
+                    else {
                         error = acquire_table_lock(trx->all,lock_write);
                     }
                     // Don't create stmt trans
