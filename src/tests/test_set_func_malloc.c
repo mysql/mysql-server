@@ -88,6 +88,10 @@ test1 (void)
 	x = toku_realloc(x, 6);        assert(x);
 	toku_free(x);
     }
+    r = db_env_set_func_malloc(NULL);   assert(r==0);
+    r = db_env_set_func_realloc(NULL);  assert(r==0);
+    r = db_env_set_func_free(NULL);     assert(r==0);
+
 #endif
 }
 
