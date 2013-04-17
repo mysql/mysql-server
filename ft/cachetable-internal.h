@@ -400,7 +400,12 @@ private:
     void decrease_size_evicting(long size_evicting_estimate);
     bool should_sleeping_clients_wakeup();
     bool eviction_needed();
-    
+
+    // We have some intentional races with these variables because we're ok with reading something a little bit old.
+    // Provide some hooks for reading variables in an unsafe way so that there are function names we can stick in a valgrind suppression.
+    int64_t unsafe_read_size_current(void) const;
+    int64_t unsafe_read_size_evicting(void) const;
+
     pair_list* m_pl;
     int64_t m_size_current;            // the sum of the sizes of the pairs in the cachetable
     // changes to these two values are protected
