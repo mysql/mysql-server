@@ -75,5 +75,3 @@ typedef struct {
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);
 
-
-

@@ -9,7 +9,6 @@ enum { TOKU_LOG_VERSION = 1 };
 
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
-int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsync);
 int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 
@@ -89,5 +88,63 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
 TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
 LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger);
+
+int toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed);
+
+int
+toku_logger_write_inbuf (TOKULOGGER logger);
+// Effect: Write the buffered data (from the inbuf) to a file.  No fsync, however.
+// As a side effect, the inbuf will be made empty.
+// Return 0 on success, otherwise return an error number.
+// Requires: The inbuf lock is currently held, and the outbuf lock is not held.
+//  Upon return, the inbuf lock will be held, and the outbuf lock is not held.
+//  However, no side effects should have been made to the logger.  The lock was acquired simply to determine that the buffer will overflow if we try to put something into it.
+//  The inbuf lock will be released, so the operations before and after this function call will not be atomic.
+// Rationale:  When the buffer becomes nearly full, call this function so that more can be put in.
+// Implementation note:  Since the output lock is acquired first, we must release the input lock, and then grab both in the right order.
+
+
+int
+toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
+// Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
+// Entry: Holds input lock.
+// Exit:  Holds no locks.
+
+// Discussion: How does the logger work:
+//  The logger has two buffers: an inbuf and an outbuf.  
+//  There are two locks, called the inlock, and the outlock.  To write, both locks must be held, and the outlock is acquired first.
+//  Roughly speaking, the inbuf is used to accumulate logged data, and the outbuf is used to write to disk.
+//  When something is to be logged we do the following: 
+//    acquire the inlock.
+//    Make sure there is space in the inbuf for the logentry. (We know the size of the logentry in advance):
+//      if the inbuf doesn't have enough space then
+//      release the inlock
+//      acquire the outlock
+//      acquire the inlock
+//      it's possible that some other thread made space.
+//      if there still isn't space
+//        swap the inbuf and the outbuf
+//        release the inlock
+//        write the outbuf
+//        acquire the inlock
+//        release the outlock
+//        if the inbuf is still too small, then increase the size of the inbuf
+//    Increment the LSN and fill the inbuf.
+//    If fsync is required then
+//      release the inlock
+//      acquire the outlock
+//      acquire the inlock
+//      if the LSN has been flushed and fsynced (if so we are done.  Some other thread did the flush.)  
+//        release the locks
+//      if the LSN has been flushed but not fsynced up to the LSN:
+//        release the inlock
+//        fsync
+//        release the outlock
+//      otherwise:
+//        swap the outbuf and the inbuf
+//        release the inlock
+//        write the outbuf
+//        fsync
+//        release the outlock
 
 #endif
