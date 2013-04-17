@@ -8,14 +8,13 @@
 #define _THREADED_STRESS_TEST_HELPERS_H_
 
 #include <config.h>
+
 #include "test.h"
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <toku_stdlib.h>
 
 #include <locale.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <db.h>
 #if defined(HAVE_MALLOC_H)
 # include <malloc.h>
@@ -87,9 +86,6 @@ enum perf_output_format {
     HUMAN = 0,
     CSV,
     TSV,
-#if 0
-    GNUPLOT,
-#endif
     NUM_OUTPUT_FORMATS
 };
 
@@ -399,45 +395,6 @@ tsv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], con
     printf("\n");
 }
 
-#if 0
-static void
-gnuplot_print_perf_header(const struct cli_args *cli_args, const int num_threads)
-{
-    printf("set terminal postscript solid color\n");
-    printf("set output \"foo.eps\"\n");
-    printf("set xlabel \"seconds\"\n");
-    printf("set xrange [0:*]\n");
-    printf("set ylabel \"X/s\"\n");
-    printf("plot ");
-    if (cli_args->print_thread_performance) {
-        for (int t = 1; t <= num_threads; ++t) {
-            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-                const int col = (2 * ((t - 1) * (int) NUM_OPERATION_TYPES + op)) + 2;
-                //printf("'-' u 1:%d w lines t \"Thread %d %s\", ", col, t, operation_names[op]);
-                printf("'-' u 1:%d w lines t \"Thread %d %s/s\", ", col + 1, t, operation_names[op]);
-            }
-        }
-    }
-    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-        const int col = (2 * (num_threads * (int) NUM_OPERATION_TYPES + op)) + 2;
-        //printf("'-' u 1:%d w lines t \"Total %s\", ", col);
-        printf("'-' u 1:%d w lines t \"Total %s/s\"%s", col + 1, operation_names[op], op == ((int) NUM_OPERATION_TYPES - 1) ? "\n" : ", ");
-    }
-}
-
-static void
-gnuplot_print_perf_iteration(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads)
-{
-    tsv_print_perf_iteration(cli_args, current_time, last_counters, counters, num_threads);
-}
-
-static void
-gnuplot_print_perf_totals(const struct cli_args *UU(cli_args), uint64_t *UU(counters[]), const int UU(num_threads))
-{
-    printf("e\n");
-}
-#endif
-
 const struct perf_formatter perf_formatters[] = {
     [HUMAN] = {
         .header = human_print_perf_header,
@@ -454,13 +411,6 @@ const struct perf_formatter perf_formatters[] = {
         .iteration = tsv_print_perf_iteration,
         .totals = tsv_print_perf_totals
     },
-#if 0
-    [GNUPLOT] = {
-        .header = gnuplot_print_perf_header,
-        .iteration = gnuplot_print_perf_iteration,
-        .totals = gnuplot_print_perf_totals
-    }
-#endif
 };
 
 static int get_env_open_flags(struct cli_args *args) {
@@ -1952,8 +1902,8 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .generate_del_callback = NULL,
 };
 
-#define MIN_VAL_SIZE sizeof(int)
-#define MIN_KEY_SIZE sizeof(int)
+#define MIN_VAL_SIZE sizeof(uint64_t)
+#define MIN_KEY_SIZE sizeof(uint64_t)
 #define MIN_COMPRESSIBILITY (0.0)
 #define MAX_COMPRESSIBILITY (1.0)
 static struct cli_args UU() get_default_args(void) {
@@ -2059,6 +2009,7 @@ DEFINE_NUMERIC_HELP(int64, PRId64, i64, INT64_MIN, INT64_MAX)
 DEFINE_NUMERIC_HELP(uint32, PRIu32, u32, 0, UINT32_MAX)
 DEFINE_NUMERIC_HELP(uint64, PRIu64, u64, 0, UINT64_MAX)
 DEFINE_NUMERIC_HELP(double, ".2lf",  d, -HUGE_VAL, HUGE_VAL)
+
 static inline void
 help_bool(struct arg_type *type, int width_name, int width_type) {
     invariant(strncmp("--", type->name, strlen("--")));
@@ -2446,13 +2397,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             args->perf_output_format = CSV;
         } else if (!strcmp(perf_format_s, "tsv")) {
             args->perf_output_format = TSV;
-#if 0
-        } else if (!strcmp(perf_format_s, "gnuplot")) {
-            args->perf_output_format = GNUPLOT;
-#endif
         } else {
             fprintf(stderr, "valid values for --perf_format are \"human\", \"csv\", and \"tsv\"\n");
-            //fprintf(stderr, "valid values for --perf_format are \"human\", \"csv\", \"tsv\", and \"gnuplot\"\n");
             do_usage(argv0, num_arg_types, arg_types);
             exit(EINVAL);
         }
@@ -2468,16 +2414,26 @@ static void
 stress_table(DB_ENV *, DB **, struct cli_args *);
 
 static int
-UU() stress_int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
+stress_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
     assert(db && a && b);
-    assert(a->size >= sizeof(int));
-    assert(b->size >= sizeof(int));
+    assert(a->size >= MIN_KEY_SIZE);
+    assert(a->size == b->size);
 
-    int x = *(int *) a->data;
-    int y = *(int *) b->data;
-
-    if (x<y) return -1;
-    if (x>y) return 1;
+    uint64_t *x = (uint64_t *) a->data;
+    uint64_t *y = (uint64_t *) b->data;
+    uint64_t bytes_left = a->size;
+    while (bytes_left > 0) {
+        if (bytes_left < sizeof(uint64_t)) {
+            return memcmp(x, y, bytes_left);
+        } else if (*x < *y) {
+            return -1;
+        } else if (*x > *y) {
+            return 1;
+        }
+        x++;
+        y++;
+        bytes_left -= sizeof(uint64_t);
+    }
     return 0;
 }
 
@@ -2558,7 +2514,7 @@ UU() stress_test_main_with_cmp(struct cli_args *args, int (*bt_compare)(DB *, co
 static void
 UU() stress_test_main(struct cli_args *args)
 {
-    stress_test_main_with_cmp(args, stress_int_dbt_cmp);
+    stress_test_main_with_cmp(args, stress_dbt_cmp);
 }
 
 static void
@@ -2569,7 +2525,7 @@ UU() stress_recover(struct cli_args *args) {
     { int chk_r = open_tables(&env,
                               dbs,
                               args->num_DBs,
-                              stress_int_dbt_cmp,
+                              stress_dbt_cmp,
                               args); CKERR(chk_r); }
 
     DB_TXN* txn = NULL;
