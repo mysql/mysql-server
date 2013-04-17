@@ -887,9 +887,10 @@ static int toku_env_set_data_dir(DB_ENV * env, const char *dir) {
     if (env_opened(env) || !dir) {
 	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
     }
-    else if (env->i->data_dir)
-	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir more than once.\n");
     else {
+	if (env->i->data_dir) {
+	    toku_free(env->i->data_dir);
+	}
         env->i->data_dir = toku_strdup(dir);
         if (env->i->data_dir==NULL) {
             assert(errno == ENOMEM);
