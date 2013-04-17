@@ -129,7 +129,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     toku_verify_or_set_counts(node);
     assert(node->height==0);
 
-    size_t lesize, disksize;
+    size_t newlesize;
     LEAFENTRY leafentry;
     OMTVALUE storeddatav;
     u_int32_t idx;
@@ -139,8 +139,17 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
                      .u.id={toku_fill_dbt(&keydbt, key, keylen),
                             toku_fill_dbt(&valdbt, val, vallen)}};
     //Generate a leafentry (committed insert key,val)
+
+    uint childnum = toku_brtnode_which_child(node,
+					     &keydbt,
+					     &brt->h->descriptor, brt->compare_fun);
+
+    BASEMENTNODE bn = BLB(node, childnum);
+    void * maybe_free = 0;
+    
     r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
-                               &lesize, &disksize, &leafentry, 
+                               &newlesize, &leafentry, 
+			       bn->buffer, &bn->buffer_mempool, &maybe_free,
                                NULL, NULL);
     assert(r==0);
 
@@ -163,7 +172,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     // hack to get tests passing. These tests should not be directly inserting into buffers
     BLB(node, 0)->max_msn_applied = msn;
 
-    BLB_NBYTESINBUF(node, 0) += disksize;
+    BLB_NBYTESINBUF(node, 0) += newlesize;
 
     node->dirty=1;
 

@@ -27,24 +27,41 @@ static int omt_long_cmp(OMTVALUE p, void *q)
     return (*ai > *bi) - (*ai < *bi);
 }
 
-static LEAFENTRY
-le_fastmalloc(char *key, int keylen, char *val, int vallen)
-{
-    LEAFENTRY r = toku_malloc(sizeof(r->type) + sizeof(r->keylen) + sizeof(r->u.clean.vallen) +
-                              keylen + vallen);
-    resource_assert(r);
-    r->type = LE_CLEAN;
-    r->keylen = keylen;
-    r->u.clean.vallen = vallen;
-    memcpy(&r->u.clean.key_val[0], key, keylen);
-    memcpy(&r->u.clean.key_val[keylen], val, vallen);
-    return r;
+static size_t
+calc_le_size(int keylen, int vallen) {
+    size_t rval;
+    LEAFENTRY le;
+    rval = sizeof(le->type) + sizeof(le->keylen) + sizeof(le->u.clean.vallen) + keylen + vallen;
+    return rval;
 }
 
+static LEAFENTRY
+le_fastmalloc(struct mempool * mp, char *key, int keylen, char *val, int vallen)
+{
+    LEAFENTRY le;
+    size_t le_size = calc_le_size(keylen, vallen);
+    le = toku_mempool_malloc(mp, le_size, 1);
+    resource_assert(le);
+    le->type = LE_CLEAN;
+    le->keylen = keylen;
+    le->u.clean.vallen = vallen;
+    memcpy(&le->u.clean.key_val[0], key, keylen);
+    memcpy(&le->u.clean.key_val[keylen], val, vallen);
+    return le;
+}
+
+
+//
+// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum basement node size: 256
+// Actual node size before split: 2048
+// Actual basement node size before split: 256
+// Start by creating 8 basements, then split node, expected result of two nodes with 4 basements each.
 static void
 test_split_on_boundary(void)
 {
     const int nodesize = 1024, eltsize = 64, bnsize = 256;
+    const size_t maxbnsize = bnsize;
     const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
                                                                   +sizeof(((LEAFENTRY)NULL)->keylen)
                                                                   +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
@@ -66,22 +83,24 @@ test_split_on_boundary(void)
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
-    LEAFENTRY elts[nelts];
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
             char val[vallen];
             memset(val, k, sizeof val);
-            elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -112,17 +131,30 @@ test_split_on_boundary(void)
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_free_items(BLB_BUFFER(&sn, i));
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 }
 
+//
+// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum basement node size: 256 (except the last)
+// Actual node size before split: 4095
+// Actual basement node size before split: 256 (except the last, of size 2K)
+// 
+// Start by creating 9 basements, the first 8 being of 256 bytes each,
+// and the last with one row of size 2047 bytes.  Then split node,
+// expected result is two nodes, one with 8 basement nodes and one
+// with 1 basement node.
 static void
 test_split_with_everything_on_the_left(void)
 {
     const int nodesize = 1024, eltsize = 64, bnsize = 256;
+    const size_t maxbnsize = 1024 * 2;
     const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
                                                                   +sizeof(((LEAFENTRY)NULL)->keylen)
                                                                   +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
@@ -144,15 +176,15 @@ test_split_with_everything_on_the_left(void)
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize + 1;
     sn.dirty = 1;
-    LEAFENTRY elts[nelts];
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
-    LEAFENTRY big_element;
-    char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         if (bn < sn.n_children - 1) {
@@ -160,17 +192,19 @@ test_split_with_everything_on_the_left(void)
                 k = bn * eltsperbn + i;
                 char val[vallen];
                 memset(val, k, sizeof val);
-                elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
-                r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+                LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+                r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
-            big_val = toku_xmalloc(nelts * eltsize - 1);
-            memset(big_val, k, nelts * eltsize - 1);
-            big_element = le_fastmalloc((char *) &k, keylen, big_val, nelts * eltsize - 1);
+	    size_t big_val_size = (nelts * eltsize - 1);   // TODO: Explain this
+            char * big_val = toku_xmalloc(big_val_size);
+            memset(big_val, k, big_val_size);
+            LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);
+	    toku_free(big_val);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
             BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
@@ -199,20 +233,31 @@ test_split_with_everything_on_the_left(void)
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_free_items(BLB_BUFFER(&sn, i));
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
-    if (big_val) {
-        toku_free(big_val);
-    }
 }
 
+
+//
+// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum basement node size: 256 (except the last)
+// Actual node size before split: 4095
+// Actual basement node size before split: 256 (except the last, of size 2K)
+// 
+// Start by creating 9 basements, the first 8 being of 256 bytes each,
+// and the last with one row of size 2047 bytes.  Then split node,
+// expected result is two nodes, one with 8 basement nodes and one
+// with 1 basement node.
 static void
 test_split_on_boundary_of_last_node(void)
 {
     const int nodesize = 1024, eltsize = 64, bnsize = 256;
+    const size_t maxbnsize = 1024 * 2;
     const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
                                                                   +sizeof(((LEAFENTRY)NULL)->keylen)
                                                                   +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
@@ -234,15 +279,15 @@ test_split_on_boundary_of_last_node(void)
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize + 1;
     sn.dirty = 1;
-    LEAFENTRY elts[nelts];
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
-    LEAFENTRY big_element;
-    char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         if (bn < sn.n_children - 1) {
@@ -250,17 +295,20 @@ test_split_on_boundary_of_last_node(void)
                 k = bn * eltsperbn + i;
                 char val[vallen];
                 memset(val, k, sizeof val);
-                elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
-                r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+                LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+                r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
-            big_val = toku_xmalloc(nelts * eltsize - 100);
-            memset(big_val, k, nelts * eltsize - 100);
-            big_element = le_fastmalloc((char *) &k, keylen, big_val, nelts * eltsize - 100);
+	    size_t big_val_size = (nelts * eltsize - 100);    // TODO: This looks wrong, should perhaps be +100?
+	    invariant(big_val_size <=  maxbnsize);
+            char * big_val = toku_xmalloc(big_val_size);
+            memset(big_val, k, big_val_size);
+            LEAFENTRY big_element = le_fastmalloc(mp, (char *) &k, keylen, big_val, big_val_size);
+	    toku_free(big_val);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
             BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
@@ -289,20 +337,20 @@ test_split_on_boundary_of_last_node(void)
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_free_items(BLB_BUFFER(&sn, i));
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
-    if (big_val) {
-        toku_free(big_val);
-    }
 }
 
 static void
 test_split_at_begin(void)
 {
     const int nodesize = 1024, eltsize = 64, bnsize = 256;
+    const size_t maxbnsize = 1024 * 2;
     const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
                                                                   +sizeof(((LEAFENTRY)NULL)->keylen)
                                                                   +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
@@ -324,14 +372,16 @@ test_split_at_begin(void)
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
-    LEAFENTRY elts[nelts];
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
-    long totalbytes = 0;
+    size_t totalbytes = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
@@ -343,10 +393,10 @@ test_split_at_begin(void)
             }
             char val[vallen];
             memset(val, k, sizeof val);
-            elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
-            totalbytes += leafentry_disksize(elts[k]);
+            LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
+            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+            totalbytes += leafentry_disksize(le);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -355,12 +405,15 @@ test_split_at_begin(void)
     }
     {  // now add the first element
         int bn = 0; long k = 0;
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
         char val[totalbytes + 3];
+	invariant(totalbytes + 3 <= maxbnsize);
         memset(val, k, sizeof val);
-        elts[k] = le_fastmalloc((char *) &k, keylen, val, totalbytes + 3);
-        r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-        BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
-        totalbytes += leafentry_disksize(elts[k]);
+        LEAFENTRY le = le_fastmalloc(mp, (char *) &k, keylen, val, totalbytes + 3);
+        r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+        BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+        totalbytes += leafentry_disksize(le);
     }
 
     unlink(fname);
@@ -386,7 +439,9 @@ test_split_at_begin(void)
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_free_items(BLB_BUFFER(&sn, i));
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -397,6 +452,7 @@ static void
 test_split_at_end(void)
 {
     const int nodesize = 1024, eltsize = 64, bnsize = 256;
+    const size_t maxbnsize = 1024 * 2;
     const int keylen = sizeof(long), vallen = eltsize - keylen - (sizeof(((LEAFENTRY)NULL)->type)  // overhead from LE_CLEAN_MEMSIZE
                                                                   +sizeof(((LEAFENTRY)NULL)->keylen)
                                                                   +sizeof(((LEAFENTRY)NULL)->u.clean.vallen));
@@ -418,7 +474,6 @@ test_split_at_end(void)
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
-    LEAFENTRY elts[nelts];
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
@@ -426,22 +481,26 @@ test_split_at_end(void)
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
+	BASEMENTNODE basement = BLB(&sn, bn);
+	struct mempool * mp = &basement->buffer_mempool;
+	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
+	    LEAFENTRY le;
             k = bn * eltsperbn + i;
             if (bn < sn.n_children - 1 || i < eltsperbn - 1) {
                 char val[vallen];
                 memset(val, k, sizeof val);
-                elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
+                le = le_fastmalloc(mp, (char *) &k, keylen, val, vallen);
             } else {  // the last element
                 char val[totalbytes + 3];  // just to be sure
                 memset(val, k, sizeof val);
-                elts[k] = le_fastmalloc((char *) &k, keylen, val, totalbytes + 3);
+                le = le_fastmalloc(mp, (char *) &k, keylen, val, totalbytes + 3);
             }
-            r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
-            totalbytes += leafentry_disksize(elts[k]);
+            r = toku_omt_insert(BLB_BUFFER(&sn, bn), le, omt_long_cmp, le, NULL); assert(r == 0);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(le);
+            totalbytes += leafentry_disksize(le);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -472,7 +531,9 @@ test_split_at_end(void)
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_free_items(BLB_BUFFER(&sn, i));
+	BASEMENTNODE bn = BLB(&sn, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);

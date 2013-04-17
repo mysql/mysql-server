@@ -106,17 +106,16 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
     toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
-    BRT_MSG_S *result = &msg;
-    result->type = BRT_INSERT;
-    result->msn = msn;
-    result->xids = xids;
-    result->u.id.key = keydbt;
-    result->u.id.val = valdbt;
-    size_t memsize, disksize;
-    int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
+    msg.type = BRT_INSERT;
+    msg.msn = msn;
+    msg.xids = xids;
+    msg.u.id.key = keydbt;
+    msg.u.id.val = valdbt;
+    size_t memsize;
+    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -140,21 +139,20 @@ insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFE
     toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, val, vallen);
     BRT_MSG_S msg;
-    BRT_MSG_S *result = &msg;
-    result->type = BRT_INSERT;
-    result->msn = msn;
-    result->xids = xids;
-    result->u.id.key = keydbt;
-    result->u.id.val = valdbt;
-    size_t memsize, disksize;
-    int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
+    msg.type = BRT_INSERT;
+    msg.msn = msn;
+    msg.xids = xids;
+    msg.u.id.key = keydbt;
+    msg.u.id.val = valdbt;
+    size_t memsize;
+    int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, &msg, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }

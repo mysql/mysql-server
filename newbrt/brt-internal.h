@@ -26,6 +26,7 @@
 #include "leafentry.h"
 #include "block_table.h"
 #include "c_dialects.h"
+#include "mempool.h"
 
 // Uncomment the following to use quicklz
 
@@ -132,10 +133,12 @@ int toku_bnc_flush_to_child(
 
 // data of an available partition of a leaf brtnode
 struct brtnode_leaf_basement_node {
-    OMT buffer;
-    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
-    unsigned int seqinsert;         /* number of sequential inserts to this leaf */
-    MSN max_msn_applied; // max message sequence number applied
+    OMT buffer;                     // pointers to individual leaf entries
+    struct mempool buffer_mempool;  // storage for all leaf entries
+    unsigned int n_bytes_in_buffer; // How many bytes to represent the OMT (including the per-key overheads, ...
+                                    // ... but not including the overheads for the node. 
+    unsigned int seqinsert;         // number of sequential inserts to this leaf 
+    MSN max_msn_applied;            // max message sequence number applied
     bool stale_ancestor_messages_applied;
 };
 
@@ -302,6 +305,7 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
 #define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
 #define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
 #define BLB_BUFFER(node,i) (BLB(node,i)->buffer)
+#define BLB_BUFFER_MEMPOOL(node,i) (BLB(node,i)->buffer_mempool)
 #define BLB_NBYTESINBUF(node,i) (BLB(node,i)->n_bytes_in_buffer)
 #define BLB_SEQINSERT(node,i) (BLB(node,i)->seqinsert)
 
@@ -682,6 +686,12 @@ int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
 // toku_brt_root_put_cmd() accepts non-constant cmd because this is where we set the msn
 int toku_brt_root_put_cmd(BRT brt, BRT_MSG_S * cmd)
     __attribute__((__warn_unused_result__));
+
+void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
+// Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
+//  from the OMT (which items refer to items in the old mempool) into the new mempool.
+//  If MAYBE_FREE is NULL then free the old mempool's space.
+//  Otherwise, store the old mempool's space in maybe_free.
 
 int toku_verify_brtnode (BRT brt, MSN rootmsn, MSN parentmsn,
                          BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, 

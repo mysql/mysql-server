@@ -130,11 +130,8 @@ test_le_offsets (void) {
 static void
 test_ule_packs_to_nothing (ULE ule) {
     size_t memsize;
-    size_t disksize;
     LEAFENTRY le;
-    int r = le_pack(ule,
-                    &memsize, &disksize,
-                    &le);
+    int r = le_pack(ule, &memsize, &le, NULL, NULL, NULL);
     assert(r==0);
     assert(le==NULL);
 }
@@ -177,16 +174,13 @@ test_le_empty_packs_to_nothing (void) {
 }
 
 static void
-le_verify_accessors(LEAFENTRY le, ULE ule,
-                    size_t pre_calculated_memsize,
-                    size_t pre_calculated_disksize) {
+le_verify_accessors(LEAFENTRY le, ULE ule, size_t pre_calculated_memsize) {
     assert(le);
     assert(ule->num_cuxrs > 0);
     assert(ule->num_puxrs <= MAX_TRANSACTION_RECORDS);
     assert(ule->uxrs[ule->num_cuxrs + ule->num_puxrs-1].type != XR_PLACEHOLDER);
     //Extract expected values from ULE
     size_t memsize  = le_memsize_from_ule(ule);
-    size_t disksize = le_memsize_from_ule(ule);
     size_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
 
     void *key               = ule->keyp;
@@ -209,10 +203,7 @@ found_insert:;
     assert(le!=NULL);
     //Verify all accessors
     assert(memsize  == pre_calculated_memsize);
-    assert(disksize == pre_calculated_disksize);
-    assert(memsize  == disksize);
     assert(memsize  == leafentry_memsize(le));
-    assert(disksize == leafentry_disksize(le));
     {
         u_int32_t test_keylen;
         void*     test_keyp = le_key_and_len(le, &test_keylen);
@@ -265,26 +256,19 @@ test_le_pack_committed (void) {
             ule.uxrs[0].vallen = valsize;
 
             size_t memsize;
-            size_t disksize;
             LEAFENTRY le;
-            int r = le_pack(&ule,
-                            &memsize, &disksize,
-                            &le);
+            int r = le_pack(&ule, &memsize, &le, NULL, NULL, NULL);
             assert(r==0);
             assert(le!=NULL);
-            le_verify_accessors(le, &ule, memsize, disksize);
+            le_verify_accessors(le, &ule, memsize);
             ULE_S tmp_ule;
             le_unpack(&tmp_ule, le);
             verify_ule_equal(&ule, &tmp_ule);
             LEAFENTRY tmp_le;
             size_t    tmp_memsize;
-            size_t    tmp_disksize;
-            r = le_pack(&tmp_ule,
-                        &tmp_memsize, &tmp_disksize,
-                        &tmp_le);
+            r = le_pack(&tmp_ule, &tmp_memsize, &tmp_le, NULL, NULL, NULL);
             assert(r==0);
             assert(tmp_memsize == memsize);
-            assert(tmp_disksize == disksize);
             assert(memcmp(le, tmp_le, memsize) == 0);
 
             toku_free(tmp_le);
@@ -334,26 +318,19 @@ test_le_pack_uncommitted (u_int8_t committed_type, u_int8_t prov_type, int num_p
             ule.uxrs[idx].valp   = pval;
 
             size_t memsize;
-            size_t disksize;
             LEAFENTRY le;
-            int r = le_pack(&ule,
-                            &memsize, &disksize,
-                            &le);
+            int r = le_pack(&ule, &memsize, &le, NULL, NULL, NULL);
             assert(r==0);
             assert(le!=NULL);
-            le_verify_accessors(le, &ule, memsize, disksize);
+            le_verify_accessors(le, &ule, memsize);
             ULE_S tmp_ule;
             le_unpack(&tmp_ule, le);
             verify_ule_equal(&ule, &tmp_ule);
             LEAFENTRY tmp_le;
             size_t    tmp_memsize;
-            size_t    tmp_disksize;
-            r = le_pack(&tmp_ule,
-                        &tmp_memsize, &tmp_disksize,
-                        &tmp_le);
+            r = le_pack(&tmp_ule, &tmp_memsize, &tmp_le, NULL, NULL, NULL);
             assert(r==0);
             assert(tmp_memsize == memsize);
-            assert(tmp_disksize == disksize);
             assert(memcmp(le, tmp_le, memsize) == 0);
 
             toku_free(tmp_le);
@@ -412,34 +389,29 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
     LEAFENTRY le_result;
 
     size_t initial_memsize;
-    size_t initial_disksize;
-    r = le_pack(ule_initial, &initial_memsize, &initial_disksize,
-                &le_initial);
+    r = le_pack(ule_initial, &initial_memsize, &le_initial, NULL, NULL, NULL);
     CKERR(r);
 
     size_t result_memsize;
-    size_t result_disksize;
     r = apply_msg_to_leafentry(msg,
                                le_initial,
-                               &result_memsize, &result_disksize,
+                               &result_memsize,
                                &le_result,
+                               NULL, NULL, NULL, 
                                NULL, NULL);
     CKERR(r);
 
     if (le_result)
-        le_verify_accessors(le_result, ule_expected, result_memsize, result_disksize);
+        le_verify_accessors(le_result, ule_expected, result_memsize);
 
     size_t expected_memsize;
-    size_t expected_disksize;
-    r = le_pack(ule_expected, &expected_memsize, &expected_disksize,
-                &le_expected);
+    r = le_pack(ule_expected, &expected_memsize, &le_expected, NULL, NULL, NULL);
     CKERR(r);
 
 
     verify_le_equal(le_result, le_expected);
     if (le_result && le_expected) {
         assert(result_memsize  == expected_memsize);
-        assert(result_disksize == expected_disksize);
     }
     if (le_initial)  toku_free(le_initial);
     if (le_result)   toku_free(le_result);
