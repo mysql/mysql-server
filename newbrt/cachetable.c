@@ -264,6 +264,10 @@ u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
     return toku_minicron_get_period(&ct->checkpointer);
 }
 
+u_int32_t toku_get_checkpoint_period_unlocked (CACHETABLE ct) {
+    return toku_minicron_get_period_unlocked(&ct->checkpointer);
+}
+
 // reserve 25% as "unreservable".  The loader cannot have it.
 #define unreservable_memory(size) ((size)/4)
 

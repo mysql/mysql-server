@@ -117,8 +117,16 @@ u_int32_t
 toku_minicron_get_period(struct minicron *p)
 {
     int r = toku_pthread_mutex_lock(&p->mutex);   assert(r==0);
-    u_int32_t retval = p->period_in_seconds;
+    u_int32_t retval = toku_minicron_get_period_unlocked(p);
     r = toku_pthread_mutex_unlock(&p->mutex);     assert(r==0);
+    return retval;
+}
+
+/* unlocked function for use by engine status which takes no locks */
+u_int32_t
+toku_minicron_get_period_unlocked(struct minicron *p)
+{
+    u_int32_t retval = p->period_in_seconds;
     return retval;
 }
 
