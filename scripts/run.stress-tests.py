@@ -215,6 +215,8 @@ class TestRunnerBase(object):
             except TestFailure:
                 self.times[1] = time.time()
                 savepfx = '%(execf)s-%(rev)s-%(tsize)d-%(csize)d-%(num_ptquery)d-%(num_update)d-%(phase)s-' % self
+                if not os.path.exists(self.savedir):
+                    os.mkdir(self.savedir)
                 savedir = mkdtemp(dir=self.savedir, prefix=savepfx)
                 tarfile = '%s.tar' % savedir
                 commands = ''
