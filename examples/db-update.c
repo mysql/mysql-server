@@ -236,15 +236,6 @@ int main(int argc, char *argv[]) {
 #if defined(TOKUDB)
     db_env->set_update(db_env, my_update_callback);
 #endif
-#if defined(TOKUDB)
-    if (checkpoint_period) {
-        r = db_env->checkpointing_set_period(db_env, checkpoint_period);
-        assert(r == 0);
-        u_int32_t period;
-        r = db_env->checkpointing_get_period(db_env, &period);
-        assert(r == 0 && period == checkpoint_period);
-    }
-#endif
     if (cachesize) {
         if (verbose) printf("cachesize %llu\n", (unsigned long long)cachesize);
         const u_int64_t gig = 1 << 30;
@@ -255,6 +246,15 @@ int main(int argc, char *argv[]) {
     db_env->set_errcall(db_env, db_error);
     if (verbose) printf("env %s\n", db_env_dir);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+#if defined(TOKUDB)
+    if (checkpoint_period) {
+        r = db_env->checkpointing_set_period(db_env, checkpoint_period);
+        assert(r == 0);
+        u_int32_t period;
+        r = db_env->checkpointing_get_period(db_env, &period);
+        assert(r == 0 && period == checkpoint_period);
+    }
+#endif
 
     // create the db
     DB *db = NULL;
