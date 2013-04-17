@@ -25,8 +25,32 @@ typedef unsigned __int32  u_int32_t;
 typedef __int64             int64_t;
 typedef unsigned __int64  u_int64_t;
 
+//Define printf types.
+#define PRId64 "I64d"
+#define PRIu64 "I64u"
+#define PRId32 "d"
+#define PRIu32 "u"
+
+//Limits
+#define INT8_MIN   _I8_MIN
+#define INT8_MAX   _I8_MAX
+#define UINT8_MAX  _UI8_MAX
+#define INT16_MIN  _I16_MIN
+#define INT16_MAX  _I16_MAX
+#define UINT16_MAX _UI16_MAX
+#define INT32_MIN  _I32_MIN
+#define INT32_MAX  _I32_MAX
+#define UINT32_MAX _UI32_MAX
+#define INT64_MIN  _I64_MIN
+#define INT64_MAX  _I64_MAX
+#define UINT64_MAX _UI64_MAX
+
+#define FAKE_WINDOWS_STUBS 0 // Disable these fakes.
+#if FAKE_WINDOWS_STUBS == 1
+
+//#define chmod(a,b) (void)0 /* Remove temporarily till compatibility layer exists */
 //Define chmod
-/*
+typedef int    mode_t;
 static inline
 int
 chmod(const char *path, mode_t mode) {
@@ -37,14 +61,19 @@ chmod(const char *path, mode_t mode) {
         //Supports setting read/write mode (not separately for user/group/world)
     return 0;
 }
-*/
-#define chmod(a,b) (void)0 /* Remove temporarily till compatibility layer exists */
+#define S_IRUSR 0
+#define S_IRGRP 0
+#define S_IROTH 0
 
-#define FAKE_WINDOWS_STUBS
-#ifdef FAKE_WINDOWS_STUBS
-
+//Fake typedefs to skip warnings.
 typedef size_t ssize_t;
-#define PRId64 "lld"
+typedef int    pthread_cond_t;
+typedef void*  pthread_mutex_t;
+struct timeval {
+    int tv_sec;
+    int tv_usec;
+};
+
 #endif //FAKE_WINDOWS_STUBS
 
 #endif //Windows Intel Compiler
