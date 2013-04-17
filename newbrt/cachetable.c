@@ -1932,7 +1932,7 @@ static void checkpoint_dependent_pairs(
          // and if the pair is pending a checkpoint, it needs to be written out
          if (dependent_dirty[i]) curr_dep_pair->dirty = CACHETABLE_DIRTY;
          if (curr_dep_pair->checkpoint_pending) {
-             cachetable_wait_checkpoint++;
+             //cachetable_wait_checkpoint++;
              write_locked_pair_for_checkpoint(ct, curr_dep_pair);
          }
      }
@@ -2177,6 +2177,57 @@ int toku_cachetable_get_and_pin (
 static BOOL resolve_checkpointing_fast(PAIR p) {
     return !(p->checkpoint_pending && (p->dirty == CACHETABLE_DIRTY));
 }
+static void checkpoint_pair_and_dependent_pairs(
+    CACHETABLE ct,
+    PAIR p,
+    u_int32_t fullhash, 
+    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
+    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
+    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
+    )
+{
+    //BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
+    
+    //
+    // A checkpoint must not begin while we are checking dependent pairs or pending bits. 
+    // Here is why.
+    //
+    // Now that we have all of the locks on the pairs we 
+    // care about, we can take care of the necessary checkpointing.
+    // For each pair, we simply need to write the pair if it is 
+    // pending a checkpoint. If no pair is pending a checkpoint,
+    // then all of this work will be done with the cachetable lock held,
+    // so we don't need to worry about a checkpoint beginning 
+    // in the middle of any operation below. If some pair
+    // is pending a checkpoint, then the checkpoint thread
+    // will not complete its current checkpoint until it can
+    // successfully grab a lock on the pending pair and 
+    // remove it from its list of pairs pending a checkpoint.
+    // This cannot be done until we release the lock
+    // that we have, which is not done in this function.
+    // So, the point is, it is impossible for a checkpoint
+    // to begin while we write any of these locked pairs
+    // for checkpoint, even though writing a pair releases
+    // the cachetable lock.
+    //
+    if (p->checkpoint_pending) {
+        //cachetable_wait_checkpoint++;
+        write_locked_pair_for_checkpoint(ct, p);
+    }
+    
+    checkpoint_dependent_pairs(
+        ct,
+        num_dependent_pairs,
+        dependent_cfs,
+        dependent_keys,
+        dependent_fullhash,
+        dependent_dirty
+        );
+    
+    //END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
+}
 
 int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHEFILE cachefile, 
@@ -2222,17 +2273,22 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             }
             nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
             pair_touch(p);
-            // used for shortcutting a path to getting the user the data
-            // helps scalability for in-memory workloads by not holding the cachetable lock
-            // when calling pf_req_callback, and if possible, returns the PAIR to the user without
-            // reacquiring the cachetable lock
-            BOOL fast_checkpointing = (resolve_checkpointing_fast(p) && num_dependent_pairs == 0);
-            if (p->checkpoint_pending && fast_checkpointing) write_locked_pair_for_checkpoint(ct, p);
+            checkpoint_pair_and_dependent_pairs(
+                ct,
+                p,
+                fullhash,
+                num_dependent_pairs,
+                dependent_cfs,
+                dependent_keys,
+                dependent_fullhash,
+                dependent_dirty
+                );
             cachetable_unlock(ct);
+            
             BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
             // shortcutting a path to getting the user the data
             // helps scalability for in-memory workloads
-            if (!partial_fetch_required && fast_checkpointing) {
+            if (!partial_fetch_required) {
                 *value = p->value;
                 if (sizep) *sizep = p->attr.size;
                 return 0;
@@ -2255,13 +2311,13 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             //cachetable_hit++;
             WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
             goto got_value;
-	}
+        }
     }
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     // The pair was not found, we must retrieve it from disk 
     {
         // insert a PAIR into the cachetable
-	p = cachetable_insert_at(
+        p = cachetable_insert_at(
             ct, 
             cachefile, 
             key, 
@@ -2274,6 +2330,16 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             );
         assert(p);
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
+        checkpoint_pair_and_dependent_pairs(
+            ct,
+            p,
+            fullhash,
+            num_dependent_pairs,
+            dependent_cfs,
+            dependent_keys,
+            dependent_fullhash,
+            dependent_dirty
+            );
         uint64_t t0 = get_tnow();
 
         // Retrieve the value of the PAIR from disk.
@@ -2287,50 +2353,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
 got_value:
     *value = p->value;
     if (sizep) *sizep = p->attr.size;
-
-
-    {
-	BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
-
-	//
-	// A checkpoint must not begin while we are checking dependent pairs or pending bits. 
-	// Here is why.
-	//
-	// Now that we have all of the locks on the pairs we 
-	// care about, we can take care of the necessary checkpointing.
-	// For each pair, we simply need to write the pair if it is 
-	// pending a checkpoint. If no pair is pending a checkpoint,
-	// then all of this work will be done with the cachetable lock held,
-	// so we don't need to worry about a checkpoint beginning 
-	// in the middle of any operation below. If some pair
-	// is pending a checkpoint, then the checkpoint thread
-	// will not complete its current checkpoint until it can
-	// successfully grab a lock on the pending pair and 
-	// remove it from its list of pairs pending a checkpoint.
-	// This cannot be done until we release the lock
-	// that we have, which is not done in this function.
-	// So, the point is, it is impossible for a checkpoint
-	// to begin while we write any of these locked pairs
-	// for checkpoint, even though writing a pair releases
-	// the cachetable lock.
-	//
-	if (p->checkpoint_pending) {
-            cachetable_wait_checkpoint++;
-	    write_locked_pair_for_checkpoint(ct, p);
-	}
-    
-	checkpoint_dependent_pairs(
-				   ct,
-				   num_dependent_pairs,
-				   dependent_cfs,
-				   dependent_keys,
-				   dependent_fullhash,
-				   dependent_dirty
-				   );
-
-	END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
-    }
-
     maybe_flush_some(ct, 0);
     cachetable_unlock(ct);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
@@ -2563,7 +2585,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                     // it is clean, then dont run the unlockers, simply 
                     // clear the pending bit and return the PAIR to the user
                     // but this is simpler.
-                    cachetable_wait_checkpoint++;
+                    //cachetable_wait_checkpoint++;
                     write_pair_for_checkpoint(ct, p);
                 }
                 else {
