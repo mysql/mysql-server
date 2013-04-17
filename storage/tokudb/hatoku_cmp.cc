@@ -1343,7 +1343,7 @@ int tokudb_compare_two_keys(
         saved_key_ptr += saved_key_field_length;
         row_desc_ptr += row_desc_field_length;
         if (ret_val) {
-            goto exit;;
+            goto exit;
         }
 
         assert((u_int32_t)(new_key_ptr - (uchar *)new_key_data) <= new_key_size);
