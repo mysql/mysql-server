@@ -15,15 +15,15 @@
 #include "test.h"
 #include <stdbool.h>
 
-#include "tokuconst.h"
-#include "brttypes.h"
-#include "omt.h"
-#include "leafentry.h"
-#include "ule.h"
-#include "ule-internal.h"
-#include "le-cursor.h"
+#include <newbrt/tokuconst.h>
+#include <newbrt/brttypes.h>
+#include <newbrt/omt.h>
+#include <newbrt/leafentry.h>
+#include <newbrt/ule.h>
+#include <newbrt/ule-internal.h>
+#include <newbrt/le-cursor.h>
 #include "indexer-internal.h"
-#include "xids-internal.h"
+#include <newbrt/xids-internal.h>
 
 struct txn {
     TXNID xid;
@@ -149,7 +149,7 @@ print_xids(XIDS xids) {
         printf("0");
     else {
         for (int i = 0; i < xids->num_xids; i++) {
-            printf("%lu", xids->ids[i]);
+            printf("%"PRIu64, xids->ids[i]);
             if (i+1 < xids->num_xids)
                 printf(",");
         }
@@ -215,7 +215,7 @@ test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(hotdb == test_hotdb);
     TOKUTXN_STATE txn_state = test_xid_state(indexer, xid);
     invariant(txn_state == TOKUTXN_LIVE || txn_state == TOKUTXN_PREPARING);
-    printf("lock [%lu] ", xid);
+    printf("lock [%"PRIu64"] ", xid);
     print_dbt(key);
     printf("\n");
     return 0;

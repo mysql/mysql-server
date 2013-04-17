@@ -171,8 +171,12 @@ int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
-    const char *logdir = "dir." __FILE__;
+    const char *logdir = __FILE__ ".dir";
     const char *brtfile =  __FILE__ ".brt";
+    char cmd[32+strlen(brtfile)];
+    sprintf(cmd, "rm -rf %s", brtfile);
+    int error = system(cmd);
+    assert(error == 0);
 
     run_test(logdir, brtfile, 0);
     run_test(logdir, brtfile, 1000);

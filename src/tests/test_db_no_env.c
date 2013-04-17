@@ -7,10 +7,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <db.h>
+#include <signal.h>
 
+static __attribute__((__noreturn__)) void catch_abort (int sig __attribute__((__unused__))) {
+    exit(1);
+}
 
 int
 test_main (int UU(argc), char UU(*const argv[])) {
+    signal (SIGABRT, catch_abort);
     DB *db;
     int r;
     r = db_create(&db, 0, 0); 

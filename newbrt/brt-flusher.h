@@ -6,7 +6,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 // This must be first to make the 64-bit file mode work right in Linux
-#include <brttypes.h>
+#include "brttypes.h"
 
 typedef enum {
     BRT_FLUSHER_CLEANER_TOTAL_NODES = 0,     // total number of nodes whose buffers are potentially flushed by cleaner thread

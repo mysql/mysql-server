@@ -8,6 +8,7 @@
 #include "includes.h"
 #include "test.h"
 #include "brtloader-internal.h"
+#include <inttypes.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -197,7 +198,7 @@ static int nrows = 1;
 static TXNID xid = 0;
 
 static int usage(const char *progname) {
-    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-x %lu] [-s] directory\n", progname, nrows, xid);
+    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-x %"PRIu64"] [-s] directory\n", progname, nrows, xid);
     return 1;
 }
 

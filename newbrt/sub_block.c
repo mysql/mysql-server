@@ -80,7 +80,6 @@ choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_siz
     int n_sub_blocks, sub_block_size;
     n_sub_blocks = total_size / target_sub_block_size;
     if (n_sub_blocks <= 1) {
-	n_sub_blocks = n_sub_blocks;
         if (total_size > 0 && n_sub_blocks_limit > 0)
             n_sub_blocks = 1;
         sub_block_size = total_size;

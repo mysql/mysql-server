@@ -1,6 +1,8 @@
 #ifndef TOKU_PORTABILITY_H
 #define TOKU_PORTABILITY_H
 
+#include "config.h"
+
 // Tokutek portability layer
 
 #if defined(__cplusplus) || defined(__cilkplusplus)

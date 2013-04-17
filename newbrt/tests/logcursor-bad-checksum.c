@@ -5,6 +5,12 @@
 #include "test.h"
 
 #include "includes.h"
+#if defined(HAVE_LIMITS_H)
+# include <limits.h>
+#endif
+#if defined(HAVE_SYS_SYSLIMITS_H)
+# include <sys/syslimits.h>
+#endif
 
 #define dname __FILE__ ".dir"
 #define rmrf "rm -rf " dname "/"

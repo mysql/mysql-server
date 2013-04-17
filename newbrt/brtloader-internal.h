@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef _TOKU_BRTLOADER_INTERNAL_H
 #define _TOKU_BRTLOADER_INTERNAL_H
 #ident "$Id$"
@@ -8,7 +8,7 @@
 #include "brttypes.h"
 #include "brtloader.h"
 #include "queue.h"
-#include "toku_pthread.h"
+#include <toku_pthread.h>
 #include "dbufio.h"
 
 /* These functions are exported to allow the tests to compile. */

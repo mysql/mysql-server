@@ -3,7 +3,7 @@
 #include <locktree.h>
 #include <locktree-internal.h>
 #include <db.h>
-#include <brttypes.h>
+#include <newbrt/brttypes.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -15,7 +15,7 @@ int verbose=0;
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <memory.h>
-#include <key.h>
+#include <newbrt/key.h>
 
 
 bool want_panic = false;

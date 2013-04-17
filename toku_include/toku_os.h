@@ -2,12 +2,13 @@
 #define TOKU_OS_INTERFACE_H
 
 #include <dirent.h>
+#include <sys/time.h>
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
 #endif
 
-#include "toku_os_types.h"
+#include <toku_os_types.h>
 
 // Returns: the current process id
 int toku_os_getpid(void)   __attribute__((__visibility__("default")));

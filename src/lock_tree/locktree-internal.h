@@ -1,11 +1,11 @@
 #if !defined(TOKU_LOCKTREE_INTERNAL_H)
 #define TOKU_LOCKTREE_INTERNAL_H
 
-#include <rangetree.h>
+#include <range_tree/rangetree.h>
 #include <lth.h>
 #include <rth.h>
 #include <idlth.h>
-#include <omt.h>
+#include <newbrt/omt.h>
 
 #define TOKU_LT_USE_BORDERWRITE 1
 

@@ -16,14 +16,14 @@
 #include <toku_portability.h>
 #include "toku_assert.h"
 #include "ydb-internal.h"
-#include "le-cursor.h"
+#include <newbrt/le-cursor.h>
 #include "indexer.h"
-#include "tokuconst.h"
-#include "brt.h"
-#include "leafentry.h"
-#include "ule.h"
-#include "xids.h"
-#include "log-internal.h"
+#include <newbrt/tokuconst.h>
+#include <newbrt/brt.h>
+#include <newbrt/leafentry.h>
+#include <newbrt/ule.h>
+#include <newbrt/xids.h>
+#include <newbrt/log-internal.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -331,11 +331,11 @@ close_indexer(DB_INDEXER *indexer) {
         //   to create them are not in the recovery log.)
         DB_TXN     *txn = indexer->i->txn;
         TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
-        BRT brt;
-        DB *db;
+        //BRT brt;  // caused a warning with -Wunused-but-set-variable
+        //DB *db;
         for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
-            db = indexer->i->dest_dbs[which_db];
-            brt = db_struct_i(db)->brt;
+            //db = indexer->i->dest_dbs[which_db];
+            //brt = db_struct_i(db)->brt;
             toku_txn_require_checkpoint_on_commit(tokutxn);
         }
 

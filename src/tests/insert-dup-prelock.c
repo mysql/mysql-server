@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <db.h>
-#include <byteswap.h>
+#include <toku_byteswap.h>
 
 static int verbose = 0;
 static uint64_t maxk = 100000;
@@ -100,8 +100,8 @@ int main(int argc, char *argv[]) {
         return usage(argv[0]);
     }
 
-    const char *envdir = "dir." __FILE__ ".dir";
-    r = system("rm -rf dir." __FILE__ ".dir");
+    const char *envdir = ENVDIR;
+    r = system("rm -rf " ENVDIR);
     assert(r == 0);
     r = mkdir(envdir, 0777);
     assert(r == 0);

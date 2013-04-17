@@ -297,7 +297,7 @@ static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
 }
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
-static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags,
+static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int UU(mode), BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags,
                                               TOKUTXN txn, uint32_t nodesize, uint32_t basementnodesize, LSN max_acceptable_lsn) {
     int r;
     BRT brt = NULL;
@@ -331,7 +331,7 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     }
 
     // TODO mode (FUTURE FEATURE)
-    mode = mode;
+    //mode = mode;
 
     //Create DB (e.g., for comparison functions and also so that when finishing recovery we can make them into zombies)
     DB *db;

@@ -16,6 +16,8 @@ extern "C" {
 #endif
 
 
+void toku_assert_init(void) __attribute__((constructor));
+
 void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
 			       void (*toku_maybe_set_env_panic_pointer)(int, char*),
                                uint64_t num_rows);

@@ -1260,7 +1260,6 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
 
 // Find the earliest LSN in a log.  No locks are needed.
 static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
-    logger=logger;
     int fd = open(filename, O_RDONLY+O_BINARY);
     if (fd<0) {
         if (logger->write_log_files) printf("couldn't open: %s\n", strerror(errno));

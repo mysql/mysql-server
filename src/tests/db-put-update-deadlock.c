@@ -116,13 +116,7 @@ int test_main(int argc, char * const argv[]) {
     int nrows = 1000;
     int ntxns = 2;
     int poll_deadlock = 0;
-#if defined(USE_TDB)
-    char *db_env_dir = "dir." __FILE__ ".tokudb";
-#elif defined(USE_BDB)
-    char *db_env_dir = "dir." __FILE__ ".bdb";
-#else
-#error
-#endif
+    char *db_env_dir = ENVDIR;
     char *db_filename = "simple_deadlock";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 

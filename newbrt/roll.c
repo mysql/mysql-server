@@ -232,11 +232,10 @@ static int do_nothing_with_filenum(TOKUTXN UU(txn), FILENUM UU(filenum)) {
 }
 
 
-int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN oplsn) {
+int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING UU(key), TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN UU(oplsn)) {
 #if TOKU_DO_COMMIT_CMD_INSERT
     return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
 #else
-    key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }

@@ -1,1 +1,1 @@
-../../linux/tests/test-flock.c
+../../portability/tests/test-flock.c

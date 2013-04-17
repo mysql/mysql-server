@@ -86,8 +86,9 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
             char buf[valsize];
             int c;
             for (c = 0; c < valsize * entropy; ) {
-                *((int *) &buf[c]) = rand();
-                c += sizeof(int);
+                int *p = (int *) &buf[c];
+                *p = rand();
+                c += sizeof(*p);
             }
             memset(&buf[c], 0, valsize - c);
             les[k] = le_fastmalloc((char *)&k, sizeof k, buf, sizeof buf);
@@ -217,8 +218,9 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
             char buf[valsize];
             int c;
             for (c = 0; c < valsize * entropy; ) {
-                *((int *) &buf[c]) = rand();
-                c += sizeof(int);
+                int *p = (int *) &buf[c];
+                *p = rand();
+                c += sizeof(*p);
             }
             memset(&buf[c], 0, valsize - c);
 

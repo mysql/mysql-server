@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef TOKU_DBUFIO_H
 #define TOKU_DBUFIO_H
 #ident "$Id$"

@@ -1,1 +1,1 @@
-../../linux/tests/test-pwrite4g.c
+../../portability/tests/test-pwrite4g.c

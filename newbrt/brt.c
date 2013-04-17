@@ -3235,8 +3235,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
 
 // open a file for use by the brt
 // Requires:  File does not exist.
-static int brt_create_file(BRT brt, const char *fname, int *fdp) {
-    brt = brt;
+static int brt_create_file(BRT UU(brt), const char *fname, int *fdp) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
     int fd;
@@ -6738,7 +6737,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
 int toku_brt_strerror_r(int error, char *buf, size_t buflen)
 {
     if (error>=0) {
-	return strerror_r(error, buf, buflen);
+	return (long) strerror_r(error, buf, buflen);
     } else {
 	switch (error) {
 	case DB_KEYEXIST:

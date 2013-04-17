@@ -22,18 +22,18 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "toku_assert.h"
 #include "ydb.h"
 #include "ydb-internal.h"
-#include "brt-internal.h"
-#include "brt-flusher.h"
-#include "cachetable.h"
-#include "log.h"
+#include <newbrt/brt-internal.h>
+#include <newbrt/brt-flusher.h>
+#include <newbrt/cachetable.h>
+#include <newbrt/log.h>
 #include "memory.h"
-#include "checkpoint.h"
-#include "key.h"
+#include <newbrt/checkpoint.h>
+#include <newbrt/key.h>
 #include "loader.h"
 #include "indexer.h"
 #include "ydb_load.h"
-#include "brtloader.h"
-#include "log_header.h"
+#include <newbrt/brtloader.h>
+#include <newbrt/log_header.h>
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_env_func.h"
@@ -1350,9 +1350,8 @@ toku_env_get_lg_max(DB_ENV * env, u_int32_t *lg_maxp) {
 }
 
 static int 
-toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
+toku_env_set_lk_detect(DB_ENV * env, u_int32_t UU(detect)) {
     HANDLE_PANICKED_ENV(env);
-    detect=detect;
     return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
 }
 
@@ -1465,9 +1464,8 @@ toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
 }
 
 static int 
-toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
+toku_env_set_verbose(DB_ENV * env, u_int32_t UU(which), int UU(onoff)) {
     HANDLE_PANICKED_ENV(env);
-    which=which; onoff=onoff;
     return 1;
 }
 
@@ -1486,9 +1484,8 @@ toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)
 }
 
 static int 
-toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
+toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), u_int32_t UU(flags)) {
     HANDLE_PANICKED_ENV(env);
-    statp=statp;flags=flags;
     return 1;
 }
 

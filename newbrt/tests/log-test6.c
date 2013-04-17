@@ -5,8 +5,16 @@
 #include "test.h"
 
 #include "includes.h"
+#if defined(HAVE_LIMITS_H)
+# include <limits.h>
+#endif
+#if defined(HAVE_SYS_SYSLIMITS_H)
+# include <sys/syslimits.h>
+#endif
 
+#ifndef dname
 #define dname __FILE__ ".dir"
+#endif
 #define rmrf "rm -rf " dname "/"
 
 // create and close, making sure that everything is deallocated properly.

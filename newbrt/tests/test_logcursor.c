@@ -6,6 +6,12 @@
 #include "test.h"
 #include "brttypes.h"
 #include "includes.h"
+#if defined(HAVE_LIMITS_H)
+# include <limits.h>
+#endif
+#if defined(HAVE_SYS_SYSLIMITS_H)
+# include <sys/syslimits.h>
+#endif
 
 const char LOGDIR[100] = "./dir.test_logcursor";
 const int FSYNC = 1;

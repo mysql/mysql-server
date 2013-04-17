@@ -6,7 +6,7 @@
 #include <db.h>
 #include "ydb-internal.h"
 #include "indexer.h"
-#include "log_header.h"
+#include <newbrt/log_header.h>
 #include "ydb_row_lock.h"
 #include "ydb_write.h"
 #include "ydb_db.h"
@@ -343,7 +343,6 @@ lookup_src_db(uint32_t num_dbs, DB *db_array[], DB *src_db) {
 
 static int
 do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *src_db, const DBT *src_key) {
-    src_db = src_db; src_key = src_key;
     int r = 0;
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {

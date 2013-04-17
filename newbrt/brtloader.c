@@ -3003,8 +3003,6 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     toku_free(ndd);
     toku_free(subtree_info);
 
-    blocknum_of_new_node = blocknum_of_new_node;
-
     if (result != 0)
         brt_loader_set_panic(bl, result, TRUE);
 }

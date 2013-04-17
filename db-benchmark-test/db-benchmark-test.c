@@ -12,9 +12,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <malloc.h>
+#if defined(HAVE_MALLOC_H)
+# include <malloc.h>
+#elif defined(HAVE_SYS_MALLOC_H)
+# include <sys/malloc.h>
+#endif
+#include <dlfcn.h>
 #if defined(TOKUDB)
-#include "trace_mem.h"
+#include <newbrt/trace_mem.h>
 #endif
 
 #if !defined(DB_PRELOCKED_WRITE)
@@ -363,7 +368,11 @@ static void benchmark_shutdown (void) {
     }
     if (engine_status) {
 	print_engine_status(dbenv);
-        malloc_stats();
+        typedef void (*malloc_stats_fun_t)(void);
+        malloc_stats_fun_t malloc_stats_f = (malloc_stats_fun_t) dlsym(RTLD_DEFAULT, "malloc_stats");
+        if (malloc_stats_f) {
+            malloc_stats_f();
+        }
     }
     r = dbenv->close(dbenv, 0);
     assert(r == 0);

@@ -12,8 +12,8 @@
 */
 
 #include <db.h>
-#include <brttypes.h>
-#include <rangetree.h>
+#include <newbrt/brttypes.h>
+#include <range_tree/rangetree.h>
 
 #if defined(__cplusplus)
 extern "C" {

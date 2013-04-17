@@ -285,7 +285,7 @@ test_main (int argc, char * const argv[]) {
 
     int c;
     int crash = 0;
-    while ((c = getopt(argc, (char * const *)argv, "cChi:qvn:l:")) != -1) {
+    while ((c = getopt(argc, (char * const *)argv, "cChi:qvn:l")) != -1) {
 	switch(c) {
         case 'c':
             crash = 1;

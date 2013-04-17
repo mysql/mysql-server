@@ -2,7 +2,7 @@
 #include "test.h"
 #include "includes.h"
 
-#define TESTDIR "dir." __FILE__ 
+#define TESTDIR __FILE__ ".dir"
 
 static int 
 run_test(void) {

@@ -5,10 +5,10 @@
 
 #include <toku_portability.h>
 #include <db.h>
-#include "brt-internal.h"
-#include "brt-flusher.h"
-#include "checkpoint.h"
-#include "brtloader.h"
+#include <newbrt/brt-internal.h>
+#include <newbrt/brt-flusher.h>
+#include <newbrt/checkpoint.h>
+#include <newbrt/brtloader.h>
 #include "ydb_env_func.h"
 
 // For test purposes only.

@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include "toku_time.h"
 
-#define ENVDIR "dir."__FILE__
-
 
 int verbose = 0;
 static void

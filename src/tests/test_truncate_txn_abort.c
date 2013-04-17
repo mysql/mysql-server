@@ -10,6 +10,11 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <db.h>
+#include <signal.h>
+
+static __attribute__((__noreturn__)) void catch_abort (int sig __attribute__((__unused__))) {
+    exit(1);
+}
 
 static int
 test_truncate_txn_abort (int n) {
@@ -112,6 +117,7 @@ test_truncate_txn_abort (int n) {
 
 int
 test_main(int argc, char *const argv[]) {
+    signal (SIGABRT, catch_abort);
     parse_args(argc, argv);
     int nodesize = 1024*1024;
     int leafentry = 25;

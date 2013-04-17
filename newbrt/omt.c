@@ -6,7 +6,11 @@
 #include <toku_portability.h>
 #include <ctype.h>
 #include <errno.h>
-#include <malloc.h>
+#if defined(HAVE_MALLOC_H)
+# include <malloc.h>
+#elif defined(HAVE_SYS_MALLOC_H)
+# include <sys/malloc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

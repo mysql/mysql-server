@@ -6,9 +6,9 @@
 
 /* Insert a bunch of stuff */
 #include "includes.h"
-#include "toku_time.h"
+#include <toku_time.h>
 
-static const char fname[]="sinsert.brt";
+static const char *fname ="sinsert.brt";
 
 enum { SERIAL_SPACING = 1<<6 };
 enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
@@ -150,6 +150,11 @@ test_main (int argc, const char *argv[]) {
 	    do_verify = 1;
         } else if (strcmp(arg, "--noserial") == 0) {
             do_serial = 0;
+        } else if (strcmp(arg, "--fname") == 0) {
+            if (i+1 < argc) {
+                i++;
+                fname = argv[i];
+            }
         } else if (strcmp(arg, "--norandom") == 0) {
             do_random = 0;
 	} else if (strcmp(arg, "-v")==0) {

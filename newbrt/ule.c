@@ -2116,7 +2116,7 @@ le_clean(uint8_t *key, uint32_t keylen,
         .type = LE_CLEAN,
         .keylen     = toku_htod32(keylen),
         .u.clean = {
-            vallen = toku_htod32(vallen)
+            .vallen = toku_htod32(vallen)
         }
     };
     size_t header_size = __builtin_offsetof(struct leafentry, u.clean) + sizeof(le.u.clean);

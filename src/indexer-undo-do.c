@@ -14,14 +14,14 @@
 #include <toku_portability.h>
 #include "toku_assert.h"
 #include "ydb-internal.h"
-#include "le-cursor.h"
+#include <newbrt/le-cursor.h>
 #include "indexer.h"
-#include "brt-internal.h"
-#include "tokuconst.h"
-#include "brt.h"
-#include "leafentry.h"
-#include "ule.h"
-#include "xids.h"
+#include <newbrt/brt-internal.h>
+#include <newbrt/tokuconst.h>
+#include <newbrt/brt.h>
+#include <newbrt/leafentry.h>
+#include <newbrt/ule.h>
+#include <newbrt/xids.h>
 #include "ydb_row_lock.h"
 
 #include "indexer-internal.h"

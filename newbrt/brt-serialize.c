@@ -2808,7 +2808,7 @@ upgrade_subtree_estimates_to_stat64info(int UU(fd), struct brt_header *h)
             unsigned char *uncompressed_data = rb->buf + node_header_overhead;
             r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores, brt_pool);
             if (r != 0) {
-                fprintf(stderr, "%s:%d block %"PRId64" failed %d at %p size %zu\n", __FUNCTION__, __LINE__, b.b, r, raw_block, size);
+                fprintf(stderr, "%s:%d block %"PRId64" failed %d at %p size %"PRId64"\n", __FUNCTION__, __LINE__, b.b, r, raw_block, size);
                 dump_bad_block(raw_block, size);
                 fprintf(stderr, "Unknown failure while reading node in file %s.\n", toku_cachefile_fname_in_env(h->cf)); 
             }

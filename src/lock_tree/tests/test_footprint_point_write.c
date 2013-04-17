@@ -4,10 +4,18 @@
 //
 // example: ./test_footprint_point_write.tlog --max_locks 1000000 --max_lock_memory 1000000000 --nrows 1000000
 
+#include <config.h>
+#ifndef TOKU_ALLOW_DEPRECATED
 #define TOKU_ALLOW_DEPRECATED
-#include <malloc.h>
+#endif
+#if defined(HAVE_MALLOC_H)
+# include <malloc.h>
+#elif defined(HAVE_SYS_MALLOC_H)
+# include <sys/malloc.h>
+#endif
 #include "test.h"
-#include <byteswap.h>
+#include <toku_byteswap.h>
+#include <dlfcn.h>
 
 static uint64_t htonl64(uint64_t x) {
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -16,6 +24,15 @@ static uint64_t htonl64(uint64_t x) {
 #error
 #endif
 }
+
+typedef size_t (*malloc_usable_size_fun_t)(void *p);
+#if defined(HAVE_MALLOC_USABLE_SIZE)
+size_t malloc_usable_size(void *p);
+static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
+#elif defined(HAVE_MALLOC_SIZE)
+size_t malloc_size(void *p);
+static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
+#endif
 
 struct my_ltm_status {
     uint32_t max_locks, curr_locks;
@@ -34,7 +51,7 @@ static void my_ltm_get_status(toku_ltm *ltm, struct my_ltm_status *my_status) {
 static void *my_malloc(size_t s) {
     void * p = malloc(s);
     if (verbose) 
-        printf("%s %lu %lu\n", __FUNCTION__, s, malloc_usable_size(p));
+        printf("%s %lu %lu\n", __FUNCTION__, s, malloc_usable_size_f(p));
     return p;
 }
 
@@ -46,7 +63,7 @@ static void *my_realloc(void *p, size_t s) {
 
 static void my_free(void *p) {
     if (verbose) 
-        printf("%s %p %lu\n", __FUNCTION__, p, malloc_usable_size(p));
+        printf("%s %p %lu\n", __FUNCTION__, p, malloc_usable_size_f(p));
     free(p);
 }
 

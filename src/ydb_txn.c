@@ -5,10 +5,10 @@
 
 #include <db.h>
 #include "ydb-internal.h"
-#include "checkpoint.h"
-#include "log_header.h"
+#include <newbrt/checkpoint.h>
+#include <newbrt/log_header.h>
 #include "ydb_txn.h"
-#include "lth.h"
+#include <lock_tree/lth.h>
 #include <valgrind/helgrind.h>
 
 static int 

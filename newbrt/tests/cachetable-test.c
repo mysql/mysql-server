@@ -702,7 +702,7 @@ static void test_size_flush(void) {
         r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc);
         assert(r == 0);
 
-        int n_entries, hash_size; long size_current, size_limit, size_max;
+        int n_entries, hash_size; long size_current, size_limit; int64_t size_max;
         toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit, &size_max);
         while (n_entries != min2(i+1, n)) {
             toku_pthread_yield(); maybe_flush(t);

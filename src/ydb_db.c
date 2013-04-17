@@ -6,11 +6,11 @@
 #include <ctype.h>
 #include <db.h>
 #include "ydb-internal.h"
-#include "brt-flusher.h"
-#include "checkpoint.h"
+#include <newbrt/brt-flusher.h>
+#include <newbrt/checkpoint.h>
 #include "indexer.h"
 #include "ydb_load.h"
-#include "log_header.h"
+#include <newbrt/log_header.h>
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_db.h"

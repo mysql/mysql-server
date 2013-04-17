@@ -22,7 +22,16 @@
 #ifndef _TOKU_HTOD_H
 #define _TOKU_HTOD_H
 
-#include <endian.h>
+#include <config.h>
+
+#if defined(HAVE_ENDIAN_H)
+# include <endian.h>
+#elif defined(HAVE_MACHINE_ENDIAN_H)
+# include <machine/endian.h>
+# define __BYTE_ORDER __DARWIN_BYTE_ORDER
+# define __LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+# define __BIG_ENDIAN __DARWIN_BIG_ENDIAN
+#endif
 #if !defined(__BYTE_ORDER) || \
     !defined(__LITTLE_ENDIAN) || \
     !defined(__BIG_ENDIAN)

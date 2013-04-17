@@ -2,10 +2,10 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-#include <test.h>
+#include "test.h"
 #include <db.h>
 #include <sys/stat.h>
-#include "toku_pthread.h"
+#include <toku_pthread.h>
 #include "checkpoint_test.h"
 
 
