@@ -774,11 +774,17 @@ exit:
 }
 
 // needed for hot indexing
+
+// prevents a client thread from transitioning txn from LIVE|PREPAREING -> COMMITTING|ABORTING
+// hot indexing may need a transactions to stay in the LIVE|PREPARING state while it processes
+// a leafentry.
 void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER UU(txn_manager), TOKUTXN txn) {
     assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
     txn->num_pin++;
 }
 
+// allows a client thread to go back to being able to transition txn 
+// from LIVE|PREPAREING -> COMMITTING|ABORTING
 void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn) {
     assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
     assert(txn->num_pin > 0);
