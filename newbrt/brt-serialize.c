@@ -52,6 +52,7 @@ static void maybe_preallocate_in_file (int fd, u_int64_t size) {
 	assert(start_write >= sbuf.st_size);
 	ssize_t r = pwrite(fd, wbuf, N, start_write);
 	assert(r==N);
+	toku_free(wbuf);
     }
 }
 

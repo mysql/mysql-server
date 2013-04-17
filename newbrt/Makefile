@@ -31,8 +31,8 @@ FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
 VISIBILITY=-fvisibility=hidden
-SHADOW=-Wshadow
  ifneq ($(CC),icc)
+  SHADOW=-Wshadow
   FORMAT=-Wmissing-format-attribute
  endif
 endif
@@ -42,10 +42,10 @@ ifneq ($(CC),icc)
 CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else
 CFLAGS += -g
-CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
-CFLAGS += -diag-disable 1324    # Don't complain about rdtsc clobbering its registers more than once.
-CFLAGS += -diag-disable 981     # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
-CFLAGS += -diag-disable 589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+ CFLAGS += -diag-disable  177     # Don't complain about static variables that are not used.
+ CFLAGS += -diag-disable  589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+ CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+ CFLAGS += -diag-disable 1324    # Don't complain about rdtsc clobbering its registers more than once.
 endif
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
