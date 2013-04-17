@@ -498,7 +498,7 @@ void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
     if (progress->stalled_on_checkpoint) {
         r = sprintf(
             progress_info->status, 
-            "stalled on checkpoint, processed %"PRId64" out of %"PRId64, 
+            "Writing committed changes to disk, processed %"PRId64" out of %"PRId64, 
             progress->entries_processed, 
             progress->entries_total
             ); 
