@@ -29,6 +29,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_TXN 32
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
 #define TOKUDB_DEBUG_LOCK 256
+#define TOKUDB_DEBUG_LOCKRETRY 512
 
 #define TOKUDB_TRACE(f, ...) \
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
