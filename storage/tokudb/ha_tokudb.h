@@ -2,6 +2,11 @@
 #pragma interface               /* gcc class implementation */
 #endif
 
+#if !defined(HA_CLUSTERING)
+#define HA_CLUSTERING 0
+#define HA_CLUSTERED_INDEX 0
+#endif
+
 #include <db.h>
 #include "hatoku_cmp.h"
 

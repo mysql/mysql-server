@@ -6651,9 +6651,11 @@ void ha_tokudb::print_error(int error, myf errflag) {
         error = HA_ERR_LOCK_DEADLOCK;
     if (error == DB_LOCK_NOTGRANTED)
         error = HA_ERR_LOCK_WAIT_TIMEOUT;
+#if defined(HA_ERR_DISK_FULL)
     if (error == ENOSPC) {
         error = HA_ERR_DISK_FULL;
     }
+#endif
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
