@@ -503,20 +503,16 @@ typedef struct cachetable_status {
     u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
     u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
     u_int64_t maybe_get_and_pin_hits;  // how many times has maybe_get_and_pin(_clean) returned with a node?
-    int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
-    int64_t   size_limit;              // the limit to the sum of the node sizes
-    int64_t   size_max;                // high water mark of size_current (max value size_current ever had)
-    int64_t   size_writing;            // the sum of the sizes of the nodes being written
-    u_int64_t get_and_pin_footprint;   
-    uint64_t  local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
-    uint64_t  local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
-    uint64_t  local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
+    uint64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
+    uint64_t   size_limit;              // the limit to the sum of the node sizes
+    uint64_t   size_max;                // high water mark of size_current (max value size_current ever had)
+    uint64_t   size_writing;            // the sum of the sizes of the nodes being written
+    uint64_t size_nonleaf;              // number of bytes in cachetable belonging to nonleaf nodes
+    uint64_t size_leaf;                 // number of bytes in cachetable belonging to leaf nodes
+    uint64_t size_rollback;             // number of bytes in cachetable belonging to rollback nodes
+    uint64_t size_cachepressure;        // number of bytes causing cache pressure (sum of buffers and workdone counters)
     u_int64_t evictions;
-    u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
-    int64_t size_nonleaf; // number of bytes in cachetable belonging to nonleaf nodes
-    int64_t size_leaf; // number of bytes in cachetable belonging to leaf nodes
-    int64_t size_rollback; // number of bytes in cachetable belonging to rollback nodes
-    int64_t size_cachepressure; // number of bytes that cachetable thinks is causing cache pressure (sum of buffers, basically) 
+    u_int64_t cleaner_executions;       // number of times the cleaner thread's loop has executed
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);

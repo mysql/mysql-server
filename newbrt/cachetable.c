@@ -37,22 +37,19 @@ static void cachetable_partial_reader(WORKITEM);
 #endif
 
 // these should be in the cachetable object, but we make them file-wide so that gdb can get them easily
+static u_int64_t cachetable_lock_taken = 0;
+static u_int64_t cachetable_lock_released = 0;
 static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
+static u_int64_t cachetable_misstime;     // time spent waiting for disk read
+static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
 static u_int64_t cachetable_wait_reading;  // how many times does get_and_pin() wait for a node to be read?
 static u_int64_t cachetable_wait_writing;  // how many times does get_and_pin() wait for a node to be written?
+static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
 static u_int64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
 static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
 static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
-static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
-static u_int64_t cachetable_misstime;     // time spent waiting for disk read
-static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
-static u_int64_t cachetable_lock_taken = 0;
-static u_int64_t cachetable_lock_released = 0;
-static u_int64_t local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
-static u_int64_t local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
-static u_int64_t local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
 static u_int64_t cachetable_evictions;
 static u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
 
@@ -3718,16 +3715,12 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->size_limit   = ct->size_limit;            
     s->size_max     = ct->size_max;
     s->size_writing = ct->size_evicting;          
-    s->get_and_pin_footprint = 0;
-    s->local_checkpoint      = local_checkpoint;
-    s->local_checkpoint_files = local_checkpoint_files;
-    s->local_checkpoint_during_checkpoint = local_checkpoint_during_checkpoint;
-    s->evictions = cachetable_evictions;
-    s->cleaner_executions = cleaner_executions;
     s->size_nonleaf = ct->size_nonleaf;
     s->size_leaf = ct->size_leaf;
     s->size_rollback = ct->size_rollback;
     s->size_cachepressure = ct->size_cachepressure;
+    s->evictions = cachetable_evictions;
+    s->cleaner_executions = cleaner_executions;
 }
 
 char *
