@@ -78,7 +78,7 @@ enum {
 static void
 test_le_fixed_offsets (void) {
     LEAFENTRY XMALLOC(le);
-    test_le_offset_is(le, &le->attributes,                    LE_OFFSET_NUM);
+    test_le_offset_is(le, &le->type,                       LE_OFFSET_NUM);
     test_le_offset_is(le, &le->keylen,                     LE_OFFSET_KEYLEN);
     toku_free(le);
 }

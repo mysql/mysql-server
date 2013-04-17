@@ -161,7 +161,7 @@ test_pos_infinity(const char *fname, int n) {
         assert((int) toku_htonl(i) == ii);
         
         LEAFENTRY le = (LEAFENTRY) val.data;
-        assert(le->attributes == LE_MVCC);
+        assert(le->type == LE_MVCC);
     }
     assert(i == n);
 
@@ -222,7 +222,7 @@ test_between(const char *fname, int n) {
         assert((int) toku_htonl(i) == ii);
         
         LEAFENTRY le = (LEAFENTRY) val.data;
-        assert(le->attributes == LE_MVCC);
+        assert(le->type == LE_MVCC);
 
         // test that 0 .. i is not right of the cursor
         for (int j = 0; j <= i; j++) {
