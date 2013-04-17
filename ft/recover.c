@@ -260,12 +260,6 @@ static const char *recover_state(RECOVER_ENV renv) {
     return scan_state_string(&renv->ss);
 }
 
-// function supplied to transaction commit and abort
-// No yielding is necessary, but it must call the f function if provided.
-static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
-    if (f) f(fpthunk);
-}
-
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int UU(mode), BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags,
                                               TOKUTXN txn, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method, LSN max_acceptable_lsn) {
@@ -663,7 +657,7 @@ static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // commit the transaction
-    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn,
+    r = toku_txn_commit_with_lsn(txn, TRUE, l->lsn,
 				 NULL, NULL);
     assert(r == 0);
 
@@ -711,7 +705,7 @@ static int toku_recover_xabort (struct logtype_xabort *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // abort the transaction
-    r = toku_txn_abort_with_lsn(txn, recover_yield, NULL, l->lsn, NULL, NULL);
+    r = toku_txn_abort_with_lsn(txn, l->lsn, NULL, NULL);
     assert(r == 0);
 
     // close the transaction
@@ -1269,7 +1263,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
         int r = find_an_unprepared_txn(renv, &txn);
         if (r==0) {
             // abort the transaction
-            r = toku_txn_abort_txn(txn, recover_yield, NULL, NULL, NULL);
+            r = toku_txn_abort_txn(txn, NULL, NULL);
             assert(r == 0);
             
             // close the transaction

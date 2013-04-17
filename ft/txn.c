@@ -182,12 +182,12 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
     return 0;
 }
 
-int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
+int toku_txn_commit_txn(TOKUTXN txn, int nosync,
                         TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Doesn't close the txn, just performs the commit operations.
 //  If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
-    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN,
+    return toku_txn_commit_with_lsn(txn, nosync, ZERO_LSN,
                                     poll, poll_extra);
 }
 
@@ -206,7 +206,7 @@ BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
     return (!txn->parent && txn->checkpoint_needed_before_commit);
 }
 
-//Called during a yield (ydb lock NOT held).
+//TODO(yoni): inline this function manually
 static void
 log_xcommit(void *thunk) {
     struct xcommit_info *info = thunk;
@@ -214,7 +214,7 @@ log_xcommit(void *thunk) {
     info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
-int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
+int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
@@ -245,21 +245,21 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
         r = info.r;
     }
     if (r==0) {
-        r = toku_rollback_commit(txn, yield, yieldv, oplsn);
+        r = toku_rollback_commit(txn, oplsn);
         STATUS_VALUE(TXN_COMMIT)++;
     }
     return r;
 }
 
-int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
+int toku_txn_abort_txn(TOKUTXN txn,
                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Doesn't close the txn, just performs the abort operations.
 // If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
-    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN, poll, poll_extra);
+    return toku_txn_abort_with_lsn(txn, ZERO_LSN, poll, poll_extra);
 }
 
-int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
+int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
 // Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
@@ -271,7 +271,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     txn->do_fsync = FALSE;
     r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
     if (r==0)  {
-        r = toku_rollback_abort(txn, yield, yieldv, oplsn);
+        r = toku_rollback_abort(txn, oplsn);
         STATUS_VALUE(TXN_ABORT)++;
     }
     return r;
@@ -320,11 +320,12 @@ static void do_txn_fsync_log(void *thunk) {
     info->r = toku_logger_fsync_if_lsn_not_fsynced(info->logger, info->do_fsync_lsn);
 }
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv) {
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync) {
     int r = 0;
     if (logger && do_fsync) {
         struct txn_fsync_log_info info = { .logger = logger, .do_fsync_lsn = do_fsync_lsn };
-        yield(do_txn_fsync_log, &info, yieldv);
+        //TODO(yoni): inline do_txn_fsync_log here
+        do_txn_fsync_log(&info);
         r = info.r;
     }
     return r;

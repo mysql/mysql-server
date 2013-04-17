@@ -28,8 +28,6 @@
 int
 toku_commit_fdelete (FILENUM    filenum,
                      TOKUTXN    txn,
-                     YIELDF     UU(yield),
-                     void      *UU(yield_v),
                      LSN        UU(oplsn)) //oplsn is the lsn of the commit
 {
     int r;
@@ -64,9 +62,6 @@ toku_commit_fdelete (FILENUM    filenum,
     // after processing rollback entries. As a result, we may be unlinking a file
     // here as part of a transactoin that may abort if we do not fsync the log.
     // So, we fsync the log here.
-    //
-    // Because committing fdeletes should be a rare operation, we do not bother
-    // yielding the ydb lock before performing the fsync.
     if (txn->logger) {
         r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
         assert_zero(r);
@@ -90,8 +85,6 @@ done:
 int
 toku_rollback_fdelete (FILENUM    UU(filenum),
                        TOKUTXN    UU(txn),
-                       YIELDF     UU(yield),
-                       void*      UU(yield_v),
                        LSN        UU(oplsn)) //oplsn is the lsn of the abort
 {
     //Rolling back an fdelete is an no-op.
@@ -102,8 +95,6 @@ int
 toku_commit_fcreate (FILENUM UU(filenum),
                      BYTESTRING UU(bs_fname),
                      TOKUTXN    UU(txn),
-                     YIELDF     UU(yield),
-                     void      *UU(yield_v),
                      LSN        UU(oplsn))
 {
     return 0;
@@ -113,8 +104,6 @@ int
 toku_rollback_fcreate (FILENUM    filenum,
                        BYTESTRING UU(bs_fname),
                        TOKUTXN    txn,
-                       YIELDF     UU(yield),
-                       void*      UU(yield_v),
                        LSN        UU(oplsn))
 {
     int r;
@@ -219,7 +208,7 @@ static int do_nothing_with_filenum(TOKUTXN UU(txn), FILENUM UU(filenum)) {
 }
 
 
-int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING UU(key), TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN UU(oplsn)) {
+int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING UU(key), TOKUTXN txn, LSN UU(oplsn)) {
 #if TOKU_DO_COMMIT_CMD_INSERT
     return do_insertion (FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
 #else
@@ -231,8 +220,6 @@ int
 toku_rollback_cmdinsert (FILENUM    filenum,
                          BYTESTRING key,
                          TOKUTXN    txn,
-                         YIELDF     UU(yield),
-                         void *     UU(yieldv),
                          LSN        oplsn)
 {
     return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
@@ -242,8 +229,6 @@ int
 toku_commit_cmdupdate(FILENUM    filenum,
                       BYTESTRING key,
                       TOKUTXN    txn,
-                      YIELDF     UU(yield),
-                      void *     UU(yieldv),
                       LSN        oplsn)
 {
     return do_insertion(FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
@@ -253,8 +238,6 @@ int
 toku_rollback_cmdupdate(FILENUM    filenum,
                         BYTESTRING key,
                         TOKUTXN    txn,
-                        YIELDF     UU(yield),
-                        void *     UU(yieldv),
                         LSN        oplsn)
 {
     return do_insertion(FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
@@ -264,8 +247,6 @@ int
 toku_commit_cmdupdatebroadcast(FILENUM    filenum,
                                BOOL       is_resetting_op,
                                TOKUTXN    txn,
-                               YIELDF     UU(yield),
-                               void *     UU(yieldv),
                                LSN        oplsn)
 {
     // if is_resetting_op, reset root_xid_that_created in
@@ -282,8 +263,6 @@ int
 toku_rollback_cmdupdatebroadcast(FILENUM    filenum,
                                  BOOL       UU(is_resetting_op),
                                  TOKUTXN    txn,
-                                 YIELDF     UU(yield),
-                                 void *     UU(yieldv),
                                  LSN        oplsn)
 {
     BYTESTRING nullkey = { 0, NULL };
@@ -294,8 +273,6 @@ int
 toku_commit_cmddelete (FILENUM    filenum,
                        BYTESTRING key,
                        TOKUTXN    txn,
-                       YIELDF     UU(yield),
-                       void *     UU(yieldv),
                        LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
@@ -310,8 +287,6 @@ int
 toku_rollback_cmddelete (FILENUM    filenum,
                          BYTESTRING key,
                          TOKUTXN    txn,
-                         YIELDF     UU(yield),
-                         void *     UU(yieldv),
                          LSN        oplsn)
 {
     return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
@@ -325,13 +300,10 @@ toku_apply_rollinclude (TXNID      xid,
                         BLOCKNUM   spilled_tail,
                         uint32_t   spilled_tail_hash,
                         TOKUTXN    txn,
-                        YIELDF     yield,
-                        void *     yieldv,
                         LSN        oplsn,
                         apply_rollback_item func) {
     int r = 0;
     struct roll_entry *item;
-    int count=0;
 
     BLOCKNUM next_log      = spilled_tail;
     uint32_t next_log_hash = spilled_tail_hash;
@@ -350,10 +322,8 @@ toku_apply_rollinclude (TXNID      xid,
 
         while ((item=log->newest_logentry)) {
             log->newest_logentry = item->prev;
-            r = func(txn, item, yield, yieldv, oplsn);
+            r = func(txn, item, oplsn);
             if (r!=0) return r;
-            count++;
-            if (count%2 == 0) yield(NULL, NULL, yieldv);
         }
         if (next_log.b == spilled_head.b) {
             assert(!found_head);
@@ -386,14 +356,12 @@ toku_commit_rollinclude (TXNID      xid,
                          BLOCKNUM   spilled_tail,
                          uint32_t   spilled_tail_hash,
                          TOKUTXN    txn,
-                         YIELDF     yield,
-                         void *     yieldv,
                          LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
                                spilled_head, spilled_head_hash,
                                spilled_tail, spilled_tail_hash,
-                               txn, yield, yieldv, oplsn,
+                               txn, oplsn,
                                toku_commit_rollback_item);
     return r;
 }
@@ -406,14 +374,12 @@ toku_rollback_rollinclude (TXNID      xid,
                            BLOCKNUM   spilled_tail,
                            uint32_t   spilled_tail_hash,
                            TOKUTXN    txn,
-                           YIELDF     yield,
-                           void *     yieldv,
                            LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
                                spilled_head, spilled_head_hash,
                                spilled_tail, spilled_tail_hash,
-                               txn, yield, yieldv, oplsn,
+                               txn, oplsn,
                                toku_abort_rollback_item);
     return r;
 }
@@ -422,8 +388,6 @@ int
 toku_commit_load (FILENUM    old_filenum,
                   BYTESTRING UU(new_iname),
                   TOKUTXN    txn,
-                  YIELDF     UU(yield),
-                  void      *UU(yield_v),
                   LSN        UU(oplsn))
 {
     int r;
@@ -452,9 +416,6 @@ toku_commit_load (FILENUM    old_filenum,
     // after processing rollback entries. As a result, we may be unlinking a file
     // here as part of a transactoin that may abort if we do not fsync the log.
     // So, we fsync the log here.
-    //
-    // Because committing fdeletes should be a rare operation, we do not bother
-    // yielding the ydb lock before performing the fsync.
     if (txn->logger) {
         r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
         lazy_assert(r == 0);
@@ -469,8 +430,6 @@ int
 toku_rollback_load (FILENUM    UU(old_filenum),
                     BYTESTRING new_iname,
                     TOKUTXN    txn,
-                    YIELDF     UU(yield),
-                    void      *UU(yield_v),
                     LSN        UU(oplsn)) 
 {
     int r;
@@ -501,8 +460,6 @@ toku_rollback_load (FILENUM    UU(old_filenum),
 int
 toku_commit_hot_index (FILENUMS UU(hot_index_filenums),
                        TOKUTXN  UU(txn), 
-                       YIELDF   UU(yield), 
-                       void *   UU(yield_v), 
                        LSN      UU(oplsn))
 {
     // nothing
@@ -512,8 +469,6 @@ toku_commit_hot_index (FILENUMS UU(hot_index_filenums),
 int
 toku_rollback_hot_index (FILENUMS UU(hot_index_filenums),
                          TOKUTXN  UU(txn), 
-                         YIELDF   UU(yield), 
-                         void *   UU(yield_v), 
                          LSN      UU(oplsn))
 {
     return 0;
@@ -523,8 +478,6 @@ int
 toku_commit_dictionary_redirect (FILENUM UU(old_filenum),
                                  FILENUM UU(new_filenum),
                                  TOKUTXN UU(txn),
-                                 YIELDF  UU(yield),
-                                 void *  UU(yield_v),
                                  LSN     UU(oplsn)) //oplsn is the lsn of the commit
 {
     //Redirect only has meaning during normal operation (NOT during recovery).
@@ -538,8 +491,6 @@ int
 toku_rollback_dictionary_redirect (FILENUM old_filenum,
                                    FILENUM new_filenum,
                                    TOKUTXN txn,
-                                   YIELDF  UU(yield),
-                                   void *  UU(yield_v),
                                    LSN     UU(oplsn)) //oplsn is the lsn of the abort
 {
     int r = 0;
@@ -566,8 +517,6 @@ int
 toku_commit_change_fdescriptor(FILENUM    filenum,
                                BYTESTRING UU(old_descriptor),
                                TOKUTXN    txn,
-                               YIELDF     UU(yield),
-                               void *     UU(yieldv),
                                LSN        UU(oplsn))
 {
     return do_nothing_with_filenum(txn, filenum);
@@ -577,8 +526,6 @@ int
 toku_rollback_change_fdescriptor(FILENUM    filenum,
                                BYTESTRING old_descriptor,
                                TOKUTXN    txn,
-                               YIELDF     UU(yield),
-                               void *     UU(yieldv),
                                LSN        UU(oplsn))
 {
     CACHEFILE cf;

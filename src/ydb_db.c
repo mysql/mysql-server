@@ -143,7 +143,6 @@ toku_db_close(DB * db) {
     return r;
 }
 
-
 ///////////
 //db_getf_XXX is equivalent to c_getf_XXX, without a persistent cursor
 
@@ -229,18 +228,17 @@ db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTY
 static int 
 toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
-    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    if (dbname!=NULL) 
+    if (dbname != NULL) {
         return db_open_subdb(db, txn, fname, dbname, dbtype, flags, mode);
+    }
 
     // at this point fname is the dname
     //This code ONLY supports single-db files.
-    assert(dbname==NULL);
+    assert(dbname == NULL);
     const char * dname = fname;  // db_open_subdb() converts (fname, dbname) to dname
 
     ////////////////////////////// do some level of parameter checking.
     u_int32_t unused_flags = flags;
-    int using_txns = db->dbenv->i->open_flags & DB_INIT_TXN;
     int r;
     if (dbtype!=DB_BTREE && dbtype!=DB_UNKNOWN) return EINVAL;
     int is_db_excl    = flags & DB_EXCL;    unused_flags&=~DB_EXCL;
@@ -252,7 +250,6 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
                                             unused_flags&=~DB_READ_COMMITTED;
                                             unused_flags&=~DB_SERIALIZABLE;
     if (unused_flags & ~DB_THREAD) return EINVAL; // unknown flags
-
     if (is_db_excl && !is_db_create) return EINVAL;
     if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
 
@@ -262,16 +259,11 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     if (r != 0) 
         return r;
 
-    if (db_opened(db))
-        return EINVAL;              /* It was already open. */
-    //////////////////////////////
-
-    DB_TXN *child = NULL;
-    // begin child (unless transactionless)
-    if (using_txns) {
-        r = toku_txn_begin(db->dbenv, txn, &child, DB_TXN_NOSYNC, 1, true);
-        assert(r==0);
+    if (db_opened(db)) {
+        // it was already open
+        return EINVAL;
     }
+    //////////////////////////////
 
     // convert dname to iname
     //  - look up dname, get iname
@@ -280,21 +272,20 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     DBT iname_dbt;  // holds iname_in_env
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
-    r = toku_db_get(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
+    r = toku_db_get(db->dbenv->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
-    if (r==DB_NOTFOUND && !is_db_create)
+    if (r == DB_NOTFOUND && !is_db_create) {
         r = ENOENT;
-    else if (r==0 && is_db_excl) {
+    } else if (r==0 && is_db_excl) {
         r = EEXIST;
-    }
-    else if (r==DB_NOTFOUND) {
+    } else if (r == DB_NOTFOUND) {
         char hint[strlen(dname) + 1];
 
         // create iname and make entry in directory
         u_int64_t id = 0;
 
-        if (using_txns) {
-            id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+        if (txn) {
+            id = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn);
         }
         create_iname_hint(dname, hint);
         iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
@@ -305,33 +296,21 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         // directory read lock is grabbed in toku_db_get above
         //
         u_int32_t put_flags = 0 | ((is_db_hot_index) ? DB_PRELOCKED_WRITE : 0); 
-        r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, put_flags, TRUE);  
+        r = toku_db_put(db->dbenv->i->directory, txn, &dname_dbt, &iname_dbt, put_flags, TRUE);  
     }
 
     // we now have an iname
     if (r == 0) {
-        r = db_open_iname(db, child, iname, flags, mode);
-        if (r==0) {
+        r = db_open_iname(db, txn, iname, flags, mode);
+        if (r == 0) {
             db->i->dname = toku_xstrdup(dname);
             env_note_db_opened(db->dbenv, db);  // tell env that a new db handle is open (using dname)
         }
     }
 
-    // free string holding iname
-    if (iname) toku_free(iname);
-
-    if (using_txns) {
-        // close txn
-        if (r == 0) {  // commit
-            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-            invariant(r==0);  // TODO panic
-        }
-        else {         // abort
-            int r2 = toku_txn_abort(child, NULL, NULL, false);
-            invariant(r2==0);  // TODO panic
-        }
+    if (iname) {
+        toku_free(iname);
     }
-
     return r;
 }
 
@@ -621,9 +600,10 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 
 static int 
 locked_db_close(DB * db, u_int32_t UU(flags)) {
-    toku_ydb_lock(); 
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
     int r = toku_db_close(db);
-    toku_ydb_unlock(); 
+    toku_multi_operation_client_unlock();
     return r;
 }
 
@@ -649,11 +629,31 @@ autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBAC
 
 static int 
 locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock(); 
-    int r = toku_db_open(db, txn, fname, dbname, dbtype, flags & ~DB_AUTO_COMMIT, mode);
-    toku_ydb_unlock();
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    int ret, r;
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+
+    DB_ENV *env = db->dbenv;
+    DB_TXN *child_txn = NULL;
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    if (using_txns) {
+        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        invariant_zero(ret);
+    }
+
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
+    r = toku_db_open(db, child_txn, fname, dbname, dbtype, flags & ~DB_AUTO_COMMIT, mode);
+    toku_multi_operation_client_unlock();
+
+    if (using_txns) {
+        if (r == 0) {
+            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
+            invariant_zero(ret);
+        } else {
+            ret = locked_txn_abort(child_txn);
+            invariant_zero(ret);
+        }
+    }
     return r;
 }
 
@@ -871,11 +871,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     return 0;
 }
 
-
-/* Following functions (ydb_load_xxx()) are used by loader:
- */
-
-// When the loader is created, it makes this call.
+// When the loader is created, it makes this call (toku_env_load_inames).
 // For each dictionary to be loaded, replace old iname in directory
 // with a newly generated iname.  This will also take a write lock
 // on the directory entries.  The write lock will be released when
@@ -887,33 +883,29 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 // If "mark_as_loader" is true, then include a mark in the iname
 // to indicate that the file is created by the brt loader.
 // Return 0 on success (could fail if write lock not available).
-int
-ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
-    int rval;
+static int
+load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
+    int rval = 0;
     int i;
     
-    int using_txns = env->i->open_flags & DB_INIT_TXN;
-    DB_TXN * child = NULL;
     TXNID xid = 0;
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds new iname
     
     char * mark;
 
-    if (mark_as_loader)
+    if (mark_as_loader) {
         mark = "B";
-    else
+    } else {
         mark = "P";
+    }
 
     for (i=0; i<N; i++) {
         new_inames_in_env[i] = NULL;
     }
 
-    // begin child (unless transactionless)
-    if (using_txns) {
-        rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-        assert(rval == 0);
-        xid = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+    if (txn) {
+        xid = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn);
     }
     for (i = 0; i < N; i++) {
         char * dname = dbs[i]->i->dname;
@@ -924,12 +916,12 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
         char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
         new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
-        rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, 0, TRUE);
+        rval = toku_db_put(env->i->directory, txn, &dname_dbt, &iname_dbt, 0, TRUE);
         if (rval) break;
     }
 
     // Generate load log entries.
-    if (!rval && using_txns) {
+    if (!rval && txn) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         int do_fsync = 0;
         LSN *get_lsn = NULL;
@@ -944,17 +936,33 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
             if (rval) break;
         }
     }
-        
+    return rval;
+}
+
+int
+locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
+    int ret, r;
+
+    DB_TXN *child_txn = NULL;
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        // close txn
-        if (rval == 0) {  // all well so far, commit child
-            rval = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-            assert(rval==0);
-        }
-        else {         // abort child
-            int r2 = toku_txn_abort(child, NULL, NULL, false);
-            assert(r2==0);
-            for (i=0; i<N; i++) {
+        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        invariant_zero(ret);
+    }
+
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
+    r = load_inames(env, child_txn, N, dbs, new_inames_in_env, load_lsn, mark_as_loader);
+    toku_multi_operation_client_unlock();
+
+    if (using_txns) {
+        if (r == 0) {
+            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
+            invariant_zero(ret);
+        } else {
+            ret = locked_txn_abort(child_txn);
+            invariant_zero(ret);
+            for (int i = 0; i < N; i++) {
                 if (new_inames_in_env[i]) {
                     toku_free(new_inames_in_env[i]);
                     new_inames_in_env[i] = NULL;
@@ -962,9 +970,10 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
             }
         }
     }
+    return r;
 
-    return rval;
 }
+
 
 #undef STATUS_VALUE
 

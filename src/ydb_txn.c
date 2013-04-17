@@ -13,6 +13,11 @@
 #include <valgrind/helgrind.h>
 #include "ft/txn_manager.h"
 
+static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+static int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION poll, 
+        void *poll_extra, bool release_multi_operation_client_lock);
+static int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+
 static int 
 toku_txn_release_locks(DB_TXN* txn) {
     assert(txn);
@@ -40,16 +45,6 @@ toku_txn_release_locks(DB_TXN* txn) {
     return r;
 }
 
-// Yield the lock so someone else can work, and then reacquire the lock.
-// Useful while processing commit or rollback logs, to allow others to access the system.
-static void 
-ydb_yield (voidfp f, void *fv, void *UU(v)) {
-    toku_ydb_unlock(); 
-    if (f) 
-        f(fv);
-    toku_ydb_lock();
-}
-
 static void
 toku_txn_destroy(DB_TXN *txn) {
     (void) __sync_fetch_and_sub(&txn->mgrp->i->open_txns, 1);
@@ -64,9 +59,8 @@ toku_txn_destroy(DB_TXN *txn) {
 
 static int 
 toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
-                     TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra,
+                     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
                      bool release_multi_operation_client_lock) {
-    if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     if (db_txn_struct_i(txn)->child) {
@@ -96,12 +90,10 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     int r;
     if (flags!=0) {
         // frees the tokutxn
-        // Calls ydb_yield(NULL) occasionally
-        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
+        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, poll, poll_extra);
     } else {
         // frees the tokutxn
-        // Calls ydb_yield(NULL) occasionally
-        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
+        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync,
                                 poll, poll_extra);
     }
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
@@ -139,8 +131,7 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     //     modified by both this transaction and B, it'll read B's value, even
     //     though it cannot read this transaction's value, which comes below
     //     B's value on the leafentry's stack. This behavior is incorrect.
-    //  All of this happens while the ydb lock is yielded. This causes a failure
-    //  in the test_stress tests.
+    //  This causes a failure in the test_stress tests.
     //
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
     toku_txn_complete_txn(ttxn);
@@ -154,7 +145,7 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     if (release_multi_operation_client_lock) {
         toku_multi_operation_client_unlock();
     }
-    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
+    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
 
     //Promote list to parent (dbs that must close before abort)
     if (txn->parent) {
@@ -175,9 +166,9 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     return r;
 }
 
-int 
+static int 
 toku_txn_commit(DB_TXN * txn, u_int32_t flags,
-                TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra,
+                TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
                 bool release_multi_operation_client_lock) {
     int r = toku_txn_commit_only(txn, flags, poll, poll_extra, release_multi_operation_client_lock);
     toku_txn_destroy(txn);
@@ -194,8 +185,7 @@ toku_txn_id(DB_TXN * txn) {
 
 static int 
 toku_txn_abort_only(DB_TXN * txn,
-                    TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra,
-                    bool release_multi_operation_client_lock) {
+                    TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children (abort or commit are both correct, commit is cheaper)
     if (db_txn_struct_i(txn)->child) {
@@ -217,7 +207,7 @@ toku_txn_abort_only(DB_TXN * txn,
     //All dbs that must close before abort, must now be closed
     assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
-    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
+    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, poll, poll_extra);
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         env_panic(txn->mgrp, r, "Error during abort.\n");
     }
@@ -225,13 +215,6 @@ toku_txn_abort_only(DB_TXN * txn,
     assert_zero(r);
     r = toku_txn_release_locks(txn);
     toku_txn_complete_txn(db_txn_struct_i(txn)->tokutxn);
-    // this lock must be released after toku_txn_complete_txn because
-    // this lock must be held until the references to the open FTs is released
-    // begin checkpoint logs these associations, so we must be protect
-    // the changing of these associations with checkpointing
-    if (release_multi_operation_client_lock) {
-        toku_multi_operation_client_unlock();
-    }
     return r;
 }
 
@@ -257,7 +240,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     LSN do_fsync_lsn;
     bool do_fsync;
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
-    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
+    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
     return r;
 }
 
@@ -272,28 +255,26 @@ toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
     return toku_txn_xa_prepare(txn, &xid);
 }
 
-int 
+static int 
 toku_txn_abort(DB_TXN * txn,
-               TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra,
-               bool release_multi_operation_client_lock) {
-    int r = toku_txn_abort_only(txn, poll, poll_extra, release_multi_operation_client_lock);
+               TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+    int r = toku_txn_abort_only(txn, poll, poll_extra);
     toku_txn_destroy(txn);
     return r;
 }   
- 
+
 // Create a new transaction.
-// Called without holding the ydb lock.
 int 
 locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
-    int r = toku_txn_begin(env, stxn, txn, flags, 0, false);
+    toku_multi_operation_client_lock();
+    int r = toku_txn_begin(env, stxn, txn, flags);
+    toku_multi_operation_client_unlock();
     return r;
 }
 
 static u_int32_t 
 locked_txn_id(DB_TXN *txn) {
-    toku_ydb_lock(); 
     u_int32_t r = toku_txn_id(txn); 
-    toku_ydb_unlock(); 
     return r;
 }
 
@@ -305,9 +286,7 @@ toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
 
 static int 
 locked_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
-    toku_ydb_lock(); 
     int r = toku_txn_txn_stat(txn, txn_stat); 
-    toku_ydb_unlock(); 
     return r;
 }
 
@@ -318,22 +297,21 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
     if (toku_txn_requires_checkpoint(ttxn)) {
         toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
     }
-    toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
-    toku_ydb_lock();
-    int r = toku_txn_commit_only(txn, flags, poll, poll_extra, true); // the final 'true' says to release the multi_operation_client_lock
-    toku_ydb_unlock();
-    toku_txn_destroy(txn);
+    // cannot begin a checkpoint. the multi operation lock is taken here, 
+    // but released in toku_txn_commit_only. this way, we don't hold it 
+    // while we fsync the log.
+    toku_multi_operation_client_lock();
+    int r = toku_txn_commit(txn, flags, poll, poll_extra, true);
     return r;
 }
 
 static int 
 locked_txn_abort_with_progress(DB_TXN *txn,
                                TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
-    toku_multi_operation_client_lock(); //Cannot checkpoint during an abort.
-    toku_ydb_lock();
-    int r = toku_txn_abort_only(txn, poll, poll_extra, true); // the final 'true' says to release the multi_operation_client_lock
-    toku_ydb_unlock();
-    toku_txn_destroy(txn);
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
+    int r = toku_txn_abort(txn, poll, poll_extra);
+    toku_multi_operation_client_unlock();
     return r;
 }
 
@@ -351,16 +329,22 @@ locked_txn_abort(DB_TXN *txn) {
 
 static int
 locked_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
-    toku_ydb_lock(); int r = toku_txn_prepare (txn, gid); toku_ydb_unlock(); return r;
+    toku_multi_operation_client_lock();
+    int r = toku_txn_prepare(txn, gid); 
+    toku_multi_operation_client_unlock();
+    return r;
 }
 
 static int
 locked_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
-    toku_ydb_lock(); int r = toku_txn_xa_prepare (txn, xid); toku_ydb_unlock(); return r;
+    toku_multi_operation_client_lock();
+    int r = toku_txn_xa_prepare(txn, xid); 
+    toku_multi_operation_client_unlock();
+    return r;
 }
 
-int 
-toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool internal, bool holds_ydb_lock) {
+static int 
+toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, stxn); //Cannot create child while child already exists.
     if (!toku_logger_is_open(env->i->logger)) 
@@ -388,7 +372,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
     }
     flags &= ~iso_flags;
 
-    if (internal && stxn) {
+    if (stxn) {
         child_isolation = db_txn_struct_i(stxn)->iso;
     }
     else {
@@ -504,18 +488,14 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
                             snapshot_type,
                             result
                             );
-    if (r != 0)
+    if (r != 0) {
+        toku_free(result);
         return r;
-    if (!holds_ydb_lock) {
-        toku_ydb_lock();
     }
     toku_txn_manager_start_txn(
         toku_logger_get_txn_manager(env->i->logger),
         db_txn_struct_i(result)->tokutxn
         );
-    if (!holds_ydb_lock) {
-        toku_ydb_unlock();
-    }
 
     //Add to the list of children for the parent.
     if (result->parent) {
