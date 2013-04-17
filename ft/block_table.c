@@ -244,7 +244,9 @@ PRNTF("free", i, pair->size, pair->u.diskoff, bt);
     memset(&bt->inprogress, 0, sizeof(bt->inprogress));
 }
 
-// Purpose: free disk space used by previous checkpoint, unless still in use by current.
+// Purpose: free any disk space used by previous checkpoint that isn't in use by either
+//           - current state
+//           - in-progress checkpoint
 //          capture inprogress as new checkpointed.
 // For each entry in checkpointBTT
 //   if offset does not match offset in inprogress
