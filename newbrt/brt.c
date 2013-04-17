@@ -2196,7 +2196,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
 }
 
 // Should be renamed as something like "apply_cmd_to_basement()."
-static void
+void
 brt_leaf_put_cmd (
     BRT t, 
     BASEMENTNODE bn, 
