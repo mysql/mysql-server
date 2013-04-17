@@ -1363,30 +1363,30 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                 {
                     time_t t = mystat[row].value.num;
                     char tbuf[26];
-                    snprintf(buf, bufsiz, "%.24s\n", ctime_r(&t, tbuf));
+                    snprintf(buf, bufsiz, "%.24s", ctime_r(&t, tbuf));
                 }
                 break;
             case TOKUTIME:
                 {
                     double t = tokutime_to_seconds(mystat[row].value.num);
-                    snprintf(buf, bufsiz, "%.6f\n", t);
+                    snprintf(buf, bufsiz, "%.6f", t);
                 }
                 break;
             case PARCOUNT:
                 {
                     uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
-                    snprintf(buf, bufsiz, "%" PRIu64 "\n", v);
+                    snprintf(buf, bufsiz, "%" PRIu64, v);
                 }
                 break;
 #if 0
             case MAXCOUNT:
                 {
                     uint64_t v = read_max_partitioned_counter(mystat[row].value.maxcount);
-                    n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
+                    snprintf(buf, bufsiz, "%" PRIu64, v);
                 }
 #endif
             default:
-                snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
+                snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d", mystat[row].type);
                 break;                
             }
             STATPRINT(mystat[row].legend, buf);
