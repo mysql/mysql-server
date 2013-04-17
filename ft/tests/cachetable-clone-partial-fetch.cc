@@ -39,7 +39,8 @@ flush (
 }
 
 static bool true_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
-  return true;
+    if (pf_called) return false;
+    return true;
 }
 
 static int true_pf_callback(void* UU(ftnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* sizep) {

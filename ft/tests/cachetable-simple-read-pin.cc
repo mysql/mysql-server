@@ -30,6 +30,8 @@ sleep_fetch (CACHEFILE f        __attribute__((__unused__)),
 }
 
 static bool sleep_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
+    if (pf_called || fetch_called) return false;
+    return true;
   return true;
 }
 
@@ -44,6 +46,8 @@ static void *run_expensive_pf(void *arg) {
     void* v1;
     long s1;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    pf_called = false;
+    fetch_called = false;
     int r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, sleep_fetch, sleep_pf_req_callback, sleep_pf_callback, false, NULL);
     assert_zero(r);
     assert(pf_called);
@@ -54,6 +58,8 @@ static void *run_expensive_fetch(void *arg) {
     void* v1;
     long s1;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
+    pf_called = false;
+    fetch_called = false;
     int r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, sleep_fetch, sleep_pf_req_callback, sleep_pf_callback, false, NULL);
     assert_zero(r);
     assert(fetch_called);

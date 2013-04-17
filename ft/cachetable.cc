@@ -1528,6 +1528,12 @@ static bool try_pin_pair(
             p->value_rwlock.write_lock(false);
             pair_unlock(p);
         }
+        // small hack here for #5439,
+        // for queries, pf_req_callback does some work for the caller,
+        // that information may be out of date after a write_unlock
+        // followed by a relock, so we do it again.
+        bool pf_required = pf_req_callback(p->value_data,read_extraargs);
+        assert(!pf_required);
         ct->list.read_list_lock();
     }
 
@@ -1744,6 +1750,12 @@ beginning:
             p->value_rwlock.write_unlock();
             p->value_rwlock.read_lock();
             pair_unlock(p);
+            // small hack here for #5439,
+            // for queries, pf_req_callback does some work for the caller,
+            // that information may be out of date after a write_unlock
+            // followed by a read_lock, so we do it again.
+            bool pf_required = pf_req_callback(p->value_data,read_extraargs);
+            assert(!pf_required);
         }
         // We need to be holding the read list lock when we exit.
         // We grab it here because we released it earlier to 

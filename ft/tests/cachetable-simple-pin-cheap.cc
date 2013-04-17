@@ -7,6 +7,7 @@
 
 bool pf_called;
 static bool true_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
+  if (pf_called) return false;
   return true;
 }
 

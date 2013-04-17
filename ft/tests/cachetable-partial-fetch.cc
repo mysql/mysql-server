@@ -53,7 +53,8 @@ static bool pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
 }
 
 static bool true_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
-  return true;
+    if (pf_req_called) return false;
+    return true;
 }
 
 static int err_pf_callback(void* UU(ftnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
@@ -156,6 +157,7 @@ cachetable_test (void) {
     //
     // now verify a prefetch that requires a partial fetch works, and that we can then pin the node
     //
+    pf_req_called = false;
     r = toku_cachefile_prefetch(
         f1,
         make_blocknum(1),
