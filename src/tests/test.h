@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <toku_htonl.h>
+#include <portability/toku_crash.h>
 #include "toku_assert.h"
 #include <signal.h>
 #include <time.h>
@@ -270,50 +271,6 @@ void print_time_now(void) {
     time_t now = time(NULL);
     format_time(&now, timestr);
     printf("%s", timestr);
-}
-
-//Simulate as hard a crash as possible.
-//Choices:
-//  raise(SIGABRT)
-//  kill -SIGKILL $pid
-//  divide by 0
-//  null dereference
-//  abort()
-//  assert(false) (from <assert.h>)
-//  assert(false) (from <toku_assert.h>)
-//
-//Linux:
-//  abort() and both assert(false) cause FILE buffers to be flushed and written to disk: Unacceptable
-//Windows:
-//  None of them cause file buffers to be flushed/written to disk, however
-//  abort(), assert(false) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
-//
-//kill -SIGKILL $pid is annoying (and so far untested)
-//
-//raise(SIGABRT) has the downside that perhaps it could be caught?
-//I'm choosing raise(SIGABRT), followed by divide by 0, followed by null dereference, followed by all the others just in case one gets caught.
-static void UU()
-toku_hard_crash_on_purpose(void) {
-#if TOKU_WINDOWS
-    TerminateProcess(GetCurrentProcess(), 137);
-#else
-    raise(SIGKILL); //Does not flush buffers on linux; cannot be caught.
-#endif
-    {
-        int zero = 0;
-        int infinity = 1/zero;
-        fprintf(stderr, "Force use of %d\n", infinity);
-        fflush(stderr); //Make certain the string is calculated.
-    }
-    {
-        void * intothevoid = NULL;
-        (*(int*)intothevoid)++;
-        fprintf(stderr, "Force use of *(%p) = %d\n", intothevoid, *(int*)intothevoid);
-        fflush(stderr);
-    }
-    abort();
-    fprintf(stderr, "This line should never be printed\n");
-    fflush(stderr);
 }
 
 static void UU()

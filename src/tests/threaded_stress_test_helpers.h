@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <signal.h>
 #include <locale.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -1432,9 +1431,44 @@ static void *test_time(void *arg) {
     return arg;
 }
 
-static void crashing_alarm_handler(int sig) {
-    assert(sig == SIGALRM);
-    toku_hard_crash_on_purpose();
+struct sleep_and_crash_extra {
+    toku_mutex_t mutex;
+    toku_cond_t cond;
+    int seconds;
+    bool is_setup;
+    bool threads_have_joined;
+};
+static void *sleep_and_crash(void *extra) {
+    sleep_and_crash_extra *e = static_cast<sleep_and_crash_extra *>(extra);
+    toku_mutex_lock(&e->mutex);
+    struct timeval tv;
+    toku_timespec_t ts;
+    gettimeofday(&tv, nullptr);
+    ts.tv_sec = tv.tv_sec + e->seconds;
+    ts.tv_nsec = 0;
+    e->is_setup = true;
+    if (verbose) {
+        printf("Waiting %d seconds for other threads to join.\n", e->seconds);
+        fflush(stdout);
+    }
+    int r = toku_cond_timedwait(&e->cond, &e->mutex, &ts);
+    toku_mutex_assert_locked(&e->mutex);
+    if (r == ETIMEDOUT) {
+        invariant(!e->threads_have_joined);
+        if (verbose) {
+            printf("Some thread didn't join on time, crashing.\n");
+            fflush(stdout);
+        }
+        toku_crash_and_dump_core_on_purpose();
+    } else {
+        assert(r == 0);
+        assert(e->threads_have_joined);
+        if (verbose) {
+            printf("Other threads joined on time, exiting cleanly.\n");
+        }
+    }
+    toku_mutex_unlock(&e->mutex);
+    return nullptr;
 }
 
 static int run_workers(
@@ -1484,20 +1518,48 @@ static int run_workers(
     void *ret;
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
     if (verbose) printf("%lu joined\n", (unsigned long) time_tid);
-    sighandler_t old_alarm = signal(SIGALRM, crashing_alarm_handler);
-    assert(old_alarm != SIG_ERR);
-    // Set an alarm that will kill us if it takes too long to join all the
-    // threads (i.e. there is some runaway thread).
-    unsigned int remaining = alarm(cli_args->join_timeout);
-    assert_zero(remaining);
-    for (int i = 0; i < num_threads; ++i) {
-        r = toku_pthread_join(tids[i], &ret); assert_zero(r);
-        if (verbose)
-            printf("%lu joined\n", (unsigned long) tids[i]);
+
+    {
+        // Set an alarm that will kill us if it takes too long to join all the
+        // threads (i.e. there is some runaway thread).
+        struct sleep_and_crash_extra sac_extra;
+        ZERO_STRUCT(sac_extra);
+        toku_mutex_init(&sac_extra.mutex, nullptr);
+        toku_cond_init(&sac_extra.cond, nullptr);
+        sac_extra.seconds = cli_args->join_timeout;
+        sac_extra.is_setup = false;
+        sac_extra.threads_have_joined = false;
+
+        toku_mutex_lock(&sac_extra.mutex);
+        toku_pthread_t sac_thread;
+        r = toku_pthread_create(&sac_thread, nullptr, sleep_and_crash, &sac_extra);
+        assert_zero(r);
+        // Wait for sleep_and_crash thread to get set up, spinning is ok, this should be quick.
+        while (!sac_extra.is_setup) {
+            toku_mutex_unlock(&sac_extra.mutex);
+            r = toku_pthread_yield();
+            assert_zero(r);
+            toku_mutex_lock(&sac_extra.mutex);
+        }
+        toku_mutex_unlock(&sac_extra.mutex);
+
+        // Timeout thread has started, join everyone
+        for (int i = 0; i < num_threads; ++i) {
+            r = toku_pthread_join(tids[i], &ret); assert_zero(r);
+            if (verbose)
+                printf("%lu joined\n", (unsigned long) tids[i]);
+        }
+
+        // Signal timeout thread not to crash.
+        toku_mutex_lock(&sac_extra.mutex);
+        sac_extra.threads_have_joined = true;
+        toku_cond_signal(&sac_extra.cond);
+        toku_mutex_unlock(&sac_extra.mutex);
+        r = toku_pthread_join(sac_thread, nullptr);
+        assert_zero(r);
+        toku_cond_destroy(&sac_extra.cond);
+        toku_mutex_destroy(&sac_extra.mutex);
     }
-    // All threads joined, deschedule the alarm.
-    remaining = alarm(0);
-    assert(remaining > 0);
 
     if (cli_args->print_performance) {
         uint64_t *counters[num_threads];
@@ -2244,7 +2306,6 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
         INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
         INT32_ARG_NONNEG("--num_seconds",             num_seconds,                   "s"),
-        INT32_ARG_NONNEG("--join_timeout",            join_timeout,                  "s"),
         INT32_ARG_NONNEG("--node_size",               env_args.node_size,            " bytes"),
         INT32_ARG_NONNEG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
         INT32_ARG_NONNEG("--rollback_node_size",      env_args.rollback_node_size,   " bytes"),
@@ -2259,6 +2320,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         UINT32_ARG("--txn_size",                      txn_size,                      " rows"),
         UINT32_ARG("--num_bucket_mutexes",            env_args.num_bucket_mutexes,   " mutexes"),
 
+        INT32_ARG_R("--join_timeout",                 join_timeout,                  "s", 1, INT32_MAX),
         INT32_ARG_R("--performance_period",           performance_period,            "s", 1, INT32_MAX),
 
         // TODO: John thinks the cachetable size should be in megabytes
