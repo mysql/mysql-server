@@ -4354,7 +4354,7 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->last_auto_increment)) {
             share->last_auto_increment = *(uint *)value.data;
-            free(value.data);
+            dlfree(value.data);
             value.data = NULL;
         }
         else {
@@ -4376,7 +4376,7 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->auto_inc_create_value)) {
             share->auto_inc_create_value = *(uint *)value.data;
-            free(value.data);
+            dlfree(value.data);
             value.data = NULL;
         }
         else {
