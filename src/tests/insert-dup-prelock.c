@@ -18,7 +18,7 @@ static int usage(const char *prog) {
     return 1;
 }
 
-static int inserter(DB_ENV *env, DB *db, uint64_t _maxk, int expectr) {
+static int inserter(DB_ENV *env, DB *db, uint64_t _maxk, int putflags, int expectr) {
     if (verbose) printf("%p %p\n", env, db);
     int r;
     for (uint64_t k = 0; k < _maxk; k++) {
@@ -35,7 +35,7 @@ static int inserter(DB_ENV *env, DB *db, uint64_t _maxk, int expectr) {
         uint64_t kk = bswap_64(k);
         DBT key = { .data = &kk, .size = sizeof kk };
         DBT val = { .data = &k, .size = sizeof k };
-        r = db->put(db, txn, &key, &val, DB_NOOVERWRITE);
+        r = db->put(db, txn, &key, &val, putflags);
         assert(r == expectr);
 
         r = txn->commit(txn, DB_TXN_NOSYNC);
@@ -114,10 +114,10 @@ int main(int argc, char *argv[]) {
     r = db_init(env, "db0", &db);
     assert(r == 0);
 
-    r = inserter(env, db, maxk, 0);
+    r = inserter(env, db, maxk, DB_YESOVERWRITE, 0);
     assert(r == 0);
 
-    r = inserter(env, db, maxk, DB_KEYEXIST);
+    r = inserter(env, db, maxk, DB_NOOVERWRITE, DB_KEYEXIST);
     assert(r == 0);
 
     r = db->close(db, 0);
