@@ -33,6 +33,7 @@ from signal import signal, SIGHUP, SIGINT, SIGPIPE, SIGALRM, SIGTERM
 from smtplib import SMTP
 from socket import gethostname
 from subprocess import call, Popen, PIPE, STDOUT
+from traceback import format_exc
 from tempfile import mkdtemp, mkstemp
 from threading import Event, Thread, Timer
 
@@ -110,10 +111,9 @@ class Killed(Exception):
     pass
 
 class TestRunnerBase(object):
-    def __init__(self, scheduler, builddir, installdir, rev, jemalloc, execf, tsize, csize, default_test_time, savedir):
+    def __init__(self, scheduler, builddir, rev, execf, tsize, csize, default_test_time, savedir):
         self.scheduler = scheduler
         self.builddir = builddir
-        self.installdir = installdir
         self.rev = rev
         self.execf = execf
         self.tsize = tsize
@@ -123,18 +123,6 @@ class TestRunnerBase(object):
         self.savedir = savedir
 
         self.env = os.environ
-        libpath = os.path.join(self.installdir, 'lib')
-        if 'LD_LIBRARY_PATH' in self.env:
-            self.env['LD_LIBRARY_PATH'] = '%s:%s' % (libpath, self.env['LD_LIBRARY_PATH'])
-        else:
-            self.env['LD_LIBRARY_PATH'] = libpath
-
-        if jemalloc is not None and len(jemalloc) > 0:
-            preload = os.path.normpath(jemalloc)
-            if 'LD_PRELOAD' in self.env:
-                self.env['LD_PRELOAD'] = '%s:%s' % (preload, self.env['LD_PRELOAD'])
-            else:
-                self.env['LD_PRELOAD'] = preload
 
         self.nruns = 0
         self.num_ptquery = 1
@@ -226,10 +214,13 @@ class TestRunnerBase(object):
                 pass
             except TestFailure:
                 self.times[1] = time.time()
-                savedtarfile = self.save()
+                savepfx = '%(execf)s-%(rev)s-%(tsize)d-%(csize)d-%(num_ptquery)d-%(num_update)d-%(phase)s-' % self
+                savedir = mkdtemp(dir=self.savedir, prefix=savepfx)
+                tarfile = '%s.tar' % savedir
+                self.scheduler.email_failure(self, tarfile)
+                self.save(savedir, tarfile)
                 self.scheduler.report_failure(self)
-                warning('Saved environment to %s', savedtarfile)
-                self.scheduler.email_failure(self, savedtarfile)
+                warning('Saved environment to %s', tarfile)
             else:
                 self.scheduler.report_success(self)
         finally:
@@ -239,9 +230,7 @@ class TestRunnerBase(object):
             self.times = [0, 0]
             self.nruns += 1
 
-    def save(self):
-        savepfx = '%(execf)s-%(rev)s-%(tsize)d-%(csize)d-%(num_ptquery)d-%(num_update)d-%(phase)s-' % self
-        savedir = mkdtemp(dir=self.savedir, prefix=savepfx)
+    def save(self, savedir, tarfile):
         def targetfor(path):
             return os.path.join(savedir, os.path.basename(path))
 
@@ -261,14 +250,11 @@ class TestRunnerBase(object):
                 os.makedirs(targetdir)
             copy(fulllibpath, targetpath)
 
-        tarfile = '%s.tar' % savedir
         r = call(['tar', 'cf', os.path.basename(tarfile), os.path.basename(savedir)], cwd=os.path.dirname(savedir))
         if r != 0:
             error('tarring up %s failed.' % savedir)
             sys.exit(r)
         os.chmod(tarfile, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-
-        return tarfile
 
     def waitfor(self, proc):
         while proc.poll() is None:
@@ -407,7 +393,7 @@ class Worker(Thread):
             except Exception, e:
                 exception('Fatal error in worker thread.')
                 info('Killing all workers.')
-                self.scheduler.error = e
+                self.scheduler.error = format_exc()
                 self.scheduler.stop()
             if test_runner.is_large:
                 self.scheduler.nlarge -= 1
@@ -456,6 +442,9 @@ class Scheduler(Queue):
         else:
             debug('Scheduler stopped by someone else.  Joining threads.')
             self.join()
+            if self.error:
+                send_mail(['leif@tokutek.com'], 'Stress tests scheduler stopped by something, on %s' % gethostname(), self.error)
+                sys.exit(77)
 
     def join(self):
         if self.timer is not None:
@@ -489,12 +478,14 @@ class Scheduler(Queue):
 
         h = gethostname()
         if isinstance(runner, UpgradeTestRunnerMixin):
-            upgradestr = '''The test was upgrading from %s.
-''' % runner.oldversionstr
+            upgradestr = '''
+The test was upgrading from %s.''' % runner.oldversionstr
         else:
             upgradestr = ''
-        m = MIMEText('''A stress test failed on %(hostname)s running %(branch)s at svn revision %(rev)s after %(test_duration)d seconds.
-%(upgradestr)sIts environment is saved to %(tarfile)s on that machine.
+        send_mail(['tokueng@tokutek.com'],
+                  'Stress test failure on %(hostname)s running %(branch)s.' % { 'hostname': h, 'branch': self.branch },
+                  ('''A stress test failed on %(hostname)s running %(branch)s at svn revision %(rev)s after %(test_duration)d seconds.%(upgradestr)s
+Its environment is saved to %(tarfile)s on that machine.
 
 The test configuration was:
 
@@ -503,61 +494,49 @@ num_elements:        %(tsize)d
 cachetable_size:     %(csize)d
 num_ptquery_threads: %(num_ptquery)d
 num_update_threads:  %(num_update)d
+
+Commands run:
+%(commands)s
+
+Test output:
+%(output)s
 ''' % {
-                'hostname': h,
-                'rev': runner.rev,
-                'test_duration': runner.time,
-                'upgradestr': upgradestr,
-                'tarfile': savedtarfile,
-                'execf': runner.execf,
-                'tsize': runner.tsize,
-                'csize': runner.csize,
-                'num_ptquery': runner.num_ptquery,
-                'num_update': runner.num_update,
-                'branch': self.branch,
-                })
+                    'hostname': h,
+                    'rev': runner.rev,
+                    'test_duration': runner.time,
+                    'upgradestr': upgradestr,
+                    'tarfile': savedtarfile,
+                    'execf': runner.execf,
+                    'tsize': runner.tsize,
+                    'csize': runner.csize,
+                    'num_ptquery': runner.num_ptquery,
+                    'num_update': runner.num_update,
+                    'branch': self.branch,
+                    }))
 
-        fromaddr = 'tim@tokutek.com'
-        toaddrs = ['tokueng@tokutek.com']
-        m['From'] = fromaddr
-        m['To'] = ', '.join(toaddrs)
-        m['Subject'] = 'Stress test failure on %(hostname)s running %(branch)s.' % { 'hostname': h, 'branch': self.branch }
-        s = SMTP('192.168.1.114')
-        s.sendmail(fromaddr, toaddrs, str(m))
-        s.quit()
+def send_mail(toaddrs, subject, body):
+    m = MIMEText(body)
+    fromaddr = 'tim@tokutek.com'
+    m['From'] = fromaddr
+    m['To'] = ', '.join(toaddrs)
+    m['Subject'] = subject
+    s = SMTP('192.168.1.114')
+    s.sendmail(fromaddr, toaddrs, str(m))
+    s.quit()
 
-def compiler_works(cc):
-    try:
-        devnull = open(os.devnull, 'w')
-        r = call([cc, '-v'], stdout=devnull, stderr=STDOUT)
-        devnull.close()
-        return r == 0
-    except OSError:
-        exception('Error running %s.', cc)
-        return False
-
-def rebuild(tokudb, builddir, installdir, cc, tests):
+def rebuild(tokudb, builddir, cc, cxx, tests):
     info('Updating from svn.')
     devnull = open(os.devnull, 'w')
     call(['svn', 'up'], stdout=devnull, stderr=STDOUT, cwd=tokudb)
     devnull.close()
-    if not compiler_works(cc):
-        error('Cannot find working compiler named "%s".  Try sourcing the icc env script or providing another compiler with --cc.', cc)
-        sys.exit(2)
-    if cc == 'icc':
-        iccstr = 'ON'
-    else:
-        iccstr = 'OFF'
     info('Building tokudb.')
     if not os.path.exists(builddir):
         os.mkdir(builddir)
     newenv = os.environ
-    newenv['CC'] = 'gcc47'
-    newenv['CXX'] = 'g++47'
+    newenv['CC'] = cc
+    newenv['CXX'] = cxx
     r = call(['cmake',
               '-DCMAKE_BUILD_TYPE=Debug',
-              '-DINTEL_CC=%s' % iccstr,
-              '-DCMAKE_INSTALL_PREFIX=%s' % installdir,
               '-DUSE_BDB=OFF',
               '-DUSE_GTAGS=OFF',
               '-DUSE_CTAGS=OFF',
@@ -567,10 +546,12 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
              env=newenv,
              cwd=builddir)
     if r != 0:
+        send_mail(['leif@tokutek.com'], 'Stress tests on %s failed to build.' % gethostname(), '')
         error('Building the tests failed.')
         sys.exit(r)
-    r = call(['make', '-j8', 'install'], cwd=builddir)
+    r = call(['make', '-j8'], cwd=builddir)
     if r != 0:
+        send_mail(['leif@tokutek.com'], 'Stress tests on %s failed to build.' % gethostname(), '')
         error('Building the tests failed.')
         sys.exit(r)
 
@@ -584,9 +565,8 @@ def revfor(tokudb):
 
 def main(opts):
     builddir = os.path.join(opts.tokudb, 'build')
-    installdir = os.path.join(opts.tokudb, 'install')
     if opts.build:
-        rebuild(opts.tokudb, builddir, installdir, opts.cc, opts.testnames + opts.recover_testnames)
+        rebuild(opts.tokudb, builddir, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
     rev = revfor(opts.tokudb)
 
     if not os.path.exists(opts.savedir):
@@ -608,9 +588,7 @@ def main(opts):
             kwargs = {
                 'scheduler': scheduler,
                 'builddir': builddir,
-                'installdir': installdir,
                 'rev': rev,
-                'jemalloc': opts.jemalloc,
                 'tsize': tsize,
                 'csize': csize,
                 'default_test_time': opts.test_time,
@@ -676,7 +654,7 @@ def main(opts):
             if scheduler.error is not None:
                 error('Scheduler reported an error.')
                 raise scheduler.error
-            rebuild(opts.tokudb, builddir, installdir, opts.cc, opts.testnames + opts.recover_testnames)
+            rebuild(opts.tokudb, builddir, opts.cc, opts.cxx, opts.testnames + opts.recover_testnames)
             rev = revfor(opts.tokudb)
             for runner in runners:
                 runner.rev = rev
@@ -684,6 +662,7 @@ def main(opts):
         sys.exit(0)
     except Exception, e:
         exception('Unhandled exception caught in main.')
+        send_mail(['leif@tokutek.com'], 'Stress tests caught unhandled exception in main, on %s' % gethostname(), format_exc())
         raise e
 
 if __name__ == '__main__':
@@ -748,10 +727,10 @@ if __name__ == '__main__':
                            help='skip the svn up and build phase before testing [default=False]')
     build_group.add_option('--rebuild_period', type='int', dest='rebuild_period', default=60 * 60 * 24,
                            help='how many seconds between doing an svn up and rebuild, 0 means never rebuild [default=24 hours]')
-    build_group.add_option('--cc', type='string', dest='cc', default='gcc',
-                           help='which compiler to use [default=gcc]')
-    build_group.add_option('--jemalloc', type='string', dest='jemalloc',
-                           help='a libjemalloc.so to put in LD_PRELOAD when running tests')
+    build_group.add_option('--cc', type='string', dest='cc', default='gcc47',
+                           help='which compiler to use [default=gcc47]')
+    build_group.add_option('--cxx', type='string', dest='cxx', default='g++47',
+                           help='which compiler to use [default=g++47]')
     build_group.add_option('--add_test', action='append', type='string', dest='testnames', default=default_testnames,
                            help=('add a stress test to run [default=%r]' % default_testnames))
     build_group.add_option('--add_recover_test', action='append', type='string', dest='recover_testnames', default=default_recover_testnames,
@@ -775,6 +754,9 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
     if len(args) > 0:
         parser.error('Invalid arguments: %r' % args)
+
+    if len(opts.old_versions) > 0:
+        opts.run_upgrade = True
 
     if opts.run_upgrade:
         if not os.path.isdir(opts.old_environments_dir):
