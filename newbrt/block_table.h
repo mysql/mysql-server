@@ -37,7 +37,7 @@ void toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, int fd, struct brt_he
 //Blocknums
 void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h);
 void toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h);
-void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, struct brt_header * h);
+void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, struct brt_header * h, BOOL for_checkpoint);
 void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);

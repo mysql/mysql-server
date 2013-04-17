@@ -52,7 +52,7 @@ cachetable_unpin_and_remove_test (int n) {
     while (nkeys > 0) {
         i = random() % nkeys;
         u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(testkeys[i].b));
-        r = toku_cachetable_unpin_and_remove(f1, testkeys[i], FALSE);
+        r = toku_cachetable_unpin_and_remove(f1, testkeys[i], NULL, NULL);
         assert(r == 0);
 
         toku_cachefile_verify(f1);
@@ -67,7 +67,7 @@ cachetable_unpin_and_remove_test (int n) {
 
     // verify that all are really removed
     for (i=0; i<n; i++) {
-        r = toku_cachetable_unpin_and_remove(f1, keys[i], FALSE);
+        r = toku_cachetable_unpin_and_remove(f1, keys[i], NULL, NULL);
         // assert(r != 0);
         if (r == 0) printf("%s:%d warning %d\n", __FILE__, __LINE__, r);
     }
@@ -115,7 +115,7 @@ cachetable_put_evict_remove_test (int n) {
     assert(r == 0);
         
     // remove 0
-    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(0), FALSE);
+    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(0), NULL, NULL);
     assert(r == 0);
 
     char *error_string;

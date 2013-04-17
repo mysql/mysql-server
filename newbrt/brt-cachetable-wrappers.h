@@ -55,16 +55,6 @@ toku_create_new_brtnode (
     );
 
 /**
- * write nodes for checkpoint, if necessary
- */
-void
-checkpoint_nodes(
-    struct brt_header* h,
-    u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes
-    );
-
-/**
  * The intent of toku_pin_brtnode(_holding_lock) is to abstract the
  * process of retrieving a node from the rest of brt.c, so that there is
  * only one place where we need to worry applying ancestor messages to a

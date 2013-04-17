@@ -181,8 +181,9 @@ typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_ex
 // TODO(leif) XXX TODO XXX
 typedef int (*CACHETABLE_CLEANER_CALLBACK)(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *write_extraargs);
 
-
 typedef void (*CACHETABLE_GET_KEY_AND_FULLHASH)(CACHEKEY* cachekey, u_int32_t* fullhash, void* extra);
+
+typedef void (*CACHETABLE_REMOVE_KEY)(CACHEKEY* cachekey, BOOL for_checkpoint, void* extra);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
@@ -203,15 +204,6 @@ void *toku_cachefile_get_userdata(CACHEFILE);
 
 CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 // Effect: Get the cachetable.
-
-void toku_checkpoint_pairs(
-    CACHEFILE cf,
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
-    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
-    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
-    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
-    );
 
 
 // put something into the cachetable and checkpoint dependent pairs
@@ -359,14 +351,7 @@ int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE, CACHEKEY, u_int32_t f
 // Effect: The same as tokud_cachetable_unpin, except that the ct must not be locked.
 // Requires: The ct is NOT locked.
 
-void toku_cachetable_prelock(CACHEFILE cf);
-// Effect: locks cachetable
-
-void toku_cachetable_unlock(CACHEFILE cf);
-// Effect: unlocks cachetable
-
-
-int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY, BOOL); /* Removing something already present is OK. */
+int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY, CACHETABLE_REMOVE_KEY, void*); /* Removing something already present is OK. */
 // Effect: Remove an object from the cachetable.  Don't write it back.
 // Requires: The object must be pinned exactly once.
 
