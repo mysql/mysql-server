@@ -1848,6 +1848,7 @@ static int cachetable_put_internal(
         );
     assert(p);
     nb_mutex_write_lock(&p->value_nb_mutex, ct->mutex);
+    //note_hash_count(count);
     return 0;
 }
 
@@ -2750,6 +2751,7 @@ int toku_cachetable_get_and_pin_nonblocking (
             if (!nb_mutex_writers(&p->value_nb_mutex) && 
                 (!may_modify_value || resolve_checkpointing_fast(p))) 
             {
+                //cachetable_hit++;
                 nb_mutex_write_lock(&p->value_nb_mutex, ct->mutex);
                 if (may_modify_value && p->checkpoint_pending) {
                     write_locked_pair_for_checkpoint(ct, p);

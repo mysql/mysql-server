@@ -12,9 +12,6 @@
 extern "C" {
 #endif
 
-void toku_set_default_compression_method (enum toku_compression_method a);
-// Effect: for the following functions, set the default compression method.
-
 static const int max_sub_blocks = 8;
 static const int target_sub_block_size = 512*1024;
 static const int max_basement_nodes = 32;
@@ -46,11 +43,11 @@ size_t
 sub_block_header_size(int n_sub_blocks);
 
 void
-set_compressed_size_bound(struct sub_block *se);
+set_compressed_size_bound(struct sub_block *se, enum toku_compression_method method);
 
 // get the sum of the sub block compressed sizes 
 size_t 
-get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[]);
+get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[], enum toku_compression_method method);
 
 // get the sum of the sub block uncompressed sizes 
 size_t 
@@ -76,27 +73,29 @@ get_sub_block_index(int n_sub_blocks, struct sub_block sub_block[], size_t offse
 
 struct compress_work {
     struct work base;
+    enum toku_compression_method method;
     struct sub_block *sub_block;
 };
 
 void
-compress_work_init(struct compress_work *w, struct sub_block *sub_block);
+compress_work_init(struct compress_work *w, enum toku_compression_method method, struct sub_block *sub_block);
 
 u_int32_t
 compress_nocrc_sub_block(
-    struct sub_block *sub_block, 
-    void* sb_compressed_ptr, 
-    u_int32_t cs_bound
+    struct sub_block *sub_block,
+    void* sb_compressed_ptr,
+    u_int32_t cs_bound,
+    enum toku_compression_method method
     );
 
 void
-compress_sub_block(struct sub_block *sub_block);
+compress_sub_block(struct sub_block *sub_block, enum toku_compression_method method);
 
 void *
 compress_worker(void *arg);
 
 size_t
-compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool);
+compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool, enum toku_compression_method method);
 
 struct decompress_work {
     struct work base;

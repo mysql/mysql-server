@@ -37,24 +37,17 @@ sub_block_header_size(int n_sub_blocks) {
     return sizeof (u_int32_t) + n_sub_blocks * sizeof (struct stored_sub_block);
 }
 
-// Allow the makefile to optionally configure for no compression
-#ifdef TOKU_CONFIG_NO_COMPRESSION
-static enum toku_compression_method toku_compress_method = TOKU_NO_COMPRESSION;
-#else
-static enum toku_compression_method toku_compress_method = TOKU_QUICKLZ_METHOD;
-#endif
-
 void
-set_compressed_size_bound(struct sub_block *se) {
-    se->compressed_size_bound = toku_compress_bound(toku_compress_method, se->uncompressed_size);
+set_compressed_size_bound(struct sub_block *se, enum toku_compression_method method) {
+    se->compressed_size_bound = toku_compress_bound(method, se->uncompressed_size);
 }
 
 // get the sum of the sub block compressed sizes 
 size_t 
-get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[]) {
+get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[], enum toku_compression_method method) {
     size_t compressed_size_bound = 0;
     for (int i = 0; i < n_sub_blocks; i++) {
-        sub_block[i].compressed_size_bound = toku_compress_bound(toku_compress_method, sub_block[i].uncompressed_size);
+        sub_block[i].compressed_size_bound = toku_compress_bound(method, sub_block[i].uncompressed_size);
         compressed_size_bound += sub_block[i].compressed_size_bound;
     }
     return compressed_size_bound;
@@ -147,21 +140,9 @@ get_sub_block_index(int n_sub_blocks, struct sub_block sub_block[], size_t offse
 #include "workset.h"
 
 void
-compress_work_init(struct compress_work *w, struct sub_block *sub_block) {
+compress_work_init(struct compress_work *w, enum toku_compression_method method, struct sub_block *sub_block) {
+    w->method = method;
     w->sub_block = sub_block;
-}
-
-
-void toku_set_default_compression_method (enum toku_compression_method a) {
-    switch (a) {
-    case TOKU_NO_COMPRESSION:
-    case TOKU_ZLIB_METHOD: 
-    case TOKU_QUICKLZ_METHOD:
-	toku_compress_method = a;
-	return;
-    }
-    // fall through to error
-    assert(0);
 }
 
 //
@@ -172,28 +153,30 @@ void toku_set_default_compression_method (enum toku_compression_method a) {
 //
 u_int32_t
 compress_nocrc_sub_block(
-    struct sub_block *sub_block, 
-    void* sb_compressed_ptr, 
-    u_int32_t cs_bound
-    ) 
+    struct sub_block *sub_block,
+    void* sb_compressed_ptr,
+    u_int32_t cs_bound,
+    enum toku_compression_method method
+    )
 {
     // compress it
     Bytef *uncompressed_ptr = (Bytef *) sub_block->uncompressed_ptr;
     Bytef *compressed_ptr = (Bytef *) sb_compressed_ptr;
     uLongf uncompressed_len = sub_block->uncompressed_size;
     uLongf real_compressed_len = cs_bound;
-    toku_compress(toku_compress_method,
+    toku_compress(method,
                   compressed_ptr, &real_compressed_len,
                   uncompressed_ptr, uncompressed_len);
-    return real_compressed_len; 
+    return real_compressed_len;
 }
 
 void
-compress_sub_block(struct sub_block *sub_block) {
+compress_sub_block(struct sub_block *sub_block, enum toku_compression_method method) {
     sub_block->compressed_size = compress_nocrc_sub_block(
-        sub_block, 
-        sub_block->compressed_ptr, 
-        sub_block->compressed_size_bound
+        sub_block,
+        sub_block->compressed_ptr,
+        sub_block->compressed_size_bound,
+        method
         );
     // checksum it
     sub_block->xsum = x1764_memory(sub_block->compressed_ptr, sub_block->compressed_size);
@@ -206,14 +189,14 @@ compress_worker(void *arg) {
         struct compress_work *w = (struct compress_work *) workset_get(ws);
         if (w == NULL)
             break;
-        compress_sub_block(w->sub_block);
+        compress_sub_block(w->sub_block, w->method);
     }
     workset_release_ref(ws);
     return arg;
 }
 
 size_t
-compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool) {
+compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool, enum toku_compression_method method) {
     char *compressed_base_ptr = compressed_ptr;
     size_t compressed_len;
 
@@ -223,7 +206,7 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
         // single sub-block 
         sub_block[0].uncompressed_ptr = uncompressed_ptr;
         sub_block[0].compressed_ptr = compressed_ptr;
-        compress_sub_block(&sub_block[0]);
+        compress_sub_block(&sub_block[0], method);
         compressed_len = sub_block[0].compressed_size;
     } else {
         // multiple sub-blocks
@@ -241,7 +224,7 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
         for (int i = 0; i < n_sub_blocks; i++) {
             sub_block[i].uncompressed_ptr = uncompressed_ptr;
             sub_block[i].compressed_ptr = compressed_ptr;
-            compress_work_init(&work[i], &sub_block[i]);
+            compress_work_init(&work[i], method, &sub_block[i]);
             workset_put_locked(&ws, &work[i].base);
             uncompressed_ptr += sub_block[i].uncompressed_size;
             compressed_ptr += sub_block[i].compressed_size_bound;

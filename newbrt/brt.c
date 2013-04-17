@@ -3349,6 +3349,7 @@ brt_init_header (BRT t, TOKUTXN txn) {
     //Assign blocknum for root block, also dirty the header
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
     t->h->root_blocknum = root;
+    t->h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 
     toku_list_init(&t->h->live_brts);
     toku_list_init(&t->h->zombie_brts);
@@ -3389,6 +3390,20 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
     r = brt_init_header(t, txn);
     if (r != 0) goto died2;
     return r;
+}
+
+int
+toku_brt_set_compression_method(BRT t, enum toku_compression_method method)
+{
+    t->h->compression_method = method;
+    return 0;
+}
+
+int
+toku_brt_get_compression_method(BRT t, enum toku_compression_method *methodp)
+{
+    *methodp = t->h->compression_method;
+    return 0;
 }
 
 int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open)
@@ -6857,6 +6872,7 @@ toku_brt_header_init(struct brt_header *h,
     h->root_blocknum    = root_blocknum_on_disk;
     h->flags            = 0;
     h->root_xid_that_created = root_xid_that_created;
+    h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 }
 
 #include <valgrind/helgrind.h>

@@ -119,10 +119,10 @@ NEWBRT_O_FILES += brtloader.$(OEXT) quicklz.$(OEXT) compress.$(OEXT)
 brtloader.$(OEXT): $(DEPEND_COMPILE)
 
 $(NEWBRT_O_FILES): VISIBILITY=
+$(NEWBRT_O_FILES): $(LZMA_H)
 $(NEWBRT_SO): DISABLE_WARNING += 10237 # Do not complain about -lcilkrts being linked in dynamically, static library not available
-$(NEWBRT_SO): $(NEWBRT_O_FILES)
-	echo $(patsubst %,newbrt/%,$(NEWBRT_O_FILES)) > ../lib/newbrt.olist
-	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)
+$(NEWBRT_SO): $(NEWBRT_O_FILES) $(LZMA_A)
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) $(LZMA_A) -o$(NEWBRT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)
 $(NEWBRT_A): $(NEWBRT_O_FILES)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
@@ -145,7 +145,7 @@ logformat$(BINSUF): logformat.c $(LIBPORTABILITY_SO)
 ifeq ($(PROF),1)
 libs: $(NEWBRT_A)
 else
-libs: $(NEWBRT_SO)
+libs: $(NEWBRT_SO) $(NEWBRT_A)
 endif
 bins: $(BINS)
 
@@ -176,13 +176,14 @@ clean: clean-local clean-tests
 clean-tests:
 	cd tests;$(MAKE) clean
 clean-local:
+	$(RM) $(TOKUROOT)lib/libnewbrt.$(AEXT) $(TOKUROOT)lib/libnewbrt.$(SOEXT)
 	rm -rf $(NEWBRT)
 	rm -rf test_oexcl.c.tmp *.brt
 	rm -rf log_code.c log_header.h log_print.c logformat
 
 brtdump_static$(BINSUF): DEPEND_LINK = -lpthread -ldl -lz
-brtdump_static$(BINSUF): brtdump.$(OEXT) $(NEWBRT_A) $(LIBPORTABILITY_A) $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(CC) $< $(NEWBRT_A) $(LIBPORTABILITY_A) $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
+brtdump_static$(BINSUF): brtdump.$(OEXT) $(NEWBRT_A) $(LZMA_A) $(LIBPORTABILITY_A) $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(CC) $< $(NEWBRT_A) $(LZMA_A) $(LIBPORTABILITY_A) $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)

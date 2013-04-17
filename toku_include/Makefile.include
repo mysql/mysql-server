@@ -396,6 +396,17 @@ else
     ARFLAGS  = $(DBG_ARFLAGS)
 endif
 
+LZMA_H = $(TOKUROOT)include/lzma.h
+ifeq ($(CC),icc)
+ LZMA_A = $(TOKUROOT)lib/liblzma_icc_opt.$(AEXT)
+else
+ ifeq ($(DEBUG),1)
+  LZMA_A = $(TOKUROOT)lib/liblzma_gcc_dbg.$(AEXT)
+ else
+  LZMA_A = $(TOKUROOT)lib/liblzma_gcc_opt.$(AEXT)
+ endif
+endif
+
 CFLAGS += $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW) $(ARCHFLAGS)
 CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99) $(CCQUIET)

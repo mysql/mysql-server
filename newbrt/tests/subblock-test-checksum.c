@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "compress.h"
 #include "sub_block.h"
 
 int verbose;
@@ -25,7 +26,7 @@ set_uint8_at_offset(void *vp, size_t offset, uint8_t newv) {
 }
 
 static void
-test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_cores, struct toku_thread_pool *pool) {
+test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_cores, struct toku_thread_pool *pool, enum toku_compression_method method) {
     if (verbose)
         printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, total_size, my_max_sub_blocks);
 
@@ -40,11 +41,11 @@ test_sub_block_checksum(void *buf, int total_size, int my_max_sub_blocks, int n_
     struct sub_block sub_blocks[n_sub_blocks];
     set_all_sub_block_sizes(total_size, sub_block_size, n_sub_blocks, sub_blocks);
 
-    size_t cbuf_size_bound = get_sum_compressed_size_bound(n_sub_blocks, sub_blocks);
+    size_t cbuf_size_bound = get_sum_compressed_size_bound(n_sub_blocks, sub_blocks, method);
     void *cbuf = toku_malloc(cbuf_size_bound);
     assert(cbuf);
 
-    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, buf, cbuf, n_cores, pool);
+    size_t cbuf_size = compress_all_sub_blocks(n_sub_blocks, sub_blocks, buf, cbuf, n_cores, pool, method);
     assert(cbuf_size <= cbuf_size_bound);
 
     void *ubuf = toku_malloc(total_size);
@@ -92,16 +93,16 @@ set_random(void *buf, int total_size) {
 }
 
 static void
-run_test(int total_size, int n_cores, struct toku_thread_pool *pool) {
+run_test(int total_size, int n_cores, struct toku_thread_pool *pool, enum toku_compression_method method) {
     void *buf = toku_malloc(total_size);
     assert(buf);
 
     for (int my_max_sub_blocks = 1; my_max_sub_blocks <= max_sub_blocks; my_max_sub_blocks++) {
         memset(buf, 0, total_size);
-        test_sub_block_checksum(buf, total_size, my_max_sub_blocks, n_cores, pool);
+        test_sub_block_checksum(buf, total_size, my_max_sub_blocks, n_cores, pool, method);
 
         set_random(buf, total_size);
-        test_sub_block_checksum(buf, total_size, my_max_sub_blocks, n_cores, pool);
+        test_sub_block_checksum(buf, total_size, my_max_sub_blocks, n_cores, pool, method);
     }
 
     toku_free(buf);
@@ -141,7 +142,10 @@ test_main (int argc, const char *argv[]) {
 
     for (int total_size = 256*1024; total_size <= 4*1024*1024; total_size *= 2) {
         for (int size = total_size - e; size <= total_size + e; size++) {
-            run_test(size, n_cores, pool);
+            run_test(size, n_cores, pool, TOKU_NO_COMPRESSION);
+            run_test(size, n_cores, pool, TOKU_ZLIB_METHOD);
+            run_test(size, n_cores, pool, TOKU_QUICKLZ_METHOD);
+            run_test(size, n_cores, pool, TOKU_LZMA_METHOD);
         }
     }
 

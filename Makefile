@@ -85,7 +85,7 @@ fastcheckonlyfailydb: fastbuildtests
 
 clean: $(patsubst %,%.dir.clean,$(SRCDIRS)) cleanlib
 cleanlib:
-	rm -rf lib/*.$(SOEXT) lib/*.$(AEXT) lib/*.bundle
+	rm -rf lib/*.$(SOEXT) $(filter-out lib/liblzma_gcc_dbg.$(AEXT) lib/liblzma_gcc_opt.$(AEXT) lib/liblzma_icc_opt.$(AEXT),$(wildcard lib/*.$(AEXT))) lib/*.bundle lib/*.olist
 
 # This does not work, and probably hasn't worked since revision ~2000
 # install:

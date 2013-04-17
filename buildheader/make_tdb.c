@@ -429,6 +429,8 @@ static void print_db_struct (void) {
 			 "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			 "int (*get_readpagesize)(DB*,u_int32_t*)",
 			 "int (*set_readpagesize)(DB*,u_int32_t)",
+			 "int (*get_compression_method)(DB*,TOKU_COMPRESSION_METHOD*)",
+			 "int (*set_compression_method)(DB*,TOKU_COMPRESSION_METHOD)",
 			 "int (*set_indexer)(DB*, DB_INDEXER*)",
 			 "void (*get_indexer)(DB*, DB_INDEXER**)",
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
@@ -553,6 +555,17 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("  u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */\n");
     printf("  u_int64_t bt_verify_time_sec; /* Time of last verification, in seconds */\n");
     printf("} DB_BTREE_STAT64;\n");
+
+    // compression methods
+    printf("typedef enum toku_compression_method {\n");
+    printf("    TOKU_NO_COMPRESSION = 0,\n");  // "identity" compression
+    printf("    TOKU_ZLIB_METHOD    = 8,\n");  // RFC 1950 says use 8 for zlib.  It reserves 15 to allow more bytes.
+    printf("    TOKU_QUICKLZ_METHOD = 9,\n");  // We use 9 for QUICKLZ (the QLZ compression level is stored int he high-order nibble).  I couldn't find any standard for any other numbers, so I just use 9. -Bradley
+    printf("    TOKU_LZMA_METHOD    = 10,\n");  // We use 10 for LZMA.  (Note the compression level is stored in the high-order nibble).
+    printf("    TOKU_FAST_COMPRESSION_METHOD = 1,\n");  // friendlier names
+    printf("    TOKU_SMALL_COMPRESSION_METHOD = 2,\n");
+    printf("    TOKU_DEFAULT_COMPRESSION_METHOD = TOKU_FAST_COMPRESSION_METHOD,\n");  // default is quicklz
+    printf("} TOKU_COMPRESSION_METHOD;\n");
 
     //bulk loader
     printf("typedef struct __toku_loader DB_LOADER;\n");
