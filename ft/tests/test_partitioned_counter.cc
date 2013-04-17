@@ -328,10 +328,12 @@ static void do_testit (void) {
 	tas[i].total_increment_per_writer = limits[i]/n_writers[i];
 	assert(tas[i].total_increment_per_writer * n_writers[i] == limits[i]);
 	pt_create(&reader_threads[i], reader_test_fun, &tas[i]);
+        increment_partitioned_counter(tas[i].pc, 1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.
 	MALLOC_N(n_writers[i], writer_threads[i]);
 	for (uint64_t j=0; j<n_writers[i] ; j++) {
 	    pt_create(&writer_threads[i][j], writer_test_fun, &tas[i]);
 	}
+        increment_partitioned_counter(tas[i].pc, -1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.
     }
     for (int i=0; i<NGROUPS; i++) {
 	pt_join(reader_threads[i], &tas[i]);
@@ -360,8 +362,10 @@ static void do_testit2 (void)
     pthread_t t;
     {
         PARTITIONED_COUNTER mypc = create_partitioned_counter();
+        increment_partitioned_counter(mypc, 1); // make sure that the long-lived thread also increments the partitioned counter, to test for #5321.
         pt_create(&t, test2_fun, mypc);
         while(spinwait==0); // wait until he incremented the counter.
+        increment_partitioned_counter(mypc, -1);
         assert(read_partitioned_counter(mypc)==3);
         destroy_partitioned_counter(mypc);
     } // leave scope, so the counter goes away.
