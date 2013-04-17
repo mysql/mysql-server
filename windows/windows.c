@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <Crtdbg.h>
+#include <string.h>
 
 static int
 toku_malloc_init(void) {
@@ -365,6 +366,11 @@ toku_get_filesystem_sizes(const char *path, uint64_t *avail_size, uint64_t *free
     else {
         r = GetLastError();
     }
+    return r;
+}
+
+int strerror_r(int errnum, char *buf, size_t buflen) {
+    int r = strerror_s(buf, buflen, errnum);
     return r;
 }
 

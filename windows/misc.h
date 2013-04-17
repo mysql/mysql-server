@@ -83,6 +83,8 @@ int mkstemp(char * ttemplate);
 
 toku_off_t ftello(FILE *stream);
 
+int strerror_r(int errnum, char *buf, size_t buflen);
+
 #define __builtin_offsetof(type, member) offsetof(type, member)
 
 
