@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
 
@@ -725,50 +726,51 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
-    char * legend_ydb_lock = "ydb lock held";
-    char * legend_cp_period = "Checkpoint period";
-    char * legend_cp_status = "Checkpoint status code (0 = idle)";
-    char buf[4096] = {0};
+    char buf[4096] = {'\0'};
 
     ENGINE_STATUS engstat;
 
+#define STATPRINT(legend, val) stat_print(thd, \
+                                          tokudb_hton_name, \
+                                          tokudb_hton_name_length, \
+                                          legend, \
+                                          strlen(legend), \
+                                          val, \
+                                          strlen(val))
+
     error = db_env->get_engine_status(db_env, &engstat);
     if (error == 0) {
-      
-      const char * lockstat = engstat.ydb_lock_held ? "Locked" : "Unlocked";
-      stat_print(
-		 thd, 
-		 tokudb_hton_name, 
-		 tokudb_hton_name_length, 
-		 legend_ydb_lock, 
-		 strlen(legend_ydb_lock), 
-		 lockstat,
-		 strlen(lockstat)
-		 );
-      
+      const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      u_int32_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
+      sprintf(buf, "%" PRIu32, lockctr);  
+      STATPRINT("ydb lock held", lockstat);
+      STATPRINT("ydb lock counter", buf);
 
+      lockstat = (engstat.cachetable_lock_ctr & 0x01) ? "Locked" : "Unlocked";
+      lockctr =  engstat.cachetable_lock_ctr >> 1;   // lsb indicates if locked
+      sprintf(buf, "%" PRIu32, lockctr);  
+      STATPRINT("cachetable lock held", lockstat);
+      STATPRINT("cachetable lock counter", buf);
 
-      sprintf(buf, "%" PRIu32, (unsigned int) engstat.checkpoint_period);
-      stat_print(
-		 thd, 
-		 tokudb_hton_name, 
-		 tokudb_hton_name_length, 
-		 legend_cp_period, 
-		 strlen(legend_cp_period), 
-		 buf,
-		 strlen(buf)
-		 );
-      
-      sprintf(buf, "%" PRIu64, (long unsigned int) engstat.checkpoint_footprint);
-      stat_print(
-		 thd, 
-		 tokudb_hton_name, 
-		 tokudb_hton_name_length, 
-		 legend_cp_status, 
-		 strlen(legend_cp_status), 
-		 buf,
-		 strlen(buf)
-		 );
+      sprintf(buf, "%" PRIu64, engstat.cachetable_hit);  
+      STATPRINT("cachetable hit", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_miss);  
+      STATPRINT("cachetable miss", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_wait_reading);  
+      STATPRINT("cachetable wait reading", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_wait_writing);  
+      STATPRINT("cachetable wait writing", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_size_current);  
+      STATPRINT("cachetable size_current", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_size_limit);  
+      STATPRINT("cachetable size_limit", buf);
+      sprintf(buf, "%" PRIu64, engstat.cachetable_size_writing);  
+      STATPRINT("cachetable size_writing", buf);
+
+      sprintf(buf, "%" PRIu32, engstat.checkpoint_period);
+      STATPRINT("Checkpoint period", buf);
+      sprintf(buf, "%" PRIu32, engstat.checkpoint_footprint);
+      STATPRINT("Checkpoint status code (0 = idle)", buf);
     }
     TOKUDB_DBUG_RETURN(error);
 }
