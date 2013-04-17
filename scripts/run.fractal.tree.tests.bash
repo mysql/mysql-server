@@ -304,6 +304,7 @@ BEGIN {
     printit=0
 }
 /[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
+/Memory check project/ { printit=0 }
 /^   Site:/ { printit=0 }
 {
     if (printit) {
