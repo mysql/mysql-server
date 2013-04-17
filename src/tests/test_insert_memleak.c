@@ -15,14 +15,17 @@ static void
 test_insert (int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test.insert.brt";
+    const char * const fname = "test.insert.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -39,8 +42,8 @@ test_insert (int n, int dup_mode) {
         assert(r == 0);
     } 
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

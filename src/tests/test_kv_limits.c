@@ -18,17 +18,20 @@ static void
 test_key_size_limit (int dup_mode) {
     if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test.rand.insert.brt";
+    const char * const fname = "test.rand.insert.brt";
     int r;
 
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -66,25 +69,28 @@ test_key_size_limit (int dup_mode) {
     assert(bigest > 0);
     if (verbose) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 static void
 test_data_size_limit (int dup_mode) {
     if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test.rand.insert.brt";
+    const char * const fname = "test.rand.insert.brt";
     int r;
 
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -121,8 +127,8 @@ test_data_size_limit (int dup_mode) {
     toku_free(v);
     if (verbose && bigest > 0) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

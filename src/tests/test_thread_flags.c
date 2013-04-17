@@ -44,25 +44,36 @@ db_get (DB *db, int k, int expectv, int val_flags) {
 static void
 test_db_create (void) {
     int r;
-    DB *db;
 
     unlink(dbfile);
-    r = db_create(&db, 0, 0); assert(r == 0);
+
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
     r = db_get(db, htonl(1), 1, 0); assert(r == 0);
     r = db_get(db, htonl(1), 1, DB_DBT_USERMEM); assert(r == 0);
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 static void
 test_db_thread (void) {
     int r;
-    DB *db;
 
     unlink(dbfile);
-    r = db_create(&db, 0, 0); assert(r == 0);
+
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
@@ -71,6 +82,7 @@ test_db_thread (void) {
     r = db_get(db, htonl(1), 1, DB_DBT_REALLOC); assert(r == 0);
     r = db_get(db, htonl(1), 1, DB_DBT_USERMEM); assert(r == 0);
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

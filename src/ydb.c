@@ -3888,25 +3888,12 @@ static int locked_db_flatten(DB *db, DB_TXN *txn) {
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
-    if (flags) return EINVAL;
+    if (flags || env == NULL) 
+        return EINVAL;
 
-    /* if the env already exists then add a ref to it
-       otherwise create one */
-    if (env) {
-        if (!env_opened(env))
-            return EINVAL;
-        env_add_ref(env);
-    } else {
-        r = toku_env_create(&env, 0);
-        if (r != 0)
-            return r;
-        r = toku_env_open(env, ".", DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL, 0);
-        if (r != 0) {
-            env_unref(env);
-            return r;
-        }
-        assert(env_opened(env));
-    }
+    if (!env_opened(env))
+        return EINVAL;
+    env_add_ref(env);
     
     DB *MALLOC(result);
     if (result == 0) {

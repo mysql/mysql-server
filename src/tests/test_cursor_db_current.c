@@ -23,13 +23,16 @@ static void
 test_cursor_current (void) {
     if (verbose) printf("test_cursor_current\n");
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test.cursor.current.brt";
+    const char * const fname = "test.cursor.current.brt";
     int r;
 
-    r = db_create(&db, null_env, 0); CKERR(r);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
     db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
@@ -84,6 +87,7 @@ test_cursor_current (void) {
     r = cursor->c_close(cursor); CKERR(r);
 
     r = db->close(db, 0); CKERR(r);
+    r = env->close(env, 0); CKERR(r);
 }
 
 static void
@@ -97,19 +101,23 @@ static void
 test_reopen (void) {
     if (verbose) printf("test_reopen\n");
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test.cursor.current.brt";
+    const char * const fname = "test.cursor.current.brt";
     int r;
 
-    r = db_create(&db, null_env, 0); CKERR(r);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
     db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); CKERR(r);
 
     db_get(db, 1, 1, DB_NOTFOUND);
 
     r = db->close(db, 0); CKERR(r);
+    r = env->close(env, 0); CKERR(r);
 }
 
 int

@@ -48,6 +48,8 @@ setup (u_int32_t flags) {
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
+    r = db_env_create(&dbenv, 0); assert(r == 0);
+    r = dbenv->open(dbenv, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
     if (flags) {
@@ -60,6 +62,7 @@ static void
 close_dbs (void) {
     int r;
     r = dbp->close(dbp, 0);                             CKERR(r);
+    r = dbenv->close(dbenv, 0);                         CKERR(r);
 }
 
 static void

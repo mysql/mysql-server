@@ -56,10 +56,8 @@ static void
 test_reverse_compare (int n, int dup_flags) {
     if (verbose) printf("test_reverse_compare:%d %d\n", n, dup_flags);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/reverse.compare.db";
+    const char * const fname = "reverse.compare.db";
 
     int r;
     int i;
@@ -68,7 +66,12 @@ test_reverse_compare (int n, int dup_flags) {
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     CKERR(r);
     r = db->set_flags(db, dup_flags);
     CKERR(r);
@@ -96,7 +99,7 @@ test_reverse_compare (int n, int dup_flags) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     CKERR(r);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     CKERR(r);
     r = db->set_flags(db, dup_flags);
     CKERR(r);
@@ -133,8 +136,8 @@ test_reverse_compare (int n, int dup_flags) {
     r = cursor->c_close(cursor);
     CKERR(r);
 
-    r = db->close(db, 0);
-    CKERR(r);
+    r = db->close(db, 0); CKERR(r);
+    r = env->close(env, 0); CKERR(r);
 }
 
 int
