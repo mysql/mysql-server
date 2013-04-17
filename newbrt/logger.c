@@ -85,9 +85,12 @@ static int open_logdir(TOKULOGGER logger, const char *directory) {
         if (cwd == NULL)
             return -1;
         char *new_log_dir = toku_malloc(strlen(cwd) + strlen(directory) + 2);
-        if (new_log_dir == NULL)
+        if (new_log_dir == NULL) {
+            toku_free(cwd);
             return -2;
+        }
         sprintf(new_log_dir, "%s/%s", cwd, directory);
+        toku_free(cwd);
         logger->directory = new_log_dir;
     }
     if (logger->directory==0) return errno;
