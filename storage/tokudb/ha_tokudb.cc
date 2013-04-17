@@ -3605,13 +3605,14 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 //
 void ha_tokudb::set_main_dict_put_flags(
     THD* thd, 
-    u_int32_t* put_flags, 
-    bool no_overwrite_no_error_allowed
+    u_int32_t* put_flags
     ) 
 {
     u_int32_t old_prelock_flags = (*put_flags)&(DB_PRELOCKED_FILE_READ);
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
+    bool using_ignore_flag_opt = do_ignore_flag_optimization(
+            thd, table, share->replace_into_fast);
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
@@ -3623,31 +3624,28 @@ void ha_tokudb::set_main_dict_put_flags(
     // to do. We cannot do this if otherwise, because then we lose
     // consistency between indexes
     //
-    if (hidden_primary_key){
-        *put_flags = old_prelock_flags;
-    }
-    else if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && 
-        !is_replace_into(thd) && 
-        !is_insert_ignore(thd)
-        ) 
+    if (hidden_primary_key) 
     {
         *put_flags = old_prelock_flags;
     }
-    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_replace_into(thd)  && !in_hot_index
-        ) 
+    else if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)
+            && !is_replace_into(thd) && !is_insert_ignore(thd))
     {
         *put_flags = old_prelock_flags;
     }
-    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
-        is_insert_ignore(thd) && no_overwrite_no_error_allowed && !in_hot_index
-        ) 
+    else if (using_ignore_flag_opt && is_replace_into(thd) 
+            && !in_hot_index)
     {
-        *put_flags = DB_NOOVERWRITE_NO_ERROR|old_prelock_flags;
+        *put_flags = old_prelock_flags;
+    }
+    else if (using_ignore_flag_opt && is_insert_ignore(thd) 
+            && !in_hot_index)
+    {
+        *put_flags = DB_NOOVERWRITE_NO_ERROR | old_prelock_flags;
     }
     else 
     {
-        *put_flags = DB_NOOVERWRITE|old_prelock_flags;
+        *put_flags = DB_NOOVERWRITE | old_prelock_flags;
     }
 }
 
@@ -3659,7 +3657,7 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
 
     assert(curr_num_DBs == 1);
     
-    set_main_dict_put_flags(thd, &put_flags, true);
+    set_main_dict_put_flags(thd, &put_flags);
 
     error = share->file->put(
         share->file, 
@@ -3681,22 +3679,56 @@ cleanup:
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
+    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
+    uint32_t i, flags = mult_put_flags[primary_key];
 
-    set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
-    
-    error = db_env->put_multiple(
-        db_env, 
-        share->key_file[primary_key], 
-        txn, 
-        pk_key, 
-        pk_val,
-        curr_num_DBs, 
-        share->key_file, 
-        mult_key_dbt,
-        mult_rec_dbt,
-        mult_put_flags
-        );
+    // the insert ignore optimization uses DB_NOOVERWRITE_NO_ERROR, 
+    // which is not allowed with env->put_multiple. 
+    // we have to insert the rows one by one in this case.
+    if (flags & DB_NOOVERWRITE_NO_ERROR) {
+        DB * src_db = share->key_file[primary_key];
+        for (i = 0; i < curr_num_DBs; i++) {
+            DB * db = share->key_file[i];
+            if (i == primary_key) {
+                // if it's the primary key, insert the rows
+                // as they are.
+                error = db->put(db, txn, pk_key, pk_val, flags);
+            } else {
+                // generate a row for secondary keys.
+                // use our multi put key/rec buffers
+                // just as the ydb layer would have in
+                // env->put_multiple(), except that
+                // we will just do a put() right away.
+                error = tokudb_generate_row(db, src_db,
+                        &mult_key_dbt[i], &mult_rec_dbt[i], 
+                        pk_key, pk_val);
+                if (error != 0) {
+                    goto out;
+                }
+                error = db->put(db, txn, &mult_key_dbt[i], 
+                        &mult_rec_dbt[i], flags);
+            }
+            if (error != 0) {
+                goto out;
+            }
+        }
+    } else {
+        // not insert ignore, so we can use put multiple
+        error = db_env->put_multiple(
+            db_env, 
+            share->key_file[primary_key], 
+            txn, 
+            pk_key, 
+            pk_val,
+            curr_num_DBs, 
+            share->key_file, 
+            mult_key_dbt,
+            mult_rec_dbt,
+            mult_put_flags
+            );
+    }
 
+out:
     //
     // We break if we hit an error, unless it is a dup key error
     // and MySQL told us to ignore duplicate key errors
@@ -4009,7 +4041,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     error = pack_old_row_for_update(&old_prim_row, old_row, primary_key);
     if (error) { goto cleanup; }
 
-    set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
+    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
 
     error = db_env->update_multiple(
         db_env, 
