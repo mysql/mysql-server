@@ -196,6 +196,9 @@ endif
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
 	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+TDBDUMP=$(TOKUROOT)utils/tokudb_dump_static$(BINSUF)
+TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
+
 %.recover: %.tdb$(BINSUF)
 	echo doing ./$< &&\
 	$(VGRIND) ./$<                                                                          && \
@@ -204,8 +207,8 @@ endif
 	echo doing recovery &&\
 	$(VGRIND) ../../newbrt/tdb-recover dir.$*.c.tdb.recover dir.$*.c.tdb                    && \
 	echo dump and compare &&\
-	../../utils/tokudb_dump -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
-	../../utils/tokudb_dump -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
+	$(TDBDUMP) -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
+	$(TDBDUMP) -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
 	diff -q dir.$*.c.tdb/foo.dump dir.$*.c.tdb.recover/foo.dump                                   \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
@@ -361,7 +364,7 @@ test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	(./test1426.tdb -q && \
 	 ./test1426.bdb -q && \
 	 $(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426 && \
-	 ../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
+	 $(TDBDUMP) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
