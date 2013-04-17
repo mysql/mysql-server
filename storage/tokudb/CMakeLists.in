@@ -26,4 +26,4 @@ INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 SET(TOKUDB_SOURCES hatoku_hton.cc ha_tokudb.cc hatoku_cmp.cc)
 MYSQL_STORAGE_ENGINE(TOKUDB)
 
-TARGET_LINK_LIBRARIES(ha_tokudb optimized TOKUDB_OBJ_DIR_REPLACE_ME/opt/libtokudb debug TOKUDB_OBJ_DIR_REPLACE_ME/debug/libtokudb)
+TARGET_LINK_LIBRARIES(ha_tokudb optimized TOKUDB_OBJ_DIR_REPLACE_ME/opt/ipo_libtokudb optimized TOKUDB_OBJ_DIR_REPLACE_ME/opt/libtokuportability debug TOKUDB_OBJ_DIR_REPLACE_ME/debug/static_libtokudb debug TOKUDB_OBJ_DIR_REPLACE_ME/debug/libtokuportability)
