@@ -5314,7 +5314,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     fprintf(file, "%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
         fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",
-		depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)kv_pair_key(lorange), (char*)kv_pair_key(hirange));
+		depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)(lorange ? kv_pair_key(lorange) : 0), (char*)(hirange ? kv_pair_key(hirange) : 0));
         //printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
         {
             int i;
