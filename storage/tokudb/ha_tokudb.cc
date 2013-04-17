@@ -1310,7 +1310,11 @@ DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * re
             /* Store 0 if the key part is a NULL part */
             if (record[key_part->null_offset] & key_part->null_bit) {
                 *buff++ = 0;
-                key->flags |= DB_DBT_DUPOK;
+                //
+                // fractal tree does not handle this falg at the moment
+                // so commenting out for now
+                //
+                //key->flags |= DB_DBT_DUPOK;
                 continue;
             }
             *buff++ = 1;        // Store NOT NULL marker
@@ -1359,7 +1363,11 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
             {
                 key_length -= key_part->store_length;
                 key_ptr += key_part->store_length;
-                key->flags |= DB_DBT_DUPOK;
+                //
+                // fractal tree does not handle this falg at the moment
+                // so commenting out for now
+                //
+                //key->flags |= DB_DBT_DUPOK;
                 continue;
             }
             offset = 1;         // Data is at key_ptr+1
