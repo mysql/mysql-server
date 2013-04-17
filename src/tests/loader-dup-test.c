@@ -344,16 +344,16 @@ static void do_args(int argc, char * const argv[]) {
     char *cmd = argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0], "-v")==0) {
+        if (strcmp(argv[0], "-h")==0) {
+            resultcode=0;
+	do_usage:
+	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d\n", cmd, NUM_DBS, NUM_ROWS);
+	    exit(resultcode);
+	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[0], "-h")==0) {
-	    resultcode=0;
-	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
-	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
             NUM_DBS = atoi(argv[0]);
@@ -362,11 +362,6 @@ static void do_args(int argc, char * const argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
-        } else if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
