@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <toku_pthread.h>
 #include "toku_assert.h"
 
 int toku_memory_check=0;
@@ -19,6 +20,23 @@ static realloc_fun_t t_xrealloc = 0;
 
 static MEMORY_STATUS_S status;
 
+// single-thread all access to mallocator to protect from thread-safety bugs in mallocator, currently a problem in jemalloc
+static toku_pthread_mutex_t memory_lock = PTHREAD_MUTEX_INITIALIZER;
+
+
+static void
+lock(void) {
+    int r = toku_pthread_mutex_lock(&memory_lock);
+    resource_assert_zero(r);
+}
+
+static void
+unlock(void) {
+    int r = toku_pthread_mutex_unlock(&memory_lock);
+    resource_assert_zero(r);
+}
+	
+
 void 
 toku_memory_get_status(MEMORY_STATUS s) {
     *s = status;
@@ -27,6 +45,7 @@ toku_memory_get_status(MEMORY_STATUS s) {
 
 
 void *toku_malloc(size_t size) {
+    lock();
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
       size_t used = malloc_usable_size(p);
@@ -36,6 +55,7 @@ void *toku_malloc(size_t size) {
     }
     else
       __sync_add_and_fetch(&status.malloc_fail, 1L);
+    unlock();
     return p;
 }
 
@@ -49,6 +69,7 @@ toku_calloc(size_t nmemb, size_t size) {
 
 void *
 toku_realloc(void *p, size_t size) {
+    lock();
     size_t used_orig = p ? malloc_usable_size(p) : 0;
     void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
     if (q) {
@@ -60,6 +81,7 @@ toku_realloc(void *p, size_t size) {
     }
     else
 	__sync_add_and_fetch(&status.realloc_fail, 1L);
+    unlock();
     return q;
 }
 
@@ -77,6 +99,7 @@ toku_strdup(const char *s) {
 
 void
 toku_free(void *p) {
+    lock();
     if (p) {
 	size_t used = malloc_usable_size(p);
 	__sync_add_and_fetch(&status.free_count, 1L);
@@ -86,6 +109,7 @@ toku_free(void *p) {
 	else
 	    os_free(p);
     }
+    unlock();
 }
 
 void
@@ -95,6 +119,7 @@ toku_free_n(void* p, size_t size __attribute__((unused))) {
 
 void *
 toku_xmalloc(size_t size) {
+    lock();
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
@@ -102,6 +127,7 @@ toku_xmalloc(size_t size) {
     __sync_add_and_fetch(&status.malloc_count, 1L);
     __sync_add_and_fetch(&status.requested, size);
     __sync_add_and_fetch(&status.used, used);
+    unlock();
     return p;
 }
 
@@ -115,6 +141,7 @@ toku_xcalloc(size_t nmemb, size_t size) {
 
 void *
 toku_xrealloc(void *v, size_t size) {
+    lock();
     size_t used_orig = v ? malloc_usable_size(v) : 0;
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
     if (p == 0)  // avoid function call in common case
@@ -124,6 +151,7 @@ toku_xrealloc(void *v, size_t size) {
     __sync_add_and_fetch(&status.requested, size);
     __sync_add_and_fetch(&status.used, used);
     __sync_add_and_fetch(&status.freed, used_orig);
+    unlock();
     return p;
 }
 
