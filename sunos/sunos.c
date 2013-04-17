@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -82,14 +82,17 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     return r;
 }
 
-#if defined(LOCK_EX)
-
 int
 toku_os_lock_file(char *name) {
     int r;
     int fd = open(name, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
     if (fd>=0) {
-        r = flock(fd, LOCK_EX | LOCK_NB);
+        flock_t flock;
+	memset(&flock, 0, sizeof flock);
+	flock.l_type = F_WRLCK;
+	flock.l_whence = SEEK_SET;
+	flock.l_start = flock.l_len = 0;
+        r = fcntl(fd, F_SETLK, &flock);
         if (r!=0) {
             r = errno; //Save errno from flock.
             close(fd);
@@ -102,12 +105,15 @@ toku_os_lock_file(char *name) {
 
 int
 toku_os_unlock_file(int fildes) {
-    int r = flock(fildes, LOCK_UN);
+    flock_t funlock;
+    memset(&funlock, 0, sizeof funlock);
+    funlock.l_type = F_UNLCK;
+    funlock.l_whence = SEEK_SET;
+    funlock.l_start = funlock.l_len = 0;
+    int r = fcntl(fildes, F_SETLK, &funlock);
     if (r==0) r = close(fildes);
     return r;
 }
-
-#endif
 
 int
 toku_os_mkdir(const char *pathname, mode_t mode) {
