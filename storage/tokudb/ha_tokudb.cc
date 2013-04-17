@@ -1003,7 +1003,7 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
     bzero((void *)&data, sizeof(data));
 
     if (transaction == NULL) {
-        error = db_env->txn_begin(db_env, 0, &transaction, 0);
+        error = db_env->txn_begin(db_env, 0, &transaction, DB_READ_UNCOMMITTED);
         if (error) goto cleanup;
         do_commit = true;
     }
