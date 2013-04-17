@@ -11,6 +11,7 @@ DEPEND_COMPILE += \
 # keep this line so I can have a \ on the previous line
 
 NEWBRT           = newbrt.$(AEXT)
+IPO_NEWBRT       = ipo_newbrt.$(AEXT)
 NEWBRT_BUNDLE    = newbrt.bundle
 #All executables need to statically link to newbrt
 LINK_FILES += $(NEWBRT)
@@ -80,6 +81,13 @@ NEWBRT_O_FILES = newbrt.o
 endif
 
 $(NEWBRT): $(NEWBRT_O_FILES)
+
+ipo_newbrt.obj: $(NEWBRT_BUNDLE)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
+	mv ipo_out.obj $@
+
+$(IPO_NEWBRT): ipo_newbrt.obj
+	xilib /out:$@ $^
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h log_code.c: logformat$(BINSUF)
