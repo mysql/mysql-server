@@ -157,3 +157,6 @@ if(NOT @RUN_LONG_TESTS@)
   list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE ${long_running_tests})
   list(APPEND CTEST_CUSTOM_TESTS_IGNORE ${long_running_tests})
 endif()
+
+## don't complain about warnings in xz source
+list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION "xz-4.999.9beta/src/liblzma")
