@@ -88,7 +88,8 @@ SYMBOLS   = -g3 -ggdb3
 PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
-LIBPORTABILITY   = $(TOKUROOT)lib/libtokuportability.$(AEXT)
+LIBPORTABILITY        = $(TOKUROOT)lib/libtokuportability.$(AEXT)
+LIBPORTABILITY_BUNDLE = $(TOKUROOT)lib/libtokuportability.bundle
 
 PORTABILITY_HEADERS= $(TOKUROOT)linux
 ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
@@ -326,6 +327,7 @@ endif
 
 ifeq ($(SKIP_LOCKTREERULE),)
 LOCKTREE         = $(TOKUROOT)src/lock_tree/locktree.$(AEXT)
+LOCKTREE_BUNDLE  = $(TOKUROOT)src/lock_tree/locktree.bundle
 LOCKTREE_LINEAR  = $(TOKUROOT)src/lock_tree/locktree_linear.$(AEXT)
 LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
@@ -335,6 +337,7 @@ endif
 
 ifeq ($(SKIP_RANGETREERULE),)
 RANGETREE        = $(TOKUROOT)src/range_tree/rangetree.$(AEXT)
+RANGETREE_BUNDLE = $(TOKUROOT)src/range_tree/rangetree.bundle
 RANGETREE_LINEAR = $(TOKUROOT)src/range_tree/rangetree_linear.$(AEXT)
 RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
