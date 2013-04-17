@@ -1266,12 +1266,18 @@ static int UU() update_broadcast_op(DB_TXN *txn, ARG arg, void* UU(operation_ext
     return r;
 }
 
+static int hot_progress_callback(void *UU(extra), float UU(progress)) {
+    return run_test ? 0 : 1;
+}
+
 static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
     int r;
-    for (int i = 0; i < arg->cli->num_DBs; i++) {
+    for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
-        r = db->hot_optimize(db, NULL, NULL);
-        CKERR(r);
+        r = db->hot_optimize(db, hot_progress_callback, NULL);
+        if (run_test) {
+            CKERR(r);
+        }
     }
     return 0;
 }
