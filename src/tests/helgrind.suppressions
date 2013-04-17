@@ -40,11 +40,6 @@
    fun:_ZNK4toku8locktree46unsafe_read_single_txnid_optimization_possibleEv
 }
 {
-   unsafe_read_size_evicting
-   Helgrind:Race
-   fun:_ZNK7evictor25unsafe_read_size_evictingEv
-}
-{
    unsafe_read_size_current
    Helgrind:Race
    fun:_ZNK7evictor24unsafe_read_size_currentEv
