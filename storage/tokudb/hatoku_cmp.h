@@ -22,6 +22,7 @@ typedef enum {
     toku_type_varbinary,
     toku_type_varstring,
     toku_type_blob,
+    toku_type_hpk, //for hidden primary key
     toku_type_unknown
 } TOKU_TYPE;
 
@@ -123,5 +124,13 @@ int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb);
 
 int create_toku_key_descriptor(KEY* key, uchar* buf);
 
+int create_toku_descriptor(
+    uchar* buf, 
+    bool is_first_hpk, 
+    bool is_clustering_key, 
+    KEY* first_key, 
+    bool is_second_hpk, 
+    KEY* second_key
+    );
 #endif
 

@@ -1220,58 +1220,85 @@ int create_toku_key_descriptor(KEY* key, uchar* buf) {
     return pos - buf;
 }
 
-int create_toku_descriptor(uchar* buf, bool is_first_hpk, KEY* first_key, bool is_second_hpk, KEY* second_key) {
+int create_toku_descriptor(
+    uchar* buf, 
+    bool is_first_hpk, 
+    bool is_clustering_key, 
+    KEY* first_key, 
+    bool is_second_hpk, 
+    KEY* second_key
+    ) 
+{
     uchar* pos = buf + 4;
     u_int32_t num_bytes = 0;
     u_int32_t offset = 0;
 
+    //
+    // assert that if the first key is a hpk, then it is not a clustering key
+    //
+    assert(!(is_first_hpk && is_clustering_key));
+    //
+    // assert that if it is a clustering key, then a second key exists
+    //
+    assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
+
     if (is_first_hpk) {
-        pos[0] = 1;
+        pos[0] = toku_type_hpk;
         pos++;
-        goto exit;
+    }
+    else {
+        //
+        // first key is NOT a hidden primary key, so we now pack first_key
+        //
+        num_bytes = create_toku_key_descriptor(first_key, pos);
+        pos += num_bytes;
     }
 
     //
-    // first key is NOT a hidden primary key, so we now pack first_key
+    // at this point, write the amount of data that has been written for the first 
+    // key, iff it is NOT a clustering key. If it is a clustering key, we will need to write it
+    // after we have written the second key.
     //
-    pos[0] = 0;
-    pos++;
-    num_bytes = create_toku_key_descriptor(first_key, pos);
-    pos += num_bytes;
+    if (!is_clustering_key) {
+        offset = pos - buf;
+        buf[0] = (uchar)(offset & 255);
+        buf[1] = (uchar)((offset >> 8) & 255);
+        buf[2] = (uchar)((offset >> 16) & 255);
+        buf[3] = (uchar)((offset >> 24) & 255);
+    }
 
     //
     // if we do not have a second key, we can jump to exit right now
     // we do not have a second key if it is not a hidden primary key
     // and if second_key is NULL
     //
-    if (!is_second_hpk && (second_key == NULL) ) {
+    if (is_first_hpk || (!is_second_hpk && (second_key == NULL)) ) {
         goto exit;
     }
-    //
-    // at this point, we have a second key, so we need to write an offset
-    // into the first four bytes
-    //
-    offset = pos - buf;
-    buf[0] = (uchar)(offset & 255);
-    buf[1] = (uchar)((offset >> 8) & 255);
-    buf[2] = (uchar)((offset >> 16) & 255);
-    buf[3] = (uchar)((offset >> 24) & 255);
 
     //
     // if we have a second key, and it is an hpk, we need to pack it, and
     // write in the offset to this position in the first four bytes
     //
     if (is_second_hpk) {
-        pos[0] = 1;
+        pos[0] = toku_type_hpk;
         pos++;
-        goto exit;
     }
-
-    pos[0] = 0;
-    pos++;
-    num_bytes = create_toku_key_descriptor(second_key, pos);
-    pos += num_bytes;
+    else {
+        //
+        // second key is NOT a hidden primary key, so we now pack second_key
+        //
+        num_bytes = create_toku_key_descriptor(second_key, pos);
+        pos += num_bytes;
+    }
     
+    if (is_clustering_key) {
+        offset = pos - buf;
+        buf[0] = (uchar)(offset & 255);
+        buf[1] = (uchar)((offset >> 8) & 255);
+        buf[2] = (uchar)((offset >> 16) & 255);
+        buf[3] = (uchar)((offset >> 24) & 255);
+    }
     
 exit:
     return pos - buf;
