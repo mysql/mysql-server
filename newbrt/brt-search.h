@@ -26,7 +26,7 @@ typedef struct brt_search {
 } brt_search_t;
 
 /* initialize the search compare object */
-static inline brt_search_t *brt_search_init(brt_search_t *so, brt_search_compare_func_t compare, int direction, DBT *k, DBT *v, void *context) {
+static inline brt_search_t *brt_search_init(brt_search_t *so, brt_search_compare_func_t compare, enum brt_search_direction_e direction, DBT *k, DBT *v, void *context) {
     so->compare = compare; so->direction = direction; so->k = k; so->v = v; so->context = context;
     return so;
 }

@@ -38,12 +38,12 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     if (offset + size > mp->size) {
         vp = 0;
     } else {
-        vp = mp->base + offset;
+        vp = (char *)mp->base + offset;
         mp->free_offset = offset + size;
     }
     assert(mp->free_offset <= mp->size);
     assert(((long)vp & (alignment-1)) == 0);
-    assert(vp == 0 || (mp->base <= vp && vp + size <= mp->base + mp->size)); 
+    assert(vp == 0 || toku_mempool_inrange(mp, vp, size));
     //printf("mempool returning %p\n", vp);
     return vp;
 }

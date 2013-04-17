@@ -45,7 +45,7 @@ void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size);
 
 /* verify that a memory range is contained within a mempool */
 static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size) {
-  return (mp->base <= vp) && (vp + size <= mp->base + mp->size);
+    return (mp->base <= vp) && ((char *)vp + size <= (char *)mp->base + mp->size);
 }
 
 #endif

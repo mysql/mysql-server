@@ -1855,10 +1855,8 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 
     /* find all children that need a copy of the command */
     int sendchild[TREE_FANOUT], delidx = 0;
-    inline void sendchild_append(int i) {
-        if (delidx == 0 || sendchild[delidx-1] != i) 
-            sendchild[delidx++] = i;
-    }
+#define sendchild_append(i) \
+        if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
     int i;
     for (i = 0; i < node->u.n.n_children-1; i++) {
         int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
