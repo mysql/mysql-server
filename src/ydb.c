@@ -4630,6 +4630,9 @@ update_single(
     lock_flags = get_prelocked_flags(flags);
     remaining_flags = flags & ~lock_flags;
 
+    r = toku_grab_read_lock_on_directory(db, txn);
+    if (r != 0) goto cleanup;
+
     BOOL key_eq = dbt_cmp(old_key, new_key) == 0;
     if (!key_eq) {
         //Check overwrite constraints only in the case where 
