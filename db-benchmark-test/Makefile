@@ -53,9 +53,9 @@ check-default: $(TARGET_TDB)
 check-x: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 
-# Warning, this cannot actually run in parallel with the other tests since it uses the same env
+# check-scanrace: VGRIND=tcheck_cl -w 140 -s 4 -p nothreads,delay=2,stall=900,noverbose
 check-scanrace: $(SCANRACE_TDB) $(TARGET_TDB)
-	./$(TARGET_TDB) --env scanrace.tokudb 1
+	./$(TARGET_TDB) --env scanrace.tokudb --periter 10000 --pagesize 4096 1
 	$(VGRIND) ./$(SCANRACE_TDB) --env scanrace.tokudb $(SUMMARIZE_CMD)
 
 # A fast transaction test that detects #455.
