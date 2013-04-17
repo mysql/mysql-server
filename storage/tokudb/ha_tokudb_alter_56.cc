@@ -24,7 +24,8 @@ public:
         compression_changed = false;
         table_kc_info = NULL;
         altered_table_kc_info = NULL;
-        change_column_update_needed = false;
+        expand_varchar_update_needed = false;
+        expand_fixed_update_needed = false;
     }
     ~tokudb_alter_ctx() {
         if (altered_table_kc_info)
@@ -38,7 +39,8 @@ public:
     bool drop_index_changed;
     bool compression_changed;
     enum toku_compression_method orig_compression_method;
-    bool change_column_update_needed;
+    bool expand_varchar_update_needed;
+    bool expand_fixed_update_needed;
     Dynamic_array<uint> changed_fields;
     KEY_AND_COL_INFO *table_kc_info;
     KEY_AND_COL_INFO *altered_table_kc_info;
@@ -139,7 +141,9 @@ fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alt
         }
     }
 
-    // try to change ALTER_COLUMN_TYPE to ALTER_COLUMN_EQUAL_PACK_LENGTH
+    // Mysql thinks that varchar(100) is a different type than varchar(300) due to the size of the length field.
+    // Therefore, it encodes an alter varchar expansion as a ALTER_COLUMN_TYPE rather than an ALTER_COLUMN_EQUAL_PACK_LENGTH.
+    // Try to change ALTER_COLUMN_TYPE to ALTER_COLUMN_EQUAL_PACK_LENGTH
     if (handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) {
         bool change_it = false;
         Dynamic_array<uint> changed_fields;
@@ -388,11 +392,11 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
             ctx->compression_changed = true;
         }
     }
-    if (error == 0 && (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)) {
-        if (ctx->change_column_update_needed) {
-            error = alter_table_change_varchar_column(altered_table, ha_alter_info);
-        }
-    }
+    if (error == 0 && ctx->expand_varchar_update_needed)
+        error = alter_table_expand_varchar_columns(altered_table, ha_alter_info);
+
+    if (error == 0 && ctx->expand_fixed_update_needed)
+        error = alter_table_expand_all_fixed_columns(altered_table, ha_alter_info);
 
     bool result = false; // success
     if (error) {
@@ -598,47 +602,6 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     return error;
 }
 
-// Handle change column varchar expansion.  For all clustered keys, broadcast an update message to readjust the varchar offsets.
-int
-ha_tokudb::alter_table_change_varchar_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    int error = 0;
-    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
-
-    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
-    for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
-            uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
-            uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
-
-            // make the expand varchar offsets message
-            DBT expand = {};
-            expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
-            expand.data = my_malloc(expand.size, MYF(MY_WME));
-            if (!expand.data) {
-                error = ENOMEM;
-                break;
-            }
-            uchar *expand_ptr = (uchar *)expand.data;
-            expand_ptr[0] = EXPAND_VARCHAR_OFFSETS;
-            expand_ptr += sizeof (uchar);
-        
-            memcpy(expand_ptr, &offset_start, sizeof offset_start);
-            expand_ptr += sizeof offset_start;
-
-            memcpy(expand_ptr, &offset_end, sizeof offset_end);
-            expand_ptr += sizeof offset_end;
-
-            // and broadcast it into the tree
-            error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
-            my_free(expand.data);
-            if (error)
-                break;
-        }
-    }
-
-    return error;
-}
-
 // Commit or abort the alter operations.
 // If commit then write the new frm data to the status using the alter transaction.
 // If abort then abort the alter transaction and try to rollback the non-transactional changes.
@@ -707,17 +670,49 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
 int
 ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info) {
     int error = allocate_key_and_col_info(altered_table->s, altered_kc_info);
-    if (error) {
-        return error;
+    if (error == 0)
+        error = initialize_key_and_col_info(altered_table->s, altered_table, altered_kc_info, hidden_primary_key, primary_key);
+    return error;
+}
+
+// Handle change column varchar expansion.  For all clustered keys, broadcast an update message to readjust the varchar offsets.
+int
+ha_tokudb::alter_table_expand_varchar_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+    int error = 0;
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+
+    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    for (uint32_t i = 0; i < curr_num_DBs; i++) {
+        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+            uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
+            uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
+
+            // make the expand varchar offsets message
+            DBT expand = {};
+            expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
+            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            if (!expand.data) {
+                error = ENOMEM;
+                break;
+            }
+            uchar *expand_ptr = (uchar *)expand.data;
+            expand_ptr[0] = TOKU_OP_EXPAND_VARCHAR_OFFSETS;
+            expand_ptr += sizeof (uchar);
+        
+            memcpy(expand_ptr, &offset_start, sizeof offset_start);
+            expand_ptr += sizeof offset_start;
+
+            memcpy(expand_ptr, &offset_end, sizeof offset_end);
+            expand_ptr += sizeof offset_end;
+
+            // and broadcast it into the tree
+            error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
+            my_free(expand.data);
+            if (error)
+                break;
+        }
     }
 
-    error = initialize_key_and_col_info(
-                                        altered_table->s, 
-                                        altered_table,
-                                        altered_kc_info,
-                                        hidden_primary_key,
-                                        primary_key
-                                        );
     return error;
 }
 
@@ -760,7 +755,7 @@ change_varchar_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inp
         if (ctx->table_kc_info->num_offset_bytes > ctx->altered_table_kc_info->num_offset_bytes)
             return false; // something is wrong
         if (ctx->table_kc_info->num_offset_bytes < ctx->altered_table_kc_info->num_offset_bytes)
-            ctx->change_column_update_needed = true; // sum of varchar lengths changed from 1 to 2
+            ctx->expand_varchar_update_needed = true; // sum of varchar lengths changed from 1 to 2
     }
     return true;
 }
@@ -788,6 +783,134 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
         return false;
 }
 
+int
+ha_tokudb::alter_table_expand_all_fixed_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+    int error = 0;
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+    assert(ctx->changed_fields.elements() <= 1);
+    for (int ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
+        uint expand_field_num = ctx->changed_fields.at(ai);
+        error = alter_table_expand_fixed_column(altered_table, ha_alter_info, expand_field_num);
+    }
+
+    return error;
+}
+
+static uint32_t
+field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int expand_field_num) {
+    uint32_t offset = null_bytes;
+    for (int i = 0; i < expand_field_num; i++)
+        offset += kc_info->field_lengths[i];
+    return offset;
+}
+
+static bool
+is_unsigned(Field *f) {
+    switch (f->key_type()) {
+    case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_USHORT_INT:
+    case HA_KEYTYPE_UINT24:
+    case HA_KEYTYPE_ULONG_INT:
+    case HA_KEYTYPE_ULONGLONG:
+        return true;
+    case HA_KEYTYPE_INT8:
+    case HA_KEYTYPE_SHORT_INT:
+    case HA_KEYTYPE_INT24:
+    case HA_KEYTYPE_LONG_INT:
+    case HA_KEYTYPE_LONGLONG:
+        return false;
+    default:
+        assert(0);
+    }
+}
+
+// Send an expand message into all clustered indexes including the primary
+int
+ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num) {
+    int error = 0;
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+
+    Field *old_field = table->field[expand_field_num];
+    TOKU_TYPE old_field_type = mysql_to_toku_type(old_field);
+    Field *new_field = altered_table->field[expand_field_num];
+    TOKU_TYPE new_field_type = mysql_to_toku_type(new_field);
+    assert(old_field_type == new_field_type);
+
+    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    for (uint32_t i = 0; i < curr_num_DBs; i++) {
+        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+            uchar operation;
+
+            // make the expand int field message
+            DBT expand = {};
+            expand.size = 1+4+4+4+4;
+            switch (old_field_type) {
+            case toku_type_int:
+                operation = TOKU_OP_EXPAND_INT_TYPE;
+                expand.size += 1;
+                break;
+            case toku_type_fixstring:
+                operation = TOKU_OP_EXPAND_CHAR_TYPE;
+                break;
+            case toku_type_fixbinary:
+                operation = TOKU_OP_EXPAND_BINARY_TYPE;
+                break;
+            default:
+                assert(0);
+            }
+            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            if (!expand.data) {
+                error = ENOMEM;
+                break;
+            }
+            uchar *expand_ptr = (uchar *)expand.data;
+            expand_ptr[0] = operation;
+            expand_ptr += sizeof (uchar);
+
+            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, expand_field_num);
+            memcpy(expand_ptr, &old_offset, sizeof old_offset);
+            expand_ptr += sizeof old_offset;
+
+            uint32_t old_length = ctx->table_kc_info->field_lengths[expand_field_num];
+            assert(old_length == old_field->pack_length());
+            memcpy(expand_ptr, &old_length, sizeof old_length);
+            expand_ptr += sizeof old_length;
+
+            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, expand_field_num);
+            memcpy(expand_ptr, &new_offset, sizeof new_offset);
+            expand_ptr += sizeof new_offset;
+
+            uint32_t new_length = ctx->altered_table_kc_info->field_lengths[expand_field_num];
+            assert(new_length == new_field->pack_length());
+            memcpy(expand_ptr, &new_length, sizeof new_length);
+            expand_ptr += sizeof new_length;
+
+            switch (operation) {
+            case TOKU_OP_EXPAND_INT_TYPE:
+                assert(is_unsigned(old_field) == is_unsigned(new_field));
+                expand_ptr[0] = is_unsigned(old_field);
+                expand_ptr += sizeof (uchar);
+                break;
+            case TOKU_OP_EXPAND_CHAR_TYPE:
+            case TOKU_OP_EXPAND_BINARY_TYPE:
+                break;
+            default:
+                assert(0);
+            }
+
+            assert(expand_ptr == (uchar *)expand.data + expand.size);
+
+            // and broadcast it into the tree
+            error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
+            my_free(expand.data);
+            if (error)
+                break;
+        }
+    }
+
+    return error;
+}
+
 // Return true if the MySQL type is an int type
 static bool
 is_int_type(enum_field_types t) {
@@ -803,9 +926,9 @@ is_int_type(enum_field_types t) {
     }
 }
 
-// Return true if two int type fields are be changed inplace
+// Return true if two fixed length fields can be changed inplace
 static bool
-change_type_int_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, bool &update_needed) {
+change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
     // no change in size is supported
     if (old_field->pack_length() == new_field->pack_length())
         return true;
@@ -814,18 +937,26 @@ change_type_int_is_supported(TABLE *table, TABLE *altered_table, Field *old_fiel
         return false;
     if (field_in_key(table, old_field))
         return false;
-    update_needed = true;
+    ctx->expand_fixed_update_needed = true;
     return true;
 }
 
-// Return true if a field type can be changed inplace
+// Return true if two field types can be changed inplace
 static bool
-change_type_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, bool &update_needed) {
+change_type_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
     enum_field_types old_type = old_field->real_type();
     enum_field_types new_type = new_field->real_type();
-    if (is_int_type(old_type) && is_int_type(new_type))
-        return change_type_int_is_supported(table, altered_table, old_field, new_field, update_needed);
-    else
+    if (is_int_type(old_type)) {
+        if (is_int_type(new_type) && is_unsigned(old_field) == is_unsigned(new_field))
+            return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
+        else
+            return false;
+    } else if (old_type == MYSQL_TYPE_STRING) {
+        if (new_type == MYSQL_TYPE_STRING && old_field->binary() == new_field->binary())
+            return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
+        else
+            return false;
+    } else
         return false;
 }
 
@@ -838,11 +969,8 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        bool update_needed = false;
-        if (!change_type_is_supported(table, altered_table, old_field, new_field, update_needed))
+        if (!change_type_is_supported(table, altered_table, old_field, new_field, ctx))
             return false;            
-        if (update_needed)
-            return false; // updates not yet supported
     }
     return true;
 }
