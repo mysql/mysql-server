@@ -2416,6 +2416,9 @@ static int loader_do_i (BRTLOADER bl,
 	if (fd < 0) {
             r = errno; goto error;
         }
+        
+        r = toku_fsync_directory(new_fname);
+        if (r != 0) goto error;
 
 	// This structure must stay live until the join below.
         struct fractal_thread_args fta = { bl,

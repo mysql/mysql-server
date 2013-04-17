@@ -145,3 +145,7 @@ toku_fsync_dirfd_without_accounting(DIR *dirp) {
     return 0;
 }
 
+int
+toku_fsync_directory(const char *UU(fname)) {
+    return 0; // toku_fsync_dirfd
+}

@@ -170,6 +170,8 @@ int toku_os_fclose(FILE * stream);
 int toku_file_fsync_without_accounting(int fd);
 int toku_file_fsync(int fd);
 
+    int toku_fsync_directory(const char *fname);
+
 // get the number of fsync calls and the fsync times (total)
 void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
 
