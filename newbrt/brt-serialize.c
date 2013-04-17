@@ -383,6 +383,7 @@ serialize_brtnode_info_size(BRTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
+    //    retval += 4; // optimized_for_upgrade      TODO 3982
     retval += (3*8+1)*node->n_children; // subtree estimates for each child
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
@@ -408,6 +409,7 @@ static void serialize_brtnode_info(BRTNODE node,
     wbuf_nocrc_uint(&wb, node->nodesize);
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
+    // TODO 3982   wbuf_nocrc_int (&wb, node->optimized_for_upgrade);    
     // subtree estimates of each child
     for (int i = 0; i < node->n_children; i++) {
         wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).nkeys);
@@ -1105,6 +1107,7 @@ deserialize_brtnode_info(
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
+    //    node->optimized_for_upgrade = rbuf_int(&rb);          TODO 3982
 
     // now create the basement nodes or childinfos, depending on whether this is a
     // leaf node or internal node    
@@ -1602,6 +1605,7 @@ serialize_brt_header_min_size (u_int32_t version) {
     switch(version) {
         case BRT_LAYOUT_VERSION_15:
             size += 4;  // basement node size
+            size += 8;  // num_blocks_to_upgrade_14 (previously num_blocks_to_upgrade, now one int each for upgrade from 13, 14
         case BRT_LAYOUT_VERSION_14:
             size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_13:
@@ -1663,7 +1667,8 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_int(wbuf, h->build_id_original);
     wbuf_ulonglong(wbuf, h->time_of_creation);
     wbuf_ulonglong(wbuf, h->time_of_last_modification);
-    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade);
+    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade_13);
+    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade_14);
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
@@ -1925,7 +1930,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->build_id_original = rbuf_int(&rc);
     h->time_of_creation  = rbuf_ulonglong(&rc);
     h->time_of_last_modification = rbuf_ulonglong(&rc);
-    h->num_blocks_to_upgrade   = rbuf_ulonglong(&rc);
+    h->num_blocks_to_upgrade_13  = rbuf_ulonglong(&rc);
+    h->num_blocks_to_upgrade_14  = rbuf_ulonglong(&rc);
 
     if (h->layout_version >= BRT_LAYOUT_VERSION_14) { 
         // at this layer, this new field is the only difference between versions 13 and 14
@@ -1991,7 +1997,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
                 h->upgrade_brt_performed = FALSE;
                 if (upgrade) {
                     toku_brtheader_lock(h);
-                    h->num_blocks_to_upgrade = toku_block_get_blocks_in_use_unlocked(h->blocktable); //Total number of blocks
+                    h->num_blocks_to_upgrade_13 = toku_block_get_blocks_in_use_unlocked(h->blocktable); //Total number of blocks
 		    if (version == BRT_LAYOUT_VERSION_13) {
 			// write upgraded descriptor to disk if descriptor upgraded from version 13
 			rval = write_descriptor_to_disk_unlocked(h, &(h->descriptor), fd);
