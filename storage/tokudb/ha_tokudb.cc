@@ -1273,6 +1273,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     doing_bulk_fetch = false;
     prelocked_left_range_size = 0;
     prelocked_right_range_size = 0;
+    tokudb_active_index = MAX_KEY;
 }
 
 ha_tokudb::~ha_tokudb() {
@@ -4293,8 +4294,8 @@ void ha_tokudb::column_bitmaps_signal() {
     //
     // if we have max number of indexes, then MAX_KEY == primary_key
     //
-    if (active_index != MAX_KEY || active_index == primary_key) {
-        set_query_columns(active_index);
+    if (tokudb_active_index != MAX_KEY || tokudb_active_index == primary_key) {
+        set_query_columns(tokudb_active_index);
     }
 }
 
@@ -4330,9 +4331,9 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     DBT start_key, end_key;
     THD* thd = ha_thd();
     HANDLE_INVALID_CURSOR();
-    pack_key(&start_key, active_index, prelocked_left_range, key, key_len, COL_NEG_INF);
+    pack_key(&start_key, tokudb_active_index, prelocked_left_range, key, key_len, COL_NEG_INF);
     prelocked_left_range_size = start_key.size;
-    pack_key(&end_key, active_index, prelocked_right_range, key, key_len, COL_POS_INF);
+    pack_key(&end_key, tokudb_active_index, prelocked_right_range, key, key_len, COL_POS_INF);
     prelocked_right_range_size = end_key.size;
 
     error = cursor->c_pre_acquire_range_lock(
@@ -4400,9 +4401,17 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
         assert(r==0);
     }
     active_index = keynr;
+
+    if (active_index < MAX_KEY) {
+        DBUG_ASSERT(keynr <= table->s->keys);
+    } else {
+        DBUG_ASSERT(active_index == MAX_KEY);
+        keynr = primary_key;
+    }
+    tokudb_active_index = keynr;
+
     last_cursor_error = 0;
     range_lock_grabbed = false;
-    DBUG_ASSERT(keynr <= table->s->keys);
     DBUG_ASSERT(share->key_file[keynr]);
     cursor_flags = get_cursor_isolation_flags(lock.type, thd);
     if (use_write_locks) {
@@ -4454,7 +4463,7 @@ int ha_tokudb::index_end() {
         cursor = NULL;
         last_cursor_error = 0;
     }
-    active_index = MAX_KEY;
+    active_index = tokudb_active_index = MAX_KEY;
 
     //
     // reset query variables
@@ -4664,9 +4673,9 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     //
     // now do the comparison
     //
-    pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_ZERO);
-    create_dbt_key_from_table(&found_key,active_index,key_buff3,buf,&has_null);
-    cmp = tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &curr_key, &found_key);
+    pack_key(&curr_key, tokudb_active_index, key_buff2, key, keylen, COL_ZERO);
+    create_dbt_key_from_table(&found_key,tokudb_active_index,key_buff3,buf,&has_null);
+    cmp = tokudb_prefix_cmp_dbt_key(share->key_file[tokudb_active_index], &curr_key, &found_key);
     if (cmp) {
         error = HA_ERR_END_OF_FILE; 
     }
@@ -4713,7 +4722,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
 
     info.ha = this;
     info.buf = buf;
-    info.keynr = active_index;
+    info.keynr = tokudb_active_index;
 
     ir_info.smart_dbt_info = info;
     ir_info.cmp = 0;
@@ -4721,7 +4730,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     flags = SET_PRELOCK_FLAG(0);
     switch (find_flag) {
     case HA_READ_KEY_EXACT: /* Find first record else error */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
 
         error = cursor->c_getf_set_range(cursor, flags,
@@ -4731,17 +4740,17 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
@@ -4749,7 +4758,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     // This case does not seem to ever be used, it is ok for it to be slow
     //
     case HA_READ_KEY_OR_PREV: /* Record or previous */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
@@ -4761,12 +4770,12 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
                     &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_PREFIX_LAST:
-        pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
+        pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
         ir_info.orig_key = &lookup_key;
         error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (ir_info.cmp) {
@@ -4778,8 +4787,8 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         error = HA_ERR_UNSUPPORTED;
         break;
     }
-    error = handle_cursor_error(error,HA_ERR_KEY_NOT_FOUND,active_index);
-    if (!error && !key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) {
+    error = handle_cursor_error(error,HA_ERR_KEY_NOT_FOUND,tokudb_active_index);
+    if (!error && !key_read && tokudb_active_index != primary_key && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING)) {
         error = read_full_row(buf);
     }
     
@@ -4813,8 +4822,8 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     // if this is a covering index, this is all we need
     if (this->key_read) {
         assert(!need_val);
-        extract_hidden_primary_key(active_index, &curr_key);
-        read_key_only(buf, active_index, &curr_key);
+        extract_hidden_primary_key(tokudb_active_index, &curr_key);
+        read_key_only(buf, tokudb_active_index, &curr_key);
         error = 0;
     }
     // we need to get more data
@@ -4827,11 +4836,11 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
         if (!need_val) {
             curr_val.data = curr_val_buff;
             curr_val.size = val_size;
-            extract_hidden_primary_key(active_index, &curr_key);
-            error = read_primary_key( buf, active_index, &curr_val, &curr_key);
+            extract_hidden_primary_key(tokudb_active_index, &curr_key);
+            error = read_primary_key( buf, tokudb_active_index, &curr_val, &curr_key);
         }
         else {
-            extract_hidden_primary_key(active_index, &curr_key);
+            extract_hidden_primary_key(tokudb_active_index, &curr_key);
             // need to extract a val and place it into buf
             if (unpack_entire_row) {
                 // get val info
@@ -4841,11 +4850,11 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
                 curr_pos += val_size;
                 curr_val.data = curr_val_buff;
                 curr_val.size = val_size;
-                error = unpack_row(buf,&curr_val, &curr_key, active_index);
+                error = unpack_row(buf,&curr_val, &curr_key, tokudb_active_index);
             }
             else {
-                if (!(hidden_primary_key && active_index == primary_key)) {
-                    unpack_key(buf,&curr_key,active_index);
+                if (!(hidden_primary_key && tokudb_active_index == primary_key)) {
+                    unpack_key(buf,&curr_key,tokudb_active_index);
                 }
                 // read rows we care about
 
@@ -4978,8 +4987,8 @@ int ha_tokudb::fill_range_query_buf(
             const uchar* var_field_offset_ptr = NULL;
             const uchar* var_field_data_ptr = NULL;
             
-            var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[active_index].fixed_field_size;
-            var_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[active_index].len_of_offsets;
+            var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[tokudb_active_index].fixed_field_size;
+            var_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[tokudb_active_index].len_of_offsets;
 
             // first the null bytes
             memcpy(curr_pos, row->data, table_share->null_bytes);
@@ -4992,7 +5001,7 @@ int ha_tokudb::fill_range_query_buf(
                 uint field_index = fixed_cols_for_query[i];
                 memcpy(
                     curr_pos, 
-                    fixed_field_ptr + share->kc_info.cp_info[active_index][field_index].col_pack_val,
+                    fixed_field_ptr + share->kc_info.cp_info[tokudb_active_index][field_index].col_pack_val,
                     share->kc_info.field_lengths[field_index]
                     );
                 curr_pos += share->kc_info.field_lengths[field_index];
@@ -5003,7 +5012,7 @@ int ha_tokudb::fill_range_query_buf(
             //
             for (uint32_t i = 0; i < num_var_cols_for_query; i++) {
                 uint field_index = var_cols_for_query[i];
-                uint32_t var_field_index = share->kc_info.cp_info[active_index][field_index].col_pack_val;
+                uint32_t var_field_index = share->kc_info.cp_info[tokudb_active_index][field_index].col_pack_val;
                 uint32_t data_start_offset;
                 uint32_t field_len;
                 
@@ -5028,7 +5037,7 @@ int ha_tokudb::fill_range_query_buf(
                 //
                 get_blob_field_info(
                     &blob_offset, 
-                    share->kc_info.mcp_info[active_index].len_of_offsets,
+                    share->kc_info.mcp_info[tokudb_active_index].len_of_offsets,
                     var_field_data_ptr, 
                     share->kc_info.num_offset_bytes
                     );
@@ -5082,7 +5091,7 @@ int ha_tokudb::fill_range_query_buf(
         right_range.size = prelocked_right_range_size;
         right_range.data = prelocked_right_range;
         int cmp = tokudb_cmp_dbt_key(
-            share->key_file[active_index], 
+            share->key_file[tokudb_active_index], 
             key, 
             &right_range
             );
@@ -5100,7 +5109,7 @@ int ha_tokudb::fill_range_query_buf(
         left_range.size = prelocked_left_range_size;
         left_range.data = prelocked_left_range;
         int cmp = tokudb_cmp_dbt_key(
-            share->key_file[active_index], 
+            share->key_file[tokudb_active_index], 
             key, 
             &left_range
             );
@@ -5122,8 +5131,8 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
     // we do NOT have a covering index AND we are using a clustering secondary
     // key
     need_val = (this->key_read == 0) && 
-                (active_index == primary_key || 
-                 table->key_info[active_index].flags & HA_CLUSTERING
+                (tokudb_active_index == primary_key || 
+                 table->key_info[tokudb_active_index].flags & HA_CLUSTERING
                        );
 
     if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
@@ -5151,7 +5160,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
                 bulk_fetch_iteration++;
             }
 
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
+            error = handle_cursor_error(error, HA_ERR_END_OF_FILE,tokudb_active_index);
             if (error) { goto cleanup; }
             
             //
@@ -5163,14 +5172,14 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             struct smart_dbt_info info;
             info.ha = this;
             info.buf = buf;
-            info.keynr = active_index;
+            info.keynr = tokudb_active_index;
 
             if (direction > 0) {
                 error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
             } else {
                 error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
             }
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, active_index);
+            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, tokudb_active_index);
         }
     }
 
@@ -5183,7 +5192,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
     // main table.
     //
     
-    if (!error && !key_read && (active_index != primary_key) && !(table->key_info[active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5254,17 +5263,17 @@ int ha_tokudb::index_first(uchar * buf) {
 
     info.ha = this;
     info.buf = buf;
-    info.keynr = active_index;
+    info.keynr = tokudb_active_index;
 
     error = cursor->c_getf_first(cursor, flags,
             SMART_DBT_CALLBACK, &info);
-    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
+    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
 
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (active_index != primary_key) && !(table->key_info[active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
         error = read_full_row(buf);
     }
     trx->stmt_progress.queried++;
@@ -5297,16 +5306,16 @@ int ha_tokudb::index_last(uchar * buf) {
 
     info.ha = this;
     info.buf = buf;
-    info.keynr = active_index;
+    info.keynr = tokudb_active_index;
 
     error = cursor->c_getf_last(cursor, flags,
             SMART_DBT_CALLBACK, &info);
-    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
+    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
     //
-    if (!error && !key_read && (active_index != primary_key) && !(table->key_info[active_index].flags & HA_CLUSTERING) ) {
+    if (!error && !key_read && (tokudb_active_index != primary_key) && !(table->key_info[tokudb_active_index].flags & HA_CLUSTERING) ) {
         error = read_full_row(buf);
     }
 
@@ -5330,7 +5339,7 @@ int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     int error = 0;
     range_lock_grabbed = false;
-    error = index_init(primary_key, 0);
+    error = index_init(MAX_KEY, 0);
     if (error) { goto cleanup;}
 
     if (scan) {
@@ -5454,7 +5463,7 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
 
     unpack_entire_row = true;
     statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
-    active_index = MAX_KEY;
+    tokudb_active_index = MAX_KEY;
 
     info.ha = this;
     info.buf = buf;
@@ -5490,10 +5499,10 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     if (start_key) {
         switch (start_key->flag) {
         case HA_READ_AFTER_KEY:
-            pack_key(&start_dbt_key, active_index, start_key_buff, start_key->key, start_key->length, COL_POS_INF);
+            pack_key(&start_dbt_key, tokudb_active_index, start_key_buff, start_key->key, start_key->length, COL_POS_INF);
             break;
         default:
-            pack_key(&start_dbt_key, active_index, start_key_buff, start_key->key, start_key->length, COL_NEG_INF);
+            pack_key(&start_dbt_key, tokudb_active_index, start_key_buff, start_key->key, start_key->length, COL_NEG_INF);
             break;
         }
         prelocked_left_range_size = start_dbt_key.size;
@@ -5505,10 +5514,10 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     if (end_key) {
         switch (end_key->flag) {
         case HA_READ_BEFORE_KEY:
-            pack_key(&end_dbt_key, active_index, end_key_buff, end_key->key, end_key->length, COL_NEG_INF);
+            pack_key(&end_dbt_key, tokudb_active_index, end_key_buff, end_key->key, end_key->length, COL_NEG_INF);
             break;
         default:
-            pack_key(&end_dbt_key, active_index, end_key_buff, end_key->key, end_key->length, COL_POS_INF);
+            pack_key(&end_dbt_key, tokudb_active_index, end_key_buff, end_key->key, end_key->length, COL_POS_INF);
             break;
         }        
         prelocked_right_range_size = end_dbt_key.size;
@@ -5519,8 +5528,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
 
     error = cursor->c_pre_acquire_range_lock(
         cursor, 
-        start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
-        end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty()
+        start_key ? &start_dbt_key : share->key_file[tokudb_active_index]->dbt_neg_infty(), 
+        end_key ? &end_dbt_key : share->key_file[tokudb_active_index]->dbt_pos_infty()
         );
     if (error){ 
         last_cursor_error = error;
