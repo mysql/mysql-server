@@ -992,14 +992,6 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     return rval;
 }
 
-int
-locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
-    toku_ydb_lock();
-    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, load_lsn, mark_as_loader);
-    toku_ydb_unlock();
-    return r;
-}
-
 #undef STATUS_VALUE
 
 #include <valgrind/helgrind.h>
