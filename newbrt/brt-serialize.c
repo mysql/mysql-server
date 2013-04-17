@@ -46,6 +46,14 @@ static void maybe_preallocate_in_file (int fd, u_int64_t size) {
 static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
 
+void toku_pwrite_lock_init(void) {
+    int r = toku_pthread_mutex_init(&pwrite_mutex, NULL); assert(r == 0);
+}
+
+void toku_pwrite_lock_destroy(void) {
+    int r = toku_pthread_mutex_destroy(&pwrite_mutex); assert(r == 0);
+}
+
 static inline void
 lock_for_pwrite (void) {
     // Locks the pwrite_mutex. 

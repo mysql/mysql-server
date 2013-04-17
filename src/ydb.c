@@ -42,10 +42,12 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 const u_int32_t __toku_env_default_max_locks = 1000;
 
 void toku_ydb_init(void) {
+    toku_brt_init();
     toku_ydb_lock_init();
 }
 
 void toku_ydb_destroy(void) {
+    toku_brt_destroy();
     toku_ydb_lock_destroy();
 }
 
