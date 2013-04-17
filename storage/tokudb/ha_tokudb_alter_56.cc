@@ -926,6 +926,19 @@ change_field_type_is_supported(Field *old_field, Field *new_field, TABLE *table,
         // varchar(X) -> varchar(Y) and varbinary(X) -> varbinary(Y) expansion where X < 256 <= Y
         // the ALTER_COLUMN_TYPE handler flag is set for these cases
         return change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx);
+    } else if (old_type == MYSQL_TYPE_BLOB) {
+        // blob -> longer blob
+        if (new_type == MYSQL_TYPE_BLOB && old_field->binary() && new_field->binary() &&
+            old_field->pack_length() <= new_field->pack_length()) {
+            return true;
+        }
+        // text -> longer text
+        if (new_type == MYSQL_TYPE_BLOB && !old_field->binary() && !new_field->binary() &&
+            old_field->pack_length() <= new_field->pack_length() &&
+            old_field->charset()->number == new_field->charset()->number) {
+            return true;
+        }
+        return false;
     } else
         return false;
 }
