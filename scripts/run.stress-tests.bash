@@ -79,13 +79,14 @@ save_failure() {
     dir="$1"; shift
     out="$1"; shift
     envdir="$1"; shift
+    rev=$1; shift
     exec="$1"; shift
     table_size=$1; shift
     cachetable_size=$1; shift
     num_ptquery=$1; shift
     num_update=$1; shift
     phase=$1; shift
-    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-$$"
+    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-${rev}-$$"
     mkdir -p "$dest"
     mv $out "${dest}/output.txt"
     mv core* "${dest}/"
@@ -93,6 +94,7 @@ save_failure() {
 }
 
 run_test() {
+    rev=$1; shift
     exec="$1"; shift
     table_size="$1"; shift
     cachetable_size="$1"; shift
@@ -126,14 +128,14 @@ run_test() {
         then
             rm -f $tmplog
             t2="$(date)"
-            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" >> "$mylog"
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" >> "$mylog"
         else
-            save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update recover
-            echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
+            save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update recover
+            echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
         fi
     else
-        save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update test
-        echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
+        save_failure "$mysavedir" $tmplog $envdir $rev $exec $table_size $cachetable_size $num_ptquery $num_update test
+        echo "\"$exec\",$rev,$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" >> "$mylog"
     fi
     cd ..
     rm -rf $rundir "$envdir"
@@ -142,6 +144,7 @@ run_test() {
 running=no
 
 loop_test() {
+    rev=$1; shift
     exec="$1"; shift
     table_size="$1"; shift
     cachetable_size="$1"; shift
@@ -164,7 +167,7 @@ loop_test() {
         fi
         (( ptquery_rand = (ptquery_rand + 1) % 4 ))
         (( update_rand = (update_rand + 1) % 2 ))
-        run_test $exec $table_size $cachetable_size $num_ptquery $num_update $mylog $mysavedir
+        run_test $rev $exec $table_size $cachetable_size $num_ptquery $num_update $mylog $mysavedir
     done
 }
 
@@ -196,6 +199,8 @@ do
         make CC=icc DEBUG=0 HAVE_CILK=0 clean fastbuild; \
         make CC=icc DEBUG=0 HAVE_CILK=0 -C src/tests ${testnames[@]})
 
+    rev=$(svn info | awk '/Revision/ { print $2 }')
+
     cd $src_tests
 
     running=yes
@@ -207,11 +212,11 @@ do
             (( small_cachetable = table_size * 50 ))
             suffix="${exec}-${table_size}-${small_cachetable}-$$"
             touch "${log}/${suffix}"
-            loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+            loop_test $rev $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
             tail -f "${log}/${suffix}" & savepid $!
             suffix="${exec}-${table_size}-1000000000-$$"
             touch "${log}/${suffix}"
-            loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
+            loop_test $rev $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" & savepid $!
             tail -f "${log}/${suffix}" & savepid $!
         done
     done
