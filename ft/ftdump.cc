@@ -510,13 +510,16 @@ main (int argc, const char *const argv[]) {
     }
     if (argc != 1) return usage(arg0);
 
+    int r = toku_ft_layer_init();
+    invariant_zero(r);
+
     const char *n = argv[0];
     int f = open(n, O_RDWR + O_BINARY);  assert(f>=0);
     FT ft;
     // create a cachefile for the header
     toku_cachetable_create(&ct, 1<<25, (LSN){0}, 0);
     CACHEFILE cf = NULL;
-    int r = toku_cachetable_openfd (&cf, ct, f, n);
+    r = toku_cachetable_openfd (&cf, ct, f, n);
     assert(r==0);
     dump_header(f, &ft, cf);
     if (interactive) {
@@ -583,5 +586,6 @@ main (int argc, const char *const argv[]) {
 				dump_node_wrapper, &info, true, true);
     }
     toku_ft_free(ft);
+    toku_ft_layer_destroy();
     return 0;
 }
