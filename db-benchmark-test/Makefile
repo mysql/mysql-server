@@ -176,7 +176,7 @@ QUIET_BENCH_ARG=
 
 %.manybenchmark: SHELL=/bin/bash
 %.manybenchmark: 
-	$(BENCH_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.benchmark.dir; $(MAKE) -s $*.benchmark.dir BENCH_TIME= QUIET_BENCH_ARG=-q ; done
+	$(BENCH_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -rf $*.benchmark.dir; $(MAKE) -s $*.benchmark.dir BENCH_TIME= QUIET_BENCH_ARG=-q ; done
 %.benchmark.dir: SHELL=/bin/bash
 %.benchmark.dir: $(TARGET_TDB)
 	rm -rf $@
@@ -192,7 +192,7 @@ SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
 
 %.manyflatteningscan: SHELL=/bin/bash
 %.manyflatteningscan: 
-	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.flatteningscan; $(MAKE) -s $*.flatteningscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
+	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do $(MAKE) -s $*.flatteningscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
 
 %.flatteningscan: QUIET_BENCH_ARG=-q
 %.flatteningscan: SHELL=/bin/bash
@@ -204,7 +204,7 @@ SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
 
 %.manyflattenedscan: SHELL=/bin/bash
 %.manyflattenedscan: %.flattenedscan.dir
-	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do rm -f $*.flattenedscan; $(MAKE) -s $*.flattenedscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
+	$(SCAN_TIME) for (( i = 0; i < $(BENCH_RUNS); i++ )) ; do $(MAKE) -s $*.flattenedscan SCAN_TIME= "QUIET_SCAN_ARG= >/dev/null" ; done
 
 %.flattenedscan.dir: QUIET_BENCH_ARG=-q
 %.flattenedscan.dir: QUIET_SCAN_ARGS=-q
