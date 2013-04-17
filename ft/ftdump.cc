@@ -159,6 +159,11 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
     printf(" max_msn_applied_to_node_on_disk=%" PRId64 " (0x%" PRIx64 ")\n", n->max_msn_applied_to_node_on_disk.msn, n->max_msn_applied_to_node_on_disk.msn);
+    printf("io time %lf decompress time %lf deserialize time %lf\n", 
+        tokutime_to_seconds(bfe.io_time), 
+        tokutime_to_seconds(bfe.decompress_time), 
+        tokutime_to_seconds(bfe.deserialize_time) 
+        );
 
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);

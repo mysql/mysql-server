@@ -1721,6 +1721,8 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
 
 cleanup:
     if (r == 0) {
+        bfe->deserialize_time += deserialize_time;
+        bfe->decompress_time += decompress_time;
         toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
     }
     if (r != 0) {
@@ -2391,6 +2393,8 @@ cleanup:
     if (r == 0) {
         t1 = toku_time_now();
         deserialize_time = (t1 - t0) - decompress_time;
+        bfe->deserialize_time += deserialize_time;
+        bfe->decompress_time += decompress_time; 
         toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
     }
     if (r != 0) {
@@ -2468,6 +2472,8 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     tokutime_t io_time = t1 - t0;
     tokutime_t decompress_time = t2 - t1;
     tokutime_t deserialize_time = t3 - t2;
+    bfe->deserialize_time += deserialize_time;
+    bfe->decompress_time += decompress_time;
     toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
 
     bfe->bytes_read = rlen;
@@ -2508,6 +2514,8 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fet
 
     tokutime_t decompress_time = t1 - t0;
     tokutime_t deserialize_time = t2 - t1;
+    bfe->deserialize_time += deserialize_time;
+    bfe->decompress_time += decompress_time;
     toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
 
     toku_free(curr_sb->compressed_ptr);
