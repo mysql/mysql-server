@@ -21,12 +21,12 @@
 #if defined(__linux__) && __linux__
 #define YDB_LOCK_MISS_TIME 1
 #else
-#define YDB_LOCK_FIFO 0
+#define YDB_LOCK_MISS_TIME 0
 #endif
 
 struct ydb_big_lock {
     toku_pthread_mutex_t lock;
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     int32_t waiters;
     toku_pthread_key_t time_key;
     uint64_t start_misscount, start_misstime;
@@ -42,7 +42,7 @@ static inline u_int64_t u64max(u_int64_t a, u_int64_t b) {return a > b ? a : b; 
 
 #define MAX_SLEEP 1000000  // 1 second covers the case of a 5 level tree with 30 millisecond read delays and a few waiting threads
 
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
 
 #include "toku_atomic.h"
 
@@ -66,7 +66,7 @@ get_tnow(void) {
 static void 
 init_status(void) {
     uint64_t cpuhz = 0;
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     int r = toku_os_get_processor_frequency(&cpuhz); assert(r == 0);
 #endif
     status.ydb_lock_ctr = 0;
@@ -93,7 +93,7 @@ int
 toku_ydb_lock_init(void) {
     int r;
     r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); assert(r == 0);
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     ydb_big_lock.waiters = 0;
     r = toku_pthread_key_create(&ydb_big_lock.time_key, toku_free); assert(r == 0);
 #endif
@@ -105,7 +105,7 @@ int
 toku_ydb_lock_destroy(void) {
     int r;
     r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
 #endif
     return r;
@@ -113,11 +113,11 @@ toku_ydb_lock_destroy(void) {
 
 void 
 toku_ydb_lock(void) {
-#if YDB_LOCK_FIFO
+#if !YDB_LOCK_MISS_TIME
     int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
 #endif
 
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     int r;
     u_int64_t requested_sleep = 0;
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
@@ -167,11 +167,11 @@ toku_ydb_unlock(void) {
     status.ydb_lock_ctr++;
     assert((status.ydb_lock_ctr & 0x01) == 0);
 
-#if YDB_LOCK_FIFO
+#if !YDB_LOCK_MISS_TIME
     int r = toku_pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
 #endif
 
-#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
+#if YDB_LOCK_MISS_TIME
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
     assert(ydbtime);
 
