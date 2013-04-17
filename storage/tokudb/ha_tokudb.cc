@@ -406,17 +406,6 @@ smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context,
     return 0;
 }
 
-//
-// Smart DBT callback function in records_in_range
-//
-static int
-smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
-    DBT* copied_key = (DBT *)context;
-    copied_key->size = key->size;
-    memcpy(copied_key->data, key->data, key->size);
-    return 0;
-}
-
 
 //
 // macro for Smart DBT callback function, 
