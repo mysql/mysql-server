@@ -144,13 +144,13 @@ static u_int32_t tokudb_env_flags = 0;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
+static ulonglong tokudb_max_lock_memory = 0;
 static char *tokudb_home;
 static char *tokudb_tmpdir;
 static char *tokudb_log_dir;
 // static long tokudb_lock_scan_time = 0;
 // static ulong tokudb_region_size = 0;
 // static ulong tokudb_cache_parts = 1;
-static ulong tokudb_max_lock;
 static const char tokudb_hton_name[] = "TokuDB";
 static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
 static u_int32_t tokudb_checkpointing_period;
@@ -295,6 +295,18 @@ static int tokudb_init_func(void *p) {
             goto error; 
         }
     }
+    if (tokudb_max_lock_memory == 0) {
+        tokudb_max_lock_memory = tokudb_cache_size/8;
+    }
+    if (tokudb_max_lock_memory) {
+        DBUG_PRINT("info", ("tokudb_max_lock_memory: %lld\n", tokudb_max_lock_memory));
+        r = db_env->set_lk_max_memory(db_env, tokudb_max_lock_memory);
+        if (r) {
+            DBUG_PRINT("info", ("set_lk_max_memory %d\n", r));
+            goto error; 
+        }
+    }
+    
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
@@ -316,13 +328,10 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
     db_env->set_lk_detect(db_env, tokudb_lock_type);
 #endif
-    if (tokudb_max_lock) {
-        DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
-        r = db_env->set_lk_max_locks(db_env, tokudb_max_lock);
-        if (r) {
-            DBUG_PRINT("info", ("tokudb_set_max_locks %d\n", r));
-            goto error;
-        }
+    r = db_env->set_lk_max_locks(db_env, 0xffffffff);
+    if (r) {
+        DBUG_PRINT("info", ("tokudb_set_max_locks %d\n", r));
+        goto error;
     }
 
     if (db_env->set_redzone) {
@@ -1047,8 +1056,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("local checkpoint during checkpoint", buf);
 
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
-      STATPRINT("max range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max_per_index);
       STATPRINT("max range locks per index", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
@@ -1277,8 +1284,7 @@ static uint tokudb_alter_table_flags(uint flags)
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0, 0, ~0LL, 0);
 
-static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 64 * 1024, 0, ~0L, 0);
-
+static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0LL, 0);
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
@@ -1326,7 +1332,7 @@ static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
-    MYSQL_SYSVAR(max_lock),
+    MYSQL_SYSVAR(max_lock_memory),
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),
