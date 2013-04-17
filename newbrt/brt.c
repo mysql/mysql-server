@@ -5163,6 +5163,8 @@ brt_search_basement_node(
     BRT_GET_CALLBACK_FUNCTION getf, 
     void *getf_v, 
     BOOL *doprefetch, 
+    BLOCKNUM thisnodename,
+    u_int32_t fullhash,
     BRT_CURSOR brtcursor
     )
 {
@@ -5240,6 +5242,8 @@ got_a_good_value:
 	    // is done in brt_cursor_update.
 	    brtcursor->leaf_info.to_be.omt   = bn->buffer;
 	    brtcursor->leaf_info.to_be.index = idx;
+            brtcursor->leaf_info.fullhash    = fullhash;
+            brtcursor->leaf_info.blocknumber = thisnodename;
 	    brt_cursor_update(brtcursor);
 	    //The search was successful.  Prefetching can continue.
 	    *doprefetch = TRUE;
@@ -5480,6 +5484,8 @@ brt_search_node(
                 getf,
                 getf_v,
                 doprefetch,
+                node->thisnodename,
+                node->fullhash,
                 brtcursor
                 );
         }
@@ -5770,6 +5776,25 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
 }
 
 static int
+brt_cursor_maybe_get_and_pin_leaf(BRT_CURSOR brtcursor, BRTNODE* leafp) {
+    void *leafv;
+    int r = toku_cachetable_maybe_get_and_pin_clean(brtcursor->brt->cf,
+                                                    brtcursor->leaf_info.blocknumber,
+                                                    brtcursor->leaf_info.fullhash,
+                                                   &leafv);
+    if (r == 0) {
+        *leafp = leafv;
+    }
+    return r;
+}
+
+static void
+brt_cursor_unpin_leaf(BRT_CURSOR brtcursor, BRTNODE leaf) {
+    toku_unpin_brtnode(brtcursor->brt, leaf);
+}
+
+
+static int
 brt_cursor_next_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 // Effect: If possible, increment the cursor and return the key-value pair
 //  (i.e., the next one from what the cursor pointed to before.)
@@ -5777,8 +5802,13 @@ brt_cursor_next_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, voi
 {
     int r;
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
-	u_int32_t limit = toku_omt_size(toku_omt_cursor_get_omt(cursor->omtcursor)) - 1;
-	r = brt_cursor_shortcut(cursor, 1, limit, getf, getf_v);
+        BRTNODE leaf;
+        r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
+        if (r == 0) {
+            u_int32_t limit = toku_omt_size(toku_omt_cursor_get_omt(cursor->omtcursor)) - 1;
+            r = brt_cursor_shortcut(cursor, 1, limit, getf, getf_v);
+            brt_cursor_unpin_leaf(cursor, leaf);
+        }
     }
     else r = EINVAL;
     return r;
@@ -5838,7 +5868,12 @@ brt_cursor_prev_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, voi
 {
     int r;
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
-	r = brt_cursor_shortcut(cursor, -1, 0, getf, getf_v);
+        BRTNODE leaf;
+        r = brt_cursor_maybe_get_and_pin_leaf(cursor, &leaf);
+        if (r == 0) {
+            r = brt_cursor_shortcut(cursor, -1, 0, getf, getf_v);
+            brt_cursor_unpin_leaf(cursor, leaf);
+        }
     }
     else r = EINVAL;
     return r;
