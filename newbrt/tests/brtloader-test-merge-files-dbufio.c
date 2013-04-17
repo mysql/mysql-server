@@ -27,7 +27,7 @@ static int loader_poll_callback(void *UU(extra), float UU(progress)) {
     event_count++;
     if (event_count_trigger == event_count) {
         event_hit();
-        r = 1;
+        r = TOKUDB_CANCELED;
     } else {
         r = 0;
     }
@@ -167,7 +167,7 @@ static void *consumer_thread (void *ctv) {
 }
 
 
-static void test (const char *directory) {
+static void test (const char *directory, BOOL is_error) {
 
     int *XMALLOC_N(N_SOURCES, fds);
 
@@ -265,24 +265,31 @@ static void test (const char *directory) {
 	int r = toku_pthread_create(&consumer, NULL, consumer_thread, (void*)&cthunk);
 	assert(r==0);
     }
+    int result = 0;
     {
 	int r = toku_merge_some_files_using_dbufio(TRUE, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
-	if (r!=0) printf("%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, errorstr_static(r));
-	assert(r==0);
+	if (is_error && r!=0) {
+	    result = r;
+	} else {
+	    if (r!=0) printf("%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, errorstr_static(r));
+	    assert(r==0);
+	}
     }
     {
 	int r = queue_eof(q);
 	assert(r==0);
     }
     {
-	void *result;
-	int r = toku_pthread_join(consumer, &result);
+	void *vresult;
+	int r = toku_pthread_join(consumer, &vresult);
 	assert(r==0);
-	assert(result==NULL);
+	assert(vresult==NULL);
 	//printf("n_read = %ld, N_SOURCES=%d N_RECORDS=%d\n", cthunk.n_read, N_SOURCES, N_RECORDS);
-	assert(cthunk.n_read == N_RECORDS);
+	if (result==0) {
+	    assert(cthunk.n_read == N_RECORDS);
+	}
     }
-    printf("%s:%d Destroying\n", __FILE__, __LINE__);
+    //printf("%s:%d Destroying\n", __FILE__, __LINE__);
     {
 	int r = queue_destroy(bl->primary_rowset_queue);
 	assert(r==0);
@@ -368,12 +375,12 @@ int test_main (int argc, const char *argv[]) {
     int r;
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
-    test(directory);
+    test(directory, FALSE);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
 
-    if (0) {
-    int event_limit = event_count;
+    {
+	int event_limit = event_count;
     if (verbose) printf("event_limit=%d\n", event_limit);
 
     for (int i = 1; i <= event_limit; i++) {
@@ -383,7 +390,7 @@ int test_main (int argc, const char *argv[]) {
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
 
-	test(directory);
+	test(directory, TRUE);
     }
     }
 
