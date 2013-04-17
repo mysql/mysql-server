@@ -45,3 +45,15 @@
    drd:ConflictingAccess
    fun:close
 }
+
+{
+   centos62_open_problem
+   drd:ConflictingAccess
+   fun:open
+}
+
+{
+   centos62_pthread_clone_problem
+   drd:ConflictingAccess
+   fun:clone
+}
