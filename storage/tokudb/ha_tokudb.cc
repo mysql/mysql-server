@@ -63,7 +63,7 @@ typedef struct st_tokudb_trx_data {
 const char *ha_tokudb_ext = ".tokudb";
 
 //static my_bool tokudb_shared_data = FALSE;
-static u_int32_t tokudb_init_flags = DB_PRIVATE | DB_RECOVER;
+static u_int32_t tokudb_init_flags = DB_PRIVATE /* | DB_RECOVER */;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 //static ulong tokudb_log_buffer_size = 0;
@@ -217,8 +217,9 @@ static int tokudb_init_func(void *p) {
 
     DBUG_PRINT("info", ("tokudb_env_flags: 0x%x\n", tokudb_env_flags));
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
-    if (r) // QQQ
-        printf("WARNING: flags %x r %d\n", tokudb_env_flags, r); // goto error;
+    if (r) { // QQQ
+        printf("%s:%d:WARNING: flags %x r %d\n", __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
+    }
 
     // config error handling
     db_env->set_errcall(db_env, tokudb_print_error);
@@ -261,7 +262,7 @@ static int tokudb_init_func(void *p) {
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
-        printf("tokudb_cache_size %lld\n", ((unsigned long long) gbytes << 30) + bytes);
+        printf("%s:%d:tokudb_cache_size %lld\n", __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
@@ -456,7 +457,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
             trx->sp_level = 0;
         *txn = 0;
     } else
-        printf("%s:%d:warning\n", __FILE__, __LINE__);
+        printf("%s:%d:commit0\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -472,7 +473,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 	    trx->sp_level = 0;
 	*txn = 0;
     } else
-        printf("%s:%d:warning\n", __FILE__, __LINE__);
+        printf("%s:%d:abort0\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -964,8 +965,11 @@ void ha_tokudb::unpack_row(uchar * record, DBT * row) {
         const uchar *ptr = (const uchar *) row->data;
         memcpy(record, ptr, table_share->null_bytes);
         ptr += table_share->null_bytes;
+        uchar *fieldrecord = record;
+        if (fieldrecord == table->record[1])
+            fieldrecord = table->record[0];
         for (Field ** field = table->field; *field; field++)
-            ptr = (*field)->unpack(record + (*field)->offset(record), ptr);
+            ptr = (*field)->unpack(record + (*field)->offset(fieldrecord), ptr);
         dbug_tmp_restore_column_map(table->write_set, old_map);
     }
 }
@@ -1504,6 +1508,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     DBT key;
     DBUG_PRINT("enter", ("index: %d", keynr));
 
+
     if (keynr == active_index && cursor)
         error = cursor->c_del(cursor, 0);
     else if (keynr == primary_key || ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)) {  // Unique key
@@ -1966,7 +1971,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     DBUG_RETURN(0);     // Don't create stmt trans
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
-	    printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
+	    if (trx->stmt) 
+                printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
@@ -2361,7 +2367,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         }
     }
     if (!error)
-        nr = (ulonglong) table->next_number_field->val_int_offset(0) + 1;
+        nr = (ulonglong) table->next_number_field->val_int_offset(table->s->rec_buff_length) + 1;
     ha_tokudb::index_end();
     (void) ha_tokudb::extra(HA_EXTRA_NO_KEYREAD);
     *first_value = nr;
