@@ -2,20 +2,25 @@
 MYSQL_SRC = $(HOME)/mysql-5.1.23-rc
 MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
 TOKUDB = /usr/local/tokudb-4.4
+DEBUG = 1
 
 # sources to target
 SRCS = $(wildcard *.cc)
 OBJS = $(patsubst %.cc,%.o,$(SRCS))
 TARGET = $(patsubst %.o,%.so,$(OBJS))
 
-# someday turn up the optimization
+ifeq ($(GCOV),1)
+GCOV_FLAGS = -ftest-coverage -fprofile-arcs
+endif
+
+ifeq ($(DEBUG),0)
+OPTFLAGS = -O2
+MYSQL_FLAGS = 
+else
 OPTFLAGS = -O0
-# GCOV_FLAGS = -ftest-coverage -fprofile-arcs
-
-# MYSQL_FLAGS = 
-
-# debug flags
 MYSQL_FLAGS = -DHAVE_CONFIG_H -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX
+endif
+
 MYSQL_FLAGS += -DMYSQL_DYNAMIC_PLUGIN
 MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
 
@@ -23,7 +28,7 @@ CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I
 CPPFLAGS += $(MYSQL_FLAGS)
 CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
-LDFLAGS = -shared -Wl,-soname -Wl,libtokudb_engine.so
+LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
 LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
 
 # LIBDIR = /usr/lib
@@ -37,7 +42,7 @@ all: $(TARGET)
 	$(CXX) $(LDFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS) $(BEGINLIBS) $< $(LIBS) $(ENDLIBS) -o $@
 
 clean:
-	rm -rf $(TARGET) $(OBJS)
+	rm -rf $(TARGET) $(OBJS) *.gcno *.gcda *.gcov
 
 install: $(TARGET)
 	cp $(TARGET) $(MYSQL_LIBDIR)/libtokudb_engine.so
