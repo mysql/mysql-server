@@ -133,7 +133,7 @@ static MYSQL_THDVAR_UINT(read_buf_size,
   NULL, 
   NULL, 
   128*1024, // default
-  4096,  // min
+  0,  // min
   1*1024*1024,   // max
   1      // blocksize???
   );
