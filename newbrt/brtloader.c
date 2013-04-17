@@ -317,7 +317,9 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
     destroy_rowset(&bl->primary_rowset);
 
     for (int i=0; i<bl->N; i++) {
-	invariant(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.  // ### loader-cleanup-test failure
+        if ( bl->fractal_queues ) {
+            invariant(bl->fractal_queues[i]==NULL);
+        }
     }
     toku_free(bl->fractal_threads);
     toku_free(bl->fractal_queues);
@@ -757,9 +759,11 @@ static void zero_rowset (struct rowset *rows) {
 }
 
 void destroy_rowset (struct rowset *rows) {
-    toku_free(rows->data);
-    toku_free(rows->rows);
-    zero_rowset(rows);
+    if ( rows ) {
+        toku_free(rows->data);
+        toku_free(rows->rows);
+        zero_rowset(rows);
+    }
 }
 
 static int row_wont_fit (struct rowset *rows, size_t size)
@@ -1320,10 +1324,12 @@ void init_merge_fileset (struct merge_fileset *fs)
 void destroy_merge_fileset (struct merge_fileset *fs)
 /* Effect: Destroy a fileset. */
 {
-    fs->n_temp_files = 0;
-    fs->n_temp_files_limit = 0;
-    toku_free(fs->data_fidxs);
-    fs->data_fidxs = NULL;
+    if ( fs ) {
+        fs->n_temp_files = 0;
+        fs->n_temp_files_limit = 0;
+        toku_free(fs->data_fidxs);
+        fs->data_fidxs = NULL;
+    }
 }
 
 
