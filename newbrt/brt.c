@@ -108,7 +108,6 @@ Lookup:
 #include "ule.h"
 #include "xids.h"
 #include "roll.h"
-#include "toku_atomic.h"
 #include "sub_block.h"
 #include "sort.h"
 
@@ -608,7 +607,7 @@ PAIR_ATTR make_brtnode_pair_attr(BRTNODE node) {
 static uint64_t dict_id_serial = 1;
 static DICTIONARY_ID
 next_dict_id(void) {
-    uint64_t i = toku_sync_fetch_and_increment_uint64(&dict_id_serial);
+    uint64_t i = __sync_fetch_and_add(&dict_id_serial, 1);
     assert(i);	// guarantee unique dictionary id by asserting 64-bit counter never wraps
     DICTIONARY_ID d = {.dictid = i};
     return d;
@@ -696,15 +695,15 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
         }
         if (height == 0) {  // statistics incremented only when disk I/O is done, so worth the threadsafe count
             if (for_checkpoint)
-                (void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf_for_checkpoint);
+                brt_status.disk_flush_leaf_for_checkpoint++;
             else
-                (void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf);
+                brt_status.disk_flush_leaf++;
         }
         else {
             if (for_checkpoint)
-                (void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf_for_checkpoint);
+                brt_status.disk_flush_nonleaf_for_checkpoint++;
             else
-                (void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf);
+                brt_status.disk_flush_nonleaf++;
         }
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
@@ -1174,9 +1173,9 @@ void toku_brtnode_free (BRTNODE *nodep) {
                 toku_mempool_destroy(mp);
             }
         }
-        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_leaf);
+        brt_status.destroy_leaf++;
     } else {
-        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_nonleaf);
+        brt_status.destroy_nonleaf++;
     }
     toku_destroy_brtnode_internals(node);
     toku_free(node);
@@ -2194,7 +2193,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        toku_sync_fetch_and_increment_uint64(&brt_status.updates);
+        brt_status.updates++;
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -2203,7 +2202,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        toku_sync_fetch_and_increment_uint64(&brt_status.updates_broadcast);
+        brt_status.updates_broadcast++;
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -3197,22 +3196,22 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
 static void
 update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades)
 {
-    toku_sync_fetch_and_increment_uint64(&brt_status.flush_total);
+    brt_status.flush_total++;
     if (cascades > 0) {
-        toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades);
+        brt_status.flush_cascades++;
         switch (cascades) {
         case 1:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_1); break;
+            brt_status.flush_cascades_1++; break;
         case 2:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_2); break;
+            brt_status.flush_cascades_2++; break;
         case 3:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_3); break;
+            brt_status.flush_cascades_3++; break;
         case 4:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_4); break;
+            brt_status.flush_cascades_4++; break;
         case 5:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_5); break;
+            brt_status.flush_cascades_5++; break;
         default:
-            toku_sync_fetch_and_increment_uint64(&brt_status.flush_cascades_gt_5); break;
+            brt_status.flush_cascades_gt_5++; break;
         }
     }
     bool flush_needs_io = false;
@@ -3222,9 +3221,9 @@ update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades)
         }
     }
     if (flush_needs_io) {
-        toku_sync_fetch_and_increment_uint64(&brt_status.flush_needed_io);
+        brt_status.flush_needed_io++;
     } else {
-        toku_sync_fetch_and_increment_uint64(&brt_status.flush_in_memory);
+        brt_status.flush_in_memory++;
     }
 }
 
@@ -3495,7 +3494,7 @@ void toku_apply_cmd_to_leaf(
                                  snapshot_txnids,
                                  live_list_reverse);
             } else {
-                toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+                brt_status.msn_discards++;
             }
         }
     }
@@ -3518,7 +3517,7 @@ void toku_apply_cmd_to_leaf(
                                      live_list_reverse);
                     if (bn_made_change) *made_change = 1;
                 } else {
-                    toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+                    brt_status.msn_discards++;
                 }
             }
         }
@@ -4637,7 +4636,7 @@ toku_brt_change_descriptor(
     fd = toku_cachefile_get_and_pin_fd (t->cf);
     r = toku_update_descriptor(t->h, &new_d, fd);
     if (r == 0)	 // very infrequent operation, worth precise threadsafe count
-	(void) toku_sync_fetch_and_increment_uint64(&brt_status.descriptor_set);
+	brt_status.descriptor_set++;
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 
@@ -5817,7 +5816,7 @@ do_brt_leaf_put_cmd(BRT t, BASEMENTNODE bn, BRTNODE ancestor, int childnum, OMT 
         }
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
-        toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
+        brt_status.msn_discards++;
     }
 }
 

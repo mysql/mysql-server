@@ -13,8 +13,6 @@ extern "C" {
 #endif
 #endif
 
-#include "toku_atomic.h"
-
 static toku_pthread_mutex_t event_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static void lock_events(void) {
     int r = toku_pthread_mutex_lock(&event_mutex); assert(r == 0);
@@ -41,7 +39,6 @@ static int event_add_and_fetch(void) {
     int r = ++event_count;
     unlock_events();
     return r;
-    // return toku_sync_increment_and_fetch_int32(&event_count);
 }
 
 static int do_user_errors = 0;
@@ -115,9 +112,9 @@ static void reset_my_malloc_counts(void) {
 
 __attribute__((__unused__))
 static void *my_malloc(size_t n) {
-    (void) toku_sync_fetch_and_increment_int32(&my_malloc_count); // my_malloc_count++;
+    (void) __sync_fetch_and_add(&my_malloc_count, 1); // my_malloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) toku_sync_fetch_and_increment_int32(&my_big_malloc_count); // my_big_malloc_count++;
+        (void) __sync_fetch_and_add(&my_big_malloc_count, 1); // my_big_malloc_count++;
         if (do_malloc_errors) {
             if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();
@@ -133,9 +130,9 @@ static int do_realloc_errors = 0;
 
 __attribute__((__unused__))
 static void *my_realloc(void *p, size_t n) {
-    (void) toku_sync_increment_and_fetch_int32(&my_realloc_count); // my_realloc_count++;
+    (void) __sync_fetch_and_add(&my_realloc_count, 1); // my_realloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) toku_sync_increment_and_fetch_int32(&my_big_realloc_count); // my_big_realloc_count++;
+        (void) __sync_fetch_and_add(&my_big_realloc_count, 1); // my_big_realloc_count++;
         if (do_realloc_errors) {
             if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();

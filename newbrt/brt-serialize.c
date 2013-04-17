@@ -5,7 +5,6 @@
 
 #include "includes.h"
 #include "sort.h"
-#include "toku_atomic.h"
 #include "threadpool.h"
 #include <compress.h>
 
@@ -1771,7 +1770,7 @@ toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version
                 if (r == 0 && upgrade) {
                     r = toku_brt_optimize_for_upgrade(t);
 		    if (r==0)
-			toku_sync_fetch_and_increment_uint64(&upgrade_status.optimized_for_upgrade);
+			__sync_fetch_and_add(&upgrade_status.optimized_for_upgrade, 1);
                 }
                 if (r == 0) {
                     t->h->upgrade_brt_performed = TRUE;  // no further upgrade necessary
@@ -2210,7 +2209,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
                     h->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
                 }
                 h->layout_version++;
-		toku_sync_fetch_and_increment_uint64(&upgrade_status.header_13);  // how many header nodes upgraded from v13
+		__sync_fetch_and_add(&upgrade_status.header_13, 1);  // how many header nodes upgraded from v13
                 upgrade++;
                 //Fall through on purpose
             case BRT_LAYOUT_VERSION_14:
