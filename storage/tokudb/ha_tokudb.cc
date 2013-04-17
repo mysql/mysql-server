@@ -61,6 +61,11 @@ typedef struct st_tokudb_trx_data {
 #define STATUS_TOKUDB_ANALYZE      4
 #define STATUS_AUTO_INCREMENT_INIT 8
 
+// tokudb debug tracing
+#define TOKUDB_DEBUG_OPEN 1
+#define TOKUDB_DEBUG_TXN 2
+#define TOKUDB_DEBUG_AUTO_INCREMENT 4
+
 const char *ha_tokudb_ext = ".tokudb";
 
 //static my_bool tokudb_shared_data = FALSE;
@@ -210,7 +215,7 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_env_flags: 0x%x\n", tokudb_env_flags));
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) { // QQQ
-        if (tokudb_debug) printf("%s:%d:WARNING: flags %x r %d\n", __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
+        if (tokudb_debug) printf("%d:%s:%d:WARNING: flags %x r %d\n", my_tid(), __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
     }
 
     // config error handling
@@ -254,7 +259,7 @@ static int tokudb_init_func(void *p) {
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
-        if (tokudb_debug) printf("%s:%d:tokudb_cache_size %lld\n", __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
+        if (tokudb_debug) printf("%d:%s:%d:tokudb_cache_size %lld\n", my_tid(), __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
@@ -381,6 +386,8 @@ static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_k
         update_status(share, table);
 
         for (uint i = 0; i < keys; i++) {
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                printf("%d:%s:%d:dbclose:%p\n", my_tid(), __FILE__, __LINE__, key_file[i]);
             if (key_file[i] && (error = key_file[i]->close(key_file[i], 0)))
                 result = error;
         }
@@ -441,12 +448,15 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = 0;
     if (*txn) {
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+            printf("%d:%s:%d:commit:%d:%p\n", my_tid(), __FILE__, __LINE__, all, *txn);
         error = (*txn)->commit(*txn, syncflag);
         if (*txn == trx->sp_level)
             trx->sp_level = 0;
         *txn = 0;
     } else
-        if (tokudb_debug) printf("%s:%d:commit0\n", __FILE__, __LINE__);
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+            printf("%d:%s:%d:commit0\n", my_tid(), __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -457,12 +467,15 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = 0;
     if (*txn) {
+        if (tokudb_debug & TOKUDB_DEBUG_TXN)
+            printf("%d:%s:%d:rollback:%p\n", my_tid(), __FILE__, __LINE__,  *txn);
         error = (*txn)->abort(*txn);
 	if (*txn == trx->sp_level)
 	    trx->sp_level = 0;
 	*txn = 0;
     } else
-        if (tokudb_debug) printf("%s:%d:abort0\n", __FILE__, __LINE__);
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+            printf("%d:%s:%d:abort0\n", my_tid(), __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -775,7 +788,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
     file = share->file;
-    if (tokudb_debug) printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d:tid=%u\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count, my_tid());
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
+        printf("%d:%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", my_tid(), __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
@@ -869,7 +883,8 @@ int ha_tokudb::close(void) {
 
 int ha_tokudb::__close(int mutex_is_locked) {
     DBUG_ENTER("ha_tokudb::__close");
-    if (tokudb_debug) printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
+        printf("%d:%s:%d:close:%p\n", my_tid(), __FILE__, __LINE__, this);
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     ha_tokudb::reset();         // current_row buffer
@@ -1123,7 +1138,8 @@ void ha_tokudb::get_status() {
             // so we do this in the get_auto_increment method
             if (table->next_number_field) {
                 share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
-                if (tokudb_debug) printf("%s:%d:init auto increment:%lld\n", __FILE__, __LINE__, share->last_auto_increment);
+                if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
+                    printf("%d:%s:%d:init auto increment:%lld\n", my_tid(), __FILE__, __LINE__, share->last_auto_increment);
             }
         }
 
@@ -1975,6 +1991,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     trx->tokudb_lock_count--;      // We didn't get the lock
                     DBUG_RETURN(error);
                 }
+                if (tokudb_debug & TOKUDB_DEBUG_TXN)
+                    printf("%d:%s:%d:master:%p\n", my_tid(), __FILE__, __LINE__, trx->all);
                 trx->sp_level = trx->all;
                 trans_register_ha(thd, TRUE, tokudb_hton);
                 if (thd->in_lock_tables)
@@ -1982,12 +2000,15 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
 	    if (trx->stmt) 
-                if (tokudb_debug) printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
+                if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+                    printf("%d:%s:%d:warning:stmt=%p\n", my_tid(), __FILE__, __LINE__, trx->stmt);
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
                 DBUG_RETURN(error);
             }
+            if (tokudb_debug & TOKUDB_DEBUG_TXN)
+                printf("%d:%s:%d:stmt:%p:%p\n", my_tid(), __FILE__, __LINE__, trx->sp_level, trx->stmt);
             trans_register_ha(thd, FALSE, tokudb_hton);
         }
         transaction = trx->stmt;
@@ -2336,7 +2357,8 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         int error = read_last();
         if (error == 0) {
             share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
-            if (tokudb_debug) printf("%s:%d:init auto increment:%lld\n", __FILE__, __LINE__, share->last_auto_increment);
+            if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) 
+                printf("%d:%s:%d:init auto increment:%lld\n", my_tid(), __FILE__, __LINE__, share->last_auto_increment);
         }
     }
     nr = share->last_auto_increment + increment;
