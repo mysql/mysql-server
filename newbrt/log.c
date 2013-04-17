@@ -1141,6 +1141,42 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     return 0;
 }
 
+struct swap_brt_extra {
+    BRT live;
+    BRT zombie;
+};
+
+static int swap_brt (OMTVALUE txnv, u_int32_t UU(idx), void *extra) {
+    struct swap_brt_extra *info = extra;
+
+    TOKUTXN txn = txnv;
+    OMTVALUE zombie_again=NULL;
+    u_int32_t index;
+
+    int r;
+    r = toku_txn_note_brt(txn, info->live); //Add new brt.
+    assert(r==0);
+    r = toku_omt_find_zero(txn->open_brts, find_filenum, info->zombie, &zombie_again, &index, NULL);
+    assert(r==0);
+    assert((void*)zombie_again==info->zombie);
+    r = toku_omt_delete_at(txn->open_brts, index); //Delete old brt.
+    assert(r==0);
+    return 0;
+}
+
+int toku_txn_note_swap_brt (BRT live, BRT zombie) {
+    struct swap_brt_extra swap = {.live = live, .zombie = zombie};
+    int r = toku_omt_iterate(zombie->txns, swap_brt, &swap);
+    assert(r==0);
+    toku_omt_clear(zombie->txns);
+
+    //Close immediately.
+    assert(zombie->close_db);
+    r = zombie->close_db(zombie->db, zombie->close_flags);
+    return r;
+}
+
+
 static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
     TOKUTXN txn = txnv;
     BRT     brt = brtv;

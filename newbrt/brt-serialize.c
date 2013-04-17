@@ -1030,7 +1030,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     int rr = 0;
     if (h->panic) return h->panic;
     assert(h->type==BRTHEADER_CHECKPOINT_INPROGRESS);
-    toku_block_lock_for_multiple_operations(h->blocktable);
+    toku_brtheader_lock(h);
     struct wbuf w_translation;
     int64_t size_translation;
     int64_t address_translation;
@@ -1051,7 +1051,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	}
 	assert(w_main.ndone==size_main);
     }
-    toku_block_unlock_for_multiple_operations(h->blocktable);
+    toku_brtheader_unlock(h);
     char *writing_what;
     lock_for_pwrite();
     {
@@ -1225,6 +1225,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
+    list_init(&h->live_brts);
+    list_init(&h->zombie_brts);
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
     assert(h->layout_version==BRT_LAYOUT_VERSION_10);

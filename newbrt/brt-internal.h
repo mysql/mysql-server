@@ -162,7 +162,6 @@ struct brt_header {
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.
     LSN checkpoint_lsn;         // LSN of creation of "checkpoint-begin" record in log.  
-    int refcount;
     int dirty;
     int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
     char *panic_string; // A malloced string that can indicate what went wrong.
@@ -180,6 +179,8 @@ struct brt_header {
     // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
     // 0 if no such transaction
     TXNID txnid_that_created_or_locked_when_empty;
+    struct list live_brts;
+    struct list zombie_brts;
 };
 
 struct brt {
@@ -205,6 +206,9 @@ struct brt {
     int was_closed; //True when this brt was closed, but is being kept around for transactions.
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
+
+    struct list live_brt_link;
+    struct list zombie_brt_link;
 };
 
 /* serialization code */

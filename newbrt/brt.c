@@ -2871,6 +2871,8 @@ brt_init_header (BRT t) {
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
     t->h->root = root;
 
+    list_init(&t->h->live_brts);
+    list_init(&t->h->zombie_brts);
     int r = brt_init_header_partial(t);
     if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
@@ -2917,6 +2919,36 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
     *header = h;
     return 0;
+}
+
+static void
+brtheader_note_brt_close(BRT t) {
+    struct brt_header *h = t->h;
+    if (h) { //Might not yet have been opened.
+        toku_brtheader_lock(h);
+        list_remove(&t->live_brt_link);
+        list_remove(&t->zombie_brt_link);
+        toku_brtheader_unlock(h);
+    }
+}
+
+static int
+brtheader_note_brt_open(BRT live) {
+    struct brt_header *h = live->h;
+    int retval = 0;
+    toku_brtheader_lock(h);
+    while (!list_empty(&h->zombie_brts)) {
+        //Remove dead brt from list
+        BRT zombie = list_struct(list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
+        toku_brtheader_unlock(h); //Cannot be holding lock when swapping brts.
+        retval = toku_txn_note_swap_brt(live, zombie); //Steal responsibility, close
+        toku_brtheader_lock(h);
+        if (retval) break;
+    }
+    if (retval==0)
+        list_push(&h->live_brts, &live->live_brt_link);
+    toku_brtheader_unlock(h);
+    return retval;
 }
 
 int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
@@ -3001,8 +3033,15 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
                 r = EINVAL;
                 goto died_after_read_and_pin;
             }
-            //TODO: Disallow changing if exists two brts with the same header (counting this one)
-            //      The upgrade would be impossible/very hard!
+            toku_brtheader_lock(t->h);
+            if (!list_empty(&t->h->live_brts) || !list_empty(&t->h->zombie_brts)) {
+                //Disallow changing if exists two brts with the same header (counting this one)
+                //The upgrade would be impossible/very hard!
+                r = EINVAL;
+                toku_brtheader_unlock(t->h);
+                goto died_after_read_and_pin;
+            }
+            toku_brtheader_unlock(t->h);
             DISKOFF offset;
             //4 for checksum
             toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(&t->temp_descriptor)+4, &offset, t->h);
@@ -3015,6 +3054,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         t->temp_descriptor.dbt.data = NULL;
         t->did_set_descriptor = 0;
     }
+    r = brtheader_note_brt_open(t);
+    if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
     if (txn_created) {
         assert(txn);
@@ -3079,13 +3120,13 @@ toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, vo
     int r = h->panic;
     if (r==0) {
         // hold lock around copying and clearing of dirty bit
-        toku_block_lock_for_multiple_operations (h->blocktable);
+        toku_brtheader_lock (h);
         assert(h->type == BRTHEADER_CURRENT);
         assert(h->checkpoint_header == NULL);
         brtheader_copy_for_checkpoint(h, checkpoint_lsn);
         h->dirty = 0;        // this is only place this bit is cleared  (in currentheader)
         toku_block_translation_note_start_checkpoint_unlocked(h->blocktable);
-        toku_block_unlock_for_multiple_operations (h->blocktable);
+        toku_brtheader_unlock (h);
     }
     return r;
 }
@@ -3159,6 +3200,10 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
 {
     struct brt_header *h = header_v;
     assert(h->type == BRTHEADER_CURRENT);
+    toku_brtheader_lock(h);
+    assert(list_empty(&h->live_brts));
+    assert(list_empty(&h->zombie_brts));
+    toku_brtheader_unlock(h);
     int r = 0;
     if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
         //TODO: #1627 put meaningful LSN in for begin_checkpoint
@@ -3180,22 +3225,42 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
 }
 
 int
-toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags) {
+toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags) {
 //Requires: close_db needs to call toku_close_brt to delete the final reference.
     int r;
-    if (brt->was_closed) r = EINVAL;
-    else if (brt->db && brt->db!=db) r = EINVAL;
+    struct brt_header *h = zombie->h;
+    if (zombie->was_closed) r = EINVAL;
+    else if (zombie->db && zombie->db!=db) r = EINVAL;
     else {
-        assert(brt->close_db==NULL);
-        brt->close_db    = close_db;
-        brt->close_flags = close_flags;
-        brt->was_closed  = 1;
-        if (!brt->db) brt->db = db;
-        if (toku_omt_size(brt->txns) == 0) {
+        assert(zombie->close_db==NULL);
+        zombie->close_db    = close_db;
+        zombie->close_flags = close_flags;
+        zombie->was_closed  = 1;
+        if (!zombie->db) zombie->db = db;
+        if (toku_omt_size(zombie->txns) == 0) {
             //Close immediately.
-            r = brt->close_db(brt->db, brt->close_flags);
+            r = zombie->close_db(zombie->db, zombie->close_flags);
         }
-        else r = 0;
+        else {
+            //Try to pass responsibility off.
+            toku_brtheader_lock(zombie->h);
+            list_remove(&zombie->live_brt_link); //Remove from live.
+            BRT replacement = NULL;
+            if (!list_empty(&h->live_brts)) {
+                replacement = list_struct(list_head(&h->live_brts), struct brt, live_brt_link);
+            }
+            else if (!list_empty(&h->zombie_brts)) {
+                replacement = list_struct(list_head(&h->zombie_brts), struct brt, zombie_brt_link);
+            }
+            list_push(&h->zombie_brts, &zombie->zombie_brt_link); //Add to dead list.
+            toku_brtheader_unlock(zombie->h);
+            if (replacement == NULL) r = 0;  //Just delay close
+            else {
+                //Pass responsibility off and close zombie.
+                //Skip adding to dead list
+                r = toku_txn_note_swap_brt(replacement, zombie);
+            }
+        }
     }
     return r;
 }
@@ -3213,6 +3278,7 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
     r=toku_txn_note_close_brt(brt);
     assert(r==0);
     toku_omt_destroy(&brt->txns);
+    brtheader_note_brt_close(brt);
 
     if (brt->cf) {
         if (logger) {
@@ -3241,6 +3307,8 @@ int toku_brt_create(BRT *brt_ptr) {
     if (brt == 0)
         return ENOMEM;
     memset(brt, 0, sizeof *brt);
+    list_init(&brt->live_brt_link);
+    list_init(&brt->zombie_brt_link);
     list_init(&brt->cursors);
     brt->flags = 0;
     brt->did_set_flags = 0;
@@ -4683,7 +4751,7 @@ int toku_brt_truncate (BRT brt) {
 
     // TODO log the truncate?
 
-    toku_block_lock_for_multiple_operations(brt->h->blocktable);
+    toku_brtheader_lock(brt->h);
     if (r==0) {
         //Free all data blocknums and associated disk space (if not held on to by checkpoint)
         toku_block_translation_truncate_unlocked(brt->h->blocktable, brt->h);
@@ -4693,7 +4761,7 @@ int toku_brt_truncate (BRT brt) {
         r = brt_init_header_partial(brt);
     }
 
-    toku_block_unlock_for_multiple_operations(brt->h->blocktable);
+    toku_brtheader_unlock(brt->h);
 
     return r;
 }
