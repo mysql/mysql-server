@@ -6151,7 +6151,7 @@ static inline enum row_type
 compression_method_to_row_type(enum toku_compression_method method)
 {
     switch (method) {
-#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case TOKU_NO_COMPRESSION:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case TOKU_ZLIB_METHOD:
@@ -6195,7 +6195,7 @@ static inline enum toku_compression_method
 row_type_to_compression_method(enum row_type type)
 {
     switch (type) {
-#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case ROW_TYPE_TOKU_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
     case ROW_TYPE_TOKU_ZLIB:
@@ -6601,7 +6601,7 @@ static inline enum row_type
 row_format_to_row_type(srv_row_format_t row_format)
 {
     switch (row_format) {
-#if defined(ROW_TYPE_TOKU_UNCOMPRESSED)
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     case SRV_ROW_FORMAT_UNCOMPRESSED:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case SRV_ROW_FORMAT_ZLIB:
