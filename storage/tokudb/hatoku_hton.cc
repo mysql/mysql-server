@@ -866,13 +866,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("max_time_ydb_lock_held", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);  
       STATPRINT("total_time_ydb_lock_held", buf);
-#if 0
-      lockstat = (engstat.logger_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      lockctr =  engstat.logger_lock_ctr >> 1;   // lsb indicates if locked
-      snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
-      STATPRINT("logger lock", lockstat);
-      STATPRINT("logger lock counter", buf);
-#endif
+
       snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
       STATPRINT("checkpoint period", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);
@@ -920,7 +914,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("max range locks per index", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
-
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_successes);
+      STATPRINT("range lock escalation successes", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_failures);
+      STATPRINT("range lock escalation failures", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts);
       STATPRINT("dictionary inserts", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes);
