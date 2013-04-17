@@ -48,7 +48,6 @@ typedef struct st_tokudb_share {
     // key is hidden
     //
     DB *key_file[MAX_KEY +1];
-    u_int32_t mult_put_flags[MAX_KEY+1];
     uint status, version, capabilities;
     uint ref_length;
     //
@@ -71,6 +70,7 @@ typedef struct st_tokudb_share {
     bool try_table_lock; 
 
     bool has_unique_keys;
+    bool replace_into_fast;
 } TOKUDB_SHARE;
 
 #define HA_TOKU_VERSION 3
@@ -294,6 +294,7 @@ private:
     int write_key_name_to_status(DB* status_block, char* key_name, DB_TXN* txn);
     int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
+    bool can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk);
     int initialize_share(
         const char* name,
         int mode
@@ -312,6 +313,7 @@ private:
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
+    void set_main_dict_put_flags(THD* thd, u_int32_t* put_flags);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     int test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
