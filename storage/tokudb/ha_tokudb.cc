@@ -3482,10 +3482,11 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
 */
 
 THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::store_lock, lock_type=%d", lock_type);
+    TOKUDB_DBUG_ENTER("ha_tokudb::store_lock, lock_type=%d cmd=%d", lock_type, thd_sql_command(thd));
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
-        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables) {
+        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
+            !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE) {
             lock_type = TL_WRITE_ALLOW_WRITE;
         }
         lock.type = lock_type;
@@ -4359,6 +4360,40 @@ ulong ha_tokudb::field_offset(Field *field) {
         return field->offset(table->record[0]);
     assert(0);
     return 0;
+}
+
+// delete all rows from a table
+//
+// effects: delete all of the rows in the main dictionary and all of the
+// indices.  this must be atomic, so we use the statement transaction
+// for all of the truncate operations.
+// locks:  if we have an exclusive table write lock, all of the concurrency
+// issues go away.
+// returns: 0 if success
+
+int ha_tokudb::delete_all_rows() {
+    TOKUDB_DBUG_ENTER("delete_all_rows");
+    int error = 0;
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(current_thd, tokudb_hton->slot);
+
+    // truncate all dictionaries
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    for (uint i = 0; i < curr_num_DBs; i++) {
+        DB *db = share->key_file[i];
+        u_int32_t row_count = 0;
+        error = db->truncate(db, trx ? trx->stmt : 0, &row_count, 0);
+        if (error) 
+            break;
+        // do something with the row_count?
+        if (tokudb_debug)
+            TOKUDB_TRACE("row_count=%u\n", row_count);
+    }
+
+    // zap the row count
+    if (error == 0)
+        share->rows = 0;
+
+    TOKUDB_DBUG_RETURN(error);
 }
 
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };

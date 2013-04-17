@@ -303,6 +303,10 @@ public:
     int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
     int final_drop_index(TABLE *table_arg);
 
+    // delete all rows from the table
+    // effect: all dictionaries, including the main and indexes, should be empty
+    int delete_all_rows();
+
 private:
     int __close(int mutex_is_locked);
     int read_last();
