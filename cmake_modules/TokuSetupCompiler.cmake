@@ -147,7 +147,7 @@ if (NOT USE_VALGRIND)
 endif ()
 
 ## We need to explicitly set this standard library for Xcode builds.
-add_definitions(-stdlib=libc++)
+##add_definitions(-stdlib=libc++)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES Intel)
   set(CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
