@@ -124,7 +124,10 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     grab_output(logger, &fsynced_lsn);
     r = toku_logger_write_buffer(logger, &fsynced_lsn);           if (r!=0) goto panic; //Releases the input lock
     if (logger->fd!=-1) {
-	r = close(logger->fd);         if (r!=0) { r=errno; goto panic; }
+        if ( logger->write_log_files ) {
+            r = toku_file_fsync_without_accounting(logger->fd);   if (r!=0) { r=errno; goto panic; }
+        }
+	r = close(logger->fd);                                    if (r!=0) { r=errno; goto panic; }
     }
     logger->fd=-1;
     release_output(logger, fsynced_lsn);
@@ -629,11 +632,18 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
     // flush out the log buffer
     LSN fsynced_lsn;
     grab_output(logger, &fsynced_lsn);
-    r = ml_lock(&logger->input_lock); assert(r == 0);
+    r = ml_lock(&logger->input_lock);                   assert(r == 0);
     r = toku_logger_write_buffer(logger, &fsynced_lsn); assert(r == 0);
 
     // close the log file
-    r = close(logger->fd); assert(r == 0);
+    if ( logger->write_log_files) { // fsyncs don't work to /dev/null
+        r = toku_file_fsync_without_accounting(logger->fd); 
+        if ( r!=0 ) {
+            toku_logger_panic(logger, r);
+            return r;
+        }
+    }
+    r = close(logger->fd);                              assert(r == 0);
     logger->fd = -1;
 
     // reset the LSN's to the lastlsn when the logger was opened
