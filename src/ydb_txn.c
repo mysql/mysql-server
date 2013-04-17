@@ -187,6 +187,8 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     // Take the mo lock as soon as a non-readonly txn is found
     bool holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
+        // A readonly transaction does no logging, and therefore does not
+        // need the MO lock.
         toku_multi_operation_client_lock();
         holds_mo_lock = true;
     }
@@ -258,6 +260,8 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
     }
     bool holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
+        // A readonly transaction does no logging, and therefore does not
+        // need the MO lock.
         toku_multi_operation_client_lock();
         holds_mo_lock = true;
     }
@@ -279,6 +283,8 @@ locked_txn_abort_with_progress(DB_TXN *txn,
     // But released here so we don't have to hold additional state.
     bool holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
+        // A readonly transaction does no logging, and therefore does not
+        // need the MO lock.
         toku_multi_operation_client_lock();
         holds_mo_lock = true;
     }
