@@ -78,9 +78,9 @@ void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key);
 LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
 int toku_ft_set_panic(FT h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
 void toku_ft_stat64 (FT h, struct ftstat64_s *s);
-int toku_update_descriptor(FT h, DESCRIPTOR d, int fd);
-// Note: See the locking discussion in ft-ops.c for toku_ft_change_descriptor and toku_update_descriptor.
-void toku_ft_update_cmp_descriptor(FT h);
+
+void toku_ft_update_descriptor(FT h, DESCRIPTOR d);
+void toku_ft_update_cmp_descriptor(FT ft);
 
 void toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 void toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);

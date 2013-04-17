@@ -531,27 +531,24 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
 {
     CACHEFILE cf;
     int r;
-    int fd;
     r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+    if (r == ENOENT) { //Missing file on recovered transaction is not an error
         assert(txn->recovered_from_checkpoint);
         r = 0;
         goto done;
     }
     // file must be open, because the txn that created it opened it and
     // noted it, 
-    assert(r==0);
-
-    fd = toku_cachefile_get_fd(cf);
-    OMTVALUE hv=NULL;
-    r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &hv, NULL);
-    assert(r==0);
-    FT h = hv;
-    DESCRIPTOR_S d;
-
-    toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);
-    r = toku_update_descriptor(h, &d, fd);
     assert(r == 0);
+
+    OMTVALUE ftv = NULL;
+    r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &ftv, NULL);
+    assert(r == 0);
+    FT ft = ftv;
+
+    DESCRIPTOR_S d;
+    toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);
+    toku_ft_update_descriptor(ft, &d);
 done:
     return r;
 }

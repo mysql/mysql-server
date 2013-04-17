@@ -552,7 +552,6 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
         s->bt_ndata = ftstat.ndata;
         s->bt_dsize = ftstat.dsize;
         s->bt_fsize = ftstat.fsize;
-        // 4018
         s->bt_create_time_sec = ftstat.create_time_sec;
         s->bt_modify_time_sec = ftstat.modify_time_sec;
         s->bt_verify_time_sec = ftstat.verify_time_sec;
