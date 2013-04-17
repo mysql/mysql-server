@@ -731,12 +731,12 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     // alter auto_increment (and nothing else)
     if (ha_alter_info->handler_flags == Alter_inplace_info::CHANGE_CREATE_OPTION && 
         create_info->used_fields == HA_CREATE_USED_AUTO) {
-        result = HA_ALTER_INPLACE_NO_LOCK;
+        result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else    
     // alter row_format (and nothing else)
     if (ha_alter_info->handler_flags == Alter_inplace_info::CHANGE_CREATE_OPTION && 
         create_info->used_fields == HA_CREATE_USED_ROW_FORMAT) {
-        result = HA_ALTER_INPLACE_NO_LOCK;
+        result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else    
     // add index (and nothing else)
     if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_INDEX || 
@@ -746,7 +746,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
         // for now, hot indexing is only supported via session variable with the create index sql command
         if (get_create_index_online(thd) && ha_alter_info->index_add_count == 1 && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) 
-            result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE;
+            result = HA_ALTER_INPLACE_NO_LOCK;
     } else
     // drop index (and nothing else)
     if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_INDEX ||
