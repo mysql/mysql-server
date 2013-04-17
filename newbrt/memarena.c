@@ -143,7 +143,7 @@ memarena_total_memory_size (MEMARENA m)
 }
 
 size_t
-memarena_size_in_use (MEMARENA m)
+memarena_total_size_in_use (MEMARENA m)
 {
-    return m->buf_used;
+    return m->size_of_other_bufs + m->buf_used;
 }    
