@@ -3,6 +3,8 @@
 #if !defined(TOKU_YDB_DB_H)
 #define TOKU_YDB_DB_H
 
+#include "ydb_txn.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
