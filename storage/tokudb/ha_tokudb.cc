@@ -1187,17 +1187,12 @@ ulong ha_tokudb::max_row_length(const uchar * buf) {
 //      [in]    record - row in MySQL format
 //
 
-int ha_tokudb::pack_row(DBT * row, const uchar * record, bool new_row) {
+int ha_tokudb::pack_row(DBT * row, const uchar * record) {
     uchar *ptr;
     bzero((void *) row, sizeof(*row));
     if (share->fixed_length_row) {
         row->data = (void *) record;
         row->size = table_share->reclength;
-        if (hidden_primary_key) {
-            if (new_row) {
-                get_auto_primary_key(current_ident);
-            }
-        }
         return 0;
     }
     if (table_share->blob_fields) {
@@ -1209,15 +1204,11 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record, bool new_row) {
     memcpy(rec_buff, record, table_share->null_bytes);
     ptr = rec_buff + table_share->null_bytes;
 
-    for (Field ** field = table->field; *field; field++)
+    for (Field ** field = table->field; *field; field++) {
         ptr = (*field)->pack(ptr, (const uchar *)
                              (record + field_offset(*field)));
-
-    if (hidden_primary_key) {
-        if (new_row) {
-            get_auto_primary_key(current_ident);
-        }
     }
+
     row->data = rec_buff;
     row->size = (size_t) (ptr - rec_buff);
     return 0;
@@ -1601,12 +1592,19 @@ int ha_tokudb::write_row(uchar * record) {
     int error;
 
     statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
-    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT) {
         table->timestamp_field->set_time();
-    if (table->next_number_field && record == table->record[0])
+    }
+    if (table->next_number_field && record == table->record[0]) {
         update_auto_increment();
-    if ((error = pack_row(&row, (const uchar *) record, 1)))
+    }
+    if ((error = pack_row(&row, (const uchar *) record))){
         TOKUDB_DBUG_RETURN(error);
+    }
+    
+    if (hidden_primary_key) {
+        get_auto_primary_key(current_ident);
+    }
 
     u_int32_t put_flags = key_type[primary_key];
     THD *thd = ha_thd();
@@ -1705,13 +1703,13 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
         // Primary key changed or we are updating a key that can have duplicates.
         // Delete the old row and add a new one
         if (!(error = remove_key(trans, primary_key, old_row, old_key))) {
-            if (!(error = pack_row(&row, new_row, 0))) {
+            if (!(error = pack_row(&row, new_row))) {
                 if ((error = file->put(file, trans, new_key, &row, key_type[primary_key]))) {
                     // Probably a duplicated key; restore old key and row if needed
                     last_dup_key = primary_key;
                     if (local_using_ignore) {
                         int new_error;
-                        if ((new_error = pack_row(&row, old_row, 0)) || (new_error = file->put(file, trans, old_key, &row, key_type[primary_key])))
+                        if ((new_error = pack_row(&row, old_row)) || (new_error = file->put(file, trans, old_key, &row, key_type[primary_key])))
                             error = new_error;  // fatal error
                     }
                 }
@@ -1719,7 +1717,7 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
         }
     } else {
         // Primary key didn't change;  just update the row data
-        if (!(error = pack_row(&row, new_row, 0)))
+        if (!(error = pack_row(&row, new_row)))
             error = file->put(file, trans, new_key, &row, 0);
     }
     TOKUDB_DBUG_RETURN(error);
