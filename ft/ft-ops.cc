@@ -1278,49 +1278,82 @@ toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_c
 }
 
 static void
-ft_init_new_root(FT ft, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, FTNODE *newrootp)
-// Effect:  Create a new root node whose two children are NODEA and NODEB, and the pivotkey is SPLITK.
-//  Store the new root's identity in *ROOTP, and the node in *NEWROOTP.
-//  Unpin nodea and nodeb.
+ft_init_new_root(FT ft, FTNODE oldroot, FTNODE *newrootp)
+// Effect:  Create a new root node whose two children are the split of oldroot.
+//  oldroot is unpinned in the process.
 //  Leave the new root pinned.
 {
-    FTNODE XMALLOC(newroot);
-    int new_height = nodea->height+1;
-    BLOCKNUM newroot_diskoff;
-    toku_allocate_blocknum(ft->blocktable, &newroot_diskoff, ft);
-    assert(newroot);
-    *rootp=newroot_diskoff;
-    assert(new_height > 0);
-    toku_initialize_empty_ftnode (newroot, newroot_diskoff, new_height, 2, ft->h->layout_version, ft->h->nodesize, ft->h->flags);
-    //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
-    //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
-    toku_copyref_dbt(&newroot->childkeys[0], splitk);
-    newroot->totalchildkeylens=splitk.size;
-    BP_BLOCKNUM(newroot,0)=nodea->thisnodename;
-    BP_BLOCKNUM(newroot,1)=nodeb->thisnodename;
-    {
-        MSN msna = nodea->max_msn_applied_to_node_on_disk;
-        MSN msnb = nodeb->max_msn_applied_to_node_on_disk;
-        invariant(msna.msn == msnb.msn);
-        newroot->max_msn_applied_to_node_on_disk = msna;
-    }
-    BP_STATE(newroot,0) = PT_AVAIL;
-    BP_STATE(newroot,1) = PT_AVAIL;
-    newroot->dirty = 1;
-    //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
-    uint32_t fullhash = toku_cachetable_hash(ft->cf, newroot_diskoff);
-    newroot->fullhash = fullhash;
-    toku_cachetable_put(ft->cf, newroot_diskoff, fullhash, newroot, make_ftnode_pair_attr(newroot), get_write_callbacks_for_node(ft), toku_node_save_ct_pair);
+    FTNODE newroot;
 
-    //at this point, newroot is associated with newroot_diskoff, nodea is associated with root_blocknum
-    // make newroot_diskoff point to nodea
-    // make root_blocknum point to newroot
-    // also modify the blocknum and fullhash of nodea and newroot
-    // before doing this, assert(nodea->blocknum == ft->root_blocknum)
+    BLOCKNUM old_blocknum = oldroot->thisnodename;
+    uint32_t old_fullhash = oldroot->fullhash;
+    PAIR old_pair = oldroot->ct_pair;
     
-    toku_unpin_ftnode(ft, nodea);
-    toku_unpin_ftnode(ft, nodeb);
-    *newrootp = newroot;
+    int new_height = oldroot->height+1;
+    uint32_t new_fullhash;
+    BLOCKNUM new_blocknum;
+    PAIR new_pair = NULL;
+
+    cachetable_put_empty_node_with_dep_nodes(
+        ft,
+        1,
+        &oldroot,
+        &new_blocknum,
+        &new_fullhash,
+        &newroot
+        );
+    new_pair = newroot->ct_pair;
+    
+    assert(newroot);
+    assert(new_height > 0);
+    toku_initialize_empty_ftnode (
+        newroot, 
+        new_blocknum, 
+        new_height, 
+        1, 
+        ft->h->layout_version, 
+        ft->h->nodesize, 
+        ft->h->flags
+        );
+    MSN msna = oldroot->max_msn_applied_to_node_on_disk;
+    newroot->max_msn_applied_to_node_on_disk = msna;
+    BP_STATE(newroot,0) = PT_AVAIL;
+    newroot->dirty = 1;
+
+    // now do the "switcheroo"
+    BP_BLOCKNUM(newroot,0) = new_blocknum;
+    newroot->thisnodename = old_blocknum;
+    newroot->fullhash = old_fullhash;
+    newroot->ct_pair = old_pair;
+
+    oldroot->thisnodename = new_blocknum;
+    oldroot->fullhash = new_fullhash;
+    oldroot->ct_pair = new_pair;
+
+    toku_cachetable_swap_pair_values(old_pair, new_pair);
+
+    toku_ft_split_child(
+        ft,
+        newroot,
+        0, // childnum to split
+        oldroot
+        );
+
+    // ft_split_child released locks on newroot
+    // and oldroot, so now we repin and
+    // return to caller
+    struct ftnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, ft);
+    toku_pin_ftnode_off_client_thread(
+        ft,
+        old_blocknum,
+        old_fullhash,
+        &bfe,
+        PL_WRITE_EXPENSIVE, // may_modify_node
+        0,
+        NULL,
+        newrootp
+        );
 }
 
 static void
@@ -2055,35 +2088,21 @@ ft_nonleaf_put_cmd (ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, F
 
 
 // return true if root changed, false otherwise
-static bool
-ft_process_maybe_reactive_root (FT ft, CACHEKEY *rootp, FTNODE *nodep) {
+static void
+ft_process_maybe_reactive_root (FT ft, FTNODE *nodep) {
     FTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
     enum reactivity re = get_node_reactivity(node);
     switch (re) {
     case RE_STABLE:
-        return false;
+        return;
     case RE_FISSIBLE:
     {
-        // The root node should split, so make a new root.
-        FTNODE nodea,nodeb;
-        DBT splitk;
-        assert(ft->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-        //
-        // This happens on the client thread with the ydb lock, so it is safe to
-        // not pass in dependent nodes. Although if we wanted to, we could pass
-        // in just node. That would be correct.
-        //
-        if (node->height==0) {
-            ftleaf_split(ft, node, &nodea, &nodeb, &splitk, true, 0, NULL);
-        } else {
-            ft_nonleaf_split(ft, node, &nodea, &nodeb, &splitk, 0, NULL);
-        }
-        ft_init_new_root(ft, nodea, nodeb, splitk, rootp, nodep);
-        return true;
+        ft_init_new_root(ft, node, nodep);
+        return;
     }
     case RE_FUSIBLE:
-        return false; // Cannot merge anything at the root, so return happy.
+        return; // Cannot merge anything at the root, so return happy.
     }
     abort(); // cannot happen
 }
@@ -2498,8 +2517,6 @@ toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
     //  others
     //
     {
-        toku_ft_grab_treelock(ft);
-
         uint32_t fullhash;
         toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
 
@@ -2529,13 +2546,7 @@ toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
         ft_verify_flags(ft, node);
 
         // first handle a reactive root, then put in the message
-        CACHEKEY new_root_key;
-        bool root_changed = ft_process_maybe_reactive_root(ft, &new_root_key, &node);
-        if (root_changed) {
-            toku_ft_set_new_root_blocknum(ft, new_root_key);
-        }
-
-        toku_ft_release_treelock(ft);
+        ft_process_maybe_reactive_root(ft, &node);
     }
     push_something_at_root(ft, &node, cmd);
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
@@ -4822,7 +4833,6 @@ try_again:
         );
     FTNODE node = NULL;
     {
-        toku_ft_grab_treelock(ft);
         uint32_t fullhash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
@@ -4847,7 +4857,6 @@ try_again:
             // end it.
             toku_cachetable_end_batched_pin(ft->cf);
         }
-        toku_ft_release_treelock(ft);
     }
 
     uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
@@ -5397,8 +5406,6 @@ try_again:
         uint64_t less = 0, equal = 0, greater = 0;
         FTNODE node = NULL;
         {
-            toku_ft_grab_treelock(brt->ft);
-
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
@@ -5413,7 +5420,6 @@ try_again:
                 NULL,
                 &node
                 );
-            toku_ft_release_treelock(brt->ft);
         }
 
         struct unlock_ftnode_extra unlock_extra = {brt,node,false};
@@ -5532,14 +5538,10 @@ int toku_dump_ft (FILE *f, FT_HANDLE brt) {
     assert(brt->ft);
     toku_dump_translation_table(f, brt->ft->blocktable);
     {
-        toku_ft_grab_treelock(brt->ft);
-
         uint32_t fullhash = 0;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
         r = toku_dump_ftnode(f, brt, root_key, 0, 0, 0);
-
-        toku_ft_release_treelock(brt->ft);
     }
     return r;
 }
@@ -5705,10 +5707,7 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
 {
     uint32_t fullhash;
     FTNODE node;
-    //assert(fullhash == toku_cachetable_hash(brt->ft->cf, *rootp));
     {
-        toku_ft_grab_treelock(brt->ft);
-
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
         struct ftnode_fetch_extra bfe;
@@ -5723,8 +5722,6 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
             NULL,
             &node
             );
-
-        toku_ft_release_treelock(brt->ft);
     }
     bool r = is_empty_fast_iter(brt, node);
     toku_unpin_ftnode(brt->ft, node);

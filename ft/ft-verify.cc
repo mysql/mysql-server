@@ -459,14 +459,10 @@ toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extr
     assert(brt->ft);
     FTNODE root_node = NULL;
     {
-        toku_ft_grab_treelock(brt->ft);
-
         uint32_t root_hash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(brt->ft, &root_key, &root_hash);
         toku_get_node_for_verify(root_key, brt, &root_node);
-
-        toku_ft_release_treelock(brt->ft);
     }
     int r = toku_verify_ftnode(brt, ZERO_MSN, ZERO_MSN, root_node, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
     if (r == 0) {

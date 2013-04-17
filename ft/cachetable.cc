@@ -728,6 +728,13 @@ static void cachetable_partial_eviction(void* extra) {
     bjm_remove_background_job(cf->bjm);
 }
 
+void toku_cachetable_swap_pair_values(PAIR old_pair, PAIR new_pair) {
+    void* old_value = old_pair->value_data;
+    void* new_value = new_pair->value_data;
+    old_pair->value_data = new_value;
+    new_pair->value_data = old_value;
+}
+
 void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
     // TODO: <CER> Maybe move this...
     ct->ev.signal_eviction_thread();

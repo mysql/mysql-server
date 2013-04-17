@@ -266,8 +266,6 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         uint32_t fullhash;
 
         {
-            toku_ft_grab_treelock(brt->ft);
-
             // Get root node (the first parent of each successive HOT
             // call.)
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
@@ -282,8 +280,6 @@ toku_ft_hot_optimize(FT_HANDLE brt,
                                                NULL,
                                                &root);
             toku_assert_entire_node_in_memory(root);
-
-            toku_ft_release_treelock(brt->ft);
         }
 
         // Prepare HOT diagnostics.

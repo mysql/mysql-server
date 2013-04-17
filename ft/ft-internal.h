@@ -383,7 +383,7 @@ struct ft_header {
     // last time that this tree was verified
     uint64_t time_of_last_verification;
 
-    // this field is protected by tree_lock, see comment for tree_lock
+    // this field is essentially a const
     BLOCKNUM root_blocknum;
 
     const unsigned int flags;
@@ -433,12 +433,6 @@ struct ft {
     DESCRIPTOR_S cmp_descriptor;
 
     // These are not read-only:
-
-    // lock used by a thread to pin the root node to start a descent into 
-    // the tree. This lock protects the blocknum of the root node (root_blocknum). Any 
-    // thread that wants to descend down the tree starting at the root 
-    // must grab this lock before pinning the root.
-    toku_mutex_t tree_lock;
 
     // protected by blocktable lock
     BLOCK_TABLE blocktable;
@@ -656,6 +650,14 @@ extern bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 extern int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
 
+// Given pinned node and pinned child, split child into two
+// and update node with information about its new child.
+void toku_ft_split_child(
+    FT h,
+    FTNODE node,
+    int childnum,
+    FTNODE child
+    );
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
     CACHETABLE_WRITE_CALLBACK wc;
     wc.flush_callback = toku_ftnode_flush_callback;
