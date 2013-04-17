@@ -19,7 +19,7 @@ SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test
 include $(TOKUROOT)toku_include/Makefile.include
 
-BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/ 4g.dir/
+BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/ scanrace.tokudb/ 4g.dir/ rowsize.*.dir/
 TDB_DLINK_FILES = $(TOKUROOT)lib/$(TOKUDB)
 
 TARGET_BDB = db-benchmark-test-bdb$(BINSUF)
@@ -65,7 +65,17 @@ build: build.tdb build.bdb
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-xfast check-x check-no-rolltmp check-4G
+check: check-default check-rowsize check-xfast check-x check-no-rolltmp check-4G
+
+SUPPORT_KEYSIZE=$$((3*1024)) 	# at least 3KiB
+SUPPORT_ROWSIZE=$$((80*1024))  	# at least 80KiB
+
+foo:
+	echo $$((3*1024)) $(SUPPORT_KEYSIZE)
+check-rowsize: $(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.key.dir    --keysize $(SUPPORT_KEYSIZE)                              --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.val.dir                                 --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) --env rowsize.keyval.dir --keysize $(SUPPORT_KEYSIZE) --valsize $(SUPPORT_ROWSIZE) --periter 256 1 $(SUMMARIZE_CMD)
 
 check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(VERBVERBOSE) $(SUMMARIZE_CMD)
