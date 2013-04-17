@@ -179,7 +179,6 @@ typedef struct st_tokudb_trx_data {
     uint tokudb_lock_count;
     tokudb_stmt_progress stmt_progress;
     bool checkpoint_lock_taken;
-    bool should_abort;
 } tokudb_trx_data;
 
 extern char *tokudb_data_dir;

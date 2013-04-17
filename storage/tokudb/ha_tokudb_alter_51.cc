@@ -657,7 +657,6 @@ cleanup:
             abort_txn(txn);
             trx->stmt = NULL;
             trx->sub_sp_level = NULL;
-            trx->should_abort = false;
             if (dropping_indexes) {
                 restore_drop_indexes(table, alter_info->index_drop_buffer, alter_info->index_drop_count);
             }
