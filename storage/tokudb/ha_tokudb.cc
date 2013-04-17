@@ -5593,7 +5593,7 @@ int toku_dbt_up(DB*,
     return 0;
 }
 
-static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN* txn, uint32_t tokudb_block_size) {
+static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN* txn, uint32_t block_size) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file = NULL;
@@ -5612,10 +5612,10 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
         goto exit;
     }
 
-    if (tokudb_block_size != 0) {
-        error = file->set_pagesize(file, tokudb_block_size);
+    if (block_size != 0) {
+        error = file->set_pagesize(file, block_size);
         if (error != 0) {
-            DBUG_PRINT("error", ("Got error: %d when setting block size %u for table '%s'", error, tokudb_block_size, table_name));
+            DBUG_PRINT("error", ("Got error: %d when setting block size %u for table '%s'", error, block_size, table_name));
             goto exit;
         }
     }
@@ -5737,8 +5737,8 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
     KEY* prim_key = NULL;
     char dict_name[MAX_DICT_NAME_LEN];
     u_int32_t max_row_desc_buff_size;
-    THD* thd = ha_thd();
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
+    uint32_t block_size;
 
     bzero(&row_descriptor, sizeof(row_descriptor));
     
@@ -5797,7 +5797,13 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
     row_descriptor.size = ptr - row_desc_buff;
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
-    error = create_sub_table(newname, &row_descriptor, txn, get_tokudb_block_size(thd));
+    block_size = key_info->block_size << 10;
+    if (block_size == 0) {
+        THD* thd = ha_thd();
+        block_size = get_tokudb_block_size(thd);
+    }
+
+    error = create_sub_table(newname, &row_descriptor, txn, block_size);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -5816,8 +5822,8 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     char* newname = NULL;
     KEY* prim_key = NULL;
     u_int32_t max_row_desc_buff_size;
-    THD* thd = ha_thd();
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
+    uint32_t block_size;
 
     bzero(&row_descriptor, sizeof(row_descriptor));
     max_row_desc_buff_size = 2*(form->s->fields * 6)+10; // upper bound of key comparison descriptor
@@ -5867,8 +5873,16 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     row_descriptor.size = ptr - row_desc_buff;
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
+    block_size = 0;
+    if (prim_key)
+        block_size = prim_key->block_size << 10;
+    if (block_size == 0) {
+        THD* thd = ha_thd();
+        block_size = get_tokudb_block_size(thd);
+    }
+
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, get_tokudb_block_size(thd));
+    error = create_sub_table(newname, &row_descriptor, txn, block_size);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
