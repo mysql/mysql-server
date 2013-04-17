@@ -91,6 +91,10 @@ struct tokulogger {
     uint64_t input_lock_ctr;             // how many times has input_lock been taken and released
     uint64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
     uint64_t swap_ctr;                   // how many times have input/output log buffers been swapped
+    uint64_t num_writes_to_disk;         // how many times did we write to disk?
+    uint64_t bytes_written_to_disk;        // how many bytes have been written to disk?
+    tokutime_t time_spent_writing_to_disk; // how much tokutime did we spend writing to disk?
+
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
     CACHEFILE rollback_cachefile;

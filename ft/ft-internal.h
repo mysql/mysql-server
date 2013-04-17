@@ -529,6 +529,7 @@ int toku_serialize_ftnode_to_memory (FTNODE node,
                                       bool do_rebalancing,
                                       bool in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
+                              /*out*/ size_t *n_uncompresed_bytes,
                               /*out*/ char  **bytes_to_write);
 int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
@@ -638,6 +639,7 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
+void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
 extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 extern void toku_ftnode_checkpoint_complete_callback(void *value_data);
 extern void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
@@ -977,9 +979,21 @@ typedef enum {
     FT_SEARCH_TRIES_GT_HEIGHT,                 // number of searches that required more tries than the height of the tree
     FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            // number of searches that required more tries than the height of the tree plus three
     FT_DISK_FLUSH_LEAF,                        // number of leaf nodes flushed to disk,    not for checkpoint
+    FT_DISK_FLUSH_LEAF_BYTES,                  // number of leaf nodes flushed to disk,    not for checkpoint
+    FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES,                  // number of leaf nodes flushed to disk,    not for checkpoint
+    FT_DISK_FLUSH_LEAF_TOKUTIME,               // number of leaf nodes flushed to disk,    not for checkpoint
     FT_DISK_FLUSH_NONLEAF,                     // number of nonleaf nodes flushed to disk, not for checkpoint
+    FT_DISK_FLUSH_NONLEAF_BYTES,               // number of nonleaf nodes flushed to disk, not for checkpoint
+    FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES,               // number of nonleaf nodes flushed to disk, not for checkpoint
+    FT_DISK_FLUSH_NONLEAF_TOKUTIME,            // number of nonleaf nodes flushed to disk, not for checkpoint
     FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         // number of leaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_LEAF_BYTES_FOR_CHECKPOINT,   // number of leaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,// number of leaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_LEAF_TOKUTIME_FOR_CHECKPOINT,// number of leaf nodes flushed to disk for checkpoint
     FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      // number of nonleaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
     FT_CREATE_LEAF,                            // number of leaf nodes created
     FT_CREATE_NONLEAF,                         // number of nonleaf nodes created
     FT_DESTROY_LEAF,                           // number of leaf nodes destroyed
@@ -999,37 +1013,37 @@ typedef enum {
     FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,
     FT_NUM_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
     FT_BYTES_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
-    FT_NANOTIME_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
+    FT_TOKUTIME_PIVOTS_FETCHED_QUERY,               // how many pivots were fetched for a query
     FT_NUM_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
     FT_BYTES_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
-    FT_NANOTIME_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
+    FT_TOKUTIME_PIVOTS_FETCHED_PREFETCH,            // ... for a prefetch
     FT_NUM_PIVOTS_FETCHED_WRITE,               // ... for a write
     FT_BYTES_PIVOTS_FETCHED_WRITE,               // ... for a write
-    FT_NANOTIME_PIVOTS_FETCHED_WRITE,               // ... for a write
+    FT_TOKUTIME_PIVOTS_FETCHED_WRITE,               // ... for a write
     FT_NUM_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
     FT_BYTES_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
-    FT_NANOTIME_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
+    FT_TOKUTIME_BASEMENTS_FETCHED_NORMAL,           // how many basement nodes were fetched because they were the target of a query
     FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
     FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
-    FT_NANOTIME_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
+    FT_TOKUTIME_BASEMENTS_FETCHED_AGGRESSIVE,       // ... because they were between lc and rc
     FT_NUM_BASEMENTS_FETCHED_PREFETCH,
     FT_BYTES_BASEMENTS_FETCHED_PREFETCH,
-    FT_NANOTIME_BASEMENTS_FETCHED_PREFETCH,
+    FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH,
     FT_NUM_BASEMENTS_FETCHED_WRITE,
     FT_BYTES_BASEMENTS_FETCHED_WRITE,
-    FT_NANOTIME_BASEMENTS_FETCHED_WRITE,
+    FT_TOKUTIME_BASEMENTS_FETCHED_WRITE,
     FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
     FT_BYTES_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
-    FT_NANOTIME_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
+    FT_TOKUTIME_MSG_BUFFER_FETCHED_NORMAL,          // how many msg buffers were fetched because they were the target of a query
     FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
     FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
-    FT_NANOTIME_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
+    FT_TOKUTIME_MSG_BUFFER_FETCHED_AGGRESSIVE,      // ... because they were between lc and rc
     FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,
     FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH,
-    FT_NANOTIME_MSG_BUFFER_FETCHED_PREFETCH,
+    FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH,
     FT_NUM_MSG_BUFFER_FETCHED_WRITE,
     FT_BYTES_MSG_BUFFER_FETCHED_WRITE,
-    FT_NANOTIME_MSG_BUFFER_FETCHED_WRITE,
+    FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,
     FT_PRO_NUM_ROOT_SPLIT,
     FT_PRO_NUM_ROOT_H0_INJECT,
     FT_PRO_NUM_ROOT_H1_INJECT,

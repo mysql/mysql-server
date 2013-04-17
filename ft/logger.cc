@@ -418,7 +418,14 @@ write_outbuf_to_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
 // Entry and exit: Holds permission to modify output (and doesn't let it go, so it's ok to also hold the inlock).
 {
     if (logger->outbuf.n_in_buf>0) {
+        // Write the outbuf to disk, take accounting measurements
+        tokutime_t io_t0 = toku_time_now();
         toku_os_full_write(logger->fd, logger->outbuf.buf, logger->outbuf.n_in_buf);
+        tokutime_t io_t1 = toku_time_now();
+        logger->num_writes_to_disk++;
+        logger->bytes_written_to_disk += logger->outbuf.n_in_buf;
+        logger->time_spent_writing_to_disk += (io_t1 - io_t0);
+
         assert(logger->outbuf.max_lsn_in_buf.lsn > logger->written_lsn.lsn); // since there is something in the buffer, its LSN must be bigger than what's previously written.
         logger->written_lsn = logger->outbuf.max_lsn_in_buf;
         logger->n_in_file += logger->outbuf.n_in_buf;
@@ -1280,6 +1287,10 @@ status_init(void) {
     STATUS_INIT(LOGGER_ILOCK_CTR,    UINT64,  "ilock count");
     STATUS_INIT(LOGGER_OLOCK_CTR,    UINT64,  "olock count");
     STATUS_INIT(LOGGER_SWAP_CTR,     UINT64,  "swap count");
+    STATUS_INIT(LOGGER_NUM_WRITES,                  UINT64,  "writes");
+    STATUS_INIT(LOGGER_BYTES_WRITTEN,               UINT64,  "writes (bytes)");
+    STATUS_INIT(LOGGER_UNCOMPRESSED_BYTES_WRITTEN,  UINT64,  "writes (uncompressed bytes)");
+    STATUS_INIT(LOGGER_TOKUTIME_WRITES,             TOKUTIME,  "writes (seconds)");
     logger_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -1295,6 +1306,11 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
         STATUS_VALUE(LOGGER_ILOCK_CTR)   = logger->input_lock_ctr;
         STATUS_VALUE(LOGGER_OLOCK_CTR)   = logger->output_condition_lock_ctr;
         STATUS_VALUE(LOGGER_SWAP_CTR)    = logger->swap_ctr;
+        STATUS_VALUE(LOGGER_NUM_WRITES)  = logger->num_writes_to_disk;
+        STATUS_VALUE(LOGGER_BYTES_WRITTEN)  = logger->bytes_written_to_disk;
+        // No compression on logfiles so the uncompressed size is just number of bytes written
+        STATUS_VALUE(LOGGER_UNCOMPRESSED_BYTES_WRITTEN)  = logger->bytes_written_to_disk;
+        STATUS_VALUE(LOGGER_TOKUTIME_WRITES) = logger->time_spent_writing_to_disk;
     }
     *statp = logger_status;
 }

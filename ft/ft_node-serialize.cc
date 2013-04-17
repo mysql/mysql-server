@@ -762,6 +762,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
                                   bool do_rebalancing,
                                   bool in_parallel, // for loader is true, for toku_ftnode_flush_callback, is false
                           /*out*/ size_t *n_bytes_to_write,
+                          /*out*/ size_t *n_uncompresed_bytes,
                           /*out*/ char  **bytes_to_write)
 {
     toku_assert_entire_node_in_memory(node);
@@ -804,8 +805,11 @@ toku_serialize_ftnode_to_memory (FTNODE node,
 
     // The total size of the node is:
     // size of header + disk size of the n+1 sub_block's created above
-    uint32_t total_node_size = (serialize_node_header_size(node) // uncomrpessed header
+    uint32_t total_node_size = (serialize_node_header_size(node) // uncompressed header
                                  + sb_node_info.compressed_size   // compressed nodeinfo (without its checksum)
+                                 + 4);                            // nodinefo's checksum
+    uint32_t total_uncompressed_size = (serialize_node_header_size(node) // uncompressed header
+                                 + sb_node_info.uncompressed_size   // uncompressed nodeinfo (without its checksum)
                                  + 4);                            // nodinefo's checksum
     // store the BP_SIZESs
     for (int i = 0; i < node->n_children; i++) {
@@ -813,6 +817,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
         BP_SIZE (*ndd,i) = len;
         BP_START(*ndd,i) = total_node_size;
         total_node_size += sb[i].compressed_size + 4;
+        total_uncompressed_size += sb[i].uncompressed_size + 4;
     }
 
     char *XMALLOC_N(total_node_size, data);
@@ -843,6 +848,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
     assert(curr_ptr - data == total_node_size);
     *bytes_to_write = data;
     *n_bytes_to_write = total_node_size;
+    *n_uncompresed_bytes = total_uncompressed_size;
 
     //
     // now that node has been serialized, go through sub_block's and free
@@ -863,6 +869,7 @@ int
 toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint) {
 
     size_t n_to_write;
+    size_t n_uncompressed_bytes;
     char *compressed_buf = NULL;
     {
         // because toku_serialize_ftnode_to is only called for 
@@ -886,27 +893,26 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
             do_rebalancing,
             false, // in_parallel
             &n_to_write,
+            &n_uncompressed_bytes,
             &compressed_buf
             );
         if (r!=0) return r;
     }
 
-    //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
         // If the node has never been written, then write the whole buffer, including the zeros
         invariant(blocknum.b>=0);
-        //printf("%s:%d h=%p\n", __FILE__, __LINE__, h);
-        //printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, h->translated_blocknum_limit, blocknum.b);
-        //printf("%s:%d allocator=%p\n", __FILE__, __LINE__, h->block_allocator);
-        //printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
         DISKOFF offset;
 
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
                                       h, fd, for_checkpoint); //dirties h
+
+        tokutime_t io_t0 = toku_time_now();
         toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
+        tokutime_t io_t1 = toku_time_now();
+        toku_ft_status_update_flush_reason(node, n_uncompressed_bytes, n_to_write, io_t1 - io_t0, for_checkpoint);
     }
 
-    //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     toku_free(compressed_buf);
     node->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
     return 0;
