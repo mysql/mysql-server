@@ -348,6 +348,12 @@ toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, fl
     u_int32_t root_hash;
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
     int r = toku_verify_brtnode(brt, ZERO_MSN, ZERO_MSN, *rootp, -1, NULL, NULL, progress_callback, progress_extra, 1, verbose, keep_on_going);
+    if (r == 0) {
+        toku_brtheader_lock(brt->h);
+        brt->h->time_of_last_verification = time(NULL);
+        brt->h->dirty = 1;
+        toku_brtheader_unlock(brt->h);
+    }
     return r;
 }
 

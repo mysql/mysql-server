@@ -1776,6 +1776,7 @@ serialize_brt_header_min_size (u_int32_t version) {
         case BRT_LAYOUT_VERSION_15:
             size += 4;  // basement node size
             size += 8;  // num_blocks_to_upgrade_14 (previously num_blocks_to_upgrade, now one int each for upgrade from 13, 14
+            size += 8;  // time of last verification
         case BRT_LAYOUT_VERSION_14:
             size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_13:
@@ -1841,6 +1842,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade_14);
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);
+    wbuf_ulonglong(wbuf, h->time_of_last_verification);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -2100,6 +2102,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->build_id_original = rbuf_int(&rc);
     h->time_of_creation  = rbuf_ulonglong(&rc);
     h->time_of_last_modification = rbuf_ulonglong(&rc);
+    h->time_of_last_verification = 0;
     h->num_blocks_to_upgrade_13  = rbuf_ulonglong(&rc);
     h->num_blocks_to_upgrade_14  = rbuf_ulonglong(&rc);
 
@@ -2109,6 +2112,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     }
     if (h->layout_version >= BRT_LAYOUT_VERSION_15) {
         h->basementnodesize = rbuf_int(&rc);
+        h->time_of_last_verification = rbuf_ulonglong(&rc);
     }
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}

@@ -457,6 +457,7 @@ struct brt_header {
     uint32_t build_id_original;         // build_id of software that created this tree (read from disk, overwritten when written to disk)
     uint64_t time_of_creation;          // time this tree was created
     uint64_t time_of_last_modification; // last time this header was serialized to disk (read from disk, overwritten when written to disk)
+    uint64_t time_of_last_verification; // last time that this tree was verified
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
     int64_t num_blocks_to_upgrade_13;   // Number of v13 blocks still not newest version. 
     int64_t num_blocks_to_upgrade_14;   // Number of v14 blocks still not newest version. 

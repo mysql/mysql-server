@@ -2866,6 +2866,7 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
     uint64_t now = (uint64_t) time(NULL);
     h.time_of_creation = now;
     h.time_of_last_modification = now;
+    h.time_of_last_verification = 0;
     h.checkpoint_count = 1;
     h.checkpoint_lsn   = load_lsn;
     h.nodesize         = target_nodesize;
