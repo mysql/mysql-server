@@ -334,7 +334,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --append              append to an existing file\n");
-    fprintf(stderr, "    --checkpoint-period %d       checkpoint period\n", checkpoint_period); 
+    fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
