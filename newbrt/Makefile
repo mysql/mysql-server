@@ -26,34 +26,74 @@ else
  endif
 endif
 
-ifneq ($(CYGWIN),)
-FORMAT=-Wno-format
-CYG_ADD_LIBZ=/usr/lib/libz.a
-else
+#CFLAG default options
+WERROR    = -Werror
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn
+FORMAT    = -Wmissing-format-attribute
+VISIBILITY= -fvisibility=hidden
 FPICFLAGS = -fPIC
-# valgrind is not present on cygwin
-VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
-VISIBILITY=-fvisibility=hidden
- ifneq ($(CC),icc)
-  SHADOW=-Wshadow
-  FORMAT=-Wmissing-format-attribute
- endif
+SHADOW    = -Wshadow
+SYMBOLS   = -g3 -ggdb3
+PORTABILITY=
+SKIP_WARNING=
+COMBINE_C = -combine -c
+LINK_FILES= -lz -lpthread
+C99       = -std=gnu99
+
+#Tools
+VGRIND    = valgrind --quiet --error-exitcode=1 --leak-check=yes
+
+ifeq ($(CC),icc)
+    #icc only:
+    OPTFLAGS = -O3 -ip -ipo2
+    COMBINE_C = -ipo-c
+    FORMAT= #No argument for extra format warnings.
+    WALL  = -Wall -Wcheck # '-Wextra' becomes '-Wcheck' in icc
+    SYMBOLS= -g -debug all -inline-debug-info
+    PORTABILITY=-diag-enable port-win
+    ifneq ($(CYGWIN),)
+	#Cygwin
+        ICC_NOWARN=-Qdiag-disable:
+    else
+	#Linux
+        ICC_NOWARN=-diag-disable #Need the space
+    endif
+    SKIP_WARNING += $(ICC_NOWARN)177     # Don't complain about static variables that are not used.
+    #SKIP_WARNING += $(ICC_NOWARN)188     # Don't complain about enumerated type mixed with another type.
+    SKIP_WARNING += $(ICC_NOWARN)589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+    SKIP_WARNING += $(ICC_NOWARN)869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+    SKIP_WARNING += $(ICC_NOWARN)981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+    SKIP_WARNING += $(ICC_NOWARN)1324    # Don't complain about rdtsc clobbering its registers more than once.
 endif
 
-CFLAGS = -Werror -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-ifneq ($(CC),icc)
-CFLAGS += -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
-else
-CFLAGS += -g
- CFLAGS += -diag-enable port-win
- CFLAGS += -diag-disable  177     # Don't complain about static variables that are not used.
- #CFLAGS += -diag-disable  188     # Don't complain about enumerated type mixed with another type.
- CFLAGS += -diag-disable  589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
- CFLAGS += -diag-disable  869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
- CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
- CFLAGS += -diag-disable 1324    # Don't complain about rdtsc clobbering its registers more than once.
+ifneq ($(CYGWIN),)
+    #Cygwin (Windows) Must override some settings
+    CYG_ADD_LIBZ=/usr/lib/libz.a
+    VGRIND   =#No Valgrind in cygwin
+    FPICFLAGS=#FPIC is default and not allowed as an option.
+    VISIBILITY=#Not supported
+    SHADOW=#Not supported
+    ifeq ($(CC),icc)
+    	#Cygwin icc only
+        C99       = -Qstd=c99
+        OPTFLAGS  = -Ox -Qip -Qipo2
+        COMBINE_C = -Qipo-c
+        WERROR = -WX # Windows icc version of -Werror
+        SYMBOLS= -Zi -debug:all -Qinline-debug-info
+        PORTABILITY=
+        LINK_FILES=#Not supported
+        SKIP_WARNING += $(ICC_NOWARN)1786    # Don't complain about 'read/write/other standards' being deprecated
+    else
+        #Cygwin gcc only
+        FORMAT = -Wno-format
+    endif
 endif
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
+
+CFLAGS = $(WALL) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW)
+CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
+CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99)
+
+LDFLAGS = $(OPTFLAGS) $(SYMBOLS) $(GCOV_FLAGS) $(PROF_FLAGS) $(LINK_FILES)
 # Need XOPEN_SOURCE=600 to get strtoll()
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
 
@@ -114,12 +154,9 @@ HFILES = $(wildcard *.h)
 BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 
 ifeq ($(CIL),1)
-else ifeq ($(CC),icc)
-newbrt.o: $(BRT_C_FILES) $(HFILES)
-	$(CC) -ipo-c $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -o $@
 else
 newbrt.o: $(BRT_C_FILES) $(HFILES)
-	$(CC) -combine $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -c -o $@
+	$(CC) $(COMBINE_C) $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -o $@
 endif
 
 tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
@@ -185,6 +222,7 @@ clean-tests:
 clean-local:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt
+	rm -rf *.obj *.pdb *.ilk *.exe
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump
