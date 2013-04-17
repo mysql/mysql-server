@@ -2,6 +2,9 @@
 CPPFLAGS = -D_GNU_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
 CFLAGS = -Wall -Werror -g -O0 -std=c99
+ifneq ($(GCOV),)
+	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
+endif
 LDFLAGS = ../libtokuportability.a -lpthread
 SRCS = $(wildcard test-*.c)
 TARGETS = $(patsubst %.c,%,$(SRCS))
@@ -29,7 +32,8 @@ all: $(TARGETS)
 test-gettime: test-gettime.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS) -lrt
 
-.PHONY: check
+.PHONY: check build
+build: $(TARGETS)
 check: $(TARGETS) $(RUNTARGETS);
 
 %.tdbrun: %
