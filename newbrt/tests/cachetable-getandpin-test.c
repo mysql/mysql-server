@@ -81,13 +81,7 @@ cachetable_getandpin_test (int n) {
 }
 
 int main(int argc, const char *argv[]) {
-    int i;
-    for (i=1; i<argc; i++) {
-        if (strcmp(argv[i], "-v") == 0) {
-            verbose++;
-            continue;
-        }
-    }
+    default_parse_args(argc, argv);
     cachetable_getandpin_test(8);
     return 0;
 }
