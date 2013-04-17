@@ -192,9 +192,11 @@ int test_main (int argc, const char *argv[]) {
     const char* directory = argv[0];
     char unlink_all[strlen(directory)+20];
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
-    system(unlink_all);
-    int r = toku_os_mkdir(directory, 0755);
-    assert(r==0);
+    int r;
+    r = system(unlink_all);
+    CKERR(r);
+    r = toku_os_mkdir(directory, 0755);
+    CKERR(r);
 
     int  templen = strlen(directory)+15;
     char template[templen];
