@@ -78,19 +78,18 @@ function runcmd() {
 	if [[ $dir =~ "$HOME/svn.build/(.*)" ]] ; then
 	    dir=${BASH_REMATCH[1]}
 	fi
+	result="$(mydate) $dir $cmd"
 	if [ $fail -eq 0 ] ; then
 	    if [ $exitcode -eq 0 ] ; then
-		result="PASS $(mydate) $dir $cmd"
-		let npass=npass+1
+		result="PASS $result"
 	    else
-		result="FAIL $(mydate) $dir $cmd"
-		let nfail=nfail+1
+		result="FAIL $result"
 	    fi
 	else
 	    if [ $exitcode -eq 0 ] ; then
-		result="XPASS $(mydate) $dir $cmd"
+		result="XPASS $result"
 	    else
-		result="XFAIL $(mydate) $dir $cmd"
+		result="XFAIL $result"
 	    fi
 	fi
     fi
@@ -167,9 +166,6 @@ function build() {
     # cleanup
     rm -rf $productbuilddir
     mkdir -p $productbuilddir
-
-    let nfail=0
-    let npass=0
 
     # checkout into $productbuilddir
     runcmd 0 $productbuilddir retry svn checkout -q -r $revision $svnserver/$checkout . >>$tracefile 2>&1
@@ -300,10 +296,10 @@ function build() {
 
     # put the trace into svn
     if [ $commit -ne 0 ] ; then
+	npass=$(egrep "^PASS " $tracefile | wc -l)
+	nfail=$(egrep "^FAIL " $tracefile | wc -l)
 	testresult="PASS=$npass"
-	if [ $nfail != 0 ] ; then
-	    testresult="FAIL=$nfail $testresult"
-	fi
+	if [ $nfail != 0 ] ; then testresult="FAIL=$nfail $testresult"; fi
 
 	local cf=$(my_mktemp ftresult)
 	echo "$testresult $productname $ftcc-$GCCVERSION bdb-$BDBVERSION $system $release $arch $nodename" >$cf
