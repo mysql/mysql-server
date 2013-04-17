@@ -1,19 +1,19 @@
-TARGETS = db-insert db-insert-bdb db-scan db-scan-bdb db-update db-update-bdb
-CFLAGS = -g
-CPPFLAGS = -I../include
+TARGETS = db-insert db-insert-bdb db-scan db-scan-bdb db-update db-update-bdb db-insert-multiple
+CPPFLAGS = -I../include -D_GNU_SOURCE
+CFLAGS = -g -std=c99 -Wall -Werror
 LIBTOKUDB = tokudb
 LDFLAGS = -L../lib -l$(LIBTOKUDB) -Wl,-rpath,../lib
 
 default: $(TARGETS)
 
 db-insert-bdb: db-insert.c
-	cc -ldb db-insert.c  -o db-insert-bdb -DBDB $(CFLAGS)
+	cc -D_GNU_SOURCE -DBDB $(CFLAGS) db-insert.c  -o db-insert-bdb -ldb
 
 db-scan-bdb: db-scan.c
-	cc -ldb db-scan.c    -o db-scan-bdb   -DBDB $(CFLAGS)
+	cc -D_GNU_SOURCE -DBDB $(CFLAGS) db-scan.c    -o db-scan-bdb -ldb
 
 db-update-bdb: db-update.c
-	cc -ldb db-update.c  -o db-update-bdb -DBDB $(CFLAGS)
+	cc -D_GNU_SOURCE -DBDB $(CFLAGS) db-update.c  -o db-update-bdb -ldb
 
 
 default: db-insert

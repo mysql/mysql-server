@@ -6,9 +6,12 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <arpa/inet.h>
 #include "db.h"
 
 #if defined(BDB)
@@ -23,7 +26,7 @@ static int get_int(void *p) {
     return htonl(v);
 }
 
-#if !defined(BDB)
+#if defined(TOKUDB)
 static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
     if (old_val == NULL) {
         // insert new_val = extra
@@ -62,7 +65,7 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     int newd = htonl(d);
     memcpy(val_buffer+4, &newd, sizeof newd);
 
-#if !defined(BDB)
+#if defined(TOKUDB)
     if (do_update_callback) {
         // extra = value_buffer, implicit combine column c update function
         DBT key = { .data = key_buffer, .size = sizeof key_buffer };
@@ -147,6 +150,7 @@ int main(int argc, char *argv[]) {
     int key_range = 100000;
     bool do_update_callback = false;
     bool do_txn = true;
+    u_int64_t cachesize = 0;
     u_int32_t pagesize = 0;
 
     int i;
@@ -180,6 +184,10 @@ int main(int argc, char *argv[]) {
             pagesize = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--cachesize") == 0 && i+1 < argc) {
+            cachesize = atol(argv[++i]);
+            continue;
+        }
         if (strcmp(arg, "--update_callback") == 0) {
             do_update_callback = true;
             continue;
@@ -198,9 +206,13 @@ int main(int argc, char *argv[]) {
     // create and open the env
     DB_ENV *db_env = NULL;
     r = db_env_create(&db_env, 0); assert(r == 0);
-#if !defined(BDB)
+#if defined(TOKUDB)
     db_env->set_update(db_env, my_update_callback);
 #endif
+    if (cachesize) {
+        const u_int64_t gig = 1 << 30;
+        r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
+    }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
