@@ -10,5 +10,6 @@
 #include "log.h"
 #include "sql_class.h"
 #include "sql_show.h"
+#include "discover.h"
 #endif
 #endif
