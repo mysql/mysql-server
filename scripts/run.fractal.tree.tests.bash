@@ -115,11 +115,13 @@ if [[ $commit -eq 1 ]]; then
     # make the build directory, possibly on multiple machines simultaneously, there can be only one
     builddir=$buildbase/$date
     pushd $buildbase
-    retry (svn mkdir $svnserver/tokudb.build/$date -m "" ;
-        svn co -q $svnserver/tokudb.build/$date) || rm -rf $date
+    set +e
+    svn mkdir $svnserver/tokudb.build/$date -m "" || true
+    retry svn co -q $svnserver/tokudb.build/$date
     if [ ! -d $date ] ; then
         exit 1
     fi
+    set -e
     popd
 
     tracefilepfx=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
