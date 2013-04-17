@@ -694,7 +694,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/filesize.tdb
     ydb/loader-cleanup-test0.tdb
     ydb/loader-cleanup-test0z.tdb
-    ydb/loader-cleanup-test2z.tdb
     ydb/manyfiles.tdb
     ydb/recover-loader-test.abortrecover
     ydb/recovery_fileops_stress.tdb
@@ -736,11 +735,11 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/hotindexer-with-queries.tdb
     ydb/hot-optimize-table-tests.tdb
     ydb/loader-cleanup-test2.tdb
+    ydb/loader-cleanup-test2z.tdb
     ydb/loader-dup-test0.tdb
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
     ydb/loader-stress-del.comp.loader
-    ydb/loader-stress-test4z.tdb
     ydb/test3039.tdb
     ydb/test3529.tdb
     ydb/test_update_stress.tdb
@@ -755,6 +754,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   set(phenomenally_long_tests
     ydb/checkpoint_stress.tdb
     ydb/loader-stress-test4.tdb
+    ydb/loader-stress-test4z.tdb
     ydb/recover_stress.tdb
     ydb/recovery_fileops_unit.tdb
     )
