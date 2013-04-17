@@ -7103,6 +7103,8 @@ bool ha_tokudb::is_auto_inc_singleton(){
     return false;
 }
 
+volatile int ha_tokudb_tokudb_add_index_wait = 0; // debug
+
 //
 // Internal function called by ha_tokudb::add_index and ha_tokudb::alter_table_phase2
 // With a transaction, drops dictionaries associated with indexes in key_num
@@ -7129,6 +7131,9 @@ int ha_tokudb::tokudb_add_index(
     ) 
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::tokudb_add_index");
+    
+    while (ha_tokudb_tokudb_add_index_wait) sleep(1); // debug
+
     int error;
     uint curr_index = 0;
     DBC* tmp_cursor = NULL;
@@ -7719,11 +7724,16 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 }
 #endif
 
+volatile int ha_tokudb_optimize_wait = 0; // debug
+
 //
 // flatten all DB's in this table, to do so, just do a full scan on every DB
 //
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
+    
+    while (ha_tokudb_optimize_wait) sleep(1); // debug
+
     int error;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     //
@@ -9737,7 +9747,7 @@ ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     }
 }
 
-static volatile int tokudb_check_stall = 0; // debug
+volatile int ha_tokudb_check_wait = 0; // debug
 
 int
 ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
@@ -9745,7 +9755,7 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     const char *old_proc_info = thd->proc_info;
     thd_proc_info(thd, "tokudb::check");
 
-    while (tokudb_check_stall) sleep(1); // debug
+    while (ha_tokudb_check_wait) sleep(1); // debug
 
     int result = HA_ADMIN_OK;
     int r;
