@@ -1,8 +1,0 @@
-# -*- Mode: Makefile -*-
-
-# ROOT is the the name of the root of the tokudb make directory heirarchy, starting at the cwd
-ROOT =
-include Makefile.include
-
-# build: $(BINS) $(LIBS)
-# check: $(patsubst %,%.checkdir,$(DIRS))
