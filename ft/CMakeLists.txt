@@ -91,8 +91,8 @@ add_dependencies(ft install_tdb_h build_lzma)
 add_dependencies(ft_static install_tdb_h build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
-target_link_libraries(ft LINK_PRIVATE lzma)
-target_link_libraries(ft LINK_PUBLIC ${ZLIB_LIBRARIES})
+target_link_libraries(ft LINK_PRIVATE lzma ${LIBTOKUPORTABILITY})
+target_link_libraries(ft LINK_PUBLIC z)
 target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 if (CMAKE_C_COMPILER_ID STREQUAL Intel)
@@ -125,7 +125,7 @@ foreach(bin ${bins})
   add_dependencies(${bin}_static install_tdb_h)
   add_space_separated_property(TARGET ${bin}_static COMPILE_FLAGS "-fvisibility=hidden -fPIE")
   add_space_separated_property(TARGET ${bin}_static LINK_FLAGS -pie)
-  target_link_libraries(${bin}_static ft_static ${ZLIB_LIBRARIES} ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
+  target_link_libraries(${bin}_static ft_static z ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
 endforeach(bin)
 
 # link in math.h library just for this tool.
