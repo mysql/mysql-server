@@ -7,7 +7,7 @@ SECTIONS = intro
 SECTIONS_TEXI = $(patsubst %,%.texi,$(SECTIONS))
 
 default: $(MANPAGES_3) tokudb.dvi;
-build: default;
+local build: default;
 
 tokudb.dvi: tokudb.texi $(MANPAGES_TEXI) $(SECTIONS_TEXI)
 	texi2dvi4a2ps tokudb.texi

@@ -28,7 +28,10 @@ endif
 
 LIBNAME = libtokudb_cxx
 
-default: install build
+default: local
+
+local: install build;
+
 build: $(LIBNAME).a
 	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $< ../lib/; fi
 	cd tests; $(MAKE) build
