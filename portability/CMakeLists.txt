@@ -5,7 +5,6 @@ set(tokuportability_srcs
   memory
   os_malloc
   portability
-  toku_affinity
   toku_assert
   toku_pthread
   toku_fair_rwlock
