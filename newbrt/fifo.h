@@ -39,6 +39,9 @@ void toku_fifo_free(FIFO *);
 // into the fifo.
 void toku_fifo_size_hint(FIFO, size_t size_hint);
 
+void toku_fifo_size_is_stabilized(FIFO);
+// Effect: Tell the FIFO that we may have just inserted or removed a bunch of stuff, and now may be a good time to resize memory.
+
 int toku_fifo_n_entries(FIFO);
 
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd);

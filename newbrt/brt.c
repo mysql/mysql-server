@@ -2660,6 +2660,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
 
 	    BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
 	}
+	toku_fifo_size_is_stabilized(fifo);
 
 	invariant(BNC_NBYTESINBUF(node, childnum) == 0);
 	BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
@@ -2701,6 +2702,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
 	    node->dirty = 1;
 
 	}
+	toku_fifo_size_is_stabilized(fifo);
 
 	invariant(BNC_NBYTESINBUF(node, childnum) == 0);
 	BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
