@@ -111,11 +111,10 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int fetch_forchain (CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(toku_cachetable_hash(f, key)==fullhash);
     assert((long)extraargs==(long)key.b);
     *value = (void*)(long)key.b;
-    written_lsn->lsn = 0;
     return 0;
 }
 

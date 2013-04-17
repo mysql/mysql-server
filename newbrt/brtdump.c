@@ -62,10 +62,11 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" serialize_size =%u\n", toku_serialize_brtnode_size(n));
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
-    printf(" disk_lsn    =%" PRIu64 "\n", n->disk_lsn.lsn);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
     printf(" layout_version=%d\n", n->layout_version);
+    printf(" layout_version_original=%d\n", n->layout_version_original);
+    printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" rand4fp     =%08x\n", n->rand4fingerprint);
     printf(" localfp     =%08x\n", n->local_fingerprint);
     if (n->height>0) {

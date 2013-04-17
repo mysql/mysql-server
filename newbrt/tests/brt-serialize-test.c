@@ -20,9 +20,8 @@ static void test_serialize(void) {
     sn.ever_been_written = 0;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
-    sn.disk_lsn.lsn = 789;
-    sn.log_lsn.lsn  = 123456;
     sn.layout_version = BRT_LAYOUT_VERSION;
+    sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
@@ -99,8 +98,9 @@ static void test_serialize(void) {
 
     assert(dn->thisnodename.b==20);
 
-    assert(dn->disk_lsn.lsn==123456);
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
+    assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
+    assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);

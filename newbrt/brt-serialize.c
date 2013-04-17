@@ -160,10 +160,12 @@ toku_pwrite_extend (int fd, const void *buf, size_t count, toku_off_t offset, ss
 }
 
 // Don't include the compression header
+// Overhead calculated in same order fields are written to wbuf
 static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
+                                            4+   // layout_version
+                                            4+   // layout_version_original
+                                            0+   // descriptor (variable, not counted here)
 					    4+   // nodesize
-					    8+   // checkpoint number
-					    4+   // target node size
 					    4+   // flags
 					    4+   // height
 					    4+   // random for fingerprint
@@ -254,8 +256,8 @@ wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
 }
 
 enum { uncompressed_magic_len = (8 // tokuleaf or tokunode
-				 +4 // version
-				 +8 // lsn
+				 +4 // layout version
+				 +4 // layout version original
 				 ) 
 };
 
@@ -263,7 +265,6 @@ enum { uncompressed_magic_len = (8 // tokuleaf or tokunode
 enum {
     uncompressed_magic_offset = 0,
     uncompressed_version_offset = 8,
-    uncompressed_lsn_offset = 12,
 };
 
 // compression header sub block sizes
@@ -361,7 +362,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     else wbuf_literal_bytes(&w, "node", 4);
     assert(node->layout_version == BRT_LAYOUT_VERSION);
     wbuf_int(&w, node->layout_version);
-    wbuf_ulonglong(&w, node->log_lsn.lsn);
+    wbuf_int(&w, node->layout_version_original);
     assert(node->desc == &h->descriptor);
     serialize_descriptor_contents_to_wbuf(&w, node->desc);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
@@ -819,7 +820,8 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     rbuf_literal_bytes(rb, &magic, 8);
     result->layout_version    = rbuf_int(rb);
     assert(result->layout_version == BRT_LAYOUT_VERSION);
-    result->disk_lsn.lsn = rbuf_ulonglong(rb);
+    result->layout_version_original = rbuf_int(rb);
+    result->layout_version_read_from_disk = result->layout_version;
     {
         //Restrict scope for now since we do not support upgrades.
         struct descriptor desc;
@@ -828,7 +830,6 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
         assert(desc.version == result->desc->version); //We do not yet support upgrading the dbts.
     }
     result->nodesize = rbuf_int(rb);
-    result->log_lsn = result->disk_lsn;
 
     result->thisnodename = blocknum;
     result->flags = rbuf_int(rb);
@@ -1018,7 +1019,7 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
     // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    unsigned char *XMALLOC_N(size, raw_block);
+    u_int8_t *XMALLOC_N(size, raw_block);
     {
         // read the (partially compressed) block
         ssize_t rlen = pread(fd, raw_block, size, offset);

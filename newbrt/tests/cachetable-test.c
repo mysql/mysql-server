@@ -143,14 +143,13 @@ static struct item *make_item (u_int64_t key) {
 }
 
 static CACHEKEY did_fetch={-1};
-static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((__unused__)), void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     if (verbose) printf("Fetch %" PRId64 "\n", key.b);
     assert (expect_f==f);
     assert((long)extraargs==23);
     *value = make_item(key.b);
     *sizep = test_object_size;
     did_fetch=key;
-    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -308,10 +307,9 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
 }
 static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)),
 		    u_int32_t fullhash  __attribute__((__unused__)),
-                    void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+                    void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==42);
     *value=0;
-    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -369,19 +367,17 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         BOOL for_checkpoint __attribute__((__unused__))) {
 }
 
-static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key.b+123L);
-    written_lsn->lsn = 0;
     return 0;
 }
 
-static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key.b+222L);
-    written_lsn->lsn = 0;
     return 0;
 }
 
@@ -444,9 +440,8 @@ static void test_dirty_flush(CACHEFILE f,
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
 }
 
-static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
+static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg) {
     *value_ptr = arg;
-    written_lsn->lsn = 0;
     assert(fullhash==toku_cachetable_hash(f,key));
     if (verbose) printf("test_dirty_fetch %p %" PRId64 " %p %ld %p\n", f, key.b, *value_ptr, *size_ptr, arg);
     return 0;
