@@ -74,10 +74,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     MALLOC_N(sn.n_children-1, sn.childkeys);
     sn.totalchildkeylens = 0;
     for (int i = 0; i < sn.n_children; ++i) {
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
     }
@@ -197,10 +193,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     sn.totalchildkeylens = 0;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_BLOCKNUM(&sn, i).b = 30 + (i*5);
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BNC(&sn, i, toku_create_empty_nl());
     }

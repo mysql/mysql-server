@@ -24,7 +24,6 @@ typedef struct brtnode *BRTNODE;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
 typedef struct brtnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
 typedef struct sub_block *SUB_BLOCK;
-typedef struct subtree_estimates *SUBTREE_EST;
 struct brt_header;
 struct wbuf;
 struct dbuf;

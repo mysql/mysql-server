@@ -2004,7 +2004,6 @@ int merge_files (struct merge_fileset *fs,
 
 struct subtree_info {
     int64_t block;
-    struct subtree_estimates subtree_estimates;
 };
 
 struct subtrees_info {
@@ -2024,12 +2023,11 @@ static void subtrees_info_destroy(struct subtrees_info *p) {
     p->subtrees = NULL;
 }
 
-static void allocate_node (struct subtrees_info *sts, int64_t b, const struct subtree_estimates est) {
+static void allocate_node (struct subtrees_info *sts, int64_t b) {
     if (sts->n_subtrees >= sts->n_subtrees_limit) {
 	sts->n_subtrees_limit *= 2;
 	XREALLOC_N(sts->n_subtrees_limit, sts->subtrees);
     }
-    sts->subtrees[sts->n_subtrees].subtree_estimates = est;
     sts->subtrees[sts->n_subtrees].block = b;
     sts->n_subtrees++;
 }
@@ -2363,8 +2361,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		progress_allocation -= progress_this_node;
 		old_n_rows_remaining = n_rows_remaining;
 
-                struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
-		allocate_node(&sts, lblock, est);
+		allocate_node(&sts, lblock);
 
 		n_pivots++;
 
@@ -2406,8 +2403,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     cleanup_maxkey(&maxkey);
 
     if (lbuf) {
-        struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
-        allocate_node(&sts, lblock, est);
+        allocate_node(&sts, lblock);
         {
             int p = progress_allocation/2;
             finish_leafnode(&out, lbuf, p, bl, target_basementnodesize);
@@ -2776,7 +2772,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
-    brt_leaf_apply_cmd_once(BLB(leafnode,0), &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL, NULL, &workdone);
+    brt_leaf_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, NULL, NULL, &workdone);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -2961,13 +2957,10 @@ static int setup_nonleaf_block (int n_children,
         toku_free(pivots[n_children-1].data);
         pivots[n_children-1] = zero_dbt;
 
-        struct subtree_estimates new_subtree_estimates = zero_estimates;
-
         struct subtree_info *XMALLOC_N(n_children, subtrees_array);
         for (int i = 0; i < n_children; i++) {
             int64_t from_blocknum = first_child_offset_in_subtrees + i;
             subtrees_array[i] = subtrees->subtrees[from_blocknum];
-            add_estimates(&new_subtree_estimates, &subtrees->subtrees[from_blocknum].subtree_estimates);
         }
 
         int r = allocate_block(out, blocknum);
@@ -2975,7 +2968,7 @@ static int setup_nonleaf_block (int n_children,
             toku_free(subtrees_array);
             result = r;
         } else {
-            allocate_node(next_subtrees, *blocknum, new_subtree_estimates);
+            allocate_node(next_subtrees, *blocknum);
             
             *pivots_p = pivots;
             *subtrees_info_p = subtrees_array;
@@ -3021,7 +3014,6 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     assert(node->bp);
     for (int i=0; i<n_children; i++) {
         BP_BLOCKNUM(node,i)  = make_blocknum(subtree_info[i].block); 
-        BP_SUBTREE_EST(node,i) = subtree_info[i].subtree_estimates;
         BP_STATE(node,i) = PT_AVAIL;
     }
 

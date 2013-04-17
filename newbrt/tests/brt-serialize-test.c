@@ -201,14 +201,6 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
     MALLOC_N(1, sn.childkeys);
     sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
     sn.totalchildkeylens = 2;
-    BP_SUBTREE_EST(&sn,0).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).exact =  (BOOL)(random()%2 != 0);
-    BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
@@ -250,16 +242,6 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
     assert(r==0);
 
     setup_dn(bft, fd, brt_h, &dn);
-
-    //
-    // test that subtree estimates get set
-    // rebalancing should make it 1 basement
-    //
-    assert(BP_SUBTREE_EST(&sn,0).nkeys == 3);
-    assert(BP_SUBTREE_EST(dn,0).nkeys == 3);
-    assert(BP_SUBTREE_EST(&sn,0).ndata == 3);
-    assert(BP_SUBTREE_EST(dn,0).ndata == 3);
-
 
     assert(dn->thisnodename.b==20);
 
@@ -349,10 +331,6 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn());
     }
     for (int i = 0; i < nrows; ++i) {
@@ -471,10 +449,6 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn()); 
     }
     BLB_NBYTESINBUF(&sn, 0) = 0;
@@ -595,10 +569,6 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     sn.totalchildkeylens = (sn.n_children-1)*8;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn());
     }
     BLB_NBYTESINBUF(&sn, 0) = 0;
@@ -717,10 +687,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn());
         BLB_SEQINSERT(&sn, i) = 0;
     }
@@ -841,10 +807,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
-        BP_SUBTREE_EST(&sn,i).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn());
     }
     BLB_NBYTESINBUF(&sn, 0) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
@@ -956,14 +918,6 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     MALLOC_N(1, sn.childkeys);
     sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
     sn.totalchildkeylens = 2;
-    BP_SUBTREE_EST(&sn,0).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).exact =  (BOOL)(random()%2 != 0);
-    BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
@@ -1085,14 +1039,6 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     sn.totalchildkeylens = 6;
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
-    BP_SUBTREE_EST(&sn,0).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).ndata = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).nkeys = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,1).dsize = random() + (((long long)random())<<32);
-    BP_SUBTREE_EST(&sn,0).exact =  (BOOL)(random()%2 != 0);
-    BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BNC(&sn, 0, toku_create_empty_nl());

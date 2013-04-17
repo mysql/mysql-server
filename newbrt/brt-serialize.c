@@ -381,7 +381,6 @@ serialize_brtnode_info_size(BRTNODE node)
     retval += 4; // flags
     retval += 4; // height;
     retval += 4; // optimized_for_upgrade
-    retval += (3*8+1)*node->n_children; // subtree estimates for each child
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
@@ -407,13 +406,6 @@ static void serialize_brtnode_info(BRTNODE node,
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
     wbuf_nocrc_int (&wb, node->optimized_for_upgrade);    
-    // subtree estimates of each child
-    for (int i = 0; i < node->n_children; i++) {
-        wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).nkeys);
-        wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).ndata);
-        wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).dsize);
-        wbuf_nocrc_char     (&wb, (char)BP_SUBTREE_EST(node,i).exact);
-    }
     // pivot information
     for (int i = 0; i < node->n_children-1; i++) {
         wbuf_nocrc_bytes(&wb, kv_pair_key(node->childkeys[i]), toku_brt_pivot_key_len(node->childkeys[i]));
@@ -598,9 +590,6 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
         BLB_MAX_MSN_APPLIED(node,i) = max_msn;
     }
     node->max_msn_applied_to_node_on_disk = max_msn;
-
-    // now the subtree estimates
-    toku_brt_leaf_reset_calc_leaf_stats(node);
 
     toku_free(array);
     toku_free(new_pivots);
@@ -1132,14 +1121,6 @@ deserialize_brtnode_info(
     // n_children is now in the header, nd the allocatio of the node->bp is in deserialize_brtnode_from_rbuf.
     assert(node->bp!=NULL); // 
 
-    for (int i=0; i < node->n_children; i++) {
-        SUBTREE_EST curr_se = &BP_SUBTREE_EST(node,i);
-        curr_se->nkeys = rbuf_ulonglong(&rb);
-        curr_se->ndata = rbuf_ulonglong(&rb);
-        curr_se->dsize = rbuf_ulonglong(&rb);
-        curr_se->exact = (BOOL) (rbuf_char(&rb) != 0);
-    }
-
     // now the pivots
     node->totalchildkeylens = 0;
     if (node->n_children > 1) {
@@ -1630,9 +1611,6 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
     deserialize_brtnode_partition(&curr_sb, node, childnum, &bfe->h->descriptor, bfe->h->compare_fun);
-    if (node->height == 0) {
-        toku_brt_bn_reset_stats(node, childnum);
-    }
     toku_free(curr_sb.uncompressed_ptr);
     toku_free(raw_block);
 }
@@ -1657,9 +1635,6 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
         curr_sb->compressed_size
         );
     deserialize_brtnode_partition(curr_sb, node, childnum, desc, cmp);
-    if (node->height == 0) {
-        toku_brt_bn_reset_stats(node, childnum);
-    }
     toku_free(curr_sb->uncompressed_ptr);
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);

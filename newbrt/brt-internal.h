@@ -50,36 +50,6 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
-struct __attribute__((__packed__)) subtree_estimates {
-    // estimate number of rows in the tree by counting the number of rows
-    // in the leaves.  The stuff in the internal nodes is likely to be off O(1).
-    u_int64_t nkeys;  // number of distinct keys (obsolete with removal of dupsort, but not worth removing)
-    u_int64_t ndata; // number of key-data pairs (previously leafentry_estimate)
-    u_int64_t dsize;  // total size of leafentries
-    BOOL      exact;  // are the estimates exact?
-};
-
-static struct subtree_estimates const zero_estimates = {0,0,0,TRUE};
-
-static inline struct subtree_estimates __attribute__((__unused__))
-make_subtree_estimates (u_int64_t nkeys, u_int64_t ndata, u_int64_t dsize, BOOL exact) {
-    return (struct subtree_estimates){nkeys, ndata, dsize, exact};
-}
-
-static inline void
-subtract_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
-    if (a->nkeys >= b->nkeys) a->nkeys -= b->nkeys; else a->nkeys=0;
-    if (a->ndata >= b->ndata) a->ndata -= b->ndata; else a->ndata=0;
-    if (a->dsize >= b->dsize) a->dsize -= b->dsize; else a->dsize=0;
-}
-
-static inline void
-add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
-    a->nkeys += b->nkeys;
-    a->ndata += b->ndata;
-    a->dsize += b->dsize;
-}
-
 //
 // Field in brtnode_fetch_extra that tells the 
 // partial fetch callback what piece of the node
@@ -198,8 +168,6 @@ struct   __attribute__((__packed__)) brtnode_partition {
     // for leaf nodes, they are meaningless
     BLOCKNUM     blocknum; // blocknum of child 
 
-    //estimates for a child, for leaf nodes, are estimates of basement nodes
-    struct subtree_estimates subtree_estimates; 
     //
     // at any time, the partitions may be in one of the following three states (stored in pt_state):
     //   PT_INVALID - means that the partition was just initialized
@@ -268,7 +236,6 @@ struct brtnode {
 #define BP_STATE(node,i) ((node)->bp[i].state)
 #define BP_START(node,i) ((node)->bp[i].start)
 #define BP_SIZE(node,i) ((node)->bp[i].size)
-#define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
 #define BP_WORKDONE(node, i)((node)->bp[i].workdone)
 
 //
@@ -780,7 +747,6 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 void
 brt_leaf_apply_cmd_once (
     BASEMENTNODE bn,
-    SUBTREE_EST se,
     const BRT_MSG cmd,
     u_int32_t idx,
     LEAFENTRY le,
@@ -795,7 +761,6 @@ brt_leaf_put_cmd (
     brt_update_func update_fun,
     DESCRIPTOR desc,
     BASEMENTNODE bn, 
-    SUBTREE_EST se, 
     BRT_MSG cmd, 
     bool* made_change,
     uint64_t *workdone,
