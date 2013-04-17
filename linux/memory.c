@@ -22,11 +22,12 @@ void
 toku_memory_get_status(MEMORY_STATUS s) {
     if (status.mallocator_version == NULL) {
         // mallctl in jemalloc can be used to get the version string
-        int (*mallctl)(const char *, void *, size_t *, void *, size_t);
-        mallctl = dlsym(NULL, "mallctl");
-        if (mallctl) {
+        typedef int (*mallctl_fun_t)(const char *, void *, size_t *, void *, size_t);
+        mallctl_fun_t mallctl_f;
+        mallctl_f = (mallctl_fun_t) dlsym(NULL, "mallctl");
+        if (mallctl_f) {
             size_t version_length = sizeof status.mallocator_version;
-            int r = mallctl("version", &status.mallocator_version, &version_length, NULL, 0);
+            int r = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
             assert(r == 0);
         } else
             status.mallocator_version = "libc";
