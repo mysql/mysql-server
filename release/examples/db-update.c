@@ -16,6 +16,10 @@
 
 static int verbose = 0;
 
+static void db_error(const DB_ENV *env, const char *prefix, const char *msg) {
+    printf("%s: %s\n", __FUNCTION__, msg);
+}
+
 static int get_int(void *p) {
     int v; 
     memcpy(&v, p, sizeof v);
@@ -72,18 +76,20 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     {
 	DBT key = { .data = key_buffer, .size = sizeof key_buffer };
 	DBT value = { .data = val_buffer, .size = sizeof val_buffer };
-        DBT oldvalue; memset(&oldvalue, 0, sizeof oldvalue);
+        DBT oldvalue = { };
         r = db->get(db, txn, &key, &oldvalue, 0);
+        assert(r == 0 || r == DB_NOTFOUND);
 	if (r == 0) { 
             // update it
             int oldc = get_int(oldvalue.data);
             newc = htonl(oldc + c); // newc = oldc + newc
             memcpy(val_buffer, &newc, sizeof newc);
             r = db->put(db, txn, &key, &value, 0);
+            assert(r == 0);
 	} else if (r == DB_NOTFOUND) {
             r = db->put(db, txn, &key, &value, 0);
+            assert(r == 0);
 	}
-	assert(r == 0);
     }
 }
 
@@ -145,7 +151,7 @@ int main(int argc, char *argv[]) {
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     char *db_filename = "update.db";
     long rows = 100000000;
-    long rows_per_txn = 1000;
+    long rows_per_txn = 100;
     long rows_per_report = 100000;
     int key_range = 100000;
     bool do_update_callback = true;
@@ -215,6 +221,7 @@ int main(int argc, char *argv[]) {
     }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
+    db_env->set_errcall(db_env, db_error);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // create the db
