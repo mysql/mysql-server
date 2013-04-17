@@ -51,7 +51,6 @@ struct __toku_loader_internal {
     int err_errno;
 
     char **inames_in_env; /* [N]  inames of new files to be created */
-    char **inames_in_cwd; /* [N] */
 };
 
 static int verify_empty(DB *db, DB_TXN *txn) 
@@ -142,27 +141,25 @@ int toku_loader_create_loader(DB_ENV *env,
     }
     else {
         char **XMALLOC_N(N, new_inames_in_env);
-        char **XMALLOC_N(N, new_inames_in_cwd);
 	const struct descriptor **XMALLOC_N(N, descriptors);
 	for (int i=0; i<N; i++) {
 	    descriptors[i] = &dbs[i]->i->brt->h->descriptor;
 	}
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
-        r = ydb_load_inames (env, txn, N, dbs, new_inames_in_env, new_inames_in_cwd);
+        r = ydb_load_inames (env, txn, N, dbs, new_inames_in_env);
         assert(r==0);
         toku_brt_loader_open(&loader->i->brt_loader,
+                             loader->i->env->i->cachetable,
                              loader->i->env->i->generate_row_for_put,
                              src_db,
                              N,
                              dbs,
 			     descriptors,
                              (const char **)new_inames_in_env,
-                             (const char **)new_inames_in_cwd,
                              compare_functions,
                              loader->i->temp_file_template);
         loader->i->inames_in_env = new_inames_in_env;
-        loader->i->inames_in_cwd = new_inames_in_cwd;
 	toku_free(descriptors);
     }
     *blp = loader;
@@ -247,16 +244,13 @@ int toku_loader_close(DB_LOADER *loader)
         for (int i=0; i<loader->i->N; i++) {
             toku_ydb_lock(); //Must hold ydb lock for dictionary_redirect.
             int r = toku_dictionary_redirect(loader->i->inames_in_env[i],
-                                             loader->i->inames_in_cwd[i],
                                              loader->i->dbs[i]->i->brt,
                                              db_txn_struct_i(loader->i->txn)->tokutxn);
             assert(r==0);
             toku_ydb_unlock();
             toku_free(loader->i->inames_in_env[i]);
-            toku_free(loader->i->inames_in_cwd[i]);
         }
         toku_free(loader->i->inames_in_env);
-        toku_free(loader->i->inames_in_cwd);
         toku_free(loader->i->brt_loader);
         // TODO: release table locks
     }

@@ -73,18 +73,17 @@ int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and dest
 void toku_cachetable_get_miss_times(CACHETABLE ct, uint64_t *misscount, uint64_t *misstime);
 
 // Open a file and bind the file to a new cachefile object. (For use by test programs only.)
-int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, const char */*fname_in_cwd*/,int flags, mode_t mode);
+int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, int flags, mode_t mode);
 
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, 
-			    const char *fname_relative_to_env /*(used for logging)*/,
-			    const char *fname_in_cwd);
+			    const char *fname_relative_to_env); /*(used for logging)*/
 int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, 
-					 const char *fname_in_env, const char *fname_in_cwd,
+					 const char *fname_in_env,
 					 BOOL with_filenum, FILENUM filenum, BOOL reserved);
 
 // Change the binding of which file is attached to a cachefile.  Close the old fd.  Use the new fd.
-int toku_cachefile_redirect (CACHEFILE cf, int fd, const char *fname_in_env, const char *fname_in_cwd);
+int toku_cachefile_redirect (CACHEFILE cf, int fd, const char *fname_in_env);
 
 int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum);
 
@@ -312,5 +311,9 @@ typedef struct cachetable_status {
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
 
 LEAFLOCK_POOL toku_cachefile_leaflock_pool(CACHEFILE cf);
+
+void toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir);
+char * toku_construct_full_name(int count, ...);
+char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 
 #endif

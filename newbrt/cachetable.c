@@ -4,11 +4,12 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
+#include <toku_portability.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 
-#include <toku_portability.h>
 #include "memory.h"
 #include "workqueue.h"
 #include "threadpool.h"
@@ -160,6 +161,8 @@ struct cachetable {
     toku_pthread_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
     LEAFLOCK_POOL leaflock_pool;
     OMT reserved_filenums;
+    char *env_dir;
+    BOOL set_env_dir; //Can only set env_dir once
 };
 
 
@@ -218,7 +221,6 @@ struct cachefile {
     struct fileid fileid;
     FILENUM filenum;
     char *fname_in_env; /* Used for logging */
-    char *fname_in_cwd; /* Used for logging, redirect */
 
     void *userdata;
     int (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
@@ -273,8 +275,17 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     r = toku_leaflock_create(&ct->leaflock_pool); assert(r==0);
     r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
+    ct->env_dir = toku_xstrdup(".");
     *result = ct;
     return 0;
+}
+
+void
+toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir) {
+    assert(!ct->set_env_dir);
+    toku_free(ct->env_dir);
+    ct->env_dir = toku_xstrdup(env_dir);
+    ct->set_env_dir = TRUE;
 }
 
 //
@@ -343,16 +354,15 @@ int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
 
 static FILENUM next_filenum_to_use={0};
 
-static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_in_env, const char *fname_in_cwd, struct fileid fileid) {
+static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_in_env, struct fileid fileid) {
     cf->fd = fd;
     cf->fileid = fileid;
     cf->fname_in_env = toku_xstrdup(fname_in_env);
-    cf->fname_in_cwd = toku_xstrdup(fname_in_cwd);
 }
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
-int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_in_env, const char *fname_in_cwd) {
-    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, fname_in_cwd, FALSE, next_filenum_to_use, FALSE);
+int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_in_env) {
+    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, FALSE, next_filenum_to_use, FALSE);
 }
 
 static int
@@ -474,7 +484,7 @@ toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum) {
 }
 
 int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd, 
-					 const char *fname_in_env, const char *fname_in_cwd, 
+					 const char *fname_in_env,
 					 BOOL with_filenum, FILENUM filenum, BOOL reserved) {
     int r;
     CACHEFILE extant;
@@ -551,7 +561,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         CACHEFILE XCALLOC(newcf);
         newcf->cachetable = ct;
         newcf->filenum.fileid = with_filenum ? filenum.fileid : next_filenum_to_use.fileid++;
-        cachefile_init_filenum(newcf, fd, fname_in_env, fname_in_cwd, fileid);
+        cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
 	newcf->refcount = 1;
 	newcf->next = ct->cachefiles;
 	ct->cachefiles = newcf;
@@ -576,7 +586,7 @@ static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
 static void assert_cachefile_is_flushed_and_removed (CACHETABLE ct, CACHEFILE cf);
 
 // Do not use this function to redirect to /dev/null.  
-int toku_cachefile_redirect (CACHEFILE cf, int newfd, const char *fname_in_env, const char *fname_in_cwd) {
+int toku_cachefile_redirect (CACHEFILE cf, int newfd, const char *fname_in_env) {
     int r;
     struct fileid newfileid;
     assert(newfd >= 0);
@@ -607,9 +617,7 @@ int toku_cachefile_redirect (CACHEFILE cf, int newfd, const char *fname_in_env, 
 
     toku_free(cf->fname_in_env);           // free old iname string
     cf->fname_in_env = NULL;               // hygiene
-    toku_free(cf->fname_in_cwd);           // free old iname string
-    cf->fname_in_cwd = NULL;               // hygiene
-    cachefile_init_filenum(cf, newfd, fname_in_env, fname_in_cwd, newfileid);
+    cachefile_init_filenum(cf, newfd, fname_in_env, newfileid);
     rwlock_write_unlock(&cf->fdlock);
     cachetable_unlock(ct);
 
@@ -617,10 +625,14 @@ int toku_cachefile_redirect (CACHEFILE cf, int newfd, const char *fname_in_env, 
 }
 
 //TEST_ONLY_FUNCTION
-int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in_env, const char *fname_in_cwd, int flags, mode_t mode) {
+int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in_env, int flags, mode_t mode) {
+    char *fname_in_cwd = toku_construct_full_name(2, ct->env_dir, fname_in_env);
     int fd = open(fname_in_cwd, flags+O_BINARY, mode);
-    if (fd<0) return errno;
-    return toku_cachetable_openfd (cfptr, ct, fd, fname_in_env, fname_in_cwd);
+    int r;
+    if (fd<0) r = errno;
+    else      r = toku_cachetable_openfd (cfptr, ct, fd, fname_in_env);
+    toku_free(fname_in_cwd);
+    return r;
 }
 
 WORKQUEUE toku_cachetable_get_workqueue(CACHETABLE ct) {
@@ -657,13 +669,9 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
 	toku_free(cf->fname_in_env);
 	cf->fname_in_env = NULL;
     }
-    if (cf->fname_in_cwd) {
-	toku_free(cf->fname_in_cwd);
-	cf->fname_in_cwd = NULL;
-    }
     //It is safe to have the name repeated since this is a newbrt-only test function.
     //There isn't an environment directory so its both env/cwd.
-    cachefile_init_filenum(cf, fd, fname_in_env, fname_in_env, fileid);
+    cachefile_init_filenum(cf, fd, fname_in_env, fileid);
     r = 0;
 cleanup:
     toku_cachefile_unpin_fd(cf);
@@ -678,11 +686,6 @@ toku_cachefile_leaflock_pool (CACHEFILE cf) {
 char *
 toku_cachefile_fname_in_env (CACHEFILE cf) {
     return cf->fname_in_env;
-}
-
-char *
-toku_cachefile_fname_in_cwd (CACHEFILE cf) {
-    return cf->fname_in_cwd;
 }
 
 int toku_cachefile_get_and_pin_fd (CACHEFILE cf) {
@@ -780,7 +783,6 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
                 assert(rd == 0);
             }
 	    if (cf->fname_in_env) toku_free(cf->fname_in_env);
-	    if (cf->fname_in_cwd) toku_free(cf->fname_in_cwd);
 
             rwlock_write_lock(&cf->fdlock, ct->mutex);
             if ( !toku_cachefile_is_dev_null_unlocked(cf) ) {
@@ -847,7 +849,6 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
         cf->fd = -1;
 
 	if (cf->fname_in_env) toku_free(cf->fname_in_env);
-	if (cf->fname_in_cwd) toku_free(cf->fname_in_cwd);
 	toku_free(cf);
 	*cfp=NULL;
 	return r;
@@ -1854,6 +1855,7 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_omt_destroy(&ct->reserved_filenums);
     r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); assert(r == 0);
     toku_free(ct->table);
+    toku_free(ct->env_dir);
     toku_free(ct);
     *ctp = 0;
     return 0;
@@ -2311,12 +2313,9 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
     close(cf->fd);  // no change for t:2444
     cf->fd = null_fd;
     char *saved_fname_in_env = cf->fname_in_env;
-    char *saved_fname_in_cwd = cf->fname_in_cwd;
     cf->fname_in_env = NULL;
-    cf->fname_in_cwd = NULL;
-    cachefile_init_filenum(cf, null_fd, saved_fname_in_env, saved_fname_in_cwd, fileid);
+    cachefile_init_filenum(cf, null_fd, saved_fname_in_env, fileid);
     if (saved_fname_in_env) toku_free(saved_fname_in_env);
-    if (saved_fname_in_cwd) toku_free(saved_fname_in_cwd);
     cf->is_dev_null = TRUE;
     rwlock_write_unlock(&cf->fdlock);
     cachetable_unlock(ct);
@@ -2358,3 +2357,34 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->size_writing = ct->size_writing;          
     s->get_and_pin_footprint = get_and_pin_footprint;
 }
+
+char *
+toku_construct_full_name(int count, ...) {
+    va_list ap;
+    char *name = NULL;
+    size_t n = 0;
+    int i;
+    va_start(ap, count);
+    for (i=0; i<count; i++) {
+        char *arg = va_arg(ap, char *);
+        if (arg) {
+            n += 1 + strlen(arg) + 1;
+            char *newname = toku_xmalloc(n);
+            if (name && !toku_os_is_absolute_name(arg))
+                snprintf(newname, n, "%s/%s", name, arg);
+            else
+                snprintf(newname, n, "%s", arg);
+            toku_free(name);
+            name = newname;
+        }
+    }
+    va_end(ap);
+
+    return name;
+}
+
+char *
+toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env) {
+    return toku_construct_full_name(2, ct->env_dir, fname_in_env);
+}
+

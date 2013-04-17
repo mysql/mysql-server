@@ -30,7 +30,7 @@ typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, byte
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
-int toku_dictionary_redirect (const char *dst_fname_in_env, const char *dst_fname_in_cwd, BRT old_brt, TOKUTXN txn);
+int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn);
 // See the brt.c file for what this toku_redirect_brt does
 
 int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn);
@@ -49,9 +49,9 @@ int toku_brt_set_dup_compare(BRT, brt_compare_func);
 brt_compare_func toku_brt_get_bt_compare (BRT brt);
 
 int brt_set_cachetable(BRT, CACHETABLE);
-int toku_brt_open(BRT, const char *fname_in_env, const char *fname_in_cwd, 
+int toku_brt_open(BRT, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
-int toku_brt_open_recovery(BRT, const char *fname_in_env, const char *fname_in_cwd, 
+int toku_brt_open_recovery(BRT, const char *fname_in_env,
 			   int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, int recovery_force_fcreate, FILENUM use_filenum);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
@@ -66,6 +66,8 @@ int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type);
+int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log);
+int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync);
 int toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val);
 int toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val);
 

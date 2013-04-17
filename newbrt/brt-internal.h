@@ -349,7 +349,7 @@ int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v);
 int toku_maybe_upgrade_brt(BRT t);
 int toku_db_badformat(void);
 
-int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p);
-int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p);
+int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p);
+int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
 
 #endif

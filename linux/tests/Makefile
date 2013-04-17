@@ -9,7 +9,7 @@ ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
 endif
 LDFLAGS = ../libtokuportability.a -lpthread
-SRCS = $(wildcard *.c)
+SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
 VGRIND = valgrind

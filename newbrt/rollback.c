@@ -42,9 +42,11 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     if (txn->rollentry_filename!=0) {
 	int r = close(txn->rollentry_fd);
 	assert(r==0);
-	r = unlink(txn->rollentry_filename);
+        char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, txn->rollentry_filename);
+	r = unlink(fname_in_cwd);
 	assert(r==0);
 	toku_free(txn->rollentry_filename);
+	toku_free(fname_in_cwd);
     }
 
     {
@@ -126,11 +128,20 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
             if (r!=0) return r;
             r = close(txn->rollentry_fd);
             if (r!=0) {
+                //TODO: #2249.. this is a panic/crash situation
+                //      If the rolltmp file is necessary for a checkpoint
+                //      we CANNOT delete it!
+                //      For now.. delete it, but figure out how to deal with this later.
+                //      Maybe we should just assert that the close succeeds?
                 // We have to do the unlink ourselves, and then
                 // set txn->rollentry_filename=0 so that the cleanup
                 // won't try to close the fd again.
+                char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, txn->rollentry_filename);
+                r = unlink(fname_in_cwd);
+                assert(r==0); //Can we assert this at this point?
                 unlink(txn->rollentry_filename);
                 toku_free(txn->rollentry_filename);
+                toku_free(fname_in_cwd);
                 txn->rollentry_filename = 0;
                 return r;
             }
@@ -251,13 +262,11 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	assert((ssize_t)w.ndone==bufsize);
 	txn->oldest_logentry = txn->newest_logentry = 0;
 	if (txn->rollentry_fd<0) {
-	    const char filenamepart[] = "/__tokudb_rolltmp.";
-	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart)+16;
-	    assert(txn->rollentry_filename==0);
-	    txn->rollentry_filename = toku_malloc(fnamelen);
-	    if (txn->rollentry_filename==0) return errno;
-	    snprintf(txn->rollentry_filename, fnamelen, "%s%s%.16"PRIx64, txn->logger->directory, filenamepart, txn->txnid64);
-	    txn->rollentry_fd = open(txn->rollentry_filename, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
+	    char filenamepart[sizeof("__tokudb_rolltmp.") + 16];
+            snprintf(filenamepart, sizeof(filenamepart),  "__tokudb_rolltmp.%.16"PRIx64, txn->txnid64);
+            txn->rollentry_filename = toku_xstrdup(filenamepart);
+            char *rollentry_filename_in_cwd = toku_construct_full_name(2, txn->logger->directory, filenamepart);
+	    txn->rollentry_fd = open(rollentry_filename_in_cwd, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
 	    if (txn->rollentry_fd==-1) return errno;
 	}
 	uLongf compressed_len = compressBound(w.ndone);

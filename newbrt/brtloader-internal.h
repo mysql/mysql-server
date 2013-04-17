@@ -18,13 +18,12 @@ struct brtloader_s {
     DB **dbs;
     const struct descriptor **descriptors; // N of these
     const char **new_fnames_in_env; // the file names that the final data will be written to (relative to env).
-    const char **new_fnames_in_cwd; // the file names that the final data will be written to (relative to cwd).
 
     const char *temp_file_template;
     FILE *fprimary_rows;  char *fprimary_rows_name;
     FILE *fprimary_idx;   char *fprimary_idx_name;
     u_int64_t fprimary_offset;
-    
+    CACHETABLE cachetable;
 };
 
 /* These data structures are used for manipulating a collection of rows in main memory. */

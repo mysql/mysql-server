@@ -18,7 +18,7 @@ cachetable_reserve_filenum_test (void) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE cf;
-    r = toku_cachetable_openf(&cf, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int fd1 = toku_cachefile_get_and_pin_fd(cf); assert(fd1 >= 0);
     toku_cachefile_unpin_fd(cf);

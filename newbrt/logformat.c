@@ -176,7 +176,7 @@ const struct logtype logtypes[] = {
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                         {"BYTESTRING", "comment", 0},
                         NULLFIELD}},
-    {"load", 'l', FA{{"u_int64_t", "timestamp", 0},
+    {"load", 'l', FA{{"TXNID",      "xid", 0},
                      {"BYTESTRING", "old_iname", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},

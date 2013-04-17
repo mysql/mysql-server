@@ -40,7 +40,7 @@ cachetable_unpin_and_remove_test (int n) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
 
     // generate some random keys
     CACHEKEY keys[n]; int nkeys = n;
@@ -104,7 +104,7 @@ cachetable_put_evict_remove_test (int n) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
 
     u_int32_t hi[n];
     for (i=0; i<n; i++)
