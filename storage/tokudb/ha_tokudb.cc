@@ -2843,7 +2843,10 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                     mult_dbt_flags,
                     0
                     );
-                if (error) { assert(loader == NULL); }
+                if (error) { 
+                    assert(loader == NULL);
+                    goto exit_try_table_lock;
+                }
 
                 lc.thd = thd;
                 lc.ha = this;
@@ -2855,6 +2858,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 assert(!error);
             }
         }
+    exit_try_table_lock:
         pthread_mutex_lock(&share->mutex);
         share->try_table_lock = false;
         pthread_mutex_unlock(&share->mutex);
