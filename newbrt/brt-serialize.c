@@ -1656,7 +1656,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 // If that ever changes, then modify this.
 //TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the file AND the header is useless
 static int
-deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, struct rbuf *rb, u_int64_t *checkpoint_count, u_int32_t * version_p) {
+deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, struct rbuf *rb, 
+					u_int64_t *checkpoint_count, LSN *checkpoint_lsn, u_int32_t * version_p) {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
                                 4 + // version
@@ -1734,6 +1735,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
         if (r==0) {
             //Load checkpoint count
             *checkpoint_count = rbuf_ulonglong(rb);
+	    *checkpoint_lsn   = rbuf_lsn(rb);
             //Restart at beginning during regular deserialization
             rb->ndone = 0;
         }
@@ -1746,24 +1748,32 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
 }
 
 
-// Read brtheader from file into struct.  Read both headers and use the latest one.
+// Read brtheader from file into struct.  Read both headers and use one.
+// If a required_lsn is specified, then use the header with that lsn,
+// or if a header with that lsn is not available, then use the latest
+// header with an earlier lsn than required_lsn.  (There may not be a header
+// with required_lsn if the file did not change since the last checkpoint.)
+// If a required_lsn is not specified, then use the latest header.
 int 
-toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
+toku_deserialize_brtheader_from (int fd, LSN required_lsn, struct brt_header **brth) {
     struct rbuf rb_0;
     struct rbuf rb_1;
     u_int64_t checkpoint_count_0;
     u_int64_t checkpoint_count_1;
+    LSN checkpoint_lsn_0;
+    LSN checkpoint_lsn_1;
+    int r = 0;
     int r0;
     int r1;
     u_int32_t version_0, version_1, version = 0;
 
     {
         toku_off_t header_0_off = 0;
-        r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &version_0);
+        r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0);
     }
     {
         toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
-        r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &version_1);
+        r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
     }
     struct rbuf *rb = NULL;
     
@@ -1782,8 +1792,35 @@ toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
 	    else lazy_assert(version_0 <= version_1);
 	}
     }
-    int r = 0;
-    if (rb==NULL) {
+  
+    if (required_lsn.lsn != ZERO_LSN.lsn) {  // an upper bound lsn was requested
+	if ((r0==0 && checkpoint_lsn_0.lsn <= required_lsn.lsn) &&
+	    (r1 || checkpoint_lsn_1.lsn > required_lsn.lsn)) {
+	    rb = &rb_0;
+	    version = version_0;
+	}
+	else if ((r1==0 && checkpoint_lsn_1.lsn <= required_lsn.lsn) &&
+		 (r0 || checkpoint_lsn_0.lsn > required_lsn.lsn)) {
+	    rb = &rb_1;
+	    version = version_1;
+	}
+	else if (r0==0 && r1==0) {  // read two good headers and both have qualified lsn
+	    if (checkpoint_lsn_0.lsn > checkpoint_lsn_1.lsn) {
+		rb = &rb_0;
+		version = version_0;
+	    }
+	    else {
+		rb = &rb_1;
+		version = version_1;
+	    }
+	}
+	else {
+	    rb = NULL; 
+	    r = -1;  // may need new error code for unable to get required version of file
+	}
+    }
+
+    if (rb==NULL && r==0) {
         // We were unable to read either header or at least one is too new.
         // Certain errors are higher priority than others. Order of these if/else if is important.
         if (r0==TOKUDB_DICTIONARY_TOO_NEW || r1==TOKUDB_DICTIONARY_TOO_NEW)

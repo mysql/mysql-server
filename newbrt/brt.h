@@ -54,8 +54,8 @@ brt_compare_func toku_brt_get_bt_compare (BRT brt);
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db)  __attribute__ ((warn_unused_result));
-int toku_brt_open_recovery(BRT, const char *fname_in_env,
-			   int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, FILENUM use_filenum)  __attribute__ ((warn_unused_result));
+int toku_brt_open_recovery(BRT, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, 
+			   DB *db, FILENUM use_filenum, LSN required_lsn)  __attribute__ ((warn_unused_result));
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
 
