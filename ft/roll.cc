@@ -145,21 +145,16 @@ int find_ft_from_filenum (const FT &h, const FILENUM &filenum) {
 // the operation (insert, delete, update, etc).
 static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn,
                          bool reset_root_xid_that_created) {
-    CACHEFILE cf;
-    // 2954 - ignore messages for aborted hot-index
     int r = 0;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+    FT h;
+    h = NULL;
+    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &h, NULL);
+    if (r == DB_NOTFOUND) {
         assert(txn->recovered_from_checkpoint);
         r = 0;
         goto done;
     }
-    assert(r==0);
-
-    FT h;
-    h = NULL;
-    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &h, NULL);
     assert(r==0);
 
     if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
