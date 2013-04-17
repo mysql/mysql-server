@@ -94,15 +94,37 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         }
     }
 
+    unlink(fname);
     CACHETABLE ct;
-    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
     BRT brt;
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
     r = toku_open_brt(fname, 1, &brt, nodesize, bnsize, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+
+    // r = toku_close_brt(brt, NULL); assert(r == 0);
+    // r = toku_cachetable_close(&ct); assert(r == 0);
+
+    if (splitk.data) {
+        toku_free(splitk.data);
+    }
+
+    toku_brtnode_free(&nodeb);
+
+    for (int i = 0; i < sn.n_children - 1; ++i) {
+        kv_pair_free(sn.childkeys[i]);
+    }
+    for (int i = 0; i < nelts / 2; ++i) {
+        toku_free(elts[i]);
+    }
+    for (int i = 0; i < sn.n_children; ++i) {
+        destroy_basement_node(BLB(&sn, i));
+    }
+    toku_free(sn.bp);
+    toku_free(sn.childkeys);
 
     return 0;
 }
