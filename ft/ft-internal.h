@@ -173,12 +173,12 @@ enum __attribute__((__packed__)) ftnode_child_tag {
 };
     
 typedef struct __attribute__((__packed__)) ftnode_child_pointer {
-    enum ftnode_child_tag tag;
     union {
 	struct sub_block *subblock;
 	struct ftnode_nonleaf_childinfo *nonleaf;
 	struct ftnode_leaf_basement_node *leaf;
     } u;
+    enum ftnode_child_tag tag;
 } FTNODE_CHILD_POINTER;
 
 
@@ -198,19 +198,14 @@ struct ftnode_disk_data {
 
 
 // a ftnode partition, associated with a child of a node
-struct   __attribute__((__packed__)) ftnode_partition {
+struct ftnode_partition {
     // the following three variables are used for nonleaf nodes
     // for leaf nodes, they are meaningless
     BLOCKNUM     blocknum; // blocknum of child 
 
-    //
-    // at any time, the partitions may be in one of the following three states (stored in pt_state):
-    //   PT_INVALID - means that the partition was just initialized
-    //   PT_ON_DISK - means that the partition is not in memory and needs to be read from disk. To use, must read off disk and decompress
-    //   PT_COMPRESSED - means that the partition is compressed in memory. To use, must decompress
-    //   PT_AVAIL - means the partition is decompressed and in memory
-    //
-    enum pt_state state; // make this an enum to make debugging easier.  
+    // How many bytes worth of work was performed by messages in each buffer.
+    uint64_t     workdone;
+
     //
     // pointer to the partition. Depending on the state, they may be different things
     // if state == PT_INVALID, then the node was just initialized and ptr == NULL
@@ -221,13 +216,18 @@ struct   __attribute__((__packed__)) ftnode_partition {
     //         a struct ftnode_leaf_basement_node for leaf nodes
     //
     struct ftnode_child_pointer ptr;
+    //
+    // at any time, the partitions may be in one of the following three states (stored in pt_state):
+    //   PT_INVALID - means that the partition was just initialized
+    //   PT_ON_DISK - means that the partition is not in memory and needs to be read from disk. To use, must read off disk and decompress
+    //   PT_COMPRESSED - means that the partition is compressed in memory. To use, must decompress
+    //   PT_AVAIL - means the partition is decompressed and in memory
+    //
+    enum pt_state state; // make this an enum to make debugging easier.  
 
     // clock count used to for pe_callback to determine if a node should be evicted or not
     // for now, saturating the count at 1
     uint8_t clock_count;
-
-    // How many bytes worth of work was performed by messages in each buffer.
-    uint64_t     workdone;
 };
 
 struct ftnode {
