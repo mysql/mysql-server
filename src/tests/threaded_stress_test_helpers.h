@@ -1715,21 +1715,37 @@ static int num_tables_to_fill = 1;
 static int rows_per_table = 1;
 
 static void report_overall_fill_table_progress(int num_rows) {
+    // for sanitary reasons we'd like to prevent two threads
+    // from printing the same performance report twice.
+    static bool reporting;
+    // when was the first time measurement taken?
     static uint64_t t0;
     static int rows_inserted;
+    // when was the last report? what was its progress?
+    static uint64_t last_report;
     static double last_progress;
     if (t0 == 0) {
         t0 = toku_current_time_usec();
+        last_report = t0;
     }
+
     uint64_t rows_so_far = toku_sync_add_and_fetch(&rows_inserted, num_rows);
     double progress = rows_so_far /
         (rows_per_table * num_tables_to_fill * 1.0);
     if (progress > (last_progress + .01)) {
         uint64_t t1 = toku_current_time_usec();
-        double inserts_per_sec = (rows_so_far*1000000) / ((t1 - t0) * 1.0);
-        printf("fill tables: %ldpct complete, %.2lf rows/sec\n",
-                (long)(progress * 100), inserts_per_sec);
-        last_progress = progress;
+        // report no more often than once every 5 seconds, for less output.
+        // there is a race condition. it is probably harmless.
+        const uint64_t minimum_report_period = 5 * 1000000;
+        if (t1 > last_report + minimum_report_period
+                && toku_sync_bool_compare_and_swap(&reporting, 0, 1) == 0) {
+            double inserts_per_sec = (rows_so_far*1000000) / ((t1 - t0) * 1.0);
+            printf("fill tables: %ldpct complete, %.2lf rows/sec\n",
+                    (long)(progress * 100), inserts_per_sec);
+            last_progress = progress;
+            last_report = t1;
+            reporting = false;
+        }
     }
 }
 
