@@ -87,6 +87,7 @@ run_recover_flt_test(int argc, char *const argv[]) {
     }
     // we want to induce a checkpoint
     args.env_args.checkpointing_period = 0;
+    args.env_args.cachetable_size = 20 * 1024 * 1024;
     parse_stress_test_args(argc, argv, &args);
     if (args.do_test_and_crash) {
         stress_test_main(&args);

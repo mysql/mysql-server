@@ -666,7 +666,7 @@ static int64_t breverse(int64_t v)
     }
     k <<= s; // shift when v's highest bits are zero
     int64_t r = k;
-    return r < 0 ? -r : r;
+    return r & ~(1ULL << 63);
 }
 
 static void
