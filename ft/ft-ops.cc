@@ -2315,6 +2315,7 @@ void toku_bnc_flush_to_child(
                 );
             remaining_memsize -= FIFO_CURRENT_ENTRY_MEMSIZE;
         }));
+    child->oldest_known_referenced_xid = oldest_known_referenced_xid;
 
     invariant(remaining_memsize == 0);
     if (stats_delta.numbytes || stats_delta.numrows) {

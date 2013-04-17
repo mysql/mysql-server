@@ -1510,11 +1510,11 @@ ft_merge_child(
     }
 }
 
-static void ft_flush_some_child_with_xid(
+static void ft_flush_some_child(
     FT ft,
     FTNODE parent,
-    struct flusher_advice *fa,
-    TXNID oldest_referenced_xid)
+    struct flusher_advice *fa
+    )
 // Effect: This function does the following:
 //   - Pick a child of parent (the heaviest child),
 //   - flush from parent to child,
@@ -1528,6 +1528,7 @@ static void ft_flush_some_child_with_xid(
     NONLEAF_CHILDINFO bnc = NULL;
     paranoid_invariant(parent->height>0);
     toku_assert_entire_node_in_memory(parent);
+    TXNID oldest_referenced_xid = parent->oldest_known_referenced_xid;
 
     // pick the child we want to flush to
     int childnum = fa->pick_child(ft, parent, fa->extra);
@@ -1644,10 +1645,10 @@ static void ft_flush_some_child_with_xid(
             parent = NULL;
         }
         //
-        // it is the responsibility of ft_flush_some_child_with_xid to unpin child
+        // it is the responsibility of ft_flush_some_child to unpin child
         //
         if (child->height > 0 && fa->should_recursively_flush(child, fa->extra)) {
-            ft_flush_some_child_with_xid(ft, child, fa, oldest_referenced_xid);
+            ft_flush_some_child(ft, child, fa);
         }
         else {
             toku_unpin_ftnode_off_client_thread(ft, child);
@@ -1678,7 +1679,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa) {
     // Vanilla flush_some_child flushes from parent to child without
     // providing a meaningful oldest_referenced_xid. No simple garbage
     // collection is performed.
-    return ft_flush_some_child_with_xid(ft, parent, fa, TXNID_NONE);
+    return ft_flush_some_child(ft, parent, fa);
 }
 
 static void
@@ -1865,11 +1866,11 @@ static void flush_node_fun(void *fe_v)
         destroy_nonleaf_childinfo(fe->bnc);
 
         // after the flush has completed, now check to see if the node needs flushing
-        // If so, call ft_flush_some_child_with_xid on the node (because this flush intends to
+        // If so, call ft_flush_some_child on the node (because this flush intends to
         // pass a meaningful oldest referenced xid for simple garbage collection), and it is the
         // responsibility of the flush to unlock the node. otherwise, we unlock it here.
         if (fe->node->height > 0 && toku_ft_nonleaf_is_gorged(fe->node, fe->h->h->nodesize)) {
-            ft_flush_some_child_with_xid(fe->h, fe->node, &fa, fe->oldest_referenced_xid);
+            ft_flush_some_child(fe->h, fe->node, &fa);
         }
         else {
             toku_unpin_ftnode_off_client_thread(fe->h,fe->node);
@@ -1880,7 +1881,7 @@ static void flush_node_fun(void *fe_v)
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
         // It is the responsibility of flush some child to unlock the node
-        ft_flush_some_child_with_xid(fe->h, fe->node, &fa, fe->oldest_referenced_xid);
+        ft_flush_some_child(fe->h, fe->node, &fa);
     }
     remove_background_job_from_cf(fe->h->cf);
     toku_free(fe);
