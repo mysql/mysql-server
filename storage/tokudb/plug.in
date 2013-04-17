@@ -1,3 +1,3 @@
-MYSQL_STORAGE_ENGINE(TokuDB,,[TokuDB Storage Engine], [TokuDB Engine], [max,max-no-ndb])
-MYSQL_PLUGIN_STATIC(berkeley, [libtokudb.a])
-MYSQL_PLUGIN_DYNAMIC(berkeley, [ha_tokudb.la])
+MYSQL_STORAGE_ENGINE(tokudb,,[TokuDB Storage Engine with Fractal Trees], [TokuDB Engine with Fractal Trees], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(tokudb, [storage/tokudb])
+MYSQL_PLUGIN_DYNAMIC(tokudb, [ha_tokudb.la])
