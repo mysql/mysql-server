@@ -5298,8 +5298,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         transaction = trx->sub_sp_level;
     }
     else {
-        lock.type = TL_UNLOCK;  // Unlocked
-
         pthread_mutex_lock(&share->mutex);
         // hate dealing with comparison of signed vs unsigned, so doing this
         if (deleted_rows > added_rows && share->rows < (deleted_rows - added_rows)) {
