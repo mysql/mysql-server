@@ -1281,14 +1281,7 @@ static int tokudb_report_fractal_tree_block_map_iterator(uint64_t checkpoint_cou
 static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const DBT *iname, TABLE *table, THD *thd) {
     int error;
     DB *db;
-    struct tokudb_report_fractal_tree_block_map_iterator_extra e = {
-        .num_rows = 0,
-        .i = 0,
-        .checkpoint_counts = NULL,
-        .blocknums = NULL,
-        .diskoffs = NULL,
-        .sizes = NULL,
-    };
+    struct tokudb_report_fractal_tree_block_map_iterator_extra e = {}; // avoid struct initializers so that we can compile with older gcc versions
 
     error = db_create(&db, db_env, 0);
     if (error) {
