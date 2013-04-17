@@ -4917,7 +4917,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar* tmp_prim_key_buff = NULL;
     uchar* tmp_record = NULL;
     THD* thd = ha_thd(); 
-    uchar* tmp_record2 = NULL;
     uchar* row_desc_buff = NULL;
     DBT row_descriptor;
     bzero(&row_descriptor, sizeof(row_descriptor));
@@ -4941,14 +4940,12 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
     tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
-    tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
-    tmp_record2 = (uchar *)my_malloc(2*table_arg->s->rec_buff_length,MYF(MY_WME));
+    tmp_record = table->record[0];
     row_desc_buff = (uchar *)my_malloc(2*(table_share->fields * 6)+10 ,MYF(MY_WME));
     if (newname == NULL || 
         tmp_key_buff == NULL ||
         tmp_prim_key_buff == NULL ||
         tmp_record == NULL ||
-        tmp_record2 == NULL ||
         row_desc_buff == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -5238,8 +5235,6 @@ cleanup:
     my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_key_buff,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_prim_key_buff,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(tmp_record,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(tmp_record2,MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff,MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
