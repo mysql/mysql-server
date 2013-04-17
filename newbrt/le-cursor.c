@@ -62,10 +62,14 @@ struct le_cursor_callback_arg {
 
 // copy the key and the leaf entry to the given DBTs
 static int
-le_cursor_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *v) {
-    struct le_cursor_callback_arg *arg = (struct le_cursor_callback_arg *) v;
-    toku_dbt_set(keylen, key, arg->key, NULL);
-    toku_dbt_set(vallen, val, arg->val, NULL);
+le_cursor_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
+    if (lock_only) {
+        ; // do nothing
+    } else {
+        struct le_cursor_callback_arg *arg = (struct le_cursor_callback_arg *) v;
+        toku_dbt_set(keylen, key, arg->key, NULL);
+        toku_dbt_set(vallen, val, arg->val, NULL);
+    }
     return 0;
 }
 

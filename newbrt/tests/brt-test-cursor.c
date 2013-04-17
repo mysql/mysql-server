@@ -379,10 +379,11 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
 }
 
 static int
-ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *v)
+ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *v, bool lock_only)
 // the keys are strings.  Verify that they keylen matches the key, that the keys are ascending.  Use (char**)v  to hold a
 // malloc'd previous string.
 {
+    if (lock_only) return 0;
     if (key!=NULL) {
 	assert(keylen == 1+strlen(key));
 	char **prevkeyp = v;

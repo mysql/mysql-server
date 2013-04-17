@@ -253,6 +253,8 @@ BDB_DONTRUN_TESTS = \
 	test3522b \
         test938c \
         test_3645 \
+	test_3529_insert_2 \
+	test_3529_table_lock \
         test_3755 \
 	test_4015 \
         test_abort1 \

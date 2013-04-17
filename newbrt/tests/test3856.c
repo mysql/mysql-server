@@ -24,9 +24,9 @@ string_cmp(DB* UU(db), const DBT *a, const DBT *b)
 }
 
 static int
-found(ITEMLEN UU(keylen), bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *UU(extra))
+found(ITEMLEN UU(keylen), bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void *UU(extra), bool lock_only)
 {
-    assert(key != NULL);
+    assert(key != NULL && !lock_only);
     return 0;
 }
 
