@@ -360,41 +360,6 @@ exit:
     return ret_val;
 }
 
-inline int cmp_toku_string(
-    uchar* a_buf,
-    u_int32_t a_num_bytes,
-    uchar* b_buf, 
-    u_int32_t b_num_bytes,
-    u_int32_t charset_number
-    ) 
-{
-    int ret_val = 0;
-    CHARSET_INFO* charset = NULL;
-
-    //
-    // patternmatched off of InnoDB, due to MySQL bug 42649
-    //
-    if (charset_number == default_charset_info->number) {
-        charset = default_charset_info;
-    }
-    else if (charset_number == my_charset_latin1.number) {
-        charset = &my_charset_latin1;
-    }
-    else {
-        charset = get_charset(charset_number, MYF(MY_WME));
-    } 
-
-    ret_val = charset->coll->strnncollsp(
-        charset,
-        a_buf, 
-        a_num_bytes,
-        b_buf, 
-        b_num_bytes, 
-        0
-        );
-    return ret_val;
-}
-
 inline uchar* pack_toku_varbinary(
     uchar* to_tokudb, 
     uchar* from_mysql, 
@@ -657,6 +622,40 @@ inline uchar* pack_toku_varstring(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
+inline int cmp_toku_string(
+    uchar* a_buf,
+    u_int32_t a_num_bytes,
+    uchar* b_buf, 
+    u_int32_t b_num_bytes,
+    u_int32_t charset_number
+    ) 
+{
+    int ret_val = 0;
+    CHARSET_INFO* charset = NULL;
+
+    //
+    // patternmatched off of InnoDB, due to MySQL bug 42649
+    //
+    if (charset_number == default_charset_info->number) {
+        charset = default_charset_info;
+    }
+    else if (charset_number == my_charset_latin1.number) {
+        charset = &my_charset_latin1;
+    }
+    else {
+        charset = get_charset(charset_number, MYF(MY_WME));
+    } 
+
+    ret_val = charset->coll->strnncollsp(
+        charset,
+        a_buf, 
+        a_num_bytes,
+        b_buf, 
+        b_num_bytes, 
+        0
+        );
+    return ret_val;
+}
 
 inline int cmp_toku_varstring(
     uchar* a_buf, 
@@ -828,9 +827,6 @@ inline int compare_toku_field(
 
 //
 // at the moment, this returns new position in buffer
-// I want to change this to be num_bytes_packed
-// cannot do it until all functions converted, because until
-// then, still relying on field->pack_cmp
 //
 uchar* pack_toku_field(
     uchar* to_tokudb,
