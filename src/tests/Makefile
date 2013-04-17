@@ -653,7 +653,11 @@ TDB_CFLAGS=
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): TDB_CFLAGS= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
+ifeq ($(PROF),1)
+%.tdb$(BINSUF) %.tdbt$(BINSUF): LDFLAGS+=$(LIBPORTABILITY_A)
+else
 %.tdb$(BINSUF) %.tdbt$(BINSUF): LDFLAGS+=-l$(LIBTOKUPORTABILITY)
+endif
 loader-stress-test: CPPFLAGS+=-I$(TOKUROOT)include -DENVDIR=\"dir.$<\"
 loader-stress-test: LOADLIBES+=-L../lib -ltokudb -Wl,-rpath,..
 

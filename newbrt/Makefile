@@ -155,7 +155,7 @@ check: bins
 	cd tests;$(MAKE) check
 
 ifeq ($(PROF),1)
-$(BINS): $(NEWBRT_A) $(LIBPORTABILITY_SO)
+$(BINS): $(NEWBRT_A) $(LIBPORTABILITY_A)
 else
 $(BINS): $(NEWBRT_SO) $(LIBPORTABILITY_SO)
 endif
