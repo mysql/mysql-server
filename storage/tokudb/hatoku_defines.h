@@ -1,6 +1,16 @@
 #ifndef _HATOKU_DEF
 #define _HATOKU_DEF
 
+#include <syscall.h>
+#include "db.h"
+
+
+
+extern ulong tokudb_debug;
+
+
+
+
 // QQQ how to tune these?
 #define HA_TOKUDB_RANGE_COUNT   100
 /* extra rows for estimate_rows_upper_bound() */
@@ -21,6 +31,13 @@
 
 #define TOKUDB_TRACE(f, ...) \
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
+
+
+inline unsigned int my_tid() {
+    return syscall(__NR_gettid);
+}
+
+
 
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
@@ -49,6 +66,24 @@
     }                                                                   \
     printf("\n");                                                       \
 }
+
+
+typedef enum {
+    hatoku_iso_not_set = 0,
+    hatoku_iso_read_uncommitted,
+    hatoku_iso_serializable
+} HA_TOKU_ISO_LEVEL;
+
+
+
+typedef struct st_tokudb_trx_data {
+    DB_TXN *all;
+    DB_TXN *stmt;
+    DB_TXN *sp_level;
+    uint tokudb_lock_count;
+    HA_TOKU_ISO_LEVEL iso_level;
+} tokudb_trx_data;
+
 
 
 #endif
