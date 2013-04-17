@@ -2554,8 +2554,13 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
     if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
 	toku_cachefile_refup(brt->cf);
 	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
-	BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
-	r = toku_logger_save_rollback_cmdinsert(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
+	int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
+	if (need_data) {
+	    BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
+	    r = toku_logger_save_rollback_cmdinsertboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
+	} else {
+	    r = toku_logger_save_rollback_cmdinsert    (txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
+	}
 	if (r!=0) return r;
 	r = toku_txn_note_brt(txn, brt);
 	if (r!=0) return r;

@@ -85,7 +85,16 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
 }
 
 
-int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key, TOKUTXN txn) {
+#if TOKU_DO_COMMIT_CMD_INSERT
+    return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
+#else
+    xid = xid; key = key;
+    return do_nothing_with_filenum(txn, filenum);
+#endif
+}
+
+int toku_commit_cmdinsertboth (TXNID xid, FILENUM filenum, BYTESTRING key, BYTESTRING data, TOKUTXN txn) {
 #if TOKU_DO_COMMIT_CMD_INSERT
     return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
 #else
@@ -94,7 +103,11 @@ int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING
 #endif
 }
 
-int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key, TOKUTXN txn) {
+    return do_insertion (BRT_ABORT_ANY, xid, filenum, key, 0, txn);
+}
+
+int toku_rollback_cmdinsertboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     return do_insertion (BRT_ABORT_BOTH, xid, filenum, key, &data, txn);
 }
 
