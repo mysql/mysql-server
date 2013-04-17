@@ -87,8 +87,8 @@ struct __toku_dbc_internal {
    Ephemeral locking
 
    ********************************************************* */
-void toku_ydb_lock();
-void toku_ydb_unlock();
+void toku_ydb_lock(void);
+void toku_ydb_unlock(void);
 
 /* *********************************************************
 
@@ -123,7 +123,7 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
 int toku_ydb_do_error (const DB_ENV *, int, const char *, ...);
 
 /* Location specific debug print-outs */
-void toku_ydb_barf();
+void toku_ydb_barf(void);
 void toku_ydb_notef(const char *, ...);
 
 /* Environment related errors */

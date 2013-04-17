@@ -253,7 +253,8 @@ static int toku_c_close(DBC * c);
 static char *construct_full_name(const char *dir, const char *fname);
 static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary);
     
-#if NEED_TEST
+#define DO_ENV_FILE 0
+#if DO_ENV_FILE
 
 static int env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
     int r;
@@ -466,7 +467,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         env->i->dir = NULL;
         return r;
     }
-#if NEED_TEST
+#if DO_ENV_FILE
     if ((r = env_read_config(env)) != 0) {
 	goto died1;
     }
@@ -512,7 +513,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
     if (unused_flags!=0) {
 	static char string[100];
-	snprintf(string, 100, "Extra flags not understood by tokudb: %d\n", unused_flags);
+	snprintf(string, 100, "Extra flags not understood by tokudb: %u\n", unused_flags);
 	return toku_ydb_do_error(env, EINVAL, string);
     }
 
@@ -1634,7 +1635,7 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
     g.flag = flag;
     unsigned int brtflags;
     toku_brt_get_flags(g.db->i->brt, &brtflags);
-    g.duplicates   = (brtflags & TOKU_DB_DUPSORT) != 0;
+    g.duplicates   = (BOOL)((brtflags & TOKU_DB_DUPSORT) != 0);
 
     /* Standardize the op flag. */
     toku_c_get_fix_flags(&g);
@@ -1666,7 +1667,7 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
      * 'first'. */
     if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
     /* If we have not yet locked, lock now. */
-    BOOL found = r_cursor_op==0;
+    BOOL found = (BOOL)(r_cursor_op==0);
     r = toku_c_get_post_lock(&g, found, key, val,
 			     found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c),
 			     found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c));
@@ -1734,7 +1735,7 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     g.db   = c->dbp;
     unsigned int brtflags;
     toku_brt_get_flags(g.db->i->brt, &brtflags);
-    g.duplicates   = (brtflags & TOKU_DB_DUPSORT) != 0;
+    g.duplicates   = (BOOL)((brtflags & TOKU_DB_DUPSORT) != 0);
 
     /* The 'key' from C_GET_VARS is the secondary key, and the 'val'
      * from C_GET_VARS is the primary key.  The 'data' parameter here
@@ -1852,7 +1853,7 @@ static int toku_c_getf_first(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DB
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = lt!=NULL && !lock_flags;
+    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
 
     int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_FIRST, txn);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
@@ -1887,7 +1888,7 @@ static int toku_c_getf_last(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = lt!=NULL && !lock_flags;
+    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
 
     int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_LAST, txn);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
@@ -1923,7 +1924,7 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = lt!=NULL && !lock_flags;
+    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
 
     unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
@@ -1968,7 +1969,7 @@ static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = lt!=NULL && !lock_flags;
+    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
 
     unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
@@ -2013,7 +2014,7 @@ static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key,
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
-    BOOL do_locking = lt!=NULL && !lock_flags;
+    BOOL do_locking = (BOOL)(lt!=NULL && !lock_flags);
 
     int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_NEXT_DUP, txn);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
@@ -2067,7 +2068,7 @@ static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
     int c_get_result = toku_brt_cursor_get_heavi(c->i->c, NULL, NULL, txn, direction, &wrapper);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
-    BOOL found = c_get_result==0;
+    BOOL found = (BOOL)(c_get_result==0);
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
     if (lt!=NULL && !lock_flags) {
@@ -2764,7 +2765,7 @@ static int toku_db_lt_panic(DB* db, int r) {
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
     env->i->is_panicked = 1;
-    if (r < 0) toku_ydb_do_error(env, 0, toku_lt_strerror(r));
+    if (r < 0) toku_ydb_do_error(env, 0, toku_lt_strerror((TOKU_LT_ERROR)r));
     else       toku_ydb_do_error(env, r, "Error in locktree.\n");
     return EINVAL;
 }
@@ -2801,8 +2802,8 @@ static toku_dbt_cmp toku_db_get_dup_compare(DB* db) {
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
-    BOOL need_locktree = (db->dbenv->i->open_flags & DB_INIT_LOCK) &&
-                         (db->dbenv->i->open_flags & DB_INIT_TXN);
+    BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
+                                (db->dbenv->i->open_flags & DB_INIT_TXN));
 
     int openflags = 0;
     int r;
@@ -2881,7 +2882,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         unsigned int brtflags;
         BOOL dups;
         toku_brt_get_flags(db->i->brt, &brtflags);
-        dups = (brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP);
+        dups = (BOOL)((brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP));
 
         r = toku_db_id_create(&db->i->db_id, db->i->full_fname,
                               db->i->database_name);
@@ -2957,6 +2958,9 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     } else {
         assert(flags == 0);
         if (brtflags & TOKU_DB_DUPSORT) {
+#ifndef TDB_EQ_BDB
+#define TDB_EQ_BDB 0
+#endif
 #if TDB_EQ_BDB
             r = toku_db_get_noassociate(db, txn, key, data, DB_GET_BOTH | lock_flags);
             if (r == 0)
@@ -3225,7 +3229,7 @@ static inline int toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed,
         *changed = FALSE;
         return 0;
     }
-    BOOL nosync = !force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT);
+    BOOL nosync = (BOOL)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
     u_int32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
     int r = toku_txn_begin(env, NULL, txn, txn_flags);
     if (r!=0) return r;
@@ -3383,7 +3387,7 @@ static int locked_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, 
 
 static inline int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     BOOL changed; int r;
-    r = toku_db_construct_autotxn(db, &txn, &changed, flags & DB_AUTO_COMMIT);
+    r = toku_db_construct_autotxn(db, &txn, &changed, (BOOL)((flags & DB_AUTO_COMMIT) != 0));
     if (r!=0) return r;
     r = toku_db_open(db, txn, fname, dbname, dbtype, flags & ~DB_AUTO_COMMIT, mode);
     return toku_db_destruct_autotxn(txn, r, changed);

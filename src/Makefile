@@ -10,13 +10,18 @@ VISIBILITY = -fvisibility=hidden
 # PROF_FLAGS=-pg
 OPTFLAGS = -O3 -finline-functions
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -W -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
-ifneq ($(CC),icc)
-CFLAGS += -Werror -Wall -Wextra -g3 -ggdb3
+CFLAGS = -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+ifeq ($(CC),icc)
+CFLAGS += -Wall -g
+CFLAGS += -diag-disable 177
+CFLAGS += -diag-disable 589
+CFLAGS += -diag-disable 981
+CFLAGS += -diag-disable 1418
+CFLAGS += -diag-disable 1419
 else
-CFLAGS += -g
-endif
+CFLAGS += -W -Werror -Wall -Wextra -g3 -ggdb3
 CFLAGS += -Wbad-function-cast -Wcast-align
+endif
 CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CFLAGS+= $(VISIBILITY) $(PROF_FLAGS)
