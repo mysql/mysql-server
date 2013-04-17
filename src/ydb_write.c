@@ -425,6 +425,9 @@ env_del_multiple(
 
     HANDLE_PANICKED_ENV(env);
 
+    uint32_t lock_flags[num_dbs];
+    uint32_t remaining_flags[num_dbs];
+    FT_HANDLE brts[num_dbs];
     if (!txn) {
         r = EINVAL;
         goto cleanup;
@@ -440,9 +443,6 @@ env_del_multiple(
         goto cleanup;
     }
 
-    uint32_t lock_flags[num_dbs];
-    uint32_t remaining_flags[num_dbs];
-    FT_HANDLE brts[num_dbs];
 
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
