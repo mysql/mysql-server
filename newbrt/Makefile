@@ -91,6 +91,9 @@ BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 newbrt.o: $(BRT_C_FILES) $(HFILES)
 	$(CC) -combine $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -c -o $@
 
+rfp: $(BRT_C_FILES) 
+	$(CC) $(CPPFLAGS) -Wall -g -O3 -ipo-c $(BRT_C_FILES) -o newbrt.o 
+
 tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
 tdb_logprint: $(OFILES)
 

@@ -16,6 +16,7 @@
 #include "cachetable.h"
 #include "test.h"
 
+#if 0
 // this mutex is used by some of the tests to serialize access to some
 // global data, especially between the test thread and the cachetable
 // writeback threads
@@ -37,6 +38,7 @@ static inline void test_mutex_lock() {
 static inline void test_mutex_unlock() {
     int r = pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
+#endif
 
 // hook my_malloc_always_fails into malloc to control malloc and verify
 // the correct recovery from malloc failures
@@ -597,6 +599,8 @@ static void test_size_resize() {
     assert(r == 0);
 }
 
+static int min2(int a, int b) { return a < b ? a : b; }
+
 static void test_size_flush() {
     if (verbose) printf("test_size_flush\n");
 
@@ -629,7 +633,6 @@ static void test_size_flush() {
 
         int n_entries, hash_size; long size_current, size_limit;
         toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit);
-        int min2(int a, int b) { return a < b ? a : b; }
         while (n_entries != min2(i+1, n)) {
             pthread_yield();
             toku_cachetable_get_state(t, &n_entries, 0, 0, 0);
