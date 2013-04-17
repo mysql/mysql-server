@@ -116,7 +116,7 @@ static MYSQL_THDVAR_BOOL(prelock_empty,
   "Tokudb Prelock Empty Table",
   NULL, 
   NULL, 
-  FALSE
+  TRUE
   );
 static MYSQL_THDVAR_UINT(block_size,
   0,
