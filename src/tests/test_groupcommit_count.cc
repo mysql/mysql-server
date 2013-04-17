@@ -190,6 +190,7 @@ test_main (int argc, char *const argv[]) {
     prev_count=0;
 
     db_env_set_func_fsync(do_fsync);
+    db_env_set_num_bucket_mutexes(32);
 
     {
 	int size=20+strlen(env_path);
