@@ -715,7 +715,7 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
             uint32_t log_version;
             lf_info = toku_logfilemgr_get_oldest_logfile_info(lfm);
             log_version = lf_info->version;
-            if ( lf_info->maxlsn.lsn > trim_lsn.lsn ) {
+            if ( lf_info->maxlsn.lsn >= trim_lsn.lsn ) {
                 // file contains an open LSN, can't delete this or any newer log files
                 break;
             }
