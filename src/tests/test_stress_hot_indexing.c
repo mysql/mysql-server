@@ -112,7 +112,7 @@ cleanup:
         toku_free(dest_vals[1].data);
     }
     increment_counter(stats_extra, PUTS, i);
-    if (r) {
+    if (r || (random() % 2)) {
         int rr = hi_txn->abort(hi_txn);
         CKERR(rr);
     }
@@ -128,6 +128,7 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
     int r;
     DB_TXN* hi_txn = NULL;
     DB_ENV* env = arg->env;
+    DB* db = arg->dbp[0];
     DB_INDEXER* indexer = NULL;
     r = env->txn_begin(env, NULL, &hi_txn, 0);
     CKERR(r);
@@ -168,9 +169,53 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
     toku_mutex_unlock(&hi_lock);
 
     r = hi_txn->commit(hi_txn, 0);
+    hi_txn = NULL;
     CKERR(r);
 
-    // now do some scans
+    // now do a scan to make sure hot index is good
+    DB_TXN* scan_txn = NULL;
+    DBC* main_cursor = NULL;
+    DBC* hi_cursor = NULL;
+    r = env->txn_begin(env, NULL, &scan_txn, DB_TXN_SNAPSHOT);
+    CKERR(r);
+    r = db->cursor(db, scan_txn, &main_cursor, 0);
+    CKERR(r);
+    r = db->cursor(hot_db, scan_txn, &hi_cursor, 0);
+    CKERR(r);
+    DBT key1, key2, val1, val2;
+    memset(&key1, 0, sizeof key1);
+    memset(&val1, 0, sizeof val1);
+    memset(&key2, 0, sizeof key2);
+    memset(&val2, 0, sizeof val2);
+    while(r != DB_NOTFOUND) {
+        // get next from both cursors and assert they are equal
+        int r1 = main_cursor->c_get(
+            main_cursor, 
+            &key1, 
+            &val1, 
+            DB_NEXT
+            );
+        int r2 = hi_cursor->c_get(
+            hi_cursor, 
+            &key2, 
+            &val2, 
+            DB_NEXT
+            );
+        assert(r1 == r2);
+        r = r1;
+        if (r != DB_NOTFOUND) {
+            assert(key1.size == key2.size);
+            assert(val1.size == val2.size);
+            assert(memcmp(key1.data, key2.data, key1.size) == 0);
+            assert(memcmp(val1.data, val2.data, val1.size) == 0);
+        }
+    }
+    CKERR2(r, DB_NOTFOUND);
+    r = main_cursor->c_close(main_cursor);
+    r = hi_cursor->c_close(hi_cursor);
+    CKERR(r);
+    r = scan_txn->commit(scan_txn, 0);
+    CKERR(r);
 
     // grab lock and close hot_db, set it to NULL
     toku_mutex_lock(&hi_lock);
