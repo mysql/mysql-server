@@ -248,19 +248,25 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
     int result = 0;
-    { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert_zero(r2); }
+    { 
+        int r = toku_pthread_mutex_lock(&fi->lock); 
+        resource_assert_zero(r); 
+    }
     invariant(idx.idx >=0 && idx.idx < fi->n_files);
     if (fi->file_infos[idx.idx].is_open) {
         invariant(fi->n_files_open>0);   // loader-cleanup-test failure
         fi->n_files_open--;
         fi->file_infos[idx.idx].is_open = FALSE;
-        result = toku_os_fclose(fi->file_infos[idx.idx].file);
-        cleanup_big_buffer(&fi->file_infos[idx.idx]);
-        if (result)
+        int r = toku_os_fclose(fi->file_infos[idx.idx].file);
+        if (r)
             result = errno;
+        cleanup_big_buffer(&fi->file_infos[idx.idx]);
     } else 
         result = EINVAL;
-    { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert_zero(r2); }
+    { 
+        int r = toku_pthread_mutex_unlock(&fi->lock); 
+        resource_assert_zero(r); 
+    }
     return result;
 }
 
@@ -285,7 +291,7 @@ int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     return result;
 }
 
-static int
+int
 brtloader_fi_close_all(struct file_infos *fi) {
     int rval = 0;
     for (int i = 0; i < fi->n_files; i++) {
