@@ -2967,11 +2967,6 @@ brtheader_note_brt_open(BRT live, char** fnamep) {
     char *fname = *fnamep;
     assert(fname);
     *fnamep     = NULL;
-    //Use fname, or throw it away.
-    if (h->fname == NULL)
-        h->fname = fname;
-    else
-        toku_free(fname);
     while (!list_empty(&h->zombie_brts)) {
         //Remove dead brt from list
         BRT zombie = list_struct(list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
@@ -2982,6 +2977,12 @@ brtheader_note_brt_open(BRT live, char** fnamep) {
     }
     if (retval==0)
         list_push(&h->live_brts, &live->live_brt_link);
+    //Use fname, or throw it away.
+    //Must not use fname on failure (or when brt is closed, a (possibly corrupt) header will be written.
+    if (retval == 0 && h->fname == NULL)
+        h->fname = fname;
+    else
+        toku_free(fname);
     toku_brtheader_unlock(h);
     return retval;
 }
@@ -3092,6 +3093,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
     if (r!=0) goto died_after_read_and_pin;
 
+    // brtheader_note_brt_open must be after all functions that can fail.
     r = brtheader_note_brt_open(t, &brt_fname);
     if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
