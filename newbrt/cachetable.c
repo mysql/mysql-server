@@ -530,9 +530,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
     }
 }
 
-static void cachetable_abort_fetch_pair(CACHETABLE ct, PAIR p) {
-    cachetable_remove_pair(ct, p);
-    p->state = CTPAIR_INVALID;
+static void abort_fetch_pair(PAIR p) {
     ctpair_write_unlock(&p->rwlock);
     if (ctpair_users(&p->rwlock) == 0)
         ctpair_destroy(p);
@@ -559,27 +557,29 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
     cachetable_lock(ct);
 
     if (r) {
+        cachetable_remove_pair(ct, p);
+        p->state = CTPAIR_INVALID;
         if (p->cq) {
             workqueue_enq(p->cq, &p->asyncwork, 1);
             return r;
         }
-        cachetable_abort_fetch_pair(ct, p);
+        abort_fetch_pair(p);
         return r;
-    }
-
-    lru_touch(ct, p);
-    p->value = toku_value;
-    p->written_lsn = written_lsn;
-    p->size = size;
-    ct->size_current += size;
-    if (p->cq) {
-        workqueue_enq(p->cq, &p->asyncwork, 1);
+    } else {
+        lru_touch(ct, p);
+        p->value = toku_value;
+        p->written_lsn = written_lsn;
+        p->size = size;
+        ct->size_current += size;
+        if (p->cq) {
+            workqueue_enq(p->cq, &p->asyncwork, 1);
+            return 0;
+        }
+        p->state = CTPAIR_IDLE;
+        ctpair_write_unlock(&p->rwlock);
+        if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
         return 0;
     }
-    p->state = CTPAIR_IDLE;
-    ctpair_write_unlock(&p->rwlock);
-    if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
-    return 0;
 }
 
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove);
@@ -1081,11 +1081,14 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
         cachetable_lock(ct);
         PAIR p = workitem_arg(wi);
         p->cq = 0;
-        if (p->state == CTPAIR_READING)
-            cachetable_abort_fetch_pair(ct, p);
-        else if (p->state == CTPAIR_WRITING)
+        if (p->state == CTPAIR_READING) {
+            ctpair_write_unlock(&p->rwlock);
+            cachetable_maybe_remove_and_free_pair(ct, p);
+        } else if (p->state == CTPAIR_WRITING) {
             cachetable_complete_write_pair(ct, p, TRUE);
-        else
+        } else if (p->state == CTPAIR_INVALID) {
+            abort_fetch_pair(p);
+        } else
             assert(0);
     }
     workqueue_destroy(&cq);
@@ -1250,8 +1253,14 @@ static void cachetable_reader(WORKITEM wi) {
     CACHETABLE ct = p->cachefile->cachetable;
     cachetable_lock(ct);
     int r = cachetable_fetch_pair(ct, p->cachefile, p);
-    if (r == 0)
+#define DO_FLUSH_FROM_READER 0
+    if (r == 0) {
+#if DO_FLUSH_FROM_READER
         maybe_flush_some(ct, 0);
+#else
+        r = r;
+#endif
+    }
     cachetable_unlock(ct);
 }
 
