@@ -206,7 +206,7 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string,
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, error_string, callback2_f, extra2);
     }
-    if (r==0) {
+    if (r==0 && logger) {
         LSN trim_lsn = (oldest_live_lsn.lsn < logger->checkpoint_lsn.lsn) ? oldest_live_lsn : logger->checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, trim_lsn);
     }
