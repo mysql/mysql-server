@@ -147,7 +147,7 @@ toku_indexer_unlock(DB_INDEXER* indexer) {
 // forward declare the test-only wrapper function for undo-do
 static int test_indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
 
-int 
+int
 toku_indexer_create_indexer(DB_ENV *env,
                             DB_TXN *txn,
                             DB_INDEXER **indexerp,
@@ -155,18 +155,18 @@ toku_indexer_create_indexer(DB_ENV *env,
                             int N,
                             DB *dest_dbs[/*N*/],
                             uint32_t db_flags[/*N*/] UU(),
-                            uint32_t indexer_flags) 
+                            uint32_t indexer_flags)
 {
-    int rval = 0;
+    int rval;
     DB_INDEXER *indexer = 0;   // set later when created
 
     *indexerp = NULL;
-    
+
     XCALLOC(indexer);      // init to all zeroes (thus initializing the error_callback and poll_func)
     if ( !indexer )    { rval = ENOMEM; goto create_exit; }
     XCALLOC(indexer->i);   // init to all zeroes (thus initializing all pointers to NULL)
     if ( !indexer->i ) { rval = ENOMEM; goto create_exit; }
-    
+
     indexer->i->env                = env;
     indexer->i->txn                = txn;
     indexer->i->src_db             = src_db;
@@ -174,9 +174,9 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->i->dest_dbs           = dest_dbs;
     indexer->i->indexer_flags      = indexer_flags;
     indexer->i->loop_mod           = 1000; // call poll_func every 1000 rows
-    indexer->i->estimated_rows     = 0; 
+    indexer->i->estimated_rows     = 0;
     indexer->i->undo_do            = test_indexer_undo_do; // TEST export the undo do function
-    
+
     XCALLOC_N(N, indexer->i->fnums);
     if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
     for(int i=0;i<indexer->i->N;i++) {
@@ -185,7 +185,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->i->filenums.num       = N;
     indexer->i->filenums.filenums  = indexer->i->fnums;
     indexer->i->test_only_flags    = 0;  // for test use only
-    
+
     indexer->set_error_callback    = toku_indexer_set_error_callback;
     indexer->set_poll_function     = toku_indexer_set_poll_function;
     indexer->build                 = build_index;
@@ -202,20 +202,20 @@ toku_indexer_create_indexer(DB_ENV *env,
     //
     for (int i = 0; i < N; i++) {
         DB_LOADER* loader = NULL;
-        int r = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
-        if (r) {
+        rval = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
+        if (rval) {
             goto create_exit;
         }
-        r = loader->close(loader);
-        if (r) {
+        rval = loader->close(loader);
+        if (rval) {
             goto create_exit;
         }
     }
-    
+
     // create and initialize the leafentry cursor
     rval = toku_le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);
     if ( !indexer->i->lec ) { goto create_exit; }
-    
+
     // 2954: add recovery and rollback entries
     LSN hot_index_lsn; // not used (yet)
     TOKUTXN      ttxn;
@@ -225,7 +225,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     toku_multi_operation_client_lock();
     rval = toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
     toku_multi_operation_client_unlock();
-    
+
     if (rval == 0) {
         rval = associate_indexer_with_hot_dbs(indexer, dest_dbs, N);
     }
@@ -233,14 +233,14 @@ create_exit:
     if ( rval == 0 ) {
 
         indexer_undo_do_init(indexer);
-        
+
         *indexerp = indexer;
 
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
         if ( STATUS_VALUE(INDEXER_CURRENT) > STATUS_VALUE(INDEXER_MAX) )
             STATUS_VALUE(INDEXER_MAX) = STATUS_VALUE(INDEXER_CURRENT);   // NOT WORTH A LOCK TO MAKE THREADSAFE), may be inaccurate
-        
+
     } else {
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
         free_indexer(indexer);
@@ -249,7 +249,7 @@ create_exit:
     return rval;
 }
 
-int 
+int
 toku_indexer_set_poll_function(DB_INDEXER *indexer,
                                int (*poll_func)(void *poll_extra,
                                                 float progress),
