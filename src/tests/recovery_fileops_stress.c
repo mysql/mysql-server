@@ -127,7 +127,6 @@ static int do_random_fileop(int i, int state) {
 //    if ( verbose ) printf("%s : %s : DB '%d', state '%d, rval '%d'\n", __FILE__, __FUNCTION__, i, state, rval);
 
     int next_state = state;
-    int r;
 
     char fname[100];
     sprintf(fname, "%s%d.db", table, i);
@@ -137,7 +136,7 @@ static int do_random_fileop(int i, int state) {
         case CREATED:
             do_close(db, fname, &next_state);
             db_array[i] = db = 0;
-            if ( r < (percent_do_op / 2) ) {
+            if ( rval < (percent_do_op / 2) ) {
                 do_delete(fname, &next_state);
             }
             break;
