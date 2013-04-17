@@ -122,8 +122,8 @@ endif
 
 $(NEWBRT_O_FILES): VISIBILITY=
 $(NEWBRT): $(NEWBRT_O_FILES)
-$(NEWBRT_SO): $(NEWBRT_O_FILES)
-	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(NEWBRT_O_FILES) -o$(NEWBRT_SO)
+$(NEWBRT_SO): newbrt.bundle
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) newbrt.bundle/*.o -o$(NEWBRT_SO)
 
 $(NEWBRT_BUNDLE): log_code.c log_header.h
 
@@ -151,7 +151,7 @@ logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
 	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
 
 
-libs: $(NEWBRT) $(NEWBRT_BUNDLE)
+libs: $(NEWBRT_SO) $(NEWBRT) $(NEWBRT_BUNDLE)
 bins: $(BINS)
 
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)

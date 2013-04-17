@@ -511,7 +511,7 @@ CXXFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototyp
 	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 ifeq ($(AEXT),a)
 %.bundle: %.$(AEXT)
-	mkdir -p $@ && cd $@ && $(AR) x ../$(<F)
+	rm -f $@/*.$(OEXT) && mkdir -p $@ && cd $@ && $(AR) x ../$(<F)
 	touch $@
 else
 #Windows lib cannot extract everything.
