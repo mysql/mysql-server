@@ -117,6 +117,7 @@ set(recover_stress_tests
   ydb/recover-test_stress1.abortrecover
   ydb/recover-test_stress2.abortrecover
   ydb/recover-test_stress3.abortrecover
+  ydb/recover-test_stress_openclose.abortrecover
   )
 
 ## we run stress tests separately, only run them if asked to

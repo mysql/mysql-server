@@ -1118,10 +1118,10 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
     return r;
 }
 
-static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
+// take the given db and do an update on it
+static int
+UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int r;
-    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
-    DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
     int rand_key;
@@ -1178,6 +1178,14 @@ static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(s
     }
 
     return r;
+}
+
+// choose a random DB and do an update on it
+static int
+UU() update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
+    int db_index = myrandom_r(arg->random_data) % arg->cli->num_DBs;
+    DB *db = arg->dbp[db_index];
+    return update_op_db(db, txn, arg, operation_extra, stats_extra);
 }
 
 static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {

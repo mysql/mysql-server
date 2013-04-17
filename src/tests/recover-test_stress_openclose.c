@@ -1,9 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: test_stress_openclose.c 44373 2012-06-08 20:33:40Z esmet $"
+#ident "$Id: recover-test_stress_openclose.c 44373 2012-06-08 20:33:40Z esmet $"
 
 #include "stress_openclose.h"
+
 
 int
 test_main(int argc, char *const argv[]) {
@@ -16,8 +17,14 @@ test_main(int argc, char *const argv[]) {
     // it's okay for update to get DB_LOCK_NOTGRANTED, etc.
     args.crash_on_operation_failure = false;
 
-    // just run the stress test, no crashing and recovery test
-    stress_openclose_crash_at_end = false;
-    stress_test_main(&args);
+    // set crash at end to true for the recovery version
+    // then run the test or run recovery, depending on args
+    stress_openclose_crash_at_end = true;
+    if (args.do_test_and_crash) {
+        stress_test_main(&args);
+    }
+    if (args.do_recover) {
+        stress_recover(&args);
+    }
     return 0;
 }
