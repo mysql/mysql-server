@@ -6,8 +6,6 @@ enum {
     UPDATE_OP_EXPAND_UINT = 3,
     UPDATE_OP_EXPAND_CHAR = 4,
     UPDATE_OP_EXPAND_BINARY = 5,
-    UPDATE_OP_ADD_INT = 6,
-    UPDATE_OP_SUB_INT = 7,
 };
     
 #define UP_COL_ADD_OR_DROP UPDATE_OP_COL_ADD_OR_DROP
@@ -63,17 +61,16 @@ enum {
 // offset_start  4  starting offset of the variable length field offsets 
 // offset end    4  ending offset of the variable length field offsets  
 
-// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
+// operation     1  == UPDATE_OP_EXPAND_INT/UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
 // old offset    4
 // old length    4
 // new offset    4
 // new length    4
 
-// operation     1 == UPDATE_OP_INT_ADD or UPDATE_OP_INT_SUB
+// operation     1 == UPDATE_OP_INT/UINT_ADD/SUB
 // offset        4 starting offset of the int type field
 // length        4 length of the int type field
 // value         4 value to add or subtract (common use case is increment or decrement by 1)
-// is unsigned   1
 
 //
 // checks whether the bit at index pos in data is set or not
