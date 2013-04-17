@@ -3,28 +3,30 @@
 #include <assert.h>
 #include <errno.h>
 #include <db_cxx.h>
+#include <memory.h>
 
 int verbose;
 
-#define FNAME __FILE__ ".tdb"
+#define DIR  __FILE__ ".dir"
+#define FNAME "test.tdb"
 
-int test_error_stream(const char *dbfile) {
+int test_error_stream(void) {
     int r;
 
-    r = unlink(dbfile);
-    r = creat(dbfile, 0777); assert(r >= 0); close(r);
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
 
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
     env.set_errpfx("my_env_error_stream");
     env.set_error_stream(&std::cerr);
     
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == EINVAL);
+    r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == EINVAL);
 
     Db db(&env, 0);
     db.set_errpfx("my_db_error_stream");
     db.set_error_stream(&std::cerr);
-    r = db.open(0, dbfile, 0, DB_BTREE, DB_CREATE, 0777); assert(r != 0);
+    r = db.open(NULL, FNAME, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     r = db.close(0); assert(r == 0);
     r = db.close(0); assert(r == EINVAL);
     r = env.close(0); assert(r == 0);
@@ -48,5 +50,5 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return test_error_stream(FNAME);
+    return test_error_stream();
 }
