@@ -131,6 +131,7 @@ void checkpointer_test::test_pending_bits() {
     attr.cache_pressure_size = 0;
     attr.is_valid = true;
 
+    ZERO_STRUCT(p);
     pair_init(&p,
         &cf,
         k,
