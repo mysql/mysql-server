@@ -407,7 +407,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     if (seqinsert >= n_leafentries/2) {
         u_int32_t node_size = toku_serialize_brtnode_size(node);
         break_at = n_leafentries - 1;
-        OMTVALUE v;
+        OMTVALUE v = 0;
         while (1) {
             r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
             assert(r == 0);
@@ -511,7 +511,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     //toku_verify_gpma(B->u.l.buffer);
     if (splitk) {
 	memset(splitk, 0, sizeof *splitk);
-	OMTVALUE lev;
+	OMTVALUE lev = 0;
 	r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev, NULL);
 	assert(r==0); // that fetch should have worked.
 	LEAFENTRY le=lev;
@@ -3063,7 +3063,7 @@ BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
 }
 
 static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {
-    OMTVALUE le;
+    OMTVALUE le = 0;
     int r = toku_omt_cursor_current(c->omtcursor, &le);
     assert(r==0);
     if (key) {

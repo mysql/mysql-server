@@ -850,7 +850,7 @@ int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
     
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     int r;
-    OMT newomt;
+    OMT newomt = 0;
     invalidate_cursors(leftomt);
     invalidate_cursors(rightomt);
     u_int32_t newsize = omt_size(leftomt)+omt_size(rightomt);

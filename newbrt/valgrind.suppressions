@@ -32,3 +32,11 @@
    fun:deflate
    fun:compress2
 }
+{
+   compress_is_not_valgrind_clean3_fedora9
+   Memcheck:Cond
+   obj:/lib64/libz.so.1.2.3
+   obj:/lib64/libz.so.1.2.3
+   fun:deflate
+   fun:compress2
+}
