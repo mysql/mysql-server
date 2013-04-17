@@ -18,7 +18,7 @@ void lock_request_unit_test::test_start_pending(void) {
     // bogus, just has to be something.
     const uint64_t lock_wait_time = 0;
 
-    mgr.create(nullptr, nullptr);
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
     DICTIONARY_ID dict_id = { 1 };
     lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
 

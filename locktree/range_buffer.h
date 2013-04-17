@@ -17,7 +17,10 @@ namespace toku {
 // be stored, iterated over, and then destroyed all at once.
 
 class range_buffer {
-private:
+// Private in spirit: We fail POD asserts when we try to store range_buffers in an omt.
+// So make it all public, but don't touch.
+public:
+//private:
 
     // the key range buffer is a bunch of records in a row.
     // each record has the following header, followed by the
@@ -109,7 +112,7 @@ public:
 
     void destroy(void);
 
-private:
+//private:
     char *m_buf;
     size_t m_buf_size;
     size_t m_buf_current;

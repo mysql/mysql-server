@@ -16,7 +16,7 @@ void lock_request_unit_test::test_start_deadlock(void) {
     // something short
     const uint64_t lock_wait_time = 10;
 
-    mgr.create(nullptr, nullptr);
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
     DICTIONARY_ID dict_id = { 1 };
     lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
 

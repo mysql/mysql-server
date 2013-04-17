@@ -27,14 +27,14 @@ static DB_TXN *txn_oldest_ancester(DB_TXN* txn) {
 }
 
 int find_key_ranges_by_lt(const txn_lt_key_ranges &ranges,
-        toku::locktree *const &find_lt);
+        const toku::locktree *const &find_lt);
 int find_key_ranges_by_lt(const txn_lt_key_ranges &ranges,
-        toku::locktree *const &find_lt) {
+        const toku::locktree *const &find_lt) {
     return ranges.lt->compare(find_lt);
 }
 
 static void db_txn_note_row_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key) {
-    toku::locktree *lt = db->i->lt;
+    const toku::locktree *lt = db->i->lt;
 
     toku_mutex_lock(&db_txn_struct_i(txn)->txn_mutex);
 
@@ -44,16 +44,16 @@ static void db_txn_note_row_lock(DB *db, DB_TXN *txn, const DBT *left_key, const
 
     // if this txn has not yet already referenced this
     // locktree, then add it to this txn's locktree map
-    int r = map->find_zero<toku::locktree *, find_key_ranges_by_lt>(lt, &ranges, &idx);
+    int r = map->find_zero<const toku::locktree *, find_key_ranges_by_lt>(lt, &ranges, &idx);
     if (r == DB_NOTFOUND) {
-        ranges.lt = lt;
+        ranges.lt = db->i->lt;
         XMALLOC(ranges.buffer);
         ranges.buffer->create();
         map->insert_at(ranges, idx);
 
         // let the manager know we're referencing this lt
         toku::locktree::manager *ltm = &txn->mgrp->i->ltm;
-        ltm->reference_lt(lt);
+        ltm->reference_lt(ranges.lt);
     } else {
         invariant_zero(r);
     }
@@ -64,6 +64,71 @@ static void db_txn_note_row_lock(DB *db, DB_TXN *txn, const DBT *left_key, const
     toku_mutex_unlock(&db_txn_struct_i(txn)->txn_mutex);
 }
 
+void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const toku::range_buffer &buffer, void *extra) {
+    DB_ENV *CAST_FROM_VOIDP(env, extra);
+
+    // Get the TOKUTXN and DB_TXN for this txnid from the environment's txn manager.
+    // Only the parent id is used in the search.
+    TOKUTXN ttxn;
+    TXNID_PAIR txnid_pair = { .parent_id64 = txnid, .child_id64 = 0 };
+    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
+
+    toku_txn_manager_suspend(txn_manager);
+    toku_txn_manager_id2txn_unlocked(txn_manager, txnid_pair, &ttxn);
+
+    // We are still holding the txn manager lock. If we couldn't find the txn,
+    // then we lost a race with a committing transaction that got removed
+    // from the txn manager before it released its locktree locks. In this
+    // case we do nothing - that transaction has or is just about to release
+    // its locks and be gone, so there's not point in updating its lt_map
+    // with the new escalated ranges. It will go about releasing the old
+    // locks it thinks it had, and will succeed as if nothing happened.
+    //
+    // If we did find the transaction, then it has not yet been removed
+    // from the manager and therefore has not yet released its locks.
+    // We must be able to find and replace the range buffer associated
+    // with this locktree. This is impotant, otherwise it can grow out of
+    // control (ticket 5961).
+
+    if (ttxn != nullptr) {
+        DB_TXN *txn = toku_txn_get_container_db_txn(ttxn);
+
+        // One subtle point is that if the transaction is still live, it is impossible
+        // to deadlock on the txn mutex, even though we are holding the locktree's root
+        // mutex and release locks takes them in the opposite order.
+        //
+        // Proof: releasing locks takes the txn mutex and then acquires the locktree's
+        // root mutex, escalation takes the root mutex and possibly takes the txn mutex.
+        // releasing locks implies the txn is not live, and a non-live txn implies we
+        // will not need to take the txn mutex, so the deadlock is avoided.
+        toku_mutex_lock(&db_txn_struct_i(txn)->txn_mutex);
+
+        // We should be able to find this locktree. It was just escalated, and we had locks.
+        uint32_t idx;
+        txn_lt_key_ranges ranges;
+        toku::omt<txn_lt_key_ranges> *map = &db_txn_struct_i(txn)->lt_map;
+        int r = map->find_zero<const toku::locktree *, find_key_ranges_by_lt>(lt, &ranges, &idx);
+        invariant_zero(r);
+
+        // Destroy the old range buffer, create a new one, and insert the new ranges.
+        //
+        // We could theoretically steal the memory from the caller instead of copying
+        // it, but it's simpler to have a callback API that doesn't transfer memory ownership.
+        ranges.buffer->destroy();
+        ranges.buffer->create();
+        toku::range_buffer::iterator iter;
+        toku::range_buffer::iterator::record rec;
+        iter.create(&buffer);
+        while (iter.current(&rec)) {
+            ranges.buffer->append(rec.get_left_key(), rec.get_right_key());
+            iter.next();
+        }
+
+        toku_mutex_unlock(&db_txn_struct_i(txn)->txn_mutex);
+    }
+
+    toku_txn_manager_resume(txn_manager);
+}
 
 // Get a range lock.
 // Return when the range lock is acquired or the default lock tree timeout has expired.  

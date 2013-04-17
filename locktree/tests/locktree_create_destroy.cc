@@ -11,7 +11,7 @@ namespace toku {
 // test simple create and destroy of the locktree
 void locktree_unit_test::test_create_destroy(void) {
     locktree::manager mgr;
-    mgr.create(nullptr, nullptr);
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
     DESCRIPTOR desc = nullptr;
     DICTIONARY_ID dict_id = { 1 };
     locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);

@@ -11,7 +11,7 @@ namespace toku {
 void manager_unit_test::test_params(void) {
     int r;
     locktree::manager mgr;
-    mgr.create(nullptr, nullptr);
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
 
     uint64_t new_max_lock_memory = 15307752356;
     r = mgr.set_max_lock_memory(new_max_lock_memory);

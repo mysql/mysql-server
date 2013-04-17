@@ -2199,7 +2199,10 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     assert_zero(r);
     assert(result->i->logger);
 
-    result->i->ltm.create(toku_db_lt_on_create_callback, toku_db_lt_on_destroy_callback);
+    // Create the locktree manager, passing in the create/destroy/escalate callbacks.
+    // The extra parameter for escalation is simply a pointer to this environment.
+    // The escalate callback will need it to translate txnids to DB_TXNs
+    result->i->ltm.create(toku_db_lt_on_create_callback, toku_db_lt_on_destroy_callback, toku_db_txn_escalate_callback, result);
 
     r = toku_omt_create(&result->i->open_dbs);
     toku_mutex_init(&result->i->open_dbs_lock, NULL);
