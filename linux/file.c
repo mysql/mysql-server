@@ -192,10 +192,10 @@ toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     assert(len == 0);
 }
 
-int
+ssize_t
 toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     const char *bp = (const char *) buf;
-    int result = 0;
+    ssize_t result = 0;
     while (len > 0) {
         ssize_t r;
         if (t_pwrite) {
