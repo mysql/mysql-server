@@ -128,13 +128,6 @@ static MYSQL_THDVAR_UINT(block_size,
   ~0L,   // max
   1      // blocksize???
   );
-static MYSQL_THDVAR_BOOL(use_write_locks,
-  0,
-  "if on, will use write locks instead of read locks",
-  NULL, 
-  NULL, 
-  FALSE
-  );
 
 void tokudb_checkpoint_lock(THD * thd);
 void tokudb_checkpoint_unlock(THD * thd);
@@ -600,10 +593,6 @@ bool get_prelock_empty(THD* thd) {
 
 uint get_tokudb_block_size(THD* thd) {
     return THDVAR(thd, block_size);
-}
-
-bool get_tokudb_use_write_locks(THD* thd) {
-    return THDVAR(thd, use_write_locks) != 0;
 }
 
 typedef struct txn_progress_info {
@@ -1545,7 +1534,6 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(fs_reserve_percent),
     MYSQL_SYSVAR(tmp_dir),
     MYSQL_SYSVAR(block_size),
-    MYSQL_SYSVAR(use_write_locks),
     NULL
 };
 
