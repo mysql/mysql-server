@@ -707,6 +707,18 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
     HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
+    // workaround for fill_alter_inplace_info bug (#5193)
+    // the function erroneously sets the ADD_INDEX and DROP_INDEX flags for a column addition that does not
+    // change the keys.  the following code turns the ADD_INDEX and DROP_INDEX flags so that we can do hot
+    // column addition later.
+    if ((ha_alter_info->handler_flags & (Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::DROP_COLUMN)) != 0) {
+        if ((ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX)) != 0) {
+            if (tables_have_same_keys(table, altered_table, false, false)) {
+                ha_alter_info->handler_flags &= ~(Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX);
+            }
+        }
+    }
+
     // column rename
     if ((ha_alter_info->handler_flags & ~(Alter_inplace_info::ALTER_COLUMN_NAME + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) == 0) {
         // we have identified a possible column rename, 
