@@ -105,13 +105,13 @@ $(YDB):  $(OBJS)
 
 $(LIBRARY):  $(NEWBRT) $(YDB) $(LOCKTREE) $(RANGETREE) $(DEPEND_COMPILE) $(DEPEND_LINK) 
 
-$(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(NEWBRT) $(YDB) $(LOCKTREE) $(RANGETREE)
+$(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 
 #Skip all BDB tests for CYGWIN+ICC
 ifeq ($(CYGWIN),)
-$(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(NEWBRT) $(YDB) $(LOCKTREE) $(RANGETREE) $(LIBPORTABILITY))
+$(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY))
 else ifneq ($(CC),icc)
-$(LIBRARY_S):  $(NEWBRT) $(YDB)  $(LOCKTREE) $(RANGETREE) $(LIBPORTABILITY)
+$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 else
 $(LIBRARY) $(LIBRARY_S):
 	echo "Dynamic tokudb in windows is deprecated"
