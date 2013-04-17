@@ -983,3 +983,24 @@ int tokudb_recover(const char *env_dir, const char *log_dir, brt_compare_func bt
 
     return rr;
 }
+
+
+
+// Return 0 if recovery log exists, ENOENT if log is missing
+int 
+tokudb_recover_log_exists(const char * log_dir) {
+    int r;
+    TOKULOGCURSOR logcursor;
+
+    r = toku_logcursor_create(&logcursor, log_dir);
+    if (r == 0) {
+	int rclose;
+	r = toku_logcursor_log_exists(logcursor);  // return ENOENT if no log
+	rclose = toku_logcursor_destroy(&logcursor);
+	assert(rclose == 0);
+    }
+    else
+	r = ENOENT;
+    
+    return r;
+}

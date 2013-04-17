@@ -381,3 +381,16 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     *le = &(lc->entry);
     return r;
 }
+
+// return 0 if log exists, ENOENT if no log
+int 
+toku_logcursor_log_exists(const TOKULOGCURSOR lc) {
+    int r;
+
+    if (lc->n_logfiles) 
+	r = 0;
+    else
+	r = ENOENT;
+
+    return r;
+}

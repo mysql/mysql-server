@@ -51,6 +51,9 @@ static u_int64_t num_aborts;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
 
+const char * environmentdictionary = "tokudb.environment";
+const char * fileopsdirectory = "tokudb.directory";
+
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 
 
@@ -324,7 +327,8 @@ static int delete_rolltmp_files(DB_ENV *env) {
     return r;
 }
     
-static int do_recovery (DB_ENV *env) {
+static int 
+ydb_do_recovery (DB_ENV *env) {
     const char *envdir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
@@ -412,8 +416,10 @@ static const char * currkey = "current_version";
 static const char * origkey = "original_version";
 static const uint64_t environment_version = (uint64_t) BRT_LAYOUT_VERSION;
 
-static void
-update_env(DB_ENV * env, DB_TXN * txn) {
+
+// requires: persistent environment dictionary is already open
+static int
+upgrade_env(DB_ENV * env, DB_TXN * txn) {
     int r;
     uint64_t stored_env_version;
     DBT key, val;
@@ -421,18 +427,94 @@ update_env(DB_ENV * env, DB_TXN * txn) {
     toku_fill_dbt(&key, currkey, strlen(currkey));
     toku_init_dbt(&val);
     r = toku_db_get(env->i->persistent_environment, txn, &key, &val, 0);
-    assert(r==0);
+    assert(r == 0);
     stored_env_version = *(uint64_t*)val.data;
-    assert(stored_env_version == environment_version);
+    if (stored_env_version != environment_version)
+	r = TOKUDB_DICTIONARY_TOO_NEW;
+    return r;
+}
+
+// return 0 if log exists or ENOENT if log does not exist
+static int
+ydb_recover_log_exists(DB_ENV *env) {
+    char *logdir;
+    if (env->i->lg_dir) {
+	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+    } else {
+	logdir = toku_strdup(env->i->dir);
+    }
+    int r = tokudb_recover_log_exists(logdir);
+    toku_free(logdir);
+    return r;
+}
+
+
+// Validate that all required files are present, no side effects.
+// Return 0 if all is well, ENOENT if some files are present but at least one is missing.
+// Set *valid_newenv if creating a new environment (all files missing).
+// (Note, if special dictionaries exist, then they were created transactionally and log should exist.)
+static int 
+validate_env(DB_ENV * env, BOOL * valid_newenv) {
+    int r;
+    BOOL expect_newenv;        // set true if we expect to create a new env
+    toku_struct_stat buf;
+    char* path = NULL;
+
+    // use stat to detect required dictionaries
+
+    path = construct_full_name(2, env->i->dir, environmentdictionary);
+    assert(path);
+    r = toku_stat(path, &buf);
+    if (r) {
+	expect_newenv = TRUE;
+    }
+    else
+	expect_newenv = FALSE;
+    toku_free(path);
+    path = construct_full_name(2, env->i->dir, fileopsdirectory);
+    assert(path);
+    r = toku_stat(path, &buf);
+    if (r) {
+	if (!expect_newenv)
+	    r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
+	else 
+	    r = 0;
+    }
+    else {
+	if (expect_newenv)
+	    r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+    }
+    toku_free(path);
+    
+    if ((r == 0) && (env->i->open_flags & DB_INIT_LOG)) {
+	// if using transactions, test for existence of log
+	r = ydb_recover_log_exists(env);  // return 0 or ENOENT
+	if (expect_newenv && (r != ENOENT))
+	    r = toku_ydb_do_error(env, ENOENT, "Persistent environment information is missing (but log exists)\n");
+	else if (!expect_newenv && r == ENOENT)
+	    r = toku_ydb_do_error(env, ENOENT, "Recovery log is missing (persistent environment information is present)\n");
+	else
+	    r = 0;
+    }
+
+    if (r == 0)
+	*valid_newenv = expect_newenv;
+    else 
+	*valid_newenv = FALSE;
+    return r;
 }
 
 
 
-//    DB *directory; //Maps dnames to inames
-//    DB *persistent_environment; //Stores environment settings, can be used for upgrade
-static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
+// Open the environment.
+// If this is a new environment, then create the necessary files.
+// Return 0 on success, ENOENT if any of the expected necessary files are missing.
+// (The set of necessary files is defined in the function validate_env() above.)
+static int 
+toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     HANDLE_PANICKED_ENV(env);
     int r;
+    BOOL newenv;  // true iff creating a new environment
     u_int32_t unused_flags=flags;
 
     if (env_opened(env)) {
@@ -458,9 +540,9 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
     if (!home) home = ".";
 
-	// Verify that the home exists.
-	{
-	    BOOL made_new_home = FALSE;
+    // Verify that the home exists.
+    {
+	BOOL made_new_home = FALSE;
         char* new_home = NULL;
     	toku_struct_stat buf;
         if (home[strlen(home)-1] == '\\') {
@@ -494,6 +576,9 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
+    r = validate_env(env, &newenv);  // make sure that environment is either new or complete
+    if (r != 0) return r;
+
     unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG;
 
     if (flags & DB_INIT_TXN) {
@@ -501,13 +586,19 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         if (r != 0) return r;
     }
  
-    if (flags & DB_INIT_LOG) {
-        if (flags & DB_RECOVER) {
-            r = do_recovery(env);
-            if (r != 0) return r;
-        } else {
-            r = needs_recovery(env);
-            if (r != 0) return r;
+    // do recovery only if there exists a log and recovery is requested
+    // otherwise, a log is created when the logger is opened later
+    if (!newenv) {
+        if (flags & DB_INIT_LOG) {
+            // the log does exist
+            if (flags & DB_RECOVER) {
+                r = ydb_do_recovery(env);
+                if (r != 0) return r;
+            } else {
+                // the log is required to have clean shutdown if recovery is not requested
+                r = needs_recovery(env);
+                if (r != 0) return r;
+            }
         }
     }
 
@@ -560,21 +651,20 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     DB_TXN *txn=NULL;
     if (using_txns) {
         r = toku_txn_begin(env, 0, &txn, 0, 1);
-        assert(r==0);//For Now
+        assert(r==0);
     }
-    //TODO: put environment, directory in environment home instead of in data dir
+
     {
         r = toku_db_create(&env->i->persistent_environment, env, 0);
-        assert(r==0);//For Now
+        assert(r==0);
         r = db_use_builtin_key_cmp(env->i->persistent_environment);
         assert(r==0);
         r = db_use_builtin_val_cmp(env->i->persistent_environment);
         assert(r==0);
-        r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", 0, mode);
-	if (r == ENOENT) {
+	r = db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
+	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
-	    r = db_open_iname(env->i->persistent_environment, txn, "tokudb.environment", DB_CREATE, mode);
 	    assert(r==0);
 	    toku_fill_dbt(&key, origkey, strlen(origkey));
 	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
@@ -587,26 +677,26 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	}
 	else {
 	    assert(r==0);
-	    update_env(env, txn);
+	    r = upgrade_env(env, txn);
 	}
     }
     {
         r = toku_db_create(&env->i->directory, env, 0);
-        assert(r==0);//For Now
+        assert(r==0);
         r = db_use_builtin_key_cmp(env->i->directory);
         assert(r==0);
         r = db_use_builtin_val_cmp(env->i->directory);
         assert(r==0);
-        r = db_open_iname(env->i->directory, txn, "tokudb.directory", DB_CREATE, mode);
-        assert(r==0);//For Now
+        r = db_open_iname(env->i->directory, txn, fileopsdirectory, DB_CREATE, mode);
+        assert(r==0);
     }
     if (using_txns) {
         r = toku_txn_commit(txn, 0);
-        assert(r==0);//For Now
+        assert(r==0);
     }
     toku_ydb_unlock();
     r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
-    assert(r==0);//For Now
+    assert(r==0);
     toku_ydb_lock();
     return 0;
 }
@@ -1211,6 +1301,12 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->point_queries      = num_point_queries;
 	    engstat->sequential_queries = num_sequential_queries;
 	}
+	{
+	    u_int64_t fsync_count, fsync_time;
+	    toku_get_fsync_times(&fsync_count, &fsync_time);
+	    engstat->fsync_count = fsync_count;
+	    engstat->fsync_time  = fsync_time;
+	}
     }
     return r;
 }
@@ -1259,17 +1355,17 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
     n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
     n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %d \n", engstat.range_locks_max);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_db           %d \n", engstat.range_locks_max_per_db);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %d \n", engstat.range_locks_curr);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_db           %"PRIu32"\n", engstat.range_locks_max_per_db);
+    n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
     n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
     n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
     n += snprintf(buff + n, bufsiz - n, "commits                          %"PRIu64"\n", engstat.commits);
     n += snprintf(buff + n, bufsiz - n, "aborts                           %"PRIu64"\n", engstat.aborts);
     n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
     n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
-
-    //    n += snprintf(buff + n, bufsiz - n, "             %"PRIu64"\n", engstat.);
+    n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
+    n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
 
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
