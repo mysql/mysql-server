@@ -489,7 +489,7 @@ struct ft {
 // descriptor. We don't bother setting any other fields because
 // the comparison function doesn't need it, and we would like to
 // reduce the CPU work done per comparison.
-#define FAKE_DB(db, desc) struct __toku_db db; fake_db->cmp_descriptor = desc;
+#define FAKE_DB(db, desc) struct __toku_db db; do { db.cmp_descriptor = desc; } while (0)
 
 struct ft_options {
     unsigned int nodesize;
