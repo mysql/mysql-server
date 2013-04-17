@@ -148,7 +148,7 @@ private:
     //
     // flags that are returned in table_flags()
     //
-    ulong int_table_flags;
+    ulonglong int_table_flags;
     // 
     // count on the number of rows that gets changed, such as when write_row occurs
     // this is meant to help keep estimate on number of elements in DB
