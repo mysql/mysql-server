@@ -65,15 +65,12 @@ typedef struct st_tokudb_trx_data {
 } tokudb_trx_data;
 
 // QQQ how to tune these?
-#define HA_TOKUDB_ROWS_IN_TABLE 10000   /* to get optimization right */
 #define HA_TOKUDB_RANGE_COUNT   100
-#define HA_TOKUDB_MAX_ROWS      10000000        /* Max rows in table */
 /* extra rows for estimate_rows_upper_bound() */
 #define HA_TOKUDB_EXTRA_ROWS    100
 
 /* Bits for share->status */
 #define STATUS_PRIMARY_KEY_INIT 0x1
-#define STATUS_AUTO_INCREMENT_INIT 0x2
 
 // tokudb debug tracing
 #define TOKUDB_DEBUG_INIT 1
