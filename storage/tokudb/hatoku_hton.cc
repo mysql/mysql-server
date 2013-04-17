@@ -1,5 +1,15 @@
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
+
+extern "C" {
+#include "stdint.h"
+#if defined(_WIN32)
+#include "misc.h"
+#endif
+#include "toku_os.h"
+}
+
+
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE
 #define _DTRACE_VERSION 1
@@ -17,8 +27,6 @@
 #undef VERSION
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
-
-#include <syscall.h>
 
 
 static inline void *thd_data_get(THD *thd, int slot) {
@@ -38,11 +46,6 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 }
 
 
-
-
-unsigned long my_getphyspages() {
-    return sysconf(_SC_PHYS_PAGES);
-}
 
 
 static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_used __attribute__ ((unused))) {
@@ -109,10 +112,17 @@ static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
 #endif
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-
+#if defined(_WIN32)
+extern "C" {
+#include "ydb.h"
+}
+#endif
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
+#if defined(_WIN32)
+    toku_ydb_init();
+#endif
 
     tokudb_hton = (handlerton *) p;
 
@@ -199,10 +209,12 @@ static int tokudb_init_func(void *p) {
 
     // config the cache table
     if (tokudb_cache_size == 0) {
-        unsigned long pagesize = my_getpagesize();
-        unsigned long long npages = my_getphyspages();
-        unsigned long long physmem = npages * pagesize;
+        unsigned long long physmem = (unsigned long)toku_os_get_phys_memory_size();
+#if defined(_WIN32)
+        tokudb_cache_size = 256000000;
+#else
         tokudb_cache_size = (ulonglong) (physmem * (tokudb_cache_memory_percent / 100.0));
+#endif
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
@@ -244,7 +256,7 @@ static int tokudb_init_func(void *p) {
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
 
-    r = db_env->open(db_env, tokudb_home, tokudb_init_flags, 0666);
+    r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
 
@@ -271,6 +283,9 @@ static int tokudb_done_func(void *p) {
         error = 1;
     hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
+#if defined(_WIN32)
+    toku_ydb_destroy();
+#endif
     TOKUDB_DBUG_RETURN(0);
 }
 

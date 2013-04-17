@@ -4,6 +4,12 @@
 
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
+extern "C" {
+#include "stdint.h"
+#if defined(_WIN32)
+#include "misc.h"
+#endif
+}
 
 #if !defined(HA_END_SPACE_KEY) || HA_END_SPACE_KEY != 0
 #error
@@ -1386,7 +1392,7 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
         for (Field ** field = table->field; *field; field++) {
             uint curr_field_offset = field_offset(*field, table);
             if (primary_key_offsets && 
-                pk_stripped &&
+                pk_stripped  &&
                 curr_skip_index < table_share->key_info[table_share->primary_key].key_parts
                 ) {
                 uint curr_skip_offset = primary_key_offsets[curr_skip_index].offset;
@@ -3681,7 +3687,7 @@ static int create_sub_table(const char *table_name, int flags) {
 
 static int mkdirpath(char *name, mode_t mode) {    
     char* parent = NULL;
-    int r = mkdir(name, mode);
+    int r = toku_os_mkdir(name, mode);
     if (r == -1 && errno == ENOENT) {
         parent = (char *)my_malloc(strlen(name)+1,MYF(MY_WME));
         if (parent == NULL) {
@@ -3692,9 +3698,9 @@ static int mkdirpath(char *name, mode_t mode) {
         char *cp = strrchr(parent, '/');
         if (cp) {
             *cp = 0;
-            r = mkdir(parent, 0755);
+            r = toku_os_mkdir(parent, 0755);
             if (r == 0)
-                r = mkdir(name, mode);
+                r = toku_os_mkdir(name, mode);
             }    
         }
 cleanup:    
@@ -3702,8 +3708,9 @@ cleanup:
     return r;
 }
 
-
+extern "C" {
 #include <dirent.h>
+}
 
 static int rmall(const char *dname) {
     int error = 0;

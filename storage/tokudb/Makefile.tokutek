@@ -4,6 +4,7 @@ MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
 TOKUDB = /usr/local/tokudb-4.4
 TOKUDB_VERSION = "Tokudb"
 DEBUG = 1
+SYSTEM = $(shell uname -s | tr [A-Z] [a-z])
 
 # sources to target
 SRCS = $(wildcard *.cc)
@@ -15,7 +16,7 @@ GCOV_FLAGS = -ftest-coverage -fprofile-arcs
 endif
 
 ifeq ($(DEBUG),0)
-OPTFLAGS = -O3
+OPTFLAGS = -O2
 MYSQL_FLAGS = 
 CXXFLAGS =
 else
@@ -28,12 +29,18 @@ MYSQL_FLAGS += -DMYSQL_DYNAMIC_PLUGIN
 MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
 
 CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I$(TOKUDB)/include
+ifeq ($(SYSTEM),linux)
+CPPFLAGS += -I$(TOKUDB)/linux
+endif
 CPPFLAGS += $(MYSQL_FLAGS)
 CPPFLAGS += -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\"
 CXXFLAGS += -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
 LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
 LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
+ifeq ($(SYSTEM),linux)
+LIBS += -L$(TOKUDB)/lib -ltokuportability
+endif
 
 # LIBDIR = /usr/lib
 # GCCLIBDIR = /usr/lib/gcc/i386-redhat-linux/4.1.1
