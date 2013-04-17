@@ -57,27 +57,27 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
  *    struct foo *MALLOC(x);
  * and you cannot go wrong.
  */
-#define MALLOC(v) v = (__typeof__(v)) toku_malloc(sizeof(*v))
+#define MALLOC(v) v = cast_to_typeof(v) toku_malloc(sizeof(*v))
 /* MALLOC_N is like calloc(Except no 0ing of data):  It makes an array.  Write
  *   int *MALLOC_N(5,x);
  * to make an array of 5 integers.
  */
-#define MALLOC_N(n,v) v = (__typeof__(v)) toku_malloc((n)*sizeof(*v))
+#define MALLOC_N(n,v) v = cast_to_typeof(v) toku_malloc((n)*sizeof(*v))
 
 //CALLOC_N is like calloc with auto-figuring out size of members
-#define CALLOC_N(n,v) v = (__typeof__(v)) toku_calloc((n), sizeof(*v)) 
+#define CALLOC_N(n,v) v = cast_to_typeof(v) toku_calloc((n), sizeof(*v)) 
 
 #define CALLOC(v) CALLOC_N(1,v)
 
-#define REALLOC_N(n,v) v = (__typeof__(v)) toku_realloc(v, (n)*sizeof(*v))
+#define REALLOC_N(n,v) v = cast_to_typeof(v) toku_realloc(v, (n)*sizeof(*v))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
-#define XMALLOC(v) v = (__typeof__(v)) toku_xmalloc(sizeof(*v))
-#define XMALLOC_N(n,v) v = (__typeof__(v)) toku_xmalloc((n)*sizeof(*v))
-#define XCALLOC_N(n,v) v = (__typeof__(v)) toku_xcalloc((n), (sizeof(*v)))
+#define XMALLOC(v) v = cast_to_typeof(v) toku_xmalloc(sizeof(*v))
+#define XMALLOC_N(n,v) v = cast_to_typeof(v) toku_xmalloc((n)*sizeof(*v))
+#define XCALLOC_N(n,v) v = cast_to_typeof(v) toku_xcalloc((n), (sizeof(*v)))
 
 #define XCALLOC(v) XCALLOC_N(1,(v))
-#define XREALLOC_N(n,v) v = (__typeof__(v)) toku_xrealloc(v, (n)*sizeof(*v))
+#define XREALLOC_N(n,v) v = cast_to_typeof(v) toku_xrealloc(v, (n)*sizeof(*v))
 
 /* If you have a type such as 
  *    struct pma *PMA;
