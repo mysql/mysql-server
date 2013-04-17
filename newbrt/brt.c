@@ -5639,27 +5639,8 @@ toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn) {
     txn->checkpoint_needed_before_commit = TRUE;
 }
 
-BOOL
-toku_brt_is_recovery_logging_suppressed (BRT brt) {
-    return brt->h->txnid_that_suppressed_recovery_logs != TXNID_NONE;
-}
-
-LSN toku_brt_checkpoint_lsn(struct brt_header* h) {
-    return h->checkpoint_lsn;
-}
-
-int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) {
-    if (h->panic == 0) {
-	h->panic = panic;
-	if (h->panic_string) 
-	    toku_free(h->panic_string);
-	h->panic_string = toku_strdup(panic_string);
-    }
-    return 0;
-}
-
 int toku_brt_set_panic(BRT brt, int panic, char *panic_string) {
-    return toku_brt_header_set_panic(brt->h, panic, panic_string);
+    return toku_brtheader_set_panic(brt->h, panic, panic_string);
 }
 
 #if 0

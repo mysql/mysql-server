@@ -218,7 +218,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
         {   //Find "brt"
             struct brt_header *h = toku_cachefile_get_userdata(cf);
             if (!h->panic && recovery_failed) {
-                r = toku_brt_header_set_panic(h, EINVAL, "Recovery failed");
+                r = toku_brtheader_set_panic(h, EINVAL, "Recovery failed");
                 assert_zero(r);
             }
             //Verify it is safe to close it.
