@@ -715,12 +715,15 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
     uchar *saved_key_ptr = (uchar *) saved_key->data;
     KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
     uint key_length = new_key->size;
+    uint saved_key_length = saved_key->size;
 
     //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
     for (; key_part != end && (int) key_length > 0; key_part++) {
         int cmp;
         uint length;
         if (key_part->null_bit) {
+            assert(new_key_ptr < (uchar *) new_key->data + new_key->size);
+            assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
             if (*new_key_ptr != *saved_key_ptr++)
                 return ((int) *new_key_ptr - (int) saved_key_ptr[-1]);
             key_length--;
@@ -732,7 +735,9 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
         length = key_part->field->packed_col_length(new_key_ptr, key_part->length);
         new_key_ptr += length;
         key_length -= length;
-        saved_key_ptr += key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+        length = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
+        saved_key_ptr += length;
+        saved_key_length -= length;
     }
     return 0;
 }
@@ -2249,18 +2254,25 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     int error;
     char newname[get_name_length(name) + 32];
 
-    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-        uint i;
-        for (i=0; i<form->s->keys; i++) {
-            KEY *key = &form->s->key_info[i];
-            uint p;
-            for (p=0; p<key->key_parts; p++) {
-                KEY_PART_INFO *key_info = &key->key_part[p];
-                printf("%d:%s:%d:key:%d:%d:type=%d:flags=%x\n", my_tid(), __FILE__, __LINE__,
-                       i, p, key_info->field->type(), key_info->field->flags);
+    uint i;
+    for (i=0; i<form->s->keys; i++) {
+        KEY *key = &form->s->key_info[i];
+        if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+            printf("%d:%s:%d:key:%s:%d\n", my_tid(), __FILE__, __LINE__, key->name, key->key_parts);
+        uint p;
+        for (p=0; p<key->key_parts; p++) {
+            KEY_PART_INFO *key_part = &key->key_part[p];
+            Field *field = key_part->field;
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+                printf("%d:%s:%d:key:%d:%d:length=%d:%s:type=%d:flags=%x\n", my_tid(), __FILE__, __LINE__,
+                       i, p, key_part->length, field->field_name, field->type(), field->flags);
+            
+            /* tokudb only supports auto increment on the first field in a key */
+            if ((field->flags & AUTO_INCREMENT_FLAG) && (i > 0 || p > 0)) {
+                TOKUDB_DBUG_RETURN(HA_ERR_UNSUPPORTED);
             }
-        }            
-    }
+        }
+    }            
 
     // a table is a directory of dictionaries
     make_name(newname, name, 0);
