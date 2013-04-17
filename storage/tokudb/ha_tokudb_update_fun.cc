@@ -616,11 +616,12 @@ tokudb_expand_varchar_offsets(
     memcpy(&offset_start, extra_pos, sizeof offset_start);
     extra_pos += sizeof offset_start;
 
-    // decode the number of offsets
+    // decode the offset end
     uint32_t offset_end;
     memcpy(&offset_end, extra_pos, sizeof offset_end);
     extra_pos += sizeof offset_end;
 
+    // number of variable fields is the diff of the offset end and start
     uint32_t number_of_offsets = offset_end - offset_start;
     
     assert(extra_pos == (uchar *)extra->data + extra->size);
@@ -647,7 +648,7 @@ tokudb_expand_varchar_offsets(
         new_val_ptr += offset_start;
         old_val_ptr += offset_start;
         
-        // we just need to expand each offset from 1 to 2 bytes
+        // expand each offset from 1 to 2 bytes
         for (uint32_t i = 0; i < number_of_offsets; i++) {
             uint16_t new_offset = *old_val_ptr;
             int2store(new_val_ptr, new_offset);
