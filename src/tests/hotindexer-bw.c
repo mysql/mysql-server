@@ -1,5 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 
 #include "test.h"
 #include "toku_pthread.h"
@@ -298,6 +299,7 @@ static void run_test(void)
     r = toku_os_mkdir(ENVDIR "/log", S_IRWXU+S_IRWXG+S_IRWXO);                   CKERR(r);
 
     r = db_env_create(&env, 0);                                                  CKERR(r);
+    r = env->set_redzone(env, 0);                                                CKERR(r);
     r = env->set_lg_dir(env, "log");                                             CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                           CKERR(r);
     generate_permute_tables();

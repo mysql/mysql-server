@@ -1,5 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 #include "test.h"
 /* Test for #1381:  If we insert into a locked empty table, not much goes into the rollback data structure. */
 
@@ -24,6 +25,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_THREAD|DB_PRIVATE;
 
 	r = db_env_create(&env, 0);                                           CKERR(r);
+	r = env->set_redzone(env, 0);                                         CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
@@ -39,6 +41,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_THREAD |DB_PRIVATE;
 	
 	r = db_env_create(&env, 0);                                           CKERR(r);
+	r = env->set_redzone(env, 0);                                         CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
