@@ -493,6 +493,55 @@ enum { uncompressed_magic_len_10 = (8 // tokuleaf or tokunode
 				 ) 
 };
 
+#define DO_DECOMPRESS_WORKER 1
+
+struct decompress_work_10 {
+    toku_pthread_t id;
+    void *compress_ptr;
+    void *uncompress_ptr;
+    u_int32_t compress_size;
+    u_int32_t uncompress_size;
+};
+
+// initialize the decompression work
+static void init_decompress_work_10(struct decompress_work_10 *w,
+                                 void *compress_ptr, u_int32_t compress_size,
+                                 void *uncompress_ptr, u_int32_t uncompress_size) {
+    memset(&w->id, 0, sizeof(w->id));
+    w->compress_ptr = compress_ptr; w->compress_size = compress_size;
+    w->uncompress_ptr = uncompress_ptr; w->uncompress_size = uncompress_size;
+}
+
+// do the decompression work
+static void do_decompress_work_10(struct decompress_work_10 *w) {
+    uLongf destlen = w->uncompress_size;
+    int r = uncompress(w->uncompress_ptr, &destlen,
+                       w->compress_ptr, w->compress_size);
+    assert(destlen==w->uncompress_size);
+    assert(r==Z_OK);
+}
+
+#if DO_DECOMPRESS_WORKER
+
+static void *decompress_worker_10(void *);
+
+static void start_decompress_work_10(struct decompress_work_10 *w) {
+    int r = toku_pthread_create(&w->id, NULL, decompress_worker_10, w); assert(r == 0);
+}
+
+static void wait_decompress_work_10(struct decompress_work_10 *w) {
+    void *ret;
+    int r = toku_pthread_join(w->id, &ret); assert(r == 0);
+}
+
+static void *decompress_worker_10(void *arg) {
+    struct decompress_work_10 *w = (struct decompress_work_10 *) arg;
+    do_decompress_work_10(w);
+    return arg;
+}
+
+#endif
+
 static int
 decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
     int r;
@@ -534,24 +583,24 @@ decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf 
 
     // decompress the sub blocks
     unsigned char *uncompressed_data = rb->buf+uncompressed_magic_len_10;
-    struct decompress_work decompress_work[n_sub_blocks];
+    struct decompress_work_10 decompress_work[n_sub_blocks];
 
     for (i=0; i<n_sub_blocks; i++) {
-        init_decompress_work(&decompress_work[i], compressed_data, sub_block_sizes[i].compressed_size, uncompressed_data, sub_block_sizes[i].uncompressed_size);
+        init_decompress_work_10(&decompress_work[i], compressed_data, sub_block_sizes[i].compressed_size, uncompressed_data, sub_block_sizes[i].uncompressed_size);
         if (i>0) {
 #if DO_DECOMPRESS_WORKER
-            start_decompress_work(&decompress_work[i]);
+            start_decompress_work_10(&decompress_work[i]);
 #else
-            do_decompress_work(&decompress_work[i]);
+            do_decompress_work_10(&decompress_work[i]);
 #endif
         }
         uncompressed_data += sub_block_sizes[i].uncompressed_size;
         compressed_data += sub_block_sizes[i].compressed_size;
     }
-    do_decompress_work(&decompress_work[0]);
+    do_decompress_work_10(&decompress_work[0]);
 #if DO_DECOMPRESS_WORKER
     for (i=1; i<n_sub_blocks; i++)
-        wait_decompress_work(&decompress_work[i]);
+        wait_decompress_work_10(&decompress_work[i]);
 #endif
     toku_trace("decompress done");
 

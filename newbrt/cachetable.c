@@ -55,7 +55,7 @@ static u_int64_t cachetable_puts;          // how many times has a newly created
 static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
 static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
-static u_int64_t cachetable_wait_checkpoint; // number of times get_and_pin waits for a node to be written for a checkpoint
+static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
 static u_int64_t cachetable_misstime;     // time spent waiting for disk read
 static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
 
@@ -1325,7 +1325,8 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             }
             if (do_wait_time)
 	        t0 = get_tnow();
-	    if (p->checkpoint_pending) {
+
+            if (p->checkpoint_pending) {
 		get_and_pin_footprint = 4;		
 		write_pair_for_checkpoint(ct, p);
 	    }
