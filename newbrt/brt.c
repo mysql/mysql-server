@@ -5797,8 +5797,8 @@ bnc_apply_messages_to_basement_node(
     for (u_int32_t ube = fresh_ube; fresh_lbi < ube; --ube) {
         r = toku_omt_delete_at(bnc->fresh_message_tree, fresh_lbi); assert_zero(r);
     }
-    if (max_msn_applied.msn > bn->max_msn_applied.msn) {
-        bn->max_msn_applied = max_msn_applied;
+    if (ancestor->max_msn_applied_to_node_on_disk.msn > bn->max_msn_applied.msn) {
+        bn->max_msn_applied = ancestor->max_msn_applied_to_node_on_disk;
     }
     return r;
 }
