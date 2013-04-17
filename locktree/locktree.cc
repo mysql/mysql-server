@@ -239,8 +239,8 @@ int locktree::acquire_write_lock(TXNID txnid,
 
 void locktree::get_conflicts(bool is_write_request, TXNID txnid,
         const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
-    // we are only support write locks for simplicity
-    invariant(is_write_request);
+    // because we only support write locks, ignore this bit for now.
+    (void) is_write_request;
 
     // preparing and acquire a locked keyrange over the range
     keyrange range;
