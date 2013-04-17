@@ -3003,52 +3003,88 @@ double ha_tokudb::scan_time() {
 }
 
 //
-// Estimates the number of index records in a range.
+// Estimates the number of index records in a range. In case of errors, return
+//   HA_TOKUDB_RANGE_COUNT instead of HA_POS_ERROR. This was behavior
+//   when we got the handlerton from MySQL.
+// Parameters:
+//              keynr -index to use 
+//      [in]    start_key - low end of the range
+//      [in]    end_key - high end of the range
+// Returns:
+//      0 - There are no matching keys in the given range
+//      number > 0 - There are approximately number matching rows in the range
+//      HA_POS_ERROR - Something is wrong with the index tree
 //
-ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range * end_key) {
+ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
 #if 0 // QQQ need key_range
     DBT key;
+    ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
     DB_KEY_RANGE start_range, end_range;
     DB *kfile = key_file[keynr];
-    double start_pos, end_pos, rows;
-    bool error;
+    double start_frac, end_frac, rows;
+    int error;
     KEY *key_info = &table->key_info[keynr];
 
-    /* Ensure we get maximum range, even for varchar keys with different space */
-    assert(0);
-    key_info->handler.bdb_return_if_eq = -1;
-    error = ((start_key && kfile->key_range(kfile, transaction, pack_key(&key, keynr, key_buff, start_key->key, start_key->length), &start_range, 0)));
-    if (error) {
-        key_info->handler.bdb_return_if_eq = 0;
-        // Better than returning an error
-        TOKUDB_DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
+    //
+    // get start_frac and end_frac values so that we can estimate range
+    //
+    if (start_key) {
+        error = kfile->key_range(
+            kfile, 
+            transaction, 
+            pack_key(&key, keynr, key_buff, start_key->key, start_key->length), 
+            &start_range, 
+            0
+            );
+        if (error) {
+            ret_val = HA_TOKUDB_RANGE_COUNT;
+            goto cleanup;
+        }
+        if (start_key->flag == HA_READ_KEY_EXACT) {
+            start_frac = start_range.less;
+        }
+        else {
+            start_frac = start_range.less + start_range.equal;
+        }
     }
-    assert(0);
-    key_info->handler.bdb_return_if_eq = 1;
-    error = (end_key && kfile->key_range(kfile, transaction, pack_key(&key, keynr, key_buff, end_key->key, end_key->length), &end_range, 0));
-    key_info->handler.bdb_return_if_eq = 0;
-    if (error) {
-        // Better than returning an error
-        TOKUDB_DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
+    else {
+        start_frac = 0.0
     }
 
-    if (!start_key)
-        start_pos = 0.0;
-    else if (start_key->flag == HA_READ_KEY_EXACT)
-        start_pos = start_range.less;
-    else
-        start_pos = start_range.less + start_range.equal;
+    if (end_key) {
+        error = kfile->key_range(
+            kfile, 
+            transaction, 
+            pack_key(&key, keynr, key_buff, end_key->key, end_key->length), 
+            &end_range, 
+            0
+            );
+        if (error) {
+            ret_val = HA_TOKUDB_RANGE_COUNT;
+            goto cleanup;
+        }
+        if (end_key->flag == HA_READ_BEFORE_KEY) {
+            end_frac = end_range.less;
+        }
+        else {
+            end_frac = end_range.less + end_range.equal;
+        }
+    }
+    else {
+        end_frac = 1.0;
+    }
 
-    if (!end_key)
-        end_pos = 1.0;
-    else if (end_key->flag == HA_READ_BEFORE_KEY)
-        end_pos = end_range.less;
-    else
-        end_pos = end_range.less + end_range.equal;
-    rows = (end_pos - start_pos) * stats.records;
+    //
+    // end_frac and start_frac give fractions of values over stats.records
+    // to return estimate multiply by stats.records
+    //
+    rows = (end_frac - start_frac) * stats.records;
     DBUG_PRINT("exit", ("rows: %g", rows));
-    TOKUDB_DBUG_RETURN((ha_rows) (rows <= 1.0 ? 1 : rows));
+
+    ret_val = (ha_rows) (rows <= 1.0 ? 1 : rows);
+cleanup:
+    TOKUDB_DBUG_RETURN(ret_val);
 #else
     TOKUDB_DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
 #endif
