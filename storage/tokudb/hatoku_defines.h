@@ -15,9 +15,7 @@
 #endif
 
 #include "db.h"
-extern "C" {
 #include "toku_os.h"
-}
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface               /* gcc class implementation */
