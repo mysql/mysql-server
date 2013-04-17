@@ -3694,6 +3694,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char* newname = NULL;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
+    KEY* prim_key = NULL;
 
 
     bzero(&row_descriptor, sizeof(row_descriptor));
@@ -3745,7 +3746,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     //
     // setup the row descriptor
     //
-    KEY* prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
+    prim_key = (hidden_primary_key) ? NULL : &form->s->key_info[primary_key];
     row_descriptor.data = row_desc_buff;
     row_descriptor.size = create_toku_descriptor(
         row_desc_buff, 
