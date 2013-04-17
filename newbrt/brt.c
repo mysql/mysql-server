@@ -557,7 +557,7 @@ brtnode_memory_size (BRTNODE node)
 static uint64_t dict_id_serial = 1;
 static DICTIONARY_ID
 next_dict_id(void) {
-    uint32_t i = toku_sync_fetch_and_increment_uint64(&dict_id_serial);
+    uint64_t i = toku_sync_fetch_and_increment_uint64(&dict_id_serial);
     assert(i);	// guarantee unique dictionary id by asserting 64-bit counter never wraps
     DICTIONARY_ID d = {.dictid = i};
     return d;
@@ -1818,7 +1818,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
     return r;
 }
 
-// should be static, but used by test program(s)
+// Should be renamed as something like "apply_cmd_to_basement()."
 static void
 brt_leaf_put_cmd (
     BRT t, 
@@ -2957,6 +2957,8 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 	node->dirty = 1;
         MSN cmd_msn = cmd->msn;
         invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
+	// max_msn_applied_to_node_on_disk is normally set only when leaf is serialized, 
+	// but needs to be done here (for root leaf) so msn can be set in new commands.
         node->max_msn_applied_to_node_on_disk = cmd_msn;
    } else {
 	brtnode_nonleaf_put_cmd_at_root(brt, node, cmd);
