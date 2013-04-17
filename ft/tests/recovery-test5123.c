@@ -21,19 +21,14 @@ static void test_5123(void) {
 
     int r;
 
-    TOKUTXN txn[3];
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn[0], logger, TXN_SNAPSHOT_ROOT);
+    r = toku_log_xbegin(logger, NULL, false, (TXNID) 1, TXNID_NONE);
     CKERR(r);
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn[1], logger, TXN_SNAPSHOT_ROOT);
+    r = toku_log_xbegin(logger, NULL, false, (TXNID) 3, TXNID_NONE);
     CKERR(r);
-    r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn[2], logger, TXN_SNAPSHOT_ROOT);
+    r = toku_log_xbegin(logger, NULL, false, (TXNID) 2, TXNID_NONE);
     CKERR(r);
 
-    toku_maybe_log_begin_txn_for_write_operation(txn[0]);
-    toku_maybe_log_begin_txn_for_write_operation(txn[2]);
-    toku_maybe_log_begin_txn_for_write_operation(txn[1]);
-
-    r = toku_txn_commit_txn(txn[1], FALSE, NULL, NULL);
+    r = toku_log_xcommit(logger, NULL, false, NULL, (TXNID) 2);
     CKERR(r);
 
     r = toku_logger_close_rollback(logger, false);
