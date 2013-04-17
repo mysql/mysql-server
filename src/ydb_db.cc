@@ -203,6 +203,8 @@ db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTY
     return r;
 }
 
+static uint64_t nontransactional_open_id = 0;
+
 // inames are created here.
 // algorithm:
 //  begin txn
@@ -272,6 +274,8 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 
         if (txn) {
             id = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn);
+        } else {
+            id = __sync_fetch_and_add(&nontransactional_open_id, 1);
         }
         create_iname_hint(dname, hint);
         iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
@@ -722,11 +726,21 @@ locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYP
 }
 
 static int 
-locked_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t flags) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
+locked_db_change_descriptor(DB *db, DB_TXN *txn, const DBT *descriptor, uint32_t flags) {
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
     int r = toku_db_change_descriptor(db, txn, descriptor, flags);
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    toku_multi_operation_client_unlock();
     return r;
+}
+
+static int
+autotxn_db_change_descriptor(DB *db, DB_TXN *txn, const DBT *descriptor, uint32_t flags) {
+    bool changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
+    if (r != 0) { return r; }
+    r = locked_db_change_descriptor(db, txn, descriptor, flags);
+    return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 static void 
@@ -887,7 +901,6 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
 #define SDB(name) result->name = locked_db_ ## name
     SDB(close);
     SDB(open);
-    SDB(change_descriptor);
     SDB(optimize);
 #undef SDB
     // methods that do not take the ydb lock
@@ -923,6 +936,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     result->put = autotxn_db_put;
     result->update = autotxn_db_update;
     result->update_broadcast = autotxn_db_update_broadcast;
+    result->change_descriptor = autotxn_db_change_descriptor;
     
     // unlocked methods
     result->get = autotxn_db_get;
