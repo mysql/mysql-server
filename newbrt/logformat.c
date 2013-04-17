@@ -332,6 +332,9 @@ generate_log_writer (void) {
     fprintf(cf, "static u_int64_t toku_lsn_increment=1;\nvoid toku_set_lsn_increment (uint64_t incr) { assert(incr>0 && incr< (16LL<<32)); toku_lsn_increment=incr; }\n");
     generate_get_timestamp();
     DO_LOGTYPES(lt, {
+            fprintf(hf, "static const size_t toku_log_%s_overhead = (+4+1+8", lt->name);
+            DO_FIELDS(ft, lt, fprintf(hf, "+%lu", sizeof (ft->type)));
+            fprintf(hf, "+8);\n");
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");

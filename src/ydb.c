@@ -33,6 +33,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "indexer.h"
 #include "ydb_load.h"
 #include "brtloader.h"
+#include "log_header.h"
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -3890,9 +3891,8 @@ log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         BRT src_brt  = src_db ? src_db->i->brt : NULL;
-        const uint32_t log_entry_overhead = 24; // rough approximation of the log entry overhead for deletes
-        uint32_t del_multiple_size = key->size + val->size + log_entry_overhead;
-        uint32_t del_single_sizes = sum_size(num_dbs, keys, log_entry_overhead);
+        uint32_t del_multiple_size = key->size + val->size + num_dbs*sizeof (uint32_t) + toku_log_enq_delete_multiple_overhead;
+        uint32_t del_single_sizes = sum_size(num_dbs, keys, toku_log_enq_delete_any_overhead);
         if (del_single_sizes < del_multiple_size) {
             for (uint32_t i = 0; r == 0 && i < num_dbs; i++)
                 r = log_del_single(txn, brts[i], &keys[i]);
