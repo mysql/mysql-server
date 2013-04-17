@@ -1,4 +1,5 @@
-#ident "$Id: cachetable-simple-verify.c 36579 2011-11-04 20:02:04Z zardosht $"
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"

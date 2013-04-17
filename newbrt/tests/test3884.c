@@ -10,6 +10,7 @@
 
 #include "includes.h"
 #include <brt-cachetable-wrappers.h>
+#include <brt-flusher.h>
 
 // Some constants to be used in calculations below
 static const int nodesize = 1024; // Target max node size
@@ -26,8 +27,6 @@ static const int vallen = 64 - sizeof(long) - (sizeof(((LEAFENTRY)NULL)->type)  
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static const char fname[]= __FILE__ ".brt";
-
-static BRT_STATUS_S my_brt_status;
 
 static int omt_long_cmp(OMTVALUE p, void *q)
 {
@@ -172,7 +171,7 @@ test_split_on_boundary(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
@@ -245,7 +244,7 @@ test_split_with_everything_on_the_left(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -320,7 +319,7 @@ test_split_on_boundary_of_last_node(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -388,7 +387,7 @@ test_split_at_begin(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -452,7 +451,7 @@ test_split_at_end(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -506,7 +505,7 @@ test_split_odd_nodes(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL, &my_brt_status);
+    brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);

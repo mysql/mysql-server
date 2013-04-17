@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: test_stress2.c 35151 2011-09-29 01:32:27Z zardosht $"
+#ident "$Id$"
 #include "test.h"
 
 #include <stdio.h>

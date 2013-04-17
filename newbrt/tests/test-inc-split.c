@@ -65,7 +65,7 @@ doit (int ksize __attribute__((__unused__))) {
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
     for (i=0; i<BRT_FANOUT; i++) {
-	r=toku_testsetup_leaf(t, &cnodes[i]);
+	r=toku_testsetup_leaf(t, &cnodes[i], 1, NULL, NULL);
 	assert(r==0);
 	char key[KSIZE+10];
 	int keylen = 1+snprintf(key, KSIZE, "%08d%0*d", i*10000+1, KSIZE-9, 0);

@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
+#ident "$Id: test_stress7.c 38515 2012-01-05 20:48:10Z leifwalsh $"
 #include "test.h"
 
 #include <stdio.h>
@@ -39,8 +39,8 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[1].fwd = FALSE;
     myargs[1].operation = scan_op;
 
-    // make the guy that updates the db
-    myargs[2].operation = loader_op;
+    // make the guy that runs HOT in the background
+    myargs[2].operation = hot_op;
     myargs[3].operation = keyrange_op;
 
     for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {

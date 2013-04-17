@@ -23,6 +23,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "ydb.h"
 #include "ydb-internal.h"
 #include "brt-internal.h"
+#include "brt-flusher.h"
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
@@ -2046,62 +2047,37 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->directory_write_locks_fail = directory_write_locks_fail;
 	}
 	{
-	    BRT_STATUS_S brt_stat;
-	    toku_brt_get_status(&brt_stat);
-	    engstat->le_updates = brt_stat.updates;
-	    engstat->le_updates_broadcast = brt_stat.updates_broadcast;
-	    engstat->descriptor_set = brt_stat.descriptor_set;
-	    engstat->partial_fetch_hit = brt_stat.partial_fetch_hit;
-	    engstat->partial_fetch_miss = brt_stat.partial_fetch_miss;
-	    engstat->partial_fetch_compressed = brt_stat.partial_fetch_compressed;
-	    engstat->partial_evictions_nonleaf = brt_stat.partial_evictions_nonleaf;
-	    engstat->partial_evictions_leaf = brt_stat.partial_evictions_leaf;
-	    engstat->msn_discards = brt_stat.msn_discards;
-	    engstat->max_workdone = brt_stat.max_workdone;
-	    engstat->total_searches = brt_stat.total_searches;              
-	    engstat->total_retries = brt_stat.total_retries;
-	    engstat->max_search_excess_retries = brt_stat.max_search_excess_retries;
-	    engstat->max_search_root_tries = brt_stat.max_search_root_tries;
-	    engstat->search_root_retries = brt_stat.search_root_retries;
-	    engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
-	    engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;	    
-	    engstat->cleaner_total_nodes = brt_stat.cleaner_total_nodes;
-	    engstat->cleaner_h1_nodes = brt_stat.cleaner_h1_nodes;
-	    engstat->cleaner_hgt1_nodes = brt_stat.cleaner_hgt1_nodes;
-	    engstat->cleaner_empty_nodes = brt_stat.cleaner_empty_nodes;
-	    engstat->cleaner_nodes_dirtied = brt_stat.cleaner_nodes_dirtied;
-	    engstat->cleaner_max_buffer_size = brt_stat.cleaner_max_buffer_size;
-	    engstat->cleaner_min_buffer_size = brt_stat.cleaner_min_buffer_size;
-	    engstat->cleaner_total_buffer_size = brt_stat.cleaner_total_buffer_size;
-	    engstat->cleaner_max_buffer_workdone = brt_stat.cleaner_max_buffer_workdone;
-	    engstat->cleaner_min_buffer_workdone = brt_stat.cleaner_min_buffer_workdone;
-	    engstat->cleaner_total_buffer_workdone = brt_stat.cleaner_total_buffer_workdone;
-            engstat->cleaner_num_leaves_unmerged = brt_stat.cleaner_num_leaves_unmerged;
-            engstat->flush_total = brt_stat.flush_total;
-            engstat->flush_in_memory = brt_stat.flush_in_memory;
-            engstat->flush_needed_io = brt_stat.flush_needed_io;
-            engstat->flush_cascades = brt_stat.flush_cascades;
-            engstat->flush_cascades_1 = brt_stat.flush_cascades_1;
-            engstat->flush_cascades_2 = brt_stat.flush_cascades_2;
-            engstat->flush_cascades_3 = brt_stat.flush_cascades_3;
-            engstat->flush_cascades_4 = brt_stat.flush_cascades_4;
-            engstat->flush_cascades_5 = brt_stat.flush_cascades_5;
-            engstat->flush_cascades_gt_5 = brt_stat.flush_cascades_gt_5;
-            engstat->disk_flush_leaf = brt_stat.disk_flush_leaf; 
-            engstat->disk_flush_nonleaf = brt_stat.disk_flush_nonleaf; 
-            engstat->disk_flush_leaf_for_checkpoint = brt_stat.disk_flush_leaf_for_checkpoint; 
-            engstat->disk_flush_nonleaf_for_checkpoint = brt_stat.disk_flush_nonleaf_for_checkpoint; 
+            BRT_STATUS_S brt_stat;
+            toku_brt_get_status(&brt_stat);
+            engstat->le_updates = brt_stat.updates;
+            engstat->le_updates_broadcast = brt_stat.updates_broadcast;
+            engstat->descriptor_set = brt_stat.descriptor_set;
+            engstat->partial_fetch_hit = brt_stat.partial_fetch_hit;
+            engstat->partial_fetch_miss = brt_stat.partial_fetch_miss;
+            engstat->partial_fetch_compressed = brt_stat.partial_fetch_compressed;
+            engstat->partial_evictions_nonleaf = brt_stat.partial_evictions_nonleaf;
+            engstat->partial_evictions_leaf = brt_stat.partial_evictions_leaf;
+            engstat->msn_discards = brt_stat.msn_discards;
+            engstat->max_workdone = brt_stat.max_workdone;
+            engstat->total_searches = brt_stat.total_searches;
+            engstat->total_retries = brt_stat.total_retries;
+            engstat->max_search_excess_retries = brt_stat.max_search_excess_retries;
+            engstat->max_search_root_tries = brt_stat.max_search_root_tries;
+            engstat->search_root_retries = brt_stat.search_root_retries;
+            engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
+            engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;
+            engstat->disk_flush_leaf = brt_stat.disk_flush_leaf;
+            engstat->disk_flush_nonleaf = brt_stat.disk_flush_nonleaf;
+            engstat->disk_flush_leaf_for_checkpoint = brt_stat.disk_flush_leaf_for_checkpoint;
+            engstat->disk_flush_nonleaf_for_checkpoint = brt_stat.disk_flush_nonleaf_for_checkpoint;
+            engstat->create_leaf = brt_stat.create_leaf;
+            engstat->create_nonleaf = brt_stat.create_nonleaf;
             engstat->create_leaf = brt_stat.create_leaf;
             engstat->create_nonleaf = brt_stat.create_nonleaf;
             engstat->destroy_leaf = brt_stat.destroy_leaf;
             engstat->destroy_nonleaf = brt_stat.destroy_nonleaf;
-            engstat->split_leaf = brt_stat.split_leaf;
-            engstat->split_nonleaf = brt_stat.split_nonleaf;
-            engstat->merge_leaf = brt_stat.merge_leaf;
-            engstat->merge_nonleaf = brt_stat.merge_nonleaf;
             engstat->dirty_leaf = brt_stat.dirty_leaf;
             engstat->dirty_nonleaf = brt_stat.dirty_nonleaf;
-            engstat->balance_leaf = brt_stat.balance_leaf;
             engstat->msg_bytes_in = brt_stat.msg_bytes_in;
             engstat->msg_bytes_out = brt_stat.msg_bytes_out;
             engstat->msg_bytes_curr = brt_stat.msg_bytes_curr;
@@ -2127,6 +2103,45 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->num_msg_buffer_fetched_aggressive = brt_stat.num_msg_buffer_fetched_aggressive;
             engstat->num_msg_buffer_fetched_prefetch = brt_stat.num_msg_buffer_fetched_prefetch;
             engstat->num_msg_buffer_fetched_write = brt_stat.num_msg_buffer_fetched_write;
+        }
+        {
+            BRT_FLUSHER_STATUS_S brt_flusher_stat;
+            toku_brt_flusher_get_status(&brt_flusher_stat);
+            engstat->cleaner_total_nodes = brt_flusher_stat.cleaner_total_nodes;
+            engstat->cleaner_h1_nodes = brt_flusher_stat.cleaner_h1_nodes;
+            engstat->cleaner_hgt1_nodes = brt_flusher_stat.cleaner_hgt1_nodes;
+            engstat->cleaner_empty_nodes = brt_flusher_stat.cleaner_empty_nodes;
+            engstat->cleaner_nodes_dirtied = brt_flusher_stat.cleaner_nodes_dirtied;
+            engstat->cleaner_max_buffer_size = brt_flusher_stat.cleaner_max_buffer_size;
+            engstat->cleaner_min_buffer_size = brt_flusher_stat.cleaner_min_buffer_size;
+            engstat->cleaner_total_buffer_size = brt_flusher_stat.cleaner_total_buffer_size;
+            engstat->cleaner_max_buffer_workdone = brt_flusher_stat.cleaner_max_buffer_workdone;
+            engstat->cleaner_min_buffer_workdone = brt_flusher_stat.cleaner_min_buffer_workdone;
+            engstat->cleaner_total_buffer_workdone = brt_flusher_stat.cleaner_total_buffer_workdone;
+            engstat->cleaner_num_dirtied_for_leaf_merge = brt_flusher_stat.cleaner_num_dirtied_for_leaf_merge;
+            engstat->flush_total = brt_flusher_stat.flush_total;
+            engstat->flush_in_memory = brt_flusher_stat.flush_in_memory;
+            engstat->flush_needed_io = brt_flusher_stat.flush_needed_io;
+            engstat->flush_cascades = brt_flusher_stat.flush_cascades;
+            engstat->flush_cascades_1 = brt_flusher_stat.flush_cascades_1;
+            engstat->flush_cascades_2 = brt_flusher_stat.flush_cascades_2;
+            engstat->flush_cascades_3 = brt_flusher_stat.flush_cascades_3;
+            engstat->flush_cascades_4 = brt_flusher_stat.flush_cascades_4;
+            engstat->flush_cascades_5 = brt_flusher_stat.flush_cascades_5;
+            engstat->flush_cascades_gt_5 = brt_flusher_stat.flush_cascades_gt_5;
+            engstat->split_leaf = brt_flusher_stat.split_leaf;
+            engstat->split_nonleaf = brt_flusher_stat.split_nonleaf;
+            engstat->merge_leaf = brt_flusher_stat.merge_leaf;
+            engstat->merge_nonleaf = brt_flusher_stat.merge_nonleaf;
+            engstat->balance_leaf = brt_flusher_stat.balance_leaf;
+        }
+	{
+	    BRT_HOT_STATUS_S hot_stat;
+	    toku_brt_hot_get_status(&hot_stat);
+	    engstat->hot_num_started     = hot_stat.num_started;
+	    engstat->hot_num_completed   = hot_stat.num_completed;
+	    engstat->hot_num_aborted     = hot_stat.num_aborted;
+	    engstat->hot_max_root_flush_count = hot_stat.max_root_flush_count;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2373,7 +2388,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_workdone      %"PRIu64"\n", engstat.cleaner_max_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaves_unmerged      %"PRIu64"\n", engstat.cleaner_num_leaves_unmerged);
+        n += snprintf(buff + n, bufsiz - n, "cleaner_num_dirtied_for_leaf_merge  %"PRIu64"\n", engstat.cleaner_num_dirtied_for_leaf_merge);
         n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
         n += snprintf(buff + n, bufsiz - n, "flush_in_memory                  %"PRIu64"\n", engstat.flush_in_memory);
         n += snprintf(buff + n, bufsiz - n, "flush_needed_io                  %"PRIu64"\n", engstat.flush_needed_io);
@@ -2399,6 +2414,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
         n += snprintf(buff + n, bufsiz - n, "dirty_leaf                       %"PRIu64"\n", engstat.dirty_leaf); 
         n += snprintf(buff + n, bufsiz - n, "dirty_nonleaf                    %"PRIu64"\n", engstat.dirty_nonleaf); 
         n += snprintf(buff + n, bufsiz - n, "balance_leaf                     %"PRIu64"\n", engstat.balance_leaf); 
+        n += snprintf(buff + n, bufsiz - n, "hot_num_started                  %"PRIu64"\n", engstat.hot_num_started); 
+        n += snprintf(buff + n, bufsiz - n, "hot_num_completed                %"PRIu64"\n", engstat.hot_num_completed); 
+        n += snprintf(buff + n, bufsiz - n, "hot_num_aborted                  %"PRIu64"\n", engstat.hot_num_aborted); 
+        n += snprintf(buff + n, bufsiz - n, "hot_max_root_flush_count         %"PRIu64"\n", engstat.hot_max_root_flush_count); 
         n += snprintf(buff + n, bufsiz - n, "msg_bytes_in                     %"PRIu64"\n", engstat.msg_bytes_in); 
         n += snprintf(buff + n, bufsiz - n, "msg_bytes_out                    %"PRIu64"\n", engstat.msg_bytes_out); 
         n += snprintf(buff + n, bufsiz - n, "msg_bytes_curr                   %"PRIu64"\n", engstat.msg_bytes_curr); 
@@ -6312,6 +6331,44 @@ toku_db_optimize(DB *db) {
 }
 
 static int
+toku_db_hot_optimize(DB *db,
+                     int (*progress_callback)(void *extra, float progress),
+                     void *progress_extra)
+{
+    HANDLE_PANICKED_DB(db);
+    int r = 0;
+
+    // #4356 Take directory read lock around hot optimize to prevent
+    // race condition of another thread deleting the dictionary during
+    // the hot optimize.  Create a long-lived transaction to hold the
+    // lock, but the transaction does nothing else so the rollback log
+    // is tiny and the txnid does not appear in any dictionary.
+    int using_txns = db->dbenv->i->open_flags & DB_INIT_TXN;
+    DB_TXN *txn;
+    if (using_txns) {
+        toku_ydb_lock();
+        int rx = toku_txn_begin(db->dbenv, NULL, &txn, DB_TXN_NOSYNC, 1);
+        invariant_zero(rx);
+        r = toku_grab_read_lock_on_directory(db, txn);
+        toku_ydb_unlock();
+    }
+
+    // If we areunable to get a directory read lock, do nothing.
+    if (r == 0) {
+        r = toku_brt_hot_optimize(db->i->brt,
+                                  progress_callback,
+                                  progress_extra);
+    }
+
+    if (using_txns) {
+        int rx = locked_txn_commit(txn, 0);
+        invariant_zero(rx);
+    }
+
+    return r;
+}
+
+static int
 toku_db_flatten(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
@@ -6328,7 +6385,6 @@ autotxn_db_flatten(DB* db, DB_TXN* txn) {
     return toku_db_destruct_autotxn(txn, r, changed);
 }
 
-
 static int 
 locked_db_flatten(DB *db, DB_TXN *txn) {
     toku_ydb_lock(); int r = autotxn_db_flatten(db, txn); toku_ydb_unlock(); return r;
@@ -6339,6 +6395,15 @@ locked_db_optimize(DB *db) {
     toku_ydb_lock();
     int r = toku_db_optimize(db);
     toku_ydb_unlock();
+    return r;
+}
+
+static int
+locked_db_hot_optimize(DB *db,
+                       int (*progress_callback)(void *extra, float progress),
+                       void *progress_extra)
+{
+    int r = toku_db_hot_optimize(db, progress_callback, progress_extra);
     return r;
 }
 
@@ -6461,6 +6526,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(getf_set);
     SDB(flatten);
     SDB(optimize);
+    SDB(hot_optimize);
     SDB(get_fragmentation);
     SDB(set_indexer);
     SDB(get_indexer);

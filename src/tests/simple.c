@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
-#ident "$Id: env_startup.c 20778 2010-05-28 20:38:42Z yfogel $"
+#ident "$Id$"
 
 /* Purpose of this test is to verify that a failed assert will
  * cause a panic, which should be visible via engine status.

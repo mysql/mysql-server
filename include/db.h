@@ -197,7 +197,7 @@ typedef struct __toku_engine_status {
   uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */
   uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */
   uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */
-  uint64_t         cleaner_num_leaves_unmerged;   /* number of leaves left unmerged by the cleaner thread */
+  uint64_t         cleaner_num_dirtied_for_leaf_merge;  /* nodes dirtied by the "flush from root" process to merge a leaf node */
   uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */
   uint64_t         flush_in_memory;             /* number of in memory flushes */
   uint64_t         flush_needed_io;             /* number of flushes that had to read a child (or part) off disk */
@@ -223,6 +223,10 @@ typedef struct __toku_engine_status {
   uint64_t         dirty_leaf;                  /* number of times leaf nodes are dirtied when previously clean */
   uint64_t         dirty_nonleaf;               /* number of times nonleaf nodes are dirtied when previously clean */
   uint64_t         balance_leaf;                /* number of times a leaf node is balanced inside brt */
+  uint64_t         hot_num_started;             /* number of HOT operations that have begun */
+  uint64_t         hot_num_completed;           /* number of HOT operations that have successfully completed */
+  uint64_t         hot_num_aborted;             /* number of HOT operations that have been aborted */
+  uint64_t         hot_max_root_flush_count;    /* max number of flushes from root ever required to optimize a tree */
   uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/
   uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/
   uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/
@@ -525,6 +529,7 @@ struct __toku_db {
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
+  int (*hot_optimize)(DB*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra);
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
   int (*get_readpagesize)(DB*,u_int32_t*);
   int (*set_readpagesize)(DB*,u_int32_t);

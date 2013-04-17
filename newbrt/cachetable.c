@@ -466,6 +466,19 @@ toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_callback)
     ct->ydb_unlock_callback = ydb_unlock_callback;
 }
 
+void
+toku_cachetable_call_ydb_lock(CACHEFILE cf){
+    if (cf->cachetable->ydb_lock_callback) {
+        assert(cf->cachetable->ydb_unlock_callback);
+        cf->cachetable->ydb_lock_callback();
+    }
+}
+
+void
+toku_cachetable_call_ydb_unlock(CACHEFILE cf){
+    if (cf->cachetable->ydb_unlock_callback) cf->cachetable->ydb_unlock_callback();
+}
+
 //
 // Increment the reference count
 // MUST HOLD cachetable lock

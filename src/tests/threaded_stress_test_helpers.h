@@ -555,6 +555,14 @@ static int UU() update_broadcast_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG 
     return r;
 }
 
+static int UU() hot_op(DB_ENV *UU(env), DB **dbp, DB_TXN *UU(txn), ARG UU(arg)) {
+    int r;
+    DB* db = *dbp;
+    r = db->hot_optimize(db, NULL, NULL);
+    CKERR(r);
+    return r;
+}
+
 static int UU() remove_and_recreate_me(DB_ENV *env, DB **dbp, DB_TXN *UU(txn), ARG UU(arg)) {
     int r;
     r = (*dbp)->close(*dbp, 0); CKERR(r);

@@ -523,6 +523,8 @@ char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env
 
 void toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
 // Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
+void toku_cachetable_call_ydb_lock(CACHEFILE cf);
+void toku_cachetable_call_ydb_unlock(CACHEFILE cf);
 
     
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);

@@ -341,13 +341,6 @@ enum {
 
 u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum);
 
-struct remembered_hash {
-    BOOL    valid;      // set to FALSE if the fullhash is invalid
-    FILENUM fnum;
-    BLOCKNUM root;
-    u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
-};
-
 // The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
 
 enum brtheader_type {BRTHEADER_CURRENT=1, BRTHEADER_CHECKPOINT_INPROGRESS};
@@ -380,7 +373,6 @@ struct brt_header {
     unsigned int nodesize;
     unsigned int basementnodesize;
     BLOCKNUM root;            // roots of the dictionary
-    struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
     DESCRIPTOR_S descriptor;
 
@@ -404,6 +396,11 @@ struct brt_header {
     STAT64INFO_S in_memory_stats;
     STAT64INFO_S on_disk_stats;
     STAT64INFO_S checkpoint_staging_stats;
+    uint64_t time_of_last_optimize_begin;     // last time that a hot optimize operation was begun
+    uint64_t time_of_last_optimize_end;       // last time that a hot optimize operation was successfully completed
+    uint32_t count_of_optimize_in_progress;   // the number of hot optimize operations currently in progress on this tree
+    uint32_t count_of_optimize_in_progress_read_from_disk;   // the number of hot optimize operations in progress on this tree at the time of the last crash  (this field is in-memory only)
+    MSN      msn_at_start_of_last_completed_optimize;   // all messages before this msn have been applied to leaf nodes
 };
 
 struct brt {
@@ -526,10 +523,9 @@ extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_est
 extern int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, PAIR_ATTR* sizep);
-extern int toku_brtnode_cleaner_callback (void* brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void* extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
-extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
+extern CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
 
 static const BRTNODE null_brtnode=0;
 
@@ -716,15 +712,31 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp)
     __attribute__((__warn_unused_result__));
 
+/**
+ * Finds the next child for HOT to flush to, given that everything up to
+ * and including k has been flattened.
+ *
+ * If k falls between pivots in node, then we return the childnum where k
+ * lies.
+ *
+ * If k is equal to some pivot, then we return the next (to the right)
+ * childnum.
+ */
+unsigned int toku_brtnode_hot_next_child(BRTNODE node,
+                                         const DBT *k,
+                                         DESCRIPTOR desc,
+                                         brt_compare_func cmp);
+
 /* Stuff for testing */
 // toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
 void toku_testsetup_initialize(void);
-int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
+int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens);
 int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
 int toku_testsetup_root(BRT brt, BLOCKNUM);
 int toku_testsetup_get_sersize(BRT brt, BLOCKNUM); // Return the size on disk.
 int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen);
 int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char *key, int keylen, char *val, int vallen);
+void toku_pin_node_with_min_bfe(BRTNODE* node, BLOCKNUM b, BRT t);
 
 // These two go together to do lookups in a brtnode using the keys in a command.
 struct cmd_leafval_heaviside_extra {
@@ -799,28 +811,6 @@ struct brt_status {
     uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
     uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
     uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
-    uint64_t  cleaner_total_nodes;         // total number of nodes whose buffers are potentially flushed by cleaner thread
-    uint64_t  cleaner_h1_nodes;            // number of nodes of height one whose message buffers are flushed by cleaner thread
-    uint64_t  cleaner_hgt1_nodes;          // number of nodes of height > 1 whose message buffers are flushed by cleaner thread
-    uint64_t  cleaner_empty_nodes;         // number of nodes that are selected by cleaner, but whose buffers are empty
-    uint64_t  cleaner_nodes_dirtied;       // number of nodes that are made dirty by the cleaner thread
-    uint64_t  cleaner_max_buffer_size;     // max number of bytes in message buffer flushed by cleaner thread
-    uint64_t  cleaner_min_buffer_size;
-    uint64_t  cleaner_total_buffer_size;
-    uint64_t  cleaner_max_buffer_workdone; // max workdone value of any message buffer flushed by cleaner thread
-    uint64_t  cleaner_min_buffer_workdone;
-    uint64_t  cleaner_total_buffer_workdone;
-    uint64_t  cleaner_num_leaves_unmerged; // number of leaves left unmerged by the cleaner thread
-    uint64_t  flush_total;                 // total number of flushes done by flusher threads or cleaner threads
-    uint64_t  flush_in_memory;             // number of in memory flushes
-    uint64_t  flush_needed_io;             // number of flushes that had to read a child (or part) off disk
-    uint64_t  flush_cascades;              // number of flushes that triggered another flush in the child
-    uint64_t  flush_cascades_1;            // number of flushes that triggered 1 cascading flush
-    uint64_t  flush_cascades_2;            // number of flushes that triggered 2 cascading flushes
-    uint64_t  flush_cascades_3;            // number of flushes that triggered 3 cascading flushes
-    uint64_t  flush_cascades_4;            // number of flushes that triggered 4 cascading flushes
-    uint64_t  flush_cascades_5;            // number of flushes that triggered 5 cascading flushes
-    uint64_t  flush_cascades_gt_5;         // number of flushes that triggered more than 5 cascading flushes
     uint64_t  disk_flush_leaf;             // number of leaf nodes flushed to disk, not for checkpoint
     uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
     uint64_t  disk_flush_leaf_for_checkpoint; // number of leaf nodes flushed to disk for checkpoint
@@ -829,13 +819,8 @@ struct brt_status {
     uint64_t  create_nonleaf;              // number of nonleaf nodes created
     uint64_t  destroy_leaf;                // number of leaf nodes destroyed
     uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
-    uint64_t  split_leaf;                  // number of leaf nodes split
-    uint64_t  split_nonleaf;               // number of nonleaf nodes split
-    uint64_t  merge_leaf;                  // number of times leaf nodes are merged
-    uint64_t  merge_nonleaf;               // number of times nonleaf nodes are merged    
     uint64_t  dirty_leaf;                  // number of times leaf nodes are dirtied when previously clean
     uint64_t  dirty_nonleaf;               // number of times nonleaf nodes are dirtied when previously clean    
-    uint64_t  balance_leaf;                // number of times a leaf node is balanced inside brt
     uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
     uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
     uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
@@ -864,9 +849,6 @@ struct brt_status {
 };
 
 void toku_brt_get_status(BRT_STATUS);
-
-void
-brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes, BRT_STATUS brt_status);
 
 void
 brt_leaf_apply_cmd_once (
@@ -906,12 +888,28 @@ void toku_apply_cmd_to_leaf(
     OMT live_list_reverse
     );
 
+void brtnode_put_cmd (
+    brt_compare_func compare_fun,
+    brt_update_func update_fun,
+    DESCRIPTOR desc,
+    BRTNODE node, 
+    BRT_MSG cmd, 
+    bool is_fresh, 
+    OMT snapshot_txnids, 
+    OMT live_list_reverse
+    );
+
+
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
 
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
+
+void toku_brt_header_note_hot_begin(BRT brt);
+void toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot);
+
 
 C_END
 

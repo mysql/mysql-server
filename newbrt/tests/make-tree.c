@@ -136,7 +136,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // discard the old root block
     u_int32_t fullhash = 0;
     CACHEKEY *rootp;
-    rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
 
     // set the new root to point to the new tree
     *rootp = newroot->thisnodename;
