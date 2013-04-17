@@ -3,6 +3,7 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "test.h"
+#include "cachetable-test.h"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -54,10 +55,6 @@ static void checkpoint_callback2(void * extra) {
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
 // verify that all of the items have been written and are clean.
 
-static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
-    return 0;
-}
-
 static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     if (verbose) printf("%s:%d n=%d dirty=%d\n", __FUNCTION__, __LINE__, n, (int) dirty);
     const int test_limit = n;
@@ -68,9 +65,8 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    toku_cachefile_set_userdata(f1, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                dummy_pin_unpin, dummy_pin_unpin);
-
+    create_dummy_functions(f1);
+    
     // insert items into the cachetable. all should be dirty
     int i;
     for (i=0; i<n; i++) {

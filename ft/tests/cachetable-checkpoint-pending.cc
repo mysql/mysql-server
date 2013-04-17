@@ -7,6 +7,7 @@
 #include "test.h"
 #include <stdio.h>
 #include <unistd.h>
+#include "cachetable-test.h"
 #include "checkpoint.h"
 
 static int N; // how many items in the table
@@ -100,10 +101,6 @@ do_checkpoint (void *UU(v))
 // make sure that the stuff that was checkpointed includes only the old versions
 // then do a flush and make sure the new items are written
 
-static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
-    return 0;
-}
-
 static void checkpoint_pending(void) {
     if (verbose) { printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N); fflush(stdout); }
     const int test_limit = N;
@@ -112,9 +109,8 @@ static void checkpoint_pending(void) {
     char fname1[] = __SRCFILE__ "test1.dat";
     r = unlink(fname1); if (r!=0) CKERR2(get_error_errno(), ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                dummy_pin_unpin, dummy_pin_unpin);
-
+    create_dummy_functions(cf);
+    
     // Insert items into the cachetable. All dirty.
     int i;
     for (i=0; i<N; i++) {
