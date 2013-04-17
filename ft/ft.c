@@ -914,13 +914,26 @@ toku_ft_stat64 (FT ft, struct ftstat64_s *s) {
 void 
 toku_ft_update_descriptor(FT ft, DESCRIPTOR d) 
 // Effect: Changes the descriptor in a tree (log the change, make sure it makes it to disk eventually).
-// requires: updates do not happen in parallel for an FT (ydb layer uses a row lock to enforce this)
+// requires: the ft is fully user-opened with a valid cachefile.
+//           descriptor updates cannot happen in parallel for an FT 
+//           (ydb layer uses a row lock to enforce this)
 {
+    assert(ft->cf);
+    int fd = toku_cachefile_get_fd(ft->cf);
+    toku_ft_update_descriptor_with_fd(ft, d, fd);
+}
+
+// upadate the descriptor for an ft and serialize it using
+// the given descriptor instead of reading the descriptor
+// from the ft's cachefile. we do this so serialize code can
+// update a descriptor before the ft is fully opened and has
+// a valid cachefile.
+void
+toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd) {
     // the checksum is four bytes, so that's where the magic number comes from
     // make space for the new descriptor and write it out to disk
     DISKOFF offset, size;
     size = toku_serialize_descriptor_size(d) + 4;
-    int fd = toku_cachefile_get_fd(ft->cf);
     toku_realloc_descriptor_on_disk(ft->blocktable, size, &offset, ft, fd);
     toku_serialize_descriptor_contents_to_fd(fd, d, offset);
 

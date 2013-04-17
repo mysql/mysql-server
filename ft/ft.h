@@ -82,6 +82,10 @@ void toku_ft_stat64 (FT h, struct ftstat64_s *s);
 // see toku_ft_change_descriptor(), which is the transactional version
 // used by the ydb layer. it better describes the client contract.
 void toku_ft_update_descriptor(FT ft, DESCRIPTOR d);
+// use this version if the FT is not fully user-opened with a valid cachefile.
+// this is a clean hack to get deserialization code to update a descriptor
+// while the FT and cf are in the process of opening, for upgrade purposes
+void toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd);
 void toku_ft_update_cmp_descriptor(FT ft);
 
 // get the descriptor for a ft. safe to read as long as clients honor the

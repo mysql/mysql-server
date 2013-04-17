@@ -332,7 +332,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
     if (version <= FT_LAYOUT_VERSION_13) {
-        toku_ft_update_descriptor(ft, &ft->cmp_descriptor);
+        toku_ft_update_descriptor_with_fd(ft, &ft->cmp_descriptor, fd);
     }
     r = 0;
 exit:
