@@ -1039,9 +1039,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         goto panic_and_quit_early;
     }
     if (env->i->open_dbs) { //Verify that there are no open dbs.
-        uint32_t size = toku_omt_size(env->i->open_dbs);
-        assert(size == env->i->num_open_dbs);
-        if (env->i->num_open_dbs > 0) {
+        if (toku_omt_size(env->i->open_dbs) > 0) {
             err_msg = "Cannot close environment due to open DBs\n";
             r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
             goto panic_and_quit_early;
@@ -2521,8 +2519,7 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     int r;
     OMTVALUE dbv;
     uint32_t idx;
-    env->i->num_open_dbs++;
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->num_open_dbs;
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs);
     STATUS_VALUE(YDB_LAYER_NUM_DB_OPEN)++;
     if (STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) > STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS))
         STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
@@ -2537,17 +2534,16 @@ env_note_db_closed(DB_ENV *env, DB *db)
 // Effect: Tell the DB_ENV that the DB is no longer in use by the user of the API.  The DB may still be in use by the fractal tree internals.
 {
     assert(db->i->dname);
-    assert(env->i->num_open_dbs);
+    assert(toku_omt_size(env->i->open_dbs));
     int r;
     OMTVALUE dbv;
     uint32_t idx;
-    env->i->num_open_dbs--;
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->num_open_dbs;
     STATUS_VALUE(YDB_LAYER_NUM_DB_CLOSE)++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert_zero(r); //Must already be there.
     assert((DB*)dbv == db);
     r = toku_omt_delete_at(env->i->open_dbs, idx);
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs);
     assert_zero(r);
 }
 
