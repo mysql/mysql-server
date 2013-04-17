@@ -59,6 +59,7 @@ typedef struct st_tokudb_trx_data {
 #define STATUS_PRIMARY_KEY_INIT 1
 #define STATUS_ROW_COUNT_INIT   2
 #define STATUS_TOKUDB_ANALYZE      4
+#define STATUS_AUTO_INCREMENT_INIT 8
 
 const char *ha_tokudb_ext = ".tokudb";
 
@@ -78,6 +79,7 @@ static char *tokudb_log_dir;
 //static ulong tokudb_cache_parts = 1;
 static ulong tokudb_trans_retry = 1;
 static ulong tokudb_max_lock;
+static ulong tokudb_debug;
 
 static DB_ENV *db_env;
 
@@ -218,7 +220,7 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_env_flags: 0x%x\n", tokudb_env_flags));
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) { // QQQ
-        printf("%s:%d:WARNING: flags %x r %d\n", __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
+        if (tokudb_debug) printf("%s:%d:WARNING: flags %x r %d\n", __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
     }
 
     // config error handling
@@ -262,7 +264,7 @@ static int tokudb_init_func(void *p) {
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
-        printf("%s:%d:tokudb_cache_size %lld\n", __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
+        if (tokudb_debug) printf("%s:%d:tokudb_cache_size %lld\n", __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
@@ -457,7 +459,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
             trx->sp_level = 0;
         *txn = 0;
     } else
-        printf("%s:%d:commit0\n", __FILE__, __LINE__);
+        if (tokudb_debug) printf("%s:%d:commit0\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -473,7 +475,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 	    trx->sp_level = 0;
 	*txn = 0;
     } else
-        printf("%s:%d:abort0\n", __FILE__, __LINE__);
+        if (tokudb_debug) printf("%s:%d:abort0\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -786,7 +788,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
     file = share->file;
-    printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d:tid=%u\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count, my_tid());
+    if (tokudb_debug) printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d:tid=%u\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count, my_tid());
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
@@ -880,7 +882,7 @@ int ha_tokudb::close(void) {
 
 int ha_tokudb::__close(int mutex_is_locked) {
     DBUG_ENTER("ha_tokudb::__close");
-    printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
+    if (tokudb_debug) printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     ha_tokudb::reset();         // current_row buffer
@@ -1092,32 +1094,52 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
     DBUG_RETURN(key);
 }
 
+int ha_tokudb::read_last() {
+    int do_commit = 0;
+    if (transaction == 0) {
+        int r = db_env->txn_begin(db_env, 0, &transaction, 0);
+        assert(r == 0);
+        do_commit = 1;
+    }
+    int error = index_init(primary_key, 0);
+    if (error == 0)
+        error = index_last(table->record[1]);
+    index_end();
+    if (do_commit) {
+        int r = transaction->commit(transaction, 0);
+        assert(r == 0);
+        transaction = 0;
+    }
+    return error;
+}
+
 /** @brief
     Get status information that is stored in the 'status' sub database
     and the max used value for the hidden primary key.
 */
 void ha_tokudb::get_status() {
+    int error;
+
     if (!test_all_bits(share->status, (STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT))) {
         pthread_mutex_lock(&share->mutex);
-        if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
-            (void) extra(HA_EXTRA_KEYREAD);
-            int do_commit = 0;
-            if (transaction == 0) {
-                int r = db_env->txn_begin(db_env, 0, &transaction, 0);
-                assert(r == 0);
-                do_commit = 1;
-            }
-            index_init(primary_key, 0);
-            if (!index_last(table->record[1]))
+
+        (void) extra(HA_EXTRA_KEYREAD);
+        read_last();
+        (void) extra(HA_EXTRA_NO_KEYREAD);
+
+        if (error == 0) {
+            if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
                 share->auto_ident = uint5korr(current_ident);
-            index_end();
-            if (do_commit) {
-                int r = transaction->commit(transaction, 0);
-                assert(r == 0);
-                transaction = 0;
             }
-            (void) extra(HA_EXTRA_NO_KEYREAD);
+
+            // mysql may not initialize the next_number_field here
+            // so we do this in the get_auto_increment method
+            if (table->next_number_field) {
+                share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
+                if (tokudb_debug) printf("%s:%d:init auto increment:%lld\n", __FILE__, __LINE__, share->last_auto_increment);
+            }
         }
+
         if (!share->status_block) {
             char name_buff[FN_REFLEN];
             char newname[get_name_length(share->table_name) + 32];
@@ -1132,6 +1154,7 @@ void ha_tokudb::get_status() {
                 }
             }
         }
+
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
             share->org_rows = share->rows = table_share->max_rows ? table_share->max_rows : HA_TOKUDB_MAX_ROWS;
             DB_TXN *transaction = 0;
@@ -1322,7 +1345,7 @@ int ha_tokudb::write_row(uchar * record) {
                     }
                 }
             }
-            if (error != DB_LOCK_DEADLOCK)
+            if (error != DB_LOCK_DEADLOCK && error != DB_LOCK_NOTGRANTED)
                 break;
         }
     }
@@ -1488,7 +1511,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                 }
             }
         }
-        if (error != DB_LOCK_DEADLOCK)
+        if (error != DB_LOCK_DEADLOCK && error != DB_LOCK_NOTGRANTED)
             break;
     }
     if (error == DB_KEYEXIST)
@@ -1571,7 +1594,7 @@ int ha_tokudb::delete_row(const uchar * record) {
             DBUG_PRINT("error", ("Got error %d", error));
             break;              // No retry - return error
         }
-        if (error != DB_LOCK_DEADLOCK)
+        if (error != DB_LOCK_DEADLOCK && error != DB_LOCK_NOTGRANTED)
             break;
     }
 #ifdef CANT_COUNT_DELETED_ROWS
@@ -1972,7 +1995,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
 	    if (trx->stmt) 
-                printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
+                if (tokudb_debug) printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
@@ -2317,6 +2340,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range
 
 
 void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values) {
+#if 0
     /* Ideally in case of real error (not "empty table") nr should be ~ULL(0) */
     ulonglong nr = 1;           // Default if error or new key
     int error;
@@ -2371,10 +2395,29 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     ha_tokudb::index_end();
     (void) ha_tokudb::extra(HA_EXTRA_NO_KEYREAD);
     *first_value = nr;
+#else
+    ulonglong nr;
+    pthread_mutex_lock(&share->mutex);
+
+    if (!(share->status & STATUS_AUTO_INCREMENT_INIT)) {
+        share->status |= STATUS_AUTO_INCREMENT_INIT;
+        int error = read_last();
+        if (error == 0) {
+            share->last_auto_increment = table->next_number_field->val_int_offset(table->s->rec_buff_length);
+            if (tokudb_debug) printf("%s:%d:init auto increment:%lld\n", __FILE__, __LINE__, share->last_auto_increment);
+        }
+    }
+    share->last_auto_increment += increment;
+    nr = share->last_auto_increment;
+    share->last_auto_increment += nb_desired_values;
+    pthread_mutex_unlock(&share->mutex);
+    *first_value = nr;
+    *nb_reserved_values = ULONGLONG_MAX;
+#endif
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
-    if (error == DB_LOCK_DEADLOCK)
+    if (error == DB_LOCK_DEADLOCK || error == DB_LOCK_NOTGRANTED)
         error = HA_ERR_LOCK_DEADLOCK;
     handler::print_error(error, errflag);
 }
@@ -2452,9 +2495,12 @@ static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY
 
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
+static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, PLUGIN_VAR_READONLY, "TokuDB Debug", NULL, NULL, 1, 0, ~0L, 0);
+
 static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB Data Directory", NULL, NULL, NULL);
+
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -2490,6 +2536,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(max_lock),
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(log_dir),
+    MYSQL_SYSVAR(debug),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
