@@ -254,25 +254,18 @@ int main (int argc, const char *argv[]) {
         extern void toku_print_trace_mem();
         toku_print_trace_mem();
     }
-#if 0
+#if defined __linux__ && __linux__
     char fname[256];
     sprintf(fname, "/proc/%d/status", getpid());
     FILE *f = fopen(fname, "r");
     if (f) {
         char line[256];
-        while (fgets(line, sizeof line, f))
-            fputs(line, stdout);
+        while (fgets(line, sizeof line, f)) {
+            int n;
+            if (sscanf(line, "VmPeak: %d", &n) || sscanf(line, "VmHWM: %d", &n) || sscanf(line, "VmRSS: %d", &n))
+                fputs(line, stdout);
+        }
         fclose(f);
-    }
-    {
-    sprintf(fname, "/proc/%d/statm", getpid());
-    FILE *f = fopen(fname, "r");
-    if (f) {
-        char line[256];
-        while (fgets(line, sizeof line, f))
-            fputs(line, stdout);
-        fclose(f);
-    }
     }
 #endif
 #endif
