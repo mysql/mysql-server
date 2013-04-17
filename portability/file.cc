@@ -454,7 +454,7 @@ toku_fsync_directory(const char *fname) {
     int result = 0;
     
     // extract dirname from fname
-    char *sp = strrchr(fname, '/');
+    const char *sp = strrchr(fname, '/');
     size_t len;
     char *dirname = NULL;
     if (sp) {
