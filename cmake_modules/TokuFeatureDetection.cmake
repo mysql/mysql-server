@@ -58,6 +58,7 @@ check_function_exists(malloc_usable_size HAVE_MALLOC_USABLE_SIZE)
 check_function_exists(memalign HAVE_MEMALIGN)
 check_function_exists(valloc HAVE_VALLOC)
 ## check whether we can pin processes to cpus
+check_function_exists(cpuset_getaffinity HAVE_CPUSET_GETAFFINITY)
 check_function_exists(sched_getaffinity HAVE_SCHED_GETAFFINITY)
 ## check whether we have random_r or nrand48 to use as a reentrant random function
 check_function_exists(nrand48 HAVE_NRAND48)

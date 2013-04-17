@@ -6,6 +6,7 @@ set(tokuportability_srcs
   os_malloc
   partitioned_counter
   portability
+  toku_affinity
   toku_assert
   toku_pthread
   toku_fair_rwlock
@@ -17,11 +18,6 @@ maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static)
 set_property(TARGET ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 set_target_properties(${LIBTOKUPORTABILITY}_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
-  ## ignore warning about cilkrts linking dynamically
-  add_space_separated_property(TARGET ${LIBTOKUPORTABILITY} LINK_FLAGS "-diag-disable 10237")
-endif ()
 
 set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)

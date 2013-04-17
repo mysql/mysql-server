@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "threadpool.h"
+#include "toku_affinity.h"
 
 int verbose = 0;
 
@@ -74,27 +75,21 @@ int main(int argc, char *argv[]) {
     }
     int starti = i;
 
-#if defined(HAVE_SCHED_GETAFFINITY)
     if (ncpus > 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
+        toku_cpuset_t cpuset;
+        TOKU_CPU_ZERO(&cpuset);
         for (i = 0; i < ncpus; i++)
-            CPU_SET(i, &cpuset);
+            TOKU_CPU_SET(i, &cpuset);
         int r;
-        r = sched_setaffinity(getpid(), sizeof cpuset, &cpuset);
+        r = toku_setaffinity(getpid(), sizeof cpuset, &cpuset);
         assert(r == 0);
         
-        cpu_set_t use_cpuset;
-        CPU_ZERO(&use_cpuset);
-        r = sched_getaffinity(getpid(), sizeof use_cpuset, &use_cpuset);
+        toku_cpuset_t use_cpuset;
+        TOKU_CPU_ZERO(&use_cpuset);
+        r = toku_getaffinity(getpid(), sizeof use_cpuset, &use_cpuset);
         assert(r == 0);
         assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
     }
-#else
-    /* currently disabled for systems that don't have
-     * sched_setaffinity/sched_getaffinity (darwin)
-     */
-#endif
 
     if (starti == argc) {
         dotest(poolsize, nloops);
