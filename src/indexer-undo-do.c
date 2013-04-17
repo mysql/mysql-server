@@ -192,9 +192,17 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     // scan the provisional stack from the outermost to the innermost transaction record
     uint32_t num_committed = ule_get_num_committed(ule);
     uint32_t num_provisional = ule_get_num_provisional(ule);
-    TXNID outermost_xid = uxr_get_txnid(ule_get_uxr(ule, num_committed));
-    TOKUTXN_STATE outermost_xid_state = indexer_xid_state(indexer, outermost_xid);
-    BOOL outermost_retired = outermost_xid_state == TOKUTXN_RETIRED;
+    BOOL outermost_retired = FALSE;
+    TXNID outermost_xid = TXNID_NONE;
+    TOKUTXN_STATE outermost_xid_state = TOKUTXN_RETIRED;
+    if (num_provisional) {
+        outermost_xid = uxr_get_txnid(ule_get_uxr(ule, num_committed));
+        outermost_xid_state = indexer_xid_state(indexer, outermost_xid);
+        outermost_retired = outermost_xid_state == TOKUTXN_RETIRED;
+    }
+    else {
+        outermost_retired = TRUE;
+    }
     if (outermost_retired) {        
         toku_txn_manager_resume(txn_manager);
         txn_manager_suspended = FALSE;

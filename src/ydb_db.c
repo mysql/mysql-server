@@ -114,50 +114,31 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
 
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
 
-void
-toku_db_add_ref(DB *db) {
-    db->i->refs++;
-}
-
-void
-toku_db_release_ref(DB *db){
-    db->i->refs--;
-}
-
 //DB->close()
 int 
 toku_db_close(DB * db) {
     int r = 0;
-    // the magic number one comes from the fact that only one loader
-    // or hot indexer may reference a DB at a time. when that changes,
-    // this will break.
-    if (db->i->refs != 1) {
-        r = EBUSY;
-    } else {
-        // TODO: assert(db->i->refs == 0) because we're screwed otherwise
-        db->i->refs = 0;
-        if (db_opened(db) && db->i->dname) {
-            // internal (non-user) dictionary has no dname
-            env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
-        }
-        //Remove from transaction's list of 'must close' if necessary.
-        if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
-            toku_list_remove(&db->i->dbs_that_must_close_before_abort);
+    if (db_opened(db) && db->i->dname) {
+        // internal (non-user) dictionary has no dname
+        env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
+    }
+    //Remove from transaction's list of 'must close' if necessary.
+    if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
+        toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
-        r = toku_ft_handle_close(db->i->ft_handle, FALSE, ZERO_LSN);
-        if (r == 0) {
-            // go ahead and close this DB handle right away.
-            if (db->i->lt) {
-                toku_lt_remove_db_ref(db->i->lt);
-            }
-            toku_sdbt_cleanup(&db->i->skey);
-            toku_sdbt_cleanup(&db->i->sval);
-            if (db->i->dname) {
-                toku_free(db->i->dname);
-            }
-            toku_free(db->i);
-            toku_free(db);
+    r = toku_ft_handle_close(db->i->ft_handle, FALSE, ZERO_LSN);
+    if (r == 0) {
+        // go ahead and close this DB handle right away.
+        if (db->i->lt) {
+            toku_lt_remove_db_ref(db->i->lt);
         }
+        toku_sdbt_cleanup(&db->i->skey);
+        toku_sdbt_cleanup(&db->i->sval);
+        if (db->i->dname) {
+            toku_free(db->i->dname);
+        }
+        toku_free(db->i);
+        toku_free(db);
     }
     return r;
 }
@@ -815,7 +796,6 @@ int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, FT_HANDLE br
     memset(result->i, 0, sizeof *result->i);
     toku_list_init(&result->i->dbs_that_must_close_before_abort);
     result->i->ft_handle = brt;
-    result->i->refs = 1;
     result->i->opened = is_open;
     *dbp = result;
     return 0;
