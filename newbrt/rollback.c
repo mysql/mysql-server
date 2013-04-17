@@ -209,7 +209,9 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
             invariant(r==0);
         }
     }
-    // else invariant() here
+    else {
+        invariant(pair->xid2 > xid);
+    }
     return r;
 }
 
