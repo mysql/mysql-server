@@ -158,12 +158,13 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
         assert(r==0);
         BRT brt = brtv;
 
-	// This is only for recovery.  oplsn is nonzero only for recovery
-        LSN treelsn = toku_brt_checkpoint_lsn(brt);
-        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
-            r = 0;
-            goto cleanup;
-        }
+	if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
+	    LSN treelsn = toku_brt_checkpoint_lsn(brt);  
+	    if (oplsn.lsn <= treelsn.lsn) {  // if operation was already applied to tree ...
+		r = 0;                       // ... do not apply it again.
+		goto cleanup;
+	    }
+	}
 
         DBT key_dbt,data_dbt;
         XIDS xids = toku_txn_get_xids(txn);
