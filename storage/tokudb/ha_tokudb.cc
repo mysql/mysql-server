@@ -5406,7 +5406,13 @@ u_int32_t ha_tokudb::get_cursor_isolation_flags(enum thr_lock_type lock_type, TH
     uint sql_command = thd_sql_command(thd);
     bool in_lock_tables = thd_in_lock_tables(thd);
 
-    if ((lock_type == TL_READ && in_lock_tables) || 
+    //
+    // following InnoDB's lead and having checksum command use a snapshot read if told
+    //
+    if (sql_command == SQLCOM_CHECKSUM) {
+        return 0;
+    }
+    else if ((lock_type == TL_READ && in_lock_tables) || 
         (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables) || 
         sql_command != SQLCOM_SELECT) 
     {
