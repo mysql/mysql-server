@@ -86,6 +86,7 @@ BDB_DONTRUN_TESTS = \
 	test_heaviside_straddle_1622 \
 	test_dbremove_old \
 	checkpoint_1 \
+	checkpoint_stress \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
