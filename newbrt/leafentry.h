@@ -57,18 +57,18 @@ struct __attribute__ ((__packed__)) leafentry {
             uint8_t  key_val[0];     //Actual key, then actual val
         } clean; // For the case where LEAFENTRY->type is LE_CLEAN
         struct __attribute__ ((__packed__)) leafentry_mvcc {
-            uint32_t num_cxrs; // number of committed uxrs
-            uint8_t  num_pxrs; // number of provisional uxrs
+            uint32_t num_cxrs; // number of committed transaction records
+            uint8_t  num_pxrs; // number of provisional transaction records
             u_int8_t key_xrs[0]; //Actual key,
                                  //then "interesting" TXNIDs:
                                  //  if provisional uxrs exist, store OUTERMOST TXNID
-                                 //  then store committed TXNIDs, from most recently committed to least recently committed
+                                 //  store committed TXNIDs, from most recently committed to least recently committed
                                  //then "interesting" lengths (length is at most 1<<31, MSB is used to store the type bit):
                                  //  if provisional uxrs exist, store length and type of INNERMOST TXNID
-                                 //  then store length and type of committed TXNIDs, in same order as above
+                                 //  store length and type of committed TXNIDs, in same order as above
                                  //then "interesting" data
                                  //  if provisional uxrs exist, store data for INNERMOST TXNID
-                                 //  then store data for committed TXNIDs
+                                 //  store data for committed TXNIDs
                                  //if provisional uxrs still exist (that is, num_puxrs > 1, so INNERMOST provisional != OUTERMOST provisional):
                                  //  for OUTERMOST provisional TXNID:
                                  //    1 byte: store type
