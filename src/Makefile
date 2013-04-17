@@ -42,6 +42,7 @@ OBJS_RAW = \
 #\end
 #OBJS automatically defined.
 loader.$(OEXT): $(LOG_HEADER)
+ydb.$(OEXT): $(LOG_HEADER)
 
 LIBRARIES=
 
@@ -103,7 +104,7 @@ buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 $(YDB):  $(OBJS) 
 
 
-$(LIBRARY):  $(NEWBRT) $(YDB) $(LOCKTREE) $(RANGETREE) $(DEPEND_COMPILE) $(DEPEND_LINK) 
+$(LIBRARY):  $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
 
 $(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 
