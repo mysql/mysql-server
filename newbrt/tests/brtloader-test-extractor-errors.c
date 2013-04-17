@@ -15,6 +15,9 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#if 0 
+}
+#endif
 #endif
 
 static int event_count, event_count_trigger;
@@ -26,11 +29,15 @@ static void reset_event_counts(void) {
 static void event_hit(void) {
 }
 
+static int event_add_and_fetch(void) {
+    return __sync_add_and_fetch(&event_count, 1);
+}
+
 static int do_user_errors = 0;
 
 static int loader_poll_callback(void *UU(extra), float UU(progress)) {
     int r;
-    if (do_user_errors && event_count_trigger == ++event_count) {
+    if (do_user_errors && event_count_trigger == event_add_and_fetch()) {
         event_hit();
         r = 1;
     } else {
@@ -43,7 +50,7 @@ static int do_write_errors = 0;
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     size_t r;
-    if (do_write_errors && event_count_trigger == ++event_count) {
+    if (do_write_errors && event_count_trigger == event_add_and_fetch()) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -58,7 +65,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 
 static ssize_t bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
-    if (do_write_errors && event_count_trigger == ++event_count) {
+    if (do_write_errors && event_count_trigger == event_add_and_fetch()) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -70,7 +77,7 @@ static ssize_t bad_write(int fd, const void * bp, size_t len) {
 
 static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     ssize_t r;
-    if (do_write_errors && event_count_trigger == ++event_count) {
+    if (do_write_errors && event_count_trigger == event_add_and_fetch()) {
         event_hit();
 	errno = ENOSPC;
 	r = -1;
@@ -94,15 +101,14 @@ static void *my_malloc(size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
         goto skip;
-    my_malloc_count++;
+    (void) __sync_add_and_fetch(&my_malloc_count, 1); // my_malloc_count++;
     if (n >= my_big_malloc_limit) {
-        my_big_malloc_count++;
+        (void) __sync_add_and_fetch(&my_big_malloc_count, 1); // my_big_malloc_count++;
         if (do_malloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xmalloc <= caller && caller <= (void*)toku_malloc_report)
                 goto skip;
-            event_count++;
-            if (event_count == event_count_trigger) {
+            if (event_add_and_fetch()== event_count_trigger) {
                 event_hit();
                 errno = ENOMEM;
                 return NULL;
@@ -113,19 +119,20 @@ static void *my_malloc(size_t n) {
     return malloc(n);
 }
 
+static int do_realloc_errors = 0;
+
 static void *my_realloc(void *p, size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
         goto skip;
-    my_realloc_count++;
+    (void) __sync_add_and_fetch(&my_realloc_count, 1); // my_realloc_count++;
     if (n >= my_big_malloc_limit) {
-        my_big_realloc_count++;
-        if (do_malloc_errors) {
+        (void) __sync_add_and_fetch(&my_big_realloc_count, 1); // my_big_realloc_count++;
+        if (do_realloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
                 goto skip;
-            event_count++;
-            if (event_count == event_count_trigger) {
+            if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();
                 errno = ENOMEM;
                 return NULL;
