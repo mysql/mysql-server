@@ -216,8 +216,7 @@ toku_indexer_set_error_callback(DB_INDEXER *indexer,
 
 int
 toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, DB *db, const DBT *key) {
-    DB_ENV *env = indexer->i->env;
-    return is_key_right_of_le_cursor(indexer->i->lec, key, env->i->bt_compare, db);
+    return is_key_right_of_le_cursor(indexer->i->lec, key, db);
 }
 
 static int 

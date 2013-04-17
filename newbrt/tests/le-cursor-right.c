@@ -112,7 +112,7 @@ test_neg_infinity(const char *fname, int n) {
         int k = toku_htonl(i);
         DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
-        int right = is_key_right_of_le_cursor(cursor, &key, test_keycompare, null_db);
+        int right = is_key_right_of_le_cursor(cursor, &key, null_db);
         assert(right == TRUE);
     }
         
@@ -172,7 +172,7 @@ test_pos_infinity(const char *fname, int n) {
         int k = toku_htonl(i);
         DBT key2;
         toku_fill_dbt(&key2, &k, sizeof k);
-        int right = is_key_right_of_le_cursor(cursor, &key2, test_keycompare, null_db);
+        int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
         assert(right == FALSE);
     }
 
@@ -229,7 +229,7 @@ test_between(const char *fname, int n) {
             int k = toku_htonl(j);
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
-            int right = is_key_right_of_le_cursor(cursor, &key2, test_keycompare, null_db);
+            int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
             assert(right == FALSE);
         }
 
@@ -238,7 +238,7 @@ test_between(const char *fname, int n) {
             int k = toku_htonl(j);
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
-            int right = is_key_right_of_le_cursor(cursor, &key2, test_keycompare, null_db);
+            int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
             assert(right == TRUE);
         }
 
