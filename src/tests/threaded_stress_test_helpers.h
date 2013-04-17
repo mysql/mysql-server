@@ -92,6 +92,7 @@ struct cli_args {
     u_int32_t val_size; // number of bytes in vals. Must be at least 4
     struct env_args env_args; // specifies environment variables
     bool single_txn;
+    bool warm_cache; // warm caches before running stress_table
 };
 
 DB_TXN * const null_txn = 0;
@@ -1040,6 +1041,7 @@ static struct cli_args UU() get_default_args(void) {
         .val_size = MIN_VAL_SIZE,
         .env_args = DEFAULT_ENV_ARGS,
         .single_txn = false,
+        .warm_cache = false,
         };
     return DEFAULT_ARGS;
 }
@@ -1083,6 +1085,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             fprintf(stderr, "\t--key_size                      INT (default %d, minimum %ld)\n", default_args.key_size, MIN_KEY_SIZE);
             fprintf(stderr, "\t--val_size                      INT (default %d, minimum %ld)\n", default_args.val_size, MIN_VAL_SIZE);
             fprintf(stderr, "\t--[no-]crash_on_update_failure  BOOL (default %s)\n", default_args.crash_on_update_failure ? "yes" : "no");
+            fprintf(stderr, "\t--single_txn                    BOOL (default %s)\n", default_args.single_txn ? "yes" : "no");
+            fprintf(stderr, "\t--warm_cache                    BOOL (default %s)\n", default_args.warm_cache ? "yes" : "no");
             fprintf(stderr, "\t--print_performance             \n");
             fprintf(stderr, "\t--print_thread_performance      \n");
             fprintf(stderr, "\t--performance_period            INT (default %d)\n", default_args.performance_period);
@@ -1185,6 +1189,9 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         else if (strcmp(argv[1], "--single_txn") == 0) {
             args->single_txn = true;
         }
+        else if (strcmp(argv[1], "--warm_cache") == 0) {
+            args->warm_cache = true;
+        }
         else {
             resultcode=1;
             goto do_usage;
@@ -1216,6 +1223,27 @@ stress_int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
 
 
 static void
+do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
+{
+    struct scan_op_extra soe;
+    soe.fast = true;
+    soe.fwd = true;
+    soe.prefetch = true;
+    struct arg scan_arg;
+    arg_init(&scan_arg, args->num_elements, dbs, env, args);
+    scan_arg.operation_extra = &soe;
+    scan_arg.operation = scan_op_no_check;
+    scan_arg.lock_type = STRESS_LOCK_NONE;
+    int64_t x;
+    struct worker_extra we;
+    we.thread_arg = &arg;
+    we.operation_lock = NULL;
+    we.operation_lock_mutex = NULL;
+    we.num_operations_completed = &x;
+    worker(&worker_extra);
+}
+
+static void
 stress_test_main(struct cli_args *args)
 {
     DB_ENV* env = NULL;
@@ -1238,6 +1266,9 @@ stress_test_main(struct cli_args *args)
                        args->num_DBs,
                        stress_int_dbt_cmp,
                        args->env_args));
+        if (args->warm_cache) {
+            do_warm_cache(env, dbs, args);
+        }
         stress_table(env, dbs, args);
         CHK(close_tables(env, dbs, args->num_DBs));
     }
