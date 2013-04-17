@@ -698,7 +698,36 @@ static int toku_recover_xbegin (LSN UU(lsn), TXNID UU(parent)) {
     return 0;
 }
 
+static int toku_delete_rolltmp_files (const char *log_dir) {
+    struct dirent *de;
+    DIR *d = opendir(log_dir);
+    if (d==0) {
+	return errno;
+    }
+    int result = 0;
+    while ((de=readdir(d))) {
+	char rolltmp_prefix[] = "__rolltmp.";
+	int r = memcmp(de->d_name, rolltmp_prefix, sizeof(rolltmp_prefix) - 1);
+	if (r==0) {
+	    int fnamelen = strlen(log_dir) + strlen(de->d_name) + 2; // One for the slash and one for the trailing NUL.
+	    char fname[fnamelen];
+	    snprintf(fname, fnamelen, "%s/%s", log_dir, de->d_name);
+	    r = unlink(fname);
+	    if (r!=0) {
+		result = errno;
+		perror("Trying to delete a rolltmp file");
+	    }
+	}
+    }
+    {
+	int r = closedir(d);
+	if (r==-1) return errno;
+    }
+    return result;
+}
+
 int tokudb_recover(const char *data_dir, const char *log_dir) {
+    int failresult = 0;
     int r;
     int entrycount=0;
     char **logfiles;
@@ -718,8 +747,11 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	}
     }
 
+    r = toku_delete_rolltmp_files(log_dir);
+    if (r!=0) { failresult=r; goto fail; }
+
     r = toku_logger_find_logfiles(log_dir, &logfiles);
-    if (r!=0) return r;
+    if (r!=0) { failresult=r; goto fail; }
     int i;
     toku_recover_init();
     char org_wd[1000];
@@ -778,4 +810,8 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
     //printf("%s:%d recovery successful! ls -l says\n", __FILE__, __LINE__);
     //system("ls -l");
     return 0;
+ fail:
+    toku_os_unlock_file(lockfd);
+    chdir(org_wd);
+    return failresult;
 }
