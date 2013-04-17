@@ -815,9 +815,6 @@ cleanup:
     return r;
 }
 
-struct leaf_entry * le;
-const struct leaf_entry * le;
-
 static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];

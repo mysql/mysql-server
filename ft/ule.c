@@ -77,7 +77,7 @@ toku_le_get_status(LE_STATUS statp) {
 //
 
 ULEHANDLE 
-toku_ule_create(const LEAFENTRY le) {
+toku_ule_create(LEAFENTRY le) {
     ULE ule_p = toku_xmalloc(sizeof(ULE_S));
     le_unpack(ule_p, le);
     return (ULEHANDLE) ule_p;
@@ -518,7 +518,7 @@ ule_cleanup(ULE ule) {
 
 // Purpose of le_unpack() is to populate our private workspace with the contents of the given le.
 void
-le_unpack(ULE ule, const LEAFENTRY le) {
+le_unpack(ULE ule, LEAFENTRY le) {
     //Read the keylen
     ule->keylen = toku_dtoh32(le->keylen);
     uint8_t  type = le->type;

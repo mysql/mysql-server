@@ -374,10 +374,8 @@ le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), byte
         // leafentry into its own buffers, so we don't need to malloc space
         // for this value to exist outside the callback.
         //
-        // this cast is only necssary because the typedef is preventing us
-        // from declaring a "const LEAFENTRY" le. we're only able to say
-        // const "LEAFENTRY le".
-        const LEAFENTRY le = (const LEAFENTRY) val;
+        // blast away the const from bytevec by casting to LEAFENTRY
+        LEAFENTRY le = (LEAFENTRY) val;
         ULEHANDLE ule = toku_ule_create(le);
         invariant(ule);
         ule_prov_info_init(prov_info, ule);
