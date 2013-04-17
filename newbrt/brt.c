@@ -1300,22 +1300,24 @@ brtleaf_get_split_loc(
     u_int32_t size_so_far = 0;
     int i;
     for (i = 0; i < node->n_children; i++) {
-	OMT curr_buffer = BLB_BUFFER(node, i);
-	u_int32_t n_leafentries = toku_omt_size(curr_buffer);
-	u_int32_t j;
-	for (j=0; j < n_leafentries; j++) {
-	    LEAFENTRY curr_le = NULL;
-	    OMTVALUE v;
-	    int r = toku_omt_fetch(curr_buffer, j, &v);
-	    curr_le = v;
-	    assert_zero(r);
-	    size_so_far += leafentry_disksize(curr_le);
-	    if (size_so_far >= sumlesizes/2) {
-		*bn_index = i;
-		*le_index = j;
-		goto exit;
-	    }
-	}
+        OMT curr_buffer = BLB_BUFFER(node, i);
+        u_int32_t n_leafentries = toku_omt_size(curr_buffer);
+        u_int32_t j;
+        for (j=0; j < n_leafentries; j++) {
+            LEAFENTRY curr_le = NULL;
+            OMTVALUE v;
+            int r = toku_omt_fetch(curr_buffer, j, &v);
+            curr_le = v;
+            assert_zero(r);
+            size_so_far += leafentry_disksize(curr_le);
+            if (size_so_far >= sumlesizes/2 ||
+                (i == node->n_children - 1 &&
+                 j == n_leafentries - 2)) {
+                *bn_index = i;
+                *le_index = j;
+                goto exit;
+            }
+        }
     }
 exit:
     return;
