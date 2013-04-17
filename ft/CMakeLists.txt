@@ -32,7 +32,9 @@ set(FT_SOURCES
   ftloader.c
   ftloader-callback.c
   ft_msg.c
+  ft_node-serialize.c
   ft-ops.c
+  ft-pwrite.c
   ft-serialize.c
   ft-test-helpers.c
   ft-verify.c

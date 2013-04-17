@@ -923,4 +923,6 @@ toku_ft_node_put_cmd (
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
+enum deserialize_error_code toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h);
+
 #endif
