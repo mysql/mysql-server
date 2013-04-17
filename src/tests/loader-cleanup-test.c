@@ -72,7 +72,7 @@ enum {MAGIC=311};
 DBT old_inames[MAX_DBS];
 DBT new_inames[MAX_DBS];
 
-static const char *loader_temp_prefix = "tokuld"; // 2536
+static const char *loader_temp_prefix = "tokuld"; // #2536
 static int count_temp(char * dirname);
 static void get_inames(DBT* inames, DB** dbs);
 static int verify_file(char * dirname, char * filename);
@@ -174,6 +174,10 @@ count_temp(char * dirname) {
     while ((ent=readdir(dir))) {
 	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
 	    n++;
+	    if (verbose >= 3) {
+		printf("Temp files\n");
+		printf("  %s/%s\n", dirname, ent->d_name);
+	    } 
 	}
     }
     closedir(dir);
@@ -210,7 +214,7 @@ get_inames(DBT* inames, DB** dbs) {
 	int r = env->get_iname(env, &dname, &inames[i]);
 	CKERR(r);
 	char * iname_str = (char*) (inames[i].data);
-	if (verbose) printf("dname = %s, iname = %s\n", dname_str, iname_str);
+	if (verbose >= 2) printf("dname = %s, iname = %s\n", dname_str, iname_str);
     }
 }
 
@@ -462,9 +466,10 @@ static void test_loader(enum test_type t, DB **dbs)
     }
     uint32_t loader_flags = USE_PUTS; // set with -p option
 
-    if (verbose) printf("old inames:\n");
+    if (verbose >= 2) 
+	printf("old inames:\n");
     get_inames(old_inames, dbs);
-    
+
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
@@ -476,7 +481,8 @@ static void test_loader(enum test_type t, DB **dbs)
     CKERR(r);
 
     printf("USE_PUTS = %d\n", USE_PUTS);
-    if (verbose) printf("new inames:\n");
+    if (verbose >= 2) 
+	printf("new inames:\n");
     get_inames(new_inames, dbs);
 
     // using loader->put, put values into DB
