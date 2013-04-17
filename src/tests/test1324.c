@@ -35,6 +35,13 @@ do_1324 (int moreflags)
 	DB_ENV *env;
 	int r;
 
+        if (moreflags & DB_INIT_LOG) {
+            // create the log
+            r = db_env_create(&env, 0);                                                     CKERR(r);
+            r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);    CKERR(r);
+            r = env->close(env, 0);                                                         CKERR(r);
+        }
+
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
