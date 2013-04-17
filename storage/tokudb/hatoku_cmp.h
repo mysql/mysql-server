@@ -72,7 +72,7 @@ typedef struct st_key_and_col_info {
     // bitmaps for each key. key_filters[i] is associated with the i'th dictionary
     // States what columns are not stored in the vals of each key, because 
     // the column is stored in the key. So, for example, the table (a int, b int, c int, d int, primary key (b,d)) will
-    // have the second and fourth bit of the primary key's bitmap set for the main dictionary's bitmap,
+    // have bit 1 (for 'b') and bit 3 (for 'd') of the primary key's bitmap set for the main dictionary's bitmap,
     // because 'b' and 'd' do not show up in the val
     //
     MY_BITMAP key_filters[MAX_KEY+1];
