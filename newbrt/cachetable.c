@@ -409,8 +409,6 @@ u_int32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct) {
 // reserve 25% as "unreservable".  The loader cannot have it.
 #define unreservable_memory(size) ((size)/4)
 
-static int cleaner_thread (void *cachetable_v);
-
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
     CACHETABLE MALLOC(ct);
     if (ct == 0) return ENOMEM;
@@ -429,7 +427,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->kibbutz = toku_kibbutz_create(toku_os_get_number_active_processors());
 
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
-    toku_minicron_setup(&ct->cleaner, 0, cleaner_thread, ct); // default is no cleaner, for now
+    toku_minicron_setup(&ct->cleaner, 0, toku_cleaner_thread, ct); // default is no cleaner, for now
     ct->cleaner_iterations = 1; // default is one iteration
     r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
     ct->env_dir = toku_xstrdup(".");
@@ -3752,8 +3750,8 @@ cleaner_thread_rate_pair(PAIR p)
 
 static int const CLEANER_N_TO_CHECK = 8;
 
-static int
-cleaner_thread (void *cachetable_v)
+int
+toku_cleaner_thread (void *cachetable_v)
 // Effect:  runs a cleaner.
 //
 // We look through some number of nodes, the first N that we see which are
@@ -3795,24 +3793,47 @@ cleaner_thread (void *cachetable_v)
         } while (ct->cleaner_head != first_pair && n_seen < CLEANER_N_TO_CHECK);
         if (best_pair) {
             nb_mutex_write_lock(&best_pair->nb_mutex, ct->mutex);
+            // the order of operations for these two pieces is important
+            // we must add the background job first, while we still have the
+            // cachetable lock and we are assured that the best_pair's
+            // cachefile is not flushing. Once we add the background
+            // job, we know that flushing a cachefile will wait on 
+            // this background job to be completed.
+            // If we were to add the background job after
+            // writing a PAIR for checkpoint, then we risk
+            // releasing the cachetable lock during the write
+            // and allowing a cachefile flush to sneak in
             add_background_job(best_pair->cachefile, true);
+            if (best_pair->checkpoint_pending) {
+                write_locked_pair_for_checkpoint(ct, best_pair);
+            }
         }
         cachetable_unlock(ct);
         if (best_pair) {
+            // it's theoretically possible that after writing a PAIR for checkpoint, the
+            // PAIR's heuristic tells us nothing needs to be done. It is not possible
+            // in Dr. Noga, but unit tests verify this behavior works properly.
             CACHEFILE cf = best_pair->cachefile;
-            int r = best_pair->cleaner_callback(best_pair->value,
-                                                best_pair->key,
-                                                best_pair->fullhash,
-                                                best_pair->write_extraargs);
-            assert_zero(r);
+            if (cleaner_thread_rate_pair(best_pair) > 0) {
+                int r = best_pair->cleaner_callback(best_pair->value,
+                                                    best_pair->key,
+                                                    best_pair->fullhash,
+                                                    best_pair->write_extraargs);
+                assert_zero(r);
+                // The cleaner callback must have unlocked the pair, so we
+                // don't need to unlock it here.
+            }
+            else {
+                cachetable_lock(ct);
+                nb_mutex_write_unlock(&best_pair->nb_mutex);
+                cachetable_unlock(ct);
+            }
             // We need to make sure the cachefile sticks around so a close
             // can't come destroy it.  That's the purpose of this
             // "add/remove_background_job" business, which means the
             // cachefile is still valid here, even though the cleaner
-            // callback unlocks the pair.
+            // callback unlocks the pair.            
             remove_background_job(cf, false);
-            // The cleaner callback must have unlocked the pair, so we
-            // don't need to unlock it here.
         } else {
             // If we didn't find anything this time around the cachetable,
             // we probably won't find anything if we run around again, so

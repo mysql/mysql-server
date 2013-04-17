@@ -557,6 +557,10 @@ void remove_background_job (CACHEFILE cf, bool already_locked);
 // test-only function
 extern int toku_cachetable_get_checkpointing_user_data_status(void);
 
+int
+toku_cleaner_thread (void *cachetable_v);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
