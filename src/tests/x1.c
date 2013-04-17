@@ -82,19 +82,15 @@ do_x1_recover (BOOL did_commit)
 	assert(ab.size==2);
 	assert(ba.size==2);
 	assert(bb.size==2);
-	unsigned int i;
-	char a[2] = "a";
-	char b[2] = "b";
-	for (i=0;i<2;i++) { 
-	  assert(*(char*)(aa.data + i) == a[i]); 
-	  assert(*(char*)(ab.data + i) == b[i]); 
-	  assert(*(char*)(ba.data + i) == b[i]); 
-	  assert(*(char*)(bb.data + i) == a[i]); 
-	}
+	const char a[2] = "a";
+	const char b[2] = "b";
+        assert(memcmp(aa.data, &a, 2)==0);
+        assert(memcmp(ab.data, &b, 2)==0);
+        assert(memcmp(ab.data, &b, 2)==0);
+        assert(memcmp(bb.data, &a, 2)==0);
 	// make sure no other entries in DB
 	assert(ca->c_get(ca, &aa, &ab, DB_NEXT) == DB_NOTFOUND);
 	assert(cb->c_get(cb, &ba, &bb, DB_NEXT) == DB_NOTFOUND);
-
 	fprintf(stderr, "Both verified. Yay!\n");
     } else {
 	// It wasn't committed (it also wasn't aborted), but a checkpoint happened.
