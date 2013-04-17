@@ -183,6 +183,7 @@ struct brt_header {
     // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
     // 0 if no such transaction
     TXNID txnid_that_created_or_locked_when_empty;
+    TXNID root_that_created_or_locked_when_empty;
     TXNID txnid_that_suppressed_recovery_logs;
     struct toku_list live_brts;
     struct toku_list zombie_brts;

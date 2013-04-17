@@ -533,9 +533,7 @@ static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(
         assert(r == 0);
         assert(txn!=NULL);
         struct brt_header *h = tuple->brt->h;
-        assert(h->txnid_that_created_or_locked_when_empty == TXNID_NONE ||
-               h->txnid_that_created_or_locked_when_empty == l->xid);
-        h->txnid_that_created_or_locked_when_empty = l->xid;
+        toku_brt_header_suppress_rollbacks(h, txn);
     }
     return 0;
 }

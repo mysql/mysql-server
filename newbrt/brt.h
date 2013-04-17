@@ -210,6 +210,9 @@ void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 int maybe_preallocate_in_file (int fd, u_int64_t size);
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
+void toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn);
+//Effect: suppresses rollback logs
+
 void toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn);
 // Effect: suppresses recovery logs
 // Requires: this is a (target) redirected brt

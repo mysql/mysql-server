@@ -84,6 +84,7 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp);
 int toku_read_logmagic (FILE *f, u_int32_t *versionp);
 
 TXNID toku_txn_get_txnid (TOKUTXN txn);
+TXNID toku_txn_get_root_txnid (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
