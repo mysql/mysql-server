@@ -12,11 +12,18 @@
 
 int toku_memory_check=0;
 
+int toku_calloc_counter = 0;
+int toku_malloc_counter = 0;
+int toku_realloc_counter = 0;
+int toku_free_counter = 0;
+
 void *toku_calloc(size_t nmemb, size_t size) {
+    toku_calloc_counter++;
     return calloc(nmemb, size);
 }
 
 void *toku_malloc(size_t size) {
+    toku_malloc_counter++;
     return malloc(size);
 }
 
@@ -36,15 +43,17 @@ void *toku_tagmalloc(size_t size, enum typ_tag typtag) {
 }
 
 void *toku_realloc(void *p, size_t size) {
+    toku_realloc_counter++;
     return realloc(p, size);
 }
 
 void toku_free(void* p) {
+    toku_free_counter++;
     free(p);
 }
 
 void toku_free_n(void* p, size_t size __attribute__((unused))) {
-    free(p);
+    toku_free(p);
 }
 
 void *toku_memdup (const void *v, size_t len) {
