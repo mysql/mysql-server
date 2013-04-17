@@ -755,6 +755,9 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     result->u.l.leaf_stats.dsize = rbuf_ulonglong(rb);
     result->u.l.leaf_stats.exact = TRUE;
 
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(result->layout_version == BRT_LAYOUT_VERSION);
+
     if (result->layout_version >= BRT_LAYOUT_VERSION_13) {
 	result->u.l.optimized_for_upgrade = rbuf_int(rb);
     }
@@ -789,6 +792,10 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     u_int32_t actual_sum = 0;
     u_int32_t start_of_data = rb->ndone;
     OMTVALUE *MALLOC_N(n_in_buf, array);
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(result->layout_version == BRT_LAYOUT_VERSION);
+
     if (result->layout_version == BRT_LAYOUT_VERSION) {
         for (int i=0; i<n_in_buf; i++) {
             LEAFENTRY le = (LEAFENTRY)(&rb->buf[rb->ndone]);
@@ -869,6 +876,11 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     bytevec magic;
     rbuf_literal_bytes(rb, &magic, 8);
     result->layout_version    = rbuf_int(rb);
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(result->layout_version == BRT_LAYOUT_VERSION);
+
+
     invariant(result->layout_version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
     invariant(result->layout_version <= BRT_LAYOUT_VERSION);
     result->layout_version_original = rbuf_int(rb);
@@ -1007,6 +1019,10 @@ static int
 decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     // This function exists solely to accomodate future changes in compression.
     int r;
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(version == BRT_LAYOUT_VERSION);
+
     switch (version) {
         case BRT_LAYOUT_VERSION_12:
         case BRT_LAYOUT_VERSION:
@@ -1020,6 +1036,10 @@ decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_b
 
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(version == BRT_LAYOUT_VERSION);
+
     int r = 0;
     BRTNODE node = NULL;
     r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &node, h, rb);  // we just filled the node with contents from rbuf
@@ -1199,6 +1219,10 @@ toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version
     int r = 0;
 
     int version = t->h->layout_version_read_from_disk;
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(version == BRT_LAYOUT_VERSION);
+
     int upgrade = 0;
     if (!t->h->upgrade_brt_performed) { // upgrade may be necessary
 	switch (version) {
@@ -1294,8 +1318,13 @@ toku_verify_or_set_counts (BRTNODE node, BOOL set_fingerprints) {
 static u_int32_t
 serialize_brt_header_min_size (u_int32_t version) {
     u_int32_t size = 0;
+
+
+    // TODO: #3228  WILL need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(version == BRT_LAYOUT_VERSION);
+
     switch(version) {
-        case BRT_LAYOUT_VERSION_13:
+        case BRT_LAYOUT_VERSION_15:     // WAS 13
             size += 8;  //TXNID that created
         case BRT_LAYOUT_VERSION_12:
 	    size += (+8 // "tokudata"
@@ -1592,6 +1621,10 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     deserialize_descriptor_from(fd, h, &h->descriptor);
     h->layout_version_original = rbuf_int(&rc);    
     h->num_blocks_to_upgrade   = rbuf_ulonglong(&rc);
+
+    // TODO: #3228  WILL need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(h->layout_version == BRT_LAYOUT_VERSION);
+
     if (h->layout_version >= BRT_LAYOUT_VERSION_13) { 
         // at this layer, this new field is the only difference between versions 12 and 13
         rbuf_TXNID(&rc, &h->root_xid_that_created);
@@ -1611,6 +1644,9 @@ static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
     int rval;
     int upgrade = 0;
+
+    // TODO: #3228  May need to fix specific version number, certainly delete this assert when upgrade is enabled
+    lazy_assert(version == BRT_LAYOUT_VERSION);
 
     struct brt_header *h = NULL;
     rval = deserialize_brtheader (fd, rb, &h); //deserialize from rbuf and fd into header

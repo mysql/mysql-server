@@ -576,7 +576,8 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     assert(persistent_original_env_version <= curr_env_version);
 
     // make no assertions about timestamps, clock may have been reset
-    if (persistent_original_env_version >= BRT_LAYOUT_VERSION_13) {
+    // TODO: #3228  May need to fix specific version number to whenever this new info was added.
+    if (persistent_original_env_version >= BRT_LAYOUT_VERSION_15) {
 	toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
