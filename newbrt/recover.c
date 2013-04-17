@@ -299,7 +299,7 @@ static int toku_recover_backward_fassociate (struct logtype_fassociate *l, struc
     return 0;
 }
 
-static int toku_recover_xstillopen (LSN UU(lsn), TXNID UU(txnid)) {
+static int toku_recover_xstillopen (LSN UU(lsn), TXNID UU(txnid), TXNID UU(parent)) {
     return 0;
 }
 
