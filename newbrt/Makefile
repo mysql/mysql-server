@@ -14,6 +14,7 @@ DEPEND_COMPILE += \
 # keep this line so I can have a \ on the previous line
 
 NEWBRT           = newbrt.$(AEXT)
+NEWBRT_SO        = libnewbrt.$(SOEXT)
 IPO_NEWBRT       = ipo_newbrt.$(AEXT)
 NEWBRT_BUNDLE    = newbrt.bundle
 #All executables need to statically link to newbrt
@@ -119,7 +120,10 @@ brtloader.$(OEXT): brtloader.c
 	$(CXX) -DTOKU_ALLOW_DEPRECATED $(CXXFLAGS) -c $<
 endif
 
+$(NEWBRT_O_FILES): VISIBILITY=
 $(NEWBRT): $(NEWBRT_O_FILES)
+$(NEWBRT_SO): $(NEWBRT_O_FILES)
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(NEWBRT_O_FILES) -o$(NEWBRT_SO)
 
 $(NEWBRT_BUNDLE): log_code.c log_header.h
 
