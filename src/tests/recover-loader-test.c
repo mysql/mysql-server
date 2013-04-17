@@ -93,7 +93,7 @@ count_temp(char * dirname) {
 // print contents of directory
 int
 print_dir(char * dirname) {
-    int n;
+    int n = 0;
 
     DIR * dir = opendir(dirname);
     
