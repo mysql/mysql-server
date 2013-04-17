@@ -294,7 +294,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                     case TOKUTXN_LIVE:
                     case TOKUTXN_PREPARING:
                         invariant(this_xid_state != TOKUTXN_ABORTING);
-                        invariant(toku_txn_get_state(curr_txn) == TOKUTXN_LIVE || toku_txn_get_state(curr_txn) == TOKUTXN_PREPARING);
+                        invariant(!curr_txn || toku_txn_get_state(curr_txn) == TOKUTXN_LIVE || toku_txn_get_state(curr_txn) == TOKUTXN_PREPARING);
                         result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids, curr_txn);
                         if (result == 0) {
                             indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], curr_txn);
@@ -328,7 +328,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                 case TOKUTXN_LIVE:
                 case TOKUTXN_PREPARING:
                     assert(this_xid_state != TOKUTXN_ABORTING);
-                        invariant(toku_txn_get_state(curr_txn) == TOKUTXN_LIVE || toku_txn_get_state(curr_txn) == TOKUTXN_PREPARING);
+                    invariant(!curr_txn || toku_txn_get_state(curr_txn) == TOKUTXN_LIVE || toku_txn_get_state(curr_txn) == TOKUTXN_PREPARING);
                     result = indexer_ft_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids, curr_txn);
                     if (result == 0) {
                         indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], prov_txns[0]);
