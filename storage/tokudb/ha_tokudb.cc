@@ -4933,8 +4933,10 @@ int ha_tokudb::fill_range_query_buf(
             );
         if (range_query_buff == NULL) {
             error = ENOMEM;
+            invalidate_bulk_fetch();
             goto cleanup;
         }
+        size_range_query_buff = bytes_used_in_range_query_buff+size_needed;
     }
     //
     // now we know we have the size, let's fill the buffer, starting with the key
