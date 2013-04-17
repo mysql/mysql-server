@@ -985,16 +985,10 @@ cleanup:
 }
 
 
-static int check_table_in_metadata(const char *name, bool* table_found) {
+static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* txn) {
     int error = 0;
     DBT key;
-    DB_TXN* txn = NULL;
     pthread_mutex_lock(&tokudb_meta_mutex);
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) {
-        goto cleanup;
-    }
-    
     bzero((void *)&key, sizeof(key));
     key.data = (void *)name;
     key.size = strlen(name) + 1;
@@ -1016,10 +1010,6 @@ static int check_table_in_metadata(const char *name, bool* table_found) {
         error = 0;
     }
 
-cleanup:
-    if (txn) {
-        commit_txn(txn, 0);
-    }
     pthread_mutex_unlock(&tokudb_meta_mutex);
     return error;
 }
@@ -1609,10 +1599,23 @@ int ha_tokudb::initialize_share(
     int error = 0;
     u_int64_t num_rows = 0;
     bool table_exists;
+    DB_TXN* txn = NULL;
+    bool do_commit = false;
+    tokudb_trx_data *trx = NULL;
+    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    if (trx && trx->sub_sp_level) {
+        txn = trx->sub_sp_level;
+    }
+    else {
+        do_commit = true;
+        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        if (error) { goto exit; }
+    }
+
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
     table_exists = true;
-    error = check_table_in_metadata(name, &table_exists);
+    error = check_table_in_metadata(name, &table_exists, txn);
 
     if (error) {
         goto exit;
@@ -1623,7 +1626,7 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
 
-    error = get_status();
+    error = get_status(txn);
     if (error) {
         goto exit;
     }
@@ -1637,7 +1640,7 @@ int ha_tokudb::initialize_share(
     // only for tables that are not partitioned
     //
     if (table->part_info == NULL) {
-        error = verify_frm_data(table->s->path.str);
+        error = verify_frm_data(table->s->path.str, txn);
         if (error) {
             goto exit;
         }
@@ -1651,7 +1654,7 @@ int ha_tokudb::initialize_share(
         );
     if (error) { goto exit; }
     
-    error = open_main_dictionary(name, mode == O_RDONLY, NULL);
+    error = open_main_dictionary(name, mode == O_RDONLY, txn);
     if (error) { goto exit; }
 
     share->has_unique_keys = false;
@@ -1669,7 +1672,7 @@ int ha_tokudb::initialize_share(
                 &table_share->key_info[i],
                 name,
                 mode == O_RDONLY,
-                NULL
+                txn
                 );
             if (error) {
                 goto exit;
@@ -1697,7 +1700,7 @@ int ha_tokudb::initialize_share(
     }
     share->ref_length = ref_length;
 
-    error = estimate_num_rows(share->file,&num_rows, NULL);
+    error = estimate_num_rows(share->file,&num_rows, txn);
     //
     // estimate_num_rows should not fail under normal conditions
     //
@@ -1726,6 +1729,9 @@ int ha_tokudb::initialize_share(
 
     error = 0;
 exit:
+    if (do_commit && txn) {
+        commit_txn(txn,0);
+    }
     return error;
 }
 
@@ -2055,17 +2061,13 @@ smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     return 0;
 }
 
-int ha_tokudb::verify_frm_data(const char* frm_name) {
+int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
     uchar* mysql_frm_data = NULL;
     size_t mysql_frm_len = 0;
     DBT key, stored_frm;
     int error = 0;
-    DB_TXN* txn = NULL;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
     TOKUDB_DBUG_ENTER("ha_tokudb::verify_frm_data %s", frm_name);
-
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
 
     bzero(&key, sizeof(key));
     bzero(&stored_frm, sizeof(&stored_frm));
@@ -2105,9 +2107,6 @@ int ha_tokudb::verify_frm_data(const char* frm_name) {
 
     error = 0;
 cleanup:
-    if (txn) {
-        commit_txn(txn, 0);
-    }
     my_free(mysql_frm_data, MYF(MY_ALLOW_ZERO_PTR));
     my_free(stored_frm.data, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
@@ -2926,12 +2925,12 @@ void ha_tokudb::init_hidden_prim_key_info() {
 /** @brief
     Get metadata info stored in status.tokudb
     */
-int ha_tokudb::get_status() {
+int ha_tokudb::get_status(DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
-    DB_TXN* txn = NULL;
     DBT key, value;
     HA_METADATA_KEY curr_key;
     int error;
+
     //
     // open status.tokudb
     //
@@ -2939,7 +2938,7 @@ int ha_tokudb::get_status() {
         error = open_status_dictionary(
             &share->status_block, 
             share->table_name, 
-            NULL
+            txn
             );
         if (error) { 
             goto cleanup; 
@@ -2954,8 +2953,6 @@ int ha_tokudb::get_status() {
     key.data = &curr_key;
     key.size = sizeof(curr_key);
     value.flags = DB_DBT_USERMEM;
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
 
     assert(share->status_block);
     //
@@ -3037,9 +3034,6 @@ int ha_tokudb::get_status() {
     
     error = 0;
 cleanup:
-    if (txn) {
-        commit_txn(txn,0);
-    }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -6484,12 +6478,16 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     uint version;
     uint capabilities;
     DB_TXN* txn = NULL;
+    bool do_commit = false;
     char* newname = NULL;
     KEY_AND_COL_INFO kc_info;
+    tokudb_trx_data *trx = NULL;
     bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     bzero(&kc_info, sizeof(kc_info));
 
     pthread_mutex_lock(&tokudb_meta_mutex);
+
+    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
 
     if (create_from_engine) {
         // table already exists, nothing to do
@@ -6501,9 +6499,15 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
-
+    if (trx && trx->sub_sp_level) {
+        txn = trx->sub_sp_level;
+    }
+    else {
+        do_commit = true;
+        error = db_env->txn_begin(db_env, 0, &txn, 0);
+        if (error) { goto cleanup; }        
+    }
+    
     primary_key = form->s->primary_key;
     hidden_primary_key = (primary_key  >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
     if (hidden_primary_key) {
@@ -6579,7 +6583,7 @@ cleanup:
         assert(r==0);
     }
     free_key_and_col_info(&kc_info);
-    if (txn) {
+    if (do_commit && txn) {
         if (error) {
             abort_txn(txn);
         }
