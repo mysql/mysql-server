@@ -3596,7 +3596,11 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_ZERO);
 
     flags = SET_READ_FLAG(0); 
-    error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index); 
+    lockretry {
+        error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
     if (error) {
         goto cleanup;
     }
@@ -3754,7 +3758,12 @@ int ha_tokudb::index_next(uchar * buf) {
     info.ha = this;
     info.buf = buf;
     info.keynr = active_index;
-    error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info), HA_ERR_END_OF_FILE,active_index);
+
+    lockretry {
+        error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
@@ -3797,7 +3806,13 @@ int ha_tokudb::index_prev(uchar * buf) {
     info.ha = this;
     info.buf = buf;
     info.keynr = active_index;
-    error = handle_cursor_error(cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
+
+    lockretry {
+        error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
+
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
@@ -3836,7 +3851,12 @@ int ha_tokudb::index_first(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    error = handle_cursor_error(cursor->c_getf_first(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
+    lockretry {
+        error = cursor->c_getf_first(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
+
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
@@ -3875,7 +3895,11 @@ int ha_tokudb::index_last(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    error = handle_cursor_error(cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
+    lockretry {
+        error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
     //
     // still need to get entire contents of the row if operation done on
     // secondary DB and it was NOT a covering index
@@ -3962,8 +3986,12 @@ int ha_tokudb::rnd_next(uchar * buf) {
     info.ha = this;
     info.buf = buf;
     info.keynr = primary_key;
-    
-    error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,primary_key);
+
+    lockretry {
+        error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
+        lockretry_wait;
+    }
+    error = handle_cursor_error(error, HA_ERR_END_OF_FILE,primary_key);
 
     trx->stmt_progress.queried++;
     track_progress(thd);
