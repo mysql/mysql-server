@@ -7,7 +7,7 @@
 // hook my_malloc_always_fails into malloc to control malloc and verify
 // the correct recovery from malloc failures
 #if defined(__linux__)
-#define DO_MALLOC_HOOK 1
+#define DO_MALLOC_HOOK 0
 #else
 #define DO_MALLOC_HOOK 0
 #endif
@@ -31,7 +31,7 @@ test_cachetable_create(void) {
 }
 
 // verify that cachetable create with no memory returns ENOMEM
-#if defined(__linux__)
+#if DO_MALLOC_HOOK
 
 static void
 test_cachetable_create_no_memory (void) {
@@ -668,7 +668,7 @@ test_main (int argc, const char *argv[]) {
     test_multi_filehandles();
 #endif
     test_cachetable_create();
-#if defined(__linux__)
+#if DO_MALLOC_HOOK
     if (do_malloc_fail)
         test_cachetable_create_no_memory();    // fails with valgrind
 #endif
