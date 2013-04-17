@@ -14,10 +14,35 @@ to insert a message at the root
     - capture the next msn of the root node and assign it to the message
     - split the root if it needs to be split
     - insert the message into the root buffer
-    - if the root is too full, then flush_some_child() of the root
+    - if the root is too full, then flush_some_child() of the root on a flusher thread
 
-Flusher code uses an advice struct with some functions that tell
-it what to do based on the context of the flush. see brt-flusher.h
+flusher threads:
+    flusher threads are created on demand as the result of internal nodes
+    becoming gorged by insertions. this allows flushing to be done somewhere
+    other than the client thread. these work items are enqueued onto
+    the cachetable kibbutz and are done in a first in first out order.
+
+cleaner threads:
+
+    the cleaner thread wakes up every so often (say, 1 second) and chooses
+    a small number (say, 5) of nodes as candidates for a flush. the one
+    with the largest cache pressure is chosen to be flushed. cache pressure
+    is a function of the size of the node in the cachetable plus the work done.
+    the cleaner thread need not actually do a flush when awoken, so only
+    nodes that have sufficient cache pressure are flushed.
+
+checkpoingting:
+
+    the checkpoint thread wakes up every minute to checkpoint dirty nodes
+    to disk. at the time of this writing, nodes during checkpoint are
+    locked and cannot be queried or flushed to. a design in which nodes
+    are copied before checkpoint is being considered as a way to reduce
+    the performance variability caused by a checkpoint locking too
+    many nodes and preventing other threads from traversing down the tree,
+    for a query or otherwise.
+
+Flusher functions use an advice struct with provides some functions to
+call that tell it what to do based on the context of the flush. see brt-flusher.h
 
 to flush some child, given a parent and some advice
     - pick the child using advice->pick_child()
@@ -93,7 +118,8 @@ lookups:
     - when a node is brought into memory, we apply ancestor messages above it.
     - for point queries, we do not read the entire node into memory. instead,
       only the required basement node is read
-    */
+
+*/
 
 #include "includes.h"
 #include "checkpoint.h"
