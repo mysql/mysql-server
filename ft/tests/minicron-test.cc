@@ -40,6 +40,7 @@ static void*
 test1 (void* v)
 {
     struct minicron m;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 0, never_run, 0);   assert(r==0);
     sleep(1);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
@@ -51,6 +52,7 @@ static void*
 test2 (void* v)
 {
     struct minicron m;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 10, never_run, 0);   assert(r==0);
     sleep(2);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
@@ -87,6 +89,7 @@ test3 (void* v)
     struct tenx tx;
     gettimeofday(&tx.tv, 0);
     tx.counter=0;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 1, run_5x, &tx);   assert(r==0);
     sleep(5);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
@@ -109,6 +112,7 @@ static void*
 test4 (void *v) {
     struct minicron m;
     int counter = 0;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 2, run_3sec, &counter); assert(r==0);
     sleep(9);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
@@ -120,6 +124,7 @@ static void*
 test5 (void *v) {
     struct minicron m;
     int counter = 0;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 10, run_3sec, &counter); assert(r==0);
     r = toku_minicron_change_period(&m, 2);                  assert(r==0);
     sleep(9);
@@ -131,6 +136,7 @@ test5 (void *v) {
 static void*
 test6 (void *v) {
     struct minicron m;
+    ZERO_STRUCT(m);
     int r = toku_minicron_setup(&m, 5, never_run, 0); assert(r==0);
     r = toku_minicron_change_period(&m, 0);                  assert(r==0);
     sleep(7);
