@@ -34,9 +34,9 @@ VISIBILITY=-fvisibility=hidden
  endif
 endif
 
-CFLAGS = -Werror -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 ifneq ($(CC),icc)
- CFLAGS += -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
+ CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else
  CFLAGS += -g 
  CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
