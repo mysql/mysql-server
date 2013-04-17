@@ -284,10 +284,44 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     toku_free(vp);
 }
 
+#if 0
 static void
 hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     u_int64_t i;
     for (i=0; i<size; i++) {
+        if ((i % 32) == 0)
+            printf("%"PRIu64": ", offset+i);
+        printf("%2.2X", vp[i]);
+        if (((i+1) % 4) == 0)
+            printf(" ");
+        if (((i+1) % 32) == 0)
+            printf("\n");
+    }
+    printf("\n");
+}
+#endif
+
+static void
+hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
+    u_int64_t n = size / 32;
+    for (u_int64_t i = 0; i < n; i++) {
+        printf("%"PRIu64": ", offset);
+	for (u_int64_t j = 0; j < 32; j++) {
+	    unsigned char c = vp[j];
+	    printf("%2.2X", c);
+	    if (((j+1) % 4) == 0)
+	        printf(" ");
+	}
+	for (u_int64_t j = 0; j < 32; j++) {
+            unsigned char c = vp[j];
+	    printf("%c", isprint(c) ? c : ' ');
+	}
+	printf("\n");
+	vp += 32;
+	offset += 32;
+    }
+    size = size % 32;
+    for (u_int64_t i=0; i<size; i++) {
         if ((i % 32) == 0)
             printf("%"PRIu64": ", offset+i);
         printf("%2.2X", vp[i]);
