@@ -739,7 +739,6 @@ u_int32_t skip_field_in_descriptor(uchar* row_desc) {
 // we would skip in skip_field_in_descriptor
 //
 int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
-    int ret_val = 0;
     uchar* pos = buf;
     u_int32_t num_bytes_in_field = 0;
     u_int32_t charset_num = 0;
