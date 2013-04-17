@@ -2967,12 +2967,15 @@ int cleaner::run_cleaner(void) {
             if (best_pair && m_pl->m_cleaner_head->mutex == best_pair->mutex) {
                 // Advance the cleaner head.
                 long score = 0;
-                score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
-                if (score > best_score) {
-                    best_score = score;
-                    best_pair = m_pl->m_cleaner_head;
+                // only bother with this pair if it has no current users
+                if (m_pl->m_cleaner_head->value_rwlock.users() > 0) {
+                    score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
+                    if (score > best_score) {
+                        best_score = score;
+                        best_pair = m_pl->m_cleaner_head;
+                    }
+                    m_pl->m_cleaner_head = m_pl->m_cleaner_head->clock_next;
                 }
-                m_pl->m_cleaner_head = m_pl->m_cleaner_head->clock_next;
                 continue;
             }
             pair_lock(m_pl->m_cleaner_head);
