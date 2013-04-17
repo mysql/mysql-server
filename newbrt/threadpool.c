@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #include <toku_portability.h>
 #include "toku_pthread.h"
