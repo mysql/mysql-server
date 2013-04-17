@@ -463,7 +463,8 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
 }
 
 //
-// This function is the only way to set a descriptor of a DB.
+// This function is used both to set an initial descriptor of a DB and to
+// change a descriptor. (only way to set a descriptor of a DB)
 //
 static int 
 toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t flags) {
@@ -484,8 +485,10 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
         r = EINVAL; // cannot have a parent if you are a resetting op
         goto cleanup;
     }
+    // For a hot index, this is an initial descriptor.
+    // We do not support (yet) hcad with hot index concurrently on a single table, which
+    // would require changing a descriptor for a hot index.
     if (!is_db_hot_index) {
-        //TODO(zardosht): why doesn't hot_index need to do locking?
         r = toku_db_pre_acquire_table_lock(db, txn);
         if (r != 0) { goto cleanup; }    
     }
@@ -661,7 +664,6 @@ locked_db_close(DB * db, u_int32_t UU(flags)) {
 int 
 autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags) {
     BOOL changed; int r;
-    // ydb lock is NOT held here
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;
     r = toku_db_get(db, txn, key, data, flags);
@@ -671,7 +673,6 @@ autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags) {
 static inline int 
 autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     BOOL changed; int r;
-    // ydb lock is NOT held here
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;
     r = db_getf_set(db, txn, flags, key, f, extra);
