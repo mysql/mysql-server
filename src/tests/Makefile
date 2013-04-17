@@ -124,6 +124,7 @@ BDB_DONTRUN_TESTS = \
 	recover-delboth-checkpoint \
 	recover-delboth-after-checkpoint \
 	filesize \
+        isolation \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
