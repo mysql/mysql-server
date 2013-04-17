@@ -196,6 +196,92 @@ dump_fragmentation(int f, struct brt_header *h) {
     printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
 }
 
+static u_int32_t 
+get_unaligned_uint32(unsigned char *p) {
+    return *(u_int32_t *)p;
+}
+
+#define SUB_BLOCK_XSUM 0
+
+struct sub_block {
+  u_int32_t compressed_size;
+  u_int32_t uncompressed_size;
+#if SUB_BLOCK_XSUM
+  u_int32_t xsum;
+#endif
+};
+
+static void
+sub_block_deserialize(struct sub_block *sb, unsigned char *sub_block_header) {
+    sb->compressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+0));
+    sb->uncompressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+4));
+#if SUB_BLOCK_XSUM
+    sb->xsum = toku_dtoh32(get_unaligned_uint32(sub_block_header+8));
+#endif
+}
+
+static void
+verify_block(unsigned char *cp, u_int64_t size) {
+    // verify the header checksum
+    const size_t node_header = 8 + sizeof (u_int32_t) + sizeof (u_int32_t);
+    unsigned char *sub_block_header = &cp[node_header];
+    u_int32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
+    u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct sub_block);
+#if SUB_BLOCK_XSUM
+    header_length += sizeof (u_int32_t); // CRC
+#endif
+    if (header_length > size) {
+        printf("header length too big: %u\n", header_length);
+        return;
+    }
+#if SUB_BLOCK_XSUM
+    u_int32_t header_xsum = x1764_memory(cp, header_length);
+    u_int32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
+    if (header_xsum != expected_xsum) {
+        printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
+        return;
+    }
+#endif
+
+    // deserialize the sub block header
+    struct sub_block sub_block[n_sub_blocks];
+    sub_block_header += sizeof (u_int32_t);
+    for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
+        sub_block_deserialize(&sub_block[i], sub_block_header);
+        sub_block_header += sizeof (struct sub_block);
+    }
+
+    // verify the sub block header
+    u_int32_t offset = header_length + 4;
+    for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
+#if SUB_BLOCK_XSUM
+        u_int32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
+        printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
+        if (xsum != sub_block[i].xsum)
+            printf(" fail %u", xsum);
+#else
+        printf("%u: %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size);
+#endif
+        printf("\n");
+        offset += sub_block[i].compressed_size;
+    }
+    if (offset != size)
+        printf("offset %u expected %"PRIu64"\n", offset, size);
+}
+
+static void
+dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
+    DISKOFF offset, size;
+    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
+    printf("%"PRIu64" at %"PRIu64" size %"PRIu64"\n", blocknum.b, offset, size);
+
+    unsigned char *vp = toku_malloc(size);
+    u_int64_t r = pread(f, vp, size, offset);
+    if (r == (u_int64_t)size)
+        verify_block(vp, size);
+    toku_free(vp);
+}
+
 static void
 hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     u_int64_t i;
@@ -327,6 +413,9 @@ main (int argc, const char *const argv[]) {
             } else if (strcmp(fields[0], "header") == 0) {
                 toku_brtheader_free(h);
                 dump_header(f, &h, cf);
+            } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
+                BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
+                dump_block(f, blocknum, h);
             } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
                 BLOCKNUM off = make_blocknum(getuint64(fields[1]));
                 dump_node(f, off, h);
