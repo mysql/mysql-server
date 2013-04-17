@@ -811,6 +811,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         }
         *txn = 0;
         trx->sub_sp_level = NULL;
+        trx->should_abort = false;
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
         TOKUDB_TRACE("nothing to commit %d\n", all);
@@ -834,6 +835,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         }
         *txn = 0;
         trx->sub_sp_level = NULL;
+        trx->should_abort = false;
     } 
     else {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {

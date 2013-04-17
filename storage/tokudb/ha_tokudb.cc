@@ -3283,6 +3283,7 @@ cleanup:
     if (error || loader_error) {
         my_errno = error ? error : loader_error;
         if (using_loader) {
+            trx->should_abort = true;
             share->try_table_lock = true;
         }
     }
@@ -5972,12 +5973,21 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 reset_stmt_progress(&trx->stmt_progress);
                 if (!is_fast_alter_running) {
-                    commit_txn(trx->stmt, 0);
-                    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                        TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
+                    if (trx->should_abort) {
+                        abort_txn(trx->stmt);
+                        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+                            TOKUDB_TRACE("rollback:%p\n", trx->stmt);
+                        }
+                    }
+                    else {
+                        commit_txn(trx->stmt, 0);
+                        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+                            TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
+                        }
                     }
                     trx->stmt = NULL;
                     trx->sub_sp_level = NULL;
+                    trx->should_abort = false;
                 }
             }
         }
