@@ -72,7 +72,7 @@ toku_pin_brtnode(
     BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     BRTNODE *node_p,
     BOOL* msgs_applied
-    ) __attribute__((__warn_unused_result__));
+    );
 
 /**
  * see comments for toku_pin_brtnode
