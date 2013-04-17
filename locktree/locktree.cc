@@ -158,7 +158,6 @@ void locktree::update_single_txnid_optimization(TXNID txnid) {
 // transactions that conflict with this request.
 int locktree::acquire_lock(bool is_write_request, TXNID txnid,
         const DBT *left_key, const DBT *right_key, txnid_set *conflicts) {
-    row_lock lock;
     keyrange requested_range;
     requested_range.create(left_key, right_key);
 
@@ -186,15 +185,14 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
         // so, we must consolidate all existing overlapping ranges and the requested
         // range into one dominating range. then we insert the dominating range.
         for (size_t i = 0; i < num_overlapping_row_locks; i++) {
-            lock = overlapping_row_locks.fetch_unchecked(i);
-            invariant(lock.txnid == txnid);
-            requested_range.extend(m_cmp, lock.range);
-            remove_row_lock(&lkr, lock, m_mem_tracker);
+            row_lock overlapping_lock = overlapping_row_locks.fetch_unchecked(i);
+            invariant(overlapping_lock.txnid == txnid);
+            requested_range.extend(m_cmp, overlapping_lock.range);
+            remove_row_lock(&lkr, overlapping_lock, m_mem_tracker);
         }
 
-        lock.range = requested_range;
-        lock.txnid = txnid;
-        insert_row_lock(&lkr, lock, m_mem_tracker);
+        row_lock new_lock = { .range = requested_range, .txnid = txnid };
+        insert_row_lock(&lkr, new_lock, m_mem_tracker);
     }
 
     lkr.release();
