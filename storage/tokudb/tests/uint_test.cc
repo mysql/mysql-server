@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -13,7 +14,7 @@ static void test(int length_bits) {
         for (uint64_t y = 0; y <= max; y++) {
             bool over;
             uint64_t n = uint_add(x, y, max, &over);
-            printf("%llu %llu %llu\n", x, y, n);
+            printf("%"PRIu64" %"PRIu64" %"PRIu64"\n", x, y, n);
         }
     }
 }

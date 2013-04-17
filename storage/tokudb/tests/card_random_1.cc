@@ -35,6 +35,7 @@ public:
     KEY_INFO *key_info;
 };
 uint get_key_parts(KEY_INFO *key_info) {
+    assert(key_info);
     return 0;
 }
 #include "tokudb_card.h"
@@ -85,7 +86,7 @@ static void load_db(DB_ENV *env, DB *db, uint32_t nrows, uint32_t maxrand) {
     assert(r == 0);
 }
 
-static int analyze_key_compare(DB *db, const DBT *a, const DBT *b, uint level) {
+static int analyze_key_compare(DB *db __attribute__((unused)), const DBT *a, const DBT *b, uint level) {
     assert(a->size == b->size);
     switch (level) {
     default:
@@ -98,7 +99,7 @@ static int analyze_key_compare(DB *db, const DBT *a, const DBT *b, uint level) {
     }
 }
 
-static void test_card(DB_ENV *env, DB *db, uint64_t nrows, uint64_t expect[]) {
+static void test_card(DB_ENV *env, DB *db, uint64_t expect[]) {
     int r;
     
     DB_TXN *txn = NULL;
@@ -157,7 +158,7 @@ int main(int argc, char * const argv[]) {
     load_db(env, db, nrows, maxrand);
 
     uint64_t expect[2] = { nrows/maxrand, 1 };
-    test_card(env, db, nrows, expect);
+    test_card(env, db, expect);
 
     r = db->close(db, 0);
     assert(r == 0);

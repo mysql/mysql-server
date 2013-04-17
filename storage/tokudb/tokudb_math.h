@@ -20,7 +20,7 @@ static uint64_t uint_high_endpoint(uint length_bits) {
 
 // Return the lowest unsigned int with a given number of bits
 static uint64_t uint_low_endpoint(uint length_bits) __attribute__((unused));
-static uint64_t uint_low_endpoint(uint length_bits) {
+static uint64_t uint_low_endpoint(uint length_bits __attribute__((unused))) {
     return 0;
 }
 

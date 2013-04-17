@@ -11,7 +11,7 @@ namespace tokudb {
 
 class buffer {
 public:
-    buffer(void *data, size_t s, size_t l) : m_data(data), m_size(s), m_limit(l), m_is_static(true) {
+    buffer(void *the_data, size_t s, size_t l) : m_data(the_data), m_size(s), m_limit(l), m_is_static(true) {
     }
     buffer() : m_data(NULL), m_size(0), m_limit(0), m_is_static(false) {
     }

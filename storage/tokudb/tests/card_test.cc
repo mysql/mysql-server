@@ -29,6 +29,7 @@ public:
     KEY_INFO *key_info;
 };
 uint get_key_parts(KEY_INFO *key_info) {
+    assert(key_info);
     return 0;
 }
 #include <tokudb_card.h>
@@ -153,7 +154,7 @@ static void test_10(DB_ENV *env) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main() {
     int error;
 
     error = system("rm -rf " __FILE__ ".testdir");
