@@ -2212,6 +2212,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
             if ((error = remove_key(txn, keynr, old_row, &old_prim_key))) {
                 goto cleanup;
             }
+            create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null), 
             put_flags = share->key_type[keynr];
             if (put_flags == DB_NOOVERWRITE && (has_null || thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))) {
                 put_flags = DB_YESOVERWRITE;
@@ -2219,7 +2220,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
             error = share->key_file[keynr]->put(
                 share->key_file[keynr], 
                 txn, 
-                create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null), 
+                &key,
                 &prim_key, 
                 put_flags
                 );
