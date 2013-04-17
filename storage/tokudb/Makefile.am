@@ -20,7 +20,7 @@ noinst_HEADERS	  =
 
 EXTRA_LTLIBRARIES =	ha_tokudb.la
 pkgplugin_LTLIBRARIES =	@plugin_tokudb_shared_target@
-ha_tokudb_la_LIBADD =   -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -ltokuportability
+ha_tokudb_la_LIBADD =   -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -l$(TOKUPORTABILITY_LIBNAME)
 ha_tokudb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_tokudb_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
 ha_tokudb_la_SOURCES =	hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
