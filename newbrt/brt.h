@@ -125,6 +125,7 @@ enum brt_header_flags {
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);
+int toku_brt_stat64 (BRT, TOKUTXN, u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize);
 
 void toku_brt_init(void);
 void toku_brt_destroy(void);

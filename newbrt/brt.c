@@ -254,6 +254,50 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
     abort(); return 0;
 }
 
+struct fill_leafnode_estimates_state {
+    struct subtree_estimates *e;
+    OMTVALUE prevval;
+    BRTNODE  node;
+};
+
+static int
+fill_leafnode_estimates (OMTVALUE val, u_int32_t UU(idx), void *vs)
+{
+    LEAFENTRY le = val;
+    struct fill_leafnode_estimates_state *s = vs;
+    s->e->dsize += le_any_keylen(le) + le_any_vallen(le);
+    s->e->ndata++;
+    if ((s->prevval == NULL) ||
+	(0 == (s->node->flags & TOKU_DB_DUPSORT)) ||
+	(le_any_keylen(le) != le_any_keylen(s->prevval)) ||
+	(memcmp(le_any_key(le), le_any_key(s->prevval), le_any_keylen(le))!=0)) { // really should use comparison function
+	s->e->nkeys++;
+    }
+    s->prevval = le;
+    return 0;
+}
+
+static struct subtree_estimates
+calc_leaf_stats (BRTNODE node) {
+    struct subtree_estimates e = zero_estimates;
+    struct fill_leafnode_estimates_state f = {&e, (OMTVALUE)NULL, node};
+    toku_omt_iterate(node->u.l.buffer, fill_leafnode_estimates, &f);
+    return e;
+}
+
+static void __attribute__((__unused__))
+brt_leaf_check_leaf_stats (BRTNODE node)
+{
+    static int count=0; count++;
+    if (node->height>0) return;
+    struct subtree_estimates e = calc_leaf_stats(node);
+    assert(e.ndata == node->u.l.leaf_stats.ndata);
+    assert(e.nkeys == node->u.l.leaf_stats.nkeys);
+    assert(e.dsize == node->u.l.leaf_stats.dsize);
+    assert(node->u.l.leaf_stats.exact);
+}
+
+// This should be done incrementally in most cases.
 static void
 fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child)
 // Effect:  Sum the child fingerprint (and leafentry estimates) and store them in NODE.
@@ -264,21 +308,32 @@ fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child)
 //   brt                 The brt (not used now but it will be for logger)
 //   logger              The logger (not used now but it will be for logger)
 {
-    u_int64_t leafentry_estimate = 0;
+    struct subtree_estimates estimates = zero_estimates;
     u_int32_t sum = child->local_fingerprint;
+    estimates.exact = TRUE;
     if (child->height>0) {
         int i;
         for (i=0; i<child->u.n.n_children; i++) {
             sum += BNC_SUBTREE_FINGERPRINT(child,i);
-            leafentry_estimate += BNC_SUBTREE_LEAFENTRY_ESTIMATE(child,i);
+	    struct subtree_estimates *child_se = &BNC_SUBTREE_ESTIMATES(child,i);
+	    estimates.nkeys += child_se->nkeys;
+	    estimates.ndata += child_se->ndata;
+	    estimates.dsize += child_se->dsize;
+	    if (!child_se->exact) estimates.exact = FALSE;
+	    if (toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) estimates.exact=FALSE;
         }
     } else {
-        leafentry_estimate = toku_omt_size(child->u.l.buffer);
+	estimates = child->u.l.leaf_stats;
+#ifdef SLOWSLOW
+	assert(estimates.ndata == child->u.l.leaf_stats.ndata);
+	struct fill_leafnode_estimates_state s = {&estimates, (OMTVALUE)NULL};
+	toku_omt_iterate(child->u.l.buffer, fill_leafnode_estimates, &s);
+#endif
     }
     // Don't try to get fancy about not modifying the fingerprint if it didn't change.
     // We only call this function if we have reason to believe that the child's fingerprint did change.
     BNC_SUBTREE_FINGERPRINT(node,childnum_of_node)=sum;
-    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node,childnum_of_node)=leafentry_estimate;
+    BNC_SUBTREE_ESTIMATES(node,childnum_of_node)=estimates;
     node->dirty=1;
 }
 
@@ -286,6 +341,7 @@ static inline void
 verify_local_fingerprint_nonleaf (BRTNODE node)
 {
     if (0) {
+	//brt_leaf_check_leaf_stats(node);
         static int count=0; count++;
         u_int32_t fp=0;
         int i;
@@ -310,16 +366,17 @@ toku_verify_estimates (BRT t, BRTNODE node) {
             int r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &childnode_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
             assert(r==0);
             BRTNODE childnode = childnode_v;
+	    // we'll just do this estimate
             u_int64_t child_estimate = 0;
             if (childnode->height==0) {
                 child_estimate = toku_omt_size(childnode->u.l.buffer);
             } else {
                 int i;
                 for (i=0; i<childnode->u.n.n_children; i++) {
-                    child_estimate += BNC_SUBTREE_LEAFENTRY_ESTIMATE(childnode, i);
+                    child_estimate += BNC_SUBTREE_ESTIMATES(childnode, i).ndata;
                 }
             }
-            assert(BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum)==child_estimate);
+            assert(BNC_SUBTREE_ESTIMATES(node, childnum).ndata==child_estimate);
             toku_unpin_brtnode(t, childnode);
         }
     }
@@ -621,6 +678,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height)
         n->u.n.childinfos=0;
         n->u.n.childkeys=0;
     } else {
+	n->u.l.leaf_stats = zero_estimates;
         int r;
         r = toku_omt_create(&n->u.l.buffer);
         assert(r==0);
@@ -687,8 +745,8 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     BNC_NBYTESINBUF(newroot, 1)=0;
     BNC_SUBTREE_FINGERPRINT(newroot, 0)=0;
     BNC_SUBTREE_FINGERPRINT(newroot, 1)=0;
-    BNC_SUBTREE_LEAFENTRY_ESTIMATE(newroot, 0)=0;
-    BNC_SUBTREE_LEAFENTRY_ESTIMATE(newroot, 1)=0;
+    BNC_SUBTREE_ESTIMATES(newroot, 0)=zero_estimates;
+    BNC_SUBTREE_ESTIMATES(newroot, 1)=zero_estimates;
     verify_local_fingerprint_nonleaf(nodea);
     verify_local_fingerprint_nonleaf(nodeb);
     fixup_child_fingerprint(newroot, 0, nodea);
@@ -792,20 +850,48 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
             u_int32_t i;
             u_int32_t diff_fp = 0;
             u_int32_t diff_size = 0;
+	    struct subtree_estimates diff_est = zero_estimates;
+	    LEAFENTRY free_us[n_leafentries-break_at];
             for (i=break_at; i<n_leafentries; i++) {
+		LEAFENTRY prevle = (i>0) ? leafentries[i-1] : 0;
                 LEAFENTRY oldle = leafentries[i];
                 LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
                 assert(newle!=0); // it's a fresh mpool, so this should always work.
+		BOOL key_is_unique;
+		{
+		    DBT xdbt,ydbt;
+		    if (t->flags & TOKU_DB_DUPSORT) key_is_unique=TRUE;
+		    else if (prevle==NULL)          key_is_unique=TRUE;
+		    else if (t->compare_fun(t->db,
+					    toku_fill_dbt(&xdbt, le_any_key(prevle), le_any_keylen(prevle)),
+					    toku_fill_dbt(&ydbt, le_any_key(oldle),   le_any_keylen(oldle)))
+			     ==0) {
+			key_is_unique=FALSE;
+		    } else {
+			key_is_unique=TRUE;
+		    }
+		}
+		if (key_is_unique) diff_est.nkeys++;
+		diff_est.ndata++;
+		diff_est.dsize += le_any_keylen(oldle) + le_any_vallen(oldle);
+		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(oldle)+ le_any_vallen(oldle), diff_est.dsize);
                 diff_fp += toku_le_crc(oldle);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
-                toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+		free_us[i-break_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
                 leafentries[i] = newle;
-            }
+	    }
+            for (i=break_at; i<n_leafentries; i++) {
+		LEAFENTRY oldle = free_us[i-break_at];
+                toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+	    }
             node->local_fingerprint -= node->rand4fingerprint * diff_fp;
             B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
             node->u.l.n_bytes_in_buffer -= diff_size;
             B   ->u.l.n_bytes_in_buffer += diff_size;
+	    subtract_estimates(&node->u.l.leaf_stats, &diff_est);
+	    add_estimates     (&B->u.l.leaf_stats,    &diff_est);
+	    //printf("%s:%d After subtracint and adding got %lu and %lu\n", __FILE__, __LINE__, node->u.l.leaf_stats.dsize, B->u.l.leaf_stats.dsize);
         }
         if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+break_at, n_leafentries-break_at))) return r;
         if ((r = toku_omt_create_steal_sorted_array(&node->u.l.buffer, &leafentries,          break_at, n_leafentries))) return r;
@@ -815,6 +901,9 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         toku_verify_all_in_mempool(B);
 
         toku_omt_destroy(&old_omt);
+
+	node->u.l.leaf_stats = calc_leaf_stats(node);
+	B   ->u.l.leaf_stats = calc_leaf_stats(B   );
     }
 
     //toku_verify_gpma(node->u.l.buffer);
@@ -873,8 +962,8 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     B->u.n.n_children   =n_children_in_b;
     if (0) {
         printf("%s:%d %p (%" PRId64 ") splits, old estimates:", __FILE__, __LINE__, node, node->thisnodename.b);
-        int i;
-        for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+        //int i;
+        //for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
         printf("\n");
     }
 
@@ -890,7 +979,7 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
             if (r!=0) return r;
             BNC_NBYTESINBUF(B,i)=0;
             BNC_SUBTREE_FINGERPRINT(B,i)=0;
-            BNC_SUBTREE_LEAFENTRY_ESTIMATE(B,i)=0;
+            BNC_SUBTREE_ESTIMATES(B,i)=zero_estimates;
         }
 
         verify_local_fingerprint_nonleaf(node);
@@ -945,11 +1034,11 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
             BNC_BLOCKNUM(node, i) = make_blocknum(0);
             BNC_HAVE_FULLHASH(node, i) = FALSE; 
             
-            BNC_SUBTREE_FINGERPRINT(B, targchild) = BNC_SUBTREE_FINGERPRINT(node, i);
-            BNC_SUBTREE_FINGERPRINT(node, i) = 0;
+            BNC_SUBTREE_FINGERPRINT(B, targchild)  = BNC_SUBTREE_FINGERPRINT(node, i);
+            BNC_SUBTREE_FINGERPRINT(node, i)       = 0;
 
-            BNC_SUBTREE_LEAFENTRY_ESTIMATE(B, targchild) = BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
-            BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i) = 0;
+            BNC_SUBTREE_ESTIMATES(B,    targchild) = BNC_SUBTREE_ESTIMATES(node, i);
+            BNC_SUBTREE_ESTIMATES(node, i)         = zero_estimates;
 
             assert(BNC_NBYTESINBUF(node, i) == 0);
         }
@@ -1021,8 +1110,8 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     XREALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
     XREALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
-    BNC_SUBTREE_FINGERPRINT       (node, node->u.n.n_children+1)=0;
-    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, node->u.n.n_children+1)=0;
+    BNC_SUBTREE_FINGERPRINT (node, node->u.n.n_children+1)=0;
+    BNC_SUBTREE_ESTIMATES   (node, node->u.n.n_children+1)=zero_estimates;
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
         node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
     }
@@ -1033,8 +1122,8 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     BNC_HAVE_FULLHASH(node, childnum+1) = TRUE;
     BNC_FULLHASH(node, childnum+1) = childb->fullhash;
     // BNC_SUBTREE_FINGERPRINT(node, childnum)=0; // leave the subtreefingerprint alone for the child, so we can log the change
-    BNC_SUBTREE_FINGERPRINT       (node, childnum+1)=0;
-    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum+1)=0;
+    BNC_SUBTREE_FINGERPRINT(node, childnum+1)=0;
+    BNC_SUBTREE_ESTIMATES  (node, childnum+1)=zero_estimates;
     fixup_child_fingerprint(node, childnum,   childa);
     fixup_child_fingerprint(node, childnum+1, childb);
     r=toku_fifo_create(&BNC_BUFFER(node,childnum+1)); assert(r==0);
@@ -1096,8 +1185,8 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
 {
     if (0) {
         printf("%s:%d Node %" PRId64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
-        int i;
-        for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+        //int i;
+        //for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
         printf("\n");
     }
     assert(node->height>0);
@@ -1146,8 +1235,8 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
         int r = handle_split_of_child (t, node, childnum, nodea, nodeb, &splitk);
         if (0) {
             printf("%s:%d Node %" PRId64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
-            int i;
-            for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+            //int i;
+            //for (i=0; i<node->u.n.n_children; i++) printf(" %" PRIu64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
             printf("\n");
         }
         return r;
@@ -1417,12 +1506,45 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 }
 
 static int
+other_key_matches (BRTNODE node, u_int32_t idx, LEAFENTRY le)
+{
+    OMTVALUE other_lev = 0;
+    int r = toku_omt_fetch(node->u.l.buffer, idx, &other_lev, (OMTCURSOR)NULL);
+    assert(r==0);
+    LEAFENTRY other_le = other_lev;
+    u_int32_t other_keylen = le_any_keylen(other_le);
+    if (other_keylen == le_any_keylen(le)
+	&& memcmp(le_any_key(other_le), le_any_key(le), other_keylen)==0)   // really should use comparison function
+	return 1;
+    else
+	return 0;
+}
+
+static void
+maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
+    int keybump=direction;
+
+    if (0 != (node->flags & TOKU_DB_DUPSORT)) {
+	if (idx>0) {
+	    if (other_key_matches(node, idx-1, le)) keybump=0;
+	}
+	if (idx+1<toku_omt_size(node->u.l.buffer)) {
+	    if (other_key_matches(node, idx+1, le)) keybump=0;
+	}
+    }
+    node->u.l.leaf_stats.nkeys += keybump;;
+    assert(node->u.l.leaf_stats.exact);
+}
+
+static int
 brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
                          u_int32_t idx, LEAFENTRY le)
 // Effect: Apply cmd to leafentry
 //   idx is the location where it goes
 //   le is old leafentry
 {
+    // brt_leaf_check_leaf_stats(node);
+
     u_int32_t newlen=0, newdisksize=0;
     LEAFENTRY new_le=0;
     void *maybe_free = 0;
@@ -1443,9 +1565,22 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
 
     if (le && new_le) {
 
+	// If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
+	{
+	    u_int32_t oldlen = le_any_vallen(le);
+	    assert(node->u.l.leaf_stats.dsize >= oldlen);
+	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+	    node->u.l.leaf_stats.dsize -= oldlen;
+	    node->u.l.leaf_stats.dsize += le_any_vallen(new_le); // add it in two pieces to avoid ugly overflow
+	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+	}
+
         node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
         node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
         
+	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_any_keylen(new_le), le_any_vallen(le), node->u.l.leaf_stats.dsize);
+	// the ndata and nkeys remains unchanged
+
         u_int32_t size = leafentry_memsize(le);
 
         // This mfree must occur after the mempool_malloc so that when the mempool is compressed everything is accounted for.
@@ -1461,19 +1596,38 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
         if (le) {
             // It's there, note that it's gone and remove it from the mempool
 
+	    // Figure out if one of the other keys is the same key
+	    maybe_bump_nkeys(node, idx, le, -1);
+
             if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) goto return_r;
 
             node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
             node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
 
+	    {
+		u_int32_t oldlen = le_any_vallen(le) + le_any_keylen(le);
+		assert(node->u.l.leaf_stats.dsize >= oldlen);
+		node->u.l.leaf_stats.dsize -= oldlen;
+	    }
+	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+	    node->u.l.leaf_stats.ndata --;
+
             toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
 
         }
         if (new_le) {
+
+
             if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
             node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
             node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
+
+	    node->u.l.leaf_stats.dsize += le_any_vallen(new_le) + le_any_keylen(new_le);
+	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
+	    node->u.l.leaf_stats.ndata ++;
+	    // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
+	    maybe_bump_nkeys(node, idx, new_le, +1);
         }
     }
     r=0;
@@ -1481,6 +1635,8 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_CMD cmd,
  return_r:
 
     if (maybe_free) toku_free(maybe_free); //
+
+    // brt_leaf_check_leaf_stats(node);
 
     return r;
 }
@@ -1854,16 +2010,31 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size, 0);
             assert(new_le);
             memcpy(new_le, le, le_size);
-            int r = toku_omt_insert_at(omta, new_le, toku_omt_size(a->u.l.buffer));
+	    int idx = toku_omt_size(a->u.l.buffer);
+            int r = toku_omt_insert_at(omta, new_le, idx);
             assert(r==0);
             a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
             a->local_fingerprint     += a->rand4fingerprint * le_crc;
+
+	    a->u.l.leaf_stats.ndata++;
+	    maybe_bump_nkeys(a, idx, new_le, +1);
+	    a->u.l.leaf_stats.dsize+= le_any_keylen(le) + le_any_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+le_any_vallen(le), a->u.l.leaf_stats.dsize);
         }
         {
+	    maybe_bump_nkeys(b, 0, le, -1);
             int r = toku_omt_delete_at(omtb, 0);
             assert(r==0);
             b->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
             b->local_fingerprint     -= b->rand4fingerprint * le_crc;
+
+	    b->u.l.leaf_stats.ndata--;
+	    b->u.l.leaf_stats.dsize-= le_any_keylen(le) + le_any_vallen(le);
+	    //printf("%s:%d Subed %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+le_any_vallen(le), b->u.l.leaf_stats.dsize);
+	    assert(b->u.l.leaf_stats.ndata < 1U<<31);
+	    assert(b->u.l.leaf_stats.nkeys < 1U<<31);
+	    assert(b->u.l.leaf_stats.dsize < 1U<<31);
+
             toku_mempool_mfree(&b->u.l.buffer_mempool, 0, le_size);
         }
     }
@@ -1896,17 +2067,31 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             memcpy(new_le, le, le_size);
             int r = toku_omt_insert_at(omtto, new_le, to_idx);
             assert(r==0);
+	    maybe_bump_nkeys(to, to_idx, le, +1);
             to  ->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
             to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
+
+	    to->u.l.leaf_stats.ndata++;
+	    to->u.l.leaf_stats.dsize+= le_any_keylen(le) + le_any_vallen(le);
+	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_any_keylen(le)+ le_any_vallen(le), to->u.l.leaf_stats.dsize);
         }
         {
+	    maybe_bump_nkeys(from, from_idx, le, -1);
             int r = toku_omt_delete_at(omtfrom, from_idx);
             assert(r==0);
             from->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
             from->local_fingerprint     -= from->rand4fingerprint * le_crc;
+
+	    from->u.l.leaf_stats.ndata--;
+	    from->u.l.leaf_stats.dsize-= le_any_keylen(le) + le_any_vallen(le);
+	    assert(from->u.l.leaf_stats.ndata < 1U<<31);
+	    assert(from->u.l.leaf_stats.nkeys < 1U<<31);
+	    //printf("%s:%d Removed %u  get %lu\n", __FILE__, __LINE__, le_any_keylen(le)+ le_any_vallen(le), from->u.l.leaf_stats.dsize);
+
             toku_mempool_mfree(&from->u.l.buffer_mempool, 0, le_size);
         }
     }
+    assert(from->u.l.leaf_stats.dsize < 1U<<31);
     assert(toku_omt_size(a->u.l.buffer)>0);
     {
         LEAFENTRY le = fetch_from_buf(a->u.l.buffer, toku_omt_size(a->u.l.buffer)-1);
@@ -1924,7 +2109,8 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 
 
 static int
-maybe_merge_pinned_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, BOOL *did_merge, struct kv_pair **splitk)
+maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
+			       BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, BOOL *did_merge, struct kv_pair **splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    (We do this if the resulting node is not fissible)
 //         or distribute the leafentries evenly between a and b.   (If a and be are already evenly distributed, we may do nothing.)
 {
@@ -1940,14 +2126,19 @@ maybe_merge_pinned_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair *parent_spli
         }
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk); // We don't need the parent_splitk any more.  If we need a splitk (if we don't merge) we'll malloc a new one.
-        return balance_leaf_nodes(a, b, splitk);
+        int r = balance_leaf_nodes(a, b, splitk);
+	if (r != 0) return r;
     } else {
         // we are merging them.
         *did_merge = TRUE;
         *splitk = 0;
         toku_free(parent_splitk); // if we are merging, the splitk gets freed.
-        return merge_leaf_nodes(a, b);
+        int r = merge_leaf_nodes(a, b);
+	if (r != 0) return r;
     }
+    fixup_child_fingerprint(parent, childnum_of_parent,   a);
+    fixup_child_fingerprint(parent, childnum_of_parent+1, b);
+    return 0;
 }
 
 static int
@@ -2028,7 +2219,7 @@ maybe_merge_pinned_nodes (BRT t,
     verify_local_fingerprint_nonleaf(a);
     parent->dirty = 1; // just to make sure 
     if (a->height == 0) {
-        return maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, splitk);
+        return maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, splitk);
     } else {
         int r = maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, did_merge, splitk);
         verify_local_fingerprint_nonleaf(a);
@@ -2194,6 +2385,8 @@ brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *node
                 int r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk);
                 if (r!=0) return r;
             }
+	    //verify_local_fingerprint_nonleaf(nodea);
+	    //verify_local_fingerprint_nonleaf(nodeb);
             return brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, nodep);
         }
     case RE_FUSIBLE:
@@ -4278,7 +4471,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fu
         for (i=0; i<node->u.n.n_children; i++) {
             int prevcomp = (i==0) ? -1 : compares[i-1];
             int nextcomp = (i+1 >= n_keys) ? 1 : compares[i];
-            int subest = BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
+            int subest = BNC_SUBTREE_ESTIMATES(node, i).ndata;
             if (nextcomp < 0) {
                 // We're definitely looking too far to the left
                 *less += subest;
@@ -4335,6 +4528,39 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
     return 0;
 }
 
+int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize) {
+    assert(brt->h);
+    u_int32_t fullhash;
+    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    CACHEKEY root = *rootp;
+    void *node_v;
+    int r = toku_cachetable_get_and_pin(brt->cf, root, fullhash,
+					&node_v, NULL,
+					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+    if (r!=0) return r;
+    BRTNODE node = node_v;
+
+
+    if (node->height==0) {
+	*nkeys = node->u.l.leaf_stats.nkeys;
+	*ndata = node->u.l.leaf_stats.ndata;
+	*dsize = node->u.l.leaf_stats.dsize;
+    } else {
+	*nkeys = *ndata = *dsize = 0;
+	int i;
+	for (i=0; i<node->u.n.n_children; i++) {
+	    struct subtree_estimates *se = &BNC_SUBTREE_ESTIMATES(node, i);
+	    *nkeys += se->nkeys;
+	    *ndata += se->ndata;
+	    *dsize += se->dsize;
+	}
+    }
+    
+    r = toku_cachetable_unpin(brt->cf, root, fullhash, CACHETABLE_CLEAN, 0);
+    if (r!=0) return r;
+    return 0;
+}
+
 /* ********************* debugging dump ************************ */
 static int
 toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
@@ -4363,7 +4589,13 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
                 fprintf(file, "\n");
             }
             for (i=0; i< node->u.n.n_children; i++) {
-                fprintf(file, "%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
+                fprintf(file, "%*schild %d buffered (%d entries):", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
+		{
+		    struct subtree_estimates *e = &BNC_SUBTREE_ESTIMATES(node, i);
+		    fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
+			    e->ndata, e->nkeys, e->dsize, e->exact);
+		}
+		fprintf(file, "\n");
                 FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
                                   {
                                       data=data; datalen=datalen; keylen=keylen;
@@ -4389,9 +4621,13 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
         fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange (key only)=",
                 depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer);
         if (lorange) { toku_print_BYTESTRING(file, lolen, (void*)lorange); } else { fprintf(file, "-\\infty"); } fprintf(file, " ");
-        if (hirange) { toku_print_BYTESTRING(file, hilen, (void*)hirange); } else { fprintf(file, "\\infty"); } fprintf(file, "\n");
+        if (hirange) { toku_print_BYTESTRING(file, hilen, (void*)hirange); } else { fprintf(file, "\\infty"); }
+	fprintf(file, " est={n=%" PRIu64 " k=%" PRIu64 " s=%" PRIu64 " e=%d}",
+		node->u.l.leaf_stats.ndata, node->u.l.leaf_stats.nkeys, node->u.l.leaf_stats.dsize, node->u.l.leaf_stats.exact);
+	fprintf(file, "\n");
         int size = toku_omt_size(node->u.l.buffer);
         int i;
+	if (0)
         for (i=0; i<size; i++) {
             OMTVALUE v = 0;
             r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);

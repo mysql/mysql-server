@@ -3156,14 +3156,17 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
     return r;
 }
 
-#if 0
-static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
+static int toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
-    v=v; flags=flags;
-    toku_ydb_barf();
-    abort();
+    return toku_brt_stat64(db->i->brt, txn->i->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize);
 }
-#endif
+static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
+    toku_ydb_lock();
+    int r = toku_db_stat64(db, txn, s);
+    toku_ydb_unlock();
+    return r;
+
+}
 
 static int toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
     HANDLE_PANICKED_DB(db);
@@ -3471,7 +3474,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(set_pagesize);
     SDB(set_flags);
     SDB(get_flags);
-    //    SDB(stat);
+    SDB(stat64);
     SDB(fd);
     SDB(pre_acquire_read_lock);
     SDB(pre_acquire_table_lock);

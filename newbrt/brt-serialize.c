@@ -139,7 +139,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
-	size+=(8+4+4+8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and the leafentry_estimate. */
+	size+=(8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
 	int n_buffers = node->u.n.n_children;
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (i=0; i< n_buffers; i++) {
@@ -159,6 +159,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 			 &hsize);
 	assert(hsize<=node->u.l.n_bytes_in_buffer);
 	hsize+=4; /* add n entries in buffer table. */
+	hsize+=3*8; /* add the three leaf stats, but no exact bit. */
 	return size+hsize;
     }
 }
@@ -174,10 +175,11 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	assert(node->u.n.totalchildkeylens < (1<<30));
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result+=(8+4+4+8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and the leafentry_estimate. */
+	result+=(8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
 	result+=node->u.n.n_bytes_in_buffers;
     } else {
 	result+=4; /* n_entries in buffer table. */
+	result+=3*8; /* the three leaf stats. */
 	result+=node->u.l.n_bytes_in_buffer;
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
@@ -330,7 +332,11 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	wbuf_int(&w, node->u.n.n_children);
 	for (i=0; i<node->u.n.n_children; i++) {
 	    wbuf_uint(&w, BNC_SUBTREE_FINGERPRINT(node, i));
-	    wbuf_ulonglong(&w, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	    struct subtree_estimates *se = &(BNC_SUBTREE_ESTIMATES(node, i));
+	    wbuf_ulonglong(&w, se->nkeys);
+	    wbuf_ulonglong(&w, se->ndata);
+	    wbuf_ulonglong(&w, se->dsize);
+	    wbuf_char     (&w, se->exact);
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
@@ -369,6 +375,9 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	}
     } else {
 	//printf("%s:%d writing node %lld n_entries=%d\n", __FILE__, __LINE__, node->thisnodename, toku_gpma_n_entries(node->u.l.buffer));
+	wbuf_ulonglong(&w, node->u.l.leaf_stats.nkeys);
+	wbuf_ulonglong(&w, node->u.l.leaf_stats.ndata);
+	wbuf_ulonglong(&w, node->u.l.leaf_stats.dsize);
 	wbuf_uint(&w, toku_omt_size(node->u.l.buffer));
 	toku_omt_iterate(node->u.l.buffer, wbufwriteleafentry, &w);
     }
@@ -676,10 +685,8 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
-        case BRT_LAYOUT_VERSION_10: 
-        case BRT_LAYOUT_VERSION_9: 
-            goto ok_layout_version;
-            // Don't support older versions.
+	case BRT_LAYOUT_VERSION_10: goto ok_layout_version;
+	    // Don't support older versions.
 	}
 	r=toku_db_badformat();
 	return r;
@@ -711,7 +718,11 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    u_int32_t childfp = rbuf_int(&rc);
 	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
-	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
+	    struct subtree_estimates *se = &(BNC_SUBTREE_ESTIMATES(result, i));
+	    se->nkeys = rbuf_ulonglong(&rc);
+	    se->ndata = rbuf_ulonglong(&rc);
+	    se->dsize = rbuf_ulonglong(&rc);
+	    se->exact = rbuf_char(&rc);
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
@@ -782,6 +793,10 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	    }
 	}
     } else {
+	result->u.l.leaf_stats.nkeys = rbuf_ulonglong(&rc);
+	result->u.l.leaf_stats.ndata = rbuf_ulonglong(&rc);
+	result->u.l.leaf_stats.dsize = rbuf_ulonglong(&rc);
+	result->u.l.leaf_stats.exact = TRUE;
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
         result->u.l.seqinsert = 0;
@@ -1055,6 +1070,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
     assert(byte_order_stored == toku_byte_order_host);
 
     h->nodesize      = rbuf_int(&rc);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_10);
     BLOCKNUM free_blocks = rbuf_blocknum(&rc);
     BLOCKNUM unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
