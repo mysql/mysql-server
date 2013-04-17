@@ -101,24 +101,18 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
 }
 
 // Append all changed fields to the changed_fields array
-static void 
-find_changed_fields(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, Dynamic_array<uint> &changed_fields) {
-    List_iterator_fast<Create_field> create_it(ha_alter_info->alter_info->create_list);
-    Create_field *create_field;
-    for (uint i = 0; i < table->s->fields && (create_field = create_it++); i++) {
-        Field *old_field = table->field[i];
-        if (old_field->is_equal(create_field) != true) {
+static int
+find_changed_fields(TABLE *table_a, TABLE *table_b, Dynamic_array<uint> &changed_fields) {
+    uint nfields = table_a->s->fields;
+    if (nfields > table_b->s->fields)
+        nfields = table_b->s->fields;
+    for (uint i = 0; i < nfields; i++) {
+        Field *field_a = table_a->field[i];
+        Field *field_b = table_b->field[i];
+        if (!fields_are_same_type(field_a, field_b)) 
             changed_fields.append(i);
-        }
     }
-    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
-        for (int ai = 0; ai < changed_fields.elements(); ai++) {
-            uint i = changed_fields.at(ai);
-            Field *old_field = table->field[i];
-            Field *new_field = altered_table->field[i];
-            printf("change field %u %s %s\n", i, old_field->field_name, new_field->field_name);
-        }
-    }
+    return changed_fields.elements();
 }
 
 static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
@@ -277,9 +271,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else
     // change column length
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) && 
-        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
+        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH + Alter_inplace_info::ALTER_COLUMN_DEFAULT) &&
+        table->s->fields == altered_table->s->fields &&
+        find_changed_fields(table, altered_table, ctx->changed_fields) > 0) {
 
-        find_changed_fields(table, altered_table, ha_alter_info, ctx->changed_fields);
         ctx->table_kc_info = &share->kc_info;
         ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
         memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
@@ -292,8 +287,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else
     // change column type
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) &&
-        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
-        find_changed_fields(table, altered_table, ha_alter_info, ctx->changed_fields);
+        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT) && 
+        table->s->fields == altered_table->s->fields && 
+        find_changed_fields(table, altered_table, ctx->changed_fields) > 0) {
+        
         ctx->table_kc_info = &share->kc_info;
         ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
         memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));

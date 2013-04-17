@@ -2918,6 +2918,10 @@ bool fields_are_same_type(
                 retval = false;
                 goto cleanup;
             }
+            if ((a->flags & AUTO_INCREMENT_FLAG) != (b->flags & AUTO_INCREMENT_FLAG)) {
+                retval = false;
+                goto cleanup;
+            }
         }
         if (a->pack_length() != b->pack_length()) {
             retval = false;
