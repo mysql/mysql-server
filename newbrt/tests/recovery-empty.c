@@ -20,7 +20,7 @@ run_test(void) {
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery
-    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, NULL, NULL, 0); 
+    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, 0); 
     assert(r == DB_RUNRECOVERY);
 
     return 0;

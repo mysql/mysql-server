@@ -47,6 +47,7 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 
 /* Make the FILEID a struct for the same reason. */
 typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
+#define FILENUM_NONE ((FILENUM){UINT32_MAX})
 
 typedef struct {
     u_int32_t num;
@@ -106,10 +107,8 @@ typedef struct brt_msg BRT_MSG_S, *BRT_MSG;
 
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
 
-typedef int (*generate_keys_vals_for_put_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
-typedef int (*cleanup_keys_vals_for_put_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
-typedef int (*generate_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra);
-typedef int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra);
+typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra);
+typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra);
 
 #define UU(x) x __attribute__((__unused__))
 

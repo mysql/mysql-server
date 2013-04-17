@@ -338,8 +338,7 @@ ydb_do_recovery (DB_ENV *env) {
     }
     toku_ydb_unlock();
     int r = tokudb_recover(envdir, logdir, env->i->bt_compare, env->i->dup_compare,
-                           env->i->generate_keys_vals_for_put, env->i->cleanup_keys_vals_for_put,
-                           env->i->generate_keys_for_del, env->i->cleanup_keys_for_del,
+                           env->i->generate_row_for_put, env->i->generate_row_for_del,
                            env->i->cachetable_size);
     toku_ydb_lock();
     toku_free(logdir);
@@ -1228,54 +1227,58 @@ locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const D
 }
 
 static int
-env_set_multiple_callbacks(DB_ENV *env,
-                           generate_keys_vals_for_put_func generate_keys_vals_for_put,
-                           cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put,
-                           generate_keys_for_del_func      generate_keys_for_del,
-                           cleanup_keys_for_del_func       cleanup_keys_for_del) {
+env_set_generate_row_callback_for_put(DB_ENV *env, generate_row_for_put_func generate_row_for_put) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
     if (env_opened(env)) r = EINVAL;
     else {
-        env->i->generate_keys_vals_for_put = generate_keys_vals_for_put;
-        env->i->cleanup_keys_vals_for_put = cleanup_keys_vals_for_put;
-        env->i->generate_keys_for_del = generate_keys_for_del;
-        env->i->cleanup_keys_for_del = cleanup_keys_for_del;
+        env->i->generate_row_for_put = generate_row_for_put;
     }
     return r;
 }
 
 static int
-locked_env_set_multiple_callbacks(DB_ENV *env,
-                                  generate_keys_vals_for_put_func generate_keys_vals_for_put,
-                                  cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put,
-                                  generate_keys_for_del_func      generate_keys_for_del,
-                                  cleanup_keys_for_del_func       cleanup_keys_for_del) {
-    toku_ydb_lock();
-    int r = env_set_multiple_callbacks(env,
-                                       generate_keys_vals_for_put,
-                                       cleanup_keys_vals_for_put,
-                                       generate_keys_for_del,
-                                       cleanup_keys_for_del);
-    toku_ydb_unlock();
+env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_func generate_row_for_del) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (env_opened(env)) r = EINVAL;
+    else {
+        env->i->generate_row_for_del = generate_row_for_del;
+    }
     return r;
 }
 
-static int env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra);
-static int env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra);
-
 static int
-locked_env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) {
+locked_env_set_generate_row_callback_for_put(DB_ENV *env, generate_row_for_put_func generate_row_for_put) {
     toku_ydb_lock();
-    int r = env_put_multiple(env, txn, row, num_dbs, dbs, flags, extra);
+    int r = env_set_generate_row_callback_for_put(env, generate_row_for_put);
     toku_ydb_unlock();
     return r;
 }
 
 static int
-locked_env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) {
+locked_env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_func generate_row_for_del) {
     toku_ydb_lock();
-    int r = env_del_multiple(env, txn, row, num_dbs, dbs, flags, extra);
+    int r = env_set_generate_row_callback_for_del(env, generate_row_for_del);
+    toku_ydb_unlock();
+    return r;
+}
+
+static int env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra);
+static int env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, void *extra);
+
+static int
+locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra) {
+    toku_ydb_lock();
+    int r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array, extra);
+    toku_ydb_unlock();
+    return r;
+}
+
+static int
+locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, void *extra) {
+    toku_ydb_lock();
+    int r = env_del_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, flags_array, extra);
     toku_ydb_unlock();
     return r;
 }
@@ -1472,7 +1475,8 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(dbrename);
     SENV(set_default_bt_compare);
     SENV(set_default_dup_compare);
-    SENV(set_multiple_callbacks);
+    SENV(set_generate_row_callback_for_put);
+    SENV(set_generate_row_callback_for_del);
     SENV(put_multiple);
     SENV(del_multiple);
     SENV(checkpointing_set_period);
@@ -3639,10 +3643,8 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
 }
 
 static int
-env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) {
+env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, void *extra) {
     int r;
-    int generated_dbts = 0;
-    DBT keydbts[num_dbs];
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
     BRT brts[num_dbs];
@@ -3650,22 +3652,19 @@ env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
         r = EINVAL;
         goto cleanup;
     }
-    if (!env->i->generate_keys_for_del || !env->i->cleanup_keys_for_del) {
+    if (!env->i->generate_row_for_del) {
         r = EINVAL;
         goto cleanup;
     }
-    memset(keydbts, 0, sizeof(keydbts));
-
-    //Generate all the DBTs
-    r = env->i->generate_keys_for_del(row, num_dbs, dbs, keydbts, extra);
-    if (r!=0) goto cleanup;
-    generated_dbts = 1;
 
     uint32_t which_db;
     for (which_db = 0; which_db < num_dbs; which_db++) {
-        DB *db = dbs[which_db];
-        lock_flags[which_db] = get_prelocked_flags(flags[which_db], txn, db);
-        remaining_flags[which_db] = flags[which_db] & ~lock_flags[which_db];
+        DB *db = db_array[which_db];
+        //Generate the row
+        r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val, extra);
+        if (r!=0) goto cleanup;
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db], txn, db);
+        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
         if (remaining_flags[which_db] & ~DB_DELETE_ANY) {
             r = EINVAL;
@@ -3674,40 +3673,35 @@ env_del_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
         BOOL error_if_missing = (BOOL)(!(remaining_flags[which_db]&DB_DELETE_ANY));
         if (error_if_missing) {
             //Check if the key exists in the db.
-            r = db_getf_set(db, txn, lock_flags[which_db], &keydbts[which_db], ydb_getf_do_nothing, NULL);
+            r = db_getf_set(db, txn, lock_flags[which_db], &keys[which_db], ydb_getf_do_nothing, NULL);
             if (r!=0) goto cleanup;
         }
 
-        //Check overwrite constraints
-        if (r!=0) goto cleanup;
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
             RANGE_LOCK_REQUEST_S request;
             //Left end of range == right end of range (point lock)
             write_lock_request_init(&request, txn, db,
-                                    &keydbts[which_db], toku_lt_neg_infinity,
-                                    &keydbts[which_db], toku_lt_infinity);
+                                    &keys[which_db], toku_lt_neg_infinity,
+                                    &keys[which_db], toku_lt_infinity);
             r = grab_range_lock(&request);
             if (r!=0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
     }
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    r = toku_brt_log_del_multiple(ttxn, brts, num_dbs, row);
+    BRT src_brt  = src_db ? src_db->i->brt : NULL;
+    r = toku_brt_log_del_multiple(ttxn, src_brt, brts, num_dbs, key, val);
     if (r!=0) goto cleanup;
     for (which_db = 0; which_db < num_dbs; which_db++) {
-        DB *db = dbs[which_db];
-        num_deletes++;       // accountability 
-        r = toku_brt_maybe_delete(db->i->brt, &keydbts[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+        DB *db = db_array[which_db];
+        num_deletes++;
+        r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         if (r!=0) goto cleanup;
     }
 
 cleanup:
-    if (generated_dbts) {
-        int r2 = env->i->cleanup_keys_for_del(row, num_dbs, dbs, keydbts, extra);
-        if (r==0) r = r2;
-    }
     return r;
 }
 
@@ -4294,10 +4288,8 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
 }
 
 static int
-env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) {
+env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra) {
     int r;
-    int generated_dbts = 0;
-    DBT keydbts[num_dbs], valdbts[num_dbs];
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
     BRT brts[num_dbs];
@@ -4305,26 +4297,22 @@ env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
         r = EINVAL;
         goto cleanup;
     }
-    if (!env->i->generate_keys_vals_for_put || !env->i->cleanup_keys_vals_for_put) {
+    if (!env->i->generate_row_for_put) {
         r = EINVAL;
         goto cleanup;
     }
-    memset(keydbts, 0, sizeof(keydbts));
-    memset(valdbts, 0, sizeof(valdbts));
-
-    //Generate all the DBTs
-    r = env->i->generate_keys_vals_for_put(row, num_dbs, dbs, keydbts, valdbts, extra);
-    if (r!=0) goto cleanup;
-    generated_dbts = 1;
 
     uint32_t which_db;
     for (which_db = 0; which_db < num_dbs; which_db++) {
-        DB *db = dbs[which_db];
-        lock_flags[which_db] = get_prelocked_flags(flags[which_db], txn, db);
-        remaining_flags[which_db] = flags[which_db] & ~lock_flags[which_db];
+        DB *db = db_array[which_db];
+        //Generate the row
+        r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val, extra);
+        if (r!=0) goto cleanup;
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db], txn, db);
+        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
         //Check overwrite constraints
         r = db_put_check_overwrite_constraint(db, txn,
-                                              &keydbts[which_db], &valdbts[which_db],
+                                              &keys[which_db],      &vals[which_db],
                                               lock_flags[which_db], remaining_flags[which_db]);
         if (r!=0) goto cleanup;
         //Do locking if necessary.
@@ -4333,28 +4321,25 @@ env_put_multiple(DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs,
             RANGE_LOCK_REQUEST_S request;
             //Left end of range == right end of range (point lock)
             write_lock_request_init(&request, txn, db,
-                                    &keydbts[which_db], &valdbts[which_db],
-                                    &keydbts[which_db], &valdbts[which_db]);
+                                    &keys[which_db], &vals[which_db],
+                                    &keys[which_db], &vals[which_db]);
             r = grab_range_lock(&request);
             if (r!=0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
     }
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    r = toku_brt_log_put_multiple(ttxn, brts, num_dbs, row);
+    BRT src_brt  = src_db ? src_db->i->brt : NULL;
+    r = toku_brt_log_put_multiple(ttxn, src_brt, brts, num_dbs, key, val);
     if (r!=0) goto cleanup;
     for (which_db = 0; which_db < num_dbs; which_db++) {
-        DB *db = dbs[which_db];
+        DB *db = db_array[which_db];
         num_inserts++;
-        r = toku_brt_maybe_insert(db->i->brt, &keydbts[which_db], &valdbts[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+        r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         if (r!=0) goto cleanup;
     }
 
 cleanup:
-    if (generated_dbts) {
-        int r2 = env->i->cleanup_keys_vals_for_put(row, num_dbs, dbs, keydbts, valdbts, extra);
-        if (r==0) r = r2;
-    }
     return r;
 }
 

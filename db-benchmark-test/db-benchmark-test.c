@@ -126,33 +126,20 @@ DB *dbs[MAX_DBS];
 uint32_t put_flagss[MAX_DBS];
 DB_TXN *parenttid=0;
 DB_TXN *tid=0;
+DBT dest_keys[MAX_DBS];
+DBT dest_vals[MAX_DBS];
 
 #if defined(TOKUDB)
 static int
-put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **dbs_in, DBT *keys, DBT *vals, void *extra) {
-    assert((int)num_dbs_in == num_dbs);
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+    assert(src_db == NULL);
+    assert(dest_db != NULL);
     assert(extra == &put_flags); //Verifying extra gets set right.
-    assert(row->size >= 4);
-    int32_t row_keysize = *(int32_t*)row->data;
-    assert(row_keysize == keysize);
-    assert((int)row->size >= 4+keysize);
-    int32_t row_valsize = row->size - 4 - keysize;
-    assert(row_valsize == valsize);
-    void *key = ((uint8_t*)row->data)+4;
-    void *val = ((uint8_t*)row->data)+4 + keysize;
-    for (which = 0; which < num_dbs; which++) {
-        assert(dbs_in[which] == dbs[which]);
-        keys[which].size = keysize;
-        keys[which].data = key;
-        vals[which].size = valsize;
-        vals[which].data = val;
-    }
-    return 0;
-}
 
-static int
-put_multiple_clean(DBT *UU(row), uint32_t UU(num_dbs_in), DB **UU(dbs_in), DBT *UU(keys), DBT *UU(vals), void *extra) {
-    assert(extra == &put_flags); //Verifying extra gets set right.
+    dest_key->data = src_key->data;
+    dest_key->size = src_key->size;
+    dest_val->data = src_val->data;
+    dest_val->size = src_val->size;
     return 0;
 }
 #endif
@@ -200,9 +187,7 @@ static void benchmark_setup (void) {
     }
 #if defined(TOKUDB)
     if (insert_multiple) {
-        r = dbenv->set_multiple_callbacks(dbenv,
-                                          put_multiple_generate, put_multiple_clean,
-                                          NULL, NULL);
+        r = dbenv->set_generate_row_callback_for_put(dbenv, put_multiple_generate);
         CKERR(r);
     }
 #endif
@@ -369,19 +354,18 @@ static void fill_array (unsigned char *data, int size) {
 
 static void insert (long long v) {
     int r;
-    unsigned char data[keysize+valsize+4];
-    unsigned char *kc = data+4, *vc = data+keysize+4;
+    unsigned char kc[keysize];
+    unsigned char vc[valsize];;
     DBT  kt, vt;
     fill_array(kc, keysize);
     long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
     fill_array(vc, valsize);
     long_long_to_array(vc, valsize, v);
-    *(uint32_t*)(data) = keysize;
+    fill_dbt(&kt, kc, keysize);
+    fill_dbt(&vt, vc, valsize);
     if (insert_multiple) {
-        DBT row;
-        fill_dbt(&row, data, sizeof(data));
 #if defined(TOKUDB)
-        r = dbenv->put_multiple(dbenv, tid, &row, num_dbs, dbs, put_flagss, &put_flags); //Extra used just to verify its passed right
+        r = dbenv->put_multiple(dbenv, NULL, tid, &kt, &vt, num_dbs, dbs, dest_keys, dest_vals, put_flagss, &put_flags); //Extra used just to verify its passed right
 #else
         r = EINVAL;
 #endif
@@ -390,7 +374,7 @@ static void insert (long long v) {
     else {
         for (which = 0; which < num_dbs; which++) {
             DB *db = dbs[which];
-            r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
+            r = db->put(db, tid, &kt, &vt, put_flags);
             CKERR(r);
         }
     }
@@ -711,6 +695,8 @@ int main (int argc, const char *argv[]) {
     }
 #endif
     if (insert_multiple) {
+        memset(dest_keys, 0, sizeof(dest_keys));
+        memset(dest_vals, 0, sizeof(dest_vals));
         for (which = 0; which < num_dbs; which++) {
             put_flagss[i] = put_flags;
         }

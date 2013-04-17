@@ -60,11 +60,6 @@ void print_defines (void) {
     dodefine(DB_VERB_REPLICATION);
     dodefine(DB_VERB_WAITSFOR);
 
-    dodefine(DB_DBT_MALLOC);
-    dodefine(DB_DBT_REALLOC);
-    dodefine(DB_DBT_USERMEM);
-    dodefine(DB_DBT_DUPOK);
-
     dodefine(DB_ARCH_ABS);
     dodefine(DB_ARCH_LOG);
 
@@ -136,10 +131,19 @@ void print_defines (void) {
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
 
-    dodefine(DB_DBT_APPMALLOC);
+    {
+        //dbt flags
+        uint32_t dbt_flags = 0;
+        dodefine_track(dbt_flags, DB_DBT_APPMALLOC);
+        dodefine_track(dbt_flags, DB_DBT_DUPOK);
+        dodefine_track(dbt_flags, DB_DBT_MALLOC);
 #ifdef DB_DBT_MULTIPLE
-    dodefine(DB_DBT_MULTIPLE);
+        dodefine_track(dbt_flags, DB_DBT_MULTIPLE);
 #endif
+        dodefine_track(dbt_flags, DB_DBT_REALLOC);
+        dodefine_track(dbt_flags, DB_DBT_USERMEM);
+        dodefine_from_track(dbt_flags, DB_DBT_TEMPMEMORY);
+    }
 
     // flags for the env->set_flags function
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
@@ -447,13 +451,24 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */",
-                             "int (*put_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Insert into multiple dbs */",
-                             "int (*del_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Delete from multiple dbs */",
-                             "int (*set_multiple_callbacks) (DB_ENV *env,\n"
-                             "                               int (*generate_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),\n"
-                             "                               int (*cleanup_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),\n"
-                             "                               int (*generate_keys_for_del)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra),\n"
-                             "                               int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra)) /* set callbacks for env_(put|del)_multiple */",
+                             "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+                             "                                             const DBT *key, const DBT *val,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"
+                             "                                             void *extra) /* Insert into multiple dbs */",
+                             "int (*set_generate_row_callback_for_put)    (DB_ENV *env, \n"
+                             "                                             int (*generate_row_for_put)(DB *dest_db, DB *src_db,\n"
+                             "                                                                         DBT *dest_key, DBT *dest_val,\n"
+                             "                                                                         const DBT *src_key, const DBT *src_val,\n"
+                             "                                                                         void *extra));",
+                             "int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
+                             "                                             const DBT *key, const DBT *val,\n"
+                             "                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,\n"
+                             "                                             void *extra) /* Insert into multiple dbs */",
+                             "int (*set_generate_row_callback_for_del)    (DB_ENV *env, \n"
+                             "                                             int (*generate_row_for_del)(DB *dest_db, DB *src_db,\n"
+                             "                                                                         DBT *dest_key,\n"
+                             "                                                                         const DBT *src_key, const DBT *src_val,\n"
+                             "                                                                         void *extra));",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

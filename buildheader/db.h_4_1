@@ -104,10 +104,6 @@ typedef enum {
 #define DB_VERB_RECOVERY 4
 #define DB_VERB_REPLICATION 8
 #define DB_VERB_WAITSFOR 16
-#define DB_DBT_MALLOC 4
-#define DB_DBT_REALLOC 16
-#define DB_DBT_USERMEM 32
-#define DB_DBT_DUPOK 64
 #define DB_ARCH_ABS 1
 #define DB_ARCH_LOG 4
 #define DB_CREATE 1
@@ -164,6 +160,11 @@ typedef enum {
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
 #define DB_DBT_APPMALLOC 1
+#define DB_DBT_DUPOK 64
+#define DB_DBT_MALLOC 4
+#define DB_DBT_REALLOC 16
+#define DB_DBT_USERMEM 32
+#define DB_DBT_TEMPMEMORY 2
 #define DB_TXN_WRITE_NOSYNC 524288
 #define DB_TXN_NOWAIT 2048
 #define DB_TXN_SYNC 4096
@@ -196,14 +197,25 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
-  int (*put_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Insert into multiple dbs */;
-  int (*del_multiple)                         (DB_ENV *env, DB_TXN *txn, DBT *row, uint32_t num_dbs, DB **dbs, uint32_t *flags, void *extra) /* Delete from multiple dbs */;
-  int (*set_multiple_callbacks) (DB_ENV *env,
-                               int (*generate_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
-                               int (*cleanup_keys_vals_for_put)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra),
-                               int (*generate_keys_for_del)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra),
-                               int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra)) /* set callbacks for env_(put|del)_multiple */;
-  void* __toku_dummy0[21];
+  int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
+                                             const DBT *key, const DBT *val,
+                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
+                                             void *extra) /* Insert into multiple dbs */;
+  int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
+                                             int (*generate_row_for_put)(DB *dest_db, DB *src_db,
+                                                                         DBT *dest_key, DBT *dest_val,
+                                                                         const DBT *src_key, const DBT *src_val,
+                                                                         void *extra));;
+  int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
+                                             const DBT *key, const DBT *val,
+                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,
+                                             void *extra) /* Insert into multiple dbs */;
+  int (*set_generate_row_callback_for_del)    (DB_ENV *env, 
+                                             int (*generate_row_for_del)(DB *dest_db, DB *src_db,
+                                                                         DBT *dest_key,
+                                                                         const DBT *src_key, const DBT *src_val,
+                                                                         void *extra));;
+  void* __toku_dummy0[20];
   char __toku_dummy1[64];
   void *api1_internal; /* 32-bit offset=212 size=4, 64=bit offset=360 size=8 */
   void* __toku_dummy2[7];

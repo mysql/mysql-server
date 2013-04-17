@@ -9,38 +9,50 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 char *namea="a.db";
 char *nameb="b.db";
 enum {num_dbs = 2};
+static DBT dest_keys[num_dbs];
+static DBT dest_vals[num_dbs];
 
 BOOL do_test=FALSE, do_recover=FALSE;
 
 static int
-put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **UU(dbs_in), DBT *keys, DBT *vals, void *extra) {
-    assert((int)num_dbs_in == num_dbs);
-    if (do_recover)
-        assert(extra==NULL);
-    else
-        assert(extra==&namea); //Verifying extra gets set right.
-    assert(row->size >= 4);
-    int32_t keysize = *(int32_t*)row->data;
-    assert((int)row->size >= 4+keysize);
-    int32_t valsize = row->size - 4 - keysize;
-    void *key = ((uint8_t*)row->data)+4;
-    void *val = ((uint8_t*)row->data)+4 + keysize;
-    int which;
-    for (which = 0; which < num_dbs; which++) {
-        keys[which].size = keysize;
-        keys[which].data = key;
-        vals[which].size = valsize;
-        vals[which].data = val;
-    }
-    return 0;
+crash_on_upgrade(DB* db,
+                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
+                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val) {
+    db = db;
+    old_version = old_version;
+    old_descriptor = old_descriptor;
+    old_key = old_key;
+    old_val = old_val;
+    new_version = new_version;
+    new_descriptor = new_descriptor;
+    new_key = new_key;
+    new_val = new_val;
+    assert(FALSE);
 }
 
 static int
-put_multiple_clean(DBT *UU(row), uint32_t UU(num_dbs_in), DB **UU(dbs_in), DBT *UU(keys), DBT *UU(vals), void *extra) {
-    if (do_recover)
-        assert(extra==NULL);
-    else
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+    if (extra == NULL) {
+        if (src_db) {
+            assert(src_db->descriptor);
+            assert(src_db->descriptor->size == 4);
+            assert((*(uint32_t*)src_db->descriptor->data) == 0);
+        }
+    }
+    else {
+        assert(src_db == NULL);
         assert(extra==&namea); //Verifying extra gets set right.
+    }
+    assert(dest_db->descriptor->size == 4);
+    uint32_t which = *(uint32_t*)dest_db->descriptor->data;
+    assert(which < num_dbs);
+
+    if (dest_key->data) toku_free(dest_key->data);
+    if (dest_val->data) toku_free(dest_val->data);
+    dest_key->data = toku_xmemdup (src_key->data, src_key->size);
+    dest_key->size = src_key->size;
+    dest_val->data = toku_xmemdup (src_val->data, src_val->size);
+    dest_val->size = src_val->size;
     return 0;
 }
 
@@ -52,9 +64,7 @@ static void run_test (void) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->set_multiple_callbacks(env,
-                                    put_multiple_generate, put_multiple_clean,
-                                    NULL, NULL);
+    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
@@ -64,10 +74,21 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &oldest_living_txn, 0);                                         CKERR(r);
     }
 
+    DBT descriptor;
+    uint32_t which;
+    for (which = 0; which < num_dbs; which++) {
+        dbt_init_realloc(&dest_keys[which]);
+        dbt_init_realloc(&dest_vals[which]);
+    }
+    dbt_init(&descriptor, &which, sizeof(which));
     DB *dba;
     DB *dbb;
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
+    which = 0;
+    r = dba->set_descriptor(dba, 1, &descriptor, crash_on_upgrade);                     CKERR(r);
+    which = 1;
+    r = dbb->set_descriptor(dbb, 1, &descriptor, crash_on_upgrade);                     CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
 
@@ -79,18 +100,13 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="a", .size=2};
-        uint8_t row[4+k.size+v.size];
-        *(uint32_t*)&row[0] = k.size;
-        memcpy(row+4,        k.data, k.size);
-        memcpy(row+4+k.size, v.data, v.size);
-        DBT rowdbt = {.data = row, .size = sizeof(row)};
-
-        r = env->put_multiple(env, txn, &rowdbt, num_dbs, dbs, flags, &namea);          CKERR(r);
+        r = env->put_multiple(env, dba, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, NULL);
+        CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
     r = dbb->close(dbb, 0);                                                             CKERR(r);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT, 0666);              CKERR(r);
     dbs[1] = dbb;
 
     // txn_begin; insert <a,b>;
@@ -99,13 +115,8 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="b", .size=2};
-        uint8_t row[4+k.size+v.size];
-        *(uint32_t*)&row[0] = k.size;
-        memcpy(row+4,        k.data, k.size);
-        memcpy(row+4+k.size, v.data, v.size);
-        DBT rowdbt = {.data = row, .size = sizeof(row)};
-
-        r = env->put_multiple(env, txn, &rowdbt, num_dbs, dbs, flags, &namea);           CKERR(r);
+        r = env->put_multiple(env, NULL, txn, &k, &v, num_dbs, dbs, dest_keys, dest_vals, flags, &namea);
+        CKERR(r);
     }
 
     // checkpoint
@@ -125,9 +136,7 @@ static void run_recover (void) {
 
     // run recovery
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->set_multiple_callbacks(env,
-                                    put_multiple_generate, put_multiple_clean,
-                                    NULL, NULL);
+    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r);
 
