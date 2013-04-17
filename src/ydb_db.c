@@ -114,7 +114,8 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
 
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
 
-//DB->close()
+// Effect: Do the work required of DB->close().
+// requires: the multi_operation client lock is held.
 int 
 toku_db_close(DB * db) {
     int r = 0;
@@ -221,6 +222,7 @@ db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTY
 //  open file (toku_ft_handle_open() will handle logging)
 //  close txn
 //  if created a new iname, take full range lock
+// Requires: no checkpoint may take place during this function, which is enforced by holding the multi_operation_client_lock.
 static int 
 toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
@@ -287,7 +289,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         //
-        // 0 for performance only, avoid unnecessary query
+        // put_flags will be 0 for performance only, avoid unnecessary query
         // if we are creating a hot index, per #3166, we do not want the write lock  in directory grabbed.
         // directory read lock is grabbed in toku_db_get above
         //

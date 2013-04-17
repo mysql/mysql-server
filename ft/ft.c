@@ -339,7 +339,9 @@ ft_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 }
 
 static void
-unpin_by_checkpoint_callback(FT ft, void *extra) {
+unpin_by_checkpoint_callback(FT ft, void *extra) 
+// Requires: the reflock is held.
+{
     invariant(extra == NULL);
     invariant(ft->pinned_by_checkpoint);
     ft->pinned_by_checkpoint = false; //Unpin
@@ -542,8 +544,10 @@ toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
     toku_ft_release_reflock(ft);
 }
 
-int
-toku_ft_needed_unlocked(FT h) {
+bool
+toku_ft_needed_unlocked(FT h) 
+// Effect: Return true iff the reference count is positive.
+{
     return !toku_list_empty(&h->live_ft_handles) || toku_omt_size(h->txns) != 0 || h->pinned_by_checkpoint;
 }
 
@@ -559,7 +563,9 @@ toku_ft_has_one_reference_unlocked(FT ft) {
 // Close brt.  If opsln_valid, use given oplsn as lsn in brt header instead of logging 
 // the close and using the lsn provided by logging the close.  (Subject to constraint 
 // that if a newer lsn is already in the dictionary, don't overwrite the dictionary.)
-int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)
+// Requires: we hold the open_close lock (because we are closing) and the multi_operation lock (to prevent checkpoints).
+{
     int r = 0;
     // Must do this work before closing the cf
     if (h->cf) {
