@@ -181,7 +181,10 @@ ctest -j$njobs \
     -D ${ctest_model}Configure \
     -D ${ctest_model}Build \
     -D ${ctest_model}Test \
+    2>&1 | tee -a $tracefile
+ctest -j$njobs \
     -D ${ctest_model}MemCheck \
+    -E '^ydb/.*\.bdb$' \
     2>&1 | tee -a $tracefile
 set -e
 
