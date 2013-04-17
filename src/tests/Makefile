@@ -133,6 +133,7 @@ BDB_DONTRUN_TESTS = \
         mvcc-many-committed \
         powerfail \
 	preload-db \
+	preload-db-nested \
 	preload-3.1-db \
         progress \
 	put-multiple \
