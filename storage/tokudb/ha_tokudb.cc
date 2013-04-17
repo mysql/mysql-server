@@ -5217,7 +5217,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
             goto cleanup;
         }
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("master:%p\n", trx->all);
+            TOKUDB_TRACE("just created master:%p\n", trx->all);
         }
         trx->sp_level = trx->all;
         trans_register_ha(thd, TRUE, tokudb_hton);
@@ -5240,8 +5240,9 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         trx->tokudb_lock_count--;  // We didn't get the lock
         goto cleanup;
     }
+    trx->sub_sp_level = trx->stmt;
     if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_TRACE("stmt:%p:%p\n", trx->sp_level, trx->stmt);
+        TOKUDB_TRACE("just created stmt:%p:%p\n", trx->sp_level, trx->stmt);
     }
     reset_stmt_progress(&trx->stmt_progress);
     trans_register_ha(thd, FALSE, tokudb_hton);
@@ -5293,7 +5294,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 goto cleanup;
             }
         }
-        transaction = trx->stmt;
+        assert(thd->in_sub_stmt == 0);
+        transaction = trx->sub_sp_level;
     }
     else {
         lock.type = TL_UNLOCK;  // Unlocked
@@ -5323,6 +5325,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 if (tokudb_debug & TOKUDB_DEBUG_TXN)
                     TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
                 trx->stmt = NULL;
+                trx->sub_sp_level = NULL;
             }
         }
         transaction = NULL;
@@ -5341,7 +5344,7 @@ cleanup:
 */
 
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::start_stmt");
+    TOKUDB_DBUG_ENTER("ha_tokudb::start_stmt cmd=%d %d", thd_sql_command(thd), lock_type);
     int error = 0;
 
 
@@ -5353,10 +5356,14 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
        and there could be many bdb tables referenced in the query
      */
     if (!trx->stmt) {
-        DBUG_PRINT("trans", ("starting transaction stmt"));
         error = create_txn(thd, trx);
         if (error) {
             goto cleanup;
+        }
+    }
+    else {
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+            TOKUDB_TRACE("trx->stmt already existed\n");
         }
     }
     //
@@ -5370,15 +5377,16 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     // potentially grab some locks but not all is ok.
     //
     if (lock.type <= TL_READ_NO_INSERT) {
-        acquire_table_lock(trx->stmt,lock_read);
+        acquire_table_lock(trx->sub_sp_level,lock_read);
     }
     else {
-        acquire_table_lock(trx->stmt,lock_write);
+        acquire_table_lock(trx->sub_sp_level,lock_write);
     }    
     if (added_rows > deleted_rows) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
-    transaction = trx->stmt;
+    transaction = trx->sub_sp_level;
+    trans_register_ha(thd, FALSE, tokudb_hton);
 cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
@@ -6731,7 +6739,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     // in order to get a valid transaction
     // this is a bit hacky, but it is the best we have right now
     //
-    txn = trx->stmt ? trx->stmt : trx->sp_level;
+    txn = trx->sub_sp_level ? trx->sub_sp_level : trx->sp_level;
     if (txn == NULL) {        
         error = db_env->txn_begin(db_env, NULL, &txn, 0);
         if (error) {
