@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -62,8 +62,8 @@ test_key_size_limit (int dup_mode) {
             hi = mi-1;
         }
     }
-    free(k);
-    free(v);
+    toku_free(k);
+    toku_free(v);
     assert(bigest > 0);
     if (verbose) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
@@ -118,8 +118,8 @@ test_data_size_limit (int dup_mode) {
             hi = mi-1;
         }
     }
-    free(k);
-    free(v);
+    toku_free(k);
+    toku_free(v);
     if (verbose && bigest > 0) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
     r = db->close(db, 0);

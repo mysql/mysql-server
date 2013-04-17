@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
+#include <memory.h>
 
 // ENVDIR is defined in the Makefile
 
@@ -49,7 +49,7 @@ static void make_db (void) {
     for (i=0; i<maxcount; i++) {
 	char hello[30], there[30];
 	DBT key,data;
-	struct in_db *newitem = malloc(sizeof(*newitem));
+	struct in_db *newitem = toku_malloc(sizeof(*newitem));
 	newitem->r = random();
 	newitem->i = i;
 	newitem->next = items;
@@ -74,7 +74,7 @@ static void make_db (void) {
     r=env->close(env, 0);     assert(r==0);
     while (items) {
 	struct in_db *next=items->next;
-	free(items);
+	toku_free(items);
 	items=next;
     }
 }

@@ -11,13 +11,13 @@ struct ctpair {
 
 static PAIR
 new_pair (void) {
-    PAIR p = (PAIR) malloc(sizeof *p); assert(p);
+    PAIR p = (PAIR) toku_malloc(sizeof *p); assert(p);
     return p;
 }
 
 static void
 destroy_pair(PAIR p) {
-    free(p);
+    toku_free(p);
 }
 
 #include "cachetable-writequeue.h"

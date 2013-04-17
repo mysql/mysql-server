@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
@@ -28,8 +28,8 @@ cursor_expect (DBC *cursor, int k, int v, int op) {
     assert(kk == k);
     assert(vv == v);
 
-    free(key.data);
-    free(val.data);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 static void

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -92,7 +92,7 @@ test_hsoc (int pagesize, int dup_mode) {
 
     DBT key, val;
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST); assert(r == 0);
-    free(key.data); free(val.data);
+    toku_free(key.data); toku_free(val.data);
 
     /* fill up buffer 2 in the root node */
     for (i=0; i<216; i++) {

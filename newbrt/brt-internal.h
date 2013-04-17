@@ -294,4 +294,6 @@ int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 //  So 4096 should be enough.
 #define BLOCK_ALLOCATOR_HEADER_RESERVE 4096
 
+int toku_db_badformat(void);
+
 #endif

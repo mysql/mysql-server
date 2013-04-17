@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <string.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
 #include <assert.h>
@@ -27,7 +27,7 @@ int nummallocced = 0;
 
 static void *
 my_malloc (size_t size) {
-    void* p = malloc(size);
+    void* p = toku_malloc(size);
     if (size != 0) {
         nummallocced++;
 //        if (verbose) printf("Malloc [%d] %p.\n", (int)size, p);
@@ -49,7 +49,7 @@ my_free (void * p) {
         nummallocced--;
 //        if (verbose) printf("Free %p.\n", p);
     }
-    free(p);    
+    toku_free(p);    
 }
 
 /*

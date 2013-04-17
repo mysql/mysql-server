@@ -2,6 +2,7 @@
 
 #include "test.h"
 #include <sys/stat.h>
+#include <memory.h>
 
 static void
 do_627 (void) {
@@ -32,10 +33,10 @@ do_627 (void) {
     r=db->cursor(db, t2, &c2, 0); CKERR(r);
 
     r=c1->c_get(c1, dbt_init(&a, "a", 2), dbt_init_malloc(&b), DB_SET); CKERR(r);
-    free(b.data);
+    toku_free(b.data);
 
     r=c2->c_get(c2, dbt_init(&a, "a", 2), dbt_init_malloc(&b), DB_SET); CKERR(r);
-    free(b.data);
+    toku_free(b.data);
     
     // This causes all hell to break loose in BDB 4.6, so we just cannot run this under BDB.
     //     PANIC: Invalid argument

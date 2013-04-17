@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <memory.h>
 
 #include "test.h"
 
@@ -44,7 +45,7 @@ static void test (void) {
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, 0, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
     r=db->get(db, tid, dbt_init(&key, "a", 2), dbt_init_malloc(&data), 0);     assert(r==0); 
     r=tid->commit(tid, 0);                                                     assert(r==0);
-    free(data.data);
+    toku_free(data.data);
     r=db->close(db, 0);                                                        CKERR(r);
     r=env->close(env, 0);                                                      CKERR(r);
 }

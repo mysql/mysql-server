@@ -5,7 +5,9 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <memory.h>
 #include "test.h"
+
 
 DB_ENV *env;
 DB *db;
@@ -65,7 +67,7 @@ void *starta(void* ignore __attribute__((__unused__))) {
     assert(r==0);
     //printf("val.data=%p\n", val.data);
     int i; for (i=0; i<10; i++) assert(((char*)val.data)[i]==0);
-    free(val.data);
+    toku_free(val.data);
     return 0;
 }
 void *startb(void* ignore __attribute__((__unused__))) {
@@ -79,7 +81,7 @@ void *startb(void* ignore __attribute__((__unused__))) {
     assert(r==0);
     //printf("val.data=%p\n", val.data);
     int i; for (i=0; i<10; i++) assert(((char*)val.data)[i]==0);
-    free(val.data);
+    toku_free(val.data);
     return 0;
 }
 

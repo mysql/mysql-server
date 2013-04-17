@@ -1,12 +1,12 @@
 /* Primary with two associated things. */
 
 #include <assert.h>
-#include <toku_portability.h>
 #include <db.h>
 #include <errno.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <memory.h>
+#include <toku_portability.h>
 
 #include "test.h"
 
@@ -41,8 +41,8 @@ struct primary_data {
 
 static void
 free_pd (struct primary_data *pd) {
-    free(pd->name.name);
-    free(pd);
+    toku_free(pd->name.name);
+    toku_free(pd);
 }
 
 static void
@@ -117,7 +117,7 @@ read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_key *nk) {
 	read_uchar_from_dbt(dbt, off, &buf[i]);
 	if (buf[i]==0) break;
     }
-    nk->name=(unsigned char*)(strdup((char*)buf));
+    nk->name=(unsigned char*)(toku_strdup((char*)buf));
 }
 
 static void
@@ -134,7 +134,7 @@ name_offset_in_pd_dbt (void) {
 
 static int
 name_callback (DB *UU(secondary), const DBT * UU(key), const DBT *data, DBT *result) {
-    struct primary_data *pd = malloc(sizeof(*pd));
+    struct primary_data *pd = toku_malloc(sizeof(*pd));
     unsigned int off=0;
     read_pd_from_dbt(data, &off, pd);
     static int buf[1000];
@@ -241,8 +241,8 @@ close_databases (void) {
     if (name_cursor) {
 	r = name_cursor->c_close(name_cursor);     CKERR(r);
     }
-    if (nc_key.data) free(nc_key.data);
-    if (nc_data.data) free(nc_data.data);
+    if (nc_key.data) toku_free(nc_key.data);
+    if (nc_data.data) toku_free(nc_data.data);
     r = namedb->close(namedb, 0);     CKERR(r);
     r = dbp->close(dbp, 0);           CKERR(r);
     r = expiredb->close(expiredb, 0); CKERR(r);
@@ -417,7 +417,7 @@ delete_oldest_expired (void) {
 	count_all_items--;
     }
     savepkey = pkey;
-    savepkey.data = malloc(pkey.size);
+    savepkey.data = toku_malloc(pkey.size);
     memcpy(savepkey.data, pkey.data, pkey.size);
     switch (r3) {
     case 0:
@@ -438,7 +438,7 @@ delete_oldest_expired (void) {
     assert(r==DB_KEYEMPTY);
     r = dbp->get(dbp, null_txn, &savepkey, &data, 0);
     assert(r==DB_NOTFOUND);
-    free(savepkey.data);
+    toku_free(savepkey.data);
 }
 
 // Use a cursor to step through the names.
@@ -525,10 +525,10 @@ test_main (int argc, const char *argv[]) {
     memset(&nc_key, 0, sizeof(nc_key));
     memset(&nc_data, 0, sizeof(nc_data));
     nc_key.flags = DB_DBT_REALLOC;
-    nc_key.data = malloc(1); // Iniitalize it.
+    nc_key.data = toku_malloc(1); // Iniitalize it.
     ((char*)nc_key.data)[0]=0;
     nc_data.flags = DB_DBT_REALLOC;
-    nc_data.data = malloc(1); // Iniitalize it.
+    nc_data.data = toku_malloc(1); // Iniitalize it.
 
 
     mode = MODE_DEFAULT;

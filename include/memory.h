@@ -20,8 +20,8 @@ enum typ_tag { TYP_BRTNODE = 0xdead0001,
 };
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
-void *toku_calloc(size_t nmemb, size_t size);
-void *toku_malloc(size_t size);
+void *toku_calloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
+void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
 
 // xmalloc aborts instead of return NULL if we run out of memory
 void *toku_xmalloc(size_t size);
@@ -31,10 +31,10 @@ void *toku_xmalloc(size_t size);
  * really a (struct foo *), and you want to figure out what it is.
  */
 void *toku_tagmalloc(size_t size, enum typ_tag typ);
-void toku_free(void*);
+void toku_free(void*) __attribute__((__visibility__("default")));
 /* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
 void toku_free_n(void*, size_t size);
-void *toku_realloc(void *, size_t size);
+void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default")));
 
 /* MALLOC is a macro that helps avoid a common error:
  * Suppose I write

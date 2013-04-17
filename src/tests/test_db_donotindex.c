@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <string.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
 #include <assert.h>
@@ -57,7 +57,7 @@ getskey (DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
     if (callback_init_data) {
         skey->size = sizeof(entry->skey);
         if (callback_set_malloc) {
-            skey->data = malloc(skey->size);
+            skey->data = toku_malloc(skey->size);
 	    memcpy(skey->data, &entry->skey, skey->size);
         }
         else skey->data = &entry->skey;

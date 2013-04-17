@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -29,8 +29,8 @@ cursor_get (DBC *cursor, unsigned int *k, unsigned int *v, int op) {
         assert(key.size == sizeof *k); memcpy(k, key.data, key.size);
         assert(val.size == sizeof *v); memcpy(v, val.data, val.size);
     }
-    if (key.data) free(key.data);
-    if (val.data) free(val.data);
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
     return r;
 }
 

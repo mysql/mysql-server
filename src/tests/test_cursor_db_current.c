@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
+#include <memory.h>
 #include <db.h>
 
 #include "test.h"
@@ -61,7 +61,7 @@ test_cursor_current (void) {
     assert(data.size == sizeof vv);
     memcpy(&vv, data.data, data.size);
     assert(vv == v);
-    free(key.data); free(data.data);
+    toku_free(key.data); toku_free(data.data);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
     assert(r == 0);
@@ -71,7 +71,7 @@ test_cursor_current (void) {
     assert(data.size == sizeof vv);
     memcpy(&vv, data.data, data.size);
     assert(vv == v);
-    free(key.data); free(data.data);
+    toku_free(key.data); toku_free(data.data);
 
     r = cursor->c_del(cursor, 0); 
     assert(r == 0);

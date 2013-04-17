@@ -7,7 +7,7 @@
 #include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include "test.h"
 

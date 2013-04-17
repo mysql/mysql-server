@@ -3,10 +3,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
+#include <memory.h>
 #include "test.h"
 
 static void
@@ -40,7 +41,7 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
 
     // insert to fill up a node
     {    
-        void *v = malloc(vlen); assert(v); memset(v, 0, vlen);
+        void *v = toku_malloc(vlen); assert(v); memset(v, 0, vlen);
         DB_TXN *txn = 0;
         int i;
         for (i=0; i<n; i++) {
@@ -56,18 +57,18 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
             r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, v, lastvlen), 0);
             assert(r == 0);
         }
-        free(v);
+        toku_free(v);
     }
 
     // add another one to force a node split
     {    
-        void *v = malloc(vlen); assert(v); memset(v, 0, vlen);
+        void *v = toku_malloc(vlen); assert(v); memset(v, 0, vlen);
         DB_TXN *txn = 0;
         int k = htonl(n+1);
         DBT key, val;
         r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, v, vlen), 0);
         assert(r == 0);
-        free(v);
+        toku_free(v);
     }
 
     // close db

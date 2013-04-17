@@ -26,7 +26,7 @@ static void f_flush (CACHEFILE f,
 	assert(r==BLOCKSIZE);
     }
     if (!keep_me) {
-	free(value);
+	toku_free(value);
     }
 }
 
@@ -37,7 +37,7 @@ static int f_fetch (CACHEFILE f,
 		    long *sizep,
 		    void*extraargs     __attribute__((__unused__)),
 		    LSN *modified_lsn  __attribute__((__unused__))) {
-    void *buf = malloc(BLOCKSIZE);
+    void *buf = toku_malloc(BLOCKSIZE);
     int r = pread(toku_cachefile_fd(f), buf, BLOCKSIZE, key.b);
     assert(r==BLOCKSIZE);
     *value = buf;
@@ -61,7 +61,7 @@ static void writeit (void) {
     gettimeofday(&start, 0);
     int i, r;
     for (i=0; i<N; i++) {
-	void *buf = malloc(BLOCKSIZE);
+	void *buf = toku_malloc(BLOCKSIZE);
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	int j;

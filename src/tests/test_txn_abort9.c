@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>

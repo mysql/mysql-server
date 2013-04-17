@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
+#include <memory.h>
 #include "test.h"
 
 const char *dbfile = ENVDIR "/" "test.db";
@@ -35,7 +36,7 @@ db_get (DB *db, int k, int expectv, int val_flags) {
         if (verbose) printf("%s:%d:%d:%s\n", __FILE__, __LINE__, r, db_strerror(r));
     }
     if (val.flags & (DB_DBT_MALLOC|DB_DBT_REALLOC))
-        free(val.data);
+        toku_free(val.data);
     return r;
 }
 

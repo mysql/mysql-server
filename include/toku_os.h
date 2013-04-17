@@ -40,7 +40,7 @@ int toku_os_lock_file(char *name);
 //Unlocks and closes a file locked by toku_os_lock_on_file
 int toku_os_unlock_file(int fildes);
 
-int toku_os_mkdir(const char *pathname, mode_t mode);
+int toku_os_mkdir(const char *pathname, mode_t mode) __attribute__((__visibility__("default")));
 
 // Get the current process user and kernel use times
 int toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime);
@@ -51,7 +51,7 @@ int toku_os_get_rss(int64_t *rss);
 // Get the maximum in memory size (in bytes) of the current process
 int toku_os_get_max_rss(int64_t *maxrss);
 
-int toku_os_initialize_settings(int verbosity);
+int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("default")));
 
 //
 // this int acts like a bool, returns 0 for false, 1 for true

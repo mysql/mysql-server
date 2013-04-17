@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <string.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <db.h>
 #include <assert.h>
@@ -28,7 +28,7 @@ static DB_ENV *dbenv;
 static __attribute__((__unused__)) void* lastmalloced;
 
 static void* my_malloc(size_t size) {
-    void* p = malloc(size);
+    void* p = toku_malloc(size);
     return p;
 }
 
@@ -45,7 +45,7 @@ my_free(void * p) {
         if (verbose) printf("Freeing %p.\n", p);
         lastmalloced = NULL;
     }
-    free(p);    
+    toku_free(p);    
 }
 
 /*

@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <toku_portability.h>
 #include <db.h>
-#include <string.h>
+#include <memory.h>
 
 #include "test.h"
 

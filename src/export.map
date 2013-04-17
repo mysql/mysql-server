@@ -16,6 +16,10 @@
    toku_add_trace_mem;
    toku_print_trace_mem;
 
+   toku_os_mkdir;
+   toku_free;
+   toku_os_initialize_settings;
+
  local: *;
 };
 

@@ -29,7 +29,6 @@ BINS_RAW= \
 
 BINS_O = $(patsubst %,%.$(OEXT),$(BINS_RAW))
 
-
 .PHONY: build default bins libs
 
 build default: bins libs $(TEST_NEWBRT)
@@ -101,6 +100,7 @@ bins: $(BINS)
 check: bins
 	$(MAYBEATSIGN)cd tests;$(MAKE) check
 
+%$(BINSUF): BIN_FROM_C_FLAGS+=$(LIBPORTABILITY)
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
 checko2:

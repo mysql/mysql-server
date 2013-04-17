@@ -51,7 +51,7 @@ doit (int ksize __attribute__((__unused__))) {
     int r;
     
     fnamelen = strlen(__FILE__) + 20;
-    fname = malloc(fnamelen);
+    fname = toku_malloc(fnamelen);
     assert(fname!=0);
 
     snprintf(fname, fnamelen, "%s.brt", __FILE__);
@@ -77,7 +77,7 @@ doit (int ksize __attribute__((__unused__))) {
     for (i=0; i+1<BRT_FANOUT; i++) {
 	char key[TOKU_PSIZE];
 	keylens[i]=1+snprintf(key, TOKU_PSIZE, "%08d", (i+1)*10000);
-	keys[i]=strdup(key);
+	keys[i]=toku_strdup(key);
     }
 
     r = toku_testsetup_nonleaf(t, 1, &bnode, BRT_FANOUT, cnodes, fingerprints, keys, keylens);

@@ -12,7 +12,7 @@ struct threadpool {
 
 int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
     size_t size = sizeof (struct threadpool) + max_threads*sizeof (toku_pthread_t);
-    struct threadpool *threadpool = malloc(size);
+    struct threadpool *threadpool = toku_malloc(size);
     if (threadpool == 0)
         return ENOMEM;
     threadpool->max_threads = max_threads;
@@ -34,7 +34,7 @@ void threadpool_destroy(THREADPOOL *threadpoolptr) {
         assert(r == 0);
     }
     *threadpoolptr = 0;
-    free(threadpool);
+    toku_free(threadpool);
 }
 
 void threadpool_maybe_add(THREADPOOL threadpool, void *(*f)(void *), void *arg) {

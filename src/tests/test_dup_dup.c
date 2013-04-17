@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -99,8 +99,8 @@ test_dup_key (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
         memcpy(&kk, key.data, key.size);
         memcpy(&vv, val.data, val.size);
         if (verbose) printf("kk %d vv %d\n", kk, vv);
-        free(key.data);
-        free(val.data);
+        toku_free(key.data);
+        toku_free(val.data);
     }
 
     r = cursor->c_close(cursor); assert(r == 0);
@@ -151,8 +151,8 @@ test_dup_dup (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
         memcpy(&kk, key.data, key.size);
         memcpy(&vv, val.data, val.size);
         if (verbose) printf("kk %d vv %d\n", kk, vv);
-        free(key.data);
-        free(val.data);
+        toku_free(key.data);
+        toku_free(val.data);
     }
 
     r = cursor->c_close(cursor); assert(r == 0);
@@ -209,8 +209,8 @@ test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
         memcpy(&kk, key.data, key.size);
         memcpy(&vv, val.data, val.size);
         if (verbose) printf("kk %d vv %d\n", kk, vv);
-        free(key.data);
-        free(val.data);
+        toku_free(key.data);
+        toku_free(val.data);
     }
 
     r = cursor->c_close(cursor); assert(r == 0);

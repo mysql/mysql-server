@@ -85,6 +85,8 @@ BINS_RAW =  $(REGRESSION_TESTS_RAW) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 # BINS will be defined by adding .exe if appropriate.
 
+$(BINS): BIN_FROM_C_FLAGS+=$(LIBPORTABILITY)
+
 CHECKS = \
 	benchmarktest_256 \
 	test-assertA \

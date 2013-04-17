@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
+#include <memory.h>
 #include <sys/stat.h>
 #include <toku_portability.h>
 #include <db.h>
@@ -40,23 +40,23 @@ test_insert_delete_insert (int dup_mode) {
 
     r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET); 
     assert(r == 0);
-    free(val.data);
+    toku_free(val.data);
 
     r = cursor->c_del(cursor, 0); 
     assert(r == 0);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);
     assert(r == DB_KEYEMPTY);
-    if (key.data) free(key.data);
-    if (val.data) free(val.data);
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
 
     r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); 
     assert(r == 0);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);
     assert(r == 0);
-    if (key.data) free(key.data);
-    if (val.data) free(val.data);
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
 
     r = cursor->c_close(cursor); assert(r == 0);
 
