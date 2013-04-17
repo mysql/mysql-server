@@ -14,6 +14,7 @@ uint get_pk_insert_mode(THD* thd);
 bool get_load_save_space(THD* thd);
 bool get_disable_slow_alter(THD* thd);
 bool get_create_index_online(THD* thd);
+bool get_disable_prefetching(THD* thd);
 bool get_prelock_empty(THD* thd);
 uint get_tokudb_block_size(THD* thd);
 uint get_tokudb_read_block_size(THD* thd);
