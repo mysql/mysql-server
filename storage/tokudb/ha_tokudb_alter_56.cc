@@ -556,8 +556,7 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
                                                 (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN) != 0 // true if adding columns, otherwise is a drop
                                                 );
             
-            DBT column_dbt;
-            memset(&column_dbt, 0, sizeof column_dbt);
+            DBT column_dbt; memset(&column_dbt, 0, sizeof column_dbt);
             column_dbt.data = column_extra; 
             column_dbt.size = num_column_extra;
             DBUG_ASSERT(num_column_extra <= max_column_extra_size);            
@@ -652,7 +651,7 @@ ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info
     return error;
 }
 
-// Expand the varchr offset from 1 to 2 bytes.
+// Expand the variable length fields offsets from 1 to 2 bytes.
 int
 ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
@@ -660,14 +659,24 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
 
     uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+        // change to a new descriptor
+        DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
+        error = new_row_descriptor(table, altered_table, ha_alter_info, i, &row_descriptor);
+        if (error)
+            break;
+        error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
+        my_free(row_descriptor.data);
+        if (error)
+            break;
+
+        // make and broadcast the update offsets message to all keys that have values
+        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
             uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
             uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
             uint32_t number_of_offsets = offset_end - offset_start;
 
             // make the expand varchar offsets message
-            DBT expand;
-	    memset(&expand, 0, sizeof(expand));
+            DBT expand; memset(&expand, 0, sizeof expand);
             expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
@@ -753,6 +762,7 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
     return true;
 }
 
+// Debug function that ensures that the array is sorted
 static bool
 is_sorted(Dynamic_array<uint> &a) {
     bool r = true;
@@ -778,6 +788,8 @@ ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *
     return error;
 }
 
+// Return the starting offset in the value for a particular index (selected by idx) of a
+// particular field (selected by expand_field_num)
 static uint32_t
 field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
     uint32_t offset = null_bytes;
@@ -789,6 +801,7 @@ field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand
     return offset;
 }
 
+// Return true of the field is an unsigned int
 static bool
 is_unsigned(Field *f) {
     switch (f->key_type()) {
@@ -842,10 +855,19 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
 
     uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
-        if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
-            // make the expand int field message
-            DBT expand;
-	    memset(&expand, 0, sizeof(expand));
+        // change to a new descriptor
+        DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
+        error = new_row_descriptor(table, altered_table, ha_alter_info, i, &row_descriptor);
+        if (error)
+            break;
+        error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
+        my_free(row_descriptor.data);
+        if (error)
+            break;
+
+        // make and broadcast the expand update message to all keys that have values
+        if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+            DBT expand; memset(&expand, 0, sizeof expand);
             expand.size = 1+4+4+4;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
@@ -959,5 +981,41 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
     }
     return true;
 }
+
+// Allocate and initialize a new descriptor for a dictionary in the altered table identified with idx.
+// Return the new descriptor in the row_descriptor DBT.
+// Return non-zero on error.
+int
+ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor) {
+    int error = 0;
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+    row_descriptor->size = get_max_desc_size(ctx->altered_table_kc_info, altered_table);
+    row_descriptor->data = (uchar *) my_malloc(row_descriptor->size, MYF(MY_WME));
+    if (row_descriptor->data == NULL) {
+        error = ENOMEM;
+    } else {
+        KEY* prim_key = hidden_primary_key ? NULL : &altered_table->s->key_info[primary_key];
+        if (idx == primary_key) {
+            row_descriptor->size = create_main_key_descriptor((uchar *)row_descriptor->data,
+                                                              prim_key,
+                                                              hidden_primary_key,
+                                                              primary_key,
+                                                              altered_table,
+                                                              ctx->altered_table_kc_info);
+        } else {
+            row_descriptor->size = create_secondary_key_descriptor((uchar *)row_descriptor->data,
+                                                                   &altered_table->key_info[idx],
+                                                                   prim_key,
+                                                                   hidden_primary_key,
+                                                                   altered_table,
+                                                                   primary_key,
+                                                                   idx,
+                                                                   ctx->altered_table_kc_info);
+        }
+        error = 0;
+    }
+    return error;
+}
+
 
 #endif
