@@ -757,8 +757,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 }
             }
         }
-        /* Calculate pack_length of primary key */
-        share->fixed_length_primary_key = 1;
         if (!hidden_primary_key) {
             //
             // I realize this is incredibly confusing, and refactoring should take 
@@ -771,7 +769,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             for (; key_part != end; key_part++) {
                 ref_length += key_part->field->max_packed_col_length(key_part->length);
             }
-            share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length + sizeof(uchar) + sizeof(u_int32_t));
             share->status |= STATUS_PRIMARY_KEY_INIT;
         }
         share->ref_length = ref_length;
