@@ -1962,10 +1962,10 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 
     struct brt_header *h = NULL;
     rval = deserialize_brtheader (fd, rb, &h); //deserialize from rbuf and fd into header
-    invariant ((uint32_t) h->layout_version == version);
-    deserialize_descriptor_from(fd, h->blocktable, &(h->descriptor), version);
     if (rval == 0) {
         invariant(h);
+        invariant((uint32_t) h->layout_version == version);
+        deserialize_descriptor_from(fd, h->blocktable, &(h->descriptor), version);
         switch (version) {
             case BRT_LAYOUT_VERSION_13:
                 invariant(h->layout_version == BRT_LAYOUT_VERSION_13);
