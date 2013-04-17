@@ -310,6 +310,27 @@ BDB_DONTRUN_TESTS = \
 checkpoint_1.tdb$(BINSUF) checkpoint_stress.tdb$(BINSUF): checkpoint_test.h
 # dependency only, not a rule (do not insert a tab at this line)
 
+DEPENDS_ON_STRESS_HELPERS = \
+ recover-ft1 \
+ recover-ft2 \
+ recover-ft3 \
+ recover-ft4 \
+ recover-ft5 \
+ recover-ft6 \
+ recover-ft7 \
+ recover-ft8 \
+ recover-test_stress1 \
+ recover-test_stress2 \
+ test_stress1 \
+ test_stress2 \
+ test_stress3 \
+ test_stress4 \
+ test_stress5 \
+ test_stress6 \
+ #blank
+$(patsubst %,%.tdb,$(DEPENDS_ON_STRESS_HELPERS)): threaded_stress_test_helpers.h
+
+
 BDB_TESTS_THAT_SHOULD_FAIL= \
 #\ ends prev line
 ifeq ($(OS_CHOICE),windows)
