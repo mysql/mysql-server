@@ -110,8 +110,9 @@ check: bins
 
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
+checko2: SHELL=/bin/bash
 checko2:
-	@if [[ "$(OPTFLAGS)" =~ "-O([2-3])" ]] ; then \
+	@shopt -s compat31; if [[ "$(OPTFLAGS)" =~ "-O([2-3x])" ]] ; then \
 		echo OPTFLAGS=$(OPTFLAGS) ok; \
 	else \
 		echo OPTFLAGS=$(OPTFLAGS) bad; exit 1; \
