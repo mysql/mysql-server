@@ -5715,6 +5715,11 @@ int ha_tokudb::delete_all_rows() {
     int error = 0;
     uint curr_num_DBs = 0;
 
+    if (thd_sql_command(ha_thd()) != SQLCOM_TRUNCATE) {
+        error = HA_ERR_WRONG_COMMAND;
+        goto cleanup;
+    }
+
     //
     // prelock so we know right away if there are any potential
     // deadlocks
