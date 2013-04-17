@@ -463,7 +463,6 @@ public:
 
     void track_progress(THD* thd);
 
-    int heavi_ret_val;
 
     //
     // index into key_file that holds DB* that is indexed on
