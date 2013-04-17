@@ -101,8 +101,8 @@ check_ok:
 	$(MAYBEATSIGN)test 0 = 0 $(SUMMARIZE_CMD)
 
 # Don't run 1305 under valgrind.  It takes way too long.
+check_test1305: VGRIND=
 check_test1305:
-	./test1305
 
 check_benchmarktest_256: benchmark-test$(BINSUF)
 	$(MAYBEATSIGN)$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
