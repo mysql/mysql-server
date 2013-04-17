@@ -28,6 +28,9 @@ int toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *
 
 uint64_t toku_test_get_latest_lsn(DB_ENV *env) __attribute__((__visibility__("default")));
 
+// test-only function
+extern int toku_test_get_checkpointing_user_data_status(void) __attribute__((__visibility__("default")));
+
 #if defined(__cplusplus)
 }
 #endif

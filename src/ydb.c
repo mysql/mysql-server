@@ -5904,3 +5904,6 @@ toku_test_get_latest_lsn(DB_ENV *env) {
     return rval.lsn;
 }
 
+int toku_test_get_checkpointing_user_data_status (void) {
+    return toku_cachetable_get_checkpointing_user_data_status();
+}

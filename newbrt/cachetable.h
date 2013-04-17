@@ -336,6 +336,9 @@ char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env
 
 int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[]);
 
+// test-only function
+extern int toku_cachetable_get_checkpointing_user_data_status(void);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
