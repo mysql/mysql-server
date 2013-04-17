@@ -12,6 +12,7 @@
 #include "toku_portability.h"
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 
 typedef struct field {
     char *type;
@@ -498,7 +500,9 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     chmod(headerpath, S_IRUSR|S_IWUSR);
     unlink(codepath);
     unlink(headerpath);
-    cf = fopen(codepath, "w");      assert(cf!=0);
+    cf = fopen(codepath, "w");
+    if (cf==0) { int r = errno; printf("fopen of %s failed because of errno=%d (%s)\n", codepath, r, strerror(r)); } // sometimes this is failing, so let's make a better diagnostic
+    assert(cf!=0);
     hf = fopen(headerpath, "w");     assert(hf!=0);
     fprintf(hf, "#ifndef LOG_HEADER_H\n");
     fprintf(hf, "#define  LOG_HEADER_H\n");
