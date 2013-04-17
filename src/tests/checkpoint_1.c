@@ -22,6 +22,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
                n, snap_all, flags); 
         fflush(stdout); 
     }
+    dir_create();
     env_startup();
     int run;
     int r;

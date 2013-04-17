@@ -31,7 +31,7 @@ verify_identical_dbts(const DBT *dbt1, const DBT *dbt2) {
 }
 
 // return 0 if same
-static int
+static int UU()
 compare_dbs(DB *compare_db1, DB *compare_db2) {
     //This does not lock the dbs/grab table locks.
     //This means that you CANNOT CALL THIS while another thread is modifying the db.
@@ -78,13 +78,19 @@ compare_dbs(DB *compare_db1, DB *compare_db2) {
     return rval;
 }
 
-static void
-env_startup(void) {
+
+static void UU()
+dir_create(void) {
     int r;
     r = system("rm -rf " ENVDIR);
         CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
+}
+
+static void  UU()
+env_startup(void) {
+    int r;
     r = db_env_create(&env, 0);
         CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);
@@ -98,14 +104,14 @@ env_startup(void) {
         CKERR(r);
 }
 
-static void
+static void UU()
 env_shutdown(void) {
     int r;
     r = env->close(env, 0);
         CKERR(r);
 }
 
-static void
+static void UU()
 fill_name(DICTIONARY d, char *buf, int bufsize) {
     int bytes;
     bytes = snprintf(buf, bufsize, "%s_%08x", d->filename, d->num);
@@ -115,7 +121,7 @@ fill_name(DICTIONARY d, char *buf, int bufsize) {
 	assert(buf[bytes] == 0);
 }
 
-static void
+static void UU()
 fill_full_name(DICTIONARY d, char *buf, int bufsize) {
     int bytes;
     bytes = snprintf(buf, bufsize, "%s/%s_%08x", ENVDIR, d->filename, d->num);
@@ -125,7 +131,7 @@ fill_full_name(DICTIONARY d, char *buf, int bufsize) {
 	assert(buf[bytes] == 0);
 }
 
-static void
+static void UU()
 db_startup(DICTIONARY d, DB_TXN *open_txn) {
     int r;
     r = db_create(&d->db, env, 0);
@@ -152,7 +158,7 @@ db_startup(DICTIONARY d, DB_TXN *open_txn) {
     }
 }
 
-static void
+static void UU()
 db_shutdown(DICTIONARY d) {
     int r;
     r = d->db->close(d->db, 0);
@@ -160,12 +166,12 @@ db_shutdown(DICTIONARY d) {
     d->db = NULL;
 }
 
-static void
+static void UU()
 null_dictionary(DICTIONARY d) {
     memset(d, 0, sizeof(*d));
 }
 
-static void
+static void UU()
 init_dictionary(DICTIONARY d, u_int32_t flags, char *name) {
     null_dictionary(d);
     d->flags = flags;
@@ -173,7 +179,7 @@ init_dictionary(DICTIONARY d, u_int32_t flags, char *name) {
 }
 
 
-static void
+static void UU()
 db_delete(DICTIONARY d) {
     db_shutdown(d);
     int r;
@@ -229,7 +235,7 @@ db_replace(DICTIONARY d, DB_TXN *open_txn) {
     *d = temp;
 }
 
-static void
+static void UU()
 insert_random(DB *db1, DB *db2, DB_TXN *txn) {
     int64_t k = random64();
     int64_t v = random64();
@@ -249,14 +255,14 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
     }
 }
 
-static inline int64_t
+static inline int64_t UU()
 generate_val(int64_t key) {
     int64_t val = key + 314;
     return val;
 }
 
 
-static void
+static void UU()
 insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
     int64_t k;
     int64_t v;
@@ -289,7 +295,7 @@ insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
 }
 
 
-static void
+static void UU()
 snapshot(DICTIONARY d, int do_checkpoint) {
     if (do_checkpoint) {
         env->txn_checkpoint(env, 0, 0, 0);
