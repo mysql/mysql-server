@@ -81,7 +81,6 @@ static int indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hot
 static int indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
 static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid);
 static int indexer_is_xid_live(DB_INDEXER *indexer, TXNID xid);
-static int indexer_is_previous_insert_key_valid(DB_INDEXER *indexer);
 
 void
 indexer_undo_do_init(DB_INDEXER *indexer) {
@@ -90,16 +89,12 @@ indexer_undo_do_init(DB_INDEXER *indexer) {
     // DBTs for the key and val
     toku_init_dbt(&indexer->i->hotkey); indexer->i->hotkey.flags = DB_DBT_REALLOC;
     toku_init_dbt(&indexer->i->hotval); indexer->i->hotval.flags = DB_DBT_REALLOC;
-
-    // DBT for the previous inserted key
-    toku_init_dbt(&indexer->i->previous_insert_key); indexer->i->previous_insert_key.flags = DB_DBT_REALLOC;
 }
 
 void
 indexer_undo_do_destroy(DB_INDEXER *indexer) {
     toku_destroy_dbt(&indexer->i->hotkey);
     toku_destroy_dbt(&indexer->i->hotval);
-    toku_destroy_dbt(&indexer->i->previous_insert_key);
     indexer_commit_keys_destroy(&indexer->i->commit_keys);
 }
 
@@ -164,7 +159,6 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                 if (result == 0) {
                     indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
-                    result = toku_dbt_set(indexer->i->hotkey.size, indexer->i->hotkey.data, &indexer->i->previous_insert_key, NULL);
                 }
             }
         } else
@@ -249,8 +243,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 
         // do
         if (uxr_is_delete(uxr)) {
-            if (outermost_is_live && indexer_is_previous_insert_key_valid(indexer))
-                result = indexer_lock_key(indexer, hotdb, &indexer->i->previous_insert_key, outermost_xid);
+            ; // do nothing
         } else if (uxr_is_insert(uxr)) {
             // generate the hot key and val
             result = indexer_generate_hot_key_val(indexer, hotdb, ule, uxr, &indexer->i->hotkey, &indexer->i->hotval);
@@ -258,13 +251,16 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 // send the insert message
                 if (!outermost_is_live) {
                     result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+#if 0
+                    // no need to do this
+                    if (result == 0)
+                        indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
+#endif
                 } else {
                     result = indexer_brt_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                     if (result == 0) 
                         result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                 }
-                if (result == 0)
-                    result = toku_dbt_set(indexer->i->hotkey.size, indexer->i->hotkey.data, &indexer->i->previous_insert_key, NULL);
             }
         } else
             invariant(0);
@@ -282,14 +278,42 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     return result;
 }
 
+
+static int UU()
+indexer_fast_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
+    int result = 0;
+    UXRHANDLE uxr = ule_get_uxr(ule, 0); invariant(uxr);
+    if (uxr_is_insert(uxr)) {
+        // generate the hot key and val
+        result = indexer_generate_hot_key_val(indexer, hotdb, ule, uxr, &indexer->i->hotkey, &indexer->i->hotval);
+        if (result == 0) {
+            // send the insert message
+            // TXNID this_xid = uxr_get_txnid(uxr);
+            XIDS xids = NULL; // xids init one this_xid
+            result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+        }
+    }
+    return result;
+ }
+
 int
 indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
-    int result;
+    int result = 0;
 
-    result = indexer_undo_do_committed(indexer, hotdb, ule);
-    if (result == 0)
-        result = indexer_undo_do_provisional(indexer, hotdb, ule);
-
+#if 0
+    int num_committed = ule_get_num_committed(ule);
+    int num_provisional = ule_get_num_provisional(ule);
+    // fast path for a simple ule with a single committed transaction record
+    if (num_committed == 1 && num_provisonal == 0) {
+        result = indexer_fast_undo_do(indexer, hotdb, ule);
+    } else 
+#endif
+    {
+        result = indexer_undo_do_committed(indexer, hotdb, ule);
+        if (result == 0)
+            result = indexer_undo_do_provisional(indexer, hotdb, ule);
+    }
+        
     if ( indexer->i->test_only_flags == INDEXER_TEST_ONLY_ERROR_CALLBACK ) 
         result = EINVAL;
 
@@ -525,9 +549,4 @@ indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
         }
     }
     return result;
-}
-
-static int
-indexer_is_previous_insert_key_valid(DB_INDEXER *indexer) {
-    return indexer->i->previous_insert_key.size > 0;
 }

@@ -1,0 +1,4 @@
+key k1
+delete committed 0
+delete provisional 200
+insert provisional 201 v201
