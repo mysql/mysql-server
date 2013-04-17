@@ -1,7 +1,4 @@
-// T(A) gets W(TABLE)
-// T(B) trys R(L) blocked, conflicts {A}
-// T(A) releases locks
-// T(B) gets R(L)
+// add a write lock on L for a transaction, remove a reference on the lock tree, then release the locks for the transaction.
 
 #include "test.h"
 
@@ -42,41 +39,24 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
     assert(r == 0 && lt);
 
-    DBT key_l; dbt_init(&key_l, "L", 1);
-
+    // add a lock for a transaction
     const TXNID txn_a = 1;
-    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, fake_db, txn_a, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_WRITE);
+    DBT key_l; dbt_init(&key_l, "L", 1);
+    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, fake_db, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&a_w_l, lt, false); assert(r == 0); 
     assert(a_w_l.state == LOCK_REQUEST_COMPLETE && a_w_l.complete_r == 0);
-
-    txnid_set conflicts; 
-
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &a_w_l, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 0);
-    txnid_set_destroy(&conflicts);
-
     toku_lock_request_destroy(&a_w_l);
+    
+    // add a reference to the lock tree for the transaction
+    toku_lt_add_ref(lt);
 
-    const TXNID txn_b = 2;
-    toku_lock_request b_r_l; toku_lock_request_init(&b_r_l, fake_db, txn_b, &key_l, &key_l, LOCK_REQUEST_READ);
-    r = toku_lock_request_start(&b_r_l, lt, false); assert(r != 0); 
-    assert(b_r_l.state == LOCK_REQUEST_PENDING);
+    // start closing the lock tree
+    toku_lt_remove_db_ref(lt, fake_db);
 
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &b_r_l, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 1);
-    assert(txnid_set_get(&conflicts, 0) == txn_a);
-    txnid_set_destroy(&conflicts);
-    toku_lock_request_destroy(&b_r_l);
-
-    r = toku_lt_unlock_txn(lt, txn_a); assert(r == 0);
-    r = toku_lt_unlock_txn(lt, txn_b); assert(r == 0);
+    // release all locks for the transaction
+    r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);
 
     // shutdown 
-    toku_lt_remove_db_ref(lt, fake_db);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

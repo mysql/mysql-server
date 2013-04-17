@@ -105,11 +105,12 @@ int main(int argc, const char *argv[]) {
     assert(s.max_lock_memory == max_lock_memory);
     assert(s.curr_lock_memory == 0);
 
+    DB *db_a = (DB *) 2;
+
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, ltm, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, db_a, dbcmp);
     assert(r == 0 && lt);
 
-    DB *db_a = (DB *) 2;
     TXNID txn_a = 1;
 
     // acquire the locks on keys 1 .. nrows
@@ -145,7 +146,7 @@ int main(int argc, const char *argv[]) {
     assert(s.curr_locks == 0);
 
     // shutdown 
-    r = toku_lt_close(lt); assert(r == 0);
+    toku_lt_remove_db_ref(lt, db_a);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

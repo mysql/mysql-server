@@ -39,29 +39,31 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
+    DB *fake_db = (DB *) 1;
+
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, ltm, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
     DBT key_l; dbt_init(&key_l, "L", 1);
-    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, (DB *)1, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
+    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, fake_db, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&a_w_l, lt, false); assert(r == 0); 
     assert(a_w_l.state == LOCK_REQUEST_COMPLETE && a_w_l.complete_r == 0);
     toku_lock_request_destroy(&a_w_l);
 
     const TXNID txn_b = 2;
     DBT key_m; dbt_init(&key_m, "M", 1);
-    toku_lock_request b_w_m; toku_lock_request_init(&b_w_m, (DB *)1, txn_b, &key_m, &key_m, LOCK_REQUEST_WRITE);
+    toku_lock_request b_w_m; toku_lock_request_init(&b_w_m, fake_db, txn_b, &key_m, &key_m, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&b_w_m, lt, false); assert(r == 0); 
     assert(b_w_m.state == LOCK_REQUEST_COMPLETE && b_w_m.complete_r == 0);
     toku_lock_request_destroy(&b_w_m);
 
-    toku_lock_request a_w_m; toku_lock_request_init(&a_w_m, (DB *)1, txn_a, &key_m, &key_m, LOCK_REQUEST_WRITE);
+    toku_lock_request a_w_m; toku_lock_request_init(&a_w_m, fake_db, txn_a, &key_m, &key_m, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&a_w_m, lt, false); assert(r == DB_LOCK_NOTGRANTED); 
     assert(a_w_m.state == LOCK_REQUEST_PENDING);
 
-    toku_lock_request b_w_l; toku_lock_request_init(&b_w_l, (DB *)1, txn_b, &key_l, &key_l, LOCK_REQUEST_WRITE);
+    toku_lock_request b_w_l; toku_lock_request_init(&b_w_l, fake_db, txn_b, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&b_w_l, lt, false); assert(r == DB_LOCK_DEADLOCK); 
     assert(b_w_l.state == LOCK_REQUEST_COMPLETE && b_w_l.complete_r == DB_LOCK_DEADLOCK);
 
@@ -75,7 +77,7 @@ int main(int argc, const char *argv[]) {
     r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);
 
     // shutdown 
-    r = toku_lt_close(lt); assert(r == 0);
+    toku_lt_remove_db_ref(lt, fake_db);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

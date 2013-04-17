@@ -68,8 +68,10 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
+    DB *fake_db = (DB *) 1;
+
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, ltm, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -94,7 +96,7 @@ int main(int argc, const char *argv[]) {
     }
 
     // shutdown 
-    r = toku_lt_close(lt); assert(r == 0);
+    toku_lt_remove_db_ref(lt, fake_db);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

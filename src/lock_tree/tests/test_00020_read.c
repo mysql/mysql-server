@@ -40,12 +40,14 @@ static void init_query(void) {
     query.right = &qright;
 }
 
+static DB *fake_db = (DB *) 1;
+
 static void setup_tree(void) {
     assert(!lt && !ltm);
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, ltm, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
     CKERR(r);
     assert(lt);
     init_query();
@@ -54,7 +56,7 @@ static void setup_tree(void) {
 static void close_tree(void) {
     r = toku_lt_unlock_txn(lt, txn); CKERR(r);
     assert(lt && ltm);
-    r = toku_lt_close(lt); CKERR(r);
+    toku_lt_remove_db_ref(lt, fake_db);
     r = toku_ltm_close(ltm); CKERR(r);
     lt = NULL;
     ltm = NULL;
