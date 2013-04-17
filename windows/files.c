@@ -1,3 +1,4 @@
+#include <toku_portability.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
@@ -82,6 +83,7 @@ int toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t
 
 int toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     t_write = write_fun;
+    t_write = t_write; //So far unused
     return 0;
 }
 
