@@ -869,7 +869,7 @@ lt_find_extreme(toku_lock_tree* tree, toku_range* to_insert, uint32_t numfound) 
     return lt_determine_extreme(tree, to_insert, &ignore_left, &ignore_right, numfound, 1);
 }
 
-static inline int 
+static inline void 
 lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert, bool alloc_left, BOOL* alloc_right) {
     assert(to_insert && alloc_right);
     bool copy_left = FALSE;
@@ -892,7 +892,6 @@ lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert, bool alloc_left, B
     }
     else if (copy_left) 
         to_insert->ends.right = to_insert->ends.left;
-    return 0;
 }
 
 static inline int 
@@ -969,14 +968,7 @@ consolidate_range_tree(toku_lock_tree* tree, bool found_only, toku_range* to_ins
             return r;
     }
     /* Allocate the consolidated range */
-    r = lt_alloc_extreme(tree, to_insert, alloc_left, &alloc_right);
-    if (0) { died1:
-        if (alloc_left)  p_free(tree, to_insert->ends.left);
-        if (alloc_right) p_free(tree, to_insert->ends.right); 
-        return r; 
-    }
-    if (r != 0)
-        return r;
+    lt_alloc_extreme(tree, to_insert, alloc_left, &alloc_right);
 
     /* From this point on we have to panic if we cannot finish. */
     /* Delete overlapping ranges from range tree ... */
@@ -1005,7 +997,9 @@ consolidate_range_tree(toku_lock_tree* tree, bool found_only, toku_range* to_ins
         /* If we deleted/merged anything, this is a panic situation. */
         if (numfound) 
             return lt_panic(tree, TOKU_LT_INCONSISTENT);
-        goto died1; 
+        if (alloc_left)  p_free(tree, to_insert->ends.left);
+        if (alloc_right) p_free(tree, to_insert->ends.right); 
+        return lt_panic(tree, TOKU_LT_INCONSISTENT);
     }
     
     ltm_incr_locks(tree->mgr, numfound);
@@ -1870,9 +1864,7 @@ lt_try_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_
         init_insert(&to_insert, &left, &right, txn);
 
         bool dummy = TRUE;
-        r = lt_alloc_extreme(tree, &to_insert, TRUE, &dummy);
-        if (r != 0)
-            goto cleanup;
+        lt_alloc_extreme(tree, &to_insert, TRUE, &dummy);
         bool free_left = FALSE;
         toku_range_tree* selfwrite;
         r = lt_selfwrite(tree, txn, &selfwrite);
