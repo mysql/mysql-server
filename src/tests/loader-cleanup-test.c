@@ -920,7 +920,10 @@ int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     if (test_only_abort_via_poll) {
 	printf("Testing only normal operation and abort via polling, but test abort_via_polling exhaustively.\n");
-	if (verbose) printf("\n\nTesting loader with loader close and txn commit (normal)\n");
+	if (verbose) {
+	    print_time_now();
+	    printf(": Testing loader with loader close and txn commit (normal)\n");
+	}
 	run_test(commit, 0);
 	if (verbose) {
 	    printf("\n\nTesting loader with abort_via_polling exhaustively,\n");
@@ -929,9 +932,17 @@ int test_main(int argc, char * const *argv) {
 	for (int i = 1; i < poll_count_nominal+1; i++) {
 	    const char * err_type = err_type_str(abort_via_poll);
 	    const char * err_msg_type = err_msg_type_str(abort_via_poll);
-	    if (verbose) printf("\n\nTesting loader with %s induced at %s count %d (of %d)\n", 
-				err_msg_type, err_type, i, poll_count_nominal);
+	    if (verbose) {
+		print_time_now();
+		printf(": Testing loader with %s induced at %s count %d (of %d)\n", 
+		       err_msg_type, err_type, i, poll_count_nominal);
+		print_time_now();
+	    }
 	    run_test(abort_via_poll, i);
+	}
+	if (verbose) {
+	    print_time_now();
+	    printf(": Done.\n");
 	}
     }
     else
