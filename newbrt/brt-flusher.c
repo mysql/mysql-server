@@ -371,8 +371,11 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         toku_cachetable_call_ydb_unlock(h->cf);
 
         (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_started, 1);
+        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_running, 1);
 
         flush_some_child(h, root_node, &new_fa);
+
+        (void) __sync_fetch_and_add(&brt_flusher_status.cleaner_num_leaf_merges_running, -1);
 
         toku_free(buf);
     }

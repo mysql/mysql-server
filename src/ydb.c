@@ -2119,6 +2119,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->cleaner_min_buffer_workdone = brt_flusher_stat.cleaner_min_buffer_workdone;
             engstat->cleaner_total_buffer_workdone = brt_flusher_stat.cleaner_total_buffer_workdone;
             engstat->cleaner_num_leaf_merges_started = brt_flusher_stat.cleaner_num_leaf_merges_started;
+            engstat->cleaner_num_leaf_merges_running = brt_flusher_stat.cleaner_num_leaf_merges_running;
             engstat->cleaner_num_leaf_merges_completed = brt_flusher_stat.cleaner_num_leaf_merges_completed;
             engstat->cleaner_num_dirtied_for_leaf_merge = brt_flusher_stat.cleaner_num_dirtied_for_leaf_merge;
             engstat->flush_total = brt_flusher_stat.flush_total;
@@ -2391,6 +2392,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
         n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_started     %"PRIu64"\n", engstat.cleaner_num_leaf_merges_started);
+        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_running     %"PRIu64"\n", engstat.cleaner_num_leaf_merges_running);
         n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_completed   %"PRIu64"\n", engstat.cleaner_num_leaf_merges_completed);
         n += snprintf(buff + n, bufsiz - n, "cleaner_num_dirtied_for_leaf_merge  %"PRIu64"\n", engstat.cleaner_num_dirtied_for_leaf_merge);
         n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
