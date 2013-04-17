@@ -68,7 +68,6 @@ BRT_SOURCES = \
   toku_worker \
   trace_mem \
   txn \
-  varray \
   x1764 \
   xids \
   ybt \
