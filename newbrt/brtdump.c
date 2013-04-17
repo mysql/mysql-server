@@ -224,6 +224,8 @@ int main (int argc, const char *argv[]) {
                 long long strtoll(char *, char **, int);
                 BLOCKNUM off = make_blocknum(strtoll(fields[1], NULL, 10));
                 dump_node(f, off, h);
+            } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
+                dump_data = strtol(fields[1], NULL, 10);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }
