@@ -939,7 +939,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     DB_TXN *txn=NULL;
     if (using_txns) {
-        r = toku_txn_begin_internal(env, 0, &txn, 0, 1, true);
+        r = toku_txn_begin(env, 0, &txn, 0, 1, true);
         assert_zero(r);
     }
 
@@ -2380,7 +2380,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_errcall = toku_env_set_errcall;
     result->set_errfile = toku_env_set_errfile;
     result->set_errpfx = toku_env_set_errpfx;
-    result->txn_begin = toku_txn_begin;
+    result->txn_begin = locked_txn_begin;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
@@ -2653,7 +2653,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-	r = toku_txn_begin_internal(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
 	assert_zero(r);
     }
 
@@ -2757,7 +2757,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-	r = toku_txn_begin_internal(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
 	assert_zero(r);
     }
 

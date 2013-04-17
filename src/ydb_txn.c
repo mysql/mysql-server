@@ -139,7 +139,7 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     //  in the test_stress tests.
     //
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
-    toku_txn_rollback_txn(ttxn);
+    toku_txn_complete_txn(ttxn);
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
 
     //Promote list to parent (dbs that must close before abort)
@@ -210,7 +210,7 @@ toku_txn_abort_only(DB_TXN * txn,
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert_zero(r);
     r = toku_txn_release_locks(txn);
-    toku_txn_rollback_txn(db_txn_struct_i(txn)->tokutxn);
+    toku_txn_complete_txn(db_txn_struct_i(txn)->tokutxn);
     return r;
 }
 
@@ -226,8 +226,8 @@ toku_txn_abort(DB_TXN * txn,
 // Create a new transaction.
 // Called without holding the ydb lock.
 int 
-toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
-    int r = toku_txn_begin_internal(env, stxn, txn, flags, 0, false);
+locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
+    int r = toku_txn_begin(env, stxn, txn, flags, 0, false);
     return r;
 }
 
@@ -306,13 +306,16 @@ locked_txn_abort(DB_TXN *txn) {
 }
 
 int 
-toku_txn_begin_internal(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool internal, bool holds_ydb_lock) {
+toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool internal, bool holds_ydb_lock) {
     HANDLE_PANICKED_ENV(env);
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, stxn); //Cannot create child while child already exists.
-    if (!toku_logger_is_open(env->i->logger)) return toku_ydb_do_error(env, EINVAL, "Environment does not have logging enabled\n");
-    if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
+    if (!toku_logger_is_open(env->i->logger)) 
+        return toku_ydb_do_error(env, EINVAL, "Environment does not have logging enabled\n");
+    if (!(env->i->open_flags & DB_INIT_TXN))  
+        return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
+
     u_int32_t txn_flags = 0;
-    txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks.
+    txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks. RFP remove this?
     TOKU_ISOLATION child_isolation = TOKU_ISO_SERIALIZABLE;
     u_int32_t iso_flags = flags & DB_ISOLATION_FLAGS;
     if (!(iso_flags == 0 || 
@@ -420,7 +423,6 @@ toku_txn_begin_internal(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t fla
     // created.
     int r = 0;
     
-    //r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
     TXN_SNAPSHOT_TYPE snapshot_type;
     switch(db_txn_struct_i(result)->iso){
         case(TOKU_ISO_SNAPSHOT):
@@ -439,14 +441,20 @@ toku_txn_begin_internal(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t fla
             break;
         }
     }
-    if (!holds_ydb_lock) toku_ydb_lock();
-    r = toku_txn_begin_txn(result,		   
-			   stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
-			   &db_txn_struct_i(result)->tokutxn, 
-			   env->i->logger,
-			   snapshot_type
-			   );
-    if (!holds_ydb_lock) toku_ydb_unlock();
+    r = toku_txn_create_txn(&db_txn_struct_i(result)->tokutxn, 
+                            stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
+                            env->i->logger,
+                            TXNID_NONE,
+                            snapshot_type,
+                            result
+                            );
+    if (r != 0)
+        return r;
+    if (!holds_ydb_lock) 
+        toku_ydb_lock();
+    r = toku_txn_start_txn(db_txn_struct_i(result)->tokutxn);
+    if (!holds_ydb_lock) 
+        toku_ydb_unlock();
     if (r != 0)
         return r;
 

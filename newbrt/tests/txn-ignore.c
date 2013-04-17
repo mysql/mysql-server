@@ -24,7 +24,7 @@ test_main(int argc, const char *argv[]) {
 
     int r;
 
-    r = toku_txn_ignore_init(txn);             CKERR(r);
+    toku_txn_ignore_init(txn);
     
     FILENUM f1 = {1};
     FILENUM f2 = {2};
