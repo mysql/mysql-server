@@ -206,14 +206,6 @@ BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
     return (!txn->parent && txn->checkpoint_needed_before_commit);
 }
 
-//TODO(yoni): inline this function manually
-static void
-log_xcommit(void *thunk) {
-    struct xcommit_info *info = thunk;
-    TOKUTXN txn = info->txn;
-    info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
-}
-
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
@@ -236,14 +228,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
-    {
-        struct xcommit_info info = {
-            .r = 0,
-            .txn = txn,
-        };
-        log_xcommit(&info);
-        r = info.r;
-    }
+    r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
     if (r==0) {
         r = toku_rollback_commit(txn, oplsn);
         STATUS_VALUE(TXN_COMMIT)++;
