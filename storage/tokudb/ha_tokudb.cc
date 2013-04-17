@@ -2519,7 +2519,11 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         if (keynr == primary_key) {
             continue;
         }
-        if (key_cmp(keynr, old_row, new_row) || primary_key_changed) {
+        if (table->key_info[keynr].flags & HA_CLUSTERING ||
+            key_cmp(keynr, old_row, new_row) || 
+            primary_key_changed
+            ) 
+        {
             u_int32_t put_flags;
             if ((error = remove_key(txn, keynr, old_row, &old_prim_key))) {
                 goto cleanup;
