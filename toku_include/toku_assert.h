@@ -33,8 +33,12 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 #define WHEN_NOT_GCOV(x) x
 #endif
 
+#define lazy_assert(a)     assert(a) // indicates code is incomplete 
+#define invariant(a)       assert(a) // indicates a code invariant that must be true
+#define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif
