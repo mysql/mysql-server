@@ -16,6 +16,9 @@
 
 bool garbage_collection_debug = false;
 
+// internal locking functions, should use this instead of accessing lock directly
+static void txn_manager_lock(TXN_MANAGER txn_manager);
+static void txn_manager_unlock(TXN_MANAGER txn_manager);
 
 static bool is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
     TOKUTXN result = NULL;
@@ -196,7 +199,7 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
 TXNID
 toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
     TXNID rval = TXNID_NONE_LIVING;
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
 
     if (txn_manager->live_root_txns.size() > 0) {
         // We use live_root_txns because roots are always older than children,
@@ -204,7 +207,7 @@ toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
         int r = txn_manager->live_root_txns.fetch(0, &rval);
         invariant_zero(r);
     }
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
     return rval;
 }
 
@@ -286,7 +289,7 @@ int toku_txn_manager_start_txn(
     // the act of getting a transaction ID and adding the
     // txn to the proper OMTs must be atomic. MVCC depends
     // on this.
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
     }
@@ -376,7 +379,7 @@ int toku_txn_manager_start_txn(
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
     }
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 
     *txnp = txn;
     return 0;
@@ -461,7 +464,7 @@ find_xid (const TOKUTXN &txn, const TOKUTXN &txnfind)
 
 void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     int r;
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
 
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
@@ -529,7 +532,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
     }
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 
     //Cleanup that does not require the txn_manager lock
     if (is_snapshot) {
@@ -546,11 +549,11 @@ void toku_txn_manager_clone_state_for_gc(
     xid_omt_t &live_root_txns
     )
 {
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     snapshot_xids.clone(txn_manager->snapshot_txnids);
     referenced_xids.clone(txn_manager->referenced_xids);
     live_root_txns.clone(txn_manager->live_root_txns);
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 }
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *result) {
@@ -568,13 +571,13 @@ void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKU
 }
 
 void toku_txn_manager_id2txn(TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *result) {
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     toku_txn_manager_id2txn_unlocked(txn_manager, txnid, result);
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 }
 
 int toku_txn_manager_get_txn_from_xid (TXN_MANAGER txn_manager, TOKU_XA_XID *xid, DB_TXN **txnp) {
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     int ret_val = 0;
     int num_live_txns = txn_manager->live_txns.size();
     for (int i = 0; i < num_live_txns; i++) {
@@ -594,24 +597,24 @@ int toku_txn_manager_get_txn_from_xid (TXN_MANAGER txn_manager, TOKU_XA_XID *xid
     }
     ret_val = DB_NOTFOUND;
 exit:
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
     return ret_val;
 }
 
 uint32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager) {
     int ret_val = 0;
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     ret_val = txn_manager->live_txns.size();
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
     return ret_val;
 }
 
 void toku_txn_manager_add_prepared_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     assert(txn->state==TOKUTXN_LIVE);
     txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint
     toku_list_push(&txn_manager->prepared_txns, &txn->prepared_txns_link);
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 }
 
 static void invalidate_xa_xid (TOKU_XA_XID *xid) {
@@ -632,7 +635,7 @@ void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         txn->state = TOKUTXN_ABORTING;
         goto done;
     }
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     if (txn->state==TOKUTXN_PREPARING) {
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
@@ -648,7 +651,7 @@ void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
             );
     }
     txn->state = TOKUTXN_ABORTING;
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 done:
     return;
 }
@@ -666,7 +669,7 @@ void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         txn->state = TOKUTXN_COMMITTING;
         goto done;
     }
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     if (txn->state==TOKUTXN_PREPARING) {
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
@@ -682,7 +685,7 @@ void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
             );
     }
     txn->state = TOKUTXN_COMMITTING;
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
 done:
     return;
 }
@@ -696,7 +699,7 @@ int toku_txn_manager_recover_txn (
     )
 {
     int ret_val = 0;
-    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    txn_manager_lock(txn_manager);
     if (flags==DB_FIRST) {
         // Anything in the returned list goes back on the prepared list.
         while (!toku_list_empty(&txn_manager->prepared_and_returned_txns)) {
@@ -725,7 +728,7 @@ int toku_txn_manager_recover_txn (
     *retp = i;
     ret_val = 0;
 exit:
-    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    txn_manager_unlock(txn_manager);
     return ret_val;
 }
 
@@ -751,11 +754,20 @@ void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN t
     }
 }
 
-void toku_txn_manager_suspend(TXN_MANAGER txn_manager) {
+static void txn_manager_lock(TXN_MANAGER txn_manager) {
     toku_mutex_lock(&txn_manager->txn_manager_lock);
 }
-void toku_txn_manager_resume(TXN_MANAGER txn_manager) {
+
+static void txn_manager_unlock(TXN_MANAGER txn_manager) {
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
+}
+
+void toku_txn_manager_suspend(TXN_MANAGER txn_manager) {
+    txn_manager_lock(txn_manager);
+}
+
+void toku_txn_manager_resume(TXN_MANAGER txn_manager) {
+    txn_manager_unlock(txn_manager);
 }
 
 void
@@ -771,17 +783,17 @@ toku_txn_manager_set_last_xid_from_recovered_checkpoint(TXN_MANAGER txn_manager,
 
 TXNID
 toku_txn_manager_get_last_xid(TXN_MANAGER mgr) {
-    toku_mutex_lock(&mgr->txn_manager_lock);
+    txn_manager_lock(mgr);
     TXNID last_xid = mgr->last_xid;
-    toku_mutex_unlock(&mgr->txn_manager_lock);
+    txn_manager_unlock(mgr);
     return last_xid;
 }
 
 // Test-only function
 void
 toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment) {
-    toku_mutex_lock(&mgr->txn_manager_lock);
+    txn_manager_lock(mgr);
     mgr->last_xid += increment;
-    toku_mutex_unlock(&mgr->txn_manager_lock);
+    txn_manager_unlock(mgr);
 }
 
