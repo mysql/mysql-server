@@ -30,32 +30,48 @@ toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
 int
 toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    int r = toku_pthread_mutex_lock(&rwlock->mutex);
-    if (r==0) rwlock_read_lock(&rwlock->rwlock, &rwlock->mutex);
+    int r;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_read_lock(&rwlock->rwlock, &rwlock->mutex);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
     return r;
 }
 
 int
 toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    int r = toku_pthread_mutex_lock(&rwlock->mutex);
-    if (r==0) rwlock_read_unlock(&rwlock->rwlock);
+    int r;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_read_unlock(&rwlock->rwlock);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
     return r;
 }
 
 int
 toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    int r = toku_pthread_mutex_lock(&rwlock->mutex);
-    if (r==0) rwlock_write_lock(&rwlock->rwlock, &rwlock->mutex);
+    int r;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_write_lock(&rwlock->rwlock, &rwlock->mutex);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
     return r;
 }
 
 int
 toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
     assert(rwlock->initialized);
-    int r = toku_pthread_mutex_unlock(&rwlock->mutex);
-    if (r==0) rwlock_write_unlock(&rwlock->rwlock);
+    int r;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_write_unlock(&rwlock->rwlock);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
     return r;
 }
 
