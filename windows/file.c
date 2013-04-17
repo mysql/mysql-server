@@ -98,14 +98,16 @@ int toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
 }
 
 
-ssize_t
-toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off)
+void
+toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off)
 {
+    ssize_t r;
     if (t_pwrite) {
-	return t_pwrite(fd, buf, len, off);
+	r = t_pwrite(fd, buf, len, off);
     } else {
-	return pwrite(fd, buf, len, off);
+	r = pwrite(fd, buf, len, off);
     }
+    assert(r==len);
 }
 
 static int (*t_fsync)(int) = 0;

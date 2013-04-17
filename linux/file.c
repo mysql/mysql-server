@@ -48,8 +48,8 @@ toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     return 0;
 }
 
-ssize_t
-toku_os_pwrite (int fd, const void *buf, size_t len, off_t off) {
+void
+toku_os_full_pwrite (int fd, const void *buf, size_t len, off_t off) {
     ssize_t r;
 again:
     if (t_pwrite) {
@@ -59,7 +59,7 @@ again:
     }
     if (try_again_after_handling_write_error(fd, len, r))
         goto again;
-    return r;
+    assert(r==(ssize_t)len);
 }
 
 static ssize_t (*t_write)(int, const void *, size_t) = 0;
@@ -70,8 +70,8 @@ toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     return 0;
 }
 
-ssize_t
-toku_os_write (int fd, const void *buf, size_t len) {
+void
+toku_os_full_write (int fd, const void *buf, size_t len) {
     ssize_t r;
 again:
     if (t_write) {
@@ -81,7 +81,7 @@ again:
     }
     if (try_again_after_handling_write_error(fd, len, r))
         goto again;
-    return r;
+    assert(r==(ssize_t)len);
 }
 
 static uint64_t get_tnow(void) {
