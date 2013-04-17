@@ -384,7 +384,7 @@ serialize_brtnode_info(
     struct wbuf wb;
     wbuf_init(&wb, sb->uncompressed_ptr, sb->uncompressed_size);
 
-    wbuf_MSN(&wb, node->max_msn_applied_to_node_in_memory);
+    wbuf_MSN(&wb, node->max_msn_applied_to_node_on_disk);
     wbuf_nocrc_uint(&wb, node->nodesize);
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
@@ -478,6 +478,7 @@ static void
 rebalance_brtnode_leaf(BRTNODE node)
 {
     assert(node->height == 0);
+    assert(node->dirty);
     // first create an array of OMTVALUE's that store all the data
     u_int32_t num_le = 0;
     for (int i = 0; i < node->n_children; i++) {
@@ -525,6 +526,16 @@ rebalance_brtnode_leaf(BRTNODE node)
     u_int32_t tmp_optimized_for_upgrade = BLB_OPTIMIZEDFORUPGRADE(node, node->n_children-1);
     u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, node->n_children-1);
 
+    MSN max_msn = MIN_MSN;
+    DSN min_dsn = MAX_DSN;
+    for (int i = 0; i < node->n_children; i++) {
+        DSN curr_dsn = BLB_MAX_DSN_APPLIED(node,i);
+        MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
+        min_dsn = (curr_dsn < min_dsn) ? curr_dsn : min_dsn;
+        max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
+    }
+    
+
     // Now destroy the old stuff;
     toku_destroy_brtnode_internals(node);
 
@@ -537,7 +548,7 @@ rebalance_brtnode_leaf(BRTNODE node)
     node->n_children = num_children;
     XMALLOC_N(num_children, node->bp);    
     for (int i = 0; i < num_children; i++) {
-	set_BLB(node, i, toku_create_empty_bn());
+        set_BLB(node, i, toku_create_empty_bn());
     }
 
     // now we start to fill in the data
@@ -582,7 +593,11 @@ rebalance_brtnode_leaf(BRTNODE node)
 
         BP_STATE(node,i) = PT_AVAIL;
         BP_TOUCH_CLOCK(node,i);
+        BLB_MAX_DSN_APPLIED(node,i) = min_dsn;
+        BLB_MAX_MSN_APPLIED(node,i) = max_msn;
     }
+    node->max_msn_applied_to_node_on_disk = max_msn;
+    
     // now the subtree estimates
     toku_brt_leaf_reset_calc_leaf_stats(node);
 
@@ -723,7 +738,6 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     toku_free(compressed_buf);
     node->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
-    node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_in_memory;
     return 0;
 }
 
@@ -799,7 +813,8 @@ BASEMENTNODE toku_create_empty_bn(void) {
 
 BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     BASEMENTNODE XMALLOC(bn);
-    bn->soft_copy_is_up_to_date = TRUE;
+    bn->max_dsn_applied = 0;
+    bn->max_msn_applied.msn = 0;
     bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
@@ -924,8 +939,9 @@ deserialize_brtnode_info(
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
     rbuf_init(&rb, sb->uncompressed_ptr, data_size);
 
+    node->dsn = INVALID_DSN;
+
     node->max_msn_applied_to_node_on_disk = rbuf_msn(&rb);
-    node->max_msn_applied_to_node_in_memory = node->max_msn_applied_to_node_on_disk;
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
@@ -988,6 +1004,8 @@ static void
 setup_available_brtnode_partition(BRTNODE node, int i) {
     if (node->height == 0) {
 	set_BLB(node, i, toku_create_empty_bn());
+        BLB_MAX_MSN_APPLIED(node,i) = node->max_msn_applied_to_node_on_disk;
+        BLB_MAX_DSN_APPLIED(node,i) = 0;
     }
     else {
 	set_BNC(node, i, toku_create_empty_nl());
@@ -1054,7 +1072,7 @@ deserialize_brtnode_partition(
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_OMT_LEAVES);
         BLB_OPTIMIZEDFORUPGRADE(node, index) = rbuf_int(&rb);
-        BLB_SOFTCOPYISUPTODATE(node, index) = FALSE;
+        // dont need to set max_dsn_applied because creation of basement node set it to correct value
         BLB_SEQINSERT(node, index) = 0;
         u_int32_t num_entries = rbuf_int(&rb);
         OMTVALUE *XMALLOC_N(num_entries, array);
@@ -1246,6 +1264,9 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
     deserialize_brtnode_partition(&curr_sb, node, childnum);
+    if (node->height == 0) {
+        toku_brt_bn_reset_stats(node, childnum);
+    }
     toku_free(curr_sb.uncompressed_ptr);
     toku_free(raw_block);
 }
@@ -1269,6 +1290,9 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum) {
         curr_sb->compressed_size
         );
     deserialize_brtnode_partition(curr_sb, node, childnum);
+    if (node->height == 0) {
+        toku_brt_bn_reset_stats(node, childnum);
+    }
     toku_free(curr_sb->uncompressed_ptr);
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);

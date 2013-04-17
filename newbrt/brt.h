@@ -292,6 +292,7 @@ BOOL toku_brt_is_empty_fast (BRT brt) __attribute__ ((warn_unused_result));
 
 BOOL toku_brt_is_recovery_logging_suppressed (BRT) __attribute__ ((warn_unused_result));
 
+void toku_brt_bn_reset_stats(BRTNODE node, int childnum);
 void toku_brt_leaf_reset_calc_leaf_stats(BRTNODE node);
 
 int toku_brt_strerror_r(int error, char *buf, size_t buflen);

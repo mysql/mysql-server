@@ -57,8 +57,13 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
  * Make the MSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_msn { u_int64_t msn; } MSN;
 #define ZERO_MSN ((MSN){0})                 // dummy used for message construction, to be filled in when msg is applied to tree
-#define MIN_MSN  ((MSN){(u_int64_t)1<<32})  // first 2**32 values reserved for messages created before Dr. No (for upgrade)
+#define MIN_MSN  ((MSN){(u_int64_t)1000*1000*1000})  // first 1B values reserved for messages created before Dr. No (for upgrade)
 #define MAX_MSN  ((MSN){UINT64_MAX})
+
+typedef int64_t DSN; // DESERIALIZATION sequence number
+#define INVALID_DSN -1
+#define MIN_DSN 0
+#define MAX_DSN INT64_MAX
 
 /* At the brt layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
