@@ -170,7 +170,6 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
 int toku_deserialize_brtheader_from (int fd, BLOCKNUM off, u_int32_t fullhash, struct brt_header **brth);
 
 int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
-int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
 
 void toku_brtnode_free (BRTNODE *node);
 

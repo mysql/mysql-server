@@ -230,7 +230,6 @@ int toku_brtheader_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int
     struct brt_header **h = (struct brt_header **)headerp_v;
     assert(nodename.b==0);
     if ((r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, fullhash, h))) return r;
-    if ((r = toku_deserialize_fifo_at(toku_cachefile_fd(cachefile), (*h)->unused_blocks.b*(*h)->nodesize, &(*h)->fifo))) return r;
     //printf("%s:%d fifo=%p\nn", __FILE__, __LINE__, (*h)->fifo);
     written_lsn->lsn = 0; // !!! WRONG.  This should be stored or kept redundantly or something.
     assert((*h)->free_blocks.b==-1);
