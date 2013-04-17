@@ -1,5 +1,5 @@
 # -*- Mode: Makefile -*-
-CPPFLAGS = -D_GNU_SOURCE
+CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
 CFLAGS = -Wall -Werror -g -O0 -std=c99
 ifneq ($(GCOV),)
