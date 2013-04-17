@@ -16,7 +16,7 @@ extern "C" {
 
 // The indexer populates multiple destination db's from the contents of one source db.
 // While the indexes are being built by the indexer, the application may continue to 
-// change the contents of the soruce db.  The changes will be reflected into the destination
+// change the contents of the source db.  The changes will be reflected into the destination
 // db's by the indexer.
 //
 // Each indexer references one source db.
@@ -34,7 +34,7 @@ extern "C" {
 // indexer_flags is currently unused
 //
 // Returns 0 if the indexer has been created and sets *indexer to the indexer object.
-// If an error occurred while creating the indexer object, a non-zero error is returned.
+// If an error occurred while creating the indexer object, a non-zero error number is returned.
 int toku_indexer_create_indexer(DB_ENV *env,
                                 DB_TXN *txn,
                                 DB_INDEXER **indexer,
