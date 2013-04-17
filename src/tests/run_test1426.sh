@@ -2,7 +2,7 @@
 
 set -e
 
-test $# -ge 5
+test $# -ge 4
 
 tdbbin=$1; shift
 bdbbin=$1; shift
