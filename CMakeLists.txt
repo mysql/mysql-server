@@ -130,6 +130,8 @@ file(GLOB_RECURSE all_hdrs
   src/*.h
   utils/*.h
   db-benchmark-test/*.h
+  ${CMAKE_CURRENT_BINARY_DIR}/toku_include/*.h
+  ${CMAKE_CURRENT_BINARY_DIR}/buildheader/*.h
   )
 
 ## build tags
