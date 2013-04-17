@@ -87,17 +87,17 @@ static char *
 create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
     int bytes;
     char inamebase[strlen(hint) +
-		   8 +  // hex file format version
-		   16 + // hex id (normally the txnid)
-		   8  + // hex value of n if non-neg
-		   sizeof("_B___.tokudb")]; // extra pieces
+                   8 +  // hex file format version
+                   16 + // hex id (normally the txnid)
+                   8  + // hex value of n if non-neg
+                   sizeof("_B___.tokudb")]; // extra pieces
     if (n < 0)
-	bytes = snprintf(inamebase, sizeof(inamebase),
+        bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32            ".tokudb",
                          hint, id, FT_LAYOUT_VERSION);
     else {
-	invariant(strlen(mark) == 1);
-	bytes = snprintf(inamebase, sizeof(inamebase),
+        invariant(strlen(mark) == 1);
+        bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32"_%s_%"PRIx32".tokudb",
                          hint, id, FT_LAYOUT_VERSION, mark, n);
     }
@@ -413,9 +413,9 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
 
     FT_HANDLE brt = db->i->ft_handle;
     r = toku_ft_handle_open(brt, iname_in_env,
-		      is_db_create, is_db_excl,
-		      db->dbenv->i->cachetable,
-		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
+                      is_db_create, is_db_excl,
+                      db->dbenv->i->cachetable,
+                      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 
@@ -429,7 +429,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->cmp_descriptor = &brt->ft->cmp_descriptor;
 
     if (need_locktree) {
-	db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);
+        db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_ft_get_bt_compare(db->i->ft_handle));
         if (r!=0) { goto error_cleanup; }
     }
@@ -471,9 +471,9 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
     //Left end of range == right end of range (point lock)
     int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_WRITE);
     if (r == 0)
-	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS)++;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL)++;  // accountability 
     return r;
 }
 
@@ -934,31 +934,31 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     char * mark;
 
     if (mark_as_loader)
-	mark = "B";
+        mark = "B";
     else
-	mark = "P";
+        mark = "P";
 
     for (i=0; i<N; i++) {
-	new_inames_in_env[i] = NULL;
+        new_inames_in_env[i] = NULL;
     }
 
     // begin child (unless transactionless)
     if (using_txns) {
-	rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-	assert(rval == 0);
-	xid = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+        rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+        assert(rval == 0);
+        xid = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
     }
     for (i = 0; i < N; i++) {
-	char * dname = dbs[i]->i->dname;
-	toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
-	// now create new iname
-	char hint[strlen(dname) + 1];
-	create_iname_hint(dname, hint);
-	char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
-	new_inames_in_env[i] = new_iname;
+        char * dname = dbs[i]->i->dname;
+        toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
+        // now create new iname
+        char hint[strlen(dname) + 1];
+        create_iname_hint(dname, hint);
+        char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
+        new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, 0, TRUE);
-	if (rval) break;
+        if (rval) break;
     }
 
     // Generate load log entries.
@@ -977,23 +977,23 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
             if (rval) break;
         }
     }
-	
+        
     if (using_txns) {
-	// close txn
-	if (rval == 0) {  // all well so far, commit child
-	    rval = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-	    assert(rval==0);
-	}
-	else {         // abort child
-	    int r2 = toku_txn_abort(child, NULL, NULL, false);
-	    assert(r2==0);
-	    for (i=0; i<N; i++) {
-		if (new_inames_in_env[i]) {
-		    toku_free(new_inames_in_env[i]);
-		    new_inames_in_env[i] = NULL;
-		}
-	    }
-	}
+        // close txn
+        if (rval == 0) {  // all well so far, commit child
+            rval = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
+            assert(rval==0);
+        }
+        else {         // abort child
+            int r2 = toku_txn_abort(child, NULL, NULL, false);
+            assert(r2==0);
+            for (i=0; i<N; i++) {
+                if (new_inames_in_env[i]) {
+                    toku_free(new_inames_in_env[i]);
+                    new_inames_in_env[i] = NULL;
+                }
+            }
+        }
     }
 
     return rval;

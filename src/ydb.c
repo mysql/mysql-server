@@ -60,9 +60,9 @@ static int env_is_panicked = 0;
 void
 env_panic(DB_ENV * env, int cause, char * msg) {
     if (cause == 0)
-	cause = -1;  // if unknown cause, at least guarantee panic
+        cause = -1;  // if unknown cause, at least guarantee panic
     if (msg == NULL)
-	msg = "Unknown cause in env_panic\n";
+        msg = "Unknown cause in env_panic\n";
     env_is_panicked = cause;
     env->i->is_panicked = cause;
     env->i->panic_string = toku_strdup(msg);
@@ -103,9 +103,9 @@ static YDB_LAYER_STATUS_S ydb_layer_status;
 #define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
 
 #define STATUS_INIT(k,t,l) { \
-	ydb_layer_status.status[k].keyname = #k; \
-	ydb_layer_status.status[k].type    = t;  \
-	ydb_layer_status.status[k].legend  = l; \
+        ydb_layer_status.status[k].keyname = #k; \
+        ydb_layer_status.status[k].type    = t;  \
+        ydb_layer_status.status[k].legend  = l; \
     }
 static void
 ydb_layer_status_init (void) {
@@ -297,34 +297,34 @@ env_fs_poller(void *arg) {
     switch (env->i->fs_state) {
     case FS_RED:
         if (!in_red) {
-	    if (in_yellow) {
-		env->i->fs_state = FS_YELLOW;
-	    } else {
-		env->i->fs_state = FS_GREEN;
-	    }
-	}
+            if (in_yellow) {
+                env->i->fs_state = FS_YELLOW;
+            } else {
+                env->i->fs_state = FS_GREEN;
+            }
+        }
         break;
     case FS_YELLOW:
         if (in_red) {
-	    if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
-		env_fs_report_in_red(env);
+            if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+                env_fs_report_in_red(env);
             env->i->fs_state = FS_RED;
-	    env->i->last_seq_entered_red = now;
+            env->i->last_seq_entered_red = now;
         } else if (!in_yellow) {
             env->i->fs_state = FS_GREEN;
         }
         break;
     case FS_GREEN:
         if (in_red) {
-	    if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
-		env_fs_report_in_red(env);
+            if ((now - env->i->last_seq_entered_red > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+                env_fs_report_in_red(env);
             env->i->fs_state = FS_RED;
-	    env->i->last_seq_entered_red = now;
+            env->i->last_seq_entered_red = now;
         } else if (in_yellow) {
-	    if ((now - env->i->last_seq_entered_yellow > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
-		env_fs_report_in_yellow(env);
+            if ((now - env->i->last_seq_entered_yellow > ZONEREPORTLIMIT) || (now < ZONEREPORTLIMIT))
+                env_fs_report_in_yellow(env);
             env->i->fs_state = FS_YELLOW;
-	    env->i->last_seq_entered_yellow = now;
+            env->i->last_seq_entered_yellow = now;
         }
         break;
     default:
@@ -368,7 +368,7 @@ env_setup_real_dir(DB_ENV *env, char **real_dir, const char *nominal_dir) {
 
     assert(env->i->dir);
     if (nominal_dir) 
-	*real_dir = toku_construct_full_name(2, env->i->dir, nominal_dir);
+        *real_dir = toku_construct_full_name(2, env->i->dir, nominal_dir);
     else
         *real_dir = toku_strdup(env->i->dir);
 }
@@ -398,9 +398,9 @@ ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
     toku_ydb_unlock();
     int r = tokudb_recover(env,
-			   toku_keep_prepared_txn_callback,
-			   keep_cachetable_callback,
-			   env->i->logger,
+                           toku_keep_prepared_txn_callback,
+                           keep_cachetable_callback,
+                           env->i->logger,
                            env->i->dir, env->i->real_log_dir, env->i->bt_compare,
                            env->i->update_function,
                            env->i->generate_row_for_put, env->i->generate_row_for_del,
@@ -476,9 +476,9 @@ typedef struct {
 static PERSISTENT_UPGRADE_STATUS_S persistent_upgrade_status;
 
 #define PERSISTENT_UPGRADE_STATUS_INIT(k,t,l) { \
-	persistent_upgrade_status.status[k].keyname = #k; \
-	persistent_upgrade_status.status[k].type    = t;  \
-	persistent_upgrade_status.status[k].legend  = "upgrade: " l; \
+        persistent_upgrade_status.status[k].keyname = #k; \
+        persistent_upgrade_status.status[k].type    = t;  \
+        persistent_upgrade_status.status[k].legend  = "upgrade: " l; \
     }
 
 static void
@@ -520,9 +520,9 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
     uint32_t stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
     PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP) = stored_env_version;
     if (stored_env_version > FT_LAYOUT_VERSION)
-	r = TOKUDB_DICTIONARY_TOO_NEW;
+        r = TOKUDB_DICTIONARY_TOO_NEW;
     else if (stored_env_version < FT_LAYOUT_MIN_SUPPORTED_VERSION)
-	r = TOKUDB_DICTIONARY_TOO_OLD;
+        r = TOKUDB_DICTIONARY_TOO_OLD;
     else if (stored_env_version < FT_LAYOUT_VERSION) {
         const uint32_t curr_env_ver_d = toku_htod32(FT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
@@ -533,22 +533,22 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         // although the variable name is last_lsn_of_v13, this key really represents
         // the last lsn of whatever we upgraded from, may be be v13 or 14, or in the
         // future, something else
-	uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
-	toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
-	toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
-	r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
+        uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
+        toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
+        toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
         assert_zero(r);
-	
-	time_t upgrade_v19_time_d = toku_htod64(time(NULL));
-	toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
-	toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
-	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
+        
+        time_t upgrade_v19_time_d = toku_htod64(time(NULL));
+        toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
+        toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
         assert_zero(r);
 
-	uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
-	toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
-	toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
-	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
+        uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
+        toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
+        toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
         assert_zero(r);
     }
     return r;
@@ -579,33 +579,33 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 
     // make no assertions about timestamps, clock may have been reset
     if (persistent_original_env_version >= FT_LAYOUT_VERSION_14) {
-	toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
-	toku_init_dbt(&val);
-	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-	assert(r == 0);
-	STATUS_VALUE(YDB_LAYER_TIME_CREATION) = toku_dtoh64((*(time_t*)val.data));
+        toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
+        toku_init_dbt(&val);
+        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+        assert(r == 0);
+        STATUS_VALUE(YDB_LAYER_TIME_CREATION) = toku_dtoh64((*(time_t*)val.data));
     }
 
     if (persistent_original_env_version != curr_env_version) {
-	// an upgrade was performed at some time, capture info about the upgrade
-	
-	toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
-	toku_init_dbt(&val);
-	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-	assert(r == 0);
-	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint32_t*)val.data);
+        // an upgrade was performed at some time, capture info about the upgrade
+        
+        toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
+        toku_init_dbt(&val);
+        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+        assert(r == 0);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint32_t*)val.data);
 
-	toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
-	toku_init_dbt(&val);
-	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-	assert(r == 0);
-	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64((*(time_t*)val.data));
+        toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
+        toku_init_dbt(&val);
+        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+        assert(r == 0);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64((*(time_t*)val.data));
 
-	toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
-	toku_init_dbt(&val);
-	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-	assert(r == 0);
-	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_FOOTPRINT) = toku_dtoh64((*(uint64_t*)val.data));
+        toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
+        toku_init_dbt(&val);
+        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+        assert(r == 0);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_FOOTPRINT) = toku_dtoh64((*(uint64_t*)val.data));
     }
 
 }
@@ -640,79 +640,79 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     int stat_errno = errno;
     toku_free(path);
     if (r == 0) {
-	expect_newenv = FALSE;  // persistent info exists
+        expect_newenv = FALSE;  // persistent info exists
     }
     else if (stat_errno == ENOENT) {
-	expect_newenv = TRUE;
-	r = 0;
+        expect_newenv = TRUE;
+        r = 0;
     }
     else {
-	r = toku_ydb_do_error(env, errno, "Unable to access persistent environment\n");
-	assert(r);
+        r = toku_ydb_do_error(env, errno, "Unable to access persistent environment\n");
+        assert(r);
     }
 
     // Test for existence of rollback cachefile if it is expected to exist
     if (r == 0 && need_rollback_cachefile) {
-	path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
-	assert(path);
-	r = toku_stat(path, &buf);
-	stat_errno = errno;
-	toku_free(path);
-	if (r == 0) {  
-	    if (expect_newenv)  // rollback cachefile exists, but persistent env is missing
-		r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
-	}
-	else if (stat_errno == ENOENT) {
-	    if (!expect_newenv)  // rollback cachefile is missing but persistent env exists
-		r = toku_ydb_do_error(env, ENOENT, "rollback cachefile directory is missing\n");
-	    else 
-		r = 0;           // both rollback cachefile and persistent env are missing
-	}
-	else {
-	    r = toku_ydb_do_error(env, stat_errno, "Unable to access rollback cachefile\n");
-	    assert(r);
-	}
+        path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+        assert(path);
+        r = toku_stat(path, &buf);
+        stat_errno = errno;
+        toku_free(path);
+        if (r == 0) {  
+            if (expect_newenv)  // rollback cachefile exists, but persistent env is missing
+                r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+        }
+        else if (stat_errno == ENOENT) {
+            if (!expect_newenv)  // rollback cachefile is missing but persistent env exists
+                r = toku_ydb_do_error(env, ENOENT, "rollback cachefile directory is missing\n");
+            else 
+                r = 0;           // both rollback cachefile and persistent env are missing
+        }
+        else {
+            r = toku_ydb_do_error(env, stat_errno, "Unable to access rollback cachefile\n");
+            assert(r);
+        }
     }
 
     // Test for fileops directory
     if (r == 0) {
-	path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
-	assert(path);
-	r = toku_stat(path, &buf);
-	stat_errno = errno;
-	toku_free(path);
-	if (r == 0) {  
-	    if (expect_newenv)  // fileops directory exists, but persistent env is missing
-		r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
-	}
-	else if (stat_errno == ENOENT) {
-	    if (!expect_newenv)  // fileops directory is missing but persistent env exists
-		r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
-	    else 
-		r = 0;           // both fileops directory and persistent env are missing
-	}
-	else {
-	    r = toku_ydb_do_error(env, stat_errno, "Unable to access fileops directory\n");
-	    assert(r);
-	}
+        path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
+        assert(path);
+        r = toku_stat(path, &buf);
+        stat_errno = errno;
+        toku_free(path);
+        if (r == 0) {  
+            if (expect_newenv)  // fileops directory exists, but persistent env is missing
+                r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
+        }
+        else if (stat_errno == ENOENT) {
+            if (!expect_newenv)  // fileops directory is missing but persistent env exists
+                r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
+            else 
+                r = 0;           // both fileops directory and persistent env are missing
+        }
+        else {
+            r = toku_ydb_do_error(env, stat_errno, "Unable to access fileops directory\n");
+            assert(r);
+        }
     }
 
     // Test for recovery log
     if ((r == 0) && (env->i->open_flags & DB_INIT_LOG)) {
-	// if using transactions, test for existence of log
-	r = ydb_recover_log_exists(env);  // return 0 or ENOENT
-	if (expect_newenv && (r != ENOENT))
-	    r = toku_ydb_do_error(env, ENOENT, "Persistent environment information is missing (but log exists)\n");
-	else if (!expect_newenv && r == ENOENT)
-	    r = toku_ydb_do_error(env, ENOENT, "Recovery log is missing (persistent environment information is present)\n");
-	else
-	    r = 0;
+        // if using transactions, test for existence of log
+        r = ydb_recover_log_exists(env);  // return 0 or ENOENT
+        if (expect_newenv && (r != ENOENT))
+            r = toku_ydb_do_error(env, ENOENT, "Persistent environment information is missing (but log exists)\n");
+        else if (!expect_newenv && r == ENOENT)
+            r = toku_ydb_do_error(env, ENOENT, "Recovery log is missing (persistent environment information is present)\n");
+        else
+            r = 0;
     }
 
     if (r == 0)
-	*valid_newenv = expect_newenv;
+        *valid_newenv = expect_newenv;
     else 
-	*valid_newenv = FALSE;
+        *valid_newenv = FALSE;
     return r;
 }
 
@@ -760,7 +760,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     u_int32_t unused_flags=flags;
 
     if (env_opened(env)) {
-	r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
+        r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
         goto cleanup;
     }
 
@@ -775,17 +775,17 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     // DB_CREATE means create if env does not exist, and Tokudb requires it because
     // Tokudb requries DB_PRIVATE.
     if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {
-	r = toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
+        r = toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
         goto cleanup;
     }
 
     if (!(flags & DB_PRIVATE)) {
-	r = toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
+        r = toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
         goto cleanup;
     }
 
     if ((flags & DB_INIT_LOG) && !(flags & DB_INIT_TXN)) {
-	r = toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
+        r = toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
         goto cleanup;
     }
 
@@ -793,23 +793,23 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     // Verify that the home exists.
     {
-	BOOL made_new_home = FALSE;
+        BOOL made_new_home = FALSE;
         char* new_home = NULL;
-    	toku_struct_stat buf;
+            toku_struct_stat buf;
         if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
             new_home = toku_malloc(strlen(home));
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
             made_new_home = TRUE;
         }
-    	r = toku_stat(made_new_home? new_home : home, &buf);
+            r = toku_stat(made_new_home? new_home : home, &buf);
         if (made_new_home) {
             toku_free(new_home);
         }
-    	if (r!=0) {
-    	    r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
+            if (r!=0) {
+                r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
             goto cleanup;
-    	}
+            }
     }
     unused_flags &= ~DB_PRIVATE;
 
@@ -817,7 +817,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         toku_free(env->i->dir);
     env->i->dir = toku_strdup(home);
     if (env->i->dir == 0) {
-	r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
+        r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
         goto cleanup;
     }
     if (0) {
@@ -856,14 +856,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (r!=0) goto cleanup;
 
     if (upgrade_in_progress) {
-	// Delete old rollback file.  There was a clean shutdown, so it has nothing useful,
-	// and there is no value in upgrading it.  It is simpler to just create a new one.
-	char* rollback_filename = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
-	assert(rollback_filename);
-	r = unlink(rollback_filename);
-	toku_free(rollback_filename);
-	assert(r==0 || errno==ENOENT);	
-	need_rollback_cachefile = FALSE;  // we're not expecting it to exist now
+        // Delete old rollback file.  There was a clean shutdown, so it has nothing useful,
+        // and there is no value in upgrading it.  It is simpler to just create a new one.
+        char* rollback_filename = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
+        assert(rollback_filename);
+        r = unlink(rollback_filename);
+        toku_free(rollback_filename);
+        assert(r==0 || errno==ENOENT);        
+        need_rollback_cachefile = FALSE;  // we're not expecting it to exist now
     }
     
     r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
@@ -890,20 +890,20 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     toku_loader_cleanup_temp_files(env);
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
-	assert(env->i->logger);
+        assert(env->i->logger);
         toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
-	if (!toku_logger_is_open(env->i->logger)) {
-	    r = toku_logger_open(env->i->real_log_dir, env->i->logger);
-	    if (r!=0) {
-		toku_ydb_do_error(env, r, "Could not open logger\n");
-	    died2:
-		toku_logger_close(&env->i->logger);
-		goto died1;
-	    }
-	}
+        if (!toku_logger_is_open(env->i->logger)) {
+            r = toku_logger_open(env->i->real_log_dir, env->i->logger);
+            if (r!=0) {
+                toku_ydb_do_error(env, r, "Could not open logger\n");
+            died2:
+                toku_logger_close(&env->i->logger);
+                goto died1;
+            }
+        }
     } else {
-	r = toku_logger_close(&env->i->logger); // if no logging system, then kill the logger
-	assert_zero(r);
+        r = toku_logger_close(&env->i->logger); // if no logging system, then kill the logger
+        assert_zero(r);
     }
 
     r = toku_ltm_open(env->i->ltm);
@@ -916,13 +916,13 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
 // This is probably correct, but it will be pain...
 //    if ((flags & DB_THREAD)==0) {
-//	r = toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
-//	goto cleanup;
+//        r = toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
+//        goto cleanup;
 //    }
     unused_flags &= ~DB_THREAD;
 
     if (unused_flags!=0) {
-	r = toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
+        r = toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
         goto cleanup;
     }
 
@@ -936,15 +936,15 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (env->i->logger) {
-	// if this is a newborn env or if this is an upgrade, then create a brand new rollback file
-	assert (using_txns);
-	toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
-	toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
-	if (!toku_logger_rollback_is_open(env->i->logger)) {
-	    BOOL create_new_rollback_file = newenv | upgrade_in_progress;
-	    r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
-	    assert(r==0);
-	}
+        // if this is a newborn env or if this is an upgrade, then create a brand new rollback file
+        assert (using_txns);
+        toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
+        toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
+        if (!toku_logger_rollback_is_open(env->i->logger)) {
+            BOOL create_new_rollback_file = newenv | upgrade_in_progress;
+            r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
+            assert(r==0);
+        }
     }
 
     DB_TXN *txn=NULL;
@@ -958,35 +958,35 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         assert_zero(r);
         r = db_use_builtin_key_cmp(env->i->persistent_environment);
         assert_zero(r);
-	r = db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
-	assert_zero(r);
-	if (newenv) {
-	    // create new persistent_environment
-	    DBT key, val;
-	    uint32_t persistent_original_env_version = FT_LAYOUT_VERSION;
-	    const uint32_t environment_version = toku_htod32(persistent_original_env_version);
+        r = db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
+        assert_zero(r);
+        if (newenv) {
+            // create new persistent_environment
+            DBT key, val;
+            uint32_t persistent_original_env_version = FT_LAYOUT_VERSION;
+            const uint32_t environment_version = toku_htod32(persistent_original_env_version);
 
-	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
-	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
-	    assert_zero(r);
+            toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
+            toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            assert_zero(r);
 
-	    toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
-	    toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
-	    assert_zero(r);
+            toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
+            toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            assert_zero(r);
 
-	    time_t creation_time_d = toku_htod64(time(NULL));
-	    toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
-	    toku_fill_dbt(&val, &creation_time_d, sizeof(creation_time_d));
-	    r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
-	    assert_zero(r);
-	}
-	else {
-	    r = maybe_upgrade_persistent_environment_dictionary(env, txn, last_lsn_of_clean_shutdown_read_from_log);
-	    assert_zero(r);
-	}
-	capture_persistent_env_contents(env, txn);
+            time_t creation_time_d = toku_htod64(time(NULL));
+            toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
+            toku_fill_dbt(&val, &creation_time_d, sizeof(creation_time_d));
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            assert_zero(r);
+        }
+        else {
+            r = maybe_upgrade_persistent_environment_dictionary(env, txn, last_lsn_of_clean_shutdown_read_from_log);
+            assert_zero(r);
+        }
+        capture_persistent_env_contents(env, txn);
     }
     {
         r = toku_db_create(&env->i->directory, env, 0);
@@ -1013,11 +1013,11 @@ cleanup:
         }
     }
     if (r == 0) {
-	errno = 0; // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
-	most_recent_env = env;
+        errno = 0; // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
+        most_recent_env = env;
         uint64_t num_rows;
         env_get_engine_status_num_rows(env, &num_rows);
-	toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic, num_rows);
+        toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic, num_rows);
     }
     return r;
 }
@@ -1034,7 +1034,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
 
     if (toku_env_is_panicked(env)) goto panic_and_quit_early;
     if (env->i->open_txns != 0) {
-	err_msg = "Cannot close environment due to open transactions\n";
+        err_msg = "Cannot close environment due to open transactions\n";
         r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
         goto panic_and_quit_early;
     }
@@ -1042,7 +1042,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         uint32_t size = toku_omt_size(env->i->open_dbs);
         assert(size == env->i->num_open_dbs);
         if (env->i->num_open_dbs > 0) {
-	    err_msg = "Cannot close environment due to open DBs\n";
+            err_msg = "Cannot close environment due to open DBs\n";
             r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
             goto panic_and_quit_early;
         }
@@ -1051,7 +1051,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         if (env->i->persistent_environment) {
             r = toku_db_close(env->i->persistent_environment);
             if (r) {
-		err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
+                err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
@@ -1059,65 +1059,65 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         if (env->i->directory) {
             r = toku_db_close(env->i->directory);
             if (r) {
-		err_msg = "Cannot close Directory dictionary (DB->close error)\n";
+                err_msg = "Cannot close Directory dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
         }
     }
     if (env->i->cachetable) {
-	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
-	toku_cachetable_minicron_shutdown(env->i->cachetable);
+        toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
+        toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
-		err_msg = "Cannot close environment (error during checkpoint)\n";
+                err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             r = toku_logger_close_rollback(env->i->logger, FALSE);
             if (r) {
-		err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
+                err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             //Do a second checkpoint now that the rollback cachefile is closed.
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
-		err_msg = "Cannot close environment (error during checkpoint)\n";
+                err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             r = toku_logger_shutdown(env->i->logger); 
             if (r) {
-		err_msg = "Cannot close environment (error during logger shutdown)\n";
+                err_msg = "Cannot close environment (error during logger shutdown)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
         }
-	toku_ydb_lock();
+        toku_ydb_lock();
         r=toku_cachetable_close(&env->i->cachetable);
-	if (r) {
-	    err_msg = "Cannot close environment (cachetable close error)\n";
-	    toku_ydb_do_error(env, r, "%s", err_msg);
+        if (r) {
+            err_msg = "Cannot close environment (cachetable close error)\n";
+            toku_ydb_do_error(env, r, "%s", err_msg);
             goto panic_and_quit_early;
-	}
+        }
     }
     if (env->i->logger) {
         r=toku_logger_close(&env->i->logger);
-	if (r) {
-	    err_msg = "Cannot close environment (logger close error)\n";
+        if (r) {
+            err_msg = "Cannot close environment (logger close error)\n";
             env->i->logger = NULL;
-	    toku_ydb_do_error(env, r, "%s", err_msg);
+            toku_ydb_do_error(env, r, "%s", err_msg);
             goto panic_and_quit_early;
-	}
+        }
     }
     // Even if nothing else went wrong, but we were panicked, then raise an error.
     // But if something else went wrong then raise that error (above)
     if (toku_env_is_panicked(env))
         goto panic_and_quit_early;
     else
-	assert(env->i->panic_string==0);
+        assert(env->i->panic_string==0);
 
     env_fs_destroy(env);
     if (env->i->ltm) {
@@ -1131,15 +1131,15 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
     if (env->i->real_data_dir)
-	toku_free(env->i->real_data_dir);
+        toku_free(env->i->real_data_dir);
     if (env->i->real_log_dir)
-	toku_free(env->i->real_log_dir);
+        toku_free(env->i->real_log_dir);
     if (env->i->real_tmp_dir)
-	toku_free(env->i->real_tmp_dir);
+        toku_free(env->i->real_tmp_dir);
     if (env->i->open_dbs)
         toku_omt_destroy(&env->i->open_dbs);
     if (env->i->dir)
-	toku_free(env->i->dir);
+        toku_free(env->i->dir);
     //Immediately before freeing internal environment unlock the directories
     unlock_single_process(env);
     toku_free(env->i);
@@ -1159,7 +1159,7 @@ panic_and_quit_early:
         r = toku_ydb_do_error(env, toku_env_is_panicked(env), "Cannot close environment due to previous error: %s\n", panic_string);
     }
     else {
-	env_panic(env, r, err_msg);
+        env_panic(env, r, err_msg);
     }
     return r;
 }
@@ -1233,10 +1233,10 @@ toku_env_set_data_dir(DB_ENV * env, const char *dir) {
     int r;
     
     if (env_opened(env) || !dir) {
-	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
+        r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
     }
     else if (env->i->data_dir)
-	r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir more than once.\n");
+        r = toku_ydb_do_error(env, EINVAL, "You cannot set the data dir more than once.\n");
     else {
         env->i->data_dir = toku_strdup(dir);
         if (env->i->data_dir==NULL) {
@@ -1273,7 +1273,7 @@ toku_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
         flags  &= ~DB_AUTO_COMMIT;
     }
     if (flags != 0 && onoff) {
-	return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
+        return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
     }
     if   (onoff) env->i->open_flags |=  change;
     else         env->i->open_flags &= ~change;
@@ -1290,15 +1290,15 @@ static int
 toku_env_set_lg_dir(DB_ENV * env, const char *dir) {
     HANDLE_PANICKED_ENV(env);
     if (env_opened(env)) {
-	return toku_ydb_do_error(env, EINVAL, "Cannot set log dir after opening the env\n");
+        return toku_ydb_do_error(env, EINVAL, "Cannot set log dir after opening the env\n");
     }
 
     if (env->i->lg_dir) toku_free(env->i->lg_dir);
     if (dir) {
         env->i->lg_dir = toku_strdup(dir);
         if (!env->i->lg_dir) {
-	    return toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
-	}
+            return toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
+        }
     }
     else env->i->lg_dir = NULL;
     return 0;
@@ -1419,10 +1419,10 @@ static int
 toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
     HANDLE_PANICKED_ENV(env);
     if (env_opened(env)) {
-	return toku_ydb_do_error(env, EINVAL, "Cannot set the tmp dir after opening an env\n");
+        return toku_ydb_do_error(env, EINVAL, "Cannot set the tmp dir after opening an env\n");
     }
     if (!tmp_dir) {
-	return toku_ydb_do_error(env, EINVAL, "Tmp dir bust be non-null\n");
+        return toku_ydb_do_error(env, EINVAL, "Tmp dir bust be non-null\n");
     }
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
@@ -1439,12 +1439,12 @@ toku_env_set_verbose(DB_ENV * env, u_int32_t UU(which), int UU(onoff)) {
 static int 
 toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
     int r = toku_checkpoint(env->i->cachetable, env->i->logger,
-			    checkpoint_callback_f,  checkpoint_callback_extra,
-			    checkpoint_callback2_f, checkpoint_callback2_extra,
-			    CLIENT_CHECKPOINT);
+                            checkpoint_callback_f,  checkpoint_callback_extra,
+                            checkpoint_callback2_f, checkpoint_callback2_extra,
+                            CLIENT_CHECKPOINT);
     if (r) {
-	// Panicking the whole environment may be overkill, but I'm not sure what else to do.
-	env_panic(env, r, "checkpoint error\n");
+        // Panicking the whole environment may be overkill, but I'm not sure what else to do.
+        env_panic(env, r, "checkpoint error\n");
         toku_ydb_do_error(env, r, "Checkpoint\n");
     }
     return r;
@@ -1909,9 +1909,9 @@ typedef struct {
 static FS_STATUS_S fsstat;
 
 #define FS_STATUS_INIT(k,t,l) {           \
-	fsstat.status[k].keyname = #k; \
-	fsstat.status[k].type    = t;  \
-	fsstat.status[k].legend  = "filesystem: " l; \
+        fsstat.status[k].keyname = #k; \
+        fsstat.status[k].type    = t;  \
+        fsstat.status[k].legend  = "filesystem: " l; \
     }
 
 static void
@@ -1978,9 +1978,9 @@ typedef struct {
 static MEMORY_STATUS_S memory_status;
 
 #define STATUS_INIT(k,t,l) { \
-	memory_status.status[k].keyname = #k; \
-	memory_status.status[k].type    = t;  \
-	memory_status.status[k].legend  = "memory: " l; \
+        memory_status.status[k].keyname = #k; \
+        memory_status.status[k].type    = t;  \
+        memory_status.status[k].legend  = "memory: " l; \
     }
 
 static void
@@ -2007,7 +2007,7 @@ memory_status_init(void) {
 static void
 memory_get_status(void) {
     if (!memory_status.initialized)
-	memory_status_init();
+        memory_status_init();
     LOCAL_MEMORY_STATUS_S local_memstat;
     toku_memory_get_status(&local_memstat);
     MEMORY_STATUS_VALUE(MEMORY_MALLOC_COUNT) = local_memstat.malloc_count;
@@ -2066,79 +2066,79 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
     int r;
 
     if (env_panic_string_buf) {
-	if (env && env->i && env->i->is_panicked && env->i->panic_string) {
-	    strncpy(env_panic_string_buf, env->i->panic_string, env_panic_string_length);
-	    env_panic_string_buf[env_panic_string_length - 1] = '\0';  // just in case
-	}
-	else 
-	    *env_panic_string_buf = '\0';
+        if (env && env->i && env->i->is_panicked && env->i->panic_string) {
+            strncpy(env_panic_string_buf, env->i->panic_string, env_panic_string_length);
+            env_panic_string_buf[env_panic_string_length - 1] = '\0';  // just in case
+        }
+        else 
+            *env_panic_string_buf = '\0';
     }
 
     if ( !(env)     || 
-	 !(env->i)  || 
-	 !(env_opened(env)) )
-	r = EINVAL;
+         !(env->i)  || 
+         !(env_opened(env)) )
+        r = EINVAL;
     else {
-	r = 0;
-	uint64_t row = 0;  // which row to fill next
+        r = 0;
+        uint64_t row = 0;  // which row to fill next
         *env_panicp = env->i->is_panicked;
 
-	{
-	    YDB_LAYER_STATUS_S ydb_stat;
-	    ydb_layer_get_status(&ydb_stat);
-	    for (int i = 0; i < YDB_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = ydb_stat.status[i];
-	    }
-	}
+        {
+            YDB_LAYER_STATUS_S ydb_stat;
+            ydb_layer_get_status(&ydb_stat);
+            for (int i = 0; i < YDB_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ydb_stat.status[i];
+            }
+        }
         {
             YDB_C_LAYER_STATUS_S ydb_c_stat;
             ydb_c_layer_get_status(&ydb_c_stat);
             for (int i = 0; i < YDB_C_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ydb_c_stat.status[i];
             }
-	}
+        }
         {
             YDB_WRITE_LAYER_STATUS_S ydb_write_stat;
             ydb_write_layer_get_status(&ydb_write_stat);
             for (int i = 0; i < YDB_WRITE_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ydb_write_stat.status[i];
             }
-	}
-	{
-	    YDB_LOCK_STATUS_S ydb_lock_status;
-	    toku_ydb_lock_get_status(&ydb_lock_status);
-	    for (int i = 0; i < YDB_LOCK_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = ydb_lock_status.status[i];
-	    }
-	}
-        {
-	    LE_STATUS_S lestat;                    // Rice's vampire
-	    toku_le_get_status(&lestat);
-	    for (int i = 0; i < LE_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = lestat.status[i];
-	    }
         }
-	{
+        {
+            YDB_LOCK_STATUS_S ydb_lock_status;
+            toku_ydb_lock_get_status(&ydb_lock_status);
+            for (int i = 0; i < YDB_LOCK_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ydb_lock_status.status[i];
+            }
+        }
+        {
+            LE_STATUS_S lestat;                    // Rice's vampire
+            toku_le_get_status(&lestat);
+            for (int i = 0; i < LE_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = lestat.status[i];
+            }
+        }
+        {
             CHECKPOINT_STATUS_S cpstat;
             toku_checkpoint_get_status(env->i->cachetable, &cpstat);
-	    for (int i = 0; i < CP_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = cpstat.status[i];
-	    }
-	}
-	{
-	    CACHETABLE_STATUS_S ctstat;
-	    toku_cachetable_get_status(env->i->cachetable, &ctstat);
-	    for (int i = 0; i < CT_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = ctstat.status[i];
-	    }
-	}
-	{
-	    LTM_STATUS_S ltmstat;
-	    toku_ltm_get_status(env->i->ltm, &ltmstat);
-	    for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
-		engstat[row++] = ltmstat.status[i];
-	    }
-	}
+            for (int i = 0; i < CP_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = cpstat.status[i];
+            }
+        }
+        {
+            CACHETABLE_STATUS_S ctstat;
+            toku_cachetable_get_status(env->i->cachetable, &ctstat);
+            for (int i = 0; i < CT_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ctstat.status[i];
+            }
+        }
+        {
+            LTM_STATUS_S ltmstat;
+            toku_ltm_get_status(env->i->ltm, &ltmstat);
+            for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ltmstat.status[i];
+            }
+        }
         {
             FT_STATUS_S ftstat;
             toku_ft_get_status(&ftstat);
@@ -2190,34 +2190,34 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             }
         }
 
-	{
+        {
             // memory_status is local to this file
-	    memory_get_status();
+            memory_get_status();
             for (int i = 0; i < MEMORY_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = memory_status.status[i];
             }
-	}
-	{
+        }
+        {
             // Note, fs_get_status() and the fsstat structure are local to this file because they
             // are used to concentrate file system information collected from various places.
             fs_get_status(env, redzone_state);
             for (int i = 0; i < FS_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = fsstat.status[i];
             }
-	}
+        }
 #if 0
         // enable when upgrade is supported
-	{
+        {
             for (int i = 0; i < PERSISTENT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = persistent_upgrade_status.status[i];
             }
             FT_UPGRADE_STATUS_S ft_upgradestat;
-	    toku_ft_upgrade_get_status(&ft_upgradestat);
+            toku_ft_upgrade_get_status(&ft_upgradestat);
             for (int i = 0; i < FT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ft_upgradestat.status[i];
             }
 
-	}
+        }
 #endif
     }
     return r;
@@ -2244,15 +2244,15 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     
     if (r) {
         n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
-	if (!env) {
+        if (!env) {
         n += snprintf(buff + n, bufsiz - n, "no environment\n");
-	}
-	else if (!(env->i)) {
+        }
+        else if (!(env->i)) {
         n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
-	}
-	else if (!env_opened(env)) {
-	    n += snprintf(buff + n, bufsiz - n, "environment is not open\n");
-	}
+        }
+        else if (!env_opened(env)) {
+            n += snprintf(buff + n, bufsiz - n, "environment is not open\n");
+        }
     }
     else {
         if (panic) {
@@ -2296,9 +2296,9 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     }
         
     if (n > bufsiz) {
-	char * errmsg = "BUFFER TOO SMALL\n";
-	int len = strlen(errmsg) + 1;
-	(void) snprintf(buff + (bufsiz - 1) - len, len, "%s", errmsg);
+        char * errmsg = "BUFFER TOO SMALL\n";
+        int len = strlen(errmsg) + 1;
+        (void) snprintf(buff + (bufsiz - 1) - len, len, "%s", errmsg);
     }
 
     return r;
@@ -2310,11 +2310,11 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     DB_ENV * env = most_recent_env;
     int r;
     if (engine_status_enable) {
-	r = env_get_engine_status_text(env, buff, buffsize);
+        r = env_get_engine_status_text(env, buff, buffsize);
     }
     else {
-	r = ENODATA;
-	snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
+        r = ENODATA;
+        snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
     }
     return r;
 }
@@ -2324,15 +2324,15 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
 static void 
 toku_maybe_set_env_panic(int code, char * msg) {
     if (code == 0) 
-	code = -1;
+        code = -1;
     if (msg == NULL)
-	msg = "Unknown cause from abort (failed assert)\n";
+        msg = "Unknown cause from abort (failed assert)\n";
     env_is_panicked = code;  // disable library destructor no matter what
     DB_ENV * env = most_recent_env;
     if (env && 
-	env->i &&
-	(env->i->is_panicked == 0)) {
-	env_panic(env, code, msg);
+        env->i &&
+        (env->i->is_panicked == 0)) {
+        env_panic(env, code, msg);
     }
 }
 
@@ -2525,7 +2525,7 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->num_open_dbs;
     STATUS_VALUE(YDB_LAYER_NUM_DB_OPEN)++;
     if (STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) > STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS))
-	STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
+        STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -2665,8 +2665,8 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-	assert_zero(r);
+        r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+        assert_zero(r);
     }
 
     // get iname
@@ -2675,14 +2675,14 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     if (r==DB_NOTFOUND)
         r = ENOENT;
     else if (r==0) {
-	// remove (dname,iname) from directory
-	r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY, TRUE);
-	if (r == 0) {
+        // remove (dname,iname) from directory
+        r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY, TRUE);
+        if (r == 0) {
             if (using_txns) {
                 // this writes an fdelete to the transaction's rollback log.
                 // it is removed if the child txn aborts after any error case below
                 r = toku_ft_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
-		assert_zero(r);
+                assert_zero(r);
                 //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
                 if (r==0 && env_is_db_with_dname_open(env, dname))
                     r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
@@ -2702,21 +2702,21 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             }
             else {
                 r = toku_ft_remove_now(env->i->cachetable, &iname_dbt);
-		assert_zero(r);
+                assert_zero(r);
             }
-	}
+        }
     }
 
     if (using_txns) {
-	// close txn
-	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-	    invariant(r==0);  // TODO panic
-	}
-	else {         // abort
-	    int r2 = toku_txn_abort(child, NULL, NULL, false);
-	    invariant(r2==0);  // TODO panic
-	}
+        // close txn
+        if (r == 0) {  // commit
+            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
+            invariant(r==0);  // TODO panic
+        }
+        else {         // abort
+            int r2 = toku_txn_abort(child, NULL, NULL, false);
+            invariant(r2==0);  // TODO panic
+        }
     }
 
     if (iname) toku_free(iname);
@@ -2777,8 +2777,8 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     DB_TXN *child = NULL;
     // begin child (unless transactionless)
     if (using_txns) {
-	r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-	assert_zero(r);
+        r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
+        assert_zero(r);
     }
 
     char *iname;
@@ -2787,16 +2787,16 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     if (r==DB_NOTFOUND)
         r = ENOENT;
     else if (r==0) {
-	// verify that newname does not already exist
+        // verify that newname does not already exist
         r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
-	if (r == 0) {
-	    r = EEXIST;
-	}
-	else if (r == DB_NOTFOUND) {
-	    // remove old (dname,iname) and insert (newname,iname) in directory
-	    r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY, TRUE);
-	    if (r == 0)
-		r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0, TRUE);
+        if (r == 0) {
+            r = EEXIST;
+        }
+        else if (r == DB_NOTFOUND) {
+            // remove old (dname,iname) and insert (newname,iname) in directory
+            r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY, TRUE);
+            if (r == 0)
+                r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0, TRUE);
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
             if (r==0 && env_is_db_with_dname_open(env, dname))
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
@@ -2813,19 +2813,19 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             if (r==0 && env_is_db_with_dname_open(env, newname)) {
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
             }
-	}
+        }
     }
 
     if (using_txns) {
-	// close txn
-	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-	    invariant(r==0);  // TODO panic
-	}
-	else {         // abort
-	    int r2 = toku_txn_abort(child, NULL, NULL, false);
-	    invariant(r2==0);  // TODO panic
-	}
+        // close txn
+        if (r == 0) {  // commit
+            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
+            invariant(r==0);  // TODO panic
+        }
+        else {         // abort
+            int r2 = toku_txn_abort(child, NULL, NULL, false);
+            invariant(r2==0);  // TODO panic
+        }
     }
 
     if (iname) toku_free(iname);
