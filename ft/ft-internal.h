@@ -87,10 +87,13 @@ struct ftnode_fetch_extra {
     // and the user is doing a dictionary wide scan, then
     // even though a query may only want one basement node,
     // we fetch all basement nodes in a leaf node.
-    bool disable_prefetching; 
+    bool disable_prefetching;
     // this value will be set during the fetch_callback call by toku_ftnode_fetch_callback or toku_ftnode_pf_req_callback
     // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
     int child_to_read;
+    // when we read internal nodes, we want to read all the data off disk in one I/O
+    // then we'll treat it as normal and only decompress the needed partitions etc.
+    bool read_all_partitions;
     // Accounting: How many bytes were fetched, and how much time did it take?
     tokutime_t bytes_read;
     uint64_t read_time;
@@ -724,6 +727,7 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = false;
+    bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
     bfe->read_time = 0;
 }
@@ -742,7 +746,8 @@ static inline void fill_bfe_for_subset_read(
     DBT *right,
     bool left_is_neg_infty,
     bool right_is_pos_infty,
-    bool disable_prefetching
+    bool disable_prefetching,
+    bool read_all_partitions
     )
 {
     paranoid_invariant(h->h->type == FT_CURRENT);
@@ -755,6 +760,7 @@ static inline void fill_bfe_for_subset_read(
     bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = disable_prefetching;
+    bfe->read_all_partitions = read_all_partitions;
     bfe->bytes_read = 0;
     bfe->read_time = 0;
 }
@@ -776,6 +782,7 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = false;
+    bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
     bfe->read_time = 0;
 }
@@ -824,6 +831,7 @@ static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
     bfe->right_is_pos_infty = c->right_is_pos_infty;
     bfe->child_to_read = -1;
     bfe->disable_prefetching = c->disable_prefetching;
+    bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
     bfe->read_time = 0;
 }

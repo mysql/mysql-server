@@ -192,6 +192,7 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
         &right,
         false,
         false,
+        false,
         false
         );
     
