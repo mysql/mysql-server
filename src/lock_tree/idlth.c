@@ -33,14 +33,10 @@ int toku_idlth_create(toku_idlth** pidlth) {
     int r = ENOSYS;
     assert(pidlth);
     toku_idlth* tmp = NULL;
-    tmp = (toku_idlth*) toku_malloc(sizeof(*tmp));
-    if (!tmp) { r = ENOMEM; goto cleanup; }
-
+    tmp = (toku_idlth*) toku_xmalloc(sizeof(*tmp));
     memset(tmp, 0, sizeof(*tmp));
     tmp->num_buckets = __toku_idlth_init_size;
-    tmp->buckets     = (toku_idlth_elt*)
-                          toku_malloc(tmp->num_buckets * sizeof(*tmp->buckets));
-    if (!tmp->buckets) { r = ENOMEM; goto cleanup; }
+    tmp->buckets     = (toku_idlth_elt*) toku_xmalloc(tmp->num_buckets * sizeof(*tmp->buckets));
     memset(tmp->buckets, 0, tmp->num_buckets * sizeof(*tmp->buckets));
     toku__invalidate_scan(tmp);
     tmp->iter_head.next_in_iteration = &tmp->iter_head;
@@ -48,13 +44,6 @@ int toku_idlth_create(toku_idlth** pidlth) {
 
     *pidlth = tmp;
     r = 0;
-cleanup:
-    if (r != 0) {
-        if (tmp) {
-            if (tmp->buckets) { toku_free(tmp->buckets); }
-            toku_free(tmp);
-        }
-    }
     return r;
 }
 
@@ -129,8 +118,7 @@ int toku_idlth_insert(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     uint32_t index = toku__idlth_hash(idlth, dict_id);
 
     /* Allocate a new one. */
-    toku_idlth_elt* element = (toku_idlth_elt*) toku_malloc(sizeof(*element));
-    if (!element) { r = ENOMEM; goto cleanup; }
+    toku_idlth_elt* element = (toku_idlth_elt*) toku_xmalloc(sizeof(*element));
     memset(element, 0, sizeof(*element));
     element->value.dict_id = dict_id;
 
@@ -144,7 +132,6 @@ int toku_idlth_insert(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     idlth->num_keys++;
 
     r = 0;
-cleanup:
     return r;    
 }
 
