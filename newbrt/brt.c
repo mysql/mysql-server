@@ -144,13 +144,18 @@ toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     h->root_that_created_or_locked_when_empty  = rootid;
 }
 
-
+static bool is_entire_node_in_memory(BRTNODE node) {
+    for (int i = 0; i < node->n_children; i++) {
+        if(BP_STATE(node,i) != PT_AVAIL) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void
 toku_assert_entire_node_in_memory(BRTNODE node) {
-    for (int i = 0; i < node->n_children; i++) {
-        assert(BP_STATE(node,i) == PT_AVAIL);
-    }
+    assert(is_entire_node_in_memory(node));
 }
 
 static u_int32_t
@@ -1941,11 +1946,14 @@ toku_bnc_flush_to_child(
 
 void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h)
 {
-    struct brtnode_fetch_extra bfe;
-    PAIR_ATTR attr;
-    int fd = toku_cachefile_fd(h->cf);
-    fill_bfe_for_full_read(&bfe, h);
-    toku_brtnode_pf_callback(node, &bfe, fd, &attr);
+    if (!is_entire_node_in_memory(node)) {
+        struct brtnode_fetch_extra bfe;
+        PAIR_ATTR attr;
+        int fd = toku_cachefile_get_and_pin_fd(h->cf);
+        fill_bfe_for_full_read(&bfe, h);
+        toku_brtnode_pf_callback(node, &bfe, fd, &attr);
+        toku_cachefile_unpin_fd(h->cf);
+    }
 }
 
 static void

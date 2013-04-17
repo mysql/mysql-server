@@ -60,10 +60,6 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 // Return the filename
 char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
-// return the fd
-int toku_cachefile_fd(CACHEFILE cf);
-
-
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 
