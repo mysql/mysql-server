@@ -651,6 +651,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height)
 // Effect: Fill in N as an empty brtnode.
 {
     n->tag = TYP_BRTNODE;
+    n->desc = &t->h->descriptor;
     n->nodesize = t->h->nodesize;
     n->flags = t->flags;
     n->thisnodename = nodename;

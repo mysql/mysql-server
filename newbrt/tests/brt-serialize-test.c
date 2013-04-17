@@ -54,7 +54,7 @@ static void test_serialize(void) {
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
     struct brt *XMALLOC(brt);
-    struct brt_header *XMALLOC(brt_h);
+    struct brt_header *XCALLOC(brt_h);
     brt->h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
@@ -77,6 +77,7 @@ static void test_serialize(void) {
         assert(size   == 100);
     }
     
+    sn.desc = &brt->h->descriptor;
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);  
     assert(r==0);
     

@@ -167,6 +167,7 @@ addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
 
 static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
     unsigned int size=brtnode_header_overhead;
+    size += toku_serialize_descriptor_size(node->desc);
     if (node->height>0) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
@@ -207,6 +208,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result =brtnode_header_overhead;
     assert(sizeof(toku_off_t)==8);
+    result += toku_serialize_descriptor_size(node->desc);
     if (node->height>0) {
 	result+=4; /* subtree fingerpirnt */
 	result+=4; /* n_children */
@@ -327,6 +329,8 @@ static size_t get_sum_uncompressed_size(int n, struct sub_block_sizes sizes[]) {
 
 static inline void ignore_int (int UU(ignore_me)) {}
 
+static void serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc);
+
 int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint) {
     struct wbuf w;
     int i;
@@ -347,6 +351,8 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     assert(node->layout_version == BRT_LAYOUT_VERSION_9 || node->layout_version == BRT_LAYOUT_VERSION);
     wbuf_int(&w, node->layout_version);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
+    assert(node->desc == &h->descriptor);
+    serialize_descriptor_contents_to_wbuf(&w, node->desc);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, node->nodesize);
     wbuf_uint(&w, node->flags);
@@ -606,6 +612,8 @@ static inline void do_toku_trace(const char *cp, int len) {
 #define toku_trace(a)
 #endif
 
+static void deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL temporary);
+
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     if (h->panic) return h->panic;
@@ -628,6 +636,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 	if (0) { died0: toku_free(result); }
 	return r;
     }
+    result->desc = &h->descriptor;
     result->ever_been_written = 1;
 
     unsigned char *MALLOC_N(size, compressed_block);
@@ -731,6 +740,13 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     ok_layout_version: ;
     }
     result->disk_lsn.lsn = rbuf_ulonglong(&rc);
+    {
+        //Restrict scope for now since we do not support upgrades.
+        struct descriptor desc;
+        //desc.dbt.data is TEMPORARY.  Will be unusable when the rc buffer is freed.
+        deserialize_descriptor_from_rbuf(&rc, &desc, TRUE);
+        assert(desc.version == result->desc->version); //We do not yet support upgrading the dbts.
+    }
     result->nodesize = rbuf_int(&rc);
     result->log_lsn = result->disk_lsn;
 
@@ -1108,19 +1124,22 @@ toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOF
 }
 
 static void
-deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc) {
+deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL temporary) {
     desc->version  = rbuf_int(rb);
     u_int32_t size;
     bytevec   data;
     rbuf_bytes(rb, &data, &size);
-    bytevec   data_copy;
-    if (size>0)
-        data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
+    bytevec   data_copy = data;;
+    if (size>0) {
+        if (!temporary) {
+            data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
+            assert(data_copy);
+        }
+    }
     else {
         assert(size==0);
         data_copy = NULL;
     }
-    assert(data_copy);
     toku_fill_dbt(&desc->dbt, data_copy, size);
     if (desc->version==0) assert(desc->dbt.size==0);
 }
@@ -1150,7 +1169,8 @@ deserialize_descriptor_from(int fd, struct brt_header *h, struct descriptor *des
             }
             {
                 struct rbuf rb = {.buf = dbuf, .size = size, .ndone = 0};
-                deserialize_descriptor_from_rbuf(&rb, desc);
+                //Not temporary; must have a toku_memdup'd copy.
+                deserialize_descriptor_from_rbuf(&rb, desc, FALSE);
             }
             assert(toku_serialize_descriptor_size(desc)+4 == size);
             toku_free(dbuf);
