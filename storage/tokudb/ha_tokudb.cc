@@ -7678,7 +7678,7 @@ bool columns_have_default_null_blobs(
     for (u_int32_t i = 0; i < num_changed_columns; i++) {
         Field* curr_field = table->field[changed_columns[i]];
         TOKU_TYPE field_type = mysql_to_toku_type (curr_field);
-        if (field_type == toku_type_blob && !is_column_default_null(table,i)) {
+        if (field_type == toku_type_blob && !is_column_default_null(table,changed_columns[i])) {
             retval = false;
             break;
         }
