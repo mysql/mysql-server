@@ -2768,24 +2768,49 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char newname[get_name_length(name) + 32];
 
     uint i;
-    for (i=0; i<form->s->keys; i++) {
-        KEY *key = &form->s->key_info[i];
-        if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-            printf("%d:%s:%d:key:%s:%d\n", my_tid(), __FILE__, __LINE__, key->name, key->key_parts);
-        uint p;
-        for (p=0; p<key->key_parts; p++) {
-            KEY_PART_INFO *key_part = &key->key_part[p];
-            Field *field = key_part->field;
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-                printf("%d:%s:%d:key:%d:%d:length=%d:%s:type=%d:flags=%x\n", my_tid(), __FILE__, __LINE__,
-                       i, p, key_part->length, field->field_name, field->type(), field->flags);
-            
-            /* tokudb only supports auto increment on the first field in a key */
-            if ((field->flags & AUTO_INCREMENT_FLAG) && (i > 0 || p > 0)) {
-                TOKUDB_DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+        for (i = 0; i < form->s->fields; i++) {
+            Field *field = form->s->field[i];
+            TOKUDB_TRACE("field:%d:%s:type=%d:flags=%x\n", i, field->field_name, field->type(), field->flags);
+        }
+        for (i = 0; i < form->s->keys; i++) {
+            KEY *key = &form->s->key_info[i];
+            TOKUDB_TRACE("key:%d:%s:%d\n", i, key->name, key->key_parts);
+            uint p;
+            for (p = 0; p < key->key_parts; p++) {
+                KEY_PART_INFO *key_part = &key->key_part[p];
+                Field *field = key_part->field;
+                TOKUDB_TRACE("key:%d:%d:length=%d:%s:type=%d:flags=%x\n",
+                             i, p, key_part->length, field->field_name, field->type(), field->flags);
             }
         }
-    }            
+    }
+
+    // tokudb only supports auto increment on the first field in the primary key
+    // or the first field in the row
+    int pk_found = 0;
+    int ai_found = 0;
+    for (i = 0; i < form->s->keys; i++) {
+        KEY *key = &form->s->key_info[i];
+        int is_primary = (strcmp(key->name, "PRIMARY") == 0);
+        if (is_primary) pk_found = 1;
+        uint p;
+        for (p = 0; p < key->key_parts; p++) {
+            KEY_PART_INFO *key_part = &key->key_part[p];
+            Field *field = key_part->field;
+            if (field->flags & AUTO_INCREMENT_FLAG) {
+                ai_found = 1;
+                if (is_primary && p > 0) 
+                    TOKUDB_DBUG_RETURN(HA_ERR_UNSUPPORTED);
+            }
+        }
+    }
+
+    if (!pk_found && ai_found) {
+        Field *field = form->s->field[0];
+        if (!(field->flags & AUTO_INCREMENT_FLAG))
+            TOKUDB_DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    }
 
     // a table is a directory of dictionaries
     make_name(dirname, name, 0);
