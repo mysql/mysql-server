@@ -161,7 +161,7 @@ typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *ftnode_pv, PAIR_ATTR o
 // a partial fetch. If this function returns FALSE, then the PAIR's value is returned to the caller as is.
 //
 // An alternative to having this callback is to always call CACHETABLE_PARTIAL_FETCH_CALLBACK, and let
-// CACHETABLE_PARTIAL_FETCH_CALLBACK decide whether to possibly release the ydb lock and perform I/O.
+// CACHETABLE_PARTIAL_FETCH_CALLBACK decide whether to do any partial fetching or not.
 // There is no particular reason why this alternative was not chosen.
 // Requires: a read lock to be held on the PAIR
 typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *ftnode_pv, void *read_extraargs);
@@ -459,11 +459,6 @@ int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf,
 // Verify the whole cachetable that the cachefile is in.  Slow.
 void toku_cachefile_verify (CACHEFILE cf);
 
-int64_t toku_cachetable_size_slowslow (CACHETABLE t);
-int64_t toku_cachetable_size_discrepancy (CACHETABLE t);
-int64_t toku_cachetable_size_discrepancy_pinned (CACHETABLE t);
-int64_t toku_cachetable_size_slow (CACHETABLE t);
-
 // Verify the cachetable. Slow.
 void toku_cachetable_verify (CACHETABLE t);
 
@@ -480,9 +475,6 @@ u_int64_t toku_cachefile_size(CACHEFILE cf);
 typedef enum {
     CT_MISS = 0,
     CT_MISSTIME,               // how many usec spent waiting for disk read because of cache miss
-    CT_WAITTIME,               // how many usec spent waiting for another thread to release cache line
-    CT_WAIT_READING,
-    CT_WAIT_WRITING,
     CT_PUTS,                   // how many times has a newly created node been put into the cachetable?
     CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
     CT_MAYBE_GET_AND_PINS,     // how many times has maybe_get_and_pin(_clean) been called?
