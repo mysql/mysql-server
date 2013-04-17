@@ -197,7 +197,7 @@ get_leaf_reactivity (BRTNODE node) {
     unsigned int size = toku_serialize_brtnode_size(node);
     if (size     > node->nodesize && toku_omt_size(node->u.l.buffer) > 1) 
         return RE_FISSIBLE;
-    if ((size*4) < node->nodesize)     
+    if ((size*4) < node->nodesize && !node->u.l.seqinsert)     
         return RE_FUSIBLE;
     return RE_STABLE;
 }
@@ -829,6 +829,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                     sumsofar += leafentry_disksize(leafentries[i]);
                     if (sumlesizes - sumsofar <= node->nodesize) {
                         split_at = i;
+                        B->u.l.seqinsert = 1;
                         break;
                     }
                 }
@@ -1670,9 +1671,12 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     //counter++;
     //printf("counter=%d\n", counter);
 
+    unsigned int doing_seqinsert = node->u.l.seqinsert;
+    node->u.l.seqinsert = 0;
+
     switch (cmd->type) {
     case BRT_INSERT:
-        if (node->u.l.seqinsert) {
+        if (doing_seqinsert) {
             idx = toku_omt_size(node->u.l.buffer);
             r = toku_omt_fetch(node->u.l.buffer, idx-1, &storeddatav, NULL);
             if (r != 0) goto fz;
@@ -1706,11 +1710,8 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
         if (w > 32) w = 32;
 
         // within the window?
-        if (s - idx <= w) {
-            node->u.l.seqinsert += 1;
-        } else {
-            node->u.l.seqinsert = 0;
-        }
+        if (s - idx <= w)
+            node->u.l.seqinsert = doing_seqinsert + 1;
         }
         break;
     case BRT_DELETE_BOTH:
@@ -1780,8 +1781,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
         
 //        toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     *re = get_leaf_reactivity(node);
-    if (cmd->type == BRT_INSERT && *re == RE_FUSIBLE)
-        *re = RE_STABLE;
     VERIFY_NODE(t, node);
     return 0;
 }
