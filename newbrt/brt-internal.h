@@ -561,7 +561,6 @@ struct brt_cursor {
     DBT key, val;             // The key-value pair that the cursor currently points to
     DBT range_lock_left_key, range_lock_right_key;
     BOOL left_is_neg_infty, right_is_pos_infty;
-    TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
     BOOL is_snapshot_read; // true if query is read_committed, false otherwise
     BOOL is_leaf_mode;
     TOKUTXN ttxn;
