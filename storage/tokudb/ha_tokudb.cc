@@ -5867,8 +5867,8 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     // for each DB, scan through entire table and do nothing
     //
     for (uint i = 0; i < curr_num_DBs; i++) {
-        error = 0;
-        if ((error = share->key_file[i]->cursor(share->key_file[i], txn, &tmp_cursor, 0))) {
+        error = share->key_file[i]->cursor(share->key_file[i], txn, &tmp_cursor, 0);
+        if (error) {
             tmp_cursor = NULL;
             goto cleanup;
         }
@@ -5879,10 +5879,15 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
             }
         }
         tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
     }
 
     error = 0;
 cleanup:
+    if (tmp_cursor) {
+        tmp_cursor->c_close(tmp_cursor);
+        tmp_cursor = NULL;
+    }
     if (do_commit) {
         error = txn->commit(txn, 0);
     }
