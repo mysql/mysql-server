@@ -164,9 +164,6 @@ int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, char *panic_string)  __at
 
 int toku_dump_ft (FILE *,FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 
-//void ft_fsync (FT_HANDLE); /* fsync, but don't clear the caches. */
-//void ft_flush (FT_HANDLE); /* fsync and clear the caches. */
-
 extern int toku_ft_debug_mode;
 int toku_verify_ft (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 int toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
