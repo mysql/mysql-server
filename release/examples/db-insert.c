@@ -199,15 +199,9 @@ static void benchmark_setup (void) {
 
 }
 
-#if defined(TOKUDB)
-static void test1514(void);
-#endif
 static void benchmark_shutdown (void) {
     int r;
     
-#if defined(TOKUDB)
-    if (do_1514_point_query) test1514();
-#endif
     if (do_transactions && singlex && !insert1first && (singlex_create || prelock)) {
 #if defined(TOKUDB)
         //There should be a single 'truncate' in the rollback instead of many 'insert' entries.
@@ -361,13 +355,13 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [--norandom] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
-    fprintf(stderr, "    -x              do transactions (XCOUNT transactions per iteration) (default: no transactions at all)\n");
-    fprintf(stderr, "    --keysize KEYSIZE sets the key size (default 8)\n");
-    fprintf(stderr, "    --valsize VALSIZE sets the value size (default 8)\n");
+    fprintf(stderr, "    -x                    do transactions (XCOUNT transactions per iteration) (default: no transactions at all)\n");
+    fprintf(stderr, "    --keysize KEYSIZE     sets the key size (default 8)\n");
+    fprintf(stderr, "    --valsize VALSIZE     sets the value size (default 8)\n");
+    fprintf(stderr, "    --noserial            causes the serial insertions to be skipped\n");
+    fprintf(stderr, "    --norandom            causes the random insertions to be skipped\n");
     fprintf(stderr, "    --cachesize CACHESIZE set the database cache size\n");
-    fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
-    fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
-    fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
+    fprintf(stderr, "    --pagesize PAGESIZE   sets the database page size\n");
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex             (implies -x) Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
@@ -380,10 +374,6 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
     fprintf(stderr, "    --nolog               If transactions are used, then don't write the recovery log\n");
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
-    fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
-    fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
@@ -393,39 +383,6 @@ static int print_usage (const char *argv0) {
 }
 
 #define UU(x) x __attribute__((__unused__))
-
-#if defined(TOKUDB)
-static int
-nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
-    return 0;
-}
-
-static void
-test1514(void) {
-    assert(norandom); //Otherwise we can't know the given element is missing.
-    unsigned char kc[keysize], vc[valsize];
-    DBT  kt;
-    long long v = SERIAL_SPACING - 1;
-    fill_array(kc, sizeof kc);
-    long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
-    fill_array(vc, sizeof vc);
-    long_long_to_array(vc, valsize, v);
-    int r;
-    DBC *c;
-
-
-    struct timeval t1,t2;
-
-    r = db->cursor(db, tid, &c, 0); CKERR(r);
-    gettimeofday(&t1,0);
-    r = c->c_getf_set(c, 0, fill_dbt(&kt, kc, keysize), nothing, NULL);
-    gettimeofday(&t2,0);
-    CKERR2(r, DB_NOTFOUND);
-    r = c->c_close(c); CKERR(r);
-
-    if (verbose) printf("(#1514) Single Point Query %9.6fs\n", toku_tdiff(&t2, &t1));
-}
-#endif
 
 int main (int argc, const char *argv[]) {
     struct timeval t1,t2,t3;
@@ -509,22 +466,6 @@ int main (int argc, const char *argv[]) {
             if (i+1 >= argc) return print_usage(argv[9]);
             do_checkpoint_period = 1;
             checkpoint_period = (u_int32_t) atoi(argv[++i]);
-        } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
-            if (i+1 >= argc) return print_usage(argv[0]);
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_TXN;
-            else
-                env_open_flags &= ~DB_INIT_TXN;
-        } else if (strcmp(arg, "--DB_INIT_LOG") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOG;
-            else
-                env_open_flags &= ~DB_INIT_LOG;
-        } else if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
-            if (atoi(argv[++i]))
-                env_open_flags |= DB_INIT_LOCK;
-            else
-                env_open_flags &= ~DB_INIT_LOCK;
         } else if (strcmp(arg, "--unique_checks") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             int unique_checks = atoi(argv[++i]);
@@ -580,19 +521,6 @@ int main (int argc, const char *argv[]) {
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), 
 	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/toku_tdiff(&t3, &t1));
     }
-#if 0 && defined TOKUDB
-    if (verbose) {
-	extern int toku_os_get_max_rss(int64_t*);
-        int64_t mrss;
-        int r = toku_os_get_max_rss(&mrss);
-        assert(r==0);
-	printf("maxrss=%.2fMB\n", mrss/256.0);
-    }
-    if (0) {
-	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
-	print_hash_histogram();
-    }
-#endif
 
     return 0;
 }

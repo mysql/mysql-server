@@ -426,30 +426,5 @@ int main (int argc, const char *argv[]) {
     }
     scanscan_shutdown();
 
-#if defined(TOKUDB)
-    if (1) {
-	toku_cachetable_print_hash_histogram();
-    }
-
-    // if tokudb has tracing enabled (see trace_mem.h) then this will dump
-    // the trace data
-    if (0) {
-        toku_print_trace_mem();
-    }
-#endif
-#if defined(__linux__) && __linux__
-    char fname[256];
-    sprintf(fname, "/proc/%d/status", getpid());
-    FILE *f = fopen(fname, "r");
-    if (f) {
-        char line[256];
-        while (fgets(line, sizeof line, f)) {
-            int n;
-            if (sscanf(line, "VmPeak: %d", &n) || sscanf(line, "VmHWM: %d", &n) || sscanf(line, "VmRSS: %d", &n))
-                fputs(line, stdout);
-        }
-        fclose(f);
-    }
-#endif
     return 0;
 }
