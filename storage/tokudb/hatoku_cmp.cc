@@ -597,7 +597,11 @@ inline uchar* pack_toku_blob(
     u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     u_int32_t max_num_bytes,
+#if MYSQL_VERSION_ID >= 50600
+    const CHARSET_INFO* charset
+#else
     CHARSET_INFO* charset
+#endif
     ) 
 {
     u_int32_t length = 0;
@@ -749,7 +753,11 @@ inline uchar* pack_toku_varstring(
     u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     u_int32_t max_num_bytes,
+#if MYSQL_VERSION_ID >= 50600
+    const CHARSET_INFO *charset
+#else
     CHARSET_INFO* charset
+#endif
     ) 
 {
     u_int32_t length = 0;
@@ -1374,7 +1382,7 @@ uchar* unpack_toku_key_field(
             );
         num_bytes_copied = new_pos - (from_tokudb + get_length_bytes_from_max(key_part_length));
         assert(num_bytes_copied <= num_bytes);
-        bfill(to_mysql+num_bytes_copied, num_bytes - num_bytes_copied, field->charset()->pad_char);
+        memset(to_mysql+num_bytes_copied, field->charset()->pad_char, num_bytes - num_bytes_copied);
         goto exit;
     case (toku_type_varbinary):
     case (toku_type_varstring):

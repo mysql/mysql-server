@@ -1021,8 +1021,8 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
     char path[FN_REFLEN + 1];
     HA_METADATA_KEY curr_key = hatoku_frm_data;
     DBT key, value;    
-    bzero(&key, sizeof(key));
-    bzero(&value, sizeof(&value));
+    memset(&key, 0, sizeof(key));
+    memset(&value, 0, sizeof(&value));
     
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
@@ -1613,7 +1613,11 @@ static ST_FIELD_INFO tokudb_user_data_field_info[] = {
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
 static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
     int error;
     uint64_t data_size;
     TABLE *table = tables->table;
@@ -1656,7 +1660,11 @@ static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
 static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
     int error;
     uint64_t data_size;
     TABLE *table = tables->table;

@@ -171,7 +171,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
             goto exit;
         }
 
-        bzero((void *) share->key_file, sizeof(share->key_file));
+        memset((void *) share->key_file, 0, sizeof(share->key_file));
 
         error = my_hash_insert(&tokudb_open_tables, (uchar *) share);
         if (error) {
@@ -923,8 +923,8 @@ static int add_table_to_metadata(const char *name, TABLE* table, DB_TXN* txn) {
     uchar hidden_primary_key = (table->s->primary_key >= MAX_KEY);
     assert(txn);
     
-    bzero((void *)&key, sizeof(key));
-    bzero((void *)&val, sizeof(val));
+    memset((void *)&key, 0, sizeof(key));
+    memset((void *)&val, 0, sizeof(val));
     key.data = (void *)name;
     key.size = strlen(name) + 1;
     val.data = &hidden_primary_key;
@@ -944,8 +944,8 @@ static int drop_table_from_metadata(const char *name, DB_TXN* txn) {
     DBT key;
     DBT data;
     assert(txn);
-    bzero((void *)&key, sizeof(key));
-    bzero((void *)&data, sizeof(data));
+    memset((void *)&key, 0, sizeof(key));
+    memset((void *)&data, 0, sizeof(data));
     key.data = (void *)name;
     key.size = strlen(name) + 1;
     error = metadata_db->del(
@@ -964,9 +964,9 @@ static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* tx
     DBT val;
     assert(txn);
     
-    bzero((void *)&from_key, sizeof(from_key));
-    bzero((void *)&to_key, sizeof(to_key));
-    bzero((void *)&val, sizeof(val));
+    memset((void *)&from_key, 0, sizeof(from_key));
+    memset((void *)&to_key, 0, sizeof(to_key));
+    memset((void *)&val, 0, sizeof(val));
     from_key.data = (void *)from;
     from_key.size = strlen(from) + 1;
     to_key.data = (void *)to;
@@ -1019,7 +1019,7 @@ static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* 
     int error = 0;
     DBT key;
     pthread_mutex_lock(&tokudb_meta_mutex);
-    bzero((void *)&key, sizeof(key));
+    memset((void *)&key, 0, sizeof(key));
     key.data = (void *)name;
     key.size = strlen(name) + 1;
     
@@ -1257,11 +1257,11 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_blob_bytes = 0;
     delay_updating_ai_metadata = false;
     ai_metadata_update_required = false;
-    bzero(mult_key_dbt, sizeof(mult_key_dbt));
-    bzero(mult_rec_dbt, sizeof(mult_rec_dbt));
+    memset(mult_key_dbt, 0, sizeof(mult_key_dbt));
+    memset(mult_rec_dbt, 0, sizeof(mult_rec_dbt));
     loader = NULL;
     abort_loader = false;
-    bzero(&lc, sizeof(lc));
+    memset(&lc, 0, sizeof(lc));
     lock.type = TL_IGNORE;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = 0;
@@ -1987,7 +1987,7 @@ int ha_tokudb::remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* tr
         txn = transaction;
     }
 
-    bzero(&key, sizeof(key));
+    memset(&key, 0, sizeof(key));
     key.data = key_data;
     key.size = key_size;
     error = db->del(db, txn, &key, DB_DELETE_ANY);
@@ -2031,8 +2031,8 @@ int ha_tokudb::write_metadata(DB* db, void* key_data, uint key_size, void* val_d
         txn = transaction;
     }
 
-    bzero(&key, sizeof(key));
-    bzero(&value, sizeof(value));
+    memset(&key, 0, sizeof(key));
+    memset(&value, 0, sizeof(value));
     key.data = key_data;
     key.size = key_size;
     value.data = val_data;
@@ -2096,8 +2096,8 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
     int error = 0;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
 
-    bzero(&key, sizeof(key));
-    bzero(&stored_frm, sizeof(&stored_frm));
+    memset(&key, 0, sizeof(key));
+    memset(&stored_frm, 0, sizeof(&stored_frm));
     // get the frm data from MySQL
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
     if (error) { goto cleanup; }
@@ -2277,7 +2277,7 @@ int ha_tokudb::pack_row_in_buff(
     uchar* start_field_data_ptr = NULL;
     uchar* var_field_data_ptr = NULL;
     int r = ENOSYS;
-    bzero((void *) row, sizeof(*row));
+    memset((void *) row, 0, sizeof(*row));
 
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
     
@@ -2783,7 +2783,7 @@ DBT *ha_tokudb::create_dbt_key_from_table(
     ) 
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::create_dbt_key_from_table");
-    bzero((void *) key, sizeof(*key));
+    memset((void *) key, 0, sizeof(*key));
     if (hidden_primary_key && keynr == primary_key) {
         key->data = buff;
         memcpy(buff, &current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
@@ -2834,7 +2834,7 @@ DBT *ha_tokudb::pack_key(
     KEY_PART_INFO *end = key_part + key_info->key_parts;
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
-    bzero((void *) key, sizeof(*key));
+    memset((void *) key, 0, sizeof(*key));
     key->data = buff;
 
     //
@@ -2905,8 +2905,8 @@ void ha_tokudb::init_hidden_prim_key_info() {
             );
         assert(error == 0);
         DBT key,val;        
-        bzero(&key, sizeof(key));
-        bzero(&val, sizeof(val));
+        memset(&key, 0, sizeof(key));
+        memset(&val, 0, sizeof(val));
         error = c->c_get(c, &key, &val, DB_LAST);
         if (error == 0) {
             assert(key.size == TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
@@ -2951,8 +2951,8 @@ int ha_tokudb::get_status(DB_TXN* txn) {
     //
     // transaction to be used for putting metadata into status.tokudb
     //
-    bzero(&key, sizeof(key));
-    bzero(&value, sizeof(value));
+    memset(&key, 0, sizeof(key));
+    memset(&value, 0, sizeof(value));
     key.data = &curr_key;
     key.size = sizeof(curr_key);
     value.flags = DB_DBT_USERMEM;
@@ -3278,7 +3278,7 @@ cleanup:
         loader = NULL;
     }
     abort_loader = false;
-    bzero(&lc,sizeof(lc));
+    memset(&lc, 0, sizeof(lc));
     if (error || loader_error) {
         my_errno = error ? error : loader_error;
         if (using_loader) {
@@ -3301,11 +3301,11 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     u_int64_t cnt = 0;
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     THD* thd = ha_thd();
-    bzero(&key1, sizeof(key1));
-    bzero(&key2, sizeof(key2));
-    bzero(&val, sizeof(val));
-    bzero(&packed_key1, sizeof(packed_key1));
-    bzero(&packed_key2, sizeof(packed_key2));
+    memset(&key1, 0, sizeof(key1));
+    memset(&key2, 0, sizeof(key2));
+    memset(&val, 0, sizeof(val));
+    memset(&packed_key1, 0, sizeof(packed_key1));
+    memset(&packed_key2, 0, sizeof(packed_key2));
     *is_unique = true;
     
     error = db->cursor(
@@ -3455,7 +3455,7 @@ int ha_tokudb::is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint
     DBC* tmp_cursor = NULL;
     struct index_read_info ir_info;
     struct smart_dbt_info info;
-    bzero((void *)&key, sizeof(key));
+    memset((void *)&key, 0, sizeof(key));
     info.ha = this;
     info.buf = NULL;
     info.keynr = dict_index;
@@ -3567,8 +3567,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     bool has_null;
     int cmp;
 
-    bzero(&tmp_pk_key, sizeof(DBT));
-    bzero(&tmp_pk_val, sizeof(DBT));
+    memset(&tmp_pk_key, 0, sizeof(DBT));
+    memset(&tmp_pk_val, 0, sizeof(DBT));
 
     //
     //use for testing the packing of keys
@@ -3821,9 +3821,11 @@ int ha_tokudb::write_row(uchar * record) {
     // this work away from us, namely filling in auto increment and setting auto timestamp
     //
     statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+#if MYSQL_VERSION_ID < 50600
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT) {
         table->timestamp_field->set_time();
     }
+#endif
     if (table->next_number_field && record == table->record[0]) {
         update_auto_increment();
     }
@@ -3976,8 +3978,8 @@ cleanup:
 bool ha_tokudb::key_changed(uint keynr, const uchar * old_row, const uchar * new_row) {
     DBT old_key;
     DBT new_key;
-    bzero((void *) &old_key, sizeof(old_key));
-    bzero((void *) &new_key, sizeof(new_key));
+    memset((void *) &old_key, 0, sizeof(old_key));
+    memset((void *) &new_key, 0, sizeof(new_key));
 
     bool has_null;
     create_dbt_key_from_table(&new_key, keynr, key_buff2, new_row, &has_null);
@@ -4006,17 +4008,18 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     uint curr_num_DBs;
 
     LINT_INIT(error);
-    bzero((void *) &prim_key, sizeof(prim_key));
-    bzero((void *) &old_prim_key, sizeof(old_prim_key));
-    bzero((void *) &prim_row, sizeof(prim_row));
-    bzero((void *) &old_prim_row, sizeof(old_prim_row));
+    memset((void *) &prim_key, 0, sizeof(prim_key));
+    memset((void *) &old_prim_key, 0, sizeof(old_prim_key));
+    memset((void *) &prim_row, 0, sizeof(prim_row));
+    memset((void *) &old_prim_row, 0, sizeof(old_prim_row));
 
 
     statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
+#if MYSQL_VERSION_ID < 50600
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE) {
         table->timestamp_field->set_time();
     }
-
+#endif
     //
     // check to see if some value for the auto increment column that is bigger
     // than anything else til now is being used. If so, update the metadata to reflect it
@@ -4055,7 +4058,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 
 
     if (hidden_primary_key) {
-        bzero((void *) &prim_key, sizeof(prim_key));
+        memset((void *) &prim_key, 0, sizeof(prim_key));
         prim_key.data = (void *) current_ident;
         prim_key.size = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
         old_prim_key = prim_key;
@@ -4412,7 +4415,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
         cursor = NULL;             // Safety
         goto exit;
     }
-    bzero((void *) &last_key, sizeof(last_key));
+    memset((void *) &last_key, 0, sizeof(last_key));
 
     if (thd_sql_command(thd) == SQLCOM_SELECT) {
         set_query_columns(keynr);
@@ -4560,7 +4563,7 @@ int ha_tokudb::read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT con
         // create a DBT that has the same data as row, this is inefficient
         // extract_hidden_primary_key MUST have been called before this
         //
-        bzero((void *) &last_key, sizeof(last_key));
+        memset((void *) &last_key, 0, sizeof(last_key));
         if (!hidden_primary_key) {
             unpack_key(buf, found_key, keynr);
         }
@@ -4696,7 +4699,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     HANDLE_INVALID_CURSOR();
 
     table->in_use->status_var.ha_read_key_count++;
-    bzero((void *) &row, sizeof(row));
+    memset((void *) &row, 0, sizeof(row));
 
     info.ha = this;
     info.buf = buf;
@@ -4786,7 +4789,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     int error;
     uchar* curr_pos = range_query_buff+curr_range_query_buff_offset;
     DBT curr_key;
-    bzero((void *) &curr_key, sizeof(curr_key));
+    memset((void *) &curr_key, 0, sizeof(curr_key));
     
     // get key info
     u_int32_t key_size = *(u_int32_t *)curr_pos;
@@ -4807,7 +4810,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     // we need to get more data
     else {
         DBT curr_val;
-        bzero((void *) &curr_val, sizeof(curr_val));
+        memset((void *) &curr_val, 0, sizeof(curr_val));
         uchar* curr_val_buff = NULL;
         u_int32_t val_size = 0;
         // in this case, we don't have a val, we are simply extracting the pk
@@ -5065,7 +5068,7 @@ int ha_tokudb::fill_range_query_buf(
             goto cleanup;
         }
         DBT right_range;
-        bzero(&right_range, sizeof(right_range));
+        memset(&right_range, 0, sizeof(right_range));
         right_range.size = prelocked_right_range_size;
         right_range.data = prelocked_right_range;
         int cmp = tokudb_cmp_dbt_key(
@@ -5083,7 +5086,7 @@ int ha_tokudb::fill_range_query_buf(
             goto cleanup;
         }
         DBT left_range;
-        bzero(&left_range, sizeof(left_range));
+        memset(&left_range, 0, sizeof(left_range));
         left_range.size = prelocked_left_range_size;
         left_range.data = prelocked_left_range;
         int cmp = tokudb_cmp_dbt_key(
@@ -5417,7 +5420,7 @@ void ha_tokudb::track_progress(THD* thd) {
 DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
-    bzero((void *) to, sizeof(*to));
+    memset((void *) to, 0, sizeof(*to));
     to->data = pos + sizeof(u_int32_t);
     to->size = *(u_int32_t *)pos;
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
@@ -5470,8 +5473,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     uchar* start_key_buff  = prelocked_left_range;
     uchar* end_key_buff = prelocked_right_range;
 
-    bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
-    bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
+    memset((void *) &start_dbt_key, 0, sizeof(start_dbt_key));
+    memset((void *) &end_dbt_key, 0, sizeof(end_dbt_key));
 
     HANDLE_INVALID_CURSOR();
     if (start_key) {
@@ -6459,7 +6462,7 @@ int ha_tokudb::create_secondary_dictionary(
     uint32_t read_block_size;
     THD* thd = ha_thd();
 
-    bzero(&row_descriptor, sizeof(row_descriptor));
+    memset(&row_descriptor, 0, sizeof(row_descriptor));
     
     max_row_desc_buff_size = get_max_desc_size(kc_info,form);
 
@@ -6556,7 +6559,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     uint32_t read_block_size;
     THD* thd = ha_thd();
 
-    bzero(&row_descriptor, sizeof(row_descriptor));
+    memset(&row_descriptor, 0, sizeof(row_descriptor));
     max_row_desc_buff_size = get_max_desc_size(kc_info, form);
 
     row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
@@ -6605,8 +6608,8 @@ cleanup:
 static inline enum row_type
 row_format_to_row_type(srv_row_format_t row_format)
 {
-    switch (row_format) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+    switch (row_format) {
     case SRV_ROW_FORMAT_UNCOMPRESSED:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case SRV_ROW_FORMAT_ZLIB:
@@ -6619,11 +6622,12 @@ row_format_to_row_type(srv_row_format_t row_format)
         return ROW_TYPE_TOKU_SMALL;
     case SRV_ROW_FORMAT_FAST:
         return ROW_TYPE_TOKU_FAST;
-#endif
     case SRV_ROW_FORMAT_DEFAULT:
         return ROW_TYPE_DEFAULT;
     }
-    assert(0); return ROW_TYPE_DEFAULT;;
+    assert(0);
+#endif
+    return ROW_TYPE_DEFAULT;;
 }
 
 //
@@ -6649,7 +6653,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     tokudb_trx_data *trx = NULL;
     THD* thd = ha_thd();
     bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
-    bzero(&kc_info, sizeof(kc_info));
+    memset(&kc_info, 0, sizeof(kc_info));
 
     pthread_mutex_lock(&tokudb_meta_mutex);
 
@@ -6854,8 +6858,8 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     DB_TXN* txn = NULL;
     DBT curr_key;
     DBT curr_val;
-    bzero(&curr_key, sizeof(curr_key));
-    bzero(&curr_val, sizeof(curr_val));
+    memset(&curr_key, 0, sizeof(curr_key));
+    memset(&curr_val, 0, sizeof(curr_val));
     pthread_mutex_lock(&tokudb_meta_mutex);
 
     error = db_env->txn_begin(db_env, 0, &txn, 0);
@@ -7210,8 +7214,8 @@ void ha_tokudb::init_auto_increment() {
     DBT value;
     int error;
     HA_METADATA_KEY key_val = hatoku_max_ai;
-    bzero(&key, sizeof(key));
-    bzero(&value, sizeof(value));
+    memset(&key, 0, sizeof(key));
+    memset(&value, 0, sizeof(value));
     key.data = &key_val;
     key.size = sizeof(key_val);
     value.flags = DB_DBT_USERMEM;
@@ -7389,8 +7393,8 @@ int ha_tokudb::tokudb_add_index(
     // in unpack_row, MySQL passes a buffer that is this long,
     // so this length should be good enough for us as well
     //
-    bzero((void *) &curr_pk_key, sizeof(curr_pk_key));
-    bzero((void *) &curr_pk_val, sizeof(curr_pk_val));
+    memset((void *) &curr_pk_key, 0, sizeof(curr_pk_key));
+    memset((void *) &curr_pk_val, 0, sizeof(curr_pk_val));
 
     //
     // The files for secondary tables are derived from the name of keys
@@ -9176,7 +9180,7 @@ u_int32_t fill_dynamic_blob_row_mutator(
                 // create a zero length blob field that can be directly copied in
                 // for now, in MySQL, we can only have blob fields 
                 // that have no default value
-                bzero(pos,len_bytes);
+                memset(pos, 0, len_bytes);
                 pos += len_bytes;
             }
         }
@@ -9300,7 +9304,7 @@ int ha_tokudb::alter_table_phase2(
     bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
     bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
     KEY_AND_COL_INFO altered_kc_info;
-    bzero(&altered_kc_info, sizeof(altered_kc_info));
+    memset(&altered_kc_info, 0, sizeof(altered_kc_info));
     u_int32_t max_new_desc_size = 0;
     uchar* row_desc_buff = NULL;
     uchar* column_extra = NULL; 
@@ -9377,7 +9381,7 @@ int ha_tokudb::alter_table_phase2(
 
     if (has_dropped_columns || has_added_columns) {
         DBT column_dbt;
-        bzero(&column_dbt, sizeof(DBT));
+        memset(&column_dbt, 0, sizeof(DBT));
         u_int32_t max_column_extra_size;
         u_int32_t num_column_extra;
         u_int32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
@@ -9430,7 +9434,7 @@ int ha_tokudb::alter_table_phase2(
 
         for (u_int32_t i = 0; i < curr_num_DBs; i++) {
             DBT row_descriptor;
-            bzero(&row_descriptor, sizeof(row_descriptor));
+            memset(&row_descriptor, 0, sizeof(row_descriptor));
             KEY* prim_key = (hidden_primary_key) ? NULL : &altered_table->s->key_info[primary_key];
             KEY* key_info = &altered_table->key_info[i];
             if (i == primary_key) {
@@ -9618,7 +9622,7 @@ int tokudb_update_fun(
     u_int32_t num_data_bytes_written = 0;
     u_int32_t num_offset_bytes_written = 0;
     int error;
-    bzero(&new_val, sizeof(DBT));
+    memset(&new_val, 0, sizeof(DBT));
     uchar operation;
     uchar* new_val_data = NULL;
     uchar* extra_pos = NULL;
@@ -9812,7 +9816,7 @@ int tokudb_update_fun(
             else {
                 if (is_null_default) {
                     // copy zeroes
-                    bzero(new_fixed_field_ptr + curr_new_fixed_offset, col_size);
+                    memset(new_fixed_field_ptr + curr_new_fixed_offset, 0, col_size);
                 }
                 else {
                     // copy data from extra_pos into new row
