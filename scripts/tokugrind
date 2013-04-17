@@ -31,7 +31,7 @@ done
 if [ "$logfile" = "" ] ; then
     createlogfile=1
     trap cleanup SIGINT
-    logfile=`mktemp /tmp/tokugrind.XXXXXXXX`
+    logfile=`mktemp /tmp/$(whoami).tokugrind.XXXXXXXX`
     args="--log-file=$logfile $args"
 fi
 
