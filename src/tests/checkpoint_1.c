@@ -9,7 +9,7 @@ DB_ENV *env;
 
 enum {MAX_NAME=128};
 
-enum {NUM_FIXED_ROWS=4097};   // 4K + 1
+enum {NUM_FIXED_ROWS=1025};   // 4K + 1
 
 typedef struct {
     DB*       db;
@@ -369,7 +369,9 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
 	r = compare_dbs(db_test.db, db_control.db);
 	assert(r==0);
     }
-    db_shutdown(&db_test);
+    // now close db_test via checkpoint callback (i.e. during checkpoint)
+    iter = -1;  
+    snapshot(&db_test, TRUE);
     db_shutdown(&db_control);
     env_shutdown();
 }
@@ -401,12 +403,22 @@ void checkpoint_callback_2(void * extra) {
     char name[MAX_NAME*2];
     fill_name(d, name, sizeof(name));
 
-    if (verbose) {
-	printf("checkpoint_callback_2 inserting fixed rows into %s\n",
-	       name);
-	fflush(stdout);
+    if (iter >= 0) {
+	if (verbose) {
+	    printf("checkpoint_callback_2 inserting fixed rows into %s\n",
+		   name);
+	    fflush(stdout);
+	}
+	insert_n_fixed(d->db, NULL, NULL, iter * NUM_FIXED_ROWS, NUM_FIXED_ROWS);
     }
-    insert_n_fixed(d->db, NULL, NULL, iter * NUM_FIXED_ROWS, NUM_FIXED_ROWS);
+    else {
+	if (verbose) {
+	    printf("checkpoint_callback_2 closing %s\n",
+		   name);
+	    fflush(stdout);
+	}
+	db_shutdown(d);
+    }
 }
 
 
