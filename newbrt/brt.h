@@ -45,6 +45,7 @@ int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
 int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
+int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags);
 int toku_close_brt (BRT, TOKULOGGER, char **error_string);
 
 int toku_dump_brt (FILE *,BRT brt);

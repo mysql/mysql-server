@@ -36,10 +36,9 @@ struct translation { //This is the BTT (block translation table)
 
 //Unmovable reserved first, then reallocable.
 // We reserve one blocknum for the translation table itself.
-enum {RESERVED_BLOCKNUM_NULL=0,
+enum {RESERVED_BLOCKNUM_NULL       =0,
       RESERVED_BLOCKNUM_TRANSLATION=1,
-      RESERVED_BLOCKNUM_FIFO=2,
-      RESERVED_BLOCKNUM_DESCRIPTOR=3,
+      RESERVED_BLOCKNUM_DESCRIPTOR =2,
       RESERVED_BLOCKNUMS};
 
 static const BLOCKNUM freelist_null  = {-1}; // in a freelist, this indicates end of list
@@ -135,9 +134,6 @@ copy_translation(struct translation * dst, struct translation * src, enum transl
     //New version of btt is not yet stored on disk.
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size      = 0;
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff = diskoff_unused;
-    //New version of fifo is not yet stored on disk
-    dst->block_translation[RESERVED_BLOCKNUM_FIFO].size      = 0;
-    dst->block_translation[RESERVED_BLOCKNUM_FIFO].u.diskoff = diskoff_unused;
 }
 
 // block table must be locked by caller of this function
@@ -377,36 +373,6 @@ toku_blocknum_realloc_on_disk (BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF
     unlock_for_blocktable(bt);
 }
 
-void
-toku_get_fifo_offset_on_disk(BLOCK_TABLE bt, DISKOFF *offset) {
-    lock_for_blocktable(bt);
-    struct translation *t = &bt->checkpointed;
-    BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_FIFO);
-    verify_valid_blocknum(t, b);
-    *offset = t->block_translation[b.b].u.diskoff;
-    unlock_for_blocktable(bt);
-}
-
-void
-toku_realloc_fifo_on_disk_unlocked (BLOCK_TABLE bt, DISKOFF size, DISKOFF *offsetp) {
-    assert(bt->is_locked);
-
-    struct translation *t = &bt->inprogress;
-    assert(t->block_translation);
-    BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_FIFO);
-    struct block_translation_pair old_pair = t->block_translation[b.b];
-    //Each inprogress is allocated only once, no freeing required.
-    assert(old_pair.size == 0 && old_pair.u.diskoff == diskoff_unused);
-
-    //Allocate a new block
-    u_int64_t offset;
-    block_allocator_alloc_block(bt->block_allocator, size, &offset);
-PRNTF("blokAllokator", 1L, size, offset, bt);
-    t->block_translation[b.b].u.diskoff = offset;
-    t->block_translation[b.b].size      = size;
-    *offsetp = offset;
-}
-
 // Purpose of this function is to figure out where to put the inprogress btt on disk, allocate space for it there.
 static void
 blocknum_alloc_translation_on_disk_unlocked (BLOCK_TABLE bt) {
@@ -428,11 +394,8 @@ PRNTF("blokAllokator", 1L, size, offset, bt);
     t->block_translation[b.b].size      = size;
 }
 
-// TODO: Revisit this after deciding on how to write header/btt/root-fifo to disk
 //Fills wbuf with bt
 //A clean shutdown runs checkpoint start so that current and inprogress are copies.
-//
-//
 void
 toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
                                             int64_t *address, int64_t *size) {

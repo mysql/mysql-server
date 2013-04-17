@@ -167,8 +167,6 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     //toku_blocktable_create_from_loggedheader(&h->blocktable, header);
     assert(0); //create from loggedheader disabled for now. //TODO: #1605
     assert(h->blocktable);
-    r=toku_fifo_create(&h->fifo);
-    assert(r==0);
     h->root = header.root;
     h->root_hash.valid= FALSE;
     //toku_cachetable_put(pair->cf, header_blocknum, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
@@ -187,26 +185,6 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     pair->brt->nodesize = h->nodesize;
     pair->brt->flags    = h->nodesize;
     toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
-}
-
-static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(filenum, &pair);
-    assert(r==0);
-    //void *h_v;
-    //r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash,
-    //				    &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
-    struct brt_header *h=0;
-    bytevec storedkey,storeddata;
-    ITEMLEN storedkeylen, storeddatalen;
-    TXNID storedxid;
-    u_int32_t storedtype;
-    r = toku_fifo_peek(h->fifo, &storedkey, &storedkeylen, &storeddata, &storeddatalen, &storedtype, &storedxid);
-    assert(r==0);
-    r = toku_fifo_deq(h->fifo);
-    assert(r==0);
-    //r = toku_cachetable_unpin(pair->cf, header_blocknum, fullhash, CACHETABLE_DIRTY, 0);
-    //assert(r==0);
 }
 
 static void

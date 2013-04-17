@@ -76,14 +76,9 @@ static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYT
     OMTVALUE brtv=NULL;
     r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
 
-    if (r==DB_NOTFOUND) {
-	r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
-	if (r!=0) return r;
-    } else {
-	assert(r==0);
-	BRT brt = brtv;
-	r = toku_brt_root_put_cmd(brt, &brtcmd, txn->logger);
-    }
+    assert(r==0);
+    BRT brt = brtv;
+    r = toku_brt_root_put_cmd(brt, &brtcmd, txn->logger);
     return toku_cachefile_close(&cf, toku_txn_logger(txn), 0);
 }
 

@@ -594,22 +594,8 @@ void toku_brtnode_free (BRTNODE *nodep) {
 }
 
 static void
-brtheader_partial_destroy(struct brt_header *h) {
-    if (h->type == BRTHEADER_CHECKPOINT_INPROGRESS) {
-        //Share fifo till #1603
-        h->fifo = NULL;
-    }
-    else {
-        assert(h->type == BRTHEADER_CURRENT);
-        toku_fifo_free(&h->fifo); //TODO: #1603 delete
-    }
-}
-
-static void
 brtheader_destroy(struct brt_header *h) {
     if (!h->panic) assert(!h->checkpoint_header);
-
-    brtheader_partial_destroy(h);
 
     //header and checkpoint_header have same Blocktable pointer
     //cannot destroy since it is still in use by CURRENT
@@ -2647,16 +2633,6 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
     VERIFY_NODE(brt, node);
 
     assert(node->fullhash==fullhash);
-    // push the fifo stuff
-    {
-        DBT okey,odata;
-        BRT_CMD_S ocmd;
-        while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
-            if ((r = push_something_at_root(brt, &node, rootp, &ocmd, logger))) return r;
-            r = toku_fifo_deq(brt->h->fifo);
-            assert(r==0);
-        }
-    }
 
     VERIFY_NODE(brt, node);
     verify_local_fingerprint_nonleaf(node);
@@ -2667,21 +2643,6 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
     verify_local_fingerprint_nonleaf(node);
     r = toku_unpin_brtnode(brt, node);
     assert(r == 0);
-    return 0;
-}
-
-int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger) {
-    int r;
-    struct brt_header *h = toku_cachefile_get_userdata(cf);
-    assert(h);
-    r = toku_fifo_enq_cmdstruct(h->fifo, cmd);
-    if (r!=0) return r;
-    {
-        BYTESTRING keybs = {.len=cmd->u.id.key->size, .data=cmd->u.id.key->data};
-        BYTESTRING valbs = {.len=cmd->u.id.val->size, .data=cmd->u.id.val->data};
-        r = toku_log_enqrootentry(logger, (LSN*)0, 0, toku_cachefile_filenum(cf), cmd->xid, cmd->type, keybs, valbs);
-        if (r!=0) return r;
-    }
     return 0;
 }
 
@@ -2867,7 +2828,6 @@ brt_init_header_partial (BRT t) {
 
     compute_and_fill_remembered_hash(t);
 
-    toku_fifo_create(&t->h->fifo);
     t->h->root_put_counter = global_root_put_counter++; 
             
 #if 0 //TODO: logged header logic //TODO: #1605
@@ -3110,19 +3070,7 @@ toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, vo
         brtheader_copy_for_checkpoint(h, checkpoint_lsn);
         h->dirty = 0;        // this is only place this bit is cleared  (in currentheader)
         toku_block_translation_note_start_checkpoint_unlocked(h->blocktable);
-
-        //FIFO handling
-        toku_off_t write_to;
-        struct brt_header *ch = h->checkpoint_header;
-        //TODO: #1616 Delete code handling root fifo.
-        //We would want retrieving 'write_to' and writing to that point to be
-        //atomic.  This is only done during checkpoint of a BRT, so we allow it (not good?).
-         //fifo
-        u_int64_t fifo_size = toku_fifo_get_serialized_size (ch->fifo);
-        toku_realloc_fifo_on_disk_unlocked (ch->blocktable, fifo_size, &write_to);
-        //printf("%s:%d fifo written to %lu\n", __FILE__, __LINE__, write_to);
         toku_block_unlock_for_multiple_operations (h->blocktable);
-        r = toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, ch->fifo, fifo_size);
     }
     return r;
 }
@@ -3216,7 +3164,29 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
     return r;
 }
 
+int
+toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags) {
+//Requires: close_db needs to call toku_close_brt to delete the final reference.
+    int r;
+    if (brt->was_closed) r = EINVAL;
+    else if (brt->db && brt->db!=db) r = EINVAL;
+    else {
+        assert(brt->close_db==NULL);
+        brt->close_db    = close_db;
+        brt->close_flags = close_flags;
+        brt->was_closed  = 1;
+        if (!brt->db) brt->db = db;
+        if (toku_omt_size(brt->txns) == 0) {
+            //Close immediately.
+            r = brt->close_db(brt->db, brt->close_flags);
+        }
+        else r = 0;
+    }
+    return r;
+}
+
 int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
+    assert(toku_omt_size(brt->txns)==0);
     int r;
     while (!list_empty(&brt->cursors)) {
         BRT_CURSOR c = list_struct(list_pop(&brt->cursors), struct brt_cursor, cursors_link);
@@ -3752,17 +3722,6 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTI
     assert(rr == 0);
 
     BRTNODE node = node_v;
-
-    // push the fifo stuff
-    {
-        DBT okey,odata;
-        BRT_CMD_S ocmd;
-        while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
-            if ((r = push_something_at_root(brt, &node, rootp, &ocmd, logger))) return r;
-            r = toku_fifo_deq(brt->h->fifo);
-            assert(r==0);
-        }
-    }
 
     {
         enum reactivity re = RE_STABLE;
@@ -4711,9 +4670,7 @@ int toku_brt_truncate (BRT brt) {
         toku_block_translation_truncate_unlocked(brt->h->blocktable, brt->h);
         //Assign blocknum for root block, also dirty the header
         toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root, brt->h);
-
         // reinit the header
-        brtheader_partial_destroy(brt->h);
         r = brt_init_header_partial(brt);
     }
 

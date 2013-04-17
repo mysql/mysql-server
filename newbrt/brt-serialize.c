@@ -157,8 +157,6 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    4+   // localfingerprint
 					    4);  // crc32 at the end
 
-static int deserialize_fifo_at (int fd, toku_off_t at, FIFO *fifo);
-
 static int
 addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
     LEAFENTRY le=lev;
@@ -1183,12 +1181,6 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
     rc.buf = NULL;
-    {
-	int r;
-        DISKOFF offset;
-        toku_get_fifo_offset_on_disk(h->blocktable, &offset);
-	if ((r = deserialize_fifo_at(fd, offset, &h->fifo))) return r;
-    }
     *brth = h;
     return 0;
 }
@@ -1301,71 +1293,6 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
     }
 }
 
-u_int64_t
-toku_fifo_get_serialized_size (FIFO fifo) {
-    //printf("%s:%d Serializing fifo at %" PRId64 " (count=%d)\n", __FILE__, __LINE__, freeoff, toku_fifo_n_entries(fifo));
-    u_int64_t size = 0;
-    size += 4; //wbuf_int(&w, toku_fifo_n_entries(fifo));
-    FIFO_ITERATE(fifo, UU(key), keylen, UU(val), vallen, UU(type), UU(xid),
-		 {
-		     size_t size_entry=keylen+vallen+1+8+4+4;
-                     size += size_entry;
-		 });
-    return size;
-}
-
-// To serialize the fifo, we just write it all at the end of the file.
-// For now, just do all the writes as separate system calls.  This function is hardly ever called, and
-// we might not be able to allocate a large enough buffer to hold everything,
-// and it would be more complex to batch up several writes.
-int toku_serialize_fifo_at (int fd, toku_off_t freeoff_start, FIFO fifo, u_int64_t fifo_size) {
-    //printf("%s:%d Serializing fifo at %" PRId64 " (count=%d)\n", __FILE__, __LINE__, freeoff, toku_fifo_n_entries(fifo));
-    toku_off_t freeoff = freeoff_start;
-    lock_for_pwrite();
-    {
-	enum { size=4 };
-	char buf[size];
-	struct wbuf w;
-	wbuf_init(&w, buf, size);
-	wbuf_int(&w, toku_fifo_n_entries(fifo));
-	ssize_t nwrote;
-	int r = toku_pwrite_extend(fd, w.buf, size, freeoff, &nwrote);
-	if (r) {
-	    unlock_for_pwrite();
-	    return r;
-	}
-	assert(nwrote==size);
-	freeoff+=size;
-    }
-    FIFO_ITERATE(fifo, key, keylen, val, vallen, type, xid,
-		 {
-		     size_t size=keylen+vallen+1+8+4+4;
-		     char  *MALLOC_N(size, buf);
-		     assert(buf!=0);
-		     struct wbuf w;
-		     wbuf_init(&w, buf, size);
-		     assert(type>=0 && type<256);
-		     wbuf_char(&w, (unsigned char)type);
-		     wbuf_TXNID(&w, xid);
-		     wbuf_bytes(&w, key, keylen);
-		     //printf("%s:%d Writing %d bytes: %s\n", __FILE__, __LINE__, vallen, (char*)val);
-		     wbuf_bytes(&w, val, vallen);
-		     assert(w.ndone==size);
-		     ssize_t nwrote;
-		     int r = toku_pwrite_extend(fd, w.buf, (size_t)size, freeoff, &nwrote);
-		     if (r) {
-			 unlock_for_pwrite();
-			 return r;
-		     }
-		     assert((ssize_t)size==nwrote);
-		     freeoff+=size;
-		     toku_free(buf);
-		 });
-    assert(freeoff-freeoff_start == (toku_off_t)fifo_size);
-    unlock_for_pwrite();
-    return 0;
-}
-
 static int
 read_int (int fd, toku_off_t *at, u_int32_t *result) {
     int v;
@@ -1377,15 +1304,7 @@ read_int (int fd, toku_off_t *at, u_int32_t *result) {
     return 0;
 }
 
-static int
-read_char (int fd, toku_off_t *at, char *result) {
-    ssize_t r = pread(fd, result, 1, *at);
-    if (r<0) return errno;
-    assert(r==1);
-    (*at)++;
-    return 0;
-}
-
+static int read_u_int64_t UU((int fd, toku_off_t *at, u_int64_t *result));
 static int
 read_u_int64_t (int fd, toku_off_t *at, u_int64_t *result) {
     u_int32_t v1=0,v2=0;
@@ -1393,47 +1312,6 @@ read_u_int64_t (int fd, toku_off_t *at, u_int64_t *result) {
     if ((r = read_int(fd, at, &v1))) return r;
     if ((r = read_int(fd, at, &v2))) return r;
     *result = (((u_int64_t)v1)<<32) + v2;
-    return 0;
-}
-
-static int
-read_nbytes (int fd, toku_off_t *at, char **data, u_int32_t len) {
-    char *result = toku_malloc(len);
-    if (result==0) return errno;
-    ssize_t r = pread(fd, result, len, *at);
-    //printf("%s:%d read %d bytes at %" PRId64 ", which are %s\n", __FILE__, __LINE__, len, *at, result);
-    if (r<0) return errno;
-    assert(r==(ssize_t)len);
-    (*at)+=len;
-    *data=result;
-    return 0;
-}
-
-static int deserialize_fifo_at (int fd, toku_off_t at, FIFO *fifo) {
-    FIFO result;
-    int r = toku_fifo_create(&result);
-    if (r) return r;
-    u_int32_t count=0;
-    if ((r=read_int(fd, &at, &count))) return r;
-    u_int32_t i;
-    for (i=0; i<count; i++) {
-	char type;
-	TXNID xid;
-	u_int32_t keylen=0, vallen=0;
-	char *key=0, *val=0;
-	if ((r=read_char(fd, &at, &type))) return r;
-	if ((r=read_u_int64_t(fd, &at, &xid))) return r;
-	if ((r=read_int(fd, &at, &keylen))) return r;
-	if ((r=read_nbytes(fd, &at, &key, keylen))) return r;
-	if ((r=read_int(fd, &at, &vallen))) return r;
-	if ((r=read_nbytes(fd, &at, &val, vallen))) return r;
-	//printf("%s:%d read %d byte key, key=%s\n dlen=%d data=%s\n", __FILE__, __LINE__, keylen, key, vallen, val);
-	if ((r=toku_fifo_enq(result, key, keylen, val, vallen, type, xid))) return r;
-	toku_free(key);
-	toku_free(val);
-    }
-    *fifo = result;
-    //printf("%s:%d *fifo=%p\n", __FILE__, __LINE__, result);
     return 0;
 }
 
