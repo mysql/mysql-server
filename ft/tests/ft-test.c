@@ -1243,17 +1243,6 @@ static void ft_blackbox_test (void) {
     test_ft_limits();
 
     test_ft_delete();
-
-// This test doesn't make much sense any more.  We'll have to do revised tests for this functionality.
-#if 0
-    int old_ft_do_push_cmd = toku_ft_do_push_cmd;
-    toku_ft_do_push_cmd = 0;
-
-    test_ft_delete();
-
-    toku_ft_do_push_cmd = old_ft_do_push_cmd;
-#endif
-
 }
 
 int

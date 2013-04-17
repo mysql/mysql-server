@@ -199,8 +199,6 @@ BOOL toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_resu
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
 
-extern int toku_ft_do_push_cmd; // control whether push occurs eagerly.
-
 DICTIONARY_ID toku_ft_get_dictionary_id(FT_HANDLE);
 
 enum ft_flags {
