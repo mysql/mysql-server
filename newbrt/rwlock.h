@@ -82,6 +82,20 @@ static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *
 	rwlock_read_lock(rwlock, mutex);
 }
 
+// try to acquire a read lock preferentially (ignore request for write lock).
+// If a stall would happen (write lock is held), instead return EBUSY immediately.
+// expects: mutex is locked
+
+static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *UU(mutex)) {
+    int r = EBUSY;
+    if (!rwlock->writer) {
+	rwlock->reader++;
+        r = 0;
+    }
+    return r;
+}
+
+
 
 // release a read lock
 // expects: mutex is locked
