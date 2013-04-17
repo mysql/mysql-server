@@ -44,6 +44,7 @@ int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int singlex = 0;  // Do a single transaction
 int do_transactions = 0;
+int do_abort = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = DB_YESOVERWRITE;
@@ -140,7 +141,7 @@ static void benchmark_shutdown (void) {
     int r;
     
     if (do_transactions && singlex) {
-	r=tid->commit(tid, 0);    assert(r==0);
+	r = (do_abort ? tid->abort(tid) : tid->commit(tid, 0));    assert(r==0);
     }
 
     r = db->close(db, 0);
@@ -328,6 +329,8 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], 0, 10);
+        } else if (strcmp(arg, "--abort") == 0) {
+            do_abort = 1;
         } else if (strcmp(arg, "--periter") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_iteration = strtoll(argv[++i], 0, 10);
