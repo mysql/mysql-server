@@ -6810,6 +6810,7 @@ static int keyrange_compare (OMTVALUE lev, void *extra) {
 static void keyrange_in_leaf_partition (BRT brt, BRTNODE node, DBT *key, int child_number, int estimated_row_size,
 					u_int64_t *less, u_int64_t *equal, u_int64_t *greater)
 // If the partition is in main memory then estimate the number
+// If KEY==NULL then use an arbitrary key (leftmost or zero)
 {
     assert(node->height==0); // we are in a leaf
     if (BP_STATE(node, child_number) == PT_AVAIL) {
@@ -6818,7 +6819,8 @@ static void keyrange_in_leaf_partition (BRT brt, BRTNODE node, DBT *key, int chi
 	BASEMENTNODE bn = BLB(node, child_number);
 	OMTVALUE datav;
 	u_int32_t idx = 0;
-	int r = toku_omt_find_zero(bn->buffer, keyrange_compare, &s, &datav, &idx);
+	// if key is NULL then set r==-1 and idx==0.
+	int r = key ? toku_omt_find_zero(bn->buffer, keyrange_compare, &s, &datav, &idx) : -1;
 	if (r==0) {
 	    *less    = idx;
 	    *equal   = 1;
@@ -6865,7 +6867,8 @@ static int toku_brt_keyrange_internal (BRT brt, BRTNODE node,
 // Implementation note: Assign values to less, equal, and greater, and then on the way out (returning up the stack) we add more values in.
 {
     int r = 0;
-    int child_number = toku_brtnode_which_child (node, key, &brt->h->descriptor, brt->compare_fun);
+    // if KEY is NULL then use the leftmost key.
+    int child_number = key ? toku_brtnode_which_child (node, key, &brt->h->descriptor, brt->compare_fun) : 0;
     if (node->height==0) {
 	// we are at the leaf.
 	keyrange_in_leaf_partition(brt, node, key, child_number, estimated_row_size, less, equal, greater);
@@ -6914,6 +6917,7 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p,
 //   The values are an estimate.
 //   If you perform a keyrange on two keys that are in the same in-memory leaf entry, you can the keys_right numbers (or the keys_left) numbers
 //   to get an exact number keys in the range.
+//   If KEY is NULL then the system picks an arbitrary key and returns it.
 {
  try_again:
     {
@@ -6994,9 +6998,8 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
 #else
     // A hack for now.
     {
-	DBT key = {.size=0, .data=""};
 	u_int64_t less=0, equal=0, greater=0;
-	int r = toku_brt_keyrange(brt, &key, &less, &equal, &greater);
+	int r = toku_brt_keyrange(brt, NULL, &less, &equal, &greater);
 	assert(r==0);
 	s->nkeys = less + equal + greater;
 	s->ndata = less + equal + greater;
