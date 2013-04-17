@@ -579,6 +579,9 @@ inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
     if (tx_isolation == ISO_READ_UNCOMMITTED) {
         return hatoku_iso_read_uncommitted;
     }
+    else if (tx_isolation == ISO_READ_COMMITTED) {
+        return hatoku_iso_read_committed;
+    }
     else {
         return hatoku_iso_serializable;
     }
@@ -587,6 +590,9 @@ inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
 inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
     if (lvl == hatoku_iso_read_uncommitted) {
         return DB_READ_UNCOMMITTED;
+    }
+    else if (lvl == hatoku_iso_read_committed) {
+        return DB_READ_COMMITTED;
     }
     else {
         return 0;
