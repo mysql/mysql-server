@@ -128,7 +128,7 @@ void get_blob_field_info(
     u_int32_t num_offset_bytes
     );
 
-inline u_int32_t get_blob_field_len(
+static inline u_int32_t get_blob_field_len(
     const uchar* from_tokudb, 
     u_int32_t len_bytes
     ) 
@@ -154,7 +154,7 @@ inline u_int32_t get_blob_field_len(
 }
 
 
-inline const uchar* unpack_toku_field_blob(
+static inline const uchar* unpack_toku_field_blob(
     uchar *to_mysql, 
     const uchar* from_tokudb,
     u_int32_t len_bytes,
@@ -175,7 +175,7 @@ inline const uchar* unpack_toku_field_blob(
     return (from_tokudb + len_bytes + length);
 }
 
-inline uint get_null_offset(TABLE* table, Field* field) {
+static inline uint get_null_offset(TABLE* table, Field* field) {
     return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
 }
 
@@ -255,14 +255,14 @@ uchar* unpack_toku_key_field(
 //
 // function to convert a hidden primary key into a byte stream that can be stored in DBT
 //
-inline void hpk_num_to_char(uchar* to, ulonglong num) {
+static inline void hpk_num_to_char(uchar* to, ulonglong num) {
     int8store(to, num);
 }
 
 //
 // function that takes a byte stream of a hidden primary key and returns a ulonglong
 //
-inline ulonglong hpk_char_to_num(uchar* val) {
+static inline ulonglong hpk_char_to_num(uchar* val) {
     return uint8korr(val);
 }
 
@@ -308,7 +308,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
     bool is_clustering
     );
 
-inline bool is_key_clustering(
+static inline bool is_key_clustering(
     void* row_desc,
     u_int32_t row_desc_size
     ) 
@@ -338,7 +338,7 @@ u_int32_t create_toku_secondary_key_pack_descriptor (
     KEY* prim_key
     );
 
-inline bool is_key_pk(
+static inline bool is_key_pk(
     void* row_desc,
     u_int32_t row_desc_size
     ) 

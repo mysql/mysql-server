@@ -94,7 +94,7 @@ static void share_key_file_unlock(TOKUDB_SHARE * share)
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
-inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+static inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint offset = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         if (kc_info->field_lengths[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
@@ -105,7 +105,7 @@ inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* ta
 }
 
 
-inline u_int32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+static inline u_int32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint len = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         if (kc_info->length_bytes[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
@@ -219,7 +219,7 @@ exit:
 }
 
 
-void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
+static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     for (uint i = 0; i < MAX_KEY+1; i++) {
         bitmap_free(&kc_info->key_filters[i]);
     }
@@ -376,7 +376,7 @@ typedef struct index_read_info {
 } *INDEX_READ_INFO;
 
 
-int ai_poll_fun(void *extra, float progress) {
+static int ai_poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting add index.");
@@ -387,7 +387,7 @@ int ai_poll_fun(void *extra, float progress) {
     return 0;
 }
 
-int poll_fun(void *extra, float progress) {
+static int poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting bulk load.");
@@ -403,7 +403,7 @@ struct hot_poll_fun_extra {
     uint num_tables;
 };
 
-int hot_poll_fun(void *extra, float progress) {
+static int hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
@@ -415,13 +415,13 @@ int hot_poll_fun(void *extra, float progress) {
 }
 
 
-void loader_ai_err_fun(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra) {
+static void loader_ai_err_fun(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert(context->ha);
     context->ha->set_loader_error(err);
 }
 
-void loader_dup_fun(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra) {
+static void loader_dup_fun(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert(context->ha);
     context->ha->set_loader_error(err);
@@ -626,9 +626,7 @@ ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar *record
            unsigned_autoinc : (ulonglong) signed_autoinc;
 }
 
-
-
-inline bool
+static inline bool
 is_null_field( TABLE* table, Field* field, const uchar* record) {
     uint null_offset;
     bool ret_val;
@@ -643,11 +641,11 @@ exitpt:
     return ret_val;
 }
 
-inline ulong field_offset(Field* field, TABLE* table) {
+static inline ulong field_offset(Field* field, TABLE* table) {
     return((ulong) (field->ptr - table->record[0]));
 }
 
-inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
+static inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
     if (tx_isolation == ISO_READ_UNCOMMITTED) {
         return hatoku_iso_read_uncommitted;
     }
@@ -662,7 +660,7 @@ inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
     }
 }
 
-inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
+static inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
     if (lvl == hatoku_iso_read_uncommitted) {
         return DB_READ_UNCOMMITTED;
     }
@@ -677,14 +675,11 @@ inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
     }
 }
 
-
-
-int filter_key_part_compare (const void* left, const void* right) {
+static int filter_key_part_compare (const void* left, const void* right) {
     FILTER_KEY_PART_INFO* left_part= (FILTER_KEY_PART_INFO *)left;
     FILTER_KEY_PART_INFO* right_part = (FILTER_KEY_PART_INFO *)right;
     return left_part->offset - right_part->offset;
 }
-
 
 //
 // Be very careful with parameters passed to this function. Who knows
@@ -750,8 +745,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     }
 }
 
-
-inline uchar* pack_fixed_field(
+static inline uchar* pack_fixed_field(
     uchar* to_tokudb,
     const uchar* from_mysql,
     u_int32_t num_bytes
@@ -780,7 +774,7 @@ inline uchar* pack_fixed_field(
     return to_tokudb+num_bytes;
 }
 
-inline const uchar* unpack_fixed_field(
+static inline const uchar* unpack_fixed_field(
     uchar* to_mysql,
     const uchar* from_tokudb,
     u_int32_t num_bytes
@@ -809,8 +803,7 @@ inline const uchar* unpack_fixed_field(
     return from_tokudb+num_bytes;
 }
 
-
-inline uchar* write_var_field(
+static inline uchar* write_var_field(
     uchar* to_tokudb_offset_ptr, //location where offset data is going to be written
     uchar* to_tokudb_data, // location where data is going to be written
     uchar* to_tokudb_offset_start, //location where offset starts, IS THIS A BAD NAME????
@@ -838,7 +831,7 @@ inline uchar* write_var_field(
     return to_tokudb_data + data_length;
 }
 
-inline u_int32_t get_var_data_length(
+static inline u_int32_t get_var_data_length(
     const uchar * from_mysql, 
     u_int32_t mysql_length_bytes 
     ) 
@@ -858,7 +851,7 @@ inline u_int32_t get_var_data_length(
     return data_length;
 }
 
-inline uchar* pack_var_field(
+static inline uchar* pack_var_field(
     uchar* to_tokudb_offset_ptr, //location where offset data is going to be written
     uchar* to_tokudb_data, // pointer to where tokudb data should be written
     uchar* to_tokudb_offset_start, //location where data starts, IS THIS A BAD NAME????
@@ -878,7 +871,7 @@ inline uchar* pack_var_field(
         );
 }
 
-inline void unpack_var_field(
+static inline void unpack_var_field(
     uchar* to_mysql,
     const uchar* from_tokudb_data,
     u_int32_t from_tokudb_data_len,
@@ -905,7 +898,7 @@ inline void unpack_var_field(
     memcpy(to_mysql+mysql_length_bytes, from_tokudb_data, from_tokudb_data_len);
 }
 
-uchar* pack_toku_field_blob(
+static uchar* pack_toku_field_blob(
     uchar* to_tokudb,
     const uchar* from_mysql,
     Field* field
@@ -1069,7 +1062,7 @@ static int check_table_in_metadata(const char *name, bool* table_found, DB_TXN* 
     return error;
 }
 
-int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
+static int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
     int error;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
@@ -1085,7 +1078,7 @@ cleanup:
 }
 
 
-inline int tokudb_generate_row(
+static inline int tokudb_generate_row(
     DB *dest_db, 
     DB *src_db,
     DBT *dest_key, 
@@ -1215,7 +1208,7 @@ cleanup:
     return error;
 }
 
-int generate_row_for_del(
+static int generate_row_for_del(
     DB *dest_db, 
     DB *src_db,
     DBT *dest_key,
@@ -1234,7 +1227,7 @@ int generate_row_for_del(
 }
 
 
-int generate_row_for_put(
+static int generate_row_for_put(
     DB *dest_db, 
     DB *src_db,
     DBT *dest_key, 
@@ -1332,7 +1325,7 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
     return ai_found;
 }
 
-int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
+static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
     uint open_mode = DB_THREAD;
@@ -1463,7 +1456,7 @@ cleanup:
     return error;
 }
 
-int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+static int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     int error = ENOSYS;
     //
     // set up the cp_info
@@ -1526,7 +1519,7 @@ static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
     kc_info->mcp_info[keynr] = (MULTI_COL_PACK_INFO) { 0, 0 };
 }
 
-int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
+static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
     int error = 0;
     u_int32_t curr_blob_field_index = 0;
     u_int32_t max_var_bytes = 0;
@@ -6166,13 +6159,6 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     DBUG_RETURN(to);
 }
 
-int toku_dbt_up(DB*,
-                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
-                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val) {
-    assert(false);
-    return 0;
-}
-
 static inline enum row_type
 compression_method_to_row_type(enum toku_compression_method method)
 {
@@ -6406,7 +6392,7 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
     }
 }
 
-u_int32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
+static u_int32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
     u_int32_t max_row_desc_buff_size;
     max_row_desc_buff_size = 2*(form->s->fields * 6)+10; // upper bound of key comparison descriptor
     max_row_desc_buff_size += get_max_secondary_key_pack_desc_size(kc_info); // upper bound for sec. key part
@@ -6414,7 +6400,7 @@ u_int32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
     return max_row_desc_buff_size;
 }
 
-u_int32_t create_secondary_key_descriptor(
+static u_int32_t create_secondary_key_descriptor(
     uchar* buf,
     KEY* key_info,
     KEY* prim_key,
@@ -6532,7 +6518,7 @@ cleanup:
 }
 
 
-u_int32_t create_main_key_descriptor(
+static u_int32_t create_main_key_descriptor(
     uchar* buf,
     KEY* prim_key,
     uint hpk,
@@ -7994,7 +7980,6 @@ int ha_tokudb::truncate() {
     TOKUDB_DBUG_RETURN(error);
 }
 
-
 // delete all rows from a table
 //
 // effects: delete all of the rows in the main dictionary and all of the
@@ -8208,3 +8193,10 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
 #include "ha_tokudb_alter_51.cc"
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"
+
+// key comparisons
+#include "hatoku_cmp.cc"
+
+// handlerton
+#include "hatoku_hton.h"
+#include "hatoku_hton.cc"

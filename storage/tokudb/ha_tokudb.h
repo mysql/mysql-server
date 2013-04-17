@@ -1,3 +1,6 @@
+#if !defined(HA_TOKUDB_H)
+#define HA_TOKUDB_H
+
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface               /* gcc class implementation */
 #endif
@@ -140,31 +143,6 @@ typedef enum {
     lock_read = 0,
     lock_write
 } TABLE_LOCK_TYPE;
-
-int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx);
-int generate_row_for_del(
-    DB *dest_db, 
-    DB *src_db,
-    DBT *dest_key,
-    const DBT *src_key, 
-    const DBT *src_val
-    );
-int generate_row_for_put(
-    DB *dest_db, 
-    DB *src_db,
-    DBT *dest_key, 
-    DBT *dest_val,
-    const DBT *src_key, 
-    const DBT *src_val
-    ); 
-int tokudb_update_fun(
-    DB* db,
-    const DBT *key,
-    const DBT *old_val, 
-    const DBT *extra,
-    void (*set_val)(const DBT *new_val, void *set_extra),
-    void *set_extra
-    );
 
 // the number of rows bulk fetched in one callback grows exponentially
 // with the bulk fetch iteration, so the max iteration is the max number
@@ -706,9 +684,6 @@ private:
     int delete_all_rows_internal();
 };
 
-int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
-
-
 #if MYSQL_VERSION_ID >= 50506
 
 static inline void my_free(void *p, int arg) {
@@ -718,6 +693,8 @@ static inline void my_free(void *p, int arg) {
 static inline void *memcpy_fixed(void *a, const void *b, size_t n) {
     return memcpy(a, b, n);
 }
+
+#endif
 
 #endif
 

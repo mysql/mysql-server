@@ -39,15 +39,6 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
-
-static inline void *thd_data_get(THD *thd, int slot) {
-    return thd->ha_data[slot].ha_ptr;
-}
-
-static inline void thd_data_set(THD *thd, int slot, void *data) {
-    thd->ha_data[slot].ha_ptr = data;
-}
-
 static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_used __attribute__ ((unused))) {
     *length = share->table_name_length;
     return (uchar *) share->table_name;
@@ -145,11 +136,10 @@ static MYSQL_THDVAR_UINT(read_buf_size,
   1      // blocksize???
   );
 
-void tokudb_checkpoint_lock(THD * thd);
-void tokudb_checkpoint_unlock(THD * thd);
+static void tokudb_checkpoint_lock(THD * thd);
+static void tokudb_checkpoint_unlock(THD * thd);
 
-static
-void
+static void
 tokudb_checkpoint_lock_update(
     THD* thd,
     struct st_mysql_sys_var* var,
@@ -1000,6 +990,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
+#if 0
 static int
 smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
@@ -1009,6 +1000,8 @@ smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     memcpy(stored_frm->data, row->data, row->size);
     return 0;
 }
+#endif
+
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
                         uchar **frmblob, 
@@ -1060,14 +1053,8 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);    
 }
 
-static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
-  return 0;
-}
-
-
-static int tokudb_get_user_data_size(THD *thd, bool exact, u_int64_t *data_size_ret) {
+static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
     int error;
-    u_int64_t num_bytes_in_db = 0;
     DB* curr_db = NULL;
     DB_TXN* txn = NULL;
     DBC* tmp_cursor = NULL;
@@ -1186,7 +1173,21 @@ static int tokudb_get_user_data_size(THD *thd, bool exact, u_int64_t *data_size_
                 curr_num_bytes = (inf_byte_space > curr_num_bytes) ? 0 : curr_num_bytes - inf_byte_space;
             }
 
-            num_bytes_in_db += curr_num_bytes;
+            char *tablename = strrchr(name, '/');
+            if (tablename == NULL) goto cleanup;
+            *tablename++ = 0;
+
+            char *dbname = strchr(name, '/');
+            if (dbname == NULL)
+                dbname = name;
+            else
+                dbname++;
+
+            table->field[0]->store(dbname, strlen(dbname), system_charset_info);
+            table->field[1]->store(tablename, strlen(tablename), system_charset_info);
+            table->field[2]->store(curr_num_bytes, false);
+            error = schema_table_store_record(thd, table);
+            if (error) goto cleanup;
 
             {
                 int r = curr_db->close(curr_db, 0);
@@ -1201,8 +1202,6 @@ static int tokudb_get_user_data_size(THD *thd, bool exact, u_int64_t *data_size_
             tmp_txn = NULL;
         }
     }
-
-    *data_size_ret = num_bytes_in_db;
 
     error = 0;
 
@@ -1344,7 +1343,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-void tokudb_checkpoint_lock(THD * thd) {
+static void tokudb_checkpoint_lock(THD * thd) {
     int error;
     tokudb_trx_data* trx = NULL;
     char status_msg[200]; //buffer of 200 should be a good upper bound.
@@ -1375,7 +1374,7 @@ cleanup:
     return;
 }
 
-void tokudb_checkpoint_unlock(THD * thd) {
+static void tokudb_checkpoint_unlock(THD * thd) {
     int error;
     char status_msg[200]; //buffer of 200 should be a good upper bound.
     tokudb_trx_data* trx = NULL;
@@ -1402,10 +1401,7 @@ cleanup:
     return;
 }
 
-
-
-
-bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
+static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
@@ -1420,7 +1416,7 @@ static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, con
     sql_print_error("%s:  %s", db_errpfx, buffer);
 }
 
-void tokudb_cleanup_log_files(void) {
+static void tokudb_cleanup_log_files(void) {
     TOKUDB_DBUG_ENTER("tokudb_cleanup_log_files");
     char **names;
     int error;
@@ -1602,7 +1598,9 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 static ST_FIELD_INFO tokudb_user_data_field_info[] = {
-    {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
+    {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"data_size", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1612,7 +1610,6 @@ static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, Item *cond)
 static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
     int error;
-    uint64_t data_size;
     TABLE *table = tables->table;
     
     // 3938: Get a read lock on the status flag, since we must
@@ -1623,11 +1620,7 @@ static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond)
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
         error = -1;
     } else {
-        error = tokudb_get_user_data_size(thd, false, &data_size);
-        if (error == 0) {
-            table->field[0]->store(data_size, false);
-            error = schema_table_store_record(thd, table);
-        }
+        error = tokudb_get_user_data_size(table, thd, false);
     }
 
     // 3938: unlock the status flag lock
@@ -1646,10 +1639,12 @@ static int tokudb_user_data_done(void *p) {
     return 0;
 }
 
-struct st_mysql_information_schema tokudb_user_data_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+static struct st_mysql_information_schema tokudb_user_data_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
-    {"User Data Size", 8, MYSQL_TYPE_LONGLONG, 0, 0, "user data size", SKIP_OPEN_TABLE },
+    {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"data_size", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1659,7 +1654,6 @@ static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, Item 
 static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
     int error;
-    uint64_t data_size;
     TABLE *table = tables->table;
 
     // 3938: Get a read lock on the status flag, since we must
@@ -1670,11 +1664,7 @@ static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND 
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
         error = -1;
     } else {
-        error = tokudb_get_user_data_size(thd, true, &data_size);
-        if (error == 0) {
-            table->field[0]->store(data_size, false);
-            error = schema_table_store_record(thd, table);
-        }
+        error = tokudb_get_user_data_size(table, thd, true);
     }
 
     //3938: unlock the status flag lock
@@ -1693,7 +1683,7 @@ static int tokudb_user_data_exact_done(void *p) {
     return 0;
 }
 
-struct st_mysql_information_schema tokudb_user_data_exact_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+static struct st_mysql_information_schema tokudb_user_data_exact_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 #define TOKUDB_PLUGIN_VERSION_STR "1024"
