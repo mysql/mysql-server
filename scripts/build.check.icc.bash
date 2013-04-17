@@ -373,7 +373,7 @@ export VALGRIND=$VALGRIND
 # setup VGRIND
 if [ $dovalgrind = 0 ] ; then export VGRIND=""; fi
 
-# limit execution time to 1 hour
-ulimit -t 3600
+# limit execution time to 2 hours
+ulimit -t 7200
 
 build $bdb
