@@ -204,4 +204,7 @@ void* toku_malloc_in_rollback(TOKUTXN txn, size_t size);
 void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len);
 char *toku_strdup_in_rollback(TOKUTXN txn, const char *s);
 
+// A hook for testing #1572.  Sets the amount that txn's are incremented by.
+void toku_set_lsn_increment (uint64_t incr) __attribute__((__visibility__("default")));
+
 #endif

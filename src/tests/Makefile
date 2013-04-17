@@ -62,6 +62,7 @@ BDB_DONTRUN_TESTS = \
 	helgrind2 \
 	helgrind3 \
 	test1426 \
+	test1572 \
 	test_logflush \
 	test_txn_abort8 \
 	test_txn_abort9 \

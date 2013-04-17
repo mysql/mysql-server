@@ -6,11 +6,19 @@
 #include <db.h>
 #include <sys/stat.h>
 
+extern void toku_set_lsn_increment (uint64_t incr);
+
 static void
-four_billion_subtransactions (int do_something_in_children) {
+four_billion_subtransactions (int do_something_in_children, int use_big_increment) {
     DB_ENV *env;
     DB *db;
     DB_TXN *xparent;
+
+    if (use_big_increment) {
+	toku_set_lsn_increment(1<<28); // 1/4 of a billion, so 16 transactions should push us over the edge.
+    } else {
+	toku_set_lsn_increment(1);
+    }
 
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -30,9 +38,7 @@ four_billion_subtransactions (int do_something_in_children) {
 
     r=env->txn_begin(env, 0, &xparent, 0);  CKERR(r);
     long long i;
-    //long long const fourbillion = 1ll << 32;
-    long long const fourbillion = 500000;
-    printf("Doing %d\n", do_something_in_children);
+    long long const fourbillion = use_big_increment ? 32 : 500000; // if using the big increment we should run into trouble in only 32 transactions or less.
     for (i=0; i < fourbillion + 100; i++) {
 	DB_TXN *xchild;
 	r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
@@ -48,8 +54,6 @@ four_billion_subtransactions (int do_something_in_children) {
 	    CKERR(r);
 	}
 	r=xchild->commit(xchild, 0); CKERR(r);
-	if (i%1000000==0) { printf("."); fflush(stdout); }
-
     }
     r=xparent->commit(xparent, 0); CKERR(r);
 
@@ -61,8 +65,10 @@ int
 test_main (int argc, const char *argv[])
 {
     parse_args(argc, argv);
-    four_billion_subtransactions(0);
-    four_billion_subtransactions(1);
+    four_billion_subtransactions(0, 0);
+    four_billion_subtransactions(1, 0);
+    four_billion_subtransactions(0, 1);
+    four_billion_subtransactions(1, 1);
     return 0;
 }
 

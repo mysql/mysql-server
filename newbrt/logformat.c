@@ -275,6 +275,7 @@ generate_dispatch (void) {
 		
 static void
 generate_log_writer (void) {
+    fprintf(cf, "static u_int64_t toku_lsn_increment=1;\nvoid toku_set_lsn_increment (uint64_t incr) { assert(incr>0 && incr< (16LL<<32)); toku_lsn_increment=incr; }\n");
     DO_LOGTYPES(lt, {
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
@@ -295,7 +296,7 @@ generate_log_writer (void) {
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
 			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
-			fprintf(cf, "  logger->lsn.lsn++;\n");
+			fprintf(cf, "  logger->lsn.lsn += toku_lsn_increment;\n");
 			fprintf(cf, "  LSN lsn = logger->lsn;\n");
 			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
 			fprintf(cf, "  lbytes->lsn = lsn;\n");
