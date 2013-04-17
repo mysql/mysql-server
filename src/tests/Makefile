@@ -300,11 +300,11 @@ tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 # test1426 is run by comparing the BDB output to the TDB output
-test1426.tdbrun: test1426.tdb  test1426.bdb
+test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	./test1426.tdb -q
 	./test1426.bdb -q
 	db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426
-	../../utils/tokudb_dump -p -h dir.test1426.c.tdb main > dump.tdb.1426
+	../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426
 	diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426
 
 # helgrind1 is supposed to fail.
