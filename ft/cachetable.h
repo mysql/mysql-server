@@ -362,8 +362,8 @@ int toku_cachetable_get_and_pin_nonblocking_batched (
     long *sizep,
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback,
-    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
-    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
     pair_lock_type lock_type,
     void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     UNLOCKERS unlockers
