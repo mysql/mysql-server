@@ -15,7 +15,8 @@ int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
-int CACHESIZE=1024; // MB
+enum { default_cachesize=1024 }; // MB
+int CACHESIZE=default_cachesize; // MB
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
 
@@ -358,9 +359,11 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ]\n%s\n", cmd);
+	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ] [-m <megabytes>] [-M]\n%s\n", cmd);
 	    fprintf(stderr, "  where -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
 	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
+	    fprintf(stderr, "        -m <m>           use m MB of memeory for the cachetable (defualt is %d MB)\n", default_cachesize);
+	    fprintf(stderr, "        -M               use half of physical memory for the cachetable\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -393,6 +396,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-m")==0) {
             argc--; argv++;
             CACHESIZE = atoi(argv[0]);
+        } else if (strcmp(argv[0], "-M")==0) {
+	    CACHESIZE = (toku_os_get_phys_memory_size()/(1024*1024))/2;
         } else if (strcmp(argv[0], "-y")==0) {
             ALLOW_DUPS = 1;
 	} else if (strcmp(argv[0], "-b")==0) {

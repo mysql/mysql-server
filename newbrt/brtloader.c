@@ -78,7 +78,6 @@ static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *strea
 // 1024 is the right size_factor for production.  
 // Different values for these sizes may be used for testing.
 static uint32_t size_factor = 1024;
-static size_t   data_buffer_limit = 1024*1024*64; 
 static int      nodesize = (1<<22);
 
 
@@ -87,10 +86,15 @@ void
 toku_brtloader_set_size_factor(uint32_t factor) {
 // For test purposes only
     size_factor = factor;
-    data_buffer_limit = 1024*size_factor*64;
     nodesize = (size_factor==1) ? (1<<15) : (1<<22);
 }
 
+uint64_t
+toku_brtloader_get_rowset_budget_for_testing (void)
+// For test purposes only.  In production, the rowset size is determined by negotation with the cachetable for some memory.  (See #2613).
+{
+    return 16ULL*size_factor*1024ULL;
+}
 
 static int add_big_buffer(struct file_info *file) {
     int result = 0;
@@ -311,6 +315,22 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
 
 static void *extractor_thread (void*);
 
+enum { EXTRACTOR_QUEUE_DEPTH = 2};
+
+static uint64_t memory_per_rowset (BRTLOADER bl) {
+    // There is a primary rowset being maintained by the foreground thread.
+    // There could be two more in the queue.
+    // There is one rowset for each index (bl->N) being filled in.
+    // Later we may have sort_and_write operations spawning in parallel, and will need to account for that.
+    int n_copies = (1 // primary rowset
+		    +2  // the two primaries in the queue
+		    +bl->N // the N rowsets being constructed by the extrator thread.
+		    +1     // Give the extractor thread one more so that it can have temporary space for sorting.  This is overkill.
+		    );    
+    return bl->reserved_memory/(n_copies);
+}
+
+
 // RFP 2535 error recovery in the loader open needs to be replaced
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
@@ -350,6 +370,9 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     bl->cachetable = cachetable;
     if (bl->cachetable)
         bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 0.5);
+    else
+	bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
+    //printf("Reserved memory=%ld\n", bl->reserved_memory);
 
     bl->src_db = src_db;
     bl->N = N;
@@ -382,16 +405,17 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->rows = (struct rowset *) toku_malloc(N*sizeof(struct rowset));                   if (bl->rows == NULL) return errno;
     bl->fs   = (struct merge_fileset *) toku_malloc(N*sizeof(struct merge_fileset));     if (bl->rows == NULL) return errno;
+
     for(int i=0;i<N;i++) {
-        { int r = init_rowset(&bl->rows[i]); if (r!=0) return r; }
+        { int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); if (r!=0) return r; }
         init_merge_fileset(&bl->fs[i]);
     }
 
     brt_loader_init_error_callback(&bl->error_callback);
     brt_loader_init_poll_callback(&bl->poll_callback);
 
-    { int r = init_rowset(&bl->primary_rowset); if (r!=0) return r; }
-    { int r = queue_create(&bl->primary_rowset_queue, 2); if (r!=0) return r; }
+    { int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); if (r!=0) return r; }
+    { int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); if (r!=0) return r; }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
     { int r = toku_pthread_mutex_init(&bl->mutex, NULL); if (r != 0) return r; }
     { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
@@ -606,10 +630,12 @@ static int loader_read_row_from_dbufio (DBUFIO_FILESET bfs, int filenum, DBT *ke
 }
 
 
-int init_rowset (struct rowset *rows) 
+int init_rowset (struct rowset *rows, uint64_t memory_budget) 
 /* Effect: Initialize a collection of rows to be empty. */
 {
     int result = 0;
+
+    rows->memory_budget = memory_budget;
 
     rows->rows = NULL;
     rows->data = NULL;
@@ -620,7 +646,8 @@ int init_rowset (struct rowset *rows)
     if (rows->rows == NULL)
         result = errno;
     rows->n_bytes = 0;
-    rows->n_bytes_limit = 1024*size_factor*16;
+    rows->n_bytes_limit = (size_factor==1) ? 1024*size_factor*16 : memory_budget;
+    //printf("%s:%d n_bytes_limit=%ld (size_factor based limit=%d)\n", __FILE__, __LINE__, rows->n_bytes_limit, 1024*size_factor*16);
     rows->data = (char *) toku_malloc(rows->n_bytes_limit);
     if (rows->rows==NULL || rows->data==NULL) {
         if (result == 0)
@@ -646,7 +673,10 @@ void destroy_rowset (struct rowset *rows) {
 static int row_wont_fit (struct rowset *rows, size_t size)
 /* Effect: Return nonzero if adding a row of size SIZE would be too big (bigger than the buffer limit) */ 
 {
-    return (data_buffer_limit < rows->n_bytes + size);
+    // Account for the memory used by the data and also the row structures.
+    size_t memory_in_use = (rows->n_rows*sizeof(struct row)
+			    + rows->n_bytes);
+    return (rows->memory_budget <  memory_in_use + size);
 }
 
 void add_row (struct rowset *rows, DBT *key, DBT *val)
@@ -769,7 +799,7 @@ static int loader_do_put(BRTLOADER bl,
 	BL_TRACE(blt_do_put);
 	enqueue_for_extraction(bl);
 	BL_TRACE(blt_extract_enq);
-	{int r = init_rowset(&bl->primary_rowset); lazy_assert(r==0);}
+	{int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); lazy_assert(r==0);}
     }
     return 0;
 }
@@ -857,12 +887,13 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	    }
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
-		//printf("rows.n_rows=%ld\n", rows.n_rows);
+		//printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
 		BL_TRACE(blt_extractor);
 		int progress_this_sort = 0; // fix?
 		int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare, progress_this_sort); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
+		// If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
 		BL_TRACE(blt_sort_and_write_rows);
-		init_rowset(rows); // we passed the contents of rows to sort_and_write_rows.
+		init_rowset(rows, memory_per_rowset(bl)); // we passed the contents of rows to sort_and_write_rows.
 		if (r!=0) {
 		    error_codes[i] = r;
 #if defined(__cilkplusplus)
@@ -1360,7 +1391,7 @@ static int merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE
     if (to_q) {
 	MALLOC(output_rowset);
 	assert(output_rowset);
-	int r = init_rowset(output_rowset);
+	int r = init_rowset(output_rowset, memory_per_rowset(bl));
 	assert(r==0);
     }
     
@@ -1391,7 +1422,7 @@ static int merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE
 		assert(r==0);
 		MALLOC(output_rowset);
 		assert(output_rowset);
-		r = init_rowset(output_rowset);
+		r = init_rowset(output_rowset, memory_per_rowset(bl));
 		assert(r==0);
 	    }
 	    add_row(output_rowset, &keys[mini], &vals[mini]);

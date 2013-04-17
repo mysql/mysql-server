@@ -145,7 +145,7 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
     for (int i = 0 ; i < nrowsets; i++) {
         rowset[i] = (struct rowset *) toku_malloc(sizeof (struct rowset));
         assert(rowset[i]);
-        init_rowset(rowset[i]);
+        init_rowset(rowset[i], toku_brtloader_get_rowset_budget_for_testing());
         populate_rowset(rowset[i], i, nrows);
     }
 
