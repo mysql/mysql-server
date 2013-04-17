@@ -18,7 +18,6 @@
 #include "toku_atomic.h"
 #include "tokuconst.h"
 #include "brt.h"
-#include "mempool.h"
 #include "leafentry.h"
 #include "ule.h"
 #include "xids.h"

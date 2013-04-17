@@ -510,6 +510,22 @@ static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM l
     return r;
 }
 
+// callback for partially evicting a cachetable entry
+static int toku_rollback_pe_callback (
+    void *rollback_v, 
+    long bytes_to_free, 
+    long* bytes_freed, 
+    void* UU(extraargs)
+    ) 
+{
+    assert(bytes_to_free > 0);
+    assert(rollback_v != NULL);
+    *bytes_freed = 0;
+    return 0;
+}
+
+
+
 static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t older_hash, ROLLBACK_LOG_NODE *result) {
     ROLLBACK_LOG_NODE MALLOC(log);
     assert(log);
@@ -536,7 +552,9 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     *result = log;
     r=toku_cachetable_put(cf, log->thislogname, log->thishash,
                           log, rollback_memory_size(log),
-                          toku_rollback_flush_callback, toku_rollback_fetch_callback,
+                          toku_rollback_flush_callback, 
+                          toku_rollback_fetch_callback,
+                          toku_rollback_pe_callback,
                           h);
     assert(r==0);
     txn->current_rollback      = log->thislogname;
@@ -751,6 +769,7 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
         r = toku_cachefile_prefetch(cf, name, hash,
                                     toku_rollback_flush_callback,
                                     toku_rollback_fetch_callback,
+                                    toku_rollback_pe_callback,
                                     h);
         assert(r==0);
     }
@@ -774,7 +793,9 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
         struct brt_header *h = toku_cachefile_get_userdata(cf);
         r = toku_cachetable_get_and_pin(cf, name, hash,
                                         &log_v, NULL,
-                                        toku_rollback_flush_callback, toku_rollback_fetch_callback,
+                                        toku_rollback_flush_callback, 
+                                        toku_rollback_fetch_callback,
+                                        toku_rollback_pe_callback,
                                         h);
         assert(r==0);
         log = (ROLLBACK_LOG_NODE)log_v;

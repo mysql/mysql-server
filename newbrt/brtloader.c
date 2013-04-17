@@ -3104,13 +3104,14 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     node->layout_version = BRT_LAYOUT_VERSION;
     node->layout_version_original = BRT_LAYOUT_VERSION;
     node->build_id = BUILD_ID;
+    node->max_msn_applied_to_node = MIN_MSN;
     node->height=height;
-    node->u.n.n_children = n_children;
+    node->n_children = n_children;
     node->flags = 0;
 
-    XMALLOC_N(n_children-1, node->u.n.childkeys);
+    XMALLOC_N(n_children-1, node->childkeys);
     for (int i=0; i<n_children-1; i++) 
-        node->u.n.childkeys[i] = NULL;
+        node->childkeys[i] = NULL;
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
 	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);
@@ -3118,16 +3119,17 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
             result = errno;
             break;
         }
-	node->u.n.childkeys[i] = childkey;
+	node->childkeys[i] = childkey;
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
     node->u.n.n_bytes_in_buffers = 0;
-    node->u.n.totalchildkeylens = totalchildkeylens;
+    node->totalchildkeylens = totalchildkeylens;
     XMALLOC_N(n_children, node->u.n.childinfos);
+    XMALLOC_N(n_children, node->subtree_estimates);
     for (int i=0; i<n_children; i++) {
 	struct brtnode_nonleaf_childinfo *ci = &node->u.n.childinfos[i];
-	ci->subtree_estimates   = subtree_info[i].subtree_estimates;
 	ci->blocknum            = make_blocknum(subtree_info[i].block);
+        node->subtree_estimates[i] = subtree_info[i].subtree_estimates;
 	ci->have_fullhash       = FALSE;
 	ci->fullhash            = 0;
         ci->buffer              = NULL;
@@ -3141,7 +3143,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         size_t n_bytes;
         char *bytes;
         int r;
-        r = toku_serialize_brtnode_to_memory(node, 1, 1, &n_bytes, &bytes);
+        r = toku_serialize_brtnode_to_memory(node, &n_bytes, &bytes);
         if (r) {
             result = r;
         } else {
@@ -3162,7 +3164,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 
     for (int i=0; i<n_children-1; i++) {
 	toku_free(pivots[i].data);
-	toku_free(node->u.n.childkeys[i]);
+	toku_free(node->childkeys[i]);
     }
     for (int i=0; i<n_children; i++) {
         if (node->u.n.childinfos[i].buffer) {
@@ -3172,7 +3174,8 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     }
     toku_free(pivots);
     toku_free(node->u.n.childinfos);
-    toku_free(node->u.n.childkeys);
+    toku_free(node->childkeys);
+    toku_free(node->subtree_estimates);
     toku_free(node);
     toku_free(subtree_info);
 

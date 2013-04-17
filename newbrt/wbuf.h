@@ -198,6 +198,10 @@ static inline void wbuf_LSN (struct wbuf *w, LSN lsn) {
     wbuf_ulonglong(w, lsn.lsn);
 }
 
+static inline void wbuf_MSN (struct wbuf *w, MSN msn) {
+    wbuf_ulonglong(w, msn.msn);
+}
+
 static inline void wbuf_nocrc_FILENUM (struct wbuf *w, FILENUM fileid) {
     wbuf_nocrc_uint(w, fileid.fileid);
 }

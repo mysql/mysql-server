@@ -16,7 +16,6 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
        ) {
-    assert(w == FALSE);
 }
 
 static int fetch_calls = 0;
@@ -37,10 +36,23 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 
     *value = 0;
     *sizep = 1;
-    *dirtyp = 0;
+    *dirtyp = 1;
 
     return 0;
 }
+
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
 
 static void cachetable_prefetch_maybegetandpin_test (void) {
     const int test_limit = 1;
@@ -55,18 +67,18 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
     toku_cachetable_verify(ct);
 
     // prefetch again. this should do nothing.
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
     toku_cachetable_verify(ct);
 
     // verify that maybe_get_and_pin returns an error while the prefetch is in progress
     int i;
     for (i=1; i>=0; i++) {
         void *v;
-        r = toku_cachetable_maybe_get_and_pin_clean(f1, key, fullhash, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, key, fullhash, &v);
         if (r == 0) break;
         toku_pthread_yield();
     }

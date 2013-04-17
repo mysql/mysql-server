@@ -21,16 +21,9 @@
 #include "log-internal.h"
 
 
-#if !defined(TOKU_CACHETABLE_DO_EVICT_FROM_WRITER)
-#error
-#endif
-
 // use worker threads 0->no 1->yes
-#define DO_WORKER_THREAD 1
-#if DO_WORKER_THREAD
 static void cachetable_writer(WORKITEM);
 static void cachetable_reader(WORKITEM);
-#endif
 
 #define TRACE_CACHETABLE 0
 #if TRACE_CACHETABLE
@@ -48,6 +41,7 @@ static u_int64_t cachetable_puts;          // how many times has a newly created
 static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
 static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
+static u_int64_t cachetable_get_and_pin_if_in_memorys; // how many times has get_and_pin_if_in_memorys been called?
 static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
 static u_int64_t cachetable_misstime;     // time spent waiting for disk read
 static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
@@ -83,16 +77,17 @@ struct ctpair {
     enum cachetable_dirty dirty;
 
     char     verify_flag;        // Used in verify_cachetable()
-    BOOL     remove_me;          // write_pair
 
     u_int32_t fullhash;
 
     CACHETABLE_FLUSH_CALLBACK flush_callback;
     CACHETABLE_FETCH_CALLBACK fetch_callback;
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback; 
     void    *extraargs;
 
-    PAIR     next,prev;          // In LRU list.
+    PAIR     next,prev;          // In clock.
     PAIR     hash_chain;
+    u_int32_t count;        // clock count
 
 
     BOOL     checkpoint_pending; // If this is on, then we have got to write the pair out to disk before modifying it.
@@ -136,13 +131,12 @@ struct cachetable {
     u_int32_t n_in_table;         // number of pairs in the hash table
     u_int32_t table_size;         // number of buckets in the hash table
     PAIR *table;                  // hash table
-    PAIR  head,tail;              // of LRU list. head is the most recently used. tail is least recently used.
+    PAIR  head;              // of clock . head is the next thing to be up for decrement. 
     CACHEFILE cachefiles;         // list of cachefiles that use this cachetable
     CACHEFILE cachefiles_in_checkpoint; //list of cachefiles included in checkpoint in progress
     int64_t size_reserved;           // How much memory is reserved (e.g., by the loader)
     int64_t size_current;            // the sum of the sizes of the pairs in the cachetable
     int64_t size_limit;              // the limit to the sum of the pair sizes
-    int64_t size_writing;            // the sum of the sizes of the pairs being written
     TOKULOGGER logger;
     toku_pthread_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
     toku_pthread_mutex_t cachefiles_mutex;  // lock that protects the cachefiles list
@@ -155,7 +149,6 @@ struct cachetable {
     struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread
     struct minicron checkpointer; // the periodic checkpointing thread
     toku_pthread_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
-    LEAFLOCK_POOL leaflock_pool;
     OMT reserved_filenums;
     char *env_dir;
     BOOL set_env_dir; //Can only set env_dir once
@@ -185,16 +178,6 @@ static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
     cachetable_lock_released++;
     int r = toku_pthread_mutex_unlock(ct->mutex); resource_assert_zero(r);
-}
-
-// Wait for cache table space to become available 
-// size_current is number of bytes currently occupied by data (referred to by pairs)
-// size_writing is number of bytes queued up to be written out (sum of sizes of pairs in CTPAIR_WRITING state)
-static inline void cachetable_wait_write(CACHETABLE ct) {
-    // if we're writing more than half the data in the cachetable
-    while (2*ct->size_writing > ct->size_current) {
-        workqueue_wait_write(&ct->wq, 0);
-    }
 }
 
 enum cachefile_checkpoint_state {
@@ -290,7 +273,6 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     int r = toku_pthread_mutex_init(&ct->openfd_mutex, NULL); resource_assert_zero(r);
     r = toku_pthread_mutex_init(&ct->cachefiles_mutex, 0); resource_assert_zero(r);
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
-    r = toku_leaflock_create(&ct->leaflock_pool); assert(r==0);
     r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
     ct->env_dir = toku_xstrdup(".");
     *result = ct;
@@ -299,7 +281,6 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
 
 u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_lock(ct);
-    cachetable_wait_write(ct);
     uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
     ct->size_reserved += reserved_memory;
     {
@@ -732,11 +713,6 @@ cleanup:
     return r;
 }
 
-LEAFLOCK_POOL
-toku_cachefile_leaflock_pool (CACHEFILE cf) {
-    return cf->cachetable->leaflock_pool;
-}
-
 char *
 toku_cachefile_fname_in_env (CACHEFILE cf) {
     return cf->fname_in_env;
@@ -986,39 +962,49 @@ static void cachetable_rehash (CACHETABLE ct, u_int32_t newtable_size) {
     //printf("Done growing or shrinking\n");
 }
 
-static void lru_remove (CACHETABLE ct, PAIR p) {
-    if (p->next) {
-	p->next->prev = p->prev;
-    } else {
-	assert(ct->tail==p);
-	ct->tail = p->prev;
+#define CLOCK_SATURATION 15
+#define CLOCK_INITIAL_COUNT 3
+#define CLOCK_WRITE_OUT 1
+
+static void pair_remove (CACHETABLE ct, PAIR p) {
+    if (p->prev == p) {
+        assert(ct->head == p);
+        assert(p->next == p);
+        ct->head = NULL;
     }
-    if (p->prev) {
-	p->prev->next = p->next;
-    } else {
-	assert(ct->head==p);
-	ct->head = p->next;
+    else {
+        if (p == ct->head) {
+            ct->head = ct->head->next;
+        }
+        p->prev->next = p->next;
+        p->next->prev = p->prev;
     }
-    p->prev = p->next = 0;
 }
 
-static void lru_add_to_list (CACHETABLE ct, PAIR p) {
-    // requires that touch_me is not currently in the table.
-    assert(p->prev==0);
-    p->prev = 0;
-    p->next = ct->head;
+static void pair_add_to_clock (CACHETABLE ct, PAIR p) {
+    // requires that p is not currently in the table.
+    // inserts p into the clock list at the tail.
+
+    p->count = CLOCK_INITIAL_COUNT;
+    //assert either both head and tail are set or they are both NULL
+    // tail and head exist
     if (ct->head) {
-	ct->head->prev = p;
-    } else {
-	assert(!ct->tail);
-	ct->tail = p;
+        // insert right before the head
+        p->next = ct->head;
+        p->prev = ct->head->prev;
+
+        p->prev->next = p;
+        p->next->prev = p;
     }
-    ct->head = p; 
+    // this is the first element in the list
+    else {
+        ct->head = p;
+        p->next = p->prev = ct->head;
+    }
 }
 
-static void lru_touch (CACHETABLE ct, PAIR p) {
-    lru_remove(ct,p);
-    lru_add_to_list(ct,p);
+static void pair_touch (PAIR p) {
+    p->count = (p->count < CLOCK_SATURATION) ? p->count+1 : CLOCK_SATURATION;
 }
 
 static PAIR remove_from_hash_chain (PAIR remove_me, PAIR list) {
@@ -1050,7 +1036,7 @@ pending_pairs_remove (CACHETABLE ct, PAIR p) {
 // removed.
 
 static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
-    lru_remove(ct, p);
+    pair_remove(ct, p);
     pending_pairs_remove(ct, p);
     toku_list_remove(&p->next_for_cachefile);
 
@@ -1136,7 +1122,6 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
         abort_fetch_pair(p);
         return r;
     } else {
-        lru_touch(ct, p);
         p->value = toku_value;
         p->size = size;
         ct->size_current += size;
@@ -1159,7 +1144,7 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // the pair dirty state is adjusted, and the write is completed.  The keep_me
 // boolean is true, so the pair is not yet evicted from the cachetable.
 // Requires: This thread must hold the write lock for the pair.
-static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
+static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
     rwlock_read_lock(&ct->pending_lock, ct->mutex);
 
     // helgrind
@@ -1195,83 +1180,126 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     if (p->cq)
         workqueue_enq(p->cq, &p->asyncwork, 1);
     else
-        cachetable_complete_write_pair(ct, p, p->remove_me);
+        cachetable_complete_write_pair(ct, p, remove_me);
 }
 
-// complete the write of a pair by reseting the writing flag, adjusting the write
-// pending size, and maybe removing the pair from the cachetable if there are no
+// complete the write of a pair by reseting the writing flag, and 
+// maybe removing the pair from the cachetable if there are no
 // references to it
 
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove) {
     p->cq = 0;
     p->state = CTPAIR_IDLE;
 
-    // maybe wakeup any stalled writers when the pending writes fall below 
-    // 1/8 of the size of the cachetable
-    ct->size_writing -= p->size; 
-    assert(ct->size_writing >= 0);
-    if (8*ct->size_writing <= ct->size_current)
-        workqueue_wakeup_write(&ct->wq, 0);
-
     rwlock_write_unlock(&p->rwlock);
     if (do_remove)
         cachetable_maybe_remove_and_free_pair(ct, p);
 }
 
+
+// ct lock is held when this is called
+// writes out a dirty pair on the worker thread.
+static void flush_dirty_pair(CACHETABLE ct, PAIR p) {
+    assert(p->dirty);
+    // must check for readers before trying to grab write lock because this thread 
+    // may be the thread that already grabbed a read lock via get_and_pin
+    if (!rwlock_readers(&p->rwlock)) {
+        rwlock_write_lock(&p->rwlock, ct->mutex);
+        p->state = CTPAIR_WRITING;
+        WORKITEM wi = &p->asyncwork;
+        workitem_init(wi, cachetable_writer, p);
+        workqueue_enq(&ct->wq, wi, 0);
+    }
+}
+
+static void try_evict_pair(CACHETABLE ct, PAIR p, BOOL* is_attainable) {
+    // evictions without a write or unpinned pair's that are clean
+    // can be run in the current thread
+
+    // must check for before we grab the write lock because we may
+    // be trying to evict something this thread is trying to read
+    if (!rwlock_readers(&p->rwlock)) {
+        rwlock_write_lock(&p->rwlock, ct->mutex);
+        p->state = CTPAIR_WRITING;
+        cachetable_write_pair(ct, p, TRUE);
+        *is_attainable = TRUE;
+    }
+    else {
+        *is_attainable = FALSE;
+    }
+}
+
 // flush and remove a pair from the cachetable.  the callbacks are run by a thread in
 // a thread pool.
-
+// flush and remove a pair from the cachetable.  the callbacks are run by a thread in
+// a thread pool.
 static void flush_and_maybe_remove (CACHETABLE ct, PAIR p) {
     rwlock_write_lock(&p->rwlock, ct->mutex);
     p->state = CTPAIR_WRITING;
-    assert(ct->size_writing>=0);
-    ct->size_writing += p->size;
-    assert(ct->size_writing >= 0);
-    p->remove_me = TRUE;
-#if DO_WORKER_THREAD
+    // this needs to be done here regardless of whether the eviction occurs on the main thread or on
+    // a writer thread, because there may be a completion queue that needs access to this information
     WORKITEM wi = &p->asyncwork;
     workitem_init(wi, cachetable_writer, p);
     // evictions without a write or unpinned pair's that are clean
     // can be run in the current thread
     if (!rwlock_readers(&p->rwlock) && !p->dirty) {
-        cachetable_write_pair(ct, p);
-    } else {
-#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
-        p->remove_me = FALSE;           // run the remove on the main thread
-#endif
+        cachetable_write_pair(ct, p, TRUE);
+    } 
+    else {
         workqueue_enq(&ct->wq, wi, 0);
     }
-#else
-    cachetable_write_pair(ct, p);
-#endif
 }
 
 static int maybe_flush_some (CACHETABLE ct, long size) {
     int r = 0;
-again:
-    if (size + ct->size_current > ct->size_limit + ct->size_writing) {
-	{
-	    //unsigned long rss __attribute__((__unused__)) = check_max_rss();
-	    //printf("this-size=%.6fMB projected size = %.2fMB  limit=%2.fMB  rss=%2.fMB\n", size/(1024.0*1024.0), (size+t->size_current)/(1024.0*1024.0), t->size_limit/(1024.0*1024.0), rss/256.0);
-	    //struct mallinfo m = mallinfo();
-	    //printf(" arena=%d hblks=%d hblkhd=%d\n", m.arena, m.hblks, m.hblkhd);
-	}
-        /* Try to remove one. */
-	PAIR remove_me;
-	for (remove_me = ct->tail; remove_me; remove_me = remove_me->prev) {
-	    if (remove_me->state == CTPAIR_IDLE && !rwlock_users(&remove_me->rwlock)) {
-		flush_and_maybe_remove(ct, remove_me);
-		goto again;
-	    }
-	}
-	/* All were pinned. */
-	//printf("All are pinned\n");
-	return 0; // Don't indicate an error code.  Instead let memory get overfull.
+    u_int32_t unattainable_data = 0;
+    
+    while ((ct->head) && (size + ct->size_current > ct->size_limit + unattainable_data)) {
+        PAIR curr_in_clock = ct->head;
+        // if we come across a dirty pair, and its count is low, write it out with hope that next 
+        // time clock comes around, we can just evict it
+        if ((curr_in_clock->count <= CLOCK_WRITE_OUT) && curr_in_clock->dirty) {
+            flush_dirty_pair(ct, curr_in_clock);
+        }
+        if (curr_in_clock->count > 0) {
+            // TODO: (Zardosht), this is where the callback function for node level eviction will happen
+            if (curr_in_clock->state == CTPAIR_IDLE && !rwlock_readers(&curr_in_clock->rwlock)) {
+                curr_in_clock->count--;
+                // call the partial eviction callback
+                rwlock_write_lock(&curr_in_clock->rwlock, ct->mutex);
+                long size_remaining = (size + ct->size_current) - (ct->size_limit + unattainable_data);
+                void *value = curr_in_clock->value;
+                void *extraargs = curr_in_clock->extraargs;
+                long bytes_freed;
+                curr_in_clock->pe_callback(value, size_remaining, &bytes_freed, extraargs);
+                assert(bytes_freed <= ct->size_current);
+                assert(bytes_freed <= curr_in_clock->size);
+                ct->size_current -= bytes_freed;
+                curr_in_clock->size -= bytes_freed;
+                
+                rwlock_write_unlock(&curr_in_clock->rwlock);
+            }
+            else {
+                unattainable_data += curr_in_clock->size;
+            }
+        }
+        else {
+            BOOL is_attainable;
+            try_evict_pair(ct, curr_in_clock, &is_attainable); // as of now, this does an eviction on the main thread
+            if (!is_attainable) unattainable_data += curr_in_clock->size;
+        }
+        // at this point, either curr_in_clock is still in the list because it has not been fully evicted,
+        // and we need to move ct->head over. Otherwise, curr_in_clock has been fully evicted
+        // and we do NOT need to move ct->head, as the removal of curr_in_clock
+        // modified ct->head
+        if (ct->head && (ct->head == curr_in_clock)) {
+            ct->head = ct->head->next;
+        }
     }
 
-    if ((4 * ct->n_in_table < ct->table_size) && ct->table_size > 4)
+    if ((4 * ct->n_in_table < ct->table_size) && ct->table_size > 4) {
         cachetable_rehash(ct, ct->table_size/2);
-
+    }
     return r;
 }
 
@@ -1288,6 +1316,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
                                  long size,
                                  CACHETABLE_FLUSH_CALLBACK flush_callback,
                                  CACHETABLE_FETCH_CALLBACK fetch_callback,
+                                 CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
                                  void *extraargs, 
                                  enum cachetable_dirty dirty) {
     PAIR MALLOC(p);
@@ -1303,12 +1332,13 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     p->state = state;
     p->flush_callback = flush_callback;
     p->fetch_callback = fetch_callback;
+    p->pe_callback = pe_callback;
     p->extraargs = extraargs;
     p->fullhash = fullhash;
     p->next = p->prev = 0;
     rwlock_init(&p->rwlock);
     p->cq = 0;
-    lru_add_to_list(ct, p);
+    pair_add_to_clock(ct, p);
     toku_list_push(&cachefile->pairs_for_cachefile, &p->next_for_cachefile);
     u_int32_t h = fullhash & (ct->table_size-1);
     p->hash_chain = ct->table[h];
@@ -1340,12 +1370,13 @@ note_hash_count (int count) {
 
 int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void*value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback, 
-                        CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
+                        CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                        CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+                        void *extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     CACHETABLE ct = cachefile->cachetable;
     int count=0;
     cachetable_lock(ct);
-    cachetable_wait_write(ct);
     {
 	PAIR p;
 	for (p=ct->table[fullhash&(cachefile->cachetable->table_size-1)]; p; p=p->hash_chain) {
@@ -1355,6 +1386,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 		// In practice, the functions better be the same.
 		assert(p->flush_callback==flush_callback);
 		assert(p->fetch_callback==fetch_callback);
+		assert(p->pe_callback==pe_callback);
                 rwlock_read_lock(&p->rwlock, ct->mutex);
 		note_hash_count(count);
                 cachetable_unlock(ct);
@@ -1369,7 +1401,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     }
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
-    PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, extraargs, CACHETABLE_DIRTY);
+    PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_DIRTY);
     assert(p);
     rwlock_read_lock(&p->rwlock, ct->mutex);
     note_hash_count(count);
@@ -1402,16 +1434,10 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p, BOOL write_if_dirty)
             // this is essentially a flush_and_maybe_remove except that
             // we already have p->rwlock and we just do the write in our own thread.
             p->state = CTPAIR_WRITING; //most of this code should run only if NOT ALREADY CTPAIR_WRITING
-            assert(ct->size_writing>=0);
-            ct->size_writing += p->size;
-            assert(ct->size_writing>=0);
-            p->remove_me = FALSE;
             workitem_init(&p->asyncwork, NULL, p);
-            cachetable_write_pair(ct, p);    // releases the write lock on the pair
+            cachetable_write_pair(ct, p, FALSE);    // releases the write lock on the pair
         }
         else if (p->cq) {
-            assert(ct->size_writing>=0);
-            ct->size_writing += p->size; //cachetable_complete_write_pair will reduce by p->size
             workitem_init(&p->asyncwork, NULL, p);
             workqueue_enq(p->cq, &p->asyncwork, 1);
         }
@@ -1432,7 +1458,9 @@ static u_int32_t get_and_pin_fullhash  = 0;
 
 int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 				 CACHETABLE_FLUSH_CALLBACK flush_callback, 
-				 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
+				 CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                                 CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+				 void *extraargs) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count=0;
@@ -1446,7 +1474,7 @@ int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fu
     get_and_pin_fullhash  = fullhash;            
     
     get_and_pin_footprint = 2;
-    cachetable_wait_write(ct);
+    // a function used to live here, not changing all the counts of get_and_pin_footprint
     get_and_pin_footprint = 3;
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
@@ -1486,7 +1514,7 @@ int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fu
 		get_and_pin_footprint = 1001;
                 return ENODEV;
             }
-	    lru_touch(ct,p);
+	    pair_touch(p);
 	    *value = p->value;
             if (sizep) *sizep = p->size;
             cachetable_hit++;
@@ -1502,7 +1530,7 @@ int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fu
     int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     {
-	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
+	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
         assert(p);
 	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
@@ -1558,7 +1586,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
             ) {
                 cachetable_maybe_get_and_pin_hits++;
                 *value = p->value;
-                lru_touch(ct,p);
+                pair_touch(p);
                 r = 0;
                 //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
             }
@@ -1570,30 +1598,35 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     return r;
 }
 
-//Used by shortcut query path.
-//Same as toku_cachetable_maybe_get_and_pin except that we don't care if the node is clean or dirty (return the node regardless).
-//All other conditions remain the same.
-int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
+int toku_cachetable_get_and_pin_if_in_memory (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value)
+// Effect: Lookup a key in the cachetable.  If it is found then acquire a read lock on the pair, don't update the LRU list, and return success.
+//  Unlike toku_cachetable_maybe_get_and_pin, which gives up if there is any blocking (e.g., the node is waiting to be checkpointing), this
+//  version waits.  
+// Rationale: orthodox pushing needs to get the in-memory state right. 
+//  Don't update the LRU list because we don't want this operation to cause something to stick in memory longer.
+{
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count = 0;
     int r = -1;
     cachetable_lock(ct);
-    cachetable_maybe_get_and_pins++;
+    cachetable_get_and_pin_if_in_memorys++;
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
-            if (p->state == CTPAIR_IDLE && //If not idle, will require a stall and/or might be GONE once not idle
-                !p->checkpoint_pending &&  //If checkpoint pending, we would need to first write it, which would make it clean (if the pin would be used for writes.  If would be used for read-only we could return it, but that would increase complexity)
-                rwlock_try_prefer_read_lock(&p->rwlock, ct->mutex) == 0 //Grab read lock only if no stall required
-            ) {
-                cachetable_maybe_get_and_pin_hits++;
-                *value = p->value;
-                lru_touch(ct,p);
-                r = 0;
-                //printf("%s:%d cachetable_maybe_get_and_pin_clean(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
-            }
-            break;
+	    // It's the right block.  Now we must wait.
+	    if (p->checkpoint_pending) {
+		write_pair_for_checkpoint(ct, p, FALSE);
+	    }
+	    rwlock_read_lock(&p->rwlock, ct->mutex);
+	    if (p->state == CTPAIR_INVALID) {
+		assert(0); // This is the branch that returns ENODEV in the get_and_pin code in the 5.0 branch.  Let's just crash now.
+	    }
+	    // do not increment PAIR's clock count.
+	    *value = p->value;
+	    cachetable_hit++;
+	    r = 0;
+	    break;
 	}
     }
     note_hash_count(count);
@@ -1601,29 +1634,27 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
     return r;
 }
 
-
 static int
 toku_cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size, BOOL have_ct_lock)
 // size==0 means that the size didn't change.
 {
     CACHETABLE ct = cachefile->cachetable;
-    PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
     int count = 0;
     int r = -1;
     //assert(fullhash == toku_cachetable_hash(cachefile, key));
     if (!have_ct_lock) cachetable_lock(ct);
-    for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
+    for (PAIR p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    assert(rwlock_readers(&p->rwlock)>0);
             rwlock_read_unlock(&p->rwlock);
 	    if (dirty) p->dirty = CACHETABLE_DIRTY;
             if (size != 0) {
-                ct->size_current -= p->size; if (p->state == CTPAIR_WRITING) ct->size_writing -= p->size;
+                ct->size_current -= p->size; 
                 p->size = size;
-                ct->size_current += p->size; if (p->state == CTPAIR_WRITING) ct->size_writing += p->size;
+                ct->size_current += p->size; 
             }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
@@ -1662,7 +1693,9 @@ run_unlockers (UNLOCKERS unlockers) {
 
 int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs,
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+					     void *extraargs,
 					     UNLOCKERS unlockers)
 // Effect:  If the block is in the cachetable, then pin it and return it. 
 //   Otherwise call the lock_unlock_callback (to unlock), fetch the data (but don't pin it, since we'll just end up pinning it again later),  and the call (to lock)
@@ -1703,7 +1736,7 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
 		return TOKUDB_TRY_AGAIN;
 	    case CTPAIR_IDLE:
 		rwlock_read_lock(&p->rwlock, ct->mutex);
-		lru_touch(ct, p);
+		pair_touch(p);
 		*value = p->value;
 		if (sizep) *sizep = p->size;
 		cachetable_hit++;
@@ -1716,7 +1749,7 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
     assert(p==0);
 
     // Not found
-    p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
+    p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
     assert(p);
     rwlock_write_lock(&p->rwlock, ct->mutex);
     run_unlockers(unlockers); // we hold the ct mutex.
@@ -1731,6 +1764,7 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
                             void *extraargs)
 // Effect: See the documentation for this function in cachetable.h
 {
@@ -1742,7 +1776,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	if (p->key.b==key.b && p->cachefile==cf) {
             //Maybe check for pending and do write_pair_for_checkpoint()?
-            lru_touch(ct, p);
+            pair_touch(p);
             break;
         }
     }
@@ -1750,15 +1784,11 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
         cachetable_prefetches++;
-	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
+	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
         assert(p);
         rwlock_write_lock(&p->rwlock, ct->mutex);
-#if DO_WORKER_THREAD
         workitem_init(&p->asyncwork, cachetable_reader, p);
         workqueue_enq(&ct->wq, &p->asyncwork, 0);
-#else
-        cachetable_fetch_pair(ct, cf, p);
-#endif
     }
     cachetable_unlock(ct);
     return 0;
@@ -1811,10 +1841,12 @@ void toku_cachetable_verify (CACHETABLE ct) {
 	    }
 	}
     }
-    // Now go through the LRU chain, make sure everything in the LRU chain is hashed, and set the verify flag.
+    // Now go through the clock chain, make sure everything in the LRU chain is hashed, and set the verify flag.
     {
 	PAIR p;
-	for (p=ct->head; p; p=p->next) {
+        BOOL is_first = TRUE;
+	for (p=ct->head; ct->head!=NULL && (p!=ct->head || is_first); p=p->next) {
+            is_first=FALSE;
 	    assert(p->verify_flag==0);
 	    PAIR p2;
 	    u_int32_t fullhash = p->fullhash;
@@ -1825,7 +1857,7 @@ void toku_cachetable_verify (CACHETABLE ct) {
 		    goto next;
 		}
 	    }
-	    fprintf(stderr, "Something in the LRU chain is not hashed\n");
+	    fprintf(stderr, "Something in the clock chain is not hashed\n");
 	    assert(0);
 	next:
 	    p->verify_flag = 1;
@@ -1989,12 +2021,10 @@ toku_cachetable_close (CACHETABLE *ctp) {
     for (i=0; i<ct->table_size; i++) {
 	if (ct->table[i]) return -1;
     }
-    assert(ct->size_writing == 0);
     rwlock_destroy(&ct->pending_lock);
     r = toku_pthread_mutex_destroy(&ct->openfd_mutex); resource_assert_zero(r);
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
-    r = toku_leaflock_destroy(&ct->leaflock_pool); assert_zero(r);
     toku_omt_destroy(&ct->reserved_filenums);
     r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); resource_assert_zero(r);
     toku_free(ct->table);
@@ -2398,14 +2428,15 @@ FILENUM toku_cachefile_filenum (CACHEFILE cf) {
     return cf->filenum;
 }
 
-#if DO_WORKER_THREAD
 
 // Worker thread function to write a pair from memory to its cachefile
+// As of now, the writer thread NEVER evicts, hence passing FALSE
+// for the third parameter to cachetable_write_pair
 static void cachetable_writer(WORKITEM wi) {
     PAIR p = workitem_arg(wi);
     CACHETABLE ct = p->cachefile->cachetable;
     cachetable_lock(ct);
-    cachetable_write_pair(ct, p);
+    cachetable_write_pair(ct, p, FALSE);
     cachetable_unlock(ct);
 }
 
@@ -2414,19 +2445,10 @@ static void cachetable_reader(WORKITEM wi) {
     PAIR p = workitem_arg(wi);
     CACHETABLE ct = p->cachefile->cachetable;
     cachetable_lock(ct);
-    int r = cachetable_fetch_pair(ct, p->cachefile, p);
-#define DO_FLUSH_FROM_READER 0
-    if (r == 0) {
-#if DO_FLUSH_FROM_READER
-        maybe_flush_some(ct, 0);
-#else
-        r = r;
-#endif
-    }
+    cachetable_fetch_pair(ct, p->cachefile, p);
     cachetable_unlock(ct);
 }
 
-#endif
 
 // debug functions
 
@@ -2619,9 +2641,10 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->prefetches   = cachetable_prefetches;
     s->maybe_get_and_pins      = cachetable_maybe_get_and_pins;
     s->maybe_get_and_pin_hits  = cachetable_maybe_get_and_pin_hits;
+    s->get_and_pin_if_in_memorys = cachetable_get_and_pin_if_in_memorys;
     s->size_current = ct->size_current;          
     s->size_limit   = ct->size_limit;            
-    s->size_writing = ct->size_writing;          
+    s->size_writing = 0;          
     s->get_and_pin_footprint = get_and_pin_footprint;
     s->local_checkpoint      = local_checkpoint;
     s->local_checkpoint_files = local_checkpoint_files;

@@ -29,6 +29,19 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return 0;
 }
 
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
+
 static void
 cachetable_unpin_test (int n) {
     const int test_limit = 2*n;
@@ -44,7 +57,7 @@ cachetable_unpin_test (int n) {
     for (i=1; i<=n; i++) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, pe_callback, 0);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 

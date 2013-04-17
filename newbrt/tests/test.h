@@ -25,6 +25,35 @@ extern "C" {
 
 const ITEMLEN len_ignore = 0xFFFFFFFF;
 
+
+// dummymsn needed to simulate msn because test messages are injected at a lower level than toku_brt_root_put_cmd()
+#define MIN_DUMMYMSN ((MSN) {(uint64_t)1<<48})
+static MSN dummymsn;      
+static int dummymsn_initialized = 0;
+
+
+static void
+initialize_dummymsn(void) {
+    if (dummymsn_initialized == 0) {
+        dummymsn_initialized = 1;
+        dummymsn = MIN_DUMMYMSN;
+    }
+}
+
+static UU() MSN 
+next_dummymsn(void) {
+    assert(dummymsn_initialized);
+    ++(dummymsn.msn);
+    return dummymsn;
+}
+
+static UU() MSN 
+last_dummymsn(void) {
+    assert(dummymsn_initialized);
+    return dummymsn;
+}
+
+
 struct check_pair {
     ITEMLEN keylen;  // A keylen equal to 0xFFFFFFFF means don't check the keylen or the key.
     bytevec key;     // A NULL key means don't check the key.
@@ -110,6 +139,7 @@ static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *argv[]) {
+    initialize_dummymsn();
     int rinit = toku_brt_init(dummy, dummy, dummy_set_brt);
     CKERR(rinit);
     int r = test_main(argc, argv);

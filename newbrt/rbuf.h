@@ -105,6 +105,11 @@ static inline LSN rbuf_lsn (struct rbuf *r) {
     return lsn;
 }
 
+static inline MSN rbuf_msn (struct rbuf *r) {
+    MSN msn = {rbuf_ulonglong(r)};
+    return msn;
+}
+
 static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
     BLOCKNUM result = make_blocknum(rbuf_longlong(r));
     return result;

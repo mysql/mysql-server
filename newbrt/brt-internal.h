@@ -21,12 +21,10 @@
 #include "fifo.h"
 #include "brt.h"
 #include "toku_list.h"
-#include "mempool.h"
 #include "kv-pair.h"
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"
-#include "leaflock.h"
 #include "c_dialects.h"
 
 // Uncomment the following to use quicklz
@@ -39,7 +37,7 @@ C_BEGIN
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { OMT_ITEM_OVERHEAD = 0 }; /* No overhead for the OMT item.  The PMA needed to know the idx, but the OMT doesn't. */
-enum { BRT_CMD_OVERHEAD = (1)     // the type
+enum { BRT_CMD_OVERHEAD = (1 + sizeof(MSN))     // the type plus MSN
 };
 
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 22 };
@@ -61,21 +59,21 @@ struct subtree_estimates {
     BOOL      exact;  // are the estimates exact?
 };
 
-static struct subtree_estimates const zero_estimates __attribute__((__unused__)) = {0,0,0,TRUE};
+static struct subtree_estimates const zero_estimates = {0,0,0,TRUE};
 
 static inline struct subtree_estimates __attribute__((__unused__))
 make_subtree_estimates (u_int64_t nkeys, u_int64_t ndata, u_int64_t dsize, BOOL exact) {
     return (struct subtree_estimates){nkeys, ndata, dsize, exact};
 }
 
-static inline void __attribute__((__unused__))
+static inline void
 subtract_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
     if (a->nkeys >= b->nkeys) a->nkeys -= b->nkeys; else a->nkeys=0;
     if (a->ndata >= b->ndata) a->ndata -= b->ndata; else a->ndata=0;
     if (a->dsize >= b->dsize) a->dsize -= b->dsize; else a->dsize=0;
 }
 
-static inline void __attribute__((__unused__))
+static inline void
 add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
     a->nkeys += b->nkeys;
     a->ndata += b->ndata;
@@ -84,7 +82,6 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
 
 
 struct brtnode_nonleaf_childinfo {
-    struct subtree_estimates subtree_estimates;
     BLOCKNUM     blocknum;
     BOOL         have_fullhash;     // do we have the full hash?
     u_int32_t    fullhash;          // the fullhash of the child
@@ -92,10 +89,18 @@ struct brtnode_nonleaf_childinfo {
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
 
+struct brtnode_leaf_basement_node {
+    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
+    BOOL soft_copy_is_up_to_date;        // the data in the OMT reflects the softcopy state.
+    OMT buffer;
+    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
+    unsigned int seqinsert;         /* number of sequential inserts to this leaf */
+};
+
 /* Internal nodes. */
 struct brtnode {
+    MSN      max_msn_applied_to_node;  // max msn that has been applied to this node (for root node, this is max msn for the tree)
     unsigned int nodesize;
-    int ever_been_written;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
     int    layout_version; // What version of the data structure?
@@ -105,36 +110,29 @@ struct brtnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     u_int32_t fullhash;
+    int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
+                    // for leaf nodes, represents number of basement nodes
+    unsigned int    totalchildkeylens;
+    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
+                                                                        Child 1's keys are > childkeys[0]. */
+
+    struct subtree_estimates *subtree_estimates; //array of estimates for each child, for leaf nodes, are estimates
+                                                 // of basement nodes
     union node {
 	struct nonleaf {
-	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
-	    unsigned int    totalchildkeylens;
 	    unsigned int    n_bytes_in_buffers;
 
 	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
 
-#define BNC_SUBTREE_ESTIMATES(node,i) ((node)->u.n.childinfos[i].subtree_estimates)
 #define BNC_BLOCKNUM(node,i) ((node)->u.n.childinfos[i].blocknum)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
 #define BNC_HAVE_FULLHASH(node,i) ((node)->u.n.childinfos[i].have_fullhash)
 #define BNC_FULLHASH(node,i) ((node)->u.n.childinfos[i].fullhash)
 
-	    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
-							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
-							 not necessarily true that child 1's keys are > childkeys[0].
-						         However, in the absence of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
-	    BOOL soft_copy_is_up_to_date;        // the data in the OMT reflects the softcopy state.
-	    struct subtree_estimates leaf_stats; // actually it is exact.
-            uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
-	    OMT buffer;
-            LEAFLOCK_POOL leaflock_pool;
-	    LEAFLOCK leaflock;
-	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
-            unsigned int seqinsert;         /* number of sequential inserts to this leaf */
-	    struct mempool buffer_mempool;
+            struct brtnode_leaf_basement_node *bn; // individual basement nodes of a leaf
 	} l;
     } u;
 };
@@ -230,9 +228,9 @@ struct brt {
 };
 
 /* serialization code */
-int toku_serialize_brtnode_to_memory (BRTNODE node, int n_workitems, int n_threads,
-				      /*out*/ size_t *n_bytes_to_write,
-				      /*out*/ char  **bytes_to_write);
+int toku_serialize_brtnode_to_memory (BRTNODE node,
+                              /*out*/ size_t *n_bytes_to_write,
+                              /*out*/ char  **bytes_to_write);
 int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
                                     struct brt_header *h, int n_workitems, int n_threads,
@@ -250,14 +248,15 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int6
 int toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
-
+void toku_setup_empty_leafnode( BRTNODE n, u_int32_t num_bn);
+void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
 
 // append a child node to a parent node
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
 
 // append a cmd to a nonleaf node child buffer
-void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, const DBT *key, const DBT *val);
+void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val);
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
@@ -273,6 +272,7 @@ struct brtenv {
 
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
+extern int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
@@ -289,14 +289,7 @@ struct brt_cursor_leaf_info_to_be {
 };
 
 // Values to be used to pin a leaf for shortcut searches
-// and to access the leaflock.
 struct brt_cursor_leaf_info {
-#if TOKU_MULTIPLE_MAIN_THREADS
-    BLOCKNUM  blocknumber;
-    u_int32_t fullhash;
-#endif
-    BRTNODE   node;
-    LEAFLOCK  leaflock;
     struct brt_cursor_leaf_info_to_be  to_be;
 };
 
@@ -316,12 +309,34 @@ struct brt_cursor {
     struct brt_cursor_leaf_info  leaf_info;
 };
 
+typedef struct ancestors *ANCESTORS;
+struct ancestors {
+    BRTNODE   node;
+    int       childnum; // which buffer holds our ancestors.
+    ANCESTORS next;
+};
+struct pivot_bounds {
+    struct kv_pair const * const lower_bound_exclusive;
+    struct kv_pair const * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
+};
+
 // logs the memory allocation, but not the creation of the new node
-int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize);
-int toku_unpin_brtnode (BRT brt, BRTNODE node);
-unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t);
+void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children);
+int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
+		      UNLOCKERS unlockers,
+		      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+		      BRTNODE *node_p)
+    __attribute__((__warn_unused_result__));
+void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
+				   ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+				   BRTNODE *node_p);
+void toku_unpin_brtnode (BRT brt, BRTNODE node);
+unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t)
+    __attribute__((__warn_unused_result__));
 
 /* Stuff for testing */
+// toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
+void toku_testsetup_initialize(void);
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
 int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
 int toku_testsetup_root(BRT brt, BLOCKNUM);
@@ -332,37 +347,31 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char
 // These two go together to do lookups in a brtnode using the keys in a command.
 struct cmd_leafval_heaviside_extra {
     BRT t;
-    BRT_MSG cmd;
+    DBT const * const key;
 };
-int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
+int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
+    __attribute__((__warn_unused_result__));
 
-int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd);
+// toku_brt_root_put_cmd() accepts non-constant cmd because this is where we set the msn
+int toku_brt_root_put_cmd(BRT brt, BRT_MSG_S * cmd)
+    __attribute__((__warn_unused_result__));
 
-void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
-// Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
-//  from the OMT (which items refer to items in the old mempool) into the new mempool.
-//  If MAYBE_FREE is NULL then free the old mempool's space.
-//  Otherwise, store the old mempool's space in maybe_free.
-
-void mempool_release(struct mempool *); // release anything that was not released when the ..._norelease function was called.
-
-void toku_verify_all_in_mempool(BRTNODE node);
-
-int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, 
+int toku_verify_brtnode (BRT brt, MSN rootmsn, MSN parentmsn,
+                         BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, 
                          int (*progress_callback)(void *extra, float progress), void *extra,
                          int recurse, int verbose, int keep_on_going)
     __attribute__ ((warn_unused_result));
 
 void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn);
-int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, int fd, LSN checkpoint_lsn, void *header_v);
-int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v);
-int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v);
-int toku_maybe_upgrade_brt(BRT t);
-int toku_db_badformat(void);
+int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn) __attribute__((__warn_unused_result__));
+int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, int fd, LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
+int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
+int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
+int toku_maybe_upgrade_brt(BRT t) __attribute__((__warn_unused_result__));
+int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 
-int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p);
-int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
+int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
+int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
 
 
 typedef struct brt_upgrade_status {
@@ -392,13 +401,22 @@ typedef struct update_status {
 
 void toku_update_get_status(UPDATE_STATUS);
 
+void
+brt_leaf_apply_cmd_once (
+    BASEMENTNODE bn, 
+    SUBTREE_EST se,
+    const BRT_MSG cmd,
+    u_int32_t idx, 
+    LEAFENTRY le, 
+    TOKULOGGER logger
+    );
 
-int brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd, u_int32_t idx, LEAFENTRY le, TOKULOGGER logger);
+void 
+toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, int *made_change);
 
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
-
 
 C_END
 

@@ -31,6 +31,8 @@ doit (void) {
     assert(r==0);
     toku_free(fname);
 
+    toku_testsetup_initialize();  // must precede any other toku_testsetup calls
+
     r = toku_testsetup_leaf(t, &nodea);
     assert(r==0);
 

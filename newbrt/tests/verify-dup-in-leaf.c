@@ -10,8 +10,8 @@
 static BRTNODE
 make_node(BRT brt, int height) {
     BRTNODE node = NULL;
-    int r = toku_create_new_brtnode(brt, &node, height, 0);
-    assert(r == 0);
+    int n_children = (height == 0) ? 1 : 0;
+    toku_create_new_brtnode(brt, &node, height, n_children);
     return node;
 }
 
@@ -23,12 +23,12 @@ append_leaf(BRTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen
     DBT theval; toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
-    uint32_t idx = toku_omt_size(leafnode->u.l.buffer);
+    uint32_t idx = toku_omt_size(leafnode->u.l.bn[0].buffer);
 
     // apply an insert to the leaf node
-    BRT_MSG_S cmd = { BRT_INSERT, xids_get_root_xids(), .u.id = { &thekey, &theval } };
-    int r = brt_leaf_apply_cmd_once(leafnode, &cmd, idx, NULL, NULL);
-    assert(r == 0);
+    MSN msn = next_dummymsn();
+    BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    brt_leaf_apply_cmd_once(&leafnode->u.l.bn[0], &leafnode->subtree_estimates[0], &cmd, idx, NULL, NULL);
 
     // dont forget to dirty the node
     leafnode->dirty = 1;
@@ -73,8 +73,7 @@ test_dup_in_leaf(int do_verify) {
     *rootp = newroot->thisnodename;
 
     // unpin the new root
-    r = toku_unpin_brtnode(brt, newroot);
-    assert(r == 0);
+    toku_unpin_brtnode(brt, newroot);
 
     if (do_verify) {
         r = toku_verify_brt(brt);

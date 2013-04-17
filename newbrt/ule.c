@@ -20,10 +20,7 @@
 #include "brttypes.h"
 #include "brt-internal.h"
 
-// Sorry:
-#include "mempool.h"
 #include "omt.h"
-
 
 #include "leafentry.h"
 #include "xids.h"
@@ -66,7 +63,6 @@ toku_le_get_status(LE_STATUS s) {
 //
 // There are two entries, one each for modification and query:
 //   apply_msg_to_leafentry()        performs all inserts/deletes/aborts
-//   do_implicit_promotions_query()  
 //
 //
 //
@@ -124,12 +120,9 @@ static inline size_t uxr_unpack_length_and_bit(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 
 static void *
-le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
+le_malloc(size_t size)
 {
-    if (omt)
-	return mempool_malloc_from_omt(omt, mp, size, maybe_free);
-    else
-	return toku_malloc(size);
+    return toku_malloc(size);
 }
 
 
@@ -290,9 +283,6 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       size_t *new_leafentry_memorysize, 
 		       size_t *new_leafentry_disksize, 
 		       LEAFENTRY *new_leafentry_p,
-		       OMT omt, 
-		       struct mempool *mp, 
-		       void **maybe_free,
                        OMT snapshot_xids,
                        OMT live_list_reverse) {
     ULE_S ule;
@@ -309,8 +299,8 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
     rval = le_pack(&ule,                // create packed leafentry
         new_leafentry_memorysize, 
         new_leafentry_disksize, 
-        new_leafentry_p,
-        omt, mp, maybe_free);                       
+        new_leafentry_p
+        );                       
     ule_cleanup(&ule);
     return rval;
 }
@@ -624,10 +614,9 @@ int
 le_pack(ULE ule,                            // data to be packed into new leafentry
 	size_t *new_leafentry_memorysize, 
 	size_t *new_leafentry_disksize, 
-	LEAFENTRY * const new_leafentry_p,   // this is what this function creates
-	OMT omt, 
-	struct mempool *mp, 
-	void **maybe_free) {
+	LEAFENTRY * const new_leafentry_p   // this is what this function creates
+        ) 
+{
     invariant(ule->num_cuxrs > 0);
     invariant(ule->uxrs[0].xid == TXNID_NONE);
     int rval;
@@ -650,7 +639,7 @@ le_pack(ULE ule,                            // data to be packed into new leafen
     }
 found_insert:;
     memsize = le_memsize_from_ule(ule);
-    LEAFENTRY new_leafentry = le_malloc(omt, mp, memsize, maybe_free);
+    LEAFENTRY new_leafentry = le_malloc(memsize);
     if (new_leafentry==NULL) {
         rval = ENOMEM;
         goto cleanup;
@@ -767,7 +756,7 @@ found_insert:;
         LEAFENTRY le_copy;
 
         int r_tmp = le_pack(&ule_tmp, &memsize_verify, &memsize_verify,
-                            &le_copy, NULL, NULL, NULL);
+                            &le_copy);
         invariant(r_tmp==0);
         invariant(memsize_verify == memsize);
 
@@ -2028,64 +2017,6 @@ le_committed_mvcc(uint8_t *key, uint32_t keylen,
 }
 
 
-#ifdef IMPLICIT_PROMOTION_ON_QUERY
-
-
-#warning be careful about full promotion function
-////////////////////////////////////////////////////////////////////////////////
-// Functions here are responsible for implicit promotions on queries.
-// 
-// Purpose is to promote any transactions in this leafentry by detecting if 
-// transactions that have modified it have been committed.
-// During a query, the read lock for the leaf entry is not necessarily taken.
-// (We use a locking regime that tests the lock after the read.)
-// If a transaction unrelated to the transaction issuing the query is writing 
-// to this leafentry (possible because we didn't take the read lock), then that 
-// unrelated transaction is alive and there should be no implicit promotion.
-// So any implicit promotions done during the query must be based solely on 
-// whether the transactions whose xids are recorded in the leafentry are still
-// open.  (An open transaction is one that has not committed or aborted.)
-// Our logic is:
-// If the innermost transaction in the leafentry is definitely open, then no 
-// implicit promotions are necessary (or possible).  This is a fast test.
-// Otherwise, scan from inner to outer to find the innermost uncommitted
-// transaction.  Then promote the innermost transaction to the transaction
-// record of the innermost open (uncommitted) transaction.
-// Transaction id of zero is always considered open for this purpose.
-leafentry do_implicit_promotions_on_query(le) {
-    innermost_xid = le_get_innermost_xid(le);
-    // if innermost transaction still open, nothing to promote
-    if (!transaction_open(innermost_xid)) {
-        ule = unpack(le);
-        // scan outward starting with next outer transaction
-        for (index = ule->num_uxrs - 2; index > 0; index--) {
-            xid = ule_get_xid(ule, index);
-            if (transaction_open(xid)) break;
-        }
-        promote_innermost_to_index(ule, index);
-        le = le_pack(ule);
-    }
-    return le;
-}
-
-
-// Examine list of open transactions, return true if transaction is still open.
-// Transaction zero is always open.
-//
-// NOTE: Old code already does implicit promotion of provdel on query,
-//       and that code uses some equivalent of transaction_open().
-//
-
-bool transaction_open(TXNID xid) {
-    rval = TRUE;
-    if (xid != 0) {
-        //TODO: Logic
-    }
-    return rval;
-}
-
-#endif
-
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif
@@ -2276,8 +2207,7 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     rval = le_pack(&ule,                // create packed leafentry
                    new_leafentry_memorysize, 
                    new_leafentry_disksize, 
-                   new_leafentry_p,
-                   NULL, NULL, NULL); //NULL for omt means that we use malloc instead of mempool
+                   new_leafentry_p);
     ule_cleanup(&ule);
     return rval;
 }

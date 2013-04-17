@@ -84,12 +84,8 @@ static void test_it (int N) {
 	r = toku_brt_delete(brt, toku_fill_dbt(&k, key, 1+strlen(key)), txn);
 
 	if (0) {
-	BOOL try_again = TRUE;
 	BOOL is_empty;
-	while (try_again) {
-	    try_again = FALSE;
-	    is_empty = toku_brt_is_empty(brt, &try_again);
-	}
+        is_empty = toku_brt_is_empty_fast(brt);
 	assert(!is_empty);
 	}
 	
@@ -108,12 +104,8 @@ static void test_it (int N) {
     toku_txn_close_txn(txn);
 
     if (0) {
-    BOOL try_again = TRUE;
     BOOL is_empty;
-    while (try_again) {
-	try_again = FALSE;
-	is_empty = toku_brt_is_empty(brt, &try_again);
-    }
+    is_empty = toku_brt_is_empty_fast(brt);
     assert(is_empty);
     }
 

@@ -16,6 +16,9 @@ void toku_set_default_compression_method (enum toku_compression_method a);
 
 static const int max_sub_blocks = 8;
 static const int target_sub_block_size = 512*1024;
+static const int max_basement_nodes = 32;
+static const int max_basement_node_uncompressed_size = 256*1024;
+static const int max_basement_node_compressed_size = 64*1024;
 
 struct sub_block {
     void *uncompressed_ptr;
@@ -41,6 +44,9 @@ sub_block_init(struct sub_block *sub_block);
 size_t 
 sub_block_header_size(int n_sub_blocks);
 
+void
+set_compressed_size_bound(struct sub_block *se);
+
 // get the sum of the sub block compressed sizes 
 size_t 
 get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[]);
@@ -53,6 +59,9 @@ get_sum_uncompressed_size(int n_sub_blocks, struct sub_block sub_block[]);
 // least >= the target_sub_block_size.
 int
 choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_size_ret, int *n_sub_blocks_ret);
+
+int
+choose_basement_node_size(int total_size, int *sub_block_size_ret, int *n_sub_blocks_ret);
 
 void
 set_all_sub_block_sizes(int total_size, int sub_block_size, int n_sub_blocks, struct sub_block sub_block[]);
@@ -71,6 +80,13 @@ struct compress_work {
 
 void
 compress_work_init(struct compress_work *w, struct sub_block *sub_block);
+
+u_int32_t
+compress_nocrc_sub_block(
+    struct sub_block *sub_block, 
+    void* sb_compressed_ptr, 
+    u_int32_t cs_bound
+    );
 
 void
 compress_sub_block(struct sub_block *sub_block);

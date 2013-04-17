@@ -67,6 +67,12 @@ static inline unsigned int kv_pair_keylen(const struct kv_pair *pair) {
     return pair->keylen;
 }
 
+static inline DBT kv_pair_key_to_dbt (const struct kv_pair *pair) {
+    const DBT d = {.data = (void*)kv_pair_key_const(pair),
+		   .size = kv_pair_keylen(pair)};
+    return d;
+}
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

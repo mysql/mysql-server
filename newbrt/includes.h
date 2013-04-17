@@ -44,7 +44,6 @@
 #include "log_header.h"
 #include "logcursor.h"
 #include "logfilemgr.h"
-#include "mempool.h"
 #include "rbuf.h"
 #include "threadpool.h"
 #include "toku_assert.h"

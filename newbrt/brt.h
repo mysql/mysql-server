@@ -282,10 +282,6 @@ int toku_brt_zombie_needed (BRT brt) __attribute__ ((warn_unused_result));
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
 int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
 
-BOOL toku_brt_is_empty (BRT brt, BOOL *try_again) __attribute__ ((warn_unused_result));
-// Effect: Return TRUE iff the tree is empty.  (However if  *try_again is set to TRUE by toku_brt_is_empty, then the answer is inconclusive, and the function should
-//  be tried again.  It's a good idea to release the big ydb lock in this case.
-
 BOOL toku_brt_is_empty_fast (BRT brt);
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
 // even though if we were to optimize the tree it might turn out that they are empty.
@@ -295,10 +291,6 @@ BOOL toku_brt_is_empty_fast (BRT brt) __attribute__ ((warn_unused_result));
 // even though if we were to optimize the tree it might turn out that they are empty.
 
 BOOL toku_brt_is_recovery_logging_suppressed (BRT) __attribute__ ((warn_unused_result));
-//TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
-#ifndef TOKU_MULTIPLE_MAIN_THREADS
-#define TOKU_MULTIPLE_MAIN_THREADS 0
-#endif
 
 void toku_brt_leaf_reset_calc_leaf_stats(BRTNODE node);
 

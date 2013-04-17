@@ -60,6 +60,8 @@ doit (int ksize __attribute__((__unused__))) {
     assert(r==0);
     toku_free(fname);
 
+    toku_testsetup_initialize();  // must precede any other toku_testsetup calls
+
     for (i=0; i<BRT_FANOUT; i++) {
 	r=toku_testsetup_leaf(t, &cnodes[i]);
 	assert(r==0);

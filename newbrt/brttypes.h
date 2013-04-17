@@ -20,6 +20,8 @@ extern "C" {
 
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
+typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
+typedef struct subtree_estimates *SUBTREE_EST;
 struct brt_header;
 struct wbuf;
 struct dbuf;
@@ -43,10 +45,18 @@ typedef struct {
     char *data;
 } BYTESTRING;
 
-/* Make the LSN be a struct instead of an integer so that we get better type checking. */
+/* Log Sequence Number (LSN)
+ * Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
 #define MAX_LSN  ((LSN){UINT64_MAX})
+
+/* Message Sequence Number (MSN)
+ * Make the MSN be a struct instead of an integer so that we get better type checking. */
+typedef struct __toku_msn { u_int64_t msn; } MSN;
+#define ZERO_MSN ((MSN){0})                 // dummy used for message construction, to be filled in when msg is applied to tree
+#define MIN_MSN  ((MSN){(u_int64_t)1<<32})  // first 2**32 values reserved for messages created before Dr. No (for upgrade)
+#define MAX_MSN  ((MSN){UINT64_MAX})
 
 /* At the brt layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
@@ -112,6 +122,7 @@ typedef struct fifo_msg_t *FIFO_MSG;
 /* tree commands */
 struct brt_msg {
     enum brt_msg_type type;
+    MSN          msn;          // message sequence number
     XIDS         xids;
     union {
         /* insert or delete */

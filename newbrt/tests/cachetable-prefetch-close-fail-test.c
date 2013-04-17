@@ -41,6 +41,18 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return -42;
 }
 
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
 static void cachetable_prefetch_maybegetandpin_test (void) {
     const int test_limit = 1;
     int r;
@@ -54,7 +66,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
     toku_cachetable_verify(ct);
 
     // close with the prefetch in progress. the close should block until
