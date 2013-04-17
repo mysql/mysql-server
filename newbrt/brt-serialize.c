@@ -903,7 +903,14 @@ decompress_work_init(struct decompress_work *dw,
 // decompress one block
 static void 
 decompress_block(struct decompress_work *dw) {
-    if (0) printf("%s:%d %x %p\n", __FUNCTION__, __LINE__, (int) toku_pthread_self(), dw);
+    if (0) {
+        union {
+            toku_pthread_t p;
+            int            i;
+        } u;
+        u.p = toku_pthread_self();
+        printf("%s:%d %x %p\n", __FUNCTION__, __LINE__, u.i, dw);
+    }
     uLongf destlen = dw->uncompress_size;
     int r = uncompress(dw->uncompress_ptr, &destlen, dw->compress_ptr, dw->compress_size);
     assert(destlen == dw->uncompress_size);

@@ -12,14 +12,14 @@ struct work {
 // the workset struct contains the set of work to be done by some threads
 // the lock protects the work list
 struct workset {
-    pthread_mutex_t lock;
+    toku_pthread_mutex_t lock;
     struct toku_list worklist;
 };
 
 static inline void workset_init(struct workset *ws) {
     int r = toku_pthread_mutex_init(&ws->lock, NULL); assert(r == 0);
     toku_list_init(&ws->worklist);
-};
+}
 
 static inline void workset_destroy(struct workset *ws) {
     assert(toku_list_empty(&ws->worklist));
