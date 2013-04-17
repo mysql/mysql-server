@@ -1480,6 +1480,7 @@ bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_I
         }
     }
 exit:
+printf("replace can be fast: %d\n", ret_val);
     return ret_val;
 }
 
@@ -3200,7 +3201,7 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
+void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     int error;
     DBT row, key;
     //
@@ -3264,7 +3265,7 @@ int ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         //
         if (table->key_info[keynr].flags & HA_CLUSTERING) {
             error = pack_row(&row, (const uchar *) record, keynr);
-            if (error) { goto cleanup; }
+            assert(error == 0);
             uchar* tmp_buff = NULL;
             tmp_buff = (uchar *)my_malloc(alloced_rec_buff_length,MYF(MY_WME));
             assert(tmp_buff);
@@ -3286,11 +3287,13 @@ int ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         }
     }
 
-    error = 0;
-cleanup:
+    //
+    // copy stuff back out
+    //
+    error = pack_row(pk_val, (const uchar *) record, primary_key);
+
     my_free(tmp_pk_key_data,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_pk_val_data,MYF(MY_ALLOW_ZERO_PTR));
-    return error;
 }
 
 //
@@ -3499,8 +3502,7 @@ int ha_tokudb::write_row(uchar * record) {
     fix_mult_rec_buff();
 
     if (tokudb_debug & TOKUDB_DEBUG_CHECK_KEY) {
-        error = test_row_packing(record,&prim_key,&row);
-        if (error) { goto cleanup; }
+        test_row_packing(record,&prim_key,&row);
     }
 
     if (loader) {
