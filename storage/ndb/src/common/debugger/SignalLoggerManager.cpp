@@ -198,7 +198,7 @@ SignalLoggerManager::log(int cmd, BlockNumber bno, LogMode logMode)
   assert(bno >= MIN_BLOCK_NO && bno <= MAX_BLOCK_NO);
 
   // Convert bno to index into logModes
-  const int index = bno-MIN_BLOCK_NO;
+  const size_t index = bno-MIN_BLOCK_NO;
   assert(index < NDB_ARRAY_SIZE(logModes));
 
   switch(cmd){
