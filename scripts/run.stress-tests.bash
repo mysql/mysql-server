@@ -85,7 +85,7 @@ save_failure() {
     num_ptquery=$1; shift
     num_update=$1; shift
     phase=$1; shift
-    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-${BASHPID}"
+    dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-$$"
     mkdir -p "$dest"
     mv $out "${dest}/output.txt"
     mv core* "${dest}/"
@@ -108,7 +108,7 @@ run_test() {
     t0="$(date)"
     t1=""
     t2=""
-    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${BASHPID}.dir"
+    envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
     cd $rundir
     if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
         ../$exec -v --test --num_seconds 180 --envdir "$envdir" \
