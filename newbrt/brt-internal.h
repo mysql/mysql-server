@@ -720,7 +720,6 @@ typedef struct brt_upgrade_status {
 
 void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);
 
-
 typedef struct le_status {
     u_int64_t max_committed_xr;
     u_int64_t max_provisional_xr;
@@ -760,12 +759,6 @@ typedef struct brt_status {
     uint64_t  cleaner_max_buffer_workdone; // max workdone value of any message buffer flushed by cleaner thread
     uint64_t  cleaner_min_buffer_workdone;
     uint64_t  cleaner_total_buffer_workdone;
-    uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
-    uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
-    uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
-    uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
-    uint64_t  msg_num;                     // how many messages injected at root
-    uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
     uint64_t  flush_total;                 // total number of flushes done by flusher threads or cleaner threads
     uint64_t  flush_in_memory;             // number of in memory flushes
     uint64_t  flush_needed_io;             // number of flushes that had to read a child (or part) off disk
@@ -776,6 +769,18 @@ typedef struct brt_status {
     uint64_t  flush_cascades_4;            // number of flushes that triggered 4 cascading flushes
     uint64_t  flush_cascades_5;            // number of flushes that triggered 5 cascading flushes
     uint64_t  flush_cascades_gt_5;         // number of flushes that triggered more than 5 cascading flushes
+    uint64_t  disk_flush_leaf;             // number of leaf nodes flushed to disk, not for checkpoint
+    uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
+    uint64_t  disk_flush_leaf_for_checkpoint; // number of leaf nodes flushed to disk for checkpoint
+    uint64_t  disk_flush_nonleaf_for_checkpoint; // number of nonleaf nodes flushed to disk for checkpoint
+    uint64_t  destroy_leaf;                // number of leaf nodes destroyed
+    uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
+    uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
+    uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
+    uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
+    uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
+    uint64_t  msg_num;                     // how many messages injected at root
+    uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
 } BRT_STATUS_S, *BRT_STATUS;
 
 void toku_brt_get_status(BRT_STATUS);

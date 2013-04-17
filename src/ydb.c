@@ -2070,6 +2070,18 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->flush_cascades_4 = brt_stat.flush_cascades_4;
             engstat->flush_cascades_5 = brt_stat.flush_cascades_5;
             engstat->flush_cascades_gt_5 = brt_stat.flush_cascades_gt_5;
+            engstat->disk_flush_leaf = brt_stat.disk_flush_leaf; 
+            engstat->disk_flush_nonleaf = brt_stat.disk_flush_nonleaf; 
+            engstat->disk_flush_leaf_for_checkpoint = brt_stat.disk_flush_leaf_for_checkpoint; 
+            engstat->disk_flush_nonleaf_for_checkpoint = brt_stat.disk_flush_nonleaf_for_checkpoint; 
+            engstat->destroy_leaf = brt_stat.destroy_leaf;
+            engstat->destroy_nonleaf = brt_stat.destroy_nonleaf;
+            engstat->msg_bytes_in = brt_stat.msg_bytes_in;
+            engstat->msg_bytes_out = brt_stat.msg_bytes_out;
+            engstat->msg_bytes_curr = brt_stat.msg_bytes_curr;
+            engstat->msg_bytes_max = brt_stat.msg_bytes_max;
+            engstat->msg_num = brt_stat.msg_num;
+            engstat->msg_num_broadcast = brt_stat.msg_num_broadcast;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2311,6 +2323,18 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
         n += snprintf(buff + n, bufsiz - n, "flush_cascades_4                 %"PRIu64"\n", engstat.flush_cascades_4);
         n += snprintf(buff + n, bufsiz - n, "flush_cascades_5                 %"PRIu64"\n", engstat.flush_cascades_5);
         n += snprintf(buff + n, bufsiz - n, "flush_cascades_gt_5              %"PRIu64"\n", engstat.flush_cascades_gt_5);
+        n += snprintf(buff + n, bufsiz - n, "disk_flush_leaf                  %"PRIu64"\n", engstat.disk_flush_leaf); 
+        n += snprintf(buff + n, bufsiz - n, "disk_flush_nonleaf               %"PRIu64"\n", engstat.disk_flush_nonleaf); 
+        n += snprintf(buff + n, bufsiz - n, "disk_flush_leaf_for_checkpoint   %"PRIu64"\n", engstat.disk_flush_leaf_for_checkpoint); 
+        n += snprintf(buff + n, bufsiz - n, "disk_flush_nonleaf_for_checkpoint %"PRIu64"\n", engstat.disk_flush_nonleaf_for_checkpoint); 
+        n += snprintf(buff + n, bufsiz - n, "destroy_leaf                     %"PRIu64"\n", engstat.destroy_leaf); 
+        n += snprintf(buff + n, bufsiz - n, "destroy_nonleaf                  %"PRIu64"\n", engstat.destroy_nonleaf); 
+        n += snprintf(buff + n, bufsiz - n, "msg_bytes_in                     %"PRIu64"\n", engstat.msg_bytes_in); 
+        n += snprintf(buff + n, bufsiz - n, "msg_bytes_out                    %"PRIu64"\n", engstat.msg_bytes_out); 
+        n += snprintf(buff + n, bufsiz - n, "msg_bytes_curr                   %"PRIu64"\n", engstat.msg_bytes_curr); 
+        n += snprintf(buff + n, bufsiz - n, "msg_bytes_max                    %"PRIu64"\n", engstat.msg_bytes_max); 
+        n += snprintf(buff + n, bufsiz - n, "msg_num                          %"PRIu64"\n", engstat.msg_num); 
+        n += snprintf(buff + n, bufsiz - n, "msg_num_broadcast                %"PRIu64"\n", engstat.msg_num_broadcast); 
 	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu32"\n", engstat.cleaner_period);
 	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu32"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
