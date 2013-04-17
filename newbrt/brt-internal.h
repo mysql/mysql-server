@@ -892,7 +892,8 @@ brt_leaf_apply_cmd_once (
     const BRT_MSG cmd,
     u_int32_t idx,
     LEAFENTRY le,
-    uint64_t *workdonep
+    uint64_t *workdonep,
+    STAT64INFO stats_to_update
     );
 
 // FIXME needs toku prefix
@@ -904,7 +905,8 @@ brt_leaf_put_cmd (
     BRTNODE leafnode,
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
-    uint64_t *workdone
+    uint64_t *workdone,
+    STAT64INFO stats_to_update
     );
 
 void toku_apply_cmd_to_leaf(
@@ -913,7 +915,8 @@ void toku_apply_cmd_to_leaf(
     DESCRIPTOR desc, 
     BRTNODE node, 
     BRT_MSG cmd, 
-    uint64_t *workdone
+    uint64_t *workdone,
+    STAT64INFO stats_to_update
     );
 
 // FIXME needs toku prefix
@@ -923,7 +926,8 @@ void brtnode_put_cmd (
     DESCRIPTOR desc,
     BRTNODE node, 
     BRT_MSG cmd, 
-    bool is_fresh
+    bool is_fresh,
+    STAT64INFO stats_to_update
     );
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);

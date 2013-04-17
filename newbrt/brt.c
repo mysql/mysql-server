@@ -1395,12 +1395,13 @@ brt_leaf_delete_leafentry (
 
 void
 brt_leaf_apply_cmd_once (
-    BRTNODE leafnode,
+    BRTNODE UU(leafnode),
     BASEMENTNODE bn,
     const BRT_MSG cmd,
     u_int32_t idx,
     LEAFENTRY le,
-    uint64_t *workdone
+    uint64_t *workdone,
+    STAT64INFO stats_to_update
     )
 // Effect: Apply cmd to leafentry (msn is ignored)
 //         Calculate work done by message on leafentry and add it to caller's workdone counter.
@@ -1473,9 +1474,12 @@ brt_leaf_apply_cmd_once (
     // now update stat64 statistics
     bn->stat64_delta.numrows  += numrows_delta;
     bn->stat64_delta.numbytes += numbytes_delta;
+    // the only reason stats_to_update may be null is for tests
+    if (stats_to_update) {
+        stats_to_update->numrows += numrows_delta;
+        stats_to_update->numbytes += numbytes_delta;
+    }
 
-    STAT64INFO_S deltas = {.numrows = numrows_delta, .numbytes = numbytes_delta};
-    update_header_stats(&(leafnode->h->in_memory_stats), &(deltas));
 }
 
 static const uint32_t setval_tag = 0xee0ccb99; // this was gotten by doing "cat /dev/random|head -c4|od -x" to get a random number.  We want to make sure that the user actually passes us the setval_extra_s that we passed in.
@@ -1492,6 +1496,7 @@ struct setval_extra_s {
     u_int32_t idx;
     LEAFENTRY le;
     uint64_t * workdone;  // set by brt_leaf_apply_cmd_once()
+    STAT64INFO stats_to_update;
 };
 
 /*
@@ -1522,7 +1527,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
         }
         brt_leaf_apply_cmd_once(svextra->leafnode, svextra->bn, &msg,
                                 svextra->idx, svextra->le,
-                                svextra->workdone);
+                                svextra->workdone, svextra->stats_to_update);
         svextra->setval_r = 0;
     }
 }
@@ -1533,7 +1538,8 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
 // the original msn seems cleaner and it preserves accountability at a lower layer.
 static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafnode, BASEMENTNODE bn, BRT_MSG cmd, int idx,
                      LEAFENTRY le,
-                     uint64_t * workdone) {
+                     uint64_t * workdone,
+                     STAT64INFO stats_to_update) {
     LEAFENTRY le_for_update;
     DBT key;
     const DBT *keyp;
@@ -1575,7 +1581,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
     }
 
     struct setval_extra_s setval_extra = {setval_tag, FALSE, 0, leafnode, bn, cmd->msn, cmd->xids,
-                                          keyp, idx, le_for_update, workdone};
+                                          keyp, idx, le_for_update, workdone, stats_to_update};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
     int r = update_fun(
@@ -1599,7 +1605,8 @@ brt_leaf_put_cmd (
     BRTNODE leafnode,  // bn is within leafnode
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
-    uint64_t *workdone
+    uint64_t *workdone,
+    STAT64INFO stats_to_update
     )
 // Effect: 
 //   Put a cmd into a leaf.
@@ -1639,7 +1646,7 @@ brt_leaf_put_cmd (
 	    assert(r==0);
 	    storeddata=storeddatav;
 	}
-	brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone);
+	brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 
 	// if the insertion point is within a window of the right edge of
 	// the leaf then it is sequential
@@ -1671,7 +1678,7 @@ brt_leaf_put_cmd (
 	while (1) {
 	    u_int32_t num_leafentries_before = toku_omt_size(bn->buffer);
 
-	    brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone);
+	    brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 
 	    { 
 		// Now we must find the next leafentry. 
@@ -1717,7 +1724,7 @@ brt_leaf_put_cmd (
 	    storeddata=storeddatav;
 	    int deleted = 0;
 	    if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-		brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone);
+		brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
 		if (new_omt_size != omt_size) {
 		    assert(new_omt_size+1 == omt_size);
@@ -1743,7 +1750,7 @@ brt_leaf_put_cmd (
 	    storeddata=storeddatav;
 	    int deleted = 0;
 	    if (le_has_xids(storeddata, cmd->xids)) {
-		brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone);
+		brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
 		if (new_omt_size != omt_size) {
 		    assert(new_omt_size+1 == omt_size);
@@ -1764,10 +1771,10 @@ brt_leaf_put_cmd (
 	r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
 			       &storeddatav, &idx);
 	if (r==DB_NOTFOUND) {
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, NULL, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, NULL, workdone, stats_to_update);
 	} else if (r==0) {
 	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 	} // otherwise, a worse error, just return it
 	break;
     }
@@ -1779,7 +1786,7 @@ brt_leaf_put_cmd (
 	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
 	    assert(r==0);
 	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, workdone, stats_to_update);
 	    // TODO(leif): This early return means get_leaf_reactivity()
 	    // and VERIFY_NODE() never get called.  Is this a problem?
 	    assert(r==0);
@@ -2238,6 +2245,7 @@ toku_bnc_flush_to_child(
 {
     assert(bnc);
     assert(toku_fifo_n_entries(bnc->buffer)>0);
+    STAT64INFO_S stats_delta = {0,0};
     FIFO_ITERATE(
         bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
         ({
@@ -2250,10 +2258,11 @@ toku_bnc_flush_to_child(
                 &h->cmp_descriptor,
                 child, 
                 &brtcmd, 
-                is_fresh
+                is_fresh,
+                &stats_delta
                 );
         }));
-
+    update_header_stats(&h->in_memory_stats, &stats_delta);
     // Run garbage collection, if we are a leaf entry.
     TOKULOGGER logger = toku_cachefile_logger(h->cf);
     if (child->height == 0 && logger) {
@@ -2316,7 +2325,8 @@ brtnode_put_cmd (
     DESCRIPTOR desc,
     BRTNODE node, 
     BRT_MSG cmd, 
-    bool is_fresh
+    bool is_fresh,
+    STAT64INFO stats_to_update
     )
 // Effect: Push CMD into the subtree rooted at NODE.
 //   If NODE is a leaf, then
@@ -2339,7 +2349,8 @@ brtnode_put_cmd (
             desc,
             node, 
             cmd, 
-            &workdone
+            &workdone,
+            stats_to_update
             );
     } else {
         brt_nonleaf_put_cmd(compare_fun, desc, node, cmd, is_fresh);
@@ -2359,7 +2370,8 @@ void toku_apply_cmd_to_leaf(
     DESCRIPTOR desc, 
     BRTNODE node, 
     BRT_MSG cmd, 
-    uint64_t *workdone
+    uint64_t *workdone,
+    STAT64INFO stats_to_update
     ) 
 {
     VERIFY_NODE(t, node);
@@ -2400,7 +2412,8 @@ void toku_apply_cmd_to_leaf(
                              node, 
                              BLB(node, childnum),
                              cmd,
-                             workdone);
+                             workdone,
+                             stats_to_update);
         } else {
             STATUS_VALUE(BRT_MSN_DISCARDS)++;
         }
@@ -2415,7 +2428,8 @@ void toku_apply_cmd_to_leaf(
                                  node,
                                  BLB(node, childnum),
                                  cmd,
-                                 workdone);
+                                 workdone,
+                                 stats_to_update);
             } else {
                 STATUS_VALUE(BRT_MSN_DISCARDS)++;
             }
@@ -2435,14 +2449,19 @@ static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MS
     toku_assert_entire_node_in_memory(node);
     MSN cmd_msn = cmd->msn;
     invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
+    STAT64INFO_S stats_delta = {0,0};
     brtnode_put_cmd(
         h->compare_fun,
         h->update_fun,
         &h->cmp_descriptor,
         node,
         cmd,
-        true
+        true,
+        &stats_delta
         );
+    if (stats_delta.numbytes || stats_delta.numrows) {
+        update_header_stats(&h->in_memory_stats, &stats_delta);
+    }
     //
     // assumption is that brtnode_put_cmd will
     // mark the node as dirty.
@@ -3791,7 +3810,7 @@ fifo_offset_msn_cmp(void *extrap, const void *va, const void *vb)
  * basement node.
  */
 static void
-do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, int childnum, const struct fifo_entry *entry)
+do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, int childnum, const struct fifo_entry *entry, STAT64INFO stats_to_update)
 {
     // The messages are being iterated over in (key,msn) order or just in
     // msn order, so all the messages for one key, from one buffer, are in
@@ -3810,7 +3829,16 @@ do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, 
         toku_fill_dbt(&hk, key, keylen);
         DBT hv;
         BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
-        brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->cmp_descriptor, leafnode, bn, &brtcmd, &BP_WORKDONE(ancestor, childnum));  // pass NULL omts (snapshot_txnids and live_list_reverse) to prevent GC from running on message application for a query
+        brt_leaf_put_cmd(
+            t->compare_fun, 
+            t->update_fun, 
+            &t->h->cmp_descriptor, 
+            leafnode, 
+            bn, 
+            &brtcmd, 
+            &BP_WORKDONE(ancestor, childnum),
+            stats_to_update
+            );
     } else {
         STATUS_VALUE(BRT_MSN_DISCARDS)++;
     }
@@ -3822,6 +3850,7 @@ struct iterate_do_brt_leaf_put_cmd_extra {
     BASEMENTNODE bn;
     BRTNODE ancestor;
     int childnum;
+    STAT64INFO stats_to_update;
 };
 
 static int
@@ -3831,7 +3860,7 @@ iterate_do_brt_leaf_put_cmd(OMTVALUE v, u_int32_t UU(idx), void *extrap)
     const long offset = (long) v;
     NONLEAF_CHILDINFO bnc = BNC(e->ancestor, e->childnum);
     const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
-    do_brt_leaf_put_cmd(e->t, e->leafnode, e->bn, e->ancestor, e->childnum, entry);
+    do_brt_leaf_put_cmd(e->t, e->leafnode, e->bn, e->ancestor, e->childnum, entry, e->stats_to_update);
     return 0;
 }
 
@@ -3959,6 +3988,7 @@ bnc_apply_messages_to_basement_node(
 
     // Determine the offsets in the message trees between which we need to
     // apply messages from this buffer
+    STAT64INFO_S stats_delta = {0,0};
     u_int32_t stale_lbi, stale_ube;
     if (!bn->stale_ancestor_messages_applied) {
         find_bounds_within_message_tree(&t->h->cmp_descriptor, t->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
@@ -4006,13 +4036,13 @@ bnc_apply_messages_to_basement_node(
         for (int i = 0; i < buffer_size; ++i) {
             *msgs_applied = TRUE;
             const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, entry, &stats_delta);
         }
 
         toku_free(offsets);
     } else if (stale_lbi == stale_ube) {
         // No stale messages to apply, we just apply fresh messages.
-        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum };
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum, .stats_to_update = &stats_delta};
         if (fresh_ube - fresh_lbi > 0) *msgs_applied = TRUE;
         r = toku_omt_iterate_on_range(bnc->fresh_message_tree, fresh_lbi, fresh_ube, iterate_do_brt_leaf_put_cmd, &iter_extra);
         assert_zero(r);
@@ -4020,7 +4050,7 @@ bnc_apply_messages_to_basement_node(
         // No fresh messages to apply, we just apply stale messages.
 
         if (stale_ube - stale_lbi > 0) *msgs_applied = TRUE;
-        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum };
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .leafnode = leafnode, .bn = bn, .ancestor = ancestor, .childnum = childnum , .stats_to_update = &stats_delta};
 
         r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, iterate_do_brt_leaf_put_cmd, &iter_extra);
         assert_zero(r);
@@ -4053,7 +4083,7 @@ bnc_apply_messages_to_basement_node(
                 // but a smaller MSN.  We'll apply it, then get the next
                 // stale message into stale_i and stale_v.
                 const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, stale_entry);
+                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, stale_entry, &stats_delta);
                 stale_i++;
                 if (stale_i != stale_ube) {
                     invariant(stale_i < stale_ube);
@@ -4066,7 +4096,7 @@ bnc_apply_messages_to_basement_node(
                 // but a smaller MSN.  We'll apply it, then get the next
                 // fresh message into fresh_i and fresh_v.
                 const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, fresh_entry);
+                do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, fresh_entry, &stats_delta);
                 fresh_i++;
                 if (fresh_i != fresh_ube) {
                     invariant(fresh_i < fresh_ube);
@@ -4085,7 +4115,7 @@ bnc_apply_messages_to_basement_node(
         while (stale_i < stale_ube) {
             const long stale_offset = (long) stale_v;
             const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, stale_entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, stale_entry, &stats_delta);
             stale_i++;
             if (stale_i != stale_ube) {
                 r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v);
@@ -4097,13 +4127,19 @@ bnc_apply_messages_to_basement_node(
         while (fresh_i < fresh_ube) {
             const long fresh_offset = (long) fresh_v;
             const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
-            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, fresh_entry);
+            do_brt_leaf_put_cmd(t, leafnode, bn, ancestor, childnum, fresh_entry, &stats_delta);
             fresh_i++;
             if (fresh_i != fresh_ube) {
                 r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v);
                 assert_zero(r);
             }
         }
+    }
+    //
+    // update stats
+    //
+    if (stats_delta.numbytes || stats_delta.numrows) {
+        update_header_stats(&t->h->in_memory_stats, &stats_delta);
     }
     // We can't delete things out of the fresh tree inside the above
     // procedures because we're still looking at the fresh tree.  Instead
