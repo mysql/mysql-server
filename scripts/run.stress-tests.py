@@ -708,7 +708,8 @@ if __name__ == '__main__':
                          'test_stress_openclose.tdb']
     default_recover_testnames = ['recover-test_stress1.tdb',
                                  'recover-test_stress2.tdb',
-                                 'recover-test_stress3.tdb']
+                                 'recover-test_stress3.tdb',
+                                 'recover-test_stress_openclose.tdb']
     build_group = OptionGroup(parser, 'Build Options', 'Control how the fractal tree and tests get built.')
     build_group.add_option('--skip_build', action='store_false', dest='build', default=True,
                            help='skip the svn up and build phase before testing [default=False]')
