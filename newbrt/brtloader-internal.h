@@ -133,6 +133,9 @@ struct brtloader_s {
     toku_pthread_t     extractor_thread;     // the thread that takes primary rowset and does extraction and the first level sort and write to file.
     BOOL extractor_live;
 
+    BOOL *rowset_is_sorted; // for each rowset, is the rowset sorted?
+    DBT  *last_key;         // for each rowset, remember the most recently output key.  The system may choose not to keep this up-to-date when a rowset is unsorted.  These keys are malloced and ulen maintains the size of the malloced block.
+    
     struct rowset *rows; // secondary rows that have been put, but haven't been sorted and written to a file.
     u_int64_t n_rows; // how many rows have been put?
     struct merge_fileset *fs;

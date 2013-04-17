@@ -315,6 +315,12 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
         destroy_merge_fileset(&bl->fs[i]);
     toku_free(bl->fs);
 
+    toku_free(bl->rowset_is_sorted);
+    for (int i=0; i < bl->N; i++) {
+	toku_free(bl->last_key[i].data);
+    }
+    toku_free(bl->last_key);
+
     destroy_rowset(&bl->primary_rowset);
 
     for (int i=0; i<bl->N; i++) {
@@ -436,12 +442,16 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 
     MY_CALLOC_N(N, bl->rows);
     MY_CALLOC_N(N, bl->fs);
+    MY_CALLOC_N(N, bl->rowset_is_sorted);
+    MY_CALLOC_N(N, bl->last_key);
     for(int i=0;i<N;i++) {
         { 
             int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); 
             if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; } 
         }
         init_merge_fileset(&bl->fs[i]);
+	bl->rowset_is_sorted[i] = TRUE; // empty rowsets are sorted.
+	bl->last_key[i].flags = DB_DBT_REALLOC; // don't really need this, but it's nice to maintain it.  We use ulen to keep track of the realloced space.
     }
     { // note : currently brt_loader_init_error_callback always returns 0
         int r = brt_loader_init_error_callback(&bl->error_callback);
@@ -469,7 +479,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     return 0;
 }
 
-// LAZY cleanup on error paths, ticket #2591
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
