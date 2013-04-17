@@ -2946,6 +2946,8 @@ int ha_tokudb::end_bulk_insert() {
             }
         }
         else {
+            error = sprintf(write_status_msg, "aborting bulk load"); 
+            thd_proc_info(thd, write_status_msg);
             loader->abort(loader);
             loader = NULL;
             share->try_table_lock = true;
@@ -2954,6 +2956,8 @@ int ha_tokudb::end_bulk_insert() {
 
 cleanup:
     if (loader) {
+        error = sprintf(write_status_msg, "aborting bulk load"); 
+        thd_proc_info(thd, write_status_msg);
         loader->abort(loader);
         loader = NULL;
     }
