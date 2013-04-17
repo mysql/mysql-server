@@ -20,8 +20,6 @@ extern "C" {
 struct __toku_lock_tree;
 
 struct __toku_db_internal {
-    DB *db; // A pointer back to the DB.
-    int freed;
     int opened;
     u_int32_t open_flags;
     int open_mode;
