@@ -22,6 +22,7 @@ toku_log_upgrade_get_footprint(void) {
 #define FOOTPRINTCAPTURE footprint+=function_footprint;
 
 
+// return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
 static int 
 verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn) {
     int rval = TOKUDB_UPGRADE_FAILURE;
@@ -36,13 +37,13 @@ verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn
     struct log_entry *le = NULL;
     r = toku_logcursor_last(cursor, &le);
     if (r == 0) {
-	FOOTPRINT(2);
-	if (le->cmd==LT_shutdown) {
-	    LSN lsn = le->u.shutdown.lsn;
-	    if (last_lsn)
-		*last_lsn = lsn;
-	    rval = 0;
-	}
+        FOOTPRINT(2);
+        if (le->cmd==LT_shutdown) {
+            LSN lsn = le->u.shutdown.lsn;
+            if (last_lsn)
+            *last_lsn = lsn;
+            rval = 0;
+        }
     }
     r = toku_logcursor_destroy(&cursor);
     assert(r == 0);
@@ -51,6 +52,7 @@ verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn
 }
 
 
+// return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
 static int 
 verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
     int rval = TOKUDB_UPGRADE_FAILURE;
@@ -67,7 +69,8 @@ verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
     char *basename;
     TOKULOGCURSOR cursor;
     struct log_entry *entry;
-    //Only look at newest log
+    // Only look at newest log
+    // basename points to first char after last / in file pathname
     basename = strrchr(logfiles[n_logfiles-1], '/') + 1;
     int version;
     long long index = -1;
@@ -103,24 +106,24 @@ verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
 static int
 verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN *last_lsn) {
     // return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
-    // examine logfile at logfilenum and possibly logfilenum-1
     int r = 0;
     FOOTPRINTSETUP(1000);
 
     if (version < TOKU_LOG_VERSION)  {
-	FOOTPRINT(1);
-	r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn);
+        FOOTPRINT(1);
+        r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn);
     }
     else {
-	FOOTPRINT(2);
-	assert(version == TOKU_LOG_VERSION);
-	r = verify_clean_shutdown_of_log_version_current(log_dir, last_lsn);
+        FOOTPRINT(2);
+        assert(version == TOKU_LOG_VERSION);
+        r = verify_clean_shutdown_of_log_version_current(log_dir, last_lsn);
     }
     FOOTPRINTCAPTURE;
     return r;
 }
     
 
+// Actually create a log file of the current version, making the environment be of the current version.
 static int
 upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the real deal
     int r;
@@ -163,7 +166,8 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the rea
     return 0;
 }
 
-
+// If log on disk is old (environment is old) and clean shutdown, then create log of current version,
+// which will make the environment of the current version (and delete the old logs).
 int
 toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, BOOL * upgrade_in_progress) {
     int r;
@@ -175,7 +179,7 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
     FOOTPRINT(1);
     r = toku_recover_lock(log_dir, &lockfd);
     if (r == 0) {
-	FOOTPRINT(2);
+    FOOTPRINT(2);
         assert(log_dir);
         assert(env_dir);
 
@@ -183,7 +187,7 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
         BOOL found_any_logs;
         r = toku_get_version_of_logs_on_disk(log_dir, &found_any_logs, &version_of_logs_on_disk);
         if (r==0) {
-	    FOOTPRINT(3);
+        FOOTPRINT(3);
             if (!found_any_logs)
                 r = 0; //No logs means no logs to upgrade.
             else if (version_of_logs_on_disk > TOKU_LOG_VERSION)
@@ -198,8 +202,8 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
                 r = verify_clean_shutdown_of_log_version(log_dir, version_of_logs_on_disk, &last_lsn);
                 if (r==0) {
                     FOOTPRINT(5);
-		    *lsn_of_clean_shutdown = last_lsn;
-		    *upgrade_in_progress = TRUE;
+                    *lsn_of_clean_shutdown = last_lsn;
+                    *upgrade_in_progress = TRUE;
                     r = upgrade_log(env_dir, log_dir, last_lsn);
                 }
             }
