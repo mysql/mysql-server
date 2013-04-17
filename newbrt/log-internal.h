@@ -57,6 +57,7 @@ struct tokulogger {
     int is_open;
     int is_panicked;
     BOOL write_log_files;
+    BOOL trim_log_files; // for test purposes
     int panic_errno;
     char *directory;
     int fd;

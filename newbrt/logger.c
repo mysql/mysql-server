@@ -21,6 +21,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->is_open=0;
     result->is_panicked=0;
     result->write_log_files = TRUE;
+    result->trim_log_files = TRUE;
     result->lg_max = 100<<20; // 100MB default
     result->head = result->tail = 0;
     result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
@@ -378,7 +379,7 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn) {
 
     TOKULOGFILEINFO lf_info = NULL;
     
-    if ( logger->write_log_files ) {
+    if ( logger->write_log_files && logger->trim_log_files) {
         while ( n_logfiles > 1 ) { // don't delete current logfile
             lf_info = toku_logfilemgr_get_oldest_logfile_info(lfm);
             if ( lf_info->maxlsn.lsn > trim_lsn.lsn ) {
@@ -410,6 +411,11 @@ static int close_and_open_logfile (TOKULOGGER logger) {
 void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files) {
     assert(!logger->is_open);
     logger->write_log_files = write_log_files;
+}
+
+void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files) {
+    assert(logger);
+    logger->trim_log_files = trim_log_files;
 }
 
 // Enter holding both locks
@@ -488,6 +494,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn) {
     // reset the LSN's to the lastlsn when the logger was opened
     logger->lsn = logger->written_lsn = logger->fsynced_lsn = lastlsn;
     logger->write_log_files = TRUE;
+    logger->trim_log_files = TRUE;
 
     // open a new log file
     return open_logfile(logger);

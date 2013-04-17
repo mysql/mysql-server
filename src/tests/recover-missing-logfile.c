@@ -9,6 +9,11 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 char *namea="a.db";
 char *nameb="b.db";
 
+// needed to get .bdb versions to compile
+#ifndef DB_CLOSE_DONT_TRIM_LOG
+#define DB_CLOSE_DONT_TRIM_LOG 0
+#endif
+
 static void run_test (void) {
     int r;
     system("rm -rf " ENVDIR);
@@ -19,12 +24,12 @@ static void run_test (void) {
     // create logfile 0
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
-    r = env->close(env, 0);                                                             CKERR(r);
+    r = env->close(env, DB_CLOSE_DONT_TRIM_LOG);                                        CKERR(r);
 
     // create logfile 1
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
-    r = env->close(env, 0);                                                             CKERR(r);
+    r = env->close(env, DB_CLOSE_DONT_TRIM_LOG);                                        CKERR(r);
 
     // create logfile 2
     r = db_env_create(&env, 0);                                                         CKERR(r);
