@@ -10,8 +10,12 @@ extern "C" {
 #endif
 
 // Define this even when traces are compiled out so we don't have to recompile things like scanscan.c
+
 // print the trace
-void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
+void toku_print_trace_mem(FILE *) __attribute__((__visibility__("default")));
+
+// add an entry to the end of the trace which consists of a string pointer, a number, and the processor timestamp
+void toku_add_trace_mem(const char *str, int n) __attribute__((__visibility__("default")));
 
 #define BL_DO_TRACE 0
 // BL_SIMPLE_TRACE 1 is Bradley's in-memory trace analysis.
@@ -28,10 +32,6 @@ void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
 // the arguments to the toku_add_trace function.
 // performance: we trade speed for size by not compressing the trace
 // entries.
-
-// add an entry to the end of the trace which consists of a string
-// pointer, a number, and the processor timestamp
-void toku_add_trace_mem(const char *str, int n) __attribute__((__visibility__("default")));
 
 //  some trace functions added for the bulk loader
 void bl_trace(const char *func __attribute__((unused)), 

@@ -4,6 +4,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "trace_mem.h"
 
 static const int log_format_version=TOKU_LOG_VERSION;
 
@@ -735,11 +736,13 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 	write_outbuf_to_logfile(logger, &fsynced_lsn);
 	if (fsynced_lsn.lsn < lsn.lsn) {
 	    // it may have gotten fsynced by the write_outbuf_to_logfile.
+            toku_add_trace_mem("fsync", __LINE__);
 	    r = toku_file_fsync_without_accounting(logger->fd);
 	    if (r!=0) {
 		toku_logger_panic(logger, r);
 		return r;
 	    }
+            toku_add_trace_mem("fsyncdone", __LINE__);
 	    assert(fsynced_lsn.lsn <= logger->written_lsn.lsn);
 	    fsynced_lsn = logger->written_lsn;
 	}
