@@ -10,13 +10,28 @@ Managing the tree shape:  How insertion, deletion, and querying work
 When we insert a message into the BRT, here's what happens.
 
 to insert a message at the root
+
     - find the root node
     - capture the next msn of the root node and assign it to the message
     - split the root if it needs to be split
     - insert the message into the root buffer
     - if the root is too full, then flush_some_child() of the root on a flusher thread
 
+flusher functions use an advice struct with provides some functions to
+call that tell it what to do based on the context of the flush. see brt-flusher.h
+
+to flush some child, given a parent and some advice
+    - pick the child using advice->pick_child()
+    - remove that childs buffer from the parent
+    - flush the buffer to the child
+    - if the child has stable reactivity and 
+      advice->should_recursively_flush() is true, then
+      flush_some_child() of the child
+    - otherwise split the child if it needs to be split
+    - otherwise maybe merge the child if it needs to be merged
+
 flusher threads:
+
     flusher threads are created on demand as the result of internal nodes
     becoming gorged by insertions. this allows flushing to be done somewhere
     other than the client thread. these work items are enqueued onto
@@ -31,7 +46,7 @@ cleaner threads:
     the cleaner thread need not actually do a flush when awoken, so only
     nodes that have sufficient cache pressure are flushed.
 
-checkpoingting:
+checkpointing:
 
     the checkpoint thread wakes up every minute to checkpoint dirty nodes
     to disk. at the time of this writing, nodes during checkpoint are
@@ -40,39 +55,6 @@ checkpoingting:
     the performance variability caused by a checkpoint locking too
     many nodes and preventing other threads from traversing down the tree,
     for a query or otherwise.
-
-Flusher functions use an advice struct with provides some functions to
-call that tell it what to do based on the context of the flush. see brt-flusher.h
-
-to flush some child, given a parent and some advice
-    - pick the child using advice->pick_child()
-    - remove that childs buffer from the parent
-    - flush the buffer to the child
-    - if the child has stable reactivity and 
-      advice->should_recursively_flush() is true, then
-      flush_some_child() of the child
-    - otherwise split the child if it needs to be split
-    - otherwise maybe merge the child if it needs to be merged
-
-background flattener
-   It's state is a height and a key and a child number
-   Repeat:
-      sleep (say 1s)
-      grab the ydb lock
-      descend the tree to find the height and key
-      while the node is not empty:
-	 bring the child into memory (possibly causing a TRY_AGAIN)
-	 move all messages from the node into the child
-	 if the child needs to be split or merged then split or merge the child
-	 set the state to operate on the next relevant node in the depth-first order
-	   That is: if there are more children, increment the child number, and return.
-		    if there are no more children, then return with an error code that says "next".  At the first point at the descent is not to the ultimate
-			     child, then set the state to visit that node and that child.  
-		    if we get back up to the root then the state goes to "root" and "child 0" so the whole background flattener can run again the next BRT.   
-		      Probably only open BRTs get flattened.
-		      It may be important for the flattener not to run if there've been no message insertions since the last time it ran.
-      The background flattener should also garbage collect MVCC versions.  The flattener should remember the MVCC versions it has encountered
-	so that if any of those are no longer live, it can run again.
 
 To shrink a file: Let X be the size of the reachable data.  
     We define an acceptable bloat constant of C.  For example we set C=2 if we are willing to allow the file to be as much as 2X in size.
@@ -117,7 +99,11 @@ lookups:
     algorithm on insertions.
     - when a node is brought into memory, we apply ancestor messages above it.
     - for point queries, we do not read the entire node into memory. instead,
-      only the required basement node is read
+      we only read in the required basement node
+    - for range queries, cursors may return cursor continue in their callback
+      to take a shortcut path to the next row in the basement node.
+    - for range queries, cursors that prelock a range benefit from 
+      internal prefetching of nodes within that range.
 
 */
 
