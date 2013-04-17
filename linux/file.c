@@ -106,6 +106,7 @@ static FILE *  (*t_fdopen)(int, const char *) = 0;
 static FILE *  (*t_fopen)(const char *, const char *) = 0;
 static int     (*t_open)(const char *, int, int) = 0;  // no implementation of variadic form until needed
 static int     (*t_fclose)(FILE *) = 0;
+static ssize_t (*t_read)(int, void *, size_t) = 0;
 
 int 
 toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
@@ -157,7 +158,11 @@ toku_set_func_fclose(int (*fclose_fun)(FILE*)) {
     return 0;
 }
 
-
+int 
+toku_set_func_read (ssize_t (*read_fun)(int, void *, size_t)) {
+    t_read = read_fun;
+    return 0;
+}
 
 void
 toku_os_full_write (int fd, const void *buf, size_t len) {
@@ -305,6 +310,15 @@ toku_os_close (int fd) {  // if EINTR, retry until success
     return r;
 }
 
+ssize_t 
+toku_os_read(int fd, void *buf, size_t count) {
+    ssize_t r;
+    if (t_read)
+        r = t_read(fd, buf, count);
+    else
+        r = read(fd, buf, count);
+    return r;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // fsync logic:

@@ -1666,7 +1666,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
             int r = pqueue_pop(pq, &node);
             if (r!=0) {
 		result = r;
-		lazy_assert(0);
+		invariant(0);
 		break;
             }
             mini = node->i;
@@ -1718,7 +1718,9 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		    toku_free(keys[mini].data);  keys[mini].data = NULL;
 		    toku_free(vals[mini].data);  vals[mini].data = NULL;
 		} else {
-                    lazy_assert(0);
+                    fprintf(stderr, "%s:%d r=%d errno=%d bfs=%p mini=%d\n", __FILE__, __LINE__, r, errno, bfs, mini);
+                    dbufio_print(bfs);
+                    // lazy_assert(0);
                     result = r;
                     break;
 		}
@@ -2301,7 +2303,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     seek_align(&out);
     int64_t lblock;
     result = allocate_block(&out, &lblock);
-    lazy_assert(result == 0); // can not fail since translations reserved above
+    invariant(result == 0); // can not fail since translations reserved above
     struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
