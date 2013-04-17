@@ -374,8 +374,7 @@ if(BUILD_TESTING)
     add_test(NAME ydb/test1426.tdb
       COMMAND run_test1426.sh
           $<TARGET_FILE:test1426.tdb> $<TARGET_FILE:test1426.bdb>
-          $<TARGET_FILE:tokudb_dump> "${BDBDIR}/bin/db_dump"
-          test1426.bdbdump/dump.bdb.1426)
+          $<TARGET_FILE:tokudb_dump> "${BDBDIR}/bin/db_dump")
     add_dependencies(test1426.tdb tokudb_dump)
   endif()
 
