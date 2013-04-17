@@ -111,7 +111,6 @@ if(BUILD_TESTING)
   set(long_tests
     ft/log-test7
     ft/subblock-test-compression
-    ft/is_empty
     ft/recovery-bad-last-entry
     ft/ftloader-test-extractor-3a
     ft/upgrade_test_simple
@@ -119,6 +118,7 @@ if(BUILD_TESTING)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
+    ft/is_empty
     ft/subblock-test-checksum
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)

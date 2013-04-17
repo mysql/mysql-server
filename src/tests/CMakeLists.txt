@@ -460,7 +460,7 @@ if(BUILD_TESTING)
       add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
       add_custom_executable(large ${test} ${src})
       add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
-      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 7200)
+      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 9000)
     endif()
   endforeach(src)
 
@@ -682,7 +682,6 @@ if(BUILD_TESTING)
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
     ydb/loader-stress-test4.tdb
-    ydb/recovery_fileops_unit.tdb
     ydb/test3039.tdb
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
@@ -690,6 +689,7 @@ if(BUILD_TESTING)
   set(phenomenally_long_tests
     ydb/checkpoint_stress.tdb
     ydb/recover_stress.tdb
+    ydb/recovery_fileops_unit.tdb
     )
   if (BDB_FOUND)
     list(APPEND phenomenally_long_tests
