@@ -1554,15 +1554,14 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
         goto cleanup;
     }
 
-    // Upgrade from 18 to 19.
-    if (node->layout_version_read_from_disk == FT_LAYOUT_VERSION_18) {
-        node->layout_version = FT_LAYOUT_VERSION;
-    } else {
-        // If the version is greater than the first version with
-        // basement nodes, but not version 18, then just use the old
-        // behavior.
-        node->layout_version = node->layout_version_read_from_disk;
-    }
+    // If we get here, we know the node is at least
+    // FT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES.  We haven't changed
+    // the serialization format since then (this comment is correct as of
+    // version 20, which is Deadshot) so we can go ahead and say the
+    // layout version is current (it will be as soon as we finish
+    // deserializing).
+    // TODO(leif): remove node->layout_version (#5174)
+    node->layout_version = FT_LAYOUT_VERSION;
 
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
@@ -2203,11 +2202,11 @@ deserialize_ftnode_from_rbuf(
     }
 
     node->layout_version_read_from_disk = rbuf_int(rb);
-    int version = node->layout_version_read_from_disk;
-    assert(version >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
+    lazy_assert(node->layout_version_read_from_disk >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
 
     // Check if we are reading in an older node version.
-    if (version <= FT_LAYOUT_VERSION_14) {
+    if (node->layout_version_read_from_disk <= FT_LAYOUT_VERSION_14) {
+        int version = node->layout_version_read_from_disk;
         // Perform the upgrade.
         r = deserialize_and_upgrade_ftnode(node, ndd, blocknum, bfe, info, fd);
         if (r != 0) {
@@ -2223,17 +2222,13 @@ deserialize_ftnode_from_rbuf(
         *ftnode = node;
         r = 0;
         goto cleanup;
-    } else if (version == FT_LAYOUT_VERSION_18) {
-        // Upgrade version 18 to version 19.  This upgrade is trivial,
-        // it removes the optimized for upgrade field, which has
-        // already been removed in the deserialization code (see
-        // deserialize_ftnode_info()).
-        version = FT_LAYOUT_VERSION;
     }
 
-    // TODO 4053
-    invariant(version == FT_LAYOUT_VERSION);
-    node->layout_version = version;
+    // Upgrade versions after 14 to current.  This upgrade is trivial, it
+    // removes the optimized for upgrade field, which has already been
+    // removed in the deserialization code (see
+    // deserialize_ftnode_info()).
+    node->layout_version = FT_LAYOUT_VERSION;
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
     node->n_children = rbuf_int(rb);
