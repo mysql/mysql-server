@@ -2636,7 +2636,6 @@ int toku_cachetable_unpin_and_remove (
 {
     invariant_notnull(p);
     int r = ENOENT;
-    // Removing something already present is OK.
     CACHETABLE ct = cachefile->cachetable;
 
     p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
@@ -2658,23 +2657,13 @@ int toku_cachetable_unpin_and_remove (
     // removing the PAIR
     p->checkpoint_pending = false;
     
-    //
-    // Here is a tricky thing.
-    // Later on in this function, we may release the
-    // cachetable lock if other threads are blocked
-    // on this pair, trying to acquire the PAIR lock. 
-    // While the cachetable lock is released,
-    // we may theoretically begin another checkpoint, or start
-    // a cleaner thread.
-    // So, just to be sure this PAIR won't be marked
-    // for the impending checkpoint, we mark the
-    // PAIR as clean. For the PAIR to not be picked by the
+    // For the PAIR to not be picked by the
     // cleaner thread, we mark the cachepressure_size to be 0
+    // (This is redundant since we have the write_list_lock)
     // This should not be an issue because we call
     // cachetable_remove_pair before
     // releasing the cachetable lock.
     //
-    p->dirty = CACHETABLE_CLEAN;
     CACHEKEY key_to_remove = p->key;
     p->attr.cache_pressure_size = 0;
     //
@@ -2695,7 +2684,7 @@ int toku_cachetable_unpin_and_remove (
     p->value_rwlock.write_unlock();
     nb_mutex_unlock(&p->disk_nb_mutex);
     //
-    // As of Dr. Noga, only these threads may be
+    // As of Clayface (6.5), only these threads may be
     // blocked waiting to lock this PAIR:
     //  - the checkpoint thread (because a checkpoint is in progress
     //     and the PAIR was in the list of pending pairs)
@@ -2724,7 +2713,7 @@ int toku_cachetable_unpin_and_remove (
     // first thing we do is remove the PAIR from the various
     // cachetable data structures, so no other thread can possibly
     // access it. We do not want to risk some other thread
-    // trying to lock this PAIR if we release the cachetable lock
+    // trying to lock this PAIR if we release the write list lock
     // below. If some thread is already waiting on the lock,
     // then we let that thread grab the lock and finish, but
     // we don't want any NEW threads to try to grab the PAIR
@@ -2741,6 +2730,8 @@ int toku_cachetable_unpin_and_remove (
     ct->list.write_list_unlock();
     if (p->value_rwlock.users() > 0) {
         // Need to wait for everyone else to leave
+        // This write lock will be granted only after all waiting
+        // threads are done.
         p->value_rwlock.write_lock(true);
         assert(p->value_rwlock.users() == 1);  // us
         assert(!p->checkpoint_pending);
