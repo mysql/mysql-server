@@ -349,28 +349,25 @@ static void scanscan_range (void) {
         r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
         if (r != 0) {
             assert(r == DB_NOTFOUND);
+            printf("%s:%d\n", __FUNCTION__, __LINE__);
             goto makekey;
         }
 
-#if 0
         // do the range scan
-        u_int32_t f_flags = 0;
-        if (prelockflag) {
-            f_flags |= lock_flag;
-        }
-	long rowcounter=0;
+	long rowcounter = 0;
 	struct extra_count e = {0,0};
-	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
-	    rowcounter++;
-	    if (limitcount<=0 || (limitcount>0 && rowcounter>=limitcount)) 
+        while (limitcount > 0 && rowcounter < limitcount) {
+            r = dbc->c_getf_next(dbc, prelockflag ? lock_flag : 0, counttotalbytes, &e);
+            if (r != 0)
                 break;
+	    rowcounter++;
 	}
-#endif
 
         r = dbc->c_close(dbc);                                      
         assert(r==0);
 
         texperiments[counter] = gettime() - tstart;
+        printf("%f\n", texperiments[counter]); fflush(stdout);
     }
 
     // print the times
@@ -381,7 +378,6 @@ static void scanscan_range (void) {
         if (tmax == 0.0 || texperiments[counter] > tmax)
             tmax = texperiments[counter];
         tsum += texperiments[counter];
-        printf("%f\n", texperiments[counter]);
     }
     printf("%f %f %f/%d = %f\n", tmin, tmax, tsum, n_experiments, tsum / n_experiments);
 }
