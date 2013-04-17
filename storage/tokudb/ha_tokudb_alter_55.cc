@@ -1,5 +1,7 @@
 #if TOKU_INCLUDE_ALTER_55
 
+#include "ha_tokudb_alter_common.cc"
+
 class ha_tokudb_add_index : public handler_add_index {
 public:
     DB_TXN *txn;
@@ -14,8 +16,7 @@ public:
 
 volatile int ha_tokudb_add_index_wait = 0;
 
-int 
-ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add) {
+int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add) {
     TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
     while (ha_tokudb_add_index_wait) sleep(1); // debug
 
@@ -52,8 +53,7 @@ cleanup:
 
 volatile int ha_tokudb_final_add_index_wait = 0;
 
-int 
-ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
+int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     TOKUDB_DBUG_ENTER("ha_tokudb::final_add_index");
     while (ha_tokudb_final_add_index_wait) sleep(1); // debug
 
@@ -104,8 +104,7 @@ volatile int ha_tokudb_prepare_drop_index_wait = 0; //debug
 //  Returns:
 //      0 on success, error otherwise
 //
-int 
-ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys) {
+int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::prepare_drop_index");
     while (ha_tokudb_prepare_drop_index_wait) sleep(1); // debug
 
@@ -128,8 +127,7 @@ volatile int ha_tokudb_final_drop_index_wait = 0; // debug
 // Changes for "future-proofing" this so that it works when we have the equivalent flags
 // that are not NO_WRITES are not worth it at the moments, therefore, we can make
 // this function just return
-int 
-ha_tokudb::final_drop_index(TABLE *table_arg) {
+int ha_tokudb::final_drop_index(TABLE *table_arg) {
     TOKUDB_DBUG_ENTER("ha_tokudb::final_drop_index");
     while (ha_tokudb_final_drop_index_wait) sleep(1); // debug
 
@@ -140,8 +138,7 @@ ha_tokudb::final_drop_index(TABLE *table_arg) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-bool
-ha_tokudb::is_alter_table_hot() {
+bool ha_tokudb::is_alter_table_hot() {
     TOKUDB_DBUG_ENTER("is_alter_table_hot");
     bool is_hot = false;
     THD *thd = ha_thd();
@@ -156,13 +153,11 @@ ha_tokudb::is_alter_table_hot() {
     TOKUDB_DBUG_RETURN(is_hot);
 }
 
-int 
-ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
+int ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
     return write_frm_data(frm_data, frm_len);
 }
 
-void
-ha_tokudb::prepare_for_alter() {
+void ha_tokudb::prepare_for_alter() {
     TOKUDB_DBUG_ENTER("prepare_for_alter");
 
     // this is here because mysql commits the transaction before prepare_for_alter is called.
@@ -185,8 +180,7 @@ ha_tokudb::prepare_for_alter() {
     DBUG_VOID_RETURN;
 }
 
-bool
-ha_tokudb::try_hot_alter_table() {
+bool ha_tokudb::try_hot_alter_table() {
     TOKUDB_DBUG_ENTER("try_hot_alter_table");
     THD *thd = ha_thd();
     bool disable_hot_alter = get_disable_hot_alter(thd);
