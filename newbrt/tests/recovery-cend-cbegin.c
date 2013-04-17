@@ -17,12 +17,18 @@ run_test(void) {
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
-    r = toku_log_end_checkpoint(logger, NULL, FALSE, 42, 0); assert(r == 0);
+    LSN firstbegin = ZERO_LSN;
+    r = toku_log_begin_checkpoint(logger, &firstbegin, TRUE, 0); assert(r == 0);
+    assert(firstbegin.lsn != ZERO_LSN.lsn);
+    r = toku_log_end_checkpoint(logger, NULL, FALSE, firstbegin.lsn, 0); assert(r == 0);
     r = toku_log_begin_checkpoint(logger, NULL, TRUE, 0); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // run recovery
-    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, 0); 
+    r = tokudb_recover(TESTDIR, TESTDIR,
+                       toku_builtin_compare_fun, toku_builtin_compare_fun,
+                       NULL, NULL,
+                       0);
     assert(r == 0);
     return 0;
 }

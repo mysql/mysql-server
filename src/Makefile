@@ -16,6 +16,11 @@ ifneq ($(TOKUDB_REVISION),)
 CPPFLAGS += -DTOKUDB_REVISION=$(TOKUDB_REVISION)
 endif
 
+LOADER_USE_REFERENCE_MODEL=0
+ifeq ($(LOADER_USE_REFERENCE_MODEL),1)
+CPPFLAGS += -DLOADER_USE_REFERENCE_MODEL
+endif
+
 YDB=ydb.$(AEXT)
 YDB_BUNDLE=ydb.bundle
 TYDB=tydb.$(AEXT)
@@ -37,6 +42,7 @@ OBJS_RAW = \
 	elocks \
 #\end
 #OBJS automatically defined.
+loader.$(OEXT): $(LOG_HEADER)
 
 LIBRARIES=
 

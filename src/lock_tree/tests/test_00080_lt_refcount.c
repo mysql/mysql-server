@@ -12,10 +12,9 @@ static int r;
 static u_int32_t       lt_refs[100];
 static toku_lock_tree* lts   [100];
 static toku_ltm*       ltm = NULL;
-static toku_db_id*     db_ids[100];
+static DICTIONARY_ID   dict_ids[100];
 static u_int32_t max_locks = 10;
 int  nums[10000];
-int fd[100];
 
 static void setup_ltm(void) {
     assert(!ltm);
@@ -31,7 +30,7 @@ static void db_open_tree(BOOL dups, size_t index, size_t db_id_index) {
            (lt_refs[index] > 0 && lts[index]));
     assert(ltm);
     lt_refs[index]++;
-    r = toku_ltm_get_lt(ltm, &lts[index], dups, db_ids[db_id_index]);
+    r = toku_ltm_get_lt(ltm, &lts[index], dups, dict_ids[db_id_index]);
     CKERR(r);
     assert(lts[index]);
 }
@@ -116,14 +115,13 @@ static void initial_setup(void) {
     u_int32_t i;
 
     ltm = NULL;
-    assert(sizeof(db_ids) / sizeof(db_ids[0]) == sizeof(lts) / sizeof(lts[0]));
+    assert(sizeof(dict_ids) / sizeof(dict_ids[0]) == sizeof(lts) / sizeof(lts[0]));
     for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
         lts[i] = NULL;
         char name[sizeof(TESTDIR) + 256];
         sprintf(name, TESTDIR "/file%05x.db", i);
-        fd[i] = open(name, O_CREAT|O_RDWR, S_IRWXU);
-        if (!db_ids[i]) toku_db_id_create(&db_ids[i], fd[i]);
-        assert(db_ids[i]);
+        dict_ids[i].dictid = i;
+        assert(dict_ids[i].dictid != DICTIONARY_ID_NONE.dictid);
         lt_refs[i] = 0;
     }
 }
@@ -132,10 +130,7 @@ static void close_test(void) {
     u_int32_t i;
     for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
         assert(lt_refs[i]==0); //The internal reference isn't counted.
-        assert(db_ids[i]);
-        toku_db_id_remove_ref(&db_ids[i]);
-        assert(!db_ids[i]);
-        close(fd[i]);
+        assert(dict_ids[i].dictid != DICTIONARY_ID_NONE.dictid);
     }
 }
 

@@ -23,6 +23,8 @@ AEXT_linux_gcc  =a
 AEXT_windows_icc=lib
 AEXT=$(AEXT_$(OS)_$(COMPILER))
 
+SOEXT=so
+
 COMBINE_C_windows_icc = -Qipo-c
 COMBINE_C_linux_icc   = -ipo-c
 COMBINE_C_linux_gcc   = -combine -c
@@ -30,7 +32,7 @@ COMBINE_C = $(COMBINE_C_$(OS)_$(COMPILER))
 
 # Need XOPEN_SOURCE=600 to get strtoll()
 ifeq ($(SYSTEM),linux)
-CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
 endif
 ifeq ($(SYSTEM),sunos)
 CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
@@ -188,7 +190,9 @@ endif
 # TODO: 1398 Get rid of this hack.
 CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
 
-CPPFLAGS+=-Itoku_include -I$(OS)
+CPPFLAGS+=$(CPP_DIRECTORIES)
+
+LDFLAGS = -Wl,-rpath,libo
 
 ifeq ($(TOKU_SKIP_CXX),1)
     SRCDIRS_CXX =
@@ -200,7 +204,7 @@ endif
 SRCDIRS = $(OS) buildheader newbrt
 
 %.$(OEXT):%.c
-	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
+	$(CC) $< -c $(CPPFLAGS) $(CPPFLAGS_DIRECTORY) $(CFLAGS) $(OOUTPUT)$@
 
 %.$(AEXT):
 	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
@@ -221,7 +225,27 @@ else
 SUMMARIZE_CMD =
 endif
 
+ifeq ($(VERBOSE),2)
+VERBVERBOSE=-v
+MAYBEATSIGN= 
+else ifeq ($(VERBOSE),1)
+  VERBVERBOSE=
+  MAYBEATSIGN=
+ else
+  VERBVERBOSE=-q
+  MAYBEATSIGN=@
+endif
+
+CPPFLAGS += $(CPPFLAGS_DIRECTORY)
+CFLAGS += $(CFLAGS_DIRECTORY)
+LDFLAGS += $(LDFLAGS_DIRECTORY)
+LOADLIBES += $(LOADLIBES_DIRECTORY)
+
+%.$(SOEXT):
+	$(CC) -shared $(CFLAGS) $(LDFLAGS) $^ $(LOADLIBES) -o $@
+
 include $(patsubst %,%/make.include,$(SRCDIRS))
 
-build: buildheader/build $(OS)/build
-check: $(OS)/check
+build: buildheader/build $(OS)/build newbrt/build
+check: $(OS)/check newbrt/check
+

@@ -12,6 +12,11 @@
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
 #define CKERR2s(r,r2,r3) do { if (r!=r2 && r!=r3) fprintf(stderr, "%s:%d error %d %s, expected %d or %d\n", __FILE__, __LINE__, r, strerror(r), r2,r3); assert(r==r2||r==r3); } while (0)
 
+#define DEBUG_LINE() do { \
+    fprintf(stderr, "%s() %s:%d\n", __FUNCTION__, __FILE__, __LINE__); \
+    fflush(stderr); \
+} while (0)
+
 const ITEMLEN len_ignore = 0xFFFFFFFF;
 
 struct check_pair {
@@ -87,10 +92,11 @@ default_parse_args (int argc, const char *argv[]) {
 int test_main(int argc, const char *argv[]);
 
 static void dummy(void) {}
+static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *argv[]) {
-    int rinit = toku_brt_init(dummy, dummy);
+    int rinit = toku_brt_init(dummy, dummy, dummy_set_brt);
     CKERR(rinit);
     int r = test_main(argc, argv);
     int rdestroy = toku_brt_destroy();

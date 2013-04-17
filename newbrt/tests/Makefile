@@ -29,101 +29,13 @@ endif
 # For very verbose output do 
 #   make VERBOSE=2
 
-#test1305 is first, since it is the longest test.  Thus reducing the makespan on parallel checks
-# Put these one-per-line so that if we insert a new one the svn diff can understand it better.
-# Also keep them sorted.
-REGRESSION_TESTS_RAW = \
-	test1305 \
-	block_allocator_test \
-	bread-test \
-	brt-serialize-test \
-	brt-serialize-sub-block-test \
-	brt-test \
-	brt-test-cursor \
-	brt-test-cursor-2 \
-	brt-test0 \
-	brt-test1 \
-	brt-test2 \
-	brt-test3 \
-	brt-test4 \
-	brt-test5 \
-	cachetable-rwlock-test \
-	cachetable-test \
-	cachetable-test2 \
-	cachetable-put-test \
-	cachetable-getandpin-test \
-	cachetable-unpin-test \
-	cachetable-rename-test \
-	cachetable-fd-test \
-	cachetable-flush-test \
-	cachetable-count-pinned-test \
-	cachetable-debug-test \
-	cachetable-debug-test \
-	cachetable-checkpoint-pending \
-	cachetable-checkpoint-test \
-	cachetable-prefetch-maybegetandpin-test \
-	cachetable-prefetch2-test \
-	cachetable-prefetch-close-test \
-	cachetable-prefetch-close-fail-test \
-	cachetable-prefetch-close-leak-test \
-	cachetable-prefetch-getandpin-test \
-	cachetable-prefetch-getandpin-fail-test \
-	cachetable-prefetch-checkpoint-test \
-	cachetable-reserve-filenum \
-	fifo-test \
-	list-test \
-	keyrange \
-	keyrange-unflat \
-	keyrange-dupsort \
-	keyrange-dupsort-unflat \
-	keytest \
-	log-test \
-	log-test2 \
-	log-test3 \
-	log-test4 \
-	log-test5 \
-	log-test6 \
-	log-test7 \
-	logcursor-timestamp \
-	logcursor-empty-logdir \
-	logcursor-empty-logfile \
-	logcursor-empty-logfile-2 \
-	logcursor-empty-logfile-3 \
-	memtest \
-	minicron-test \
-	omt-cursor-test \
-	omt-test \
-	recovery-cbegin \
-	recovery-cbegin-cend \
-	recovery-cbegin-cend-hello \
-	recovery-empty \
-	recovery-fopen-missing-file \
-	recovery-hello \
-	recovery-no-datadir \
-	recovery-no-log \
-	recovery-no-logdir \
-	shortcut \
-	test1308a \
-	test-assert \
-	test-brt-delete-both \
-	test-brt-overflow \
-	test-del-inorder \
-	test-inc-split \
-	test-leafentry10 \
-	test-leafentry-nested \
-	test_logcursor \
-	test_oexcl \
-	test_toku_malloc_plain_free \
-	threadpool-test \
-	workqueue-test \
-        x1764-test \
-	ybt-test \
-# This line intentially kept commented so I can have a \ on the end of the previous line
+SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 
+REGRESSION_TESTS_RAW = $(patsubst %.c,%,$(SRCS))
+
+EXTRA_ARGS=
 # Add in the binaries that must be run in various ways.
 BINS_RAW =  $(REGRESSION_TESTS_RAW) \
-        benchmark-test \
-	cachetable-scan \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 # BINS will be defined by adding .exe if appropriate.
 
@@ -151,9 +63,20 @@ check_test1305:
 	@echo SKIPPED SLOW TEST $@
 else
 # Don't run 1305 under valgrind.  It takes way too long.
-check_test1305: test1305$(BINSUF)
+check_test1305$(BINSUF): test1305$(BINSUF)
 	./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 endif
+
+ifeq ($(TOKU_SKIP_MINICRON),1)
+check_minicron-test$(BINSUF):
+	@echo "SKIPPED TEST $@ (Fails in win64 vm due to timing issues)"
+endif
+
+check_benchmark-test$(BINSUF): benchmark-test$(BINSUF);
+check_logcursor-fw$(BINSUF): logcursor-fw$(BINSUF);
+	@echo "$@ must be run manually (needs logs to iterate over)."
+check_logcursor-bw$(BINSUF): logcursor-bw$(BINSUF);
+	@echo "$@ must be run manually (needs logs to iterate over)."
 
 check_benchmarktest_256: benchmark-test$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
@@ -178,11 +101,13 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, "ok" should not error
 	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
+check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
+
 check_%: % $(PTHREAD_LOCAL)
 ifeq ($(VGRIND),)
-	./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --log-file=$<.check.valgrind ./$< $(VERBVERBOSE); \
+	$(VGRIND) --log-file=$<.check.valgrind ./$< $(VERBVERBOSE) $(EXTRA_ARGS); \
 	if [ $$? -eq 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
@@ -194,11 +119,14 @@ endif
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
+brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
+../brtloader.$(OEXT): ../brtloader.c ../brtloader-internal.h 
+	cd $(@D) && $(MAKE) $(@F)
 
 clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir dir.*
-	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
+	rm -f test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
 
 $(BINS): $(LINK_FILES)

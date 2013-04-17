@@ -353,8 +353,6 @@ static size_t get_sum_uncompressed_size(int n, struct sub_block_sizes sizes[]) {
     return uncompressed_size;
 }
 
-static void serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc);
-
 #include "workset.h"
 
 struct compress_work {
@@ -400,7 +398,9 @@ compress_worker(void *arg) {
     return arg;
 }
 
-int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int UU(n_workitems), int UU(n_threads), BOOL for_checkpoint) {
+int toku_serialize_brtnode_to_memory (BRTNODE node, int n_workitems __attribute__((__unused__)), int n_threads __attribute__((__unused__)),
+				      /*out*/ size_t *n_bytes_to_write,
+				      /*out*/ char  **bytes_to_write) {
     struct wbuf w;
     int i;
 
@@ -420,8 +420,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     assert(node->layout_version == BRT_LAYOUT_VERSION);
     wbuf_int(&w, node->layout_version);
     wbuf_int(&w, node->layout_version_original);
-    assert(node->desc == &h->descriptor);
-    serialize_descriptor_contents_to_wbuf(&w, node->desc);
+    toku_serialize_descriptor_contents_to_wbuf(&w, node->desc);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, node->nodesize);
     wbuf_uint(&w, node->flags);
@@ -505,7 +504,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	wbuf_uint(&w, checksum);
     }
 #endif
-
+    
     if (calculated_size!=w.ndone)
 	printf("%s:%d w.done=%u calculated_size=%u\n", __FILE__, __LINE__, w.ndone, calculated_size);
     assert(calculated_size==w.ndone);
@@ -580,7 +579,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 
     compressed_len = compressed_ptr - compressed_base_ptr;
 
-    if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %"PRIu64"\n", blocknum.b, calculated_size-uncompressed_magic_len, (uint64_t) compressed_len);
+    //if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %"PRIu64"\n", blocknum.b, calculated_size-uncompressed_magic_len, (uint64_t) compressed_len);
 
     // write out the compression header
     uint32_t *compressed_header_ptr = (uint32_t *)(compressed_buf + uncompressed_magic_len);
@@ -592,6 +591,27 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
         compressed_header_ptr += 2;
     }
 
+    *n_bytes_to_write = uncompressed_magic_len + compression_header_len + compressed_len;
+    *bytes_to_write   = compressed_buf;
+
+    assert(w.ndone==calculated_size);
+    toku_free(buf);
+
+    return 0;
+}
+
+int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint) {
+
+    assert(node->desc == &h->descriptor);
+
+    size_t n_to_write;
+    char *compressed_buf;
+    {
+	int r = toku_serialize_brtnode_to_memory (node, n_workitems, n_threads,
+						  &n_to_write, &compressed_buf);
+	if (r!=0) return r;
+    }
+
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
 	// If the node has never been written, then write the whole buffer, including the zeros
@@ -600,7 +620,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	//printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, h->translated_blocknum_limit, blocknum.b);
 	//printf("%s:%d allocator=%p\n", __FILE__, __LINE__, h->block_allocator);
 	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
-	size_t n_to_write = uncompressed_magic_len + compression_header_len + compressed_len;
 	DISKOFF offset;
 
         //h will be dirtied
@@ -612,8 +631,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     }
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
-    assert(w.ndone==calculated_size);
-    toku_free(buf);
     toku_free(compressed_buf);
     node->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
     return 0;
@@ -1033,7 +1050,7 @@ decompress_brtnode_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_
 
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
-    int r;
+    int r = 0;
     BRTNODE brtnode_10 = NULL;
     BRTNODE brtnode_11 = NULL;
 
@@ -1301,7 +1318,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 }
 
 u_int32_t
-toku_serialize_descriptor_size(struct descriptor *desc) {
+toku_serialize_descriptor_size(const struct descriptor *desc) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
     u_int32_t size = 4+ //version
                      4; //size
@@ -1309,8 +1326,8 @@ toku_serialize_descriptor_size(struct descriptor *desc) {
     return size;
 }
 
-static void
-serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc) {
+void
+toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const struct descriptor *desc) {
     if (desc->version==0) assert(desc->dbt.size==0);
     wbuf_int(wb, desc->version);
     wbuf_bytes(wb, desc->dbt.data, desc->dbt.size);
@@ -1320,13 +1337,13 @@ serialize_descriptor_contents_to_wbuf(struct wbuf *wb, struct descriptor *desc) 
 //descriptor.
 //Descriptors are NOT written during the header checkpoint process.
 int
-toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOFF offset) {
+toku_serialize_descriptor_contents_to_fd(int fd, const struct descriptor *desc, DISKOFF offset) {
     int r = 0;
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
     struct wbuf w;
     wbuf_init(&w, toku_xmalloc(size), size);
-    serialize_descriptor_contents_to_wbuf(&w, desc);
+    toku_serialize_descriptor_contents_to_wbuf(&w, desc);
     {
         //Add checksum
         u_int32_t checksum = x1764_finish(&w.checksum);

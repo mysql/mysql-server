@@ -23,9 +23,9 @@ static void setup_ltm(void) {
     assert(ltm);
 }
 
-static void setup_tree(BOOL dups, size_t index, toku_db_id* db_id) {
+static void setup_tree(BOOL dups, size_t index, DICTIONARY_ID dict_id) {
     assert(!lt[index] && ltm);
-    r = toku_ltm_get_lt(ltm, &lt[index], dups, db_id);
+    r = toku_ltm_get_lt(ltm, &lt[index], dups, dict_id);
     CKERR(r);
     assert(lt[index]);
 }
@@ -41,49 +41,29 @@ static void close_ltm(void) {
 }
 
 static void run_test(BOOL dups) {
-    int fd  = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
-    assert(fd>=0);
-    int fd2 = open(TESTDIR "/file2.db", O_CREAT|O_RDWR, S_IRWXU);
-    assert(fd>=0);
-
-    toku_db_id* db_id = NULL;
-    r = toku_db_id_create(&db_id, fd);
-    CKERR(r);
-    assert(db_id);
-
-    toku_db_id* db_id2 = NULL;
-    r = toku_db_id_create(&db_id2, fd2);
-    CKERR(r);
-    assert(db_id);
-
-    toku_db_id* db_id3 = NULL;
-    r = toku_db_id_create(&db_id3, fd);
-    CKERR(r);
-    assert(db_id);
+    DICTIONARY_ID dict_id1 = {0};
+    DICTIONARY_ID dict_id2 = {1};
+    DICTIONARY_ID dict_id3 = dict_id1;
 
 
     setup_ltm();
-    setup_tree(dups, 0, db_id);
-    setup_tree(dups, 1, db_id);
+    setup_tree(dups, 0, dict_id1);
+    setup_tree(dups, 1, dict_id1);
     assert(lt[0] == lt[1]);
     
-    setup_tree(dups, 2, db_id2);
+    setup_tree(dups, 2, dict_id2);
     assert(lt[0] != lt[2]);
-    setup_tree(dups, 3, db_id3);
+    setup_tree(dups, 3, dict_id3);
     assert(lt[0] == lt[3]);
     
-    toku_ltm_invalidate_lt(ltm, db_id);
-    setup_tree(dups, 4, db_id);
+    toku_ltm_invalidate_lt(ltm, dict_id1);
+    setup_tree(dups, 4, dict_id1);
     assert(lt[0] != lt[4]);
-    setup_tree(dups, 5, db_id);
+    setup_tree(dups, 5, dict_id1);
     assert(lt[0] != lt[5]);
     assert(lt[4] == lt[5]);
     
     close_ltm();
-    toku_db_id_remove_ref(&db_id);
-    toku_db_id_remove_ref(&db_id2);
-    toku_db_id_remove_ref(&db_id3);
-    close(fd);
 }
 
 int main(int argc, const char *argv[]) {

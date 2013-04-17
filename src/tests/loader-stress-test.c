@@ -13,6 +13,7 @@ enum {MAX_DBS=256};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
+int USE_PUTS=0;
 enum {MAGIC=311};
 
 //
@@ -85,6 +86,8 @@ static unsigned int pkey_for_val(int key, int i) {
     return rotr32(key, i) - MAGIC;
 }
 
+// There is no handlerton in this test, so this function is a local replacement
+// for the handlerton's generate_row_for_put().
 static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
 
     src_db = src_db;
@@ -93,18 +96,39 @@ static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *de
     uint32_t which = *(uint32_t*)dest_db->app_private;
 
     if ( which == 0 ) {
+        if (dest_key->flags==DB_DBT_REALLOC) {
+            if (dest_key->data) toku_free(dest_key->data);
+            dest_key->flags = 0;
+            dest_key->ulen  = 0;
+        }
+        if (dest_val->flags==DB_DBT_REALLOC) {
+            if (dest_val->data) toku_free(dest_val->data);
+            dest_val->flags = 0;
+            dest_val->ulen  = 0;
+        }
         dbt_init(dest_key, src_key->data, src_key->size);
         dbt_init(dest_val, src_val->data, src_val->size);
     }
     else {
-        unsigned int *new_key = (unsigned int *)toku_malloc(sizeof(unsigned int));
-        unsigned int *new_val = (unsigned int *)toku_malloc(sizeof(unsigned int));
+        assert(dest_key->flags==DB_DBT_REALLOC);
+        if (dest_key->ulen < sizeof(unsigned int)) {
+            dest_key->data = toku_xrealloc(dest_key->data, sizeof(unsigned int));
+            dest_key->ulen = sizeof(unsigned int);
+        }
+        assert(dest_val->flags==DB_DBT_REALLOC);
+        if (dest_val->ulen < sizeof(unsigned int)) {
+            dest_val->data = toku_xrealloc(dest_val->data, sizeof(unsigned int));
+            dest_val->ulen = sizeof(unsigned int);
+        }
+        unsigned int *new_key = (unsigned int *)dest_key->data;
+        unsigned int *new_val = (unsigned int *)dest_val->data;
 
         *new_key = twiddle32(*(unsigned int*)src_key->data, which);
         *new_val = generate_val(*(unsigned int*)src_key->data, which);
 
-        dbt_init(dest_key, new_key, sizeof(unsigned int));
-        dbt_init(dest_val, new_val, sizeof(unsigned int));
+        dest_key->size = sizeof(unsigned int);
+        dest_val->size = sizeof(unsigned int);
+        //data is already set above
     }
 
 //    printf("dest_key.data = %d\n", *(int*)dest_key->data);
@@ -158,19 +182,20 @@ static void test_loader(DB **dbs)
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
-    uint32_t flags[MAX_DBS];
+    uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
     for(int i=0;i<MAX_DBS;i++) { 
-        flags[i] = DB_NOOVERWRITE; 
+        db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
+    uint32_t loader_flags = USE_PUTS; // set with -p option
 
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
-    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, flags, dbt_flags, NULL);
+    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
     CKERR(r);
-    r = loader->set_duplicate_callback(loader, NULL);
+    r = loader->set_error_callback(loader, NULL);
     CKERR(r);
     r = loader->set_poll_function(loader, NULL);
     CKERR(r);
@@ -185,12 +210,14 @@ static void test_loader(DB **dbs)
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
         CKERR(r);
-        if ( CHECK_RESULTS) { if((i%10000) == 0){printf("."); fflush(stdout);} }
+        if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
-    if( CHECK_RESULTS ) {printf("\n"); fflush(stdout);}        
+    if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
     // close the loader
+    printf("closing"); fflush(stdout);
     r = loader->close(loader);
+    printf(" done\n");
     CKERR(r);
 
     r = txn->commit(txn, 0);
@@ -266,7 +293,12 @@ static void do_args(int argc, char *argv[]) {
     char *cmd = argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0], "-h")==0) {
+	if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
@@ -289,6 +321,8 @@ static void do_args(int argc, char *argv[]) {
             NUM_ROWS = atoi(argv[0]);
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
+        } else if (strcmp(argv[0], "-p")==0) {
+            USE_PUTS = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

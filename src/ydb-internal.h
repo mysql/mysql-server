@@ -9,7 +9,6 @@
 #include "../newbrt/brt.h"
 #include "toku_list.h"
 #include "./lock_tree/locktree.h"
-#include "./lock_tree/db_id.h"
 #include "./lock_tree/idlth.h"
 #include <limits.h>
 
@@ -22,9 +21,8 @@ struct __toku_db_internal {
     u_int32_t open_flags;
     int open_mode;
     BRT brt;
-    FILENUM fileid;
+    DICTIONARY_ID dict_id;        // unique identifier used by locktree logic
     struct __toku_lock_tree* lt;
-    toku_db_id* db_id;
     struct simple_dbt skey, sval; // static key and value
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function)
     BOOL val_compare_was_set;
@@ -180,5 +178,7 @@ struct __toku_dbc_internal {
     struct simple_dbt skey_s,sval_s;
     struct simple_dbt *skey,*sval;
 };
+
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 
 #endif

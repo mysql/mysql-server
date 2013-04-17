@@ -49,6 +49,13 @@ struct subtree_estimates {
 
 static struct subtree_estimates const zero_estimates __attribute__((__unused__)) = {0,0,0,TRUE};
 
+#if 0
+static inline struct subtree_estimates __attribute__((__unused__))
+make_subtree_estimates (u_int64_t nkeys, u_int64_t ndata, u_int64_t dsize, BOOL exact) {
+    return (struct subtree_estimates){.nkeys=nkeys, .ndata=ndata, .dsize=dsize, .exact=exact};
+}
+#endif
+
 static inline void __attribute__((__unused__))
 subtract_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
     if (a->nkeys >= b->nkeys) a->nkeys -= b->nkeys; else a->nkeys=0;
@@ -111,7 +118,7 @@ struct brtnode {
 	    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
-						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
+						         However, in the absence of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
 	    struct subtree_estimates leaf_stats; // actually it is exact.
@@ -147,12 +154,13 @@ struct brt_header {
     enum brtheader_type type;
     struct brt_header * checkpoint_header;
     CACHEFILE cf;
-    char *fname; // the filename
     u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.
     LSN checkpoint_lsn;         // LSN of creation of "checkpoint-begin" record in log.  
     int dirty;
+    BOOL dictionary_opened;     // True once this header has been associated with a dictionary (a brt fully opened)
+    DICTIONARY_ID dict_id;      // unique id for dictionary
     int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
     char *panic_string; // A malloced string that can indicate what went wrong.
     int layout_version;
@@ -187,8 +195,6 @@ struct brt {
     unsigned int flags;
     BOOL did_set_flags;
     BOOL did_set_descriptor;
-    BOOL did_set_filenum;
-    FILENUM filenum;
     struct descriptor temp_descriptor;
     toku_dbt_upgradef dbt_userformat_upgrade;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
@@ -207,6 +213,9 @@ struct brt {
 };
 
 /* serialization code */
+int toku_serialize_brtnode_to_memory (BRTNODE node, int n_workitems, int n_threads,
+				      /*out*/ size_t *n_bytes_to_write,
+				      /*out*/ char  **bytes_to_write);
 int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brt_header *h);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
@@ -218,7 +227,8 @@ int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
 int toku_deserialize_brtheader_from (int fd, struct brt_header **brth);
-int toku_serialize_descriptor_contents_to_fd(int fd, struct descriptor *desc, DISKOFF offset);
+int toku_serialize_descriptor_contents_to_fd(int fd, const struct descriptor *desc, DISKOFF offset);
+void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const struct descriptor *desc);
 
 void toku_brtnode_free (BRTNODE *node);
 

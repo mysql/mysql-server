@@ -41,19 +41,20 @@ static void test_loader(DB **dbs)
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
-    uint32_t flags[NUM_DBS];
+    uint32_t db_flags[NUM_DBS];
     uint32_t dbt_flags[NUM_DBS];
     for(int i=0;i<NUM_DBS;i++) { 
-        flags[i] = DB_NOOVERWRITE; 
+        db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
+    uint32_t loader_flags = 0;
 
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
-    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, flags, dbt_flags, NULL);
+    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
     CKERR(r);
-    r = loader->set_duplicate_callback(loader, NULL);
+    r = loader->set_error_callback(loader, NULL);
     CKERR(r);
     r = loader->set_poll_function(loader, NULL);
     CKERR(r);
@@ -83,6 +84,7 @@ static void test_loader(DB **dbs)
         CKERR(r);
         for(int i=0;i<NUM_KV_PAIRS;i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);    
+	    if (r!=0) { fprintf(stderr, "r==%d, failure\n", r); }
             CKERR(r);
             assert(*(int64_t*)key.data == kv_pairs[i].key);
             assert(*(int64_t*)val.data == kv_pairs[i].val);
@@ -152,7 +154,12 @@ static void do_args(int argc, char *argv[]) {
     char *cmd = argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0], "-h")==0) {
+	if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
 	    fprintf(stderr, "Usage:\n%s\n", cmd);

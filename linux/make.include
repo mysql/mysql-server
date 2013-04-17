@@ -1,11 +1,19 @@
+LIBPORTABILITY = lib/libtokuportability.$(SOEXT)
 include linux/tests/make.include
-LIBPORTABILITY = lib/libtokuportability.$(AEXT)
-linux/build: $(LIBPORTABILITY)
+linux/build: $(LIBPORTABILITY) linux/tests/build
 
 LINUX_SRCS = $(wildcard linux/*.c)
 LINUX_OBJS = $(patsubst %.c,%.$(OEXT),$(LINUX_SRCS))
 
-$(LINUX_OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED -D_GNU_SOURCE
+$(LINUX_OBJS): CPPFLAGS_DIRECTORY = -Itoku_include -Ilinux
+$(LINUX_OBJS): CFLAGS_DIRECTORY = -DTOKU_ALLOW_DEPRECATED
+$(LINUX_OBJS): LDFLAGS_DIRECTORY =
+$(LINUX_OBJS): LOADLIBES_DIRECTORY =
+
+$(LINUX_OBJS): VISIBILITY=-fvisibility=default
 $(LIBPORTABILITY): $(LINUX_OBJS)
+$(LIBPORTABILITY): VISIBILITY=-fvisibility=default
+$(LIBPORTABILITY): LOADLIBES=
+$(LIBPORTABILITY): LDFLAGS=
 
 linux/check: linux/tests/check

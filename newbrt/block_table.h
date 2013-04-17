@@ -46,6 +46,9 @@ void toku_translate_blocknum_to_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF 
 //Serialization
 void toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w, int64_t *address, int64_t *size);
 
+void toku_block_table_swap_for_redirect(BLOCK_TABLE old_bt, BLOCK_TABLE new_bt);
+
+
 //DEBUG ONLY (brtdump included), tests included
 void toku_blocknum_dump_translation(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_dump_translation_table(FILE *f, BLOCK_TABLE bt);
@@ -64,6 +67,13 @@ void toku_blocktable_internal_fragmentation(BLOCK_TABLE bt, int64_t *total_sizep
 void toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATION report);
 //Requires:  blocktable lock is held.
 //Requires:  report->file_size_bytes is already filled in.
+
+//Unmovable reserved first, then reallocable.
+// We reserve one blocknum for the translation table itself.
+enum {RESERVED_BLOCKNUM_NULL       =0,
+      RESERVED_BLOCKNUM_TRANSLATION=1,
+      RESERVED_BLOCKNUM_DESCRIPTOR =2,
+      RESERVED_BLOCKNUMS};
 
 #endif
 

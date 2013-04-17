@@ -88,8 +88,8 @@ struct tokulogger {
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
     TXNID oldest_living_xid;
 
-    void (*remove_finalize_callback) (int, void*);  // ydb-level callback to be called when a transaction that ...
-    void * remove_finalize_callback_extra;     // ... deletes a file is committed or when one that creates a file is aborted.
+    void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
+    void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);

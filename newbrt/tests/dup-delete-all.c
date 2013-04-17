@@ -25,7 +25,7 @@ static void test_delete_all (void) {
     r = toku_brt_create(&t); assert(r==0);
     r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, (DB*)0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 1, 1, ct, null_txn, (DB*)0); assert(r==0);
     u_int32_t i;
     for (i=0; i<limit; i++) {
 	char key[100];
@@ -45,7 +45,7 @@ static void test_delete_all (void) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
 
     r = toku_brt_create(&t); assert(r==0);
-    r = toku_brt_open(t, fname, fname, 0, 0, 0, ct, null_txn, (DB*)0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 0, ct, null_txn, (DB*)0); assert(r==0);
 
     // Don't do a dump here, because that will warm the cachetable.  We want subsequent inserts to be buffered at the root.
 
@@ -80,10 +80,8 @@ static void test_delete_all (void) {
     {
 	BRT_CURSOR cursor = 0;
 	r = toku_brt_cursor(t, &cursor, 0); assert(r==0);
-	DBT kbt, vbt;
-	toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-	toku_init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-	r = toku_brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, null_txn);
+        struct check_pair pair = {len_ignore, NULL, len_ignore, NULL, 0};
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(r == DB_NOTFOUND);
 
 	r = toku_brt_cursor_close(cursor);

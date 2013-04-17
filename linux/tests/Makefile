@@ -3,7 +3,7 @@ CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
 CFLAGS = -Wall -Werror -g -O0 -std=c99
 ifeq ($(GCCVERSION),4.4.2)
-CFLAGS += -Wno-deprecated
+	CFLAGS += -Wno-deprecated
 endif
 ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
@@ -39,11 +39,13 @@ test-gettime: test-gettime.c
 build: $(TARGETS)
 check: $(TARGETS) $(RUNTARGETS);
 
+# pwrite4g needs an argument to tell it which directory to write temporary files
+test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=.
 %.tdbrun: %
 ifeq ($(VGRIND),)
-	./$< $(SUMMARIZE_CMD)
+	./$< $(TEST_EXTRA_ARGS) $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.check.valgrind ./$< $(TEST_EXTRA_ARGS) >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \

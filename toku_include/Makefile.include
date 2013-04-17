@@ -191,7 +191,7 @@ VALGRIND=valgrind
 VGRIND=$(VALGRIND) --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes \
        --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
        --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
-       --gen-suppressions=$(SUPPRESSIONS)
+       --gen-suppressions=$(SUPPRESSIONS) --num-callers=20
 ifeq ($(DB_ATTACH),1)
 	VGRIND+=--db-attach=yes
 endif
@@ -434,6 +434,9 @@ NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
 $(NEWBRT) $(NEWBRT_BUNDLE) $(IPO_NEWBRT): $(@D)*.[ch]
 	pwd && cd $(@D) && $(MAKE) $(@F)
 $(NEWBRT): $(NEWBRT_BUNDLE)
+LOG_HEADER       = $(TOKUROOT)newbrt/log_header.h
+$(LOG_HEADER): $(TOKUROOT)newbrt/logformat.c
+	cd $(@D) && $(MAKE) $(@F)
 endif
 
 ifeq ($(SKIP_YDBRULE),)

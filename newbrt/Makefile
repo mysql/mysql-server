@@ -95,6 +95,8 @@ else
 NEWBRT_O_FILES = newbrt.o
 endif
 
+NEWBRT_O_FILES += brtloader.$(OEXT)
+
 $(NEWBRT): $(NEWBRT_O_FILES)
 
 $(NEWBRT_BUNDLE): log_code.c log_header.h
@@ -153,4 +155,3 @@ clean-local:
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)
 	./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
-

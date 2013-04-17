@@ -14,10 +14,11 @@
 static int recovery_main(int argc, const char *argv[]);
 
 static void dummy(void) {}
+static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *argv[]) {
-    toku_brt_init(dummy, dummy);
+    toku_brt_init(dummy, dummy, dummy_set_brt);
     int r = recovery_main(argc, argv);
     toku_brt_destroy();
     return r;

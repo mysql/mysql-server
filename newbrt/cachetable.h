@@ -47,9 +47,9 @@ int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_
 // During a transaction, we cannot reuse a filenum.
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
-// What is the cachefile that goes with a particular iname?
+// What is the cachefile that goes with a particular iname (relative to env)?
 // During a transaction, we cannot reuse an iname.
-int toku_cachefile_of_iname (CACHETABLE ct, const char *iname, CACHEFILE *cf);
+int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CACHEFILE *cf);
 
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
@@ -68,15 +68,19 @@ int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and dest
 // Get the number of cachetable misses (in misscount) and the accumulated time waiting for reads (in misstime, units of microseconds)
 void toku_cachetable_get_miss_times(CACHETABLE ct, uint64_t *misscount, uint64_t *misstime);
 
-// Open a file and bind the file to a new cachefile object.
-int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, const char */*fname_relative_to_env*/,int flags, mode_t mode);
+// Open a file and bind the file to a new cachefile object. (For use by test programs only.)
+int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, const char */*fname_in_cwd*/,int flags, mode_t mode);
 
 // Bind a file to a new cachefile object.
-int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env /*(used for logging)*/);
-int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, const char *fname_relative_to_env, BOOL with_filenum, FILENUM filenum, BOOL reserved);
+int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, 
+			    const char *fname_relative_to_env /*(used for logging)*/,
+			    const char *fname_in_cwd);
+int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, 
+					 const char *fname_in_env, const char *fname_in_cwd,
+					 BOOL with_filenum, FILENUM filenum, BOOL reserved);
 
 // Change the binding of which file is attached to a cachefile.  Close the old fd.  Use the new fd.
-int toku_cachetable_redirect (CACHEFILE cf, int fd, const char *fname_in_env);
+int toku_cachefile_redirect (CACHEFILE cf, int fd, const char *fname_in_env, const char *fname_in_cwd);
 
 int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum);
 
@@ -123,6 +127,9 @@ void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
 
 void *toku_cachefile_get_userdata(CACHEFILE);
 // Effect: Get the user data.
+
+CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
+// Effect: Get the cachetable.
 
 // Put a memory object into the cachetable.
 // Effects: Lookup the key in the cachetable. If the key is not in the cachetable,
@@ -210,6 +217,15 @@ int toku_cachefile_flush (CACHEFILE);
 // Return the file descriptor
 int toku_cachefile_fd (CACHEFILE);
 
+// Get the iname (within the environment) associated with the cachefile
+// Return the filename
+char * toku_cachefile_fname_in_env (CACHEFILE cf);
+
+// Get the iname (within the cwd) associated with the cachefile
+// Return the filename
+char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
+
+// For test programs only.
 // Set the cachefile's fd and fname.
 // Effect: Bind the cachefile to a new fd and fname. The old fd is closed.
 // Returns: 0 if success, otherwise an error number

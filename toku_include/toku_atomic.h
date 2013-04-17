@@ -3,6 +3,21 @@
 
 #if TOKU_WINDOWS
 
+static inline uint32_t
+toku_sync_fetch_and_add_uint32(volatile uint32_t *a, uint32_t b) {
+    return _InterlockedExchangeAdd((LONG*)a, b);
+}
+
+static inline uint32_t
+toku_sync_fetch_and_increment_uint32(volatile uint32_t *a) {
+    return _InterlockedIncrement((LONG*)a);
+}
+
+static inline uint32_t
+toku_sync_fetch_and_decrement_uint32(volatile uint32_t *a) {
+    return _InterlockedDecrement((LONG*)a);
+}
+
 static inline int32_t
 toku_sync_fetch_and_add_int32(volatile int32_t *a, int32_t b) {
     return _InterlockedExchangeAdd((LONG*)a, b);
@@ -57,6 +72,18 @@ toku_sync_fetch_and_increment_uint64(volatile uint64_t *a) {
 #else
 
 //Linux
+
+static inline uint32_t toku_sync_fetch_and_add_uint32(volatile uint32_t *a, uint32_t b) {
+    return __sync_fetch_and_add(a, b);
+}
+
+static inline uint32_t toku_sync_fetch_and_increment_uint32(volatile uint32_t *a) {
+    return toku_sync_fetch_and_add_uint32(a, 1);
+}
+
+static inline uint32_t toku_sync_fetch_and_decrement_uint32(volatile uint32_t *a) {
+    return toku_sync_fetch_and_add_uint32(a, -1);
+}
 
 static inline int32_t toku_sync_fetch_and_add_int32(volatile int32_t *a, int32_t b) {
     return __sync_fetch_and_add(a, b);

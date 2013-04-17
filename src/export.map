@@ -29,6 +29,8 @@
    toku_free;
    toku_malloc;
    toku_xmemdup;
+   toku_xrealloc;
+   toku_do_assert;
    toku_os_get_file_size;
    toku_os_getpid;
    toku_os_gettid;
@@ -62,6 +64,7 @@
    toku_do_assert;
    toku_do_assert_fail;
 
+   test_db_redirect_dictionary;
  local: *;
 };
 

@@ -18,11 +18,14 @@ static double elapsed (void) {
     return tdiff(&now, &starttime);
 }
 
-static int __attribute__((__noreturn__))
+static int 
+#ifndef GCOV
+__attribute__((__noreturn__))
+#endif
 never_run (void *a) {
     assert(a==0);
     assert(0);
-#if TOKU_WINDOWS
+#if TOKU_WINDOWS || defined(GCOV)
     return 0; //ICC ignores the noreturn attribute.
 #endif
 }

@@ -5,12 +5,12 @@
 static void
 test0 (void) {
     u_int32_t c = x1764_memory("", 0);
-    assert(c==0);
+    assert(c==~(0U));
     struct x1764 cs;
     x1764_init(&cs);
     x1764_add(&cs, "", 0);
     c = x1764_finish(&cs);
-    assert(c==0);
+    assert(c==~(0U));
 }
 
 static void
@@ -23,7 +23,7 @@ test1 (void) {
 	u_int32_t expect = expect64 ^ (expect64>>32);
 	c = x1764_memory(&v, i);
 	//printf("i=%d c=%08x expect=%08x\n", i, c, expect);
-	assert(c==expect);
+	assert(c==~expect);
     }
 }
 
