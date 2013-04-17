@@ -5,7 +5,7 @@
 
 // brttypes.h must be first to make 64-bit file mode work right in linux.
 #include "brttypes.h"
-#include "../include/db.h"
+#include <db.h>
 
 
 DBT* toku_init_dbt (DBT *);

@@ -7,7 +7,7 @@
 #define _FILE_OFFSET_BITS 64
 #include "brttypes.h"
 #include "ybt.h"
-#include "../include/db.h"
+#include <db.h>
 #include "cachetable.h"
 #include "log.h"
 #include "brt-search.h"

@@ -961,7 +961,7 @@ int DB_ENV_CREATE_FUN (DB_ENV ** envp, u_int32_t flags) {
 
 static int toku_txn_release_locks(DB_TXN* txn) {
     assert(txn);
-    toku_lth* lth = txn->i->lth;
+    toku_lth* lth = db_txn_struct_i(txn)->lth;
 
     int r = ENOSYS;
     int first_error = 0;
@@ -969,7 +969,7 @@ static int toku_txn_release_locks(DB_TXN* txn) {
         toku_lth_start_scan(lth);
         toku_lock_tree* next = toku_lth_next(lth);
         while (next) {
-            r = toku_lt_unlock(next, toku_txn_get_txnid(txn->i->tokutxn));
+            r = toku_lt_unlock(next, toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn));
             if (!first_error && r!=0) { first_error = r; }
             if (r == 0) {
                 r = toku_lt_remove_ref(next);
@@ -978,7 +978,7 @@ static int toku_txn_release_locks(DB_TXN* txn) {
             next = toku_lth_next(lth);
         }
         toku_lth_close(lth);
-        txn->i->lth = NULL;
+        db_txn_struct_i(txn)->lth = NULL;
     }
     r = first_error;
 
@@ -998,45 +998,46 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     int r_child_first = 0;
-    while (txn->i->child) {
-        int r_child = toku_txn_commit(txn->i->child, flags);
+    while (db_txn_struct_i(txn)->child) {
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags);
         if (!r_child_first) r_child_first = r_child;
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
     //Remove from parent
     if (txn->parent) {
-        if (txn->parent->i->child==txn) txn->parent->i->child=txn->i->next;
-        if (txn->parent->i->child==txn) {
-            txn->parent->i->child=NULL;
+        if (db_txn_struct_i(txn->parent)->child==txn) db_txn_struct_i(txn->parent)->child=db_txn_struct_i(txn)->next;
+        if (db_txn_struct_i(txn->parent)->child==txn) {
+            db_txn_struct_i(txn->parent)->child=NULL;
         }
         else {
-            txn->i->next->i->prev = txn->i->prev;
-            txn->i->prev->i->next = txn->i->next;
+	    db_txn_struct_i(db_txn_struct_i(txn)->next)->prev = db_txn_struct_i(txn)->prev;
+            db_txn_struct_i(db_txn_struct_i(txn)->prev)->next = db_txn_struct_i(txn)->next;
         }
     }
     //toku_ydb_notef("flags=%d\n", flags);
-    int nosync = (flags & DB_TXN_NOSYNC)!=0 || (txn->i->flags&DB_TXN_NOSYNC);
+    int nosync = (flags & DB_TXN_NOSYNC)!=0 || (db_txn_struct_i(txn)->flags&DB_TXN_NOSYNC);
     flags &= ~DB_TXN_NOSYNC;
 
     int r;
     if (r_child_first || flags!=0)
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
-        r = toku_logger_abort(txn->i->tokutxn, ydb_yield, NULL);
+        r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     else
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
-        r = toku_logger_commit(txn->i->tokutxn, nosync, ydb_yield, NULL);
+        r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
 
     // Close the logger after releasing the locks
     int r2 = toku_txn_release_locks(txn);
-    toku_logger_txn_close(txn->i->tokutxn);
+    toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
     // the toxutxn is freed, and we must free the rest. */
 
     // The txn is no good after the commit even if the commit fails, so free it up.
-    if (txn->i)
-        toku_free(txn->i);
+#if !TOKUDB_NATIVE_H
+    toku_free(db_txn_struct_i(txn));
+#endif
     toku_free(txn);
     if (flags!=0) return EINVAL;
     return r ? r : (r2 ? r2 : r_child_first);
@@ -1053,28 +1054,30 @@ static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     int r_child_first = 0;
-    while (txn->i->child) {
-        int r_child = toku_txn_abort(txn->i->child);
+    while (db_txn_struct_i(txn)->child) {
+        int r_child = toku_txn_abort(db_txn_struct_i(txn)->child);
         if (!r_child_first) r_child_first = r_child;
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
     }
     //Remove from parent
     if (txn->parent) {
-        if (txn->parent->i->child==txn) txn->parent->i->child=txn->i->next;
-        if (txn->parent->i->child==txn) {
-            txn->parent->i->child=NULL;
+        if (db_txn_struct_i(txn->parent)->child==txn) db_txn_struct_i(txn->parent)->child=db_txn_struct_i(txn)->next;
+        if (db_txn_struct_i(txn->parent)->child==txn) {
+            db_txn_struct_i(txn->parent)->child=NULL;
         }
         else {
-            txn->i->next->i->prev = txn->i->prev;
-            txn->i->prev->i->next = txn->i->next;
+            db_txn_struct_i(db_txn_struct_i(txn)->next)->prev = db_txn_struct_i(txn)->prev;
+            db_txn_struct_i(db_txn_struct_i(txn)->prev)->next = db_txn_struct_i(txn)->next;
         }
     }
-    int r = toku_logger_abort(txn->i->tokutxn, ydb_yield, NULL);
+    int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r2 = toku_txn_release_locks(txn);
-    toku_logger_txn_close(txn->i->tokutxn);
+    toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
 
-    toku_free(txn->i);
+#if !TOKUDB_NATIVE_H
+    toku_free(db_txn_struct_i(txn));
+#endif
     toku_free(txn);
     return r ? r : (r2 ? r2 : r_child_first);
 }
@@ -1091,7 +1094,7 @@ static u_int32_t locked_txn_id(DB_TXN *txn) {
 
 static int toku_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
-    return toku_logger_txn_rolltmp_raw_count(txn->i->tokutxn, &(*txn_stat)->rolltmp_raw_count);
+    return toku_logger_txn_rolltmp_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rolltmp_raw_count);
 }
 
 static int locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
@@ -1137,40 +1140,44 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     result->id = locked_txn_id;
     result->parent = stxn;
     result->txn_stat = locked_txn_stat;
-    MALLOC(result->i);
-    if (!result->i) {
+#if !TOKUDB_NATIVE_H
+    MALLOC(db_txn_struct_i(result));
+    if (!db_txn_struct_i(result)) {
         toku_free(result);
         return ENOMEM;
     }
-    memset(result->i, 0, sizeof *result->i);
-    result->i->flags = txn_flags;
+#endif
+    memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
+    db_txn_struct_i(result)->flags = txn_flags;
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
-        r = toku_lth_create(&result->i->lth,
+        r = toku_lth_create(&db_txn_struct_i(result)->lth,
                             toku_malloc, toku_free, toku_realloc);
         if (r!=0) {
-            toku_free(result->i);
+#if !TOKUDB_NATIVE_H
+            toku_free(db_txn_struct_i(result));
+#endif
             toku_free(result);
             return r;
         }
     }
     
-    r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, env->i->logger);
+    r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
     if (r != 0)
         return r;
     //Add to the list of children for the parent.
     if (result->parent) {
-        if (!result->parent->i->child) {
-            result->parent->i->child = result;
-            result->i->next = result;
-            result->i->prev = result;
+        if (!db_txn_struct_i(result->parent)->child) {
+            db_txn_struct_i(result->parent)->child = result;
+            db_txn_struct_i(result)->next = result;
+            db_txn_struct_i(result)->prev = result;
         }
         else {
-            result->i->prev = result->parent->i->child->i->prev;
-            result->i->next = result->parent->i->child;
-            result->parent->i->child->i->prev->i->next = result;
-            result->parent->i->child->i->prev = result;
+            db_txn_struct_i(result)->prev = db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev;
+            db_txn_struct_i(result)->next = db_txn_struct_i(result->parent)->child;
+            db_txn_struct_i(db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev)->next = result;
+            db_txn_struct_i(db_txn_struct_i(result->parent)->child)->prev = result;
         }
     }
     *txn = result;
@@ -1180,7 +1187,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
 #if 0
 int txn_commit(DB_TXN * txn, u_int32_t flags) {
     fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
-    return toku_logger_log_commit(txn->i->tokutxn);
+    return toku_logger_log_commit(db_txn_struct_i(txn)->tokutxn);
 }
 #endif
 
@@ -1249,7 +1256,7 @@ static int get_nonmain_cursor_flags(u_int32_t flags) {
 }
 
 static inline BOOL toku_c_uninitialized(DBC* c) {
-    return toku_brt_cursor_uninitialized(c->i->c);
+    return toku_brt_cursor_uninitialized(dbc_struct_i(c)->c);
 }            
 
 typedef struct query_context_wrapped_t {
@@ -1263,8 +1270,8 @@ static inline void
 query_context_wrapped_init(QUERY_CONTEXT_WRAPPED context, DBC *c, DBT *key, DBT *val) {
     context->key  = key;
     context->val  = val;
-    context->skey = c->i->skey;
-    context->sval = c->i->sval;
+    context->skey = dbc_struct_i(c)->skey;
+    context->sval = dbc_struct_i(c)->sval;
 }
 
 static int
@@ -1278,7 +1285,7 @@ c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
 
 static TOKULOGGER
 c_get_logger(DBC *c) {
-    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
+    TOKUTXN txn = dbc_struct_i(c)->txn ? db_txn_struct_i(dbc_struct_i(c)->txn)->tokutxn : NULL;
     TOKULOGGER logger = toku_txn_logger(txn);
     return logger;
 }
@@ -1339,7 +1346,7 @@ static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn) {
     u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
 
     //DB_READ_UNCOMMITTED transactions 'own' all read locks.
-    if (txn && txn->i->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
+    if (txn && db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
     return lock_flags;
 }
 
@@ -1565,7 +1572,7 @@ grab_range_lock(RANGE_LOCK_REQUEST request) {
     DB_TXN *txn_anc = toku_txn_ancestor(request->txn);
     r = toku_txn_add_lt(txn_anc, request->lt);
     if (r==0) {
-        TXNID txn_anc_id = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
         if (request->is_read_lock)
             r = toku_lt_acquire_range_read_lock(request->lt, request->db, txn_anc_id,
                                                 request->left_key,  request->left_val,
@@ -1606,11 +1613,11 @@ typedef struct query_context_with_input_t {
 
 static void
 query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, void *extra) {
-    context->c       = c->i->c;
-    context->txn     = c->i->txn;
+    context->c       = dbc_struct_i(c)->c;
+    context->txn     = dbc_struct_i(c)->txn;
     context->db      = c->dbp;
     context->f_extra = extra;
-    u_int32_t lock_flags = get_prelocked_flags(flag, c->i->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flag, dbc_struct_i(c)->txn);
     flag &= ~lock_flags;
     assert(flag==0);
     context->do_locking = (BOOL)(context->db->i->lt!=NULL && !lock_flags);
@@ -1642,7 +1649,7 @@ toku_c_del(DBC * c, u_int32_t flags) {
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     u_int32_t flag_for_brt = flags&DB_DELETE_ANY;
     unchecked_flags &= ~flag_for_brt;
-    u_int32_t lock_flags = get_prelocked_flags(flags, c->i->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(c)->txn);
     unchecked_flags &= ~lock_flags;
     BOOL do_locking = (BOOL)(c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
@@ -1657,8 +1664,8 @@ toku_c_del(DBC * c, u_int32_t flags) {
         }
         if (r==0) {
             //Do the actual delete.
-            TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : 0;
-            r = toku_brt_cursor_delete(c->i->c, flag_for_brt, txn);
+            TOKUTXN txn = dbc_struct_i(c)->txn ? db_txn_struct_i(dbc_struct_i(c)->txn)->tokutxn : 0;
+            r = toku_brt_cursor_delete(dbc_struct_i(c)->c, flag_for_brt, txn);
         }
     }
     return r;
@@ -1697,7 +1704,7 @@ toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) 
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_first(c->i->c, c_getf_first_callback, &context, logger);
+    int r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -1751,7 +1758,7 @@ toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_last(c->i->c, c_getf_last_callback, &context, logger);
+    int r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -1808,7 +1815,7 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         query_context_init(&context, c, flag, f, extra); 
         TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_next(c->i->c, c_getf_next_callback, &context, logger);
+        r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context, logger);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -1862,7 +1869,7 @@ toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
         query_context_init(&context, c, flag, f, extra); 
         TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_next_nodup(c->i->c, c_getf_next_callback, &context, logger);
+        r = toku_brt_cursor_next_nodup(dbc_struct_i(c)->c, c_getf_next_callback, &context, logger);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -1879,7 +1886,7 @@ toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_next_dup will call c_getf_next_dup_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_next_dup(c->i->c, c_getf_next_dup_callback, &context, logger);
+    int r = toku_brt_cursor_next_dup(dbc_struct_i(c)->c, c_getf_next_dup_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -1934,7 +1941,7 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         query_context_init(&context, c, flag, f, extra); 
         TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_prev(c->i->c, c_getf_prev_callback, &context, logger);
+        r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context, logger);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -1988,7 +1995,7 @@ toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
         query_context_init(&context, c, flag, f, extra); 
         TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_prev_nodup(c->i->c, c_getf_prev_callback, &context, logger);
+        r = toku_brt_cursor_prev_nodup(dbc_struct_i(c)->c, c_getf_prev_callback, &context, logger);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2005,7 +2012,7 @@ toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_prev_dup will call c_getf_prev_dup_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_prev_dup(c->i->c, c_getf_prev_dup_callback, &context, logger);
+    int r = toku_brt_cursor_prev_dup(dbc_struct_i(c)->c, c_getf_prev_dup_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2057,7 +2064,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(c->i->c, DB_CURRENT, c_getf_current_callback, &context, logger);
+    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2092,7 +2099,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
     query_context_init(&context, c, flag, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(c->i->c, DB_CURRENT_BINDING, c_getf_current_callback, &context, logger);
+    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2107,7 +2114,7 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set(c->i->c, key, NULL, c_getf_set_callback, &context, logger);
+    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, NULL, c_getf_set_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2164,7 +2171,7 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set_range(c->i->c, key, c_getf_set_range_callback, &context, logger);
+    int r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2222,7 +2229,7 @@ toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FU
     query_context_with_input_init(&context, c, flag, key, val, f, extra); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_get_both will call c_getf_get_both_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set(c->i->c, key, val, c_getf_get_both_callback, &context, logger);
+    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, val, c_getf_get_both_callback, &context, logger);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2274,7 +2281,7 @@ toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLB
         query_context_with_input_init(&context, c, flag, key, val, f, extra); 
         TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_get_both_range will call c_getf_get_both_range_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_get_both_range(c->i->c, key, val, c_getf_get_both_range_callback, &context, logger);
+        r = toku_brt_cursor_get_both_range(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_callback, &context, logger);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2367,7 +2374,7 @@ toku_c_getf_heaviside(DBC *c, u_int32_t flag,
     query_context_heaviside_init(&context, c, flag, f, extra_f, &wrapper); 
     TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_heaviside will call c_getf_heaviside_callback(..., context) (if query is successful)
-    r = toku_brt_cursor_heaviside(c->i->c, c_getf_heaviside_callback, &context, logger, &wrapper);
+    r = toku_brt_cursor_heaviside(dbc_struct_i(c)->c, c_getf_heaviside_callback, &context, logger, &wrapper);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2501,10 +2508,12 @@ tmp_cleanup:
 }
 
 static int toku_c_close(DBC * c) {
-    int r = toku_brt_cursor_close(c->i->c);
-    toku_sdbt_cleanup(&c->i->skey_s);
-    toku_sdbt_cleanup(&c->i->sval_s);
-    toku_free(c->i);
+    int r = toku_brt_cursor_close(dbc_struct_i(c)->c);
+    toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
+    toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
+#if !TOKUDB_NATIVE_H
+    toku_free(dbc_struct_i(c));
+#endif
     toku_free(c);
     return r;
 }
@@ -2523,7 +2532,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     DBT currentkey;
 
     init_dbt_realloc(&currentkey);
-    u_int32_t lock_flags = get_prelocked_flags(flags, cursor->i->txn);
+    u_int32_t lock_flags = get_prelocked_flags(flags, dbc_struct_i(cursor)->txn);
     flags &= ~lock_flags;
     if (flags != 0) {
         r = EINVAL; goto finish;
@@ -2538,7 +2547,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     //   lock_flags |= DB_PRELOCKED
     //}
     
-    r = toku_db_cursor(cursor->dbp, cursor->i->txn, &count_cursor, 0, 0);
+    r = toku_db_cursor(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, 0, 0);
     if (r != 0) goto finish;
 
     *count = 0;
@@ -2617,7 +2626,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     }
     if (r==0) {
         //Do the actual deleting.
-        r = toku_brt_delete(db->i->brt, key, txn ? txn->i->tokutxn : 0);
+        r = toku_brt_delete(db->i->brt, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
     }
     return r;
 }
@@ -2670,20 +2679,23 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     SCRS(c_getf_get_both);
     SCRS(c_getf_get_both_range);
 #undef SCRS
-    MALLOC(result->i);
+
+#if !TOKUDB_NATIVE_H
+    MALLOC(result->i); // otherwise it is allocated as part of result->ii
     assert(result->i);
+#endif
     result->dbp = db;
-    result->i->txn = txn;
-    result->i->skey_s = (struct simple_dbt){0,0};
-    result->i->sval_s = (struct simple_dbt){0,0};
+    dbc_struct_i(result)->txn = txn;
+    dbc_struct_i(result)->skey_s = (struct simple_dbt){0,0};
+    dbc_struct_i(result)->sval_s = (struct simple_dbt){0,0};
     if (is_temporary_cursor) {
-	result->i->skey = &db->i->skey;
-	result->i->sval = &db->i->sval;
+	dbc_struct_i(result)->skey = &db->i->skey;
+	dbc_struct_i(result)->sval = &db->i->sval;
     } else {
-	result->i->skey = &result->i->skey_s;
-	result->i->sval = &result->i->sval_s;
+	dbc_struct_i(result)->skey = &dbc_struct_i(result)->skey_s;
+	dbc_struct_i(result)->sval = &dbc_struct_i(result)->sval_s;
     }
-    int r = toku_brt_cursor(db->i->brt, &result->i->c);
+    int r = toku_brt_cursor(db->i->brt, &dbc_struct_i(result)->c);
     assert(r == 0);
     *c = result;
     return 0;
@@ -2716,7 +2728,7 @@ toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     }
     if (r==0) {
         //Do the actual deleting.
-        r = toku_brt_delete_both(db->i->brt, key, val, txn ? txn->i->tokutxn : NULL);
+        r = toku_brt_delete_both(db->i->brt, key, val, txn ? db_txn_struct_i(txn)->tokutxn : NULL);
     }
     return r;
 }
@@ -2847,7 +2859,7 @@ static int toku_db_lt_panic(DB* db, int r) {
 static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     int r = ENOSYS;
     assert(txn && lt);
-    toku_lth* lth = txn->i->lth;
+    toku_lth* lth = db_txn_struct_i(txn)->lth;
     assert(lth);
 
     toku_lock_tree* find = toku_lth_find(lth, lt);
@@ -3001,7 +3013,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
-		      txn ? txn->i->tokutxn : NULL_TXN,
+		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN,
 		      db);
     if (r != 0)
         goto error_cleanup;
@@ -3146,7 +3158,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     }
     if (r==0) {
         //Insert into the brt.
-        r = toku_brt_insert(db->i->brt, key, val, txn ? txn->i->tokutxn : 0);
+        r = toku_brt_insert(db->i->brt, key, val, txn ? db_txn_struct_i(txn)->tokutxn : 0);
     }
     return r;
 }
@@ -3326,7 +3338,7 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 
 static int toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
-    return toku_brt_stat64(db->i->brt, txn->i->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize, &s->bt_fsize);
+    return toku_brt_stat64(db->i->brt, db_txn_struct_i(txn)->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize, &s->bt_fsize);
 }
 static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     toku_ydb_lock();
@@ -3355,12 +3367,12 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
     //READ_UNCOMMITTED transactions do not need read locks.
-    if (txn->i->flags&DB_READ_UNCOMMITTED) return 0;
+    if (db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) return 0;
 
     DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;
     if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
-    TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+    TXNID id_anc = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
 
     r = toku_lt_acquire_range_read_lock(db->i->lt, db, id_anc,
                                         key_left,  val_left,
@@ -3375,13 +3387,13 @@ static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;
     if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
-    TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+    TXNID id_anc = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
 
     r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
                                          toku_lt_neg_infinity, toku_lt_neg_infinity,
                                          toku_lt_infinity,     toku_lt_infinity);
     if (r==0) {
-	r = toku_brt_note_table_lock(db->i->brt, txn->i->tokutxn); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback (rolltmp) data.
+	r = toku_brt_note_table_lock(db->i->brt, db_txn_struct_i(txn)->tokutxn); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback (rolltmp) data.
     }
 
     return r;

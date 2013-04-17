@@ -1,6 +1,6 @@
 .DEFAULT_GOAL=build
 TOKUROOT=../../
-INCLUDEDIRS=-I. -I..
+INCLUDEDIRS=-I. -I.. -I../../include
 
 ifeq ($(CYGWIN),)
 LINK_FILES += $(NEWBRT)
