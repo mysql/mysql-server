@@ -217,7 +217,21 @@ class TestRunnerBase(object):
                 savepfx = '%(execf)s-%(rev)s-%(tsize)d-%(csize)d-%(num_ptquery)d-%(num_update)d-%(phase)s-' % self
                 savedir = mkdtemp(dir=self.savedir, prefix=savepfx)
                 tarfile = '%s.tar' % savedir
-                self.scheduler.email_failure(self, tarfile)
+                commands = ''
+                try:
+                    f = open(os.path.join(self.rundir, 'commands.txt'))
+                    commands = f.read()
+                    f.close()
+                except:
+                    pass
+                output = ''
+                try:
+                    f = open(os.path.join(self.rundir, 'output.txt'))
+                    output = f.read()
+                    f.close()
+                except:
+                    pass
+                self.scheduler.email_failure(self, tarfile, commands, output)
                 self.save(savedir, tarfile)
                 self.scheduler.report_failure(self)
                 warning('Saved environment to %s', tarfile)
@@ -241,13 +255,9 @@ class TestRunnerBase(object):
                 copy(f, targetfor(f))
         fullexecf = os.path.join(self.builddir, 'src', 'tests', self.execf)
         copy(fullexecf, targetfor(fullexecf))
-        for libname in ['util/libutil.so', 'portability/libtokuportability.so', 'src/libtokudb.so']:
-            fulllibpath = os.path.join(self.builddir, libname)
-            targetpath = savedir + fulllibpath
-            targetdir = os.path.dirname(targetpath)
-            if not os.path.exists(targetdir):
-                os.makedirs(targetdir)
-            copy(fulllibpath, targetpath)
+
+        # TODO: Leif was lazy and did this in bash, it should be done in python for portability
+        os.system("for l in $(ldd %(fullexecf)s | sed 's/\ *(0x[0-9a-f]*)$//;s/.*=>\ \?//;s/^\ *|\ *$//' | grep -v '^$'); do mkdir -p %(savedir)s/$(dirname $l); cp $l %(savedir)s/$l; done" % {'fullexecf': fullexecf, 'savedir': savedir})
 
         r = call(['tar', 'cf', os.path.basename(tarfile), os.path.basename(savedir)], cwd=os.path.dirname(savedir))
         if r != 0:
@@ -471,7 +481,7 @@ class Scheduler(Queue):
         self.logger.warning('FAILED %s', runner.infostr())
         warning('%s FAILED %s', self.reportstr(), runner.infostr())
 
-    def email_failure(self, runner, savedtarfile):
+    def email_failure(self, runner, savedtarfile, commands, output):
         if not self.email:
             return
 
@@ -511,6 +521,8 @@ Test output:
                     'num_ptquery': runner.num_ptquery,
                     'num_update': runner.num_update,
                     'branch': self.branch,
+                    'commands': commands,
+                    'output': output,
                     }))
 
 def send_mail(toaddrs, subject, body):
