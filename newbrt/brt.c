@@ -2467,6 +2467,7 @@ toku_bnc_flush_to_child(
 
         // Free the OMT's we used for garbage collecting.
         toku_omt_destroy(&snapshot_txnids);
+        toku_omt_destroy(&live_root_txns);
         toku_omt_free_items_pool(live_list_reverse);
         toku_omt_destroy(&live_list_reverse);
     }
