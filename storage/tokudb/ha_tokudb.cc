@@ -52,8 +52,6 @@ static const char *ha_tokudb_exts[] = {
 #define lockretryN(N) \
   for (ulonglong lockretrycount=0; lockretrycount<(N/(1<<3) + 1); lockretrycount++)
 
-#define lockretry lockretryN(800)
-
 #define lockretry_wait \
         if (error != DB_LOCK_NOTGRANTED) { \
             break;  \
