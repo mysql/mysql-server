@@ -2275,7 +2275,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     result->i->bt_compare = toku_builtin_compare_fun;
 
     r = toku_logger_create(&result->i->logger);
-    assert_zero(r);
+    if (r!=0) goto cleanup; // In particular, logger_create can return the huge page error.
     assert(result->i->logger);
 
     // Create the locktree manager, passing in the create/destroy/escalate callbacks.
@@ -2659,6 +2659,8 @@ db_strerror(int error) {
             return "User cancelled operation";
         case TOKUDB_NO_DATA:
             return "Ran out of data (not EOF)";
+        case TOKUDB_HUGE_PAGES_ENABLED:
+            return "Transparent huge pages are enabled but TokuDB's memory allocator will oversubscribe main memory with transparent huge pages.  This check can be disabled by setting the environment variable TOKU_HUGE_PAGES_OK.";
     }
 
     static char unknown_result[100];    // Race condition if two threads call this at the same time. However even in a bad case, it should be some sort of null-terminated string.

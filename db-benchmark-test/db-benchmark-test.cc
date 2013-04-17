@@ -177,6 +177,7 @@ static void benchmark_setup (void) {
     }
 
     r = db_env_create(&dbenv, 0);
+    if (r!=0) fprintf(stderr, "Error on db_env_create: %s\n", db_strerror(r));
     assert(r == 0);
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
