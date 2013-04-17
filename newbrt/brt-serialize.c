@@ -452,7 +452,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     }
     compressed_len = compressed_ptr - compressed_base_ptr;
 
-    if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %lu\n", blocknum.b, calculated_size-uncompressed_magic_len, compressed_len);
+    if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %"PRIu64"\n", blocknum.b, calculated_size-uncompressed_magic_len, (uint64_t) compressed_len);
 
     // write out the compression header
     uint32_t *compressed_header_ptr = (uint32_t *)(compressed_buf + uncompressed_magic_len);
