@@ -418,10 +418,10 @@ TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
 //Heaviside function to find a TXNID* by TXNID* (used to find the index)
 static int
 find_xidp (OMTVALUE v, void *xidv) {
-    TXNID *xid = v;
-    TXNID *xidfind = xidv;
-    if (*xid < *xidfind) return -1;
-    if (*xid > *xidfind) return +1;
+    TXNID xid = *(TXNID *)v;
+    TXNID xidfind = *(TXNID *)xidv;
+    if (xid < xidfind) return -1;
+    if (xid > xidfind) return +1;
     return 0;
 }
 
