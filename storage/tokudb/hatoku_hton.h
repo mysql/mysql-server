@@ -38,6 +38,9 @@ bool get_disable_slow_update(THD *thd);
 bool get_enable_fast_upsert(THD *thd);
 bool get_disable_slow_upsert(THD *thd);
 #endif
+#if TOKU_INCLUDE_ANALYZE
+uint get_analyze_time(THD *thd);
+#endif
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

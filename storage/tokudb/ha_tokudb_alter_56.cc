@@ -420,6 +420,9 @@ int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *h
     }
 
     my_free(key_info);
+    
+    if (error == 0)
+        share->delete_card_from_status(ctx->alter_txn);
 
     return error;
 }
@@ -464,6 +467,9 @@ int ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *
     ctx->drop_index_changed = true;
 
     int error = drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count, key_info, ctx->alter_txn);
+
+    if (error == 0)
+        share->delete_card_from_status(ctx->alter_txn);
 
     return error;
 }

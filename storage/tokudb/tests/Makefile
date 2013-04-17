@@ -17,5 +17,9 @@ check: $(CHECKS)
 	true
 
 %.check: %
-	valgrind ./$<
+	valgrind -q ./$<
+
+max_test.check: max_test
+	valgrind -q ./$< 1 2
+
 

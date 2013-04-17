@@ -49,6 +49,7 @@
 #if DB_TYPE_TOKUDB_DEFINED
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
+#define TOKU_INCLUDE_ANALYZE 1
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 #define TOKU_INCLUDE_ALTER_56 1
@@ -61,6 +62,7 @@
 #if defined(MARIADB_BASE_VERSION) && DB_TYPE_TOKUDB_DEFINED
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
+#define TOKU_INCLUDE_ANALYZE 1
 
 #else
 
@@ -122,6 +124,8 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS 2048
 #define TOKUDB_DEBUG_ALTER_TABLE_INFO 4096
 #define TOKUDB_DEBUG_UPSERT 8192
+#define TOKUDB_DEBUG_CHECK (1<<14)
+#define TOKUDB_DEBUG_ANALYZE (1<<15)
 
 #define TOKUDB_TRACE(f, ...) \
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);

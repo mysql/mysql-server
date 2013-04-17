@@ -218,11 +218,11 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
             result = error;
         }
         
-
         my_hash_delete(&tokudb_open_tables, (uchar *) share);
         thr_lock_delete(&share->lock);
         pthread_mutex_destroy(&share->mutex);
         rwlock_destroy(&share->num_DBs_lock);
+
         my_free((uchar *) share, MYF(0));
     }
     pthread_mutex_unlock(&tokudb_mutex);
@@ -5918,10 +5918,14 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
-        for (uint i = 0; i < table_share->keys; i++) {
-            bool is_unique_key = (i == primary_key) || (table->key_info[i].flags & HA_NOSAME);
-            ulong val = (is_unique_key) ? 1 : 0;
-            table->key_info[i].rec_per_key[get_key_parts(&table->key_info[i]) - 1] = val;
+        uint64_t rec_per_key[table_share->key_parts];
+        error = share->get_card_from_status(txn, table_share->key_parts, rec_per_key);
+        if (error == 0) {
+            share->set_card_in_key_info(table, table_share->key_parts, rec_per_key);
+        } else {
+            for (uint i = 0; i < table_share->key_parts; i++)
+                rec_per_key[i] = 0;
+            share->set_card_in_key_info(table, table_share->key_parts, rec_per_key);
         }
     }
     /* Don't return key if we got an error for the internal primary key */
@@ -8277,12 +8281,12 @@ Item* ha_tokudb::idx_cond_push(uint keyno_arg, Item* idx_cond_arg) {
     return idx_cond_arg;
 }
 
-
 // table admin 
+#include "tokudb_card.cc"
 #include "ha_tokudb_admin.cc"
 
 // update functions
-#include "ha_tokudb_update_fun.cc"
+#include "tokudb_update_fun.cc"
 
 // fast updates
 #include "ha_tokudb_update.cc"
@@ -8291,21 +8295,23 @@ Item* ha_tokudb::idx_cond_push(uint keyno_arg, Item* idx_cond_arg) {
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"
 
-// maria mrr
+// mrr
 #ifdef MARIADB_BASE_VERSION
 #include  "ha_tokudb_mrr_maria.cc"
-#endif
-
-#if !defined(MARIADB_BASE_VERSION)
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #include  "ha_tokudb_mrr_mysql.cc"
 #endif
-#endif
-
-
 
 // key comparisons
 #include "hatoku_cmp.cc"
 
 // handlerton
 #include "hatoku_hton.cc"
+
+// generate template functions
+namespace tokudb {
+    template size_t vlq_encode_ui(uint32_t n, void *p, size_t s);
+    template size_t vlq_decode_ui(uint32_t *np, void *p, size_t s);
+    template size_t vlq_encode_ui(uint64_t n, void *p, size_t s);
+    template size_t vlq_decode_ui(uint64_t *np, void *p, size_t s);
+};
