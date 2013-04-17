@@ -547,19 +547,4 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     DBUG_RETURN(result);
 }
 
-int
-ha_tokudb::create_handler_files(const char *name, const char *old_name, int action_flag, HA_CREATE_INFO *info) {
-    TOKUDB_DBUG_ENTER("create_handler_files");
-    int error = 0;
-    if (action_flag == CHF_CREATE_FLAG) {
-        THD *thd = ha_thd();
-        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-        if (trx && trx->stmt && share) {
-            int error = write_frm_data(share->status_block, trx->stmt, name);
-            assert(error == 0);
-        }
-    }
-    DBUG_RETURN(error);
-}
-
 #endif

@@ -529,7 +529,6 @@ public:
     int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
  public:
-    int create_handler_files(const char *name, const char *old_name, int action_flag, HA_CREATE_INFO *info);
 #endif
 #if TOKU_INCLUDE_ALTER_55
  public:
