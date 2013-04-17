@@ -74,6 +74,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     sn->height = 0;
     sn->n_children = 8;
     sn->dirty = 1;
+    sn->oldest_known_referenced_xid = TXNID_NONE;
     MALLOC_N(sn->n_children, sn->bp);
     MALLOC_N(sn->n_children-1, sn->childkeys);
     sn->totalchildkeylens = 0;
@@ -196,6 +197,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     sn.height = 1;
     sn.n_children = 8;
     sn.dirty = 1;
+    sn.oldest_known_referenced_xid = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
     sn.totalchildkeylens = 0;
