@@ -4203,18 +4203,15 @@ cleanup:
 
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied) {
     invariant(node->height == 0);
-    // At this point, we aren't going to run toku_apply_... but that
-    // doesn't mean max_msn_applied doesn't need to be updated.
-    // This function runs in a shared access context, so to silence tools
-    // like DRD, we use a CAS and ignore the result.
-    // Any threads trying to update these basement nodes should be
-    // updating them to the same thing (since they all have a read lock on
-    // the same root-to-leaf path) so this is safe.
     for (int i = 0; i < node->n_children; ++i) {
         if (BP_STATE(node, i) != PT_AVAIL) { continue; }
         BASEMENTNODE bn = BLB(node, i);
-        // Remember, this all happens in the context of a read lock.
         if (max_msn_applied.msn > bn->max_msn_applied.msn) {
+            // This function runs in a shared access context, so to silence tools
+            // like DRD, we use a CAS and ignore the result.
+            // Any threads trying to update these basement nodes should be
+            // updating them to the same thing (since they all have a read lock on
+            // the same root-to-leaf path) so this is safe.
             (void) __sync_val_compare_and_swap(&bn->max_msn_applied.msn, bn->max_msn_applied.msn, max_msn_applied.msn);
         }
     }
