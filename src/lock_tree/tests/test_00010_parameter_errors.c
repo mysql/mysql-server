@@ -10,12 +10,11 @@ uint32_t max_locks = MAX_LT_LOCKS;
 uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 toku_ltm* ltm = NULL;
 
-static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
+static void do_range_test(int (*acquire)(toku_lock_tree*, TXNID,
                                          const DBT*,
                                          const DBT*)) {
     int r;
     toku_lock_tree* lt  = NULL;
-    DB*             db  = (DB*)1;
     TXNID           txn = (TXNID)1;  // Fake.
     DBT _key_l  = _key;
     DBT _key_r  = _key;
@@ -27,21 +26,21 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
         CKERR(r);
         assert(lt);
 
-        r = acquire(NULL,   db,  txn,  key_l,  key_r);
+        r = acquire(NULL,   txn,  key_l,  key_r);
         CKERR2(r, EINVAL);
-        r = acquire(lt,     db,  txn,  NULL,   key_r);
+        r = acquire(lt,     txn,  NULL,   key_r);
         CKERR2(r, EINVAL);
-        r = acquire(lt,     db,  txn,  key_l,  NULL);
+        r = acquire(lt,     txn,  key_l,  NULL);
         CKERR2(r, EINVAL);
 
         /* left > right tests. */
         const DBT* inf       =              toku_lt_infinity;
         const DBT* ninf      =              toku_lt_neg_infinity;
-        r = acquire(lt,     db,  txn,  inf,    key_r);
+        r = acquire(lt,     txn,  inf,    key_r);
         CKERR2(r, EDOM);
-        r = acquire(lt,     db,  txn,  key_l,  ninf);
+        r = acquire(lt,     txn,  key_l,  ninf);
         CKERR2(r, EDOM);
-        r = acquire(lt,     db,  txn,  inf,    ninf);
+        r = acquire(lt,     txn,  inf,    ninf);
         CKERR2(r, EDOM);
 
         /* Cleanup. */
@@ -52,12 +51,11 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
     }
 }
 
-static void do_point_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
+static void do_point_test(int (*acquire)(toku_lock_tree*, TXNID,
                                          const DBT*)) {
     int r;
     toku_lock_tree* lt  = NULL;
     TXNID           txn = (TXNID)1;  // Fake.
-    DB* db = (DB*)0x1;
 
     lt = NULL;
 
@@ -71,10 +69,10 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
         r = toku_lt_unlock_txn(NULL, (TXNID)1);
         CKERR2(r, EINVAL);
 
-        r = acquire(NULL, db, txn,  key);
+        r = acquire(NULL, txn,  key);
         CKERR2(r, EINVAL);
 
-        r = acquire(lt,   db, txn,  NULL);
+        r = acquire(lt,   txn,  NULL);
         CKERR2(r, EINVAL);
 
         /* Cleanup. */

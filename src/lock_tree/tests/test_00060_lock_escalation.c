@@ -42,7 +42,7 @@ static void setup_tree(void) {
     assert(ltm);
     //ask ltm for lock tree
     DICTIONARY_ID dict_id = {0x1234};
-    r = toku_ltm_get_lt(ltm, &lt, dict_id, db, intcmp);
+    r = toku_ltm_get_lt(ltm, &lt, dict_id, NULL, intcmp);
 
     CKERR(r);
     assert(lt);
@@ -52,7 +52,7 @@ static void setup_tree(void) {
 static void close_tree(void) {
     assert(lt && ltm);
 
-    toku_lt_remove_db_ref(lt, db);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm);
         CKERR(r);
     lt = NULL;
@@ -86,16 +86,16 @@ static void lt_insert(int r_expect, char txn, int key_l, int key_r, bool read_fl
     TXNID local_txn = (TXNID) (size_t) txn;
 
     if (read_flag)
-        r = toku_lt_acquire_range_read_lock(lt, db, local_txn, key_left, key_right);
+        r = toku_lt_acquire_range_read_lock(lt, local_txn, key_left, key_right);
     else
-        r = toku_lt_acquire_write_lock(lt, db, local_txn, key_left);
+        r = toku_lt_acquire_write_lock(lt, local_txn, key_left);
     CKERR2(r, r_expect);
 }
 
 static int lt_insert_write_no_check(char txn, int key_p) {
     DBT key;
     TXNID local_txn = (TXNID) (size_t) txn;
-    r = toku_lt_acquire_write_lock(lt, db, local_txn, dbt_init(&key, &nums[key_p], sizeof(nums[0])));
+    r = toku_lt_acquire_write_lock(lt, local_txn, dbt_init(&key, &nums[key_p], sizeof(nums[0])));
     return r;
 }
 

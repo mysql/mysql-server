@@ -40,8 +40,9 @@ struct __toku_ltm {
 struct __toku_lock_tree {
     /** Lock tree manager */
     toku_ltm* mgr;
-    /** The database for which this locktree will be handling locks */
-    DB*                 db;
+    // for comparisons
+    struct __toku_db fake_db; // dummy db used for comparisons
+    DESCRIPTOR_S desc_s;
 #if TOKU_LT_USE_BORDERWRITE
     toku_range_tree*    borderwrite; /**< See design document */
 #endif
@@ -54,9 +55,7 @@ struct __toku_lock_tree {
     uint32_t          ref_count;
     /** DICTIONARY_ID associated with the lock tree */
     DICTIONARY_ID      dict_id;
-    OMT                dbs; //The extant dbs using this lock tree.
     OMT                lock_requests;
-    toku_rth*          txns_to_unlock; // set of txn's that could not release their locks because there was no db for the comparison function
 
     toku_pthread_mutex_t mutex;
     bool mutex_locked;

@@ -175,7 +175,7 @@ test_split_on_boundary(void)
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
@@ -245,7 +245,7 @@ test_split_with_everything_on_the_left(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
@@ -320,7 +320,7 @@ test_split_on_boundary_of_last_node(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
@@ -388,7 +388,7 @@ test_split_at_begin(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
@@ -452,7 +452,7 @@ test_split_at_end(void)
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
@@ -509,7 +509,7 @@ test_split_odd_nodes(void)
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(brt->h, nodeb);
     r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 

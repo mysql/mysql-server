@@ -108,10 +108,14 @@ void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec);
 // get the default lock timeout
 void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec);
 
+
+void
+toku_lt_update_descriptor(toku_lock_tree* tree, DESCRIPTOR desc);
+
 /**
     Gets a lock tree for a given DB with id dict_id
 */
-int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB *dbp, toku_dbt_cmp compare_fun);
+int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, toku_dbt_cmp compare_fun);
 
 void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
@@ -185,7 +189,7 @@ int toku_lt_close(toku_lock_tree* tree);
    no transactions). This can cause conflicts, nobody was able (so far) 
    to verify that MySQL does or does not use this.
 */
-int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
+int toku_lt_acquire_read_lock(toku_lock_tree* tree, TXNID txn,
                               const DBT* key);
 
 /*
@@ -220,7 +224,7 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     no transactions). This can cause conflicts, nobody was able (so far) 
     to verify that MySQL does or does not use this.
  */
-int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
+int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn,
 				    const DBT* key_left,
 				    const DBT* key_right);
 
@@ -250,7 +254,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
         If the lock tree needs to hold onto the key or data, it will make copies
         to its local memory.
 */
-int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
+int toku_lt_acquire_write_lock(toku_lock_tree* tree, TXNID txn,
                                const DBT* key);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
@@ -285,7 +289,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
  *      to its local memory.
  * *** Note that txn == NULL is not supported at this time.
  */
-int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
+int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn,
 				     const DBT* key_left,
 				     const DBT* key_right);
 
@@ -311,9 +315,9 @@ void toku_lt_add_ref(toku_lock_tree* tree);
 
 int toku_lt_remove_ref(toku_lock_tree* tree);
 
-void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db);
+void toku_lt_remove_db_ref(toku_lock_tree* tree);
 
-void toku_lt_verify(toku_lock_tree *tree, DB *db);
+void toku_lt_verify(toku_lock_tree *tree);
 
 typedef enum {
     LOCK_REQUEST_INIT = 0,
@@ -342,7 +346,6 @@ typedef enum {
 
 // this is exposed so that we can allocate these as local variables.  don't touch
 typedef struct {
-    DB *db;
     TXNID txnid;
     const DBT *key_left; const DBT *key_right;
     DBT key_left_copy, key_right_copy;
@@ -359,10 +362,10 @@ void toku_lock_request_default_init(toku_lock_request *lock_request);
 
 // initialize the lock request parameters.
 // this API allows a lock request to be reused.
-void toku_lock_request_set(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
+void toku_lock_request_set(toku_lock_request *lock_request, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
 
 // initialize and set the parameters for a lock request.  it is equivalent to _default_init followed by _set.
-void toku_lock_request_init(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
+void toku_lock_request_init(toku_lock_request *lock_request, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
 
 // destroy a lock request.
 void toku_lock_request_destroy(toku_lock_request *lock_request);

@@ -90,7 +90,8 @@ toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS statp) {
 
 static inline int 
 lt_panic(toku_lock_tree *tree, int r) {
-    return tree->mgr->panic(tree->db, r);
+    // TODO: (Zardosht) handle this panic properly
+    return tree->mgr->panic(NULL, r);
 }
 
 // forward defs of lock request tree functions
@@ -226,7 +227,7 @@ toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
              be the sole determinant of the comparison */
         return infinite_compare(x->key_payload, y->key_payload);
     }
-    return x->lt->compare_fun(x->lt->db,
+    return x->lt->compare_fun(&x->lt->fake_db,
                               recreate_DBT(&point_1, x->key_payload, x->key_len),
                               recreate_DBT(&point_2, y->key_payload, y->key_len));
 }
@@ -1098,21 +1099,9 @@ r_backwards(toku_interval* range) {
                    (toku_lt_point_cmp(left, right) > 0));
 }
 
-static inline void 
-lt_set_comparison_functions(toku_lock_tree* tree, DB* db) {
-    assert(!tree->db);
-    tree->db = db;
-}
-
-static inline void 
-lt_clear_comparison_functions(toku_lock_tree* tree) {
-    assert(tree);
-    tree->db          = NULL;
-}
-
 /* Preprocess step for acquire functions. */
 static inline int 
-lt_preprocess(toku_lock_tree* tree, DB* db,
+lt_preprocess(toku_lock_tree* tree,
               __attribute__((unused)) TXNID txn,
               const DBT* key_left,
               const DBT* key_right,
@@ -1131,24 +1120,13 @@ lt_preprocess(toku_lock_tree* tree, DB* db,
     init_point(right, tree, key_right);
     init_query(query, left, right);
 
-    lt_set_comparison_functions(tree, db);
-
     /* Verify left <= right, otherwise return EDOM. */
     if (r_backwards(query)) { 
         r = EDOM; goto cleanup; 
     }
     r = 0;
 cleanup:
-    if (r == 0) {
-        assert(tree->db);
-    }
     return r;
-}
-
-/* Postprocess step for acquire functions. */
-static inline void 
-lt_postprocess(toku_lock_tree* tree) {
-    lt_clear_comparison_functions(tree);
 }
 
 static inline int 
@@ -1333,15 +1311,12 @@ toku_lt_create(toku_lock_tree** ptree,
     assert(r == 0);
     r = toku_rth_create(&tmp_tree->rth);
     assert(r == 0);
-    r = toku_rth_create(&tmp_tree->txns_to_unlock);
-    assert(r == 0);
     tmp_tree->buflen = __toku_default_buflen;
     tmp_tree->buf    = (toku_range*) toku_xmalloc(tmp_tree->buflen * sizeof(toku_range));
     tmp_tree->bw_buflen = __toku_default_buflen;
     tmp_tree->bw_buf    = (toku_range*) toku_xmalloc(tmp_tree->bw_buflen * sizeof(toku_range));
     tmp_tree->verify_buflen = 0;
     tmp_tree->verify_buf = NULL;
-    r = toku_omt_create(&tmp_tree->dbs);
     assert(r == 0);
     lock_request_tree_init(tmp_tree);
     toku_mutex_init(&tmp_tree->mutex, NULL);
@@ -1376,12 +1351,20 @@ lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
     lt->dict_id = dict_id;
 }
 
-static void lt_add_db(toku_lock_tree* tree, DB *db);
-static void lt_remove_db(toku_lock_tree* tree, DB *db);
-static void lt_unlock_deferred_txns(toku_lock_tree *tree);
+void
+toku_lt_update_descriptor(toku_lock_tree* tree, DESCRIPTOR desc) {
+    if (tree->desc_s.dbt.data) {
+        toku_free(tree->desc_s.dbt.data);
+        tree->desc_s.dbt.data = NULL;
+    }
+    if (desc) {
+        tree->desc_s.dbt.size = desc->dbt.size;
+        tree->desc_s.dbt.data = toku_memdup(desc->dbt.data, desc->dbt.size);
+    }
+}
 
 int 
-toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB *db, toku_dbt_cmp compare_fun) {
+toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, toku_dbt_cmp compare_fun) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
@@ -1389,7 +1372,6 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB
     toku_lock_tree* tree = NULL;
     bool added_to_ltm    = FALSE;
     bool added_to_idlth  = FALSE;
-    bool added_extant_db  = FALSE;
     
     ltm_mutex_lock(mgr);
     map = toku_idlth_find(mgr->idlth, dict_id);
@@ -1398,31 +1380,33 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB
         tree = map->tree;
         assert (tree != NULL);
         toku_lt_add_ref(tree);
-        lt_add_db(tree, db);
-        lt_unlock_deferred_txns(tree);
         *ptree = tree;
         r = 0;
         goto cleanup;
     }
     /* Must create new lock tree for this dict_id*/
     r = toku_lt_create(&tree, mgr, compare_fun);
-    if (r != 0)
+    if (r != 0) {
         goto cleanup;
+    }
+    
     lt_set_dict_id(tree, dict_id);
     /* add tree to ltm */
     r = ltm_add_lt(mgr, tree);
-    if (r != 0)
+    if (r != 0) {
         goto cleanup;
+    }
     added_to_ltm = TRUE;
+
+    toku_lt_update_descriptor(tree, desc);
+    tree->fake_db.cmp_descriptor = &tree->desc_s;
 
     /* add mapping to idlth*/
     r = toku_idlth_insert(mgr->idlth, dict_id);
-    if (r != 0) 
+    if (r != 0) {
         goto cleanup;
+    }
     added_to_idlth = TRUE;
-
-    lt_add_db(tree, db);
-    added_extant_db = TRUE;
     
     map = toku_idlth_find(mgr->idlth, dict_id);
     assert(map);
@@ -1434,10 +1418,10 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DB
 cleanup:
     ltm_mutex_unlock(mgr);
     if (r == 0) {
-	mgr->STATUS_VALUE(LTM_LT_CREATE)++;
-	mgr->STATUS_VALUE(LTM_LT_NUM)++;
-	if (mgr->STATUS_VALUE(LTM_LT_NUM) > mgr->STATUS_VALUE(LTM_LT_NUM_MAX))
-	    mgr->STATUS_VALUE(LTM_LT_NUM_MAX) = mgr->STATUS_VALUE(LTM_LT_NUM);
+        mgr->STATUS_VALUE(LTM_LT_CREATE)++;
+        mgr->STATUS_VALUE(LTM_LT_NUM)++;
+        if (mgr->STATUS_VALUE(LTM_LT_NUM) > mgr->STATUS_VALUE(LTM_LT_NUM_MAX))
+            mgr->STATUS_VALUE(LTM_LT_NUM_MAX) = mgr->STATUS_VALUE(LTM_LT_NUM);
     }
     else {
         if (tree != NULL) {
@@ -1446,12 +1430,10 @@ cleanup:
                 ltm_remove_lt(mgr, tree);
             if (added_to_idlth)
                 toku_idlth_delete(mgr->idlth, dict_id);
-            if (added_extant_db)
-                lt_remove_db(tree, db);
             toku_lt_close(tree); 
             ltm_mutex_unlock(mgr);
         }
-	mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
+        mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
     }
     return r;
 }
@@ -1485,10 +1467,12 @@ toku_lt_close(toku_lock_tree* tree) {
         if (!first_error && r != 0) 
             first_error = r;
     }
+    if (tree->desc_s.dbt.data) {
+        toku_free(tree->desc_s.dbt.data);
+        tree->desc_s.dbt.data = NULL;
+    }
     ltm_decr_locks(tree->mgr, ranges);
-    toku_rth_close(tree->txns_to_unlock);
     toku_rth_close(tree->rth);
-    toku_omt_destroy(&tree->dbs);
     toku_mutex_destroy(&tree->mutex);
     toku_free(tree->buf);
     toku_free(tree->bw_buf);
@@ -1500,7 +1484,7 @@ cleanup:
 }
 
 static int 
-lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+lt_try_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
     assert(tree && tree->mutex_locked); // locked by this thread
 
     int r;
@@ -1509,7 +1493,7 @@ lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DB
     toku_interval query;
     bool dominated;
     
-    r = lt_preprocess(tree, db, txn, key_left, key_right, &left, &right, &query);
+    r = lt_preprocess(tree, txn, key_left, key_right, &left, &right, &query);
     if (r != 0)
         goto cleanup;
 
@@ -1558,8 +1542,6 @@ lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DB
     
     r = 0;
 cleanup:
-    if (tree)
-        lt_postprocess(tree);
     return r;
 }
 
@@ -1755,15 +1737,7 @@ lt_do_escalation(toku_lock_tree* lt) {
     assert(lt && lt->mutex_locked);
 
     int r = ENOSYS;
-    DB* db;  // extract db from lt
-    OMTVALUE dbv;
 
-    assert(toku_omt_size(lt->dbs) > 0);  // there is at least one db associated with this locktree
-    r = toku_omt_fetch(lt->dbs, 0, &dbv);
-    assert_zero(r);
-    db = dbv;
-    lt_set_comparison_functions(lt, db);
-    
     if (!lt->lock_escalation_allowed) { 
         r = 0; goto cleanup; 
     }
@@ -1783,7 +1757,6 @@ lt_do_escalation(toku_lock_tree* lt) {
     r = 0;
 
 cleanup:
-    lt_clear_comparison_functions(lt);
     return r;
 }
 
@@ -1807,16 +1780,16 @@ ltm_do_escalation(toku_ltm* mgr) {
 }
 
 static int 
-lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right, bool do_escalation) {
+lt_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right, bool do_escalation) {
     int r = ENOSYS;
 
-    r = lt_try_acquire_range_read_lock(tree, db, txn, key_left, key_right);
+    r = lt_try_acquire_range_read_lock(tree, txn, key_left, key_right);
     if (r==TOKUDB_OUT_OF_LOCKS && do_escalation) {
         lt_mutex_unlock(tree);
         r = ltm_do_escalation(tree->mgr);
         lt_mutex_lock(tree);
         if (r == 0) { 
-	    r = lt_try_acquire_range_read_lock(tree, db, txn, key_left, key_right);
+	    r = lt_try_acquire_range_read_lock(tree, txn, key_left, key_right);
 	    if (r == 0) {
 		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_SUCCESSES)++;
 	    }
@@ -1840,25 +1813,25 @@ lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* k
 }
 
 int 
-toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT *key_right) {
+toku_lt_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT *key_right) {
     int r = 0;
-    if (!tree || !db || !key_left || !key_right)
+    if (!tree || !key_left || !key_right)
         r = EINVAL;
     if (r == 0) {
         lt_mutex_lock(tree);
-        r = lt_acquire_range_read_lock(tree, db, txn, key_left, key_right, true);
+        r = lt_acquire_range_read_lock(tree, txn, key_left, key_right, true);
         lt_mutex_unlock(tree);
     }
     return r;
 }
 
 int 
-toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
-    return toku_lt_acquire_range_read_lock(tree, db, txn, key, key);
+toku_lt_acquire_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key) {
+    return toku_lt_acquire_range_read_lock(tree, txn, key, key);
 }
 
 static int 
-lt_try_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+lt_try_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
     assert(tree->mutex_locked);
 
     int r;
@@ -1866,7 +1839,7 @@ lt_try_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const D
     toku_point right;
     toku_interval query;
 
-    r = lt_preprocess(tree, db, txn, key_left, key_right, &left, &right, &query);
+    r = lt_preprocess(tree, txn, key_left, key_right, &left, &right, &query);
     if (r != 0)
         goto cleanup;
 
@@ -1940,22 +1913,20 @@ lt_try_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const D
             goto cleanup;
     }
 cleanup:
-    if (tree)
-        lt_postprocess(tree);
     return r;
 }
 
 static int 
-lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right, bool do_escalation) {
+lt_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right, bool do_escalation) {
     int r = ENOSYS;
 
-    r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
+    r = lt_try_acquire_range_write_lock(tree, txn, key_left, key_right);
     if (r == TOKUDB_OUT_OF_LOCKS && do_escalation) {
         lt_mutex_unlock(tree);
         r = ltm_do_escalation(tree->mgr);
         lt_mutex_lock(tree);
         if (r == 0) {
-            r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
+            r = lt_try_acquire_range_write_lock(tree, txn, key_left, key_right);
 	    if (r == 0) {
 		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_SUCCESSES)++;
 	    }
@@ -1979,21 +1950,21 @@ lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* 
 }
 
 int
-toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
+toku_lt_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r = 0;
-    if (!tree || !db || !key_left || !key_right)
+    if (!tree || !key_left || !key_right)
         r = EINVAL;
     if (r == 0) {
         lt_mutex_lock(tree);
-        r = lt_acquire_range_write_lock(tree, db, txn, key_left, key_right, true);
+        r = lt_acquire_range_write_lock(tree, txn, key_left, key_right, true);
         lt_mutex_unlock(tree);
     }
     return r;
 }
 
 int 
-toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
-    return toku_lt_acquire_range_write_lock(tree, db, txn, key, key);
+toku_lt_acquire_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key) {
+    return toku_lt_acquire_range_write_lock(tree, txn, key, key);
 }   
 
 #if TOKU_LT_USE_BORDERWRITE
@@ -2122,14 +2093,7 @@ lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     if (selfwrite) {
         ranges += toku_rt_get_size(selfwrite);
 
-        assert(toku_omt_size(tree->dbs) > 0);
-        OMTVALUE dbv;
-        r = toku_omt_fetch(tree->dbs, 0, &dbv);
-        assert_zero(r);
-        DB *db = dbv;
-        lt_set_comparison_functions(tree, db);
         r = lt_border_delete(tree, selfwrite);
-        lt_clear_comparison_functions(tree);
         if (r != 0) 
             return lt_panic(tree, r);
 
@@ -2159,29 +2123,11 @@ toku_lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
         r = EINVAL; goto cleanup;
     }
     lt_mutex_lock(tree);
-    if (toku_omt_size(tree->dbs) > 0) {
-        lt_unlock_txn(tree, txn);
-        lt_retry_lock_requests(tree);
-    } else {
-        r = toku_rth_insert(tree->txns_to_unlock, txn);
-    }
+    lt_unlock_txn(tree, txn);
+    lt_retry_lock_requests(tree);
     lt_mutex_unlock(tree);
 cleanup:
     return r;
-}
-
-static void
-lt_unlock_deferred_txns(toku_lock_tree *tree) {
-    lt_mutex_lock(tree);
-    toku_rth_start_scan(tree->txns_to_unlock);
-    rt_forest *forest;
-    while ((forest = toku_rth_next(tree->txns_to_unlock)) != NULL) {
-        TXNID txn = forest->hash_key;
-        lt_unlock_txn(tree, txn);
-    }
-    toku_rth_clear(tree->txns_to_unlock);
-    lt_retry_lock_requests(tree);
-    lt_mutex_unlock(tree);
 }
 
 void 
@@ -2222,52 +2168,8 @@ cleanup:
     return r;
 }
 
-//Heaviside function to find a DB by DB (used to find the index) (just sort by pointer addr)
-static int 
-find_db (OMTVALUE v, void *dbv) {
-    DB *db = v;
-    DB *dbfind = dbv;
-    if (db < dbfind) 
-        return -1;
-    if (db > dbfind) 
-        return +1;
-    return 0;
-}
-
-static void 
-lt_add_db(toku_lock_tree* tree, DB *db) {
-    lt_mutex_lock(tree);
-    if (db != NULL) {
-        int r;
-        OMTVALUE get_dbv = NULL;
-        uint32_t index;
-        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index);
-        assert(r == DB_NOTFOUND);
-        r = toku_omt_insert_at(tree->dbs, db, index);
-        assert_zero(r);
-    }
-    lt_mutex_unlock(tree);
-}
-
-static void 
-lt_remove_db(toku_lock_tree* tree, DB *db) {
-    lt_mutex_lock(tree);
-    if (db != NULL) {
-        int r;
-        OMTVALUE get_dbv = NULL;
-        uint32_t index;
-        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index);
-        assert_zero(r);
-        assert(db == get_dbv);
-        r = toku_omt_delete_at(tree->dbs, index);
-        assert_zero(r);
-    }
-    lt_mutex_unlock(tree);
-}
-
 void 
-toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
-    lt_remove_db(tree, db);
+toku_lt_remove_db_ref(toku_lock_tree* tree) {
     int r = toku_lt_remove_ref(tree);
     assert_zero(r);
 }
@@ -2290,7 +2192,6 @@ lock_request_destroy_wait(toku_lock_request *lock_request) {
 
 void 
 toku_lock_request_default_init(toku_lock_request *lock_request) {
-    lock_request->db = NULL;
     lock_request->txnid = 0;
     lock_request->key_left = lock_request->key_right = NULL;
     lock_request->key_left_copy = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
@@ -2303,9 +2204,8 @@ toku_lock_request_default_init(toku_lock_request *lock_request) {
 }
 
 void 
-toku_lock_request_set(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
+toku_lock_request_set(toku_lock_request *lock_request, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
     assert(lock_request->state != LOCK_REQUEST_PENDING);
-    lock_request->db = db;
     lock_request->txnid = txnid;
     lock_request->key_left = key_left;
     lock_request->key_right = key_right;
@@ -2314,9 +2214,9 @@ toku_lock_request_set(toku_lock_request *lock_request, DB *db, TXNID txnid, cons
 }
 
 void 
-toku_lock_request_init(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
+toku_lock_request_init(toku_lock_request *lock_request, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
     toku_lock_request_default_init(lock_request);
-    toku_lock_request_set(lock_request, db, txnid, key_left, key_right, lock_type);
+    toku_lock_request_set(lock_request, txnid, key_left, key_right, lock_type);
 }
 
 void 
@@ -2502,10 +2402,10 @@ lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool c
     int r = 0;
     switch (lock_request->type) {
     case LOCK_REQUEST_READ:
-        r = lt_acquire_range_read_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right, do_escalation);
+        r = lt_acquire_range_read_lock(tree, lock_request->txnid, lock_request->key_left, lock_request->key_right, do_escalation);
         break;
     case LOCK_REQUEST_WRITE:
-        r = lt_acquire_range_write_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right, do_escalation);
+        r = lt_acquire_range_write_lock(tree, lock_request->txnid, lock_request->key_left, lock_request->key_right, do_escalation);
         break;
     case LOCK_REQUEST_UNKNOWN:
         assert(0);
@@ -2680,7 +2580,6 @@ toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock
     toku_point left; init_point(&left,  tree, lock_request->key_left);
     toku_point right; init_point(&right, tree, lock_request->key_right);
     toku_interval query; init_query(&query, &left, &right);
-    lt_set_comparison_functions(tree, lock_request->db);
 
     uint32_t n_expected_ranges = 0;
     toku_range *ranges = NULL;
@@ -2702,7 +2601,6 @@ toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock
     if (ranges) 
         toku_free(ranges);
 
-    lt_clear_comparison_functions(tree);
     return r;
 }
 
@@ -2784,11 +2682,9 @@ lt_verify(toku_lock_tree *lt) {
 }
 
 void 
-toku_lt_verify(toku_lock_tree *lt, DB *db) {
+toku_lt_verify(toku_lock_tree *lt) {
     lt_mutex_lock(lt);
-    lt_set_comparison_functions(lt, db);
     lt_verify(lt);
-    lt_clear_comparison_functions(lt);
     lt_mutex_unlock(lt);
 }
 

@@ -7,7 +7,7 @@
 static int read_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
-    toku_lock_request_init(&lr, (DB*)1, txnid, &key, &key, LOCK_REQUEST_READ);
+    toku_lock_request_init(&lr, txnid, &key, &key, LOCK_REQUEST_READ);
     int r = toku_lt_acquire_lock_request_with_default_timeout(lt, &lr);
     toku_lock_request_destroy(&lr);
     return r;
@@ -16,7 +16,7 @@ static int read_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
 static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
-    toku_lock_request_init(&lr, (DB*)1, txnid, &key, &key, LOCK_REQUEST_WRITE);
+    toku_lock_request_init(&lr, txnid, &key, &key, LOCK_REQUEST_WRITE);
     int r = toku_lt_acquire_lock_request_with_default_timeout(lt, &lr);
     toku_lock_request_destroy(&lr);
     return r;
@@ -53,10 +53,8 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
-    DB *fake_db = (DB *) 1;
-
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -73,7 +71,7 @@ int main(int argc, const char *argv[]) {
     r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);
 
     // shutdown 
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

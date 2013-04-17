@@ -221,11 +221,11 @@ toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node)
 }
 
 void
-toku_unpin_brtnode(BRT brt, BRTNODE node)
+toku_unpin_brtnode(struct brt_header *h, BRTNODE node)
 {
     // printf("%*sUnpin %ld\n", 8-node->height, "", node->thisnodename.b);
-    VERIFY_NODE(brt,node);
-    toku_unpin_brtnode_off_client_thread(brt->h, node);
+    //VERIFY_NODE(brt,node);
+    toku_unpin_brtnode_off_client_thread(h, node);
 }
 
 void

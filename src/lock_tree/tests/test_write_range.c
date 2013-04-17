@@ -34,14 +34,12 @@ static void init_query(void) {
     query.right = &qright;
 }
 
-static DB *fake_db = (DB *) 1;
-
 static void setup_tree(void) {
     assert(!lt && !ltm);
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     CKERR(r);
     assert(lt);
     init_query();
@@ -49,14 +47,14 @@ static void setup_tree(void) {
 
 static void close_tree(void) {
     assert(lt && ltm);
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm); CKERR(r);
     lt = NULL;
     ltm = NULL;
 }
 
 static void lt_verify(void) {
-    toku_lt_verify(lt, NULL);
+    toku_lt_verify(lt);
 }
 
 typedef enum { null = -1, infinite = -2, neg_infinite = -3 } lt_infty;
@@ -89,11 +87,11 @@ static void lt_insert(int r_expect, char txn, int key_l,
     TXNID local_txn = (TXNID) (size_t) txn;
 
     if (read_flag)
-        r = toku_lt_acquire_range_read_lock(lt, db, local_txn,
+        r = toku_lt_acquire_range_read_lock(lt, local_txn,
                                             key_left,
                                             key_right);
     else
-        r = toku_lt_acquire_write_lock(lt, db, local_txn, key_left);
+        r = toku_lt_acquire_write_lock(lt, local_txn, key_left);
     CKERR2(r, r_expect);
     lt_verify();
 }
@@ -119,7 +117,7 @@ static void lt_insert_write_range(int r_expect, char txn, int key_l, int key_r) 
 
     TXNID local_txn = (TXNID) (size_t) txn;
 
-    r = toku_lt_acquire_range_write_lock(lt, db, local_txn, key_left, key_right);
+    r = toku_lt_acquire_range_write_lock(lt, local_txn, key_left, key_right);
     CKERR2(r, r_expect);
     lt_verify();
 }

@@ -781,7 +781,7 @@ int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
     __attribute__((__warn_unused_result__));
 
 // toku_brt_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-int toku_brt_root_put_cmd(BRT brt, BRT_MSG_S * cmd)
+int toku_brt_root_put_cmd(struct brt_header *h, BRT_MSG_S * cmd)
     __attribute__((__warn_unused_result__));
 
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);

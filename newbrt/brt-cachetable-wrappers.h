@@ -105,7 +105,7 @@ toku_unpin_brtnode_off_client_thread(struct brt_header* h, BRTNODE node);
  * Used for nodes pinned on a client thread
  */
 void
-toku_unpin_brtnode(BRT brt, BRTNODE node);
+toku_unpin_brtnode(struct brt_header *h, BRTNODE node);
 
 void
 toku_unpin_brtnode_read_only(BRT brt, BRTNODE node);

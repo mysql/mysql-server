@@ -41,10 +41,9 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
-    DB *fake_db = (DB *) 1;
 
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     const TXNID txn_a = 1;
@@ -54,32 +53,32 @@ int main(int argc, const char *argv[]) {
     DBT key_m = { .data = "M", .size = 1 };
 
     // txn_a gets W(L)
-    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, fake_db, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
+    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&a_w_l, lt, false); assert(r == 0); 
     assert(a_w_l.state == LOCK_REQUEST_COMPLETE && a_w_l.complete_r == 0);
     toku_lock_request_destroy(&a_w_l);
     toku_lt_add_ref(lt);
 
     // txn_b gets W(M)
-    toku_lock_request b_w_m; toku_lock_request_init(&b_w_m, fake_db, txn_b, &key_m, &key_m, LOCK_REQUEST_WRITE);
+    toku_lock_request b_w_m; toku_lock_request_init(&b_w_m, txn_b, &key_m, &key_m, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&b_w_m, lt, false); assert(r == 0); 
     assert(b_w_m.state == LOCK_REQUEST_COMPLETE && b_w_m.complete_r == 0);
     toku_lock_request_destroy(&b_w_m);
     toku_lt_add_ref(lt);
 
     // start closing the lock tree
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
 
     // txn_a unlocks
     r = toku_lt_unlock_txn(lt, txn_a);
     toku_lt_remove_ref(lt);
 
     // reopen the lock tree
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     // txn_b gets W(L)
-    toku_lock_request b_w_l; toku_lock_request_init(&b_w_l, fake_db, txn_b, &key_l, &key_l, LOCK_REQUEST_WRITE);
+    toku_lock_request b_w_l; toku_lock_request_init(&b_w_l, txn_b, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&b_w_l, lt, false); assert(r == 0);
     assert(b_w_l.state == LOCK_REQUEST_COMPLETE && b_w_l.complete_r == 0);
     toku_lock_request_destroy(&b_w_l);

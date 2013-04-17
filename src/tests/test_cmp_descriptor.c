@@ -203,6 +203,19 @@ static void run_test(void) {
     do_inserts_and_queries(db);
     CHK(db->close(db, 0));
 
+    cmp_desc_is_four = TRUE;
+    CHK(db_create(&db, env, 0));
+    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666));
+    IN_TXN_COMMIT(env, NULL, txn_1, 0, {
+        CHK(db->change_descriptor(db, txn_1, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR));
+        assert_desc_four(db);
+        assert_cmp_desc_valid(db);
+    });
+    assert_desc_four(db);
+    assert_cmp_desc_valid(db);
+    do_inserts_and_queries(db);
+    CHK(db->close(db, 0));
+    
 }
 
 int test_main (int argc, char * const argv[]) {
