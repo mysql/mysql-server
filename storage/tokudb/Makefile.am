@@ -11,13 +11,15 @@ INCLUDES =              -I$(top_builddir)/include \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir) \
 			-I$(TOKUFRACTALTREE)/include
+
 LDADD =
 
 DEFS =	@DEFS@
+
 noinst_HEADERS	  =	
 
 EXTRA_LTLIBRARIES =	ha_tokudb.la
-pkglib_LTLIBRARIES =	@plugin_tokudb_shared_target@
+pkgplugin_LTLIBRARIES =	@plugin_tokudb_shared_target@
 ha_tokudb_la_LIBADD =   -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -ltokuportability
 ha_tokudb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_tokudb_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
