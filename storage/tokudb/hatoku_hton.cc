@@ -1107,7 +1107,6 @@ cleanup:
     return error;
 }
 
-/*** to be used when timestamps are sent in engine status as u_int64_t instead of as char strings
 static void
 format_time(u_int64_t time64, char *buf) {
     time_t timer = (time_t) time64;
@@ -1125,7 +1124,6 @@ format_time(u_int64_t time64, char *buf) {
         end = buf[len-1];
     }
 }
-***/
 
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
@@ -1144,10 +1142,13 @@ extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
 static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
+    uint64_t panic;
+    const int panic_string_len = 1024;
+    char panic_string[panic_string_len] = {'\0'};
+    uint64_t num_rows;
+    fs_redzone_state redzone_state;
     const int bufsiz = 1024;
-    char buf[bufsiz] = {'\0'};
-
-    ENGINE_STATUS engstat;
+    char buf[bufsiz];
 
 #if MYSQL_VERSION_ID < 50500
     {
@@ -1156,483 +1157,71 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 	STATPRINT("Version", buf);
     }
 #endif
-    error = db_env->get_engine_status(db_env, &engstat, buf, bufsiz);
-    if (strlen(buf)) {
-	STATPRINT("Environment panic string", buf);
+    error = db_env->get_engine_status_num_rows (db_env, &num_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[num_rows];
+    error = db_env->get_engine_status (db_env, mystat, num_rows, &redzone_state, &panic, panic_string, panic_string_len);
+
+    if (strlen(panic_string)) {
+	STATPRINT("Environment panic string", panic_string);
     }
     if (error == 0) {
-	if (engstat.env_panic) {
-	    snprintf(buf, bufsiz, "%" PRIu64, engstat.env_panic);
+	if (panic) {
+	    snprintf(buf, bufsiz, "%" PRIu64, panic);
 	    STATPRINT("Environment panic", buf);
 	}
-	if (engstat.logger_panic) {
-	    snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_panic);
-	    STATPRINT("logger panic", buf);
-	    snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_panic_errno);
-	    STATPRINT("logger panic errno", buf);
-	}
+        
+        if(redzone_state == FS_BLOCKED) {
+            STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
+            snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
+        }
+        else if (redzone_state == FS_GREEN) {
+            snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
+        }
+        else if (redzone_state == FS_YELLOW) {
+            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
+        } 
+        else if (redzone_state == FS_RED){
+            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
+        }
+        else {
+            snprintf(buf, bufsiz, "information unavailable, unknown redzone state %d", redzone_state);
+        }
+        STATPRINT ("disk free space", buf);
 
-
-      if(engstat.enospc_threads_blocked) {
-	  STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
-	  snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
-      }
-      else if (engstat.enospc_state == 0) {
-	  snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
-      }
-      else if (engstat.enospc_state == 1) {
-	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
-      } 
-      else if (engstat.enospc_state == 2){
-	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
-      }
-      else {
-	  snprintf(buf, bufsiz, "information unavailable %" PRIu64, engstat.enospc_state);
-      }
-      STATPRINT ("disk free space", buf);
-
-      STATPRINT("time of environment creation", engstat.creationtime);
-      STATPRINT("time of engine startup", engstat.startuptime);
-      STATPRINT("time now", engstat.now);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_period);
-      STATPRINT("checkpoint period", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_footprint);
-      STATPRINT("checkpoint status code (0 = idle)", buf);
-      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
-      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
-      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_last_lsn);
-      STATPRINT("last complete checkpoint LSN ", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_count);
-      STATPRINT("checkpoints taken  ", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_count_fail);
-      STATPRINT("checkpoints failed", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_waiters_now);
-      STATPRINT("checkpoint waiters now", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_waiters_max);
-      STATPRINT("checkpoint waiters max", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_mo);
-      STATPRINT("checkpoint client wait on mo lock, not for a checkpoint", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_client_wait_on_cs);
-      STATPRINT("checkpoint client wait on cs lock, not for a checkpoint", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_sched_cs);
-      STATPRINT("checkpoint sched wait on cs lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_client_cs);
-      STATPRINT("checkpoint client wait on cs lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_txn_cs);
-      STATPRINT("checkpoint txn wait on cs lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_other_cs);
-      STATPRINT("checkpoint other wait on cs lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_sched_mo);
-      STATPRINT("checkpoint sched wait on mo lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_client_mo);
-      STATPRINT("checkpoint client wait on mo lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_txn_mo);
-      STATPRINT("checkpoint txn wait on mo lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_wait_other_mo);
-      STATPRINT("checkpoint other wait on mo lock", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_period);
-      STATPRINT("cleaner period", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cleaner_iterations);
-      STATPRINT("cleaner iterations", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_begin);
-      STATPRINT("txn begin", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_commit);
-      STATPRINT("txn commits", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_abort);
-      STATPRINT("txn aborts", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_close);
-      STATPRINT("txn close (commit+abort)", buf);
-
-      //3988
-      SHOWVAL(txn_num_open);
-      SHOWVAL(txn_max_open);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_oldest_live);
-      STATPRINT("txn oldest live", buf);
-      STATPRINT("txn oldest starttime", engstat.txn_oldest_live_starttime);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.next_lsn);
-      STATPRINT("next LSN", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts);
-      STATPRINT("dictionary inserts", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts_fail);
-      STATPRINT("dictionary inserts fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes);
-      STATPRINT("dictionary deletes", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes_fail);
-      STATPRINT("dictionary deletes fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates);
-      STATPRINT("dictionary updates", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_fail);
-      STATPRINT("dictionary updates fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_broadcast);
-      STATPRINT("dictionary broadcast updates", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_broadcast_fail);
-      STATPRINT("dictionary broadcast updates fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_updates);
-      STATPRINT("leafentry updates", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_updates_broadcast);
-      STATPRINT("leafentry broadcast updates", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.descriptor_set);
-      STATPRINT("descriptor_set", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_hit);
-      STATPRINT("partial_fetch_hit", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_miss);
-      STATPRINT("partial_fetch_miss", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_compressed);
-      STATPRINT("partial_fetch_compressed", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_nonleaf);
-      STATPRINT("partial_evictions_nonleaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_leaf);
-      STATPRINT("partial_evictions_leaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.msn_discards);
-      STATPRINT("msn_discards", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_workdone);
-      STATPRINT("max_workdone", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_searches);
-      STATPRINT("total_searches", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_retries);
-      STATPRINT("total_retries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_search_excess_retries);
-      STATPRINT("max_search_excess_retries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_search_root_tries);
-      STATPRINT("max_search_root_tries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.search_root_retries);
-      STATPRINT("search_root_retries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.search_tries_gt_height);
-      STATPRINT("search_tries_gt_height", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.search_tries_gt_heightplus3);
-      STATPRINT("search_tries_gt_heightplus3", buf);
-
-      SHOWVAL(cleaner_executions);
-      SHOWVAL(cleaner_total_nodes);
-      SHOWVAL(cleaner_h1_nodes);
-      SHOWVAL(cleaner_hgt1_nodes);
-      SHOWVAL(cleaner_empty_nodes);
-      SHOWVAL(cleaner_nodes_dirtied);
-      SHOWVAL(cleaner_max_buffer_size);
-      SHOWVAL(cleaner_min_buffer_size);
-      SHOWVAL(cleaner_total_buffer_size);
-      SHOWVAL(cleaner_max_buffer_workdone);
-      SHOWVAL(cleaner_min_buffer_workdone);
-      SHOWVAL(cleaner_total_buffer_workdone);
-      SHOWVAL(cleaner_num_leaf_merges_started);
-      SHOWVAL(cleaner_num_leaf_merges_running);
-      SHOWVAL(cleaner_num_leaf_merges_completed);
-
-      SHOWVAL(cleaner_num_dirtied_for_leaf_merge);
-      SHOWVAL(flush_total);
-      SHOWVAL(flush_in_memory);
-      SHOWVAL(flush_needed_io);
-      SHOWVAL(flush_cascades);
-      SHOWVAL(flush_cascades_1);
-      SHOWVAL(flush_cascades_2);
-      SHOWVAL(flush_cascades_3);
-      SHOWVAL(flush_cascades_4);
-      SHOWVAL(flush_cascades_5);
-      SHOWVAL(flush_cascades_gt_5);
-      SHOWVAL(disk_flush_leaf);
-      SHOWVAL(disk_flush_nonleaf);
-      SHOWVAL(disk_flush_leaf_for_checkpoint);
-      SHOWVAL(disk_flush_nonleaf_for_checkpoint);
-      SHOWVAL(create_leaf);
-      SHOWVAL(create_nonleaf);
-      SHOWVAL(destroy_leaf);
-      SHOWVAL(destroy_nonleaf);
-      SHOWVAL(split_leaf);
-      SHOWVAL(split_nonleaf);
-      SHOWVAL(merge_leaf);
-      SHOWVAL(merge_nonleaf);
-      SHOWVAL(dirty_leaf);
-      SHOWVAL(dirty_nonleaf);
-      SHOWVAL(balance_leaf);
-      SHOWVAL(hot_num_started);
-      SHOWVAL(hot_num_completed);
-      SHOWVAL(hot_num_aborted);
-      SHOWVAL(hot_max_root_flush_count);
-      SHOWVAL(msg_bytes_in);
-      SHOWVAL(msg_bytes_out);
-      SHOWVAL(msg_bytes_curr);
-      SHOWVAL(msg_bytes_max);
-      SHOWVAL(msg_num);
-      SHOWVAL(msg_num_broadcast);
-      SHOWVAL(num_basements_decompressed_normal);
-      SHOWVAL(num_basements_decompressed_aggressive);
-      SHOWVAL(num_basements_decompressed_prefetch);
-      SHOWVAL(num_basements_decompressed_write);
-      SHOWVAL(num_msg_buffer_decompressed_normal);
-      SHOWVAL(num_msg_buffer_decompressed_aggressive);
-      SHOWVAL(num_msg_buffer_decompressed_prefetch);
-      SHOWVAL(num_msg_buffer_decompressed_write);
-      SHOWVAL(num_pivots_fetched_query);
-      SHOWVAL(num_pivots_fetched_prefetch);
-      SHOWVAL(num_pivots_fetched_write);
-      SHOWVAL(num_basements_fetched_normal);
-      SHOWVAL(num_basements_fetched_aggressive);
-      SHOWVAL(num_basements_fetched_prefetch);
-      SHOWVAL(num_basements_fetched_write);
-      SHOWVAL(num_msg_buffer_fetched_normal);
-      SHOWVAL(num_msg_buffer_fetched_aggressive);
-      SHOWVAL(num_msg_buffer_fetched_prefetch);
-      SHOWVAL(num_msg_buffer_fetched_write);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
-      STATPRINT("dictionary inserts multi", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
-      STATPRINT("dictionary inserts multi fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_deletes);
-      STATPRINT("dictionary deletes multi", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_deletes_fail);
-      STATPRINT("dictionary deletes multi fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_updates);
-      STATPRINT("dictionary updates multi", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_updates_fail);
-      STATPRINT("dictionary updates multi fail", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.point_queries);
-      STATPRINT("dictionary point queries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
-      STATPRINT("dictionary sequential queries", buf);
-
-      //3988
-      SHOWVAL(num_db_open);
-      SHOWVAL(num_db_close);
-      SHOWVAL(num_open_dbs);
-      SHOWVAL(max_open_dbs);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_committed_xr);
-      STATPRINT("le_max_committed_xr", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_provisional_xr);
-      STATPRINT("le_max_provisional_xr", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_memsize);
-      STATPRINT("le_max_memsize", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_expanded);
-      STATPRINT("le_expanded", buf);
-
-      const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
-      u_int64_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
-      snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
-      STATPRINT("ydb lock", lockstat);
-      STATPRINT("ydb lock counter", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.num_waiters_now);
-      STATPRINT("num_waiters_now", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_waiters);
-      STATPRINT("max_waiters", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleep_time);
-      STATPRINT("total_sleep_time", buf);
-      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.max_time_ydb_lock_held));
-      STATPRINT("max_time_ydb_lock_held", buf);
-      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_ydb_lock_held));
-      STATPRINT("total_time_ydb_lock_held", buf);
-      snprintf(buf, bufsiz, "%.6f", tokutime_to_seconds(engstat.total_time_since_start));
-      STATPRINT("total_time_since_start", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_taken);  
-      STATPRINT("cachetable lock taken", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_released);  
-      STATPRINT("cachetable lock released", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_hit);  
-      STATPRINT("cachetable hit", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_miss);  
-      STATPRINT("cachetable miss", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_misstime);  
-      STATPRINT("cachetable misstime", buf);
-#if 0  
-      // restore display when this is fixed
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_waittime);  
-      STATPRINT("cachetable waittime", buf);
-#endif
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_reading);  
-      STATPRINT("cachetable wait reading", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_writing);  
-      STATPRINT("cachetable wait writing", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_wait_checkpoint);  
-      STATPRINT("cachetable wait checkpoint", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.puts);  
-      STATPRINT("cachetable puts (new nodes)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.prefetches);  
-      STATPRINT("cachetable prefetches", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pins);  
-      STATPRINT("cachetable maybe_get_and_pins", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
-      STATPRINT("cachetable maybe_get_and_pin_hits", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_current);  
-      STATPRINT("cachetable size_current", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_limit);  
-      STATPRINT("cachetable size_limit", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_max);  
-      STATPRINT("cachetable size_max", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
-      STATPRINT("cachetable size_writing", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_nonleaf);  
-      STATPRINT("cachetable size_nonleaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_leaf);  
-      STATPRINT("cachetable size_leaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_rollback);  
-      STATPRINT("cachetable size_rollback", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_cachepressure);  
-      STATPRINT("cachetable size_cachepressure", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_evictions);  
-      STATPRINT("cachetable evictions", buf);
-      // cleaner_executions displayed with other cleaner thread info
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max);
-      STATPRINT("max range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_curr);
-      STATPRINT("range locks in use", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max_memory);
-      STATPRINT("memory available for range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_curr_memory);
-      STATPRINT("memory in use for range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lock_escalation_successes);
-      STATPRINT("range lock escalation successes", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_lock_escalation_failures);
-      STATPRINT("range lock escalation failures", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_read_locks);
-      STATPRINT("range read locks acquired", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_read_locks_fail);
-      STATPRINT("range read locks unable to be acquired", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_out_of_read_locks);
-      STATPRINT("range read locks exhausted", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_write_locks);
-      STATPRINT("range write locks acquired", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_write_locks_fail);
-      STATPRINT("range write locks unable to be acquired", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_out_of_write_locks);
-      STATPRINT("range write locks exhausted", buf);
-
-      //3988
-      SHOWVAL(range_lt_create);
-      SHOWVAL(range_lt_create_fail);
-      SHOWVAL(range_lt_destroy);
-      SHOWVAL(range_lt_num);
-      SHOWVAL(range_lt_num_max);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks);
-      STATPRINT("directory_read_locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks_fail);
-      STATPRINT("directory_read_locks_fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_write_locks);
-      STATPRINT("directory_write_locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_write_locks_fail);
-      STATPRINT("directory_write_locks_fail", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_count);
-      STATPRINT("fsync count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_time);
-      STATPRINT("fsync time", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_ilock_ctr);
-      STATPRINT("logger ilock count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_olock_ctr);
-      STATPRINT("logger olock count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_swap_ctr);
-      STATPRINT("logger swap count", buf);
-
-      STATPRINT("most recent disk full", engstat.enospc_most_recent);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_threads_blocked);
-      STATPRINT("threads currently blocked by full disk", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_ctr);
-      STATPRINT("ENOSPC blocked count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_redzone_ctr);
-      STATPRINT("ENOSPC reserve count (redzone)", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create);
-      STATPRINT("loader create (success)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create_fail);
-      STATPRINT("loader create fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put);
-      STATPRINT("loader put", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put_fail);
-      STATPRINT("loader put_fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close);
-      STATPRINT("loader close (success)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close_fail);
-      STATPRINT("loader close fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_abort);
-      STATPRINT("loader abort", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_current);
-      STATPRINT("loaders current", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_max);
-      STATPRINT("loader max", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppress);
-      STATPRINT("log suppress (success) ", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppressfail);
-      STATPRINT("log suppress fail", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_create);
-      STATPRINT("indexer create (success)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_create_fail);
-      STATPRINT("indexer create fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_build);
-      STATPRINT("indexer build (success)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_build_fail);
-      STATPRINT("indexer build fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_close);
-      STATPRINT("indexer close (success)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_close_fail);
-      STATPRINT("indexer close fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_abort);
-      STATPRINT("indexer abort", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_current);
-      STATPRINT("indexers current", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_max);
-      STATPRINT("indexer max", buf);
-
-#if 0
-      // Restore these when we support upgrade again
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
-      STATPRINT("upgrade env status", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_header);
-      STATPRINT("upgrade header", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_nonleaf);
-      STATPRINT("upgrade nonleaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_leaf);
-      STATPRINT("upgrade leaf", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.optimized_for_upgrade);
-      STATPRINT("optimized for upgrade", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.original_ver);
-      STATPRINT("original version", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.ver_at_startup);
-      STATPRINT("version at startup", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v13);
-      STATPRINT("last LSN of version 13", buf);      
-      STATPRINT("time of upgrade to version 14", engstat.upgrade_v14_time);
-#endif
-      
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_count);
-      STATPRINT("malloc count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.free_count);
-      STATPRINT("free count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.realloc_count);
-      STATPRINT("realloc count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_fail);
-      STATPRINT("malloc fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.realloc_fail);
-      STATPRINT("realloc fail", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_requested);
-      STATPRINT("mem requested", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_used);
-      STATPRINT("mem used", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_freed);
-      STATPRINT("mem freed", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_mem_in_use);
-      STATPRINT("max mem in use", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_mmap_threshold);
-      STATPRINT("malloc mmap threshold", buf);
-      snprintf(buf, bufsiz, "%s", engstat.mallocator_version);
-      STATPRINT("mallocator version", buf);
-    }
+        for (uint64_t row = 0; row < num_rows; row++) {
+            switch (mystat[row].type) {
+            case FS_STATE:
+                snprintf(buf, bufsiz, "%"PRIu64"", mystat[row].value.num);
+                break;
+            case UINT64:
+                snprintf(buf, bufsiz, "%"PRIu64"", mystat[row].value.num);
+                break;
+            case CHARSTR:
+                snprintf(buf, bufsiz, "%s", mystat[row].value.str);
+                break;
+            case UNIXTIME:
+                {
+                    char tbuf[26];
+                    format_time(mystat[row].value.num, tbuf);
+                    snprintf(buf, bufsiz, "%s\n", tbuf);
+                }
+                break;
+            case TOKUTIME:
+                {
+                    double t = tokutime_to_seconds(mystat[row].value.num);
+                    snprintf(buf, bufsiz, "%.6f\n", t);
+                }
+                break;
+            default:
+                snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
+                break;                
+            }
+            STATPRINT(mystat[row].legend, buf);
+        }  
+    }  
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
 }
-
 
 void tokudb_checkpoint_lock(THD * thd) {
     int error;
