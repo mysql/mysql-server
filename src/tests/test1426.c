@@ -9,7 +9,7 @@
 #include <fcntl.h>
 
 // |DB_INIT_TXN| DB_INIT_LOG  | DB_RECOVER
-const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_LOCK |DB_THREAD |DB_PRIVATE|DB_INIT_LOG|DB_INIT_TXN;
+const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_LOCK |DB_THREAD |DB_PRIVATE;
 
 DB_ENV *env;
 DB     *db;
