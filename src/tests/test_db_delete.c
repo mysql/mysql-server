@@ -15,25 +15,29 @@
 
 
 
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DBT key, val;
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     assert(r == 0);
 }
 
-void expect_db_del(DB *db, int k, int flags, int expectr) {
+static void
+expect_db_del (DB *db, int k, int flags, int expectr) {
     DBT key;
     int r = db->del(db, 0, dbt_init(&key, &k, sizeof k), flags);
     assert(r == expectr);
 }
 
-void expect_db_get(DB *db, int k, int expectr) {
+static void
+expect_db_get (DB *db, int k, int expectr) {
     DBT key, val;
     int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
     assert(r == expectr);
 }
 
-void test_db_delete(int n, int dup_mode) {
+static void
+test_db_delete (int n, int dup_mode) {
     if (verbose) printf("test_db_delete:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -83,22 +87,23 @@ void test_db_delete(int n, int dup_mode) {
     }
 
     expect_db_del(db, htonl(n), 0, DB_NOTFOUND);
-#if USE_TDB
+#if defined(USE_TDB)
     expect_db_del(db, htonl(n), DB_DELETE_ANY, 0);
 #endif
-#if USE_BDB && defined(DB_DELETE_ANY)
-#if DB_DELETE_ANY == 0
+#if defined(USE_BDB) && defined(DB_DELETE_ANY)
+ #if DB_DELETE_ANY == 0
     expect_db_del(db, htonl(n), DB_DELETE_ANY, DB_NOTFOUND);
-#else
+ #else
     expect_db_del(db, htonl(n), DB_DELETE_ANY, EINVAL);
-#endif
+ #endif
 #endif
 
     r = db->close(db, 0);
     assert(r == 0);
 }
 
-void test_db_get_datasize0() {
+static void
+test_db_get_datasize0 (void) {
     if (verbose) printf("test_db_get_datasize0\n");
 
     DB_ENV * const null_env = 0;

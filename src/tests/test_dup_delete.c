@@ -12,14 +12,16 @@
 
 #include "test.h"
 
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     assert(r == 0);
 }
 
-void expect(DBC *cursor, int k, int v) {
+static void
+expect (DBC *cursor, int k, int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
     assert(r == 0);
@@ -29,7 +31,7 @@ void expect(DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -38,7 +40,8 @@ void expect(DBC *cursor, int k, int v) {
 }
 
 /* verify dup keys delete */
-void test_dup_delete(int n, int dup_mode) {
+static void
+test_dup_delete (int n, int dup_mode) {
     if (verbose) printf("test_dup_delete:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -131,7 +134,9 @@ void test_dup_delete(int n, int dup_mode) {
     assert(r == 0);
 }
 
-void test_dup_delete_delete(int n) {
+static __attribute__((__unused__))
+void
+test_dup_delete_delete (int n) {
     if (verbose) printf("test_dup_delete_delete:%d\n", n);
 
     DB_ENV * const null_env = 0;
@@ -211,7 +216,8 @@ void test_dup_delete_delete(int n) {
     assert(r == 0);
 }
 
-void test_dup_delete_insert(int n, int dup_mode) {
+static void
+test_dup_delete_insert (int n, int dup_mode) {
     if (verbose) printf("test_dup_delete_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -316,7 +322,9 @@ void test_dup_delete_insert(int n, int dup_mode) {
     assert(r == 0);
 }
 
-void test_all_dup_delete_insert(int n) {
+static __attribute__((__unused__))
+void
+test_all_dup_delete_insert (int n) {
     if (verbose) printf("test_all_dup_delete_insert:%d\n", n);
 
     DB_ENV * const null_env = 0;
@@ -391,7 +399,8 @@ void test_all_dup_delete_insert(int n) {
     assert(r == 0);
 }
 
-void test_walk_empty(int n, int dup_mode) {
+static void
+test_walk_empty (int n, int dup_mode) {
     if (verbose) printf("test_walk_empty:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -463,7 +472,9 @@ void test_walk_empty(int n, int dup_mode) {
 }
 
 /* insert, close, delete, insert, search */
-void test_icdi_search(int n, int dup_mode) {
+static __attribute__((__unused__))
+void
+test_icdi_search (int n, int dup_mode) {
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -552,7 +563,9 @@ void test_icdi_search(int n, int dup_mode) {
 }
 
 /* insert, close, insert, search */
-void test_ici_search(int n, int dup_mode) {
+static __attribute__((__unused__))
+void
+test_ici_search (int n, int dup_mode) {
     if (verbose) printf("test_ici_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -633,7 +646,8 @@ void test_ici_search(int n, int dup_mode) {
     assert(r == 0);
 }
 
-void expect_db_lookup(DB *db, int k, int v) {
+static void
+expect_db_lookup (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
@@ -646,7 +660,9 @@ void expect_db_lookup(DB *db, int k, int v) {
 }
 
 /* insert 0, insert 1, close, insert 0, search 0 */
-void test_i0i1ci0_search(int n, int dup_mode) {
+static __attribute__((__unused__))
+void
+test_i0i1ci0_search (int n, int dup_mode) {
     if (verbose) printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -709,7 +725,7 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
-#if USE_BDB
+#ifdef USE_BDB
     /* dup tests */
     for (i = 1; i <= (1<<16); i *= 2) {
         test_dup_delete(i, DB_DUP);

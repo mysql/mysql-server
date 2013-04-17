@@ -15,7 +15,7 @@ DB *db;
 
 #define NITER 100
 
-void *start_a_thread (void *i_p) {
+static void *start_a_thread (void *i_p) {
     int *which_thread_p = i_p;
     int i,r;
     for (i=0; i<NITER; i++) {
@@ -33,7 +33,8 @@ void *start_a_thread (void *i_p) {
     return 0;
 }
 
-void test_groupcommit (int nthreads) {
+static void
+test_groupcommit (int nthreads) {
     int r;
     DB_TXN *tid;
 
@@ -64,25 +65,30 @@ void test_groupcommit (int nthreads) {
 // Also, it doesn't happen every time, making helgrind unsuitable for regression tests.
 // So we must put locks around things that are properly serialized anyway.
 
-int fsync_count_maybe_lockprotected=0;
-void inc_fsync_count(void) {
+static int fsync_count_maybe_lockprotected=0;
+static void
+inc_fsync_count (void) {
     fsync_count_maybe_lockprotected++;
 }
 
-int get_fsync_count(void) {
+static int
+get_fsync_count (void) {
     int result=fsync_count_maybe_lockprotected;
     return result;
 }
 
-int do_fsync (int fd) {
+static int
+do_fsync (int fd) {
     inc_fsync_count();
     return fsync(fd);
 }
 
-const char *progname;
-struct timeval prevtime;
-int prev_count;
-void printtdiff (char *str) {
+static const char *progname;
+static struct timeval prevtime;
+static int prev_count;
+
+static void
+printtdiff (char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
     double tdiff = thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec);

@@ -12,9 +12,8 @@
 
 #include "test.h"
 
-
-
-void test_insert_delete_insert(int dup_mode) {
+static void
+test_insert_delete_insert (int dup_mode) {
     if (verbose) printf("test_insert_delete_insert:%d\n", dup_mode);
 
     DB_ENV * const null_env = 0;

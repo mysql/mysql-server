@@ -24,7 +24,8 @@ DB_ENV *dbenv;
 
 int nummallocced = 0;
 
-void* my_malloc(size_t size) {
+static void *
+my_malloc (size_t size) {
     void* p = malloc(size);
     if (size != 0) {
         nummallocced++;
@@ -33,13 +34,16 @@ void* my_malloc(size_t size) {
     return p;
 }
 
-void* my_realloc(void *p, size_t size) {
+static __attribute__((__unused__))
+void*
+my_realloc (void *p, size_t size) {
     void* newp = realloc(p, size);
 //    if (verbose) printf("realloc [%d] %p.\n", (int)size, newp);
     return newp;
 }
 
-void my_free(void * p) {
+static void
+my_free (void * p) {
     if (p) {
         nummallocced--;
 //        if (verbose) printf("Free %p.\n", p);
@@ -51,7 +55,8 @@ void my_free(void * p) {
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
+static int
+getskey (DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
     DATA* entry;
 
@@ -73,7 +78,7 @@ int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
     return 0;
 }
 
-void second_setup(u_int32_t dupflags) {
+static void second_setup (u_int32_t dupflags) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -99,7 +104,8 @@ void second_setup(u_int32_t dupflags) {
     r = db->associate(db, null_txn, sdb, getskey, 0);                           CKERR(r);
 }
 
-void insert_test(int pkey, int skey) {
+static void
+insert_test (int pkey, int skey) {
     int r;
     DATA entry;
     DBT data;
@@ -114,7 +120,8 @@ void insert_test(int pkey, int skey) {
     r = db->put(db, null_txn, &key, &data, 0);  CKERR(r);
 }
 
-DBT* dbt_init_malloc_and_copy(DBT* dbt, int something) {
+static DBT *
+dbt_init_malloc_and_copy (DBT* dbt, int something) {
     dbt_init_malloc(dbt);
     dbt->size = sizeof(something);
     dbt->data = my_malloc(dbt->size);
@@ -122,7 +129,8 @@ DBT* dbt_init_malloc_and_copy(DBT* dbt, int something) {
     return dbt;
 }
 
-void pget_test_set_skey_pkey(DBC* dbc, u_int32_t flag, int expect, int set_skey, int skey_set, int set_pkey, int pkey_set) {
+static void
+pget_test_set_skey_pkey (DBC* dbc, u_int32_t flag, int expect, int set_skey, int skey_set, int set_pkey, int pkey_set) {
     int r;
     DBT skey;
     DBT pkey;
@@ -140,11 +148,13 @@ void pget_test_set_skey_pkey(DBC* dbc, u_int32_t flag, int expect, int set_skey,
     my_free(data.data);
 }
 
-void pget_test(DBC* dbc, u_int32_t flag, u_int32_t expect) {
+static void
+pget_test (DBC* dbc, u_int32_t flag, u_int32_t expect) {
     pget_test_set_skey_pkey(dbc, flag, expect, 0, 0, 0, 0);
 }
 
-void close_dbs() {
+static void
+close_dbs (void) {
     int r;
 
     r = db->close(db, 0);       CKERR(r);
@@ -152,7 +162,8 @@ void close_dbs() {
 }
 
 
-u_int32_t get_dupflags(u_int32_t flag) {
+static u_int32_t
+get_dupflags (u_int32_t flag) {
     if (flag == DB_NEXT_DUP) {
         return DB_DUP | DB_DUPSORT;
     }
@@ -166,7 +177,8 @@ const int skeysmall = 11;
 const int skeymid = 13;
 const int skeybig = 17;
 
-void insert_setup(u_int32_t flag) {
+static void
+insert_setup (u_int32_t flag) {
     switch (flag) {
         case (DB_SET_RANGE):    //Must be inserted in descending
         case (DB_SET):          //Just insert any two.
@@ -208,7 +220,8 @@ void insert_setup(u_int32_t flag) {
     
 }
 
-void cursor_setup(DBC* dbc, u_int32_t flag) {
+static void
+cursor_setup (DBC* dbc, u_int32_t flag) {
     switch (flag) {
 #ifdef DB_NEXT_NODUP
         case (DB_NEXT_NODUP):

@@ -59,7 +59,7 @@ static void make_db (int n_locks) {
 	char hello[30], there[datasize+30];
 	DBT key,data;
 	snprintf(hello, sizeof(hello), "hello%09d", 2*i);
-	snprintf(there, sizeof(there), "there%d%0*d", 2*i, datasize, 2*i); // For BDB this is chosen so that different locks are on different pages
+	snprintf(there, sizeof(there), "there%d%0*d", 2*i, (int)datasize, 2*i); // For BDB this is chosen so that different locks are on different pages
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
 	key.data  = hello; key.size=strlen(hello)+1;
@@ -88,7 +88,7 @@ static void make_db (int n_locks) {
 	    DBT key,data;
 	    int num = 16*i+8*j+1;
 	    snprintf(hello, sizeof(hello), "hello%09d", num);
-	    snprintf(there, sizeof(there), "there%d%*d", num, datasize, num); // For BDB this is chosen so that different locks are on different pages
+	    snprintf(there, sizeof(there), "there%d%*d", num, (int)datasize, num); // For BDB this is chosen so that different locks are on different pages
 	    memset(&key, 0, sizeof(key));
 	    memset(&data, 0, sizeof(data));
 	    //printf("Writing %s in %d\n", hello, j);
@@ -118,8 +118,10 @@ static void make_db (int n_locks) {
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     make_db(-1);
-    make_db(100); return 0;
-    make_db(1000);
-    make_db(2000);
+    make_db(100);
+    if (0) {
+	make_db(1000);
+	make_db(2000);
+    }
     return 0;
 }

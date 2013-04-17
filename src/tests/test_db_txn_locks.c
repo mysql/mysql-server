@@ -15,7 +15,8 @@ struct heavi_extra {
     DB* db;
 };
 
-int heavi_after(const DBT *key, const DBT *val, void *extra) {
+static int
+heavi_after (const DBT *key, const DBT *val, void *extra) {
     //Assumes cmp is int_dbt_cmp
     struct heavi_extra *info = extra;
     int cmp = int_dbt_cmp(info->db, key, &info->key);
@@ -28,7 +29,8 @@ int heavi_after(const DBT *key, const DBT *val, void *extra) {
     //Returns >0 for greater with different key
 }
 
-int heavi_before(const DBT *key, const DBT *val, void *extra) {
+static int
+heavi_before (const DBT *key, const DBT *val, void *extra) {
     struct heavi_extra *info = extra;
     int cmp = int_dbt_cmp(info->db, key, &info->key);
     if (cmp!=0) return cmp;
@@ -42,19 +44,13 @@ int heavi_before(const DBT *key, const DBT *val, void *extra) {
 
 // ENVDIR is defined in the Makefile
 
-int dbtcmp(DBT *dbt1, DBT *dbt2) {
-    int r;
-    
-    r = dbt1->size - dbt2->size;  if (r) return r;
-    return memcmp(dbt1->data, dbt2->data, dbt1->size);
-}
+static DB *db;
+static DB_TXN* txns[(int)256];
+static DB_ENV* dbenv;
+static DBC*    cursors[(int)256];
 
-DB *db;
-DB_TXN* txns[(int)256];
-DB_ENV* dbenv;
-DBC*    cursors[(int)256];
-
-void put(BOOL success, char txn, int _key, int _data) {
+static void
+put(BOOL success, char txn, int _key, int _data) {
     assert(txns[(int)txn]);
 
     int r;
@@ -70,8 +66,9 @@ void put(BOOL success, char txn, int _key, int _data) {
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
 
-void cget(BOOL success, BOOL find, char txn, int _key, int _data, 
-          int _key_expect, int _data_expect, u_int32_t flags) {
+static void
+cget(BOOL success, BOOL find, char txn, int _key, int _data, 
+     int _key_expect, int _data_expect, u_int32_t flags) {
     assert(txns[(int)txn] && cursors[(int)txn]);
 
     int r;
@@ -93,7 +90,8 @@ void cget(BOOL success, BOOL find, char txn, int _key, int _data,
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
 
-void cdel(BOOL success, BOOL find, char txn) {
+static void
+cdel (BOOL success, BOOL find, char txn) {
     int r;
 
     r = cursors[(int)txn]->c_del(cursors[(int)txn], 0);
@@ -104,7 +102,8 @@ void cdel(BOOL success, BOOL find, char txn) {
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
 
-void dbdel(BOOL success, BOOL find, char txn, int _key) {
+static void
+dbdel (BOOL success, BOOL find, char txn, int _key) {
     int r;
     DBT key;
 
@@ -119,7 +118,8 @@ void dbdel(BOOL success, BOOL find, char txn, int _key) {
     else          CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
 
-void init_txn(char name) {
+static void
+init_txn (char name) {
     int r;
     assert(!txns[(int)name]);
     r = dbenv->txn_begin(dbenv, NULL, &txns[(int)name], DB_TXN_NOWAIT);
@@ -127,7 +127,8 @@ void init_txn(char name) {
     assert(txns[(int)name]);
 }
 
-void init_dbc(char name) {
+static void
+init_dbc (char name) {
     int r;
 
     assert(!cursors[(int)name] && txns[(int)name]);
@@ -136,7 +137,8 @@ void init_dbc(char name) {
     assert(cursors[(int)name]);
 }
 
-void commit_txn(char name) {
+static void
+commit_txn (char name) {
     int r;
     assert(txns[(int)name] && !cursors[(int)name]);
 
@@ -145,7 +147,8 @@ void commit_txn(char name) {
     txns[(int)name] = NULL;
 }
 
-void abort_txn(char name) {
+static void
+abort_txn (char name) {
     int r;
     assert(txns[(int)name] && !cursors[(int)name]);
 
@@ -154,7 +157,8 @@ void abort_txn(char name) {
     txns[(int)name] = NULL;
 }
 
-void close_dbc(char name) {
+static void
+close_dbc (char name) {
     int r;
 
     assert(cursors[(int)name]);
@@ -163,19 +167,22 @@ void close_dbc(char name) {
     cursors[(int)name] = NULL;
 }
 
-void early_commit(char name) {
+static void
+early_commit (char name) {
     assert(cursors[(int)name] && txns[(int)name]);
     close_dbc(name);
     commit_txn(name);
 }
 
-void early_abort(char name) {
+static void
+early_abort (char name) {
     assert(cursors[(int)name] && txns[(int)name]);
     close_dbc(name);
     abort_txn(name);
 }
 
-void setup_dbs(u_int32_t dup_flags) {
+static void
+setup_dbs (u_int32_t dup_flags) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -210,7 +217,8 @@ void setup_dbs(u_int32_t dup_flags) {
     for (a = 'a'; a <= 'z'; a++) init_dbc(a);
 }
 
-void close_dbs(void) {
+static void
+close_dbs(void) {
     char a;
     for (a = 'a'; a <= 'z'; a++) {
         if (cursors[(int)a]) close_dbc(a);
@@ -227,7 +235,9 @@ void close_dbs(void) {
 }
 
 
-void test_abort(u_int32_t dup_flags) {
+static __attribute__((__unused__))
+void
+test_abort (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     put(TRUE, 'a', 1, 1);
@@ -250,7 +260,8 @@ void test_abort(u_int32_t dup_flags) {
     /* ********************************************************************** */
 }
 
-void test_both(u_int32_t dup_flags, u_int32_t db_flags) {
+static void
+test_both (u_int32_t dup_flags, u_int32_t db_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
@@ -291,7 +302,8 @@ void test_both(u_int32_t dup_flags, u_int32_t db_flags) {
 }
 
 
-void test_last(u_int32_t dup_flags) {
+static void
+test_last (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_LAST);
@@ -324,11 +336,12 @@ void test_last(u_int32_t dup_flags) {
     setup_dbs(dup_flags);
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
-    put(dup_flags != 0, 'b', 1, 0);
+    put((BOOL)(dup_flags != 0), 'b', 1, 0);
     close_dbs();
 }
 
-void test_first(u_int32_t dup_flags) {
+static void
+test_first (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_FIRST);
@@ -361,11 +374,12 @@ void test_first(u_int32_t dup_flags) {
     setup_dbs(dup_flags);
     put(TRUE, 'a', 1, 1);
     cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
-    put(dup_flags != 0, 'b', 1, 2);
+    put((BOOL)(dup_flags != 0), 'b', 1, 2);
     close_dbs();
 }
 
-void test_set_range(u_int32_t dup_flags) {
+static void
+test_set_range (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
@@ -413,7 +427,8 @@ void test_set_range(u_int32_t dup_flags) {
     close_dbs();
 }
 
-void test_both_range(u_int32_t dup_flags) {
+static void
+test_both_range (u_int32_t dup_flags) {
     if (dup_flags == 0) {
       test_both(dup_flags, DB_GET_BOTH_RANGE);
       return;
@@ -464,7 +479,8 @@ void test_both_range(u_int32_t dup_flags) {
     close_dbs();
 }
 
-void test_next(u_int32_t dup_flags, u_int32_t next_type) {
+static void
+test_next (u_int32_t dup_flags, u_int32_t next_type) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     put(TRUE,  'a', 2, 1);
@@ -493,7 +509,8 @@ void test_next(u_int32_t dup_flags, u_int32_t next_type) {
     close_dbs();
 }
 
-void test_prev(u_int32_t dup_flags, u_int32_t next_type) {
+static void
+test_prev (u_int32_t dup_flags, u_int32_t next_type) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     put(TRUE,  'a', -2, -1);
@@ -522,7 +539,8 @@ void test_prev(u_int32_t dup_flags, u_int32_t next_type) {
     close_dbs();
 }
 
-void test_nextdup(u_int32_t dup_flags, u_int32_t next_type, int i) {
+static void
+test_nextdup (u_int32_t dup_flags, u_int32_t next_type, int i) {
     /* ****************************************** */
     if (dup_flags == 0) return;
     setup_dbs(dup_flags);
@@ -551,7 +569,8 @@ void test_nextdup(u_int32_t dup_flags, u_int32_t next_type, int i) {
     close_dbs();
 }
 
-void test_cdel(u_int32_t dup_flags) {
+static void
+test_cdel (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     put(TRUE, 'c', 1, 1);
@@ -559,8 +578,8 @@ void test_cdel(u_int32_t dup_flags) {
     cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_GET_BOTH);
     cdel(TRUE, TRUE, 'a');
     cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
-    cget(dup_flags != 0, FALSE, 'b', 1, 2, 1, 2, DB_GET_BOTH);
-    cget(dup_flags != 0, FALSE, 'b', 1, 0, 1, 0, DB_GET_BOTH);
+    cget((BOOL)(dup_flags != 0), FALSE, 'b', 1, 2, 1, 2, DB_GET_BOTH);
+    cget((BOOL)(dup_flags != 0), FALSE, 'b', 1, 0, 1, 0, DB_GET_BOTH);
     cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
     cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
     close_dbs();
@@ -574,7 +593,8 @@ void test_cdel(u_int32_t dup_flags) {
     close_dbs();
 }
 
-void test_dbdel(u_int32_t dup_flags) {
+static void
+test_dbdel (u_int32_t dup_flags) {
     if (dup_flags != 0) {
         if (verbose) printf("Pinhead! Can't dbdel now with duplicates!\n");
         return;
@@ -612,7 +632,8 @@ void test_dbdel(u_int32_t dup_flags) {
     close_dbs();
 }
 
-void test_current(u_int32_t dup_flags) {
+static void
+test_current (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     put(TRUE, 'a', 1, 1);
@@ -636,7 +657,9 @@ struct int_pair {
 
 int got_r_h;
 
-void f_heavi(DBT const *key, DBT const *val, void *extra_f, int r_h) {
+static __attribute__((__unused__))
+void
+f_heavi (DBT const *key, DBT const *val, void *extra_f, int r_h) {
     struct int_pair *info = extra_f;
 
     if (r_h==0) got_r_h = 0;
@@ -647,11 +670,28 @@ void f_heavi(DBT const *key, DBT const *val, void *extra_f, int r_h) {
     info->val = *(int*)val->data;
 }
 
-void cget_heavi(BOOL success, BOOL find, char txn, int _key, int _val, 
-          int _key_expect, int _val_expect, int direction,
-          int r_h_expect,
-          int (*h)(const DBT*,const DBT*,void*)) {
+static __attribute__((__unused__))
+void
+ignore (void *ignore __attribute__((__unused__))) {
+}
+#define IGNORE(x) ignore((void*)x)
+
+static void
+cget_heavi (BOOL success, BOOL find, char txn, int _key, int _val, 
+	    int _key_expect, int _val_expect, int direction,
+	    int r_h_expect,
+	    int (*h)(const DBT*,const DBT*,void*)) {
 #if defined(USE_BDB)
+    IGNORE(success);
+    IGNORE(find);
+    IGNORE(txn);
+    IGNORE(_key);
+    IGNORE(_val);
+    IGNORE(_key_expect);
+    IGNORE(_val_expect);
+    IGNORE(direction);
+    IGNORE(h);
+    IGNORE(r_h_expect);
     return;
 #else
     assert(txns[(int)txn] && cursors[(int)txn]);
@@ -686,7 +726,8 @@ void cget_heavi(BOOL success, BOOL find, char txn, int _key, int _val,
 }
 
 
-void test_heavi(u_int32_t dup_flags) {
+static void
+test_heavi (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     cget_heavi(TRUE, FALSE, 'a', 0, 0, 0, 0,  1, 0, heavi_after); 
@@ -744,7 +785,7 @@ void test_heavi(u_int32_t dup_flags) {
     put(FALSE, 'b', 105, 2);
     put(FALSE, 'b', 106, 0);
     put(TRUE,  'b', 99,  0);
-    put(dup_flags!=0, 'b', 100, 104);
+    put((BOOL)(dup_flags!=0), 'b', 100, 104);
     close_dbs();
     /* ********************************************************************** */
     // Test behavior of heavi_after
@@ -780,7 +821,8 @@ void test_heavi(u_int32_t dup_flags) {
     close_dbs();
 }
 
-void test(u_int32_t dup_flags) {
+static void
+test (u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
     close_dbs();
@@ -832,17 +874,17 @@ void test(u_int32_t dup_flags) {
 
 int main(int argc, const char* argv[]) {
     parse_args(argc, argv);
-#if defined(USE_BDB)
-    if (verbose) {
-	printf("Warning: " __FILE__" does not work in BDB.\n");
+    if (!IS_TDB) {
+	if (verbose) {
+	    printf("Warning: " __FILE__" does not work in BDB.\n");
+	}
+    } else {
+	test(0);
+	test(DB_DUP | DB_DUPSORT);
+	/*
+	  test_abort(0);
+	  test_abort(DB_DUP | DB_DUPSORT);
+	*/
     }
-    return 0;
-#endif
-    test(0);
-    test(DB_DUP | DB_DUPSORT);
-    /*
-    test_abort(0);
-    test_abort(DB_DUP | DB_DUPSORT);
-    */
     return 0;
 }

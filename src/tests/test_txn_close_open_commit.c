@@ -11,7 +11,8 @@
 // Recreate a mysqld crash by closing and opening a db within a transaction.
 // The crash occurs when writing a dirty cachetable pair, so we insert one
 // row.
-void test_txn_close_open_commit(void) {
+static void
+test_txn_close_open_commit (void) {
 
 #ifndef USE_TDB
 #if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3

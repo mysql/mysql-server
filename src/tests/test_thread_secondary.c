@@ -11,7 +11,8 @@
 
 // ENVDIR is defined in the Makefile
 
-int dbtcmp(DBT *dbt1, DBT *dbt2) {
+static int
+dbtcmp (DBT *dbt1, DBT *dbt2) {
     int r;
     
     r = dbt1->size - dbt2->size;  if (r) return r;
@@ -24,15 +25,16 @@ struct student_record {
 	char first_name[15];
 };
 #define SPACES "               "
-DB *dbp;
-DB *sdbp;
-DB_TXN *const null_txn = 0;
-DB_ENV *dbenv;
+static DB *dbp;
+static DB *sdbp;
+static DB_TXN *const null_txn = 0;
+static DB_ENV *dbenv;
 /*
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getname(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
+static int
+getname(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
 	/*
 	 * Since the secondary key is a simple structure member of the
@@ -49,7 +51,8 @@ int getname(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 	return (0);
 }
 
-void second_setup() {
+static void
+second_setup (void) {
     int r;
 
     /* Open/create primary */
@@ -71,7 +74,8 @@ void second_setup() {
     r = dbp->associate(dbp, NULL, sdbp, getname, 0);                            CKERR(r);
 }
 
-void setup_student(struct student_record *s) {
+static void
+setup_student (struct student_record *s) {
     memset(s, 0, sizeof(struct student_record));
     memcpy(&s->student_id, "WC42"      SPACES,  sizeof(s->student_id));
     //Padded with enough spaces to fill out last/first name.
@@ -79,7 +83,8 @@ void setup_student(struct student_record *s) {
     memcpy(&s->first_name, "Winston"   SPACES,  sizeof(s->first_name));
 }
 
-void insert_test() {
+static void
+insert_test (void) {
     struct student_record s;
     DBT data;
     DBT key;
@@ -132,7 +137,8 @@ void insert_test() {
     r = dbp->pget(dbp, null_txn, &key, &testkey, &data, 0);         assert(r == EINVAL);
 }
 
-void delete_from_primary() {
+static void
+delete_from_primary (void) {
     int r;
     DBT key;
 
@@ -142,7 +148,8 @@ void delete_from_primary() {
     r = dbp->del(dbp, null_txn, &key, 0);               CKERR(r);
 }
 
-void delete_from_secondary() {
+static void
+delete_from_secondary (void) {
     int r;
     DBT skey;
     DBT data;
@@ -158,7 +165,8 @@ void delete_from_secondary() {
     r = sdbp->del(sdbp, null_txn, &skey, 0);            CKERR(r);
 }
 
-void verify_gone() {
+static void
+verify_gone (void) {
     int r;
     DBT key;
     DBT skey;

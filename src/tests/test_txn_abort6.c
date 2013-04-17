@@ -9,7 +9,8 @@
 
 #define N_TXNS 4
 
-void test_txn_abort(int n, int which_guys_to_abort) {
+static void
+test_txn_abort (int n, int which_guys_to_abort) {
     if (verbose>1) printf("test_txn_abort(%d,%x)\n", n, which_guys_to_abort);
 
     system("rm -rf " ENVDIR);
@@ -106,9 +107,9 @@ void test_txn_abort(int n, int which_guys_to_abort) {
 
 int main(int argc, char *argv[]) {
     int i,j;
-#ifndef TOKUDB
-    return 0; // This test is inappropriate for BDB.  It requires finer grained locking that BDB supports.
-#endif
+    if (!IS_TDB) {
+	return 0; // This test is inappropriate for BDB.  It requires finer grained locking that BDB supports.
+    }
     for (i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {

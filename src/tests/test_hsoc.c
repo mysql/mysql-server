@@ -12,11 +12,12 @@
 
 #include "test.h"
 
-#if USE_BDB
+#ifdef USE_BDB
 #define DB_YESOVERWRITE 0
 #endif
 
-int db_put(DB *db, DB_TXN *txn, int k, int v) {
+static int
+db_put (DB *db, DB_TXN *txn, int k, int v) {
     DBT key, val;
     int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     return r;
@@ -34,7 +35,8 @@ int db_put(DB *db, DB_TXN *txn, int k, int v) {
 
    the magic number where found via experimentation */
 
-void test_hsoc(int pagesize, int dup_mode) {
+static void
+test_hsoc (int pagesize, int dup_mode) {
     if (verbose) printf("test_hsoc:%d %d\n", pagesize, dup_mode);
 
     int npp = pagesize / 16;

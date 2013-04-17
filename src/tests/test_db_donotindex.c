@@ -30,7 +30,8 @@ DB_ENV *dbenv = 0;
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
+static int
+getskey (DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
 	/*
 	 * Since the secondary key is a simple structure member of the
@@ -69,7 +70,8 @@ int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
     return 0;
 }
 
-void second_setup() {
+static void
+second_setup (void) {
     int r;
 
     /* Open/create primary */
@@ -83,7 +85,8 @@ void second_setup() {
     r = db->associate(db, null_txn, sdb, getskey, 0);                            CKERR(r);
 }
 
-void insert() {
+static void
+insert (void) {
     int r;
     DATA entry;
     DBT data;
@@ -98,7 +101,8 @@ void insert() {
     r = db->put(db, null_txn, &key, &data, 0);  CKERR(r);
 }
 
-void check_secondary(int expect_r) {
+static void
+check_secondary (int expect_r) {
     int r;
     DBC *c;
     DBT skey;
@@ -111,7 +115,8 @@ void check_secondary(int expect_r) {
     r = c->c_close(c);                          CKERR(r);
 }
 
-void close_dbs() {
+static void
+close_dbs (void) {
     int r;
     
     r = db->close(db, 0);   CKERR(r);

@@ -66,7 +66,8 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
-void test_dupsort_del (void) {
+static void
+test_dupsort_del (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);

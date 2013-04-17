@@ -9,7 +9,8 @@
 #include "test.h"
 
 
-void test_get (int dup_mode) {
+static void
+test_get (int dup_mode) {
     DB_ENV * const null_env = 0;
     DB_TXN * const null_txn = 0;
     DB *db;

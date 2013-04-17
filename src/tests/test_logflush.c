@@ -8,7 +8,8 @@
 #include "test.h"
 
 // Return the offset
-int grep_for_in_logs(const char *str) {
+static int
+grep_for_in_logs (const char *str) {
 #ifdef TOKUDB
 #define lname ENVDIR "//log000000000000.tokulog"
 #else

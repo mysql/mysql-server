@@ -7,7 +7,8 @@
 #include <db.h>
 #include "test.h"
 
-void seqinsert(int n, float p) {
+static void
+seqinsert (int n, float p) {
     if (verbose) printf("%s %d %f\n", __FUNCTION__, n, p);
 
     system("rm -rf " ENVDIR);

@@ -12,21 +12,24 @@
 
 #include "test.h"
 
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     assert(r == 0);
 }
 
-void db_del(DB *db, int k) {
+static void
+db_del (DB *db, int k) {
     DB_TXN *const null_txn = 0;
     DBT key;
     int r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), DB_DELETE_ANY);
     assert(r == 0);
 }
 
-void expect_cursor_get(DBC *cursor, int op, int expectr) {
+static void
+expect_cursor_get (DBC *cursor, int op, int expectr) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     assert(r == expectr);
@@ -36,7 +39,8 @@ static int mycmp(const void *a, const void *b) {
     return memcmp(a, b, sizeof (int));
 }
 
-void test_dupsort_delete(int n) {
+static void
+test_dupsort_delete (int n) {
     if (verbose) printf("test_dupsort_delete:%d\n", n);
 
     DB_ENV * const null_env = 0;

@@ -52,7 +52,8 @@ static void lookup (int i, DB_TXN *x, int expect) {
 
 static DB_TXN *txn, *txn2;
 
-void test_nested (void) {
+static void
+test_nested (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);

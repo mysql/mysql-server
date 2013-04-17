@@ -2,7 +2,8 @@
 #include <assert.h>
 #include <pthread.h>
 
-void *f(void *arg) {
+static void *
+f (void *arg) {
     //pthread_exit(arg);  // pthread_exit has a memoryh leak.
     return arg;
 }

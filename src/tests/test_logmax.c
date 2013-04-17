@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include "test.h"
 
-void check_logmax (int max) {
+static void
+check_logmax (int max) {
     int any_too_big=0;
     DIR *dir = opendir(ENVDIR);
     struct dirent *ent;
@@ -31,7 +32,8 @@ void check_logmax (int max) {
     assert(r==0);
 }
 
-void test_logmax (int logmax) {
+static void
+test_logmax (int logmax) {
     int r;
     DB_ENV *env;
     DB *db;

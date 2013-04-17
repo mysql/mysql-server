@@ -33,7 +33,8 @@ int extra_flags;
 char* home;
 
 
-void reinit_config(int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
+static void
+reinit_config (int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
     int r = 0;
     //Return to base dir
     r = fchdir(rootfd);                 assert(r == 0);

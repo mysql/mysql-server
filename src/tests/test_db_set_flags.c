@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-void test_db_set_flags(int flags, int expectr, int flags2, int expectr2) {
+static void
+test_db_set_flags (int flags, int expectr, int flags2, int expectr2) {
     if (verbose) printf("test_db_set_flags:%d %d %d %d\n", flags, expectr, flags2, expectr2);
 
     DB_ENV * const null_env = 0;

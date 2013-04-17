@@ -9,7 +9,8 @@
 #include "test.h"
 
 
-void test_txn_abort(int n) {
+static void
+test_txn_abort (int n) {
     if (verbose>1) printf("%s %s:%d\n", __FILE__, __FUNCTION__, n);
 
     system("rm -rf " ENVDIR);
@@ -65,7 +66,7 @@ void test_txn_abort(int n) {
     for (i=0; 1; i++) {
 	r = cursor->c_get(cursor, &key, &val, DB_NEXT);
 	if (r!=0) break;
-	if (verbose>2) printf("%d present\n", ntohl(*(int*)key.data));
+	if (verbose>2) printf("%u present\n", ntohl(*(int*)key.data));
 	assert(key.size==4);
 	assert(ntohl(*(int*)key.data)==(unsigned int)(2*i));
     }
