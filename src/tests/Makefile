@@ -180,6 +180,7 @@ BDB_DONTRUN_TESTS = \
         recover-descriptor11 \
         recover-descriptor12 \
         recover-fclose-in-checkpoint \
+        recover-fcreate-basementnodesize \
         recover-loader-test \
         recover-lsn-filter-multiple \
 	recover-put-multiple \
