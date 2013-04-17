@@ -2021,6 +2021,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->malloc_count  = memory_status.malloc_count;
 	    engstat->free_count    = memory_status.free_count;
 	    engstat->realloc_count = memory_status.realloc_count;
+	    engstat->malloc_fail   = memory_status.malloc_fail;
+	    engstat->realloc_fail  = memory_status.realloc_fail;
 	    engstat->mem_requested = memory_status.requested;
 	    engstat->mem_used      = memory_status.used;
 	    engstat->mem_freed     = memory_status.freed;
@@ -2197,6 +2199,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "malloc_count                     %"PRIu64"\n", engstat.malloc_count);
 	n += snprintf(buff + n, bufsiz - n, "free_count                       %"PRIu64"\n", engstat.free_count);
 	n += snprintf(buff + n, bufsiz - n, "realloc_count                    %"PRIu64"\n", engstat.realloc_count);
+	n += snprintf(buff + n, bufsiz - n, "malloc_fail                      %"PRIu64"\n", engstat.malloc_fail);
+	n += snprintf(buff + n, bufsiz - n, "realloc_fail                     %"PRIu64"\n", engstat.realloc_fail);
 	n += snprintf(buff + n, bufsiz - n, "mem_requested                    %"PRIu64"\n", engstat.mem_requested);
 	n += snprintf(buff + n, bufsiz - n, "mem_used                         %"PRIu64"\n", engstat.mem_used);
 	n += snprintf(buff + n, bufsiz - n, "mem_freed                        %"PRIu64"\n", engstat.mem_freed);

@@ -111,6 +111,8 @@ typedef struct memory_status {
   uint64_t malloc_count;    // number of malloc operations
   uint64_t free_count;      // number of free operations
   uint64_t realloc_count;   // number of realloc operations
+  uint64_t malloc_fail;     // number of malloc operations that failed 
+  uint64_t realloc_fail;    // number of realloc operations that failed 
   uint64_t requested;       // number of bytes requested
   uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
   uint64_t freed;           // number of bytes freed;
