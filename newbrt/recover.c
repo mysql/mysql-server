@@ -34,6 +34,10 @@ struct scan_state {
     uint32_t checkpoint_num_xstillopen;
 };
 
+static const char *scan_state_strings[] = {
+    "?", "bw_newer", "bw_between", "fw_between", "fw_newer",
+};
+
 static void scan_state_init(struct scan_state *ss) {
     ss->ss = BACKWARD_NEWER_CHECKPOINT_END;
     ss->checkpoint_begin_lsn = ZERO_LSN;
@@ -41,10 +45,6 @@ static void scan_state_init(struct scan_state *ss) {
     ss->checkpoint_num_fassociate = 0;
     ss->checkpoint_num_xstillopen = 0;
 }
-
-static const char *scan_state_strings[] = {
-    "?", "bw_newer", "bw_between", "bw_older", "fw_older", "fw_between", "fw_newer",
-};
 
 static const char *scan_state_string(struct scan_state *ss) {
     assert(BACKWARD_NEWER_CHECKPOINT_END <= ss->ss && ss->ss <= FORWARD_NEWER_CHECKPOINT_END);
