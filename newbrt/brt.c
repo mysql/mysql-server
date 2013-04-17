@@ -1633,7 +1633,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
             lazy_assert_zero(r);
             storeddata=storeddatav;
             int deleted = 0;
-            if (le_num_xids(storeddata)>0) {
+            if (!le_is_clean(storeddata)) {
                 // Apply to all leafentries
                 if (le_latest_is_del(storeddata)) {
                     brt_leaf_delete_leafentry(node, idx, storeddata);
@@ -1673,7 +1673,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
             lazy_assert_zero(r);
             storeddata=storeddatav;
             int deleted = 0;
-            if (le_num_xids(storeddata) > 0) { //If already clean, nothing to do.
+            if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
                 r = brt_leaf_apply_cmd_once(node, cmd, idx, storeddata, logger);
                 if (r!=0) return r;
                 u_int32_t new_omt_size = toku_omt_size(node->u.l.buffer);

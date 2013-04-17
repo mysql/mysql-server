@@ -125,7 +125,7 @@ void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
-uint32_t le_num_xids(LEAFENTRY le); //Return how many xids exist (0 does not count)
+BOOL le_is_clean(LEAFENTRY le); //Return how many xids exist (0 does not count)
 int le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
