@@ -15,7 +15,11 @@ void rollback_log_node_cache::init (uint32_t max_num_avail_nodes) {
     m_max_num_avail = max_num_avail_nodes;
     m_first = 0;
     m_num_avail = 0;
-    toku_adaptive_mutex_init(&m_mutex);
+    toku_pthread_mutexattr_t attr;
+    toku_mutexattr_init(&attr);
+    toku_mutexattr_settype(&attr, TOKU_MUTEX_ADAPTIVE);
+    toku_mutex_init(&m_mutex, &attr);
+    toku_mutexattr_destroy(&attr);
 }
 
 void rollback_log_node_cache::destroy() {
