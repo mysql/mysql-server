@@ -17,8 +17,7 @@ set_target_properties(range_tree_objects PROPERTIES POSITION_INDEPENDENT_CODE ON
 add_space_separated_property(TARGET range_tree_objects COMPILE_FLAGS "-fvisibility=hidden")
 add_dependencies(range_tree_objects install_tdb_h)
 
-maybe_add_gcov_to_libraries(range_tree_lin range_tree_tlog range_tree_objects)
-
 add_library(range_tree_static STATIC $<TARGET_OBJECTS:range_tree_objects>)
+maybe_add_gcov_to_libraries(range_tree_lin range_tree_tlog range_tree_static)
 
 add_subdirectory(tests)

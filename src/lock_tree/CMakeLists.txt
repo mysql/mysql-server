@@ -23,7 +23,7 @@ set_property(TARGET lock_tree_objects APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_RT_NOOVERLAPS)
 add_dependencies(lock_tree_objects install_tdb_h)
 
-maybe_add_gcov_to_libraries(lock_tree_lin lock_tree_tlog lock_tree_objects)
-
 add_library(lock_tree_static STATIC $<TARGET_OBJECTS:lock_tree_objects>)
+maybe_add_gcov_to_libraries(lock_tree_lin lock_tree_tlog lock_tree_static)
+
 add_subdirectory(tests)
