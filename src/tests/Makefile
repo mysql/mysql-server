@@ -170,6 +170,8 @@ TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 	test_log8.recover \
 	test_log9.recover \
 	test_log10.recover \
+	recover-missing-dbfile.abortrecover \
+	recover-missing-dbfile-2.abortrecover \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
