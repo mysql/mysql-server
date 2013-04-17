@@ -303,7 +303,11 @@ ulonglong ha_tokudb::table_flags() const {
 //
 ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_flags");
+    assert(table_share);
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
+    if (table_share->key_info[idx].flags & HA_CLUSTERING) {
+        flags |= HA_CLUSTERED_INDEX;
+    }
     DBUG_RETURN(flags);
 }
 
