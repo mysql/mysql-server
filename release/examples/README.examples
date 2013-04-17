@@ -17,7 +17,7 @@ $ ./db-insert-bdb
 Here is what the output looks like (this on a Thinkpad X61s laptop
 running Fedora 10).  BDB is a little faster for sequential insertions
 (the first three columns), but much much slower for random insertions
-(the next 3 coluns), so that TokuDB is faster on combined workload.
+(the next 3 columns), so that TokuDB is faster on combined workload.
 
 $ ./db-insert
 serial and random insertions of 1048576 per batch
