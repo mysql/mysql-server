@@ -113,7 +113,15 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
                 r = func(txn, item, yield, yieldv, lsn);
                 if (r!=0) return r;
                 count++;
-                if (count%2 == 0) yield(NULL, NULL, yieldv);
+                // We occassionally yield here to prevent transactions
+                // from hogging the log.  This yield will allow other
+                // threads to grab the ydb lock.  However, we don't
+                // want any transaction doing more than one log
+                // operation to always yield the ydb lock, as it must
+                // wait for the ydb lock to be released to proceed.
+                if (count % 8 == 0) {
+                    yield(NULL, NULL, yieldv);
+                }
             }
         }
         if (next_log.b == txn->spilled_rollback_head.b) {
