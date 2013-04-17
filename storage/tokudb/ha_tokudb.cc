@@ -4897,6 +4897,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar* tmp_key_buff = NULL;
     uchar* tmp_prim_key_buff = NULL;
     uchar* tmp_record = NULL;
+    THD* thd = ha_thd(); 
     uchar* tmp_record2 = NULL;
 
     newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
@@ -5036,7 +5037,9 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             create_dbt_key_from_key(&secondary_key,&key_info[i], tmp_key_buff, tmp_record, &has_null);
             uint curr_index = i + curr_num_DBs;
             u_int32_t put_flags = share->key_type[curr_index];
-            put_flags = DB_YESOVERWRITE;
+            if (put_flags == DB_NOOVERWRITE && (has_null || thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))) { 
+                put_flags = DB_YESOVERWRITE;
+            }
 
             if (key_info[i].flags & HA_CLUSTERING) {
                 if (!cluster_row_created) {
