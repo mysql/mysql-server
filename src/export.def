@@ -6,8 +6,6 @@ EXPORTS
 	log_compare @5
 	db_env_set_func_fsync @6
 	
-	toku_get_maxrss @7
-	
 	toku_ydb_error_all_cases @8
 	toku_set_trace_file @9
 	toku_close_trace_file @10
