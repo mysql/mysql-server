@@ -3289,6 +3289,9 @@ cleanup:
     if (error || loader_error) {
         my_errno = error ? error : loader_error;
         if (using_loader) {
+            //
+            // TODO: (Zardosht), remove trx->should_abort as part of
+            // #5481
             trx->should_abort = true;
             share->try_table_lock = true;
         }
@@ -5987,6 +5990,10 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 reset_stmt_progress(&trx->stmt_progress);
                 if (!is_fast_alter_running) {
+                    //
+                    // TODO: (Zardosht), remove trx->should_abort as part of
+                    // #5481
+                    //
                     if (trx->should_abort) {
                         abort_txn(trx->stmt);
                         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
