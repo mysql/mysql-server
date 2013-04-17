@@ -3595,6 +3595,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             if (error) { goto quit_status; }
         quit_status:
             if (!error) { txn->commit(txn, 0); }
+            else { txn->abort(txn); }
+            status_block->close(status_block, 0);
         }
         if (tokudb_debug & TOKUDB_DEBUG_OPEN)
             TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
