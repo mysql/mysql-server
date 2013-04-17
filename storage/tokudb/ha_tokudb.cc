@@ -364,8 +364,7 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 static int
 smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
-    info->ha->read_row_callback(info->buf,info->keynr,row,key);
-    return 0;
+    return info->ha->read_row_callback(info->buf,info->keynr,row,key);
 }
 
 //
@@ -3258,9 +3257,9 @@ void ha_tokudb::extract_hidden_primary_key(uint keynr, DBT const *row, DBT const
 }
 
 
-void ha_tokudb::read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
+int ha_tokudb::read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
     assert(keynr == primary_key);
-    unpack_row(buf, row,found_key, keynr);
+    return unpack_row(buf, row,found_key, keynr);
 }
 
 //
@@ -3372,6 +3371,10 @@ int ha_tokudb::read_full_row(uchar * buf) {
 int ha_tokudb::read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_row");
     int error;
+    struct smart_dbt_info info;
+    info.ha = this;
+    info.buf = buf;
+    info.keynr = primary_key;
 
     extract_hidden_primary_key(keynr, row, found_key);
 
@@ -3410,17 +3413,20 @@ int ha_tokudb::read_row(uchar * buf, uint keynr, DBT const *row, DBT const *foun
         key.data = key_buff;
         key.size = row->size;
         memcpy(key_buff, row->data, row->size);
-        //
-        // Read the data into current_row
-        //
-        current_row.flags = DB_DBT_REALLOC;
-        if ((error = share->file->get(share->file, transaction, &key, &current_row, 0))) {
+        
+        error = share->file->getf_set(
+            share->file, 
+            transaction, 
+            0, 
+            &key, 
+            smart_dbt_callback_rowread_ptquery, 
+            &info
+            );
+        if (error) {
             table->status = STATUS_NOT_FOUND;
             error = (error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
             goto exit;
         }
-        error = unpack_row(buf, &current_row, &key, primary_key);
-        if (error) { goto exit; }
     }
     else {
         //
