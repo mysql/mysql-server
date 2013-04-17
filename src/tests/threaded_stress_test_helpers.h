@@ -1617,7 +1617,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         CKERR(r);
     }
     int env_flags = get_env_open_flags(cli_args);
-    r = env->open(env, env_args.envdir, env_flags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, env_args.envdir, DB_RECOVER | env_flags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     do_xa_recovery(env);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
