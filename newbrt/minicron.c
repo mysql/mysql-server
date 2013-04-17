@@ -130,3 +130,8 @@ toku_minicron_shutdown(struct minicron *p) {
     //printf("%s:%d shutdowned\n", __FILE__, __LINE__);
     return 0;
 }
+
+BOOL
+toku_minicron_has_been_shutdown(struct minicron *p) {
+    return p->do_shutdown;
+}

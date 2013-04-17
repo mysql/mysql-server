@@ -1299,10 +1299,19 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     return 0;
 }
 
+/* Requires that no locks be held that are used by the checkpoint logic (ydb, etc.) */
+void
+toku_cachetable_minicron_shutdown(CACHETABLE ct) {
+    int  r = toku_minicron_shutdown(&ct->checkpointer);
+    assert(r==0);
+}
+
 /* Require that it all be flushed. */
-int toku_cachetable_close (CACHETABLE *ctp) {
+int 
+toku_cachetable_close (CACHETABLE *ctp) {
     CACHETABLE ct=*ctp;
-    {
+    if (!toku_minicron_has_been_shutdown(&ct->checkpointer)) {
+	// for test code only, production code uses toku_cachetable_minicron_shutdown()
 	int  r = toku_minicron_shutdown(&ct->checkpointer);
 	assert(r==0);
     }

@@ -35,4 +35,4 @@ struct minicron {
 int toku_minicron_setup (struct minicron *s, u_int32_t period_in_seconds, int(*f)(void *), void *arg);
 int toku_minicron_change_period(struct minicron *p, u_int32_t new_period);
 int toku_minicron_shutdown(struct minicron *p);
-
+BOOL toku_minicron_has_been_shutdown(struct minicron *p);

@@ -449,6 +449,9 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     // Even if the env is panicked, try to close as much as we can.
     int r0=0,r1=0;
     if (env->i->cachetable) {
+	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
+	toku_cachetable_minicron_shutdown(env->i->cachetable);
+	toku_ydb_lock();
         r0=toku_cachetable_close(&env->i->cachetable);
 	if (r0) {
 	    toku_ydb_do_error(env, r0, "Cannot close environment (cachetable close error)\n");
