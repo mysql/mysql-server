@@ -318,6 +318,7 @@ test_serialize_nonleaf(void) {
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_ft_destroy_treelock(brt_h);
     toku_blocktable_destroy(&brt_h->blocktable);
+    toku_free(brt_h->h);
     toku_free(brt_h);
     toku_free(brt);
 
@@ -415,6 +416,7 @@ test_serialize_leaf(void) {
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_ft_destroy_treelock(brt_h);
     toku_blocktable_destroy(&brt_h->blocktable);
+    toku_free(brt_h->h);
     toku_free(brt_h);
     toku_free(brt);
     toku_free(ndd);
