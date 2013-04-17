@@ -69,7 +69,7 @@ test_dup_flags (u_int32_t dup_flags) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
 
     parse_args(argc, argv);
   

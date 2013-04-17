@@ -7,7 +7,7 @@
 
 
 int
-test_main (int argc, const char *argv[]) {
+test_main (int argc, char *argv[]) {
     const char *v;
     int major, minor, patch;
     parse_args(argc, argv);

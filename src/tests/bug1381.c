@@ -89,7 +89,7 @@ do_1381 (void) {
 }
 
 int
-test_main (int argc, const char *argv[])
+test_main (int argc, char *argv[])
 {
     parse_args(argc, argv);
     do_1381();

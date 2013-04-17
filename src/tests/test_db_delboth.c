@@ -162,7 +162,7 @@ test_db_delboth (int n, int dup_mode) {
 #endif //USE_TDB
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
 

@@ -68,7 +68,7 @@ cursor_range_with_delete (u_int32_t flag) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
     setup_db("next.db");
     insert();

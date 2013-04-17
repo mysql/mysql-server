@@ -47,7 +47,7 @@ delete_db(char *name) {
 }
 
 int
-test_main (int UU(argc), const char UU(*argv[])) {
+test_main (int UU(argc), char UU(*argv[])) {
     int r;
     r=system("rm -rf " ENVDIR);
         CKERR(r);

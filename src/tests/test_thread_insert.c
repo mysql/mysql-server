@@ -54,7 +54,7 @@ usage (void) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     const char *dbfile = "test.db";
     const char *dbname = "main";
     int nthreads = 2;

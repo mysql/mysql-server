@@ -156,7 +156,7 @@ runtests(u_int32_t dup_flags) {
 }
 
 int
-test_main (int UU(argc), const char UU(*argv[])) {
+test_main (int UU(argc), char UU(*argv[])) {
     runtests(0);
     runtests(DB_DUPSORT|DB_DUP);
     return 0;

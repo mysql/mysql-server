@@ -77,7 +77,7 @@ test_cursor_sticky (int n, int dup_mode) {
 
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     int i;
 
     // setvbuf(stdout, NULL, _IONBF, 0);

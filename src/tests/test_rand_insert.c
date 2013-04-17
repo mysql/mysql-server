@@ -82,7 +82,7 @@ test_rand_insert (int n, int dup_mode) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     int i;

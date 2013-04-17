@@ -13,7 +13,7 @@ f (void *arg) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
     toku_pthread_t t;
     int r = toku_pthread_create(&t, 0, f, 0); assert(r == 0);

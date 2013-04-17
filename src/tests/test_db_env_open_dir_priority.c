@@ -68,7 +68,7 @@ reinit_config (int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
     DB_ENV *env;
     DB_TXN * const null_txn = 0;
