@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-//Use case:
+#include "rwlock.h"
 
 //Use case:
 // General purpose non blocking mutex with properties:
@@ -24,74 +24,53 @@ extern "C" {
 
 typedef struct nb_mutex *NB_MUTEX;
 struct nb_mutex {
-    int writer;                  // the number of writers
-    int want_write;              // the number of blocked writers
-    toku_pthread_cond_t wait_write;
+    struct rwlock lock;
 };
 
-// initialize a read write lock
-
+// initialize an nb mutex
 static __attribute__((__unused__))
 void
 nb_mutex_init(NB_MUTEX nb_mutex) {
-    int r;
-    nb_mutex->writer = nb_mutex->want_write = 0;
-    r = toku_pthread_cond_init(&nb_mutex->wait_write, 0); assert(r == 0);
+    rwlock_init(&nb_mutex->lock);
 }
 
 // destroy a read write lock
-
 static __attribute__((__unused__))
 void
 nb_mutex_destroy(NB_MUTEX nb_mutex) {
-    int r;
-    assert(nb_mutex->writer == 0 && nb_mutex->want_write == 0);
-    r = toku_pthread_cond_destroy(&nb_mutex->wait_write); assert(r == 0);
+    rwlock_destroy(&nb_mutex->lock);
 }
-
 
 // obtain a write lock
 // expects: mutex is locked
-
-static inline void nb_mutex_write_lock(NB_MUTEX nb_mutex, toku_pthread_mutex_t *mutex) {
-    if (nb_mutex->writer) {
-        nb_mutex->want_write++;
-        while (nb_mutex->writer) {
-            int r = toku_pthread_cond_wait(&nb_mutex->wait_write, mutex); assert(r == 0);
-        }
-        nb_mutex->want_write--;
-    }
-    nb_mutex->writer++;
+static inline void nb_mutex_write_lock(NB_MUTEX nb_mutex, 
+        toku_pthread_mutex_t *mutex) {
+    rwlock_write_lock(&nb_mutex->lock, mutex);
 }
 
 // release a write lock
 // expects: mutex is locked
 
 static inline void nb_mutex_write_unlock(NB_MUTEX nb_mutex) {
-    assert(nb_mutex->writer == 1);
-    nb_mutex->writer--;
-    if (nb_mutex->want_write) {
-        int r = toku_pthread_cond_signal(&nb_mutex->wait_write); assert(r == 0);
-    } 
+    rwlock_write_unlock(&nb_mutex->lock);
 }
 
 // returns: the number of writers who are waiting for the lock
 
 static inline int nb_mutex_blocked_writers(NB_MUTEX nb_mutex) {
-    return nb_mutex->want_write;
+    return rwlock_blocked_writers(&nb_mutex->lock);
 }
 
 // returns: the number of writers
 
 static inline int nb_mutex_writers(NB_MUTEX nb_mutex) {
-    return nb_mutex->writer;
+    return rwlock_writers(&nb_mutex->lock);
 }
 
-// returns: the sum of the number of readers, pending readers, writers, and
-// pending writers
-
+// returns: the sum of the number of readers, pending readers, 
+// writers, and pending writers
 static inline int nb_mutex_users(NB_MUTEX nb_mutex) {
-    return nb_mutex->writer + nb_mutex->want_write;
+    return rwlock_users(&nb_mutex->lock);
 }
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
