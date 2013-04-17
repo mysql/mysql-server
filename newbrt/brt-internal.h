@@ -114,6 +114,11 @@ struct remembered_hash {
     u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
 };
 
+struct block_translation_pair {
+    DISKOFF diskoff;
+    DISKOFF size;
+};
+
 struct brt_header {
     int dirty;
     u_int32_t fullhash;
@@ -133,11 +138,13 @@ struct brt_header {
     BLOCKNUM free_blocks; // free list for blocks.  Use -1 to indicate that there are no free blocks
     BLOCKNUM unused_blocks; // first unused block
 
-    // Where and how big is the block allocation vector?
-    // The block allocation vector translates block numbers to offsets (DISKOFF) in the file.
-    // We use a DISKOFF for the vector location, because we cannot use block numbers to bootstrap the indirection table.
-    BLOCKNUM  block_allocation_vector_length; // It's a blocknum because the block allocation vector is indexed by blocknums.
-    DISKOFF   block_allocation_vector_location; // Remember this so we can free the block before writing a new one.
+    u_int64_t max_blocknum_translated;
+    struct block_translation_pair *block_translation;
+
+    // Where and how big is the block translation vector stored on disk.
+    u_int64_t block_translation_size_on_disk;
+    u_int64_t block_translation_address_on_disk; // 0 if there is no memory allocated
+    
     // The in-memory data structure  for block allocation
     BLOCK_ALLOCATOR block_allocator;
 };

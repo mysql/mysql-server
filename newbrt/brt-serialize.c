@@ -586,18 +586,12 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_BLOCKNUM(wbuf, h->free_blocks);
     wbuf_BLOCKNUM(wbuf, h->unused_blocks);
     wbuf_int    (wbuf, h->n_named_roots);
-    if (h->block_allocation_vector_length.b != 0) {
-	block_allocator_free_block(h->block_allocator, h->block_allocation_vector_location);
+    if (h->block_translation_address_on_disk !=0 ) {
+	block_allocator_free_block(h->block_allocator, h->block_translation_address_on_disk);
     }
-#if 0
-    h->block_allocation_vector_length.b = block_allocator_get_vector_length(h->block_allocator);
-    {
-	int r = block_allocator_alloc_block(h->block_allocator, 0, h->block_allocation_vector_length.b, (u_int64_t*)&h->block_allocation_vector_location);
-	assert(r==0);
-    }
-#endif
-    wbuf_BLOCKNUM(wbuf, h->block_allocation_vector_length);
-    wbuf_DISKOFF(wbuf, h->block_allocation_vector_location);
+    block_allocator_alloc_block(h->block_allocator, 4 + 8*h->max_blocknum_translated, &h->block_translation_address_on_disk);
+    wbuf_ulonglong(wbuf, h->max_blocknum_translated);
+    wbuf_DISKOFF(wbuf, h->block_translation_address_on_disk);
     if (h->n_named_roots>=0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
@@ -617,18 +611,33 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
 }
 
 int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
-    struct wbuf w;
-    unsigned int size = toku_serialize_brt_header_size (h);
-    wbuf_init(&w, toku_malloc(size), size);
-    int r=toku_serialize_brt_header_to_wbuf(&w, h);
-    assert(w.ndone==size);
     {
+	struct wbuf w;
+	unsigned int size = toku_serialize_brt_header_size (h);
+	wbuf_init(&w, toku_malloc(size), size);
+	int r=toku_serialize_brt_header_to_wbuf(&w, h);
+	assert(r==0);
+	assert(w.ndone==size);
 	ssize_t nwrote = pwrite(fd, w.buf, w.ndone, 0);
 	if (nwrote<0) perror("pwrite");
 	assert((size_t)nwrote==w.ndone);
+	toku_free(w.buf);
     }
-    toku_free(w.buf);
-    return r;
+    {
+	struct wbuf w;
+	u_int64_t size = 4 + h->max_blocknum_translated * 8; // 4 for the checksum
+	wbuf_init(&w, toku_malloc(size), size);
+	u_int64_t i;
+	for (i=0; i<h->max_blocknum_translated; i++) {
+	    wbuf_ulonglong(&w, h->block_translation[i].diskoff);
+	    wbuf_ulonglong(&w, h->block_translation[i].size);
+	}
+	wbuf_int(&w, x1764_finish(&w.checksum));
+	ssize_t nwrote = pwrite(fd, w.buf, size, h->block_translation_address_on_disk);
+	assert(nwrote==(ssize_t)size);
+	toku_free(w.buf);
+    };
+    return 0;
 }
 
 int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
@@ -672,10 +681,8 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
 		block_locations_and_lengths[i] = ntohll(block_locations_and_lengths[i]);
 	    }
 	}
-#if 0
 	int r = create_block_allocator(&h->block_allocator, h->block_allocation_vector_length.b, block_locations_and_lengths, h->nodesize);
 	assert(r==0);
-#endif
 	if (block_locations_and_lengths) free(block_locations_and_lengths);
     }
     if (h->n_named_roots>=0) {
