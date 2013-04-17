@@ -22,6 +22,14 @@
 // This test is targetted at stressing the locktree, hence the small table and many update threads.
 //
 
+static int UU() lock_escalation_op(DB_TXN *UU(txn), ARG arg, void* operation_extra, void *UU(stats_extra)) {
+    invariant_null(operation_extra);
+    if (!arg->cli->nolocktree) {
+        toku_env_run_lock_escalation_for_test(arg->env);
+    }
+    return 0;
+}
+
 static void
 stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
 
@@ -40,13 +48,8 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
-    // make the lock escalation thread.
-    // it should sleep somewhere between 10 and 20
-    // seconds between each escalation.
-    struct lock_escalation_op_extra eoe;
-    eoe.min_sleep_time_micros = 10UL * (1000 * 1000);
-    eoe.max_sleep_time_micros = 20UL * (1000 * 1000);
-    myargs[1].operation_extra = &eoe;
+    myargs[1].sleep_ms = 15L * 1000;
+    myargs[1].operation_extra = nullptr;
     myargs[1].operation = lock_escalation_op;
 
     // make the threads that update the db
