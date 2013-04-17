@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <arpa/inet.h>
 #include <db.h>
 #include "test.h"
 
@@ -65,7 +64,7 @@ int main(int argc, char *argv[]) {
     int n = d + d/4;
 
     float ps[] = { 0.0, 0.0001, 0.001, 0.01, 0.1, 0.25, 0.5, 1 };
-    for (i=0; i<sizeof ps / sizeof (float); i++) {
+    for (i=0; i<(int)(sizeof ps / sizeof (float)); i++) {
         seqinsert(n, ps[i]);
     }
     return 0;

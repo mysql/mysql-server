@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
 
 #include "test.h"
@@ -77,12 +76,14 @@ test_cursor_sticky (int n, int dup_mode) {
 
 
 int main(int argc, const char *argv[]) {
+    int r;
     int i;
 
+    // setvbuf(stdout, NULL, _IONBF, 0);
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    r = system("rm -rf " ENVDIR); assert(r == 0);
+    r = os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     for (i=1; i<65537; i *= 2) {
         test_cursor_sticky(i, 0);

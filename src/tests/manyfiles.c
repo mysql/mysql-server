@@ -2,7 +2,6 @@
 
 #include <db.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include "test.h"
 
 #define NFILES 1000
@@ -13,7 +12,7 @@ static DB *dbs[NFILES];
 DB_TXN *txn;
 
 static void
-setup (void) {
+test_setup (void) {
     system("rm -rf " ENVDIR);
     int r;
     r=mkdir(ENVDIR, 0777);       CKERR(r);
@@ -37,7 +36,7 @@ setup (void) {
 }
 
 static void
-shutdown (void) {
+test_shutdown (void) {
     int i;
     int r;
     for (i=0; i<NFILES; i++) {
@@ -75,9 +74,9 @@ doit (void) {
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
 
-    setup();
+    test_setup();
     doit();
-    shutdown();
+    test_shutdown();
 
     return 0;
 }

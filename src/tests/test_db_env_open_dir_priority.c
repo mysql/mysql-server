@@ -2,7 +2,9 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 // make stdlib define unsetenv()
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 /* Do we open directories with same priority as BDB? i.e. with home, without home, with DB_USE_ENVIRON/etc.. */
 #include <limits.h>

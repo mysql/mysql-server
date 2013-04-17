@@ -86,7 +86,7 @@ int main(int argc, const char *argv[]) {
             int was_truncated = 0;
             int ulen_changed;
             int size_full;
-            int clone = 0;
+            int doclone = 0;
             DATA fake;
             int small_buffer = 0;
             
@@ -121,7 +121,7 @@ int main(int argc, const char *argv[]) {
             min = min < sizeof(DATA) ? min : sizeof(DATA);
             //assert(min == sizeof(DATA));
             r = memcmp((DATA*)data.data, &fake, min);
-            clone = r == 0;
+            doclone = r == 0;
 
             if (flags[j] != 0) {
                 free(data.data);
@@ -138,9 +138,9 @@ int main(int argc, const char *argv[]) {
                 ulen_should_change = (BOOL)(old_ulen < sizeof(DATA));
             }
 #endif
-            assert(ulen_should_change == ulen_changed);
+            assert(ulen_should_change == (BOOL)ulen_changed);
             assert(size_full);
-            assert(clone == !small_buffer);
+            assert(doclone == !small_buffer);
         }
     }
     oldmem = 0;

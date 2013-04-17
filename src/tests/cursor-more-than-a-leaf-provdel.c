@@ -31,7 +31,7 @@ setup (void) {
 }
 
 static void
-shutdown (void) {
+test_shutdown (void) {
     int r;
     r= db->close(db, 0); CKERR(r);
     r= env->close(env, 0); CKERR(r);
@@ -99,10 +99,10 @@ int main (int argc, const char *argv[]) {
 
     setup();
     doit(TRUE);
-    shutdown();
+    test_shutdown();
     setup();
     doit(FALSE);
-    shutdown();
+    test_shutdown();
 
     return 0;
 }

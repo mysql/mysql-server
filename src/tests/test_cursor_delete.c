@@ -8,7 +8,6 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
 
 #include "test.h"
@@ -24,7 +23,7 @@ cursor_expect (DBC *cursor, int k, int v, int op) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", (uint32_t)htonl(k), (uint32_t)htonl(kk), (uint32_t)htonl(v), (uint32_t)htonl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -92,7 +91,9 @@ test_cursor_delete (int dup_mode) {
 /* insert duplicate duplicates into a sorted duplicate tree */
 static void
 test_cursor_delete_dupsort (void) {
-    if (verbose) printf("test_cursor_delete_dupsort\n");
+    if (verbose) {
+        printf("test_cursor_delete_dupsort\n"); fflush(stdout);
+    }
 
     int pagesize = 4096;
     int elementsize = 32;
@@ -150,11 +151,12 @@ test_cursor_delete_dupsort (void) {
 }
 
 int main(int argc, const char *argv[]) {
+    int r;
 
     parse_args(argc, argv);
-  
-    system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+
+    r = system("rm -rf " ENVDIR); assert(r == 0);
+    r = os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     
     test_cursor_delete(0);
 #ifdef USE_BDB

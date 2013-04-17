@@ -4,9 +4,8 @@
 /* Test using performance metrics only, to see if group commit is working. */
 
 #include <db.h>
-#include <pthread.h>
+#include <toku_pthread.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include "test.h"
 
 DB_ENV *env;
@@ -46,14 +45,14 @@ test_groupcommit (int nthreads) {
     r=tid->commit(tid, 0);    assert(r==0);
 
     int i;
-    pthread_t threads[nthreads];
+    toku_pthread_t threads[nthreads];
     int whichthread[nthreads];
     for (i=0; i<nthreads; i++) {
 	whichthread[i]=i;
-	r=pthread_create(&threads[i], 0, start_a_thread, &whichthread[i]);
+	r=toku_pthread_create(&threads[i], 0, start_a_thread, &whichthread[i]);
     }
     for (i=0; i<nthreads; i++) {
-	pthread_join(threads[i], 0);
+	toku_pthread_join(threads[i], 0);
     }
 #if 0
     r=env->txn_begin(env, 0, &tid, 0); CKERR(r);

@@ -674,7 +674,7 @@ static __attribute__((__unused__))
 void
 ignore (void *ignore __attribute__((__unused__))) {
 }
-#define IGNORE(x) ignore((void*)x)
+#define TOKU_IGNORE(x) ignore((void*)x)
 
 static void
 cget_heavi (BOOL success, BOOL find, char txn, int _key, int _val, 
@@ -682,16 +682,16 @@ cget_heavi (BOOL success, BOOL find, char txn, int _key, int _val,
 	    int r_h_expect,
 	    int (*h)(const DBT*,const DBT*,void*)) {
 #if defined(USE_BDB)
-    IGNORE(success);
-    IGNORE(find);
-    IGNORE((size_t)txn);
-    IGNORE((size_t)_key);
-    IGNORE((size_t)_val);
-    IGNORE((size_t)_key_expect);
-    IGNORE((size_t)_val_expect);
-    IGNORE((size_t)direction);
-    IGNORE(h);
-    IGNORE((size_t)r_h_expect);
+    TOKU_IGNORE(success);
+    TOKU_IGNORE(find);
+    TOKU_IGNORE((size_t)txn);
+    TOKU_IGNORE((size_t)_key);
+    TOKU_IGNORE((size_t)_val);
+    TOKU_IGNORE((size_t)_key_expect);
+    TOKU_IGNORE((size_t)_val_expect);
+    TOKU_IGNORE((size_t)direction);
+    TOKU_IGNORE(h);
+    TOKU_IGNORE((size_t)r_h_expect);
     return;
 #else
     assert(txns[(int)txn] && cursors[(int)txn]);

@@ -1,12 +1,10 @@
 /* Primary with two associated things. */
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <db.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #include "test.h"
@@ -95,13 +93,13 @@ read_uchar_from_dbt (const DBT *dbt, unsigned int *off, unsigned char *uchar) {
 }
 
 static void
-read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) {
+read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uintptr) {
     unsigned char a,b,c,d;
     read_uchar_from_dbt(dbt, off, &a);
     read_uchar_from_dbt(dbt, off, &b);
     read_uchar_from_dbt(dbt, off, &c);
     read_uchar_from_dbt(dbt, off, &d);
-    *uint = (a<<24)+(b<<16)+(c<<8)+d;
+    *uintptr = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
 static void

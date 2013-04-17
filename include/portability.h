@@ -19,18 +19,16 @@ extern "C" {
 
 #endif
 
-#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
+#if TOKU_WINDOWS
 // Windows
 
-//  ntohl and htonl are defined in winsock.h 
-#include <winsock.h>
-#include <direct.h>
-#include <sys/types.h>
 #include "stdint.h"
 #include "inttypes.h"
-#include "toku_pthread.h"
+#include <direct.h>
+#include <sys/types.h>
 #include "unistd.h"
 #include "misc.h"
+#include "toku_pthread.h"
 
 #define UNUSED_WARNING(a) a=a /* To make up for missing attributes */
 
@@ -47,7 +45,6 @@ extern "C" {
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <arpa/inet.h>
 #include <sys/time.h>
 
 #endif 
@@ -59,8 +56,6 @@ extern "C" {
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/types.h>
-// Define ntohl using arpa/inet.h
-#include <arpa/inet.h>
 #include <sys/time.h>
 
 #else
@@ -70,6 +65,7 @@ extern "C" {
 #endif
 
 #include "os.h"
+#include "toku_htonl.h"
 
 #define UU(x) x __attribute__((__unused__))
 

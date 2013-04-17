@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
 #include <errno.h>
 

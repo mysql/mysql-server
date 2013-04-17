@@ -2,15 +2,8 @@
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"
-#include <arpa/inet.h>
 
 unsigned char N=5;
-
-static int
-fact (int n) {
-    if (n<=2) return n;
-    else return n*fact(n-1);
-}
 
 DB_ENV *env;
 DB *db;
@@ -75,7 +68,6 @@ int main(int argc, const char *argv[]) {
 	r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777);  CKERR(r);
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }
-    //printf("fact(%d)=%d\n", N, fact(N));
     run();
     {
 	r=db->close(db, 0);                                           CKERR(r);

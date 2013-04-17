@@ -81,7 +81,7 @@ test_commit_commit (void) {
 }
 
 static void
-setup (void) {
+test_setup (void) {
     DB_TXN *txn;
     int r;
     system("rm -rf " ENVDIR);
@@ -103,7 +103,7 @@ setup (void) {
 }
 
 static void
-shutdown (void) {
+test_shutdown (void) {
     int r;
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
@@ -111,8 +111,8 @@ shutdown (void) {
 
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
-    setup();
+    test_setup();
     test_commit_commit();
-    shutdown();
+    test_shutdown();
     return 0;
 }

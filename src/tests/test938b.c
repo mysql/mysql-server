@@ -2,15 +2,6 @@
 #include <db.h>
 #include <sys/stat.h>
 #include "test.h"
-#include <arpa/inet.h>
-
-unsigned char N=5;
-
-static int
-fact (int n) {
-    if (n<=2) return n;
-    else return n*fact(n-1);
-}
 
 DB_ENV *env;
 DB *db;
@@ -44,7 +35,7 @@ run (void) {
  	for (i=0; i<N; i++) {
 	    r=c->c_get(c, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_NEXT); CKERR(r);
 	    assert(k.size==1);          assert(v.size==4);
-	    assert(*(char*)k.data==vN); assert(ntohl(*(int*)v.data)==i);
+	    assert(*(char*)k.data==vN); assert((int)ntohl(*(int*)v.data)==i);
 	}
 
 	r=c->c_get(c, dbt_init(&k, 0, 0), dbt_init(&v, 0, 0), DB_NEXT);  CKERR(r);
@@ -76,7 +67,6 @@ int main(int argc, const char *argv[]) {
 	r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777);  CKERR(r);
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }
-    //printf("fact(%d)=%d\n", N, fact(N));
     run();
     {
 	r=db->close(db, 0);                                           CKERR(r);

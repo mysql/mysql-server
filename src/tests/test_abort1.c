@@ -26,11 +26,24 @@ test_db_open_aborts (void) {
     r=db_env_create(&env, 0); assert(r==0);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-
+#if 0
     {
 	DB_TXN *tid;
 	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
 	r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+	r=tid->abort(tid);        assert(r==0);
+    }
+    {
+	struct stat buf;
+	r=stat(ENVDIR "/foo.db", &buf);
+	assert(r!=0);
+	assert(errno==ENOENT);
+    }
+#endif
+    {
+	DB_TXN *tid;
+	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
+	r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU|S_IRWXG|S_IRWXO); CKERR(r);
 	{
 	    DBT key,data;
 	    memset(&key, 0, sizeof(key));

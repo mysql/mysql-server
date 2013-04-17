@@ -1,6 +1,5 @@
 /* Primary with two associated things. */
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <db.h>
 #include <errno.h>
@@ -81,13 +80,13 @@ static void read_uchar_from_dbt (const DBT *dbt, unsigned int *off, unsigned cha
     *uchar = ((unsigned char *)dbt->data)[(*off)++];
 }
 
-static void read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) {
+static void read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uintptr) {
     unsigned char a,b,c,d;
     read_uchar_from_dbt(dbt, off, &a);
     read_uchar_from_dbt(dbt, off, &b);
     read_uchar_from_dbt(dbt, off, &c);
     read_uchar_from_dbt(dbt, off, &d);
-    *uint = (a<<24)+(b<<16)+(c<<8)+d;
+    *uintptr = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
 static void read_timestamp_from_dbt (const DBT *dbt, unsigned int *off, timestamp *ts) {

@@ -43,6 +43,7 @@ close_db (void) {
 
 static void
 test_txn_abort (int insert, int secondnum) {
+    if (verbose) { fprintf(stderr, "%s (%s):%d [%d,%d]\n", __FILE__, __FUNCTION__, __LINE__, insert, secondnum); fflush(stderr); }
     setup_db();
 
     DBT key, val;
@@ -99,6 +100,8 @@ test_txn_abort (int insert, int secondnum) {
         r = cursor->c_close(cursor); CKERR(r);
         r = txn->commit(txn, 0);
     }
+    r=db->close(db, 0); CKERR(r);
+    r=env->close(env, 0); CKERR(r);
 
 }
 

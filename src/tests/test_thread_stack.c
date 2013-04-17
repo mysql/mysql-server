@@ -4,28 +4,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <db.h>
-#if defined(OSX)
-    #include <sys/syscall.h>
-#else
-    #include <syscall.h>
-#endif
-#include <pthread.h>
+#include <toku_pthread.h>
 #include "test.h"
-
-static inline unsigned int getmyid() {
-#if __linux__
-    return syscall(__NR_gettid);
-#else
-    return getpid();
-#endif
-}
 
 typedef unsigned int my_t;
 
 struct db_inserter {
-    pthread_t tid;
+    toku_pthread_t tid;
     DB *db;
     my_t startno, endno;
     int do_exit;
@@ -41,14 +27,14 @@ db_put (DB *db, my_t k, my_t v) {
 static void *
 do_inserts (void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
-    if (verbose) printf("%lu:%u:do_inserts:start:%u-%u\n", (unsigned long)pthread_self(), getmyid(), mywork->startno, mywork->endno);
+    if (verbose) printf("%lu:%d:do_inserts:start:%u-%u\n", (unsigned long)toku_pthread_self(), os_gettid(), mywork->startno, mywork->endno);
     my_t i;
     for (i=mywork->startno; i < mywork->endno; i++) {
         int r = db_put(mywork->db, htonl(i), i); assert(r == 0);
     }
     
-    if (verbose) printf("%lu:%u:do_inserts:end\n", (unsigned long)pthread_self(), getmyid());
-    if (mywork->do_exit) pthread_exit(arg);
+    if (verbose) printf("%lu:%d:do_inserts:end\n", (unsigned long)toku_pthread_self(), os_gettid());
+    if (mywork->do_exit) return arg;
     return 0;
 }
 
@@ -135,15 +121,15 @@ int main(int argc, char *argv[]) {
             work[i].endno = n;
     }
 
-    if (verbose) printf("pid:%d\n", getpid());
+    if (verbose) printf("pid:%d tid:%d\n", os_getpid(), os_gettid());
 
     for (i=all_on_threads ? 0 : 1; i<nthreads; i++) {
-        pthread_attr_t attr;
-        r = pthread_attr_init(&attr); assert(r == 0);
+        toku_pthread_attr_t attr;
+        r = toku_pthread_attr_init(&attr); assert(r == 0);
         if (thread_stack) {
-            r = pthread_attr_setstacksize(&attr, thread_stack); assert(r == 0);
+            r = toku_pthread_attr_setstacksize(&attr, thread_stack); assert(r == 0);
         }
-        r = pthread_create(&work[i].tid, &attr, do_inserts, &work[i]); assert(r == 0);
+        r = toku_pthread_create(&work[i].tid, &attr, do_inserts, &work[i]); assert(r == 0);
     }
 
     if (!all_on_threads) {
@@ -153,7 +139,7 @@ int main(int argc, char *argv[]) {
 
     for (i=all_on_threads ? 0 : 1; i<nthreads; i++) {
         void *ret;
-        r = pthread_join(work[i].tid, &ret); assert(r == 0);
+        r = toku_pthread_join(work[i].tid, &ret); assert(r == 0);
     }
 
     r = db->close(db, 0); assert(r == 0);
