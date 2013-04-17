@@ -1088,30 +1088,19 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("ydb lock", lockstat);
       STATPRINT("ydb lock counter", buf);
 
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_possible_sleep);  
-      STATPRINT("max_possible_sleep (microseconds)", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.processor_freq_mhz);  
-      STATPRINT("processor_freq_mhz", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_requested_sleep);  
-      STATPRINT("max_requested_sleep", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.times_max_sleep_used);  
-      STATPRINT("times_max_sleep_used", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleepers);  
-      STATPRINT("total_sleepers", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleep_time);  
-      STATPRINT("total_sleep_time", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_waiters);  
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.num_waiters_now);
+      STATPRINT("num_waiters_now", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.max_waiters);
       STATPRINT("max_waiters", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_waiters);  
-      STATPRINT("total_waiters", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_clients);  
-      STATPRINT("total_clients", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.time_ydb_lock_held_unavailable);  
-      STATPRINT("time_ydb_lock_held_unavailable", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_time_ydb_lock_held);  
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_sleep_time);
+      STATPRINT("total_sleep_time", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_time_ydb_lock_held);
       STATPRINT("max_time_ydb_lock_held", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);  
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);
       STATPRINT("total_time_ydb_lock_held", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_since_start);
+      STATPRINT("total_time_since_start", buf);
+
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_taken);  
       STATPRINT("cachetable lock taken", buf);
