@@ -196,6 +196,8 @@ toku_os_write (int fd, const void *buf, size_t len) {
 
 void
 toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
+    assert(0==((long long)buf)%512);
+    assert((len%512 == 0) && (off%512)==0); // to make pwrite work.
     const char *bp = (const char *) buf;
     while (len > 0) {
         ssize_t r;
@@ -218,6 +220,9 @@ toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
 
 ssize_t
 toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
+    assert(0==((long long)buf)%512); // these asserts are to ensure that direct I/O will work.
+    assert(0==len             %512);
+    assert(0==off             %512);
     const char *bp = (const char *) buf;
     ssize_t result = 0;
     while (len > 0) {
@@ -270,6 +275,25 @@ toku_os_open(const char *path, int oflag, int mode) {
 }
 
 int
+toku_os_open_direct(const char *path, int oflag, int mode) {
+    int rval;
+#if defined(HAVE_O_DIRECT)
+    rval = toku_os_open(path, oflag | O_DIRECT, mode);
+#elif defined(HAVE_F_NOCACHE)
+    rval = toku_os_open(path, oflag, mode);
+    if (rval >= 0) {
+        int r = fcntl(rval, F_NOCACHE, 1);
+        if (r == -1) {
+            perror("setting F_NOCACHE");
+        }
+    }
+#else
+# error "No direct I/O implementation found."
+#endif
+    return rval;
+}
+
+int
 toku_os_fclose(FILE * stream) {  
     int rval = -1;
     if (t_fclose)
@@ -310,6 +334,9 @@ toku_os_read(int fd, void *buf, size_t count) {
 
 ssize_t
 toku_os_pread (int fd, void *buf, size_t count, off_t offset) {
+    assert(0==((long long)buf)%512);
+    assert(0==count%512);
+    assert(0==offset%512);
     ssize_t r;
     if (t_pread) {
 	r = t_pread(fd, buf, count, offset);

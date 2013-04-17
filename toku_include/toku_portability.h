@@ -247,8 +247,26 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #endif
 
 void *os_malloc(size_t) __attribute__((__visibility__("default")));
+// Effect: See man malloc(2)
+
+void *os_malloc_aligned(size_t /*alignment*/, size_t /*size*/) __attribute__((__visibility__("default")));
+// Effect: Perform a malloc(size) with the additional property that the returned pointer is a multiple of ALIGNMENT.
+// Requires: alignment is a power of two.
+
+
 void *os_realloc(void*,size_t) __attribute__((__visibility__("default")));
+// Effect: See man realloc(2)
+
+void *os_realloc_aligned(size_t/*alignment*/, void*,size_t) __attribute__((__visibility__("default")));
+// Effect: Perform a realloc(p, size) with the additional property that the returned pointer is a multiple of ALIGNMENT.
+// Requires: alignment is a power of two.
+
 void os_free(void*) __attribute__((__visibility__("default")));
+// Effect: See man free(2)
+
+size_t os_malloc_usable_size(const void *p) __attribute__((__visibility__("default")));
+// Effect: Return an estimate of the usable size inside a pointer.  If this function is not defined the memory.cc will
+//  look for the jemalloc, libc, or darwin versions of the function for computing memory footprint.
 
 // full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
 void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
@@ -262,6 +280,7 @@ int toku_os_write (int fd, const void *buf, size_t len) __attribute__((__visibil
 FILE * toku_os_fdopen(int fildes, const char *mode);    
 FILE * toku_os_fopen(const char *filename, const char *mode);
 int toku_os_open(const char *path, int oflag, int mode);
+int toku_os_open_direct(const char *path, int oflag, int mode);
 int toku_os_close(int fd);
 int toku_os_fclose(FILE * stream);
 ssize_t toku_os_read(int fd, void *buf, size_t count);
@@ -292,5 +311,18 @@ void toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 
 int toku_portability_init(void);
 void toku_portability_destroy(void);
+
+static inline uint64_t roundup_to_multiple(uint64_t alignment, uint64_t v)
+// Effect: Return X, where X the smallest multiple of ALIGNMENT such that X>=V.
+// Requires: ALIGNMENT is a power of two
+{
+    assert(0==(alignment&(alignment-1)));  // alignment must be a power of two
+    uint64_t result = (v+alignment-1)&~(alignment-1);
+    assert(result>=v);                     // The result is >=V.
+    assert(result%alignment==0);           // The result is a multiple of alignment.
+    assert(result<v+alignment);            // The result is the smallest such multiple of alignment.
+    return result;
+}
+    
 
 #endif /* TOKU_PORTABILITY_H */

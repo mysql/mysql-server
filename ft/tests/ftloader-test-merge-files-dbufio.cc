@@ -188,7 +188,7 @@ static void *my_malloc(size_t n) {
             }
         }
     }
-    return malloc(n);
+    return os_malloc(n);
 }
 
 static int do_realloc_errors = 1;
@@ -207,7 +207,7 @@ static void *my_realloc(void *p, size_t n) {
             }
         }
     }
-    return realloc(p, n);
+    return os_realloc(p, n);
 }
 
 

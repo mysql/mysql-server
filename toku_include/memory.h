@@ -18,17 +18,28 @@ void toku_memory_shutdown(void) __attribute__((destructor));
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
-/* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
+// Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc()
+// That way the tests can can, e.g.,  replace the malloc function using toku_set_func_malloc().
 void *toku_calloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
 void *toku_xcalloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
 void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
+void *toku_malloc_aligned(size_t alignment, size_t size)  __attribute__((__visibility__("default")));
 
 // xmalloc aborts instead of return NULL if we run out of memory
-void *toku_xmalloc(size_t size);
+void *toku_xmalloc(size_t size)  __attribute__((__visibility__("default")));
 void *toku_xrealloc(void*, size_t size) __attribute__((__visibility__("default")));
+void *toku_xmalloc_aligned(size_t alignment, size_t size) __attribute__((__visibility__("default")));
+// Effect: Perform a os_malloc_aligned(size) with the additional property that the returned pointer is a multiple of ALIGNMENT.
+//  Fail with a resource_assert if the allocation fails (don't return an error code).
+//  If the alloc_aligned function has been set then call it instead.
+// Requires: alignment is a power of two.
 
 void toku_free(void*) __attribute__((__visibility__("default")));
 void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default")));
+void *toku_realloc_aligned(size_t alignment, void *p, size_t size) __attribute__((__visibility__("default")));
+// Effect: Perform a os_realloc_aligned(alignment, p, size) which has the additional property that the returned pointer is a multiple of ALIGNMENT.
+//  If the malloc_aligned function has been set then call it instead.
+// Requires: alignment is a power of two.
 
 size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")));
 
@@ -50,6 +61,8 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
  * to make an array of 5 integers.
  */
 #define MALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_malloc((n)*sizeof(*v)))
+#define MALLOC_N_ALIGNED(align, n, v) CAST_FROM_VOIDP(v, toku_malloc_aligned((align), (n)*sizeof(*v)))
+
 
 //CALLOC_N is like calloc with auto-figuring out size of members
 #define CALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_calloc((n), sizeof(*v)))
@@ -57,6 +70,7 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
 #define CALLOC(v) CALLOC_N(1,v)
 
 #define REALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_realloc(v, (n)*sizeof(*v)))
+#define REALLOC_N_ALIGNED(align, n,v) CAST_FROM_VOIDP(v, toku_realloc_aligned((align), v, (n)*sizeof(*v)))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
 #define XMALLOC(v) CAST_FROM_VOIDP(v, toku_xmalloc(sizeof(*v)))
@@ -65,6 +79,8 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
 #define XCALLOC(v) XCALLOC_N(1,(v))
 #define XREALLOC(v,s) CAST_FROM_VOIDP(v, toku_xrealloc(v, s))
 #define XREALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xrealloc(v, (n)*sizeof(*v)))
+
+#define XMALLOC_N_ALIGNED(align, n, v) CAST_FROM_VOIDP(v, toku_xmalloc_aligned((align), (n)*sizeof(*v)))
 
 #define XMEMDUP(dst, src) CAST_FROM_VOIDP(dst, toku_xmemdup(src, sizeof(*src)))
 #define XMEMDUP_N(dst, src, len) CAST_FROM_VOIDP(dst, toku_xmemdup(src, len))
@@ -94,6 +110,8 @@ void toku_do_memory_check(void);
 typedef void *(*malloc_fun_t)(size_t);
 typedef void  (*free_fun_t)(void*);
 typedef void *(*realloc_fun_t)(void*,size_t);
+typedef void *(*malloc_aligned_fun_t)(size_t /*alignment*/, size_t /*size*/);
+typedef void *(*realloc_aligned_fun_t)(size_t /*alignment*/, void */*pointer*/, size_t /*size*/);
 
 void toku_set_func_malloc(malloc_fun_t f);
 void toku_set_func_xmalloc_only(malloc_fun_t f);

@@ -44,6 +44,8 @@
 
 #cmakedefine HAVE_M_MMAP_THRESHOLD 1
 #cmakedefine HAVE_CLOCK_REALTIME 1
+#cmakedefine HAVE_O_DIRECT 1
+#cmakedefine HAVE_F_NOCACHE 1
 
 #cmakedefine HAVE_MALLOC_SIZE 1
 #cmakedefine HAVE_MALLOC_USABLE_SIZE 1

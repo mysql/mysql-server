@@ -27,6 +27,10 @@ void * checkpoint_callback2_extra     = NULL;
 
 bool engine_status_enable = true; // if false, suppress engine status output on failed assert, for test programs only
 
+void db_env_set_direct_io (bool direct_io_on) {
+    toku_ft_set_direct_io(direct_io_on);
+}
+
 void db_env_set_func_fsync (int (*fsync_function)(int)) {
     toku_set_func_fsync(fsync_function);
 }

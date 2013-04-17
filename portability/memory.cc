@@ -21,16 +21,16 @@
 #include <portability/toku_atomic.h>
 
 static malloc_fun_t  t_malloc  = 0;
+static malloc_aligned_fun_t t_malloc_aligned = 0;
 static malloc_fun_t  t_xmalloc = 0;
+static malloc_aligned_fun_t t_xmalloc_aligned = 0;
 static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
+static realloc_aligned_fun_t t_realloc_aligned = 0;
 static realloc_fun_t t_xrealloc = 0;
 
 static LOCAL_MEMORY_STATUS_S status;
 int toku_memory_do_stats = 0;
-
-typedef size_t (*malloc_usable_size_fun_t)(const void *);
-static malloc_usable_size_fun_t malloc_usable_size_f;
 
 static bool memory_startup_complete;
 
@@ -76,14 +76,6 @@ toku_memory_startup(void) {
         }
     }
 
-    malloc_usable_size_f = (malloc_usable_size_fun_t) dlsym(RTLD_DEFAULT, "malloc_usable_size");
-    if (!malloc_usable_size_f) {
-        malloc_usable_size_f = (malloc_usable_size_fun_t) dlsym(RTLD_DEFAULT, "malloc_size"); // darwin
-        if (!malloc_usable_size_f) {
-            result = EINVAL; // couldn't find a malloc size function
-        }
-    }
-
     return result;
 }
 
@@ -105,7 +97,7 @@ toku_memory_get_status(LOCAL_MEMORY_STATUS s) {
 // jemalloc's malloc_usable_size does not work with a NULL pointer, so we implement a version that works
 static size_t
 my_malloc_usable_size(void *p) {
-    return p == NULL ? 0 : malloc_usable_size_f(p);
+    return p == NULL ? 0 : os_malloc_usable_size(p);
 }
 
 // Note that max_in_use may be slightly off because use of max_in_use is not thread-safe.
@@ -162,6 +154,23 @@ toku_malloc(size_t size) {
   return p;
 }
 
+void *toku_malloc_aligned(size_t alignment, size_t size) {
+    void *p = t_malloc_aligned ? t_malloc_aligned(alignment, size) : os_malloc_aligned(alignment, size);
+    if (p) {
+	TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+        if (toku_memory_do_stats) {
+            size_t used = my_malloc_usable_size(p);
+            toku_sync_add_and_fetch(&status.malloc_count, 1);
+            toku_sync_add_and_fetch(&status.requested,size);
+            toku_sync_add_and_fetch(&status.used, used);
+            set_max(status.used, status.freed);
+        }
+    } else {
+        toku_sync_add_and_fetch(&status.malloc_fail, 1);
+    }
+  return p;
+}
+
 void *
 toku_calloc(size_t nmemb, size_t size) {
     size_t newsize = nmemb * size;
@@ -188,6 +197,25 @@ toku_realloc(void *p, size_t size) {
     }
     return q;
 }
+
+void *toku_realloc_aligned(size_t alignment, void *p, size_t size) {
+    size_t used_orig = p ? my_malloc_usable_size(p) : 0;
+    void *q = t_realloc_aligned ? t_realloc_aligned(alignment, p, size) : os_realloc_aligned(alignment, p, size);
+    if (q) {
+        if (toku_memory_do_stats) {
+            size_t used = my_malloc_usable_size(q);
+            toku_sync_add_and_fetch(&status.realloc_count, 1);
+            toku_sync_add_and_fetch(&status.requested, size);
+            toku_sync_add_and_fetch(&status.used, used);
+            toku_sync_add_and_fetch(&status.freed, used_orig);
+            set_max(status.used, status.freed);
+        }
+    } else {
+	toku_sync_add_and_fetch(&status.realloc_fail, 1);
+    }
+    return q;
+}
+
 
 void *
 toku_memdup(const void *v, size_t len) {
@@ -222,6 +250,23 @@ toku_xmalloc(size_t size) {
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
     TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+    if (toku_memory_do_stats) {
+        size_t used = my_malloc_usable_size(p);
+        toku_sync_add_and_fetch(&status.malloc_count, 1);
+        toku_sync_add_and_fetch(&status.requested, size);
+        toku_sync_add_and_fetch(&status.used, used);
+        set_max(status.used, status.freed);
+    }
+    return p;
+}
+
+void* toku_xmalloc_aligned(size_t alignment, size_t size)
+// Effect: Perform a malloc(size) with the additional property that the returned pointer is a multiple of ALIGNMENT.
+//  Fail with a resource_assert if the allocation fails (don't return an error code).
+// Requires: alignment is a power of two.
+{
+    void *p = t_xmalloc_aligned ? t_xmalloc_aligned(alignment, size) : os_malloc_aligned(alignment,size);
+    resource_assert(p);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         toku_sync_add_and_fetch(&status.malloc_count, 1);
