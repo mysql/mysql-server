@@ -111,6 +111,7 @@ BDB_DONTRUN_TESTS = \
 	test_dupsort_set_range_reverse \
 	test_dupsort_get_both_range_reverse \
 	recover-compare-db \
+	recover-compare-db-descriptor \
 	test_cursor_delete_2119 \
 #\ ends prev line
 

@@ -263,8 +263,17 @@ static void create_dir_from_file (const char *fname) {
     toku_free(tmp);
 }
 
+static int
+abort_on_upgrade(DB* UU(pdb),
+                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
+                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
+    assert(FALSE); //Must not upgrade.
+    return ENOSYS;
+}
+
+
 // Open the file if it is not already open.  If it is already open, then do nothing.
-static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, int mode, char *fixedfname, FILENUM filenum, u_int32_t treeflags) {
+static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, int mode, char *fixedfname, FILENUM filenum, u_int32_t treeflags, u_int32_t descriptor_version, BYTESTRING* descriptor) {
     int r;
 
     // already open
@@ -303,8 +312,15 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
 
     //Create fake DB for comparison functions.
     DB *XCALLOC(fake_db);
+    if (flags&O_CREAT && descriptor_version > 0) {
+        DBT descriptor_dbt;
+        toku_fill_dbt(&descriptor_dbt, descriptor->data, descriptor->len);
+        r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt, abort_on_upgrade);
+        if (r!=0) goto close_brt;
+    }
     r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, renv->ct, NULL, fake_db);
     if (r != 0) {
+close_brt:;
         //Note:  If brt_open fails, then close_brt will NOT write a header to disk.
         //No need to provide lsn
         int rr = toku_close_brt(brt, NULL, NULL); assert(rr == 0);
@@ -319,7 +335,7 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags, 
 
 static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     char *fixedfname = fixup_fname(&l->iname);
-    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
+    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL);
 }
 
 static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
@@ -345,7 +361,7 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
 static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     char *fixedfname = fixup_fname(&l->iname);
     create_dir_from_file(fixedfname);
-    return internal_toku_recover_fopen_or_fcreate(renv, O_CREAT|O_TRUNC, l->mode, fixedfname, l->filenum, l->treeflags);
+    return internal_toku_recover_fopen_or_fcreate(renv, O_CREAT|O_TRUNC, l->mode, fixedfname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor);
 }
 
 static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER_ENV UU(renv)) {
@@ -485,7 +501,7 @@ static int toku_recover_backward_fclose (struct logtype_fclose *l, RECOVER_ENV r
     if (renv->bs.bs == BS_SAW_CKPT) {
         // tree open
         char *fixedfname = fixup_fname(&l->iname);
-        internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
+        internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL);
     }
     return 0;
 }
@@ -545,7 +561,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *UU(l), RECOVER_EN
 
 static int toku_recover_backward_fassociate (struct logtype_fassociate *l, RECOVER_ENV renv) {
     char *fixedfname = fixup_fname(&l->iname);
-    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags);
+    return internal_toku_recover_fopen_or_fcreate(renv, 0, 0, fixedfname, l->filenum, l->treeflags, 0, NULL);
 }
 
 static int toku_recover_xstillopen (struct logtype_xstillopen *UU(l), RECOVER_ENV UU(renv)) {
