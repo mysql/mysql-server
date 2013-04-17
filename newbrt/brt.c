@@ -531,8 +531,6 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 
     *nodea = node;
     *nodeb = B;
-    assert(toku_serialize_brtnode_size(node) <= node->nodesize);
-    assert(toku_serialize_brtnode_size(B)    <= B->nodesize);
     return 0;
 }
 
