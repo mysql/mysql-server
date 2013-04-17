@@ -98,7 +98,7 @@ check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.$@
 
 check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.$@
 
-check_brtloader-test-extractor$(BINSUF): $(patsubst %,check_brtloader-test-extractor-%, 1 2 3 1a 2a 2b)
+check_brtloader-test-extractor$(BINSUF): $(patsubst %,check_brtloader-test-extractor-%, 1 2 3 1a 2a 3a)
 	true $(SUMMARIZE_CMD)
 # the 1,2,3 tests don't use valgrind, the 1a,2a,3a tests use valgrind.
 check_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
