@@ -578,7 +578,6 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
 	if (ss->n_live_txns==0) {
 	    fprintf(stderr, "Tokudb recovery turning around at begin checkpoint %"PRIu64"\n", l->lsn.lsn);
             renv->goforward = TRUE;
-            ss->ss = SS_FORWARD_SAW_CKPT;
 	    return 0;
 	} else {
 	    fprintf(stderr, "Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64"\n", l->lsn.lsn, ss->min_live_txn);
