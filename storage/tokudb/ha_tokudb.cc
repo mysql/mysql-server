@@ -1299,7 +1299,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
         /* Open other keys;  These are part of the share structure */
         share->key_file[primary_key] = share->file;
-        share->key_type[primary_key] = hidden_primary_key ? 0 : DB_NOOVERWRITE;
+        share->key_type[primary_key] = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
 
         DB **ptr = share->key_file;
         for (uint i = 0; i < table_share->keys; i++, ptr++) {
