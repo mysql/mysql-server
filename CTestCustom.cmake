@@ -216,4 +216,5 @@ list(APPEND CTEST_CUSTOM_COVERAGE_EXCLUDE "log_print.cc")
 
 list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "xz-4.999.9beta/src/liblzma"              # don't complain about warnings in xz source
+  "clang: warning: unknown warning option"  # don't complain about clang missing warnings from xz code
   )
