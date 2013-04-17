@@ -469,13 +469,13 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
         if (env->i->logger) {
 #if 0
             // TODO lock problems (see test_db_remove.c).  may want to require an environment.
-            r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL);
+            r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, NULL);
             assert(r0 == 0);
 #else
             // TODO locks?
             r0 = toku_cachetable_begin_checkpoint(env->i->cachetable, env->i->logger);
             if (r0 == 0)
-                toku_cachetable_end_checkpoint(env->i->cachetable, env->i->logger, NULL);
+                toku_cachetable_end_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL);
             assert(r0 == 0);
 #endif
             r0 = toku_logger_shutdown(env->i->logger); assert(r0 == 0);
@@ -726,10 +726,14 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 // For test purposes only.
 static void (*checkpoint_callback_f)(void*) = NULL;
 static void * checkpoint_callback_extra     = NULL;
+static void (*checkpoint_callback2_f)(void*) = NULL;
+static void * checkpoint_callback2_extra     = NULL;
 
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
     char *error_string = NULL;
-    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string, checkpoint_callback_f, checkpoint_callback_extra);
+    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string, 
+			    checkpoint_callback_f,  checkpoint_callback_extra,
+			    checkpoint_callback2_f, checkpoint_callback2_extra);
     if (r) {
 	env->i->is_panicked = r; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
 	env->i->panic_string = error_string;
@@ -4086,13 +4090,20 @@ void setup_dlmalloc (void) {
 }
 
 // For test purposes only.
-// With this interface, all checkpoint users get the same callback and the same extra.
+// With this interface, all checkpoint users get the same callbacks and the same extras.
 void db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
     toku_checkpoint_safe_client_lock();
     checkpoint_callback_f = callback_f;
     checkpoint_callback_extra = extra;
     toku_checkpoint_safe_client_unlock();
     //printf("set callback = %p, extra = %p\n", callback_f, extra);
+}
+void db_env_set_checkpoint_callback2 (void (*callback_f)(void*), void* extra) {
+    toku_checkpoint_safe_client_lock();
+    checkpoint_callback2_f = callback_f;
+    checkpoint_callback2_extra = extra;
+    toku_checkpoint_safe_client_unlock();
+    //printf("set callback2 = %p, extra2 = %p\n", callback2_f, extra2);
 }
 
 // HACK: To ensure toku_pthread_yield gets included in the .so

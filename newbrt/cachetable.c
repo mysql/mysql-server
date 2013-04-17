@@ -207,7 +207,7 @@ checkpoint_thread (void *cachetable_v)
 {
     char *error_string;
     CACHETABLE ct = cachetable_v;
-    int r = toku_checkpoint(ct, ct->logger, &error_string, NULL, NULL);
+    int r = toku_checkpoint(ct, ct->logger, &error_string, NULL, NULL, NULL, NULL);
     if (r) {
 	if (error_string) {
 	    fprintf(stderr, "%s:%d Got error %d while doing: %s\n", __FILE__, __LINE__, r, error_string);
@@ -1637,12 +1637,12 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 
 
 int
-toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string) {
+toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*testcallback_f)(void*),  void * testextra) {
     // Requires:   The big checkpoint lock must be held (see checkpoint.c).
     // Algorithm:  Write all pending nodes to disk
     //             Use checkpoint callback to write snapshot information to disk (header, btt)
     //             Use end_checkpoint callback to fsync dictionary and log, and to free unused blocks
-    //
+    // Note:       If testcallback is null (for testing purposes only), call it after writing dictionary but before writing log
 
     int retval = 0;
     cachetable_lock(ct);
@@ -1703,6 +1703,10 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
             }
         }
     }
+
+    // For testing purposes only.  Dictionary has been fsync-ed to disk but log has not yet been written.
+    if (testcallback_f) 
+	testcallback_f(testextra);      
 
     if (logger) {
 	int r = toku_log_end_checkpoint(logger, NULL,
