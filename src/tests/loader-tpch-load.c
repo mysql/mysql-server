@@ -12,7 +12,6 @@ enum {MAX_NAME=128};
 enum {MAX_DBS=16};
 enum {MAX_ROW_LEN=1024};
 int NUM_DBS=10;
-int NUM_ROWS=100000;
 int USE_PUTS=0;
 int USE_REGION=0;
 
@@ -438,11 +437,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
+	    fprintf(stderr, "Usage: -h -p -g\n%s\n", cmd);
 	    exit(resultcode);
-        } else if (strcmp(argv[0], "-r")==0) {
-            argc--; argv++;
-            NUM_ROWS = atoi(argv[0]);
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = 1;
         } else if (strcmp(argv[0], "-g")==0) {
