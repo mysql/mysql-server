@@ -45,6 +45,14 @@ inline TOKU_TYPE mysql_to_toku_type (Field* field) {
             ret_val = toku_type_fixstring;
         }
         goto exit;
+    case MYSQL_TYPE_VARCHAR:
+        if (field->binary()) {
+            ret_val = toku_type_varbinary;
+        }
+        else {
+            ret_val = toku_type_varstring;
+        }
+        goto exit;
     //
     // I believe these are old types that are no longer
     // in any 5.1 tables, so tokudb does not need
@@ -307,7 +315,6 @@ exit:
     return ret_val;
 }
 
-
 inline int cmp_toku_string(
     uchar* a_buf,
     u_int32_t a_num_bytes,
@@ -327,6 +334,114 @@ inline int cmp_toku_string(
         b_num_bytes, 
         0
         );
+    return ret_val;
+}
+
+inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
+    u_int32_t length = (u_int32_t)(buf[0]);
+    if (length_bytes == 2) {
+        u_int32_t rest_of_length = (u_int32_t)buf[1];
+        length += rest_of_length<<8;
+    }
+    return length;
+}
+
+inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
+    return (max_num_bytes > 255) ? 2 : 1;
+}
+
+inline uchar* pack_toku_varbinary(
+    uchar* to_tokudb, 
+    uchar* from_mysql, 
+    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    u_int32_t max_num_bytes
+    ) 
+{
+    u_int32_t length = length_bytes_in_mysql == 1 ? (u_int32_t)(*from_mysql) : uint2korr(from_mysql);
+    set_if_smaller(length,max_num_bytes);
+    //
+    // copy the length bytes, assuming both are in little endian
+    //
+    to_tokudb[0] = (uchar)length & 255;
+    if (length_bytes_in_tokudb > 1) {
+        to_tokudb[1] = (uchar) (length >> 8);
+    }
+    //
+    // copy the string
+    //
+    memcpy(to_tokudb + length_bytes_in_tokudb, from_mysql + length_bytes_in_mysql, length);
+    return to_tokudb + length + length_bytes_in_tokudb;
+}
+
+inline uchar* unpack_toku_varbinary(
+    uchar* to_mysql, 
+    uchar* from_tokudb, 
+    u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
+    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_tokudb
+    ) 
+{
+    u_int32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
+
+    //
+    // copy the length
+    //
+    if (length_bytes_in_mysql== 1) {
+      *to_mysql = (uchar) length;
+    }
+    else {
+      int2store(to_mysql, length);
+    }
+    //
+    // copy the binary data
+    //
+    memcpy(to_mysql + length_bytes_in_mysql, from_tokudb + length_bytes_in_tokudb, length);
+    return from_tokudb + length_bytes_in_tokudb+ length;
+}
+
+inline int cmp_toku_varbinary(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) 
+{
+    int ret_val = 0;
+    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
+    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
+    ret_val = cmp_toku_binary(
+        a_buf + length_bytes,
+        a_len,
+        b_buf + length_bytes,
+        b_len
+        );
+    *a_bytes_read = a_len + length_bytes;
+    *b_bytes_read = b_len + length_bytes;
+    return ret_val;
+}
+
+inline int cmp_toku_varstring(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
+    u_int32_t charset_num,
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) 
+{
+    int ret_val = 0;
+    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
+    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
+    ret_val = cmp_toku_string(
+        a_buf + length_bytes,
+        a_len,
+        b_buf + length_bytes,
+        b_len,
+        charset_num
+        );
+    *a_bytes_read = a_len + length_bytes;
+    *b_bytes_read = b_len + length_bytes;
     return ret_val;
 }
 
@@ -374,6 +489,25 @@ int compare_field(
         ret_val = cmp_toku_string(a_buf, num_bytes, b_buf,num_bytes, field->charset()->number);
         *a_bytes_read = num_bytes;
         *b_bytes_read = num_bytes;
+        goto exit;
+    case (toku_type_varbinary):
+        ret_val = cmp_toku_varbinary(
+            a_buf,
+            b_buf,
+            get_length_bytes_from_max(key_part_length),
+            a_bytes_read,
+            b_bytes_read
+            );
+        goto exit;
+    case (toku_type_varstring):
+        ret_val = cmp_toku_varstring(
+            a_buf,
+            b_buf,
+            get_length_bytes_from_max(key_part_length),
+            field->charset()->number,
+            a_bytes_read,
+            b_bytes_read
+            );
         goto exit;
     default:
         *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
@@ -434,6 +568,18 @@ uchar* pack_field(
             num_bytes
             );
         goto exit;
+    case (toku_type_varbinary):
+    case (toku_type_varstring):
+        num_bytes = field->pack_length();
+        set_if_smaller(num_bytes, key_part_length);
+        new_pos = pack_toku_varbinary(
+            to_tokudb,
+            from_mysql,
+            get_length_bytes_from_max(num_bytes),
+            ((Field_varstring *)field)->length_bytes,
+            num_bytes
+            );
+        goto exit;
     default:
         assert(toku_type == toku_type_unknown);
         new_pos = field->pack_key(
@@ -457,6 +603,7 @@ uchar* pack_key_field(
     )
 {
     uchar* new_pos = NULL;
+    u_int32_t max_num_bytes = 0;
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
@@ -467,6 +614,18 @@ uchar* pack_key_field(
     case (toku_type_fixbinary):
     case (toku_type_fixstring):
         new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
+        goto exit;
+    case (toku_type_varbinary):
+    case (toku_type_varstring):
+        max_num_bytes = field->pack_length();
+        set_if_smaller(max_num_bytes, key_part_length);
+        new_pos = pack_toku_varbinary(
+            to_tokudb,
+            from_mysql,
+            get_length_bytes_from_max(max_num_bytes),
+            2, // for some idiotic reason, 2 bytes are always used here, regardless of length of field
+            max_num_bytes
+            );
         goto exit;
     default:
         assert(toku_type == toku_type_unknown);
@@ -523,6 +682,15 @@ uchar* unpack_field(
             to_mysql,
             from_tokudb,
             num_bytes
+            );
+        goto exit;
+    case (toku_type_varbinary):
+    case (toku_type_varstring):
+        new_pos = unpack_toku_varbinary(
+            to_mysql,
+            from_tokudb,
+            get_length_bytes_from_max(key_part_length),
+            ((Field_varstring *)field)->length_bytes
             );
         goto exit;
     default:
