@@ -98,7 +98,7 @@ static inline uint64_t toku_current_time_microsec(void) {
 static inline uint64_t toku_current_time_nanosec(void) {
     struct timespec t;
     int r = toku_clock_gettime(CLOCK_REALTIME, &t);
-    invariant_zero(r);
+    assert(r == 0);
     return t.tv_sec * (1UL * 1000 * 1000 * 1000) + t.tv_nsec;
 }
 
