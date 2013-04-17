@@ -30,11 +30,16 @@
 typedef int(*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
+
+// effect: changes the descriptor for the ft of the given handle.
+// requires: 
+// - cannot change descriptor for same ft in two threads in parallel. 
+// - can only update cmp descriptor immidiately after opening the FIRST ft handle for this ft and before 
+//   ANY operations. to update the cmp descriptor after any operations have already happened, all handles 
+//   and transactions must close and reopen before the change, then you can update the cmp descriptor
 int toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn, BOOL update_cmp_descriptor);
-
-// See the ft-ops.c file for what this toku_redirect_ft does
-
 u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
+
 int toku_ft_handle_create(FT_HANDLE *)  __attribute__ ((warn_unused_result));
 int toku_ft_set_flags(FT_HANDLE, unsigned int flags)  __attribute__ ((warn_unused_result));
 int toku_ft_get_flags(FT_HANDLE, unsigned int *flags)  __attribute__ ((warn_unused_result));
