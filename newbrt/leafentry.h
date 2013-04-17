@@ -116,8 +116,6 @@ struct __attribute__ ((__packed__)) leafentry {
 typedef struct leafentry *LEAFENTRY;
 typedef struct leafentry_13 *LEAFENTRY_13;
 
-u_int32_t toku_le_crc(LEAFENTRY v);
-
 size_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.
 size_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LEAFENTRY.  The size of a leafentry on disk.
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);

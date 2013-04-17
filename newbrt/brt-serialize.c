@@ -196,9 +196,7 @@ enum {
 
     extended_node_header_overhead = (4+   // nodesize
                                      4+   // flags
-                                     4+   // height
-                                     4+   // random for fingerprint
-                                     4),  // localfingerprint
+                                     4),   // height
 };
 
 #include "sub_block.h"
@@ -219,12 +217,11 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
 	size += 4; /* n_children */
-	size += 4; /* subtree fingerprint. */
 	size += 4*(node->u.n.n_children-1); /* key lengths*/
 	for (int i=0; i<node->u.n.n_children-1; i++) {
 	    csize += toku_brt_pivot_key_len(node->u.n.childkeys[i]);
 	}
-	size += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
+	size += (8+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
 	int n_buffers = node->u.n.n_children;
         invariant(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (int i=0; i< n_buffers; i++) {
@@ -257,12 +254,11 @@ toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result = node_header_overhead + extended_node_header_overhead;
     invariant(sizeof(toku_off_t)==8);
     if (node->height > 0) {
-	result += 4; /* subtree fingerpirnt */
 	result += 4; /* n_children */
 	result += 4*(node->u.n.n_children-1); /* key lengths*/
 	invariant(node->u.n.totalchildkeylens < (1<<30));
 	result += node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
+	result += (8+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and 3*8 for the subtree estimates and one for the exact bit. */
 	result += node->u.n.n_bytes_in_buffers;
         result += node->u.n.n_children*stored_sub_block_map_size;
     } else {
@@ -301,11 +297,7 @@ serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
     wbuf_nocrc_uint(wbuf, node->nodesize);
     wbuf_nocrc_uint(wbuf, node->flags);
     wbuf_nocrc_int(wbuf,  node->height);
-    //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
-    wbuf_nocrc_uint(wbuf, node->rand4fingerprint);
-    wbuf_nocrc_uint(wbuf, node->local_fingerprint);
-    //printf("%s:%d wrote %08x for node %lld\n", __FILE__, __LINE__, node->local_fingerprint, (long long)node->thisnodename);
-    //printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, node->local_fingerprint);
+    //printf("%s:%d %lld height=%d\n", __FILE__, __LINE__, node->thisnodename, node->height);
     //printf("%s:%d w.ndone=%d n_children=%d\n", __FILE__, __LINE__, w.ndone, node->n_children);
 }
 
@@ -313,18 +305,8 @@ static void
 serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], struct wbuf *wbuf) {
     // serialize the nonleaf header
     invariant(node->u.n.n_children>0);
-    // Local fingerprint is not actually stored while in main memory.  Must calculate it.
-    // Subtract the child fingerprints from the subtree fingerprint to get the local fingerprint.
-    {
-        u_int32_t subtree_fingerprint = node->local_fingerprint;
-        for (int i = 0; i < node->u.n.n_children; i++) {
-            subtree_fingerprint += BNC_SUBTREE_FINGERPRINT(node, i);
-        }
-        wbuf_nocrc_uint(wbuf, subtree_fingerprint);
-    }
     wbuf_nocrc_int(wbuf, node->u.n.n_children);
     for (int i = 0; i < node->u.n.n_children; i++) {
-        wbuf_nocrc_uint(wbuf, BNC_SUBTREE_FINGERPRINT(node, i));
         struct subtree_estimates *se = &(BNC_SUBTREE_ESTIMATES(node, i));
         wbuf_nocrc_ulonglong(wbuf, se->nkeys);
         wbuf_nocrc_ulonglong(wbuf, se->ndata);
@@ -359,7 +341,6 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
     // serialize the child buffers
     {
         int n_buffers = node->u.n.n_children;
-        u_int32_t check_local_fingerprint = 0;
         for (int i = 0; i < n_buffers; i++) {
             //printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
             // invariant(child_buffer_map[i].offset == wbuf_get_woffset(wbuf));
@@ -371,12 +352,8 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
                              wbuf_nocrc_xids(wbuf, xids);
                              wbuf_nocrc_bytes(wbuf, key, keylen);
                              wbuf_nocrc_bytes(wbuf, data, datalen);
-                             check_local_fingerprint+=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
                          });
         }
-        //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
-        if (check_local_fingerprint!=node->local_fingerprint) printf("%s:%d node=%" PRId64 " fingerprint expected=%08x actual=%08x\n", __FILE__, __LINE__, node->thisnodename.b, check_local_fingerprint, node->local_fingerprint);
-        invariant(check_local_fingerprint==node->local_fingerprint);
     }
 }
 
@@ -572,8 +549,6 @@ struct deserialize_child_buffer_work {
     BRTNODE node;               // in node pointer
     int cnum;                   // in child number
     struct rbuf rb;             // in child rbuf
-
-    uint32_t local_fingerprint; // out node fingerprint
 };
 
 static void
@@ -584,8 +559,7 @@ deserialize_child_buffer_init(struct deserialize_child_buffer_work *dw, BRTNODE 
 }
 
 static void
-deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf, u_int32_t *local_fingerprint_ret) {
-    uint32_t local_fingerprint = 0;
+deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf) {
     int n_bytes_in_buffer = 0;
     int n_in_this_buffer = rbuf_int(rbuf);
     for (int i = 0; i < n_in_this_buffer; i++) {
@@ -597,7 +571,6 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf, u_int32_t *l
         xids_create_from_buffer(rbuf, &xids);
         rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
         rbuf_bytes(rbuf, &val, &vallen);
-        local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
         //printf("Found %s,%s\n", (char*)key, (char*)val);
         int r = toku_fifo_enq(BNC_BUFFER(node, cnum), key, keylen, val, vallen, type, xids); /* Copies the data into the fifo */
         lazy_assert_zero(r);
@@ -608,7 +581,6 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf, u_int32_t *l
     invariant(rbuf->ndone == rbuf->size);
 
     BNC_NBYTESINBUF(node, cnum) = n_bytes_in_buffer;
-    *local_fingerprint_ret = local_fingerprint;
 }
 
 static void *
@@ -618,14 +590,14 @@ deserialize_child_buffer_worker(void *arg) {
         struct deserialize_child_buffer_work *dw = (struct deserialize_child_buffer_work *) workset_get(ws);
         if (dw == NULL)
             break;
-        deserialize_child_buffer(dw->node, dw->cnum, &dw->rb, &dw->local_fingerprint);
+        deserialize_child_buffer(dw->node, dw->cnum, &dw->rb);
     }
     workset_release_ref(ws);
     return arg;
 }
 
 static void
-deserialize_all_child_buffers(BRTNODE result, struct rbuf *rbuf, struct sub_block_map child_buffer_map[], int my_num_cores, uint32_t *check_local_fingerprint_ret) {
+deserialize_all_child_buffers(BRTNODE result, struct rbuf *rbuf, struct sub_block_map child_buffer_map[], int my_num_cores) {
     int n_nonempty_fifos = 0; // how many fifos are nonempty?
     for(int i = 0; i < result->u.n.n_children; i++) {
         if (child_buffer_map[i].size > 4)
@@ -656,21 +628,19 @@ deserialize_all_child_buffers(BRTNODE result, struct rbuf *rbuf, struct sub_bloc
     deserialize_child_buffer_worker(&ws);
     workset_join(&ws);
 
-    // combine the fingerprints and update the buffer counts
-    uint32_t check_local_fingerprint = 0;
+    // Update the buffer counts
     for (int i = 0; i < result->u.n.n_children; i++) {
-        check_local_fingerprint += work[i].local_fingerprint;
         result->u.n.n_bytes_in_buffers += BNC_NBYTESINBUF(result, i);
     }
 
     // cleanup
     workset_destroy(&ws);
 
-    *check_local_fingerprint_ret = check_local_fingerprint;
 }
 
 static int
 deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *rb) {
+    // Note that result->layout_version_read_from_disk is initialized before this is read
     int r;
 
     if (memcmp(magic, "tokunode", 8)!=0) {
@@ -679,17 +649,14 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
     }
 
     result->u.n.totalchildkeylens=0;
-    u_int32_t subtree_fingerprint = rbuf_int(rb);
-    u_int32_t check_subtree_fingerprint = 0;
+    if (result->layout_version_read_from_disk <= BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) rbuf_int(rb); // ignore this int.  It's a fingerprint.
     result->u.n.n_children = rbuf_int(rb);
     MALLOC_N(result->u.n.n_children+1,   result->u.n.childinfos);
     MALLOC_N(result->u.n.n_children, result->u.n.childkeys);
     //printf("n_children=%d\n", result->n_children);
     invariant(result->u.n.n_children>=0);
     for (int i=0; i<result->u.n.n_children; i++) {
-        u_int32_t childfp = rbuf_int(rb);
-        BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
-        check_subtree_fingerprint += childfp;
+	if (result->layout_version_read_from_disk <= BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) rbuf_int(rb); // ignore child fingerprint.
         struct subtree_estimates *se = &(BNC_SUBTREE_ESTIMATES(result, i));
         se->nkeys = rbuf_ulonglong(rb);
         se->ndata = rbuf_ulonglong(rb);
@@ -728,17 +695,7 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
     }
 
     // deserialize all child buffers, like the function says
-    uint32_t check_local_fingerprint;
-    deserialize_all_child_buffers(result, rb, child_buffer_map, num_cores, &check_local_fingerprint);
-
-    if (check_local_fingerprint != result->local_fingerprint) {
-        fprintf(stderr, "%s:%d local fingerprint is wrong (found %8x calcualted %8x\n", __FILE__, __LINE__, result->local_fingerprint, check_local_fingerprint);
-        return toku_db_badformat();
-    }
-    if (check_subtree_fingerprint+check_local_fingerprint != subtree_fingerprint) {
-        fprintf(stderr, "%s:%d subtree fingerprint is wrong\n", __FILE__, __LINE__);
-        return toku_db_badformat();
-    }
+    deserialize_all_child_buffers(result, rb, child_buffer_map, num_cores);
 
     return 0;
 }
@@ -788,7 +745,6 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     //printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer);
     toku_mempool_init(&result->u.l.buffer_mempool, rb->buf, rb->size);
 
-    u_int32_t actual_sum = 0;
     u_int32_t start_of_data = rb->ndone;
     OMTVALUE *MALLOC_N(n_in_buf, array);
 
@@ -799,7 +755,6 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
             rb->ndone += disksize;
 	    invariant(rb->ndone<=rb->size);
             array[i]=(OMTVALUE)le;
-            actual_sum += x1764_memory(le, disksize);
         }
     }
     else if (result->layout_version == BRT_LAYOUT_VERSION_13) {
@@ -812,7 +767,6 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
             invariant(rb->ndone<=rb->size);
 
             array[i]=(OMTVALUE)le;
-            actual_sum += x1764_memory(le, disksize);
         }
     }
     else {
@@ -821,7 +775,6 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     toku_trace("fill array");
     u_int32_t end_of_data = rb->ndone;
     result->u.l.n_bytes_in_buffer += end_of_data-start_of_data + n_in_buf*OMT_ITEM_OVERHEAD;
-    actual_sum *= result->rand4fingerprint;
     r = toku_omt_create_steal_sorted_array(&result->u.l.buffer, &array, n_in_buf, n_in_buf);
     toku_trace("create omt");
     if (r!=0) {
@@ -836,13 +789,6 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     result->u.l.buffer_mempool.free_offset = end_of_data;
 
     if (r!=0) goto died_1;
-    if (actual_sum!=result->local_fingerprint) {
-        //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
-        r = toku_db_badformat();
-        goto died_1;
-    } else {
-        //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
-    }
     
     //toku_verify_counts(result);
 
@@ -883,8 +829,10 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     result->thisnodename = blocknum;
     result->flags = rbuf_int(rb);
     result->height = rbuf_int(rb);
-    result->rand4fingerprint = rbuf_int(rb);
-    result->local_fingerprint = rbuf_int(rb);
+    if (result->layout_version_read_from_disk <= BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+	rbuf_int(rb); // ignore rand4fingerprint
+	rbuf_int(rb); // ignore localfingerprint
+    }
 //    printf("%s:%d read %08x\n", __FILE__, __LINE__, result->local_fingerprint);
     result->dirty = 0;
     result->fullhash = fullhash;
@@ -1045,7 +993,6 @@ deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u
                     LEAFENTRY *XCALLOC_N(num_les, new_les);
                     OMTVALUE v;
 
-                    u_int32_t incremental_fingerprint = 0;
                     u_int32_t incremental_size = 0;
                     for (i = 0; i < num_les; i++) {
                         r = toku_omt_fetch(omt, i, &v, NULL);
@@ -1056,10 +1003,7 @@ deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u
                         invariant(r==0);
                         invariant(new_memsize == new_disksize);
                         incremental_size        += OMT_ITEM_OVERHEAD + new_memsize;
-                        incremental_fingerprint += toku_le_crc(new_les[i]);
                     }
-                    //Regenerate fingerprint.
-                    node->local_fingerprint = node->rand4fingerprint * incremental_fingerprint;
                     //Set buffer size.
                     node->u.l.n_bytes_in_buffer = incremental_size;
 
@@ -1249,7 +1193,6 @@ struct sum_info {
     unsigned int dsum;
     unsigned int msum;
     unsigned int count;
-    u_int32_t    fp;
 };
 
 static int
@@ -1259,43 +1202,25 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     si->count++;
     si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
     si->msum += leafentry_memsize(le);
-    si->fp  += toku_le_crc(le);
     return 0;
 }
 
 void
-toku_verify_or_set_counts (BRTNODE node, BOOL set_fingerprints) {
+toku_verify_or_set_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
 	lazy_assert(node->u.l.buffer);
-	struct sum_info sum_info = {0,0,0,0};
+	struct sum_info sum_info = {0,0,0};
 	toku_omt_iterate(node->u.l.buffer, sum_item, &sum_info);
 	lazy_assert(sum_info.count==toku_omt_size(node->u.l.buffer));
 	lazy_assert(sum_info.dsum==node->u.l.n_bytes_in_buffer);
 	lazy_assert(sum_info.msum == node->u.l.buffer_mempool.free_offset - node->u.l.buffer_mempool.frag_size);
-
-	u_int32_t fps = node->rand4fingerprint * sum_info.fp;
-        if (set_fingerprints) {
-            node->local_fingerprint = fps;
-        }
-	lazy_assert(fps==node->local_fingerprint);
     } else {
 	unsigned int sum = 0;
 	for (int i=0; i<node->u.n.n_children; i++)
 	    sum += BNC_NBYTESINBUF(node,i);
 	// We don't rally care of the later buffers have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
 	// But for now the code always initializes the later tables so they are 0.
-        uint32_t fp = 0;
-        int i;
-        for (i=0; i<node->u.n.n_children; i++)
-            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-                              {
-                                  fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-                              });
-        if (set_fingerprints) {
-            node->local_fingerprint = fp;
-        }
-        lazy_assert(fp==node->local_fingerprint);
 	lazy_assert(sum==node->u.n.n_bytes_in_buffers);
     }
 }
@@ -1665,7 +1590,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 		toku_sync_fetch_and_increment_uint64(&upgrade_status.header_13);  // how many header nodes upgraded from v13
                 upgrade++;
                 //Fall through on purpose
-            case BRT_LAYOUT_VERSION:
+            case BRT_LAYOUT_VERSION_14:
                 invariant(h->layout_version == BRT_LAYOUT_VERSION);
                 h->upgrade_brt_performed = FALSE;
                 if (upgrade) {

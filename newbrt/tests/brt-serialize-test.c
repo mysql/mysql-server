@@ -23,7 +23,6 @@ test_serialize_nonleaf(void) {
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
-    const u_int32_t randval = random();
 
     //    source_brt.fd=fd;
     char *hello_string;
@@ -34,8 +33,6 @@ test_serialize_nonleaf(void) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
-    sn.rand4fingerprint = randval;
-    sn.local_fingerprint = 0;
     sn.u.n.n_children = 2;
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.u.n.childinfos);
@@ -44,8 +41,6 @@ test_serialize_nonleaf(void) {
     sn.u.n.totalchildkeylens = 6;
     BNC_BLOCKNUM(&sn, 0).b = 30;
     BNC_BLOCKNUM(&sn, 1).b = 35;
-    BNC_SUBTREE_FINGERPRINT(&sn, 0) = random();
-    BNC_SUBTREE_FINGERPRINT(&sn, 1) = random();
     BNC_SUBTREE_ESTIMATES(&sn, 0).ndata = random() + (((long long)random())<<32);
     BNC_SUBTREE_ESTIMATES(&sn, 1).ndata = random() + (((long long)random())<<32);
     BNC_SUBTREE_ESTIMATES(&sn, 0).nkeys = random() + (((long long)random())<<32);
@@ -65,9 +60,9 @@ test_serialize_nonleaf(void) {
     r = xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, xids_0);   assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_0, "a", 2, "aval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, xids_123); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_123,  "b", 2, "bval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, xids_234); assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, xids_234, "x", 2, "xval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, xids_0);   assert(r==0);  
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, xids_123); assert(r==0);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, xids_234); assert(r==0);
     BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123) + xids_get_serialize_size(xids_234);
@@ -112,23 +107,12 @@ test_serialize_nonleaf(void) {
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 1);
-    assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);
     assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
     assert(toku_brt_pivot_key_len(dn->u.n.childkeys[0])==6);
     assert(dn->u.n.totalchildkeylens==6);
     assert(BNC_BLOCKNUM(dn,0).b==30);
     assert(BNC_BLOCKNUM(dn,1).b==35);
-    {
-	int i;
-	for (i=0; i<2; i++) {
-	    assert(BNC_SUBTREE_FINGERPRINT(dn, i)==BNC_SUBTREE_FINGERPRINT(&sn, i));
-	    assert(BNC_SUBTREE_ESTIMATES(dn, i).nkeys==BNC_SUBTREE_ESTIMATES(&sn, i).nkeys);
-	    assert(BNC_SUBTREE_ESTIMATES(dn, i).ndata==BNC_SUBTREE_ESTIMATES(&sn, i).ndata);
-	    assert(BNC_SUBTREE_ESTIMATES(dn, i).dsize==BNC_SUBTREE_ESTIMATES(&sn, i).dsize);
-	}
-	assert(dn->local_fingerprint==sn.local_fingerprint);
-    }
     toku_brtnode_free(&dn);
 
     kv_pair_free(sn.u.n.childkeys[0]);

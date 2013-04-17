@@ -4,11 +4,6 @@
 
 #include "includes.h"
 
-u_int32_t toku_le_crc(LEAFENTRY v) {
-    return x1764_memory(v, leafentry_memsize(v));
-}
-
-
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le) {
     wbuf_literal_bytes(w, le, leafentry_disksize(le));
 }

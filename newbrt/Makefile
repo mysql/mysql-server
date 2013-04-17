@@ -55,7 +55,6 @@ BRT_SOURCES = \
   checkpoint \
   dbufio \
   fifo \
-  fingerprint \
   key \
   leafentry \
   leaflock \
