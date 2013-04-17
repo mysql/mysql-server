@@ -78,7 +78,7 @@ toku_free_n(void* p, size_t size __attribute__((unused)))
 void *
 toku_xmalloc(size_t size) {
     void *r = toku_malloc(size);
-    if (r==0) abort();
+    resource_assert(r);
     return r;
 }
 
@@ -95,7 +95,7 @@ void *
 toku_xrealloc(void *v, size_t size)
 {
     void *r = toku_realloc(v, size);
-    if (r==0) abort();
+    resource_assert(r);
     return r;
 }
 
