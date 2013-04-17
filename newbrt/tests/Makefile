@@ -92,6 +92,14 @@ REGRESSION_TESTS_RAW = \
 	minicron-test \
 	omt-cursor-test \
 	omt-test \
+	recovery-begin-checkpoint \
+	recovery-begin-end-checkpoint \
+	recovery-begin-end-checkpoint-hello \
+	recovery-empty \
+	recovery-hello \
+	recovery-no-datadir \
+	recovery-no-log \
+	recovery-no-logdir \
 	shortcut \
 	test1308a \
 	test-assert \
@@ -180,7 +188,7 @@ benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
 clean:
 	rm -rf log-test7.c.dir_*
-	rm -rf *.dir 
+	rm -rf *.dir dir.*
 	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
 
