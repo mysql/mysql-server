@@ -3152,7 +3152,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     
     if (share->try_table_lock) {
         if (get_prelock_empty(thd) && may_table_be_empty(transaction)) {
-            if (using_ignore || get_load_save_space(thd)) {
+            if (using_ignore) {
                 acquire_table_lock(transaction, lock_write);
             }
             else {
@@ -3160,6 +3160,8 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 if (!thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !hidden_primary_key) {
                     mult_put_flags[primary_key] = DB_NOOVERWRITE;
                 }
+                u_int32_t loader_flags = (get_load_save_space(thd)) ? 
+                    LOADER_USE_PUTS : 0;
                 int error = db_env->create_loader(
                     db_env, 
                     transaction, 
@@ -3169,7 +3171,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                     share->key_file, 
                     mult_put_flags,
                     mult_dbt_flags,
-                    0
+                    loader_flags
                     );
                 if (error) { 
                     assert(loader == NULL);
