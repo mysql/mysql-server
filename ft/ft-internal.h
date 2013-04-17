@@ -640,12 +640,6 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 #define WHEN_FTTRACE(x) ((void)0)
 #endif
 
-struct ftenv {
-    CACHETABLE ct;
-    TOKULOGGER logger;
-    long long checksum_number;
-};
-
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
 extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, BOOL for_checkpoint, void* write_extraargs);
