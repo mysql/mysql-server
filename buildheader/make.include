@@ -1,0 +1,50 @@
+BUILDHEADER_NUMBERED_VERSIONS = 4_6 4_5 4_4 4_3 4_1
+
+BUILDHEADER_CPPFLAGS = -Ibuildheader -Itoku_include
+BUILDHEADER_BDBDIR = ../../berkeleydb
+
+BUILDHEADER_MAKE_H_FILES_EXE = $(patsubst %,buildheader/make_db_h_%,$(BUILDHEADER_NUMBERED_VERSIONS))
+BUILDHEADER_MAKE_H_FILES_O = $(patsubst %,%.o,$(BUILDHEADER_MAKE_H_FILES_EXE))
+BUILDHEADER_H_FILES = $(patsubst %,buildheader/db.h_%,$(BUILDHEADER_NUMBERED_VERSIONS))
+$(BUILDHEADER_MAKE_H_FILES_O): C99=
+buildheader/make_db_h_4_1.o: BUILDHEADER_MAJMINDOT=4.1.25
+buildheader/make_db_h_4_3.o: BUILDHEADER_MAJMINDOT=4.3.29
+buildheader/make_db_h_4_4.o: BUILDHEADER_MAJMINDOT=4.4.20
+buildheader/make_db_h_4_5.o: BUILDHEADER_MAJMINDOT=4.5.20
+buildheader/make_db_h_4_6.o: BUILDHEADER_MAJMINDOT=4.6.19
+buildheader/make_db_h_4_%.o: buildheader/make_db_h.c buildheader/sample_offsets_32_4_1.h buildheader/sample_offsets_64_4_1.h
+	$(CC) $(CFLAGS) $(BUILDHEADER_CPPFLAGS) -I$(BUILDHEADER_BDBDIR)/db-$(BUILDHEADER_MAJMINDOT)/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=$(patsubst buildheader/make_db_h_4_%.o,%,$@) -DTDB_NATIVE=0
+buildheader/make_tdb_h.o: C99=
+buildheader/make_tdb_h.o: buildheader/make_db_h.c
+	$(CC) $(CFLAGS) $(BUILDHEADER_CPPFLAGS) -I$(BUILDHEADER_BDBDIR)/db-4.6.19/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=6 -DTDB_NATIVE=1
+
+$(BUILDHEADER_MAKE_H_FILES_EXE):
+buildheader/make_db_h_%: buildheader/make_db_h_%.o
+buildheader/db.h_%: buildheader/make_db_h_%
+	./$< > $@
+sample_offsets_4_1: sample_offsets.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.1.25/build_unix $< -o $@
+	./sample_offsets_4_1
+
+sample_offsets_4_3: sample_offsets.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.3.29/build_unix $< -o $@
+	./sample_offsets_4_3
+
+sample_offsets_4_4: sample_offsets.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.4.20/build_unix $< -o $@
+	./sample_offsets_4_4
+
+sample_offsets_4_5: sample_offsets.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.5.20/build_unix $< -o $@
+	./sample_offsets_4_5
+
+sample_offsets_4_6: sample_offsets.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.6.19/build_unix $< -o $@
+	./sample_offsets_4_6
+
+buildheader/tdb.h: buildheader/make_tdb_h
+	./$< > $@
+
+buildheader/build: include/db.h $(BUILDHEADER_H_FILES)
+include/db.h: buildheader/tdb.h
+	cp $< $@
