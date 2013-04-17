@@ -442,7 +442,7 @@ u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile);
 void toku_cachetable_print_state (CACHETABLE ct);
 
 // Get the state of the cachetable. This is used to verify the cachetable
-void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr, int64_t *size_max_ptr);
+void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
 
 // Get the state of a cachetable entry by key. This is used to verify the cachetable
 int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf,
@@ -474,7 +474,6 @@ typedef enum {
     CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
     CT_SIZE_CURRENT,           // the sum of the sizes of the nodes represented in the cachetable
     CT_SIZE_LIMIT,             // the limit to the sum of the node sizes
-    CT_SIZE_MAX,               // high water mark of size_current (max value size_current ever had)
     CT_SIZE_WRITING,           // the sum of the sizes of the nodes being written
     CT_SIZE_NONLEAF,           // number of bytes in cachetable belonging to nonleaf nodes
     CT_SIZE_LEAF,              // number of bytes in cachetable belonging to leaf nodes
