@@ -197,7 +197,9 @@ struct fieldinfo {
 #error
 #endif
 
-void print_struct (const char *structname, int need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
+enum need_internal_type { NO_INTERNAL=0, INTERNAL_NAMED=1, INTERNAL_AT_END=2};
+
+void print_struct (const char *structname, enum need_internal_type need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
     unsigned int i;
     unsigned int current_32 = 0;
     unsigned int current_64 = 0;
@@ -205,6 +207,7 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
     int did_toku_internal=0;
 //    int total32 = fields32[N-1].size;
 //    int total64 = fields32[N-1].size;
+    assert(need_internal==NO_INTERNAL || need_internal==INTERNAL_NAMED || need_internal==INTERNAL_AT_END);
     printf("struct __toku_%s {\n", structname);
     for (i=0; i<N-1; i++) {
 	unsigned int this_32 = fields32[i].off;
@@ -217,7 +220,7 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	    if (diff32!=diff64) {
 		unsigned int diff = diff64-diff32;
 		unsigned int n_dummys = diff/4;
-		if (need_internal && !did_toku_internal) {
+		if (need_internal==INTERNAL_NAMED && !did_toku_internal) {
 		    if (TDB_NATIVE &&
 			(strcmp(structname, "dbc")==0 ||
 			 strcmp(structname, "db_txn")==0)) {
@@ -295,6 +298,11 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
 	assert(diff64<8); /* there could be a few left from alignment. */ 
     }
+    if (need_internal==INTERNAL_AT_END) {
+	printf("  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));\n");
+	printf("#define %s_struct_i(x) ((struct __toku_%s_internal *)(&(x)->iic))\n", structname, structname);
+	did_toku_internal = 1;
+    }
     printf("};\n");
     assert(did_toku_internal || !need_internal);
 }
@@ -354,6 +362,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     printf("#include <tdb-internal.h>\n");
     
+    printf("#ifndef __BIGGEST_ALIGNMENT__\n  #define __BIGGEST_ALIGNMENT__ 16\n#endif\n");
+
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");
     printf("  u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */\n");
@@ -486,7 +496,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
             "struct { void *next, *prev; } open_txns",
             NULL,
         };
-	print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
+	print_struct("db_txn", INTERNAL_AT_END, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);
     }
 
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
@@ -515,7 +525,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
-	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
+	print_struct("dbc", INTERNAL_AT_END, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
     }
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");

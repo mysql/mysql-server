@@ -163,4 +163,20 @@ int toku_env_is_panicked(DB_ENV *dbenv);
 void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) 
                          __attribute__((__format__(__printf__, 3, 4)));
 
+struct __toku_db_txn_internal {
+    //TXNID txnid64; /* A sixty-four bit txn id. */
+    struct tokutxn *tokutxn;
+    struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched
+    u_int32_t flags;
+    DB_TXN *child;
+    struct toku_list dbs_that_must_close_before_abort;
+};
+
+struct __toku_dbc_internal {
+    struct brt_cursor *c;
+    DB_TXN *txn;
+    struct simple_dbt skey_s,sval_s;
+    struct simple_dbt *skey,*sval;
+};
+
 #endif

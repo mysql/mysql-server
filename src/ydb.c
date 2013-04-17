@@ -1737,10 +1737,11 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         return toku_ydb_do_error(env, EINVAL, "DB_ENV->txn_begin: Child transaction isolation level must match parent's isolation level.\n");
     }
 
-    DB_TXN *MALLOC(result);
+    size_t result_size = sizeof(DB_TXN)+sizeof(struct __toku_db_txn_internal); // the internal stuff is stuck on the end.
+    DB_TXN *result = toku_malloc(result_size);
     if (result == 0)
         return ENOMEM;
-    memset(result, 0, sizeof *result);
+    memset(result, 0, result_size);
     //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
     result->mgrp = env;
     result->abort = locked_txn_abort;
@@ -3599,10 +3600,11 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     if (flags != 0)
         return EINVAL;
-    DBC *MALLOC(result);
+    size_t result_size = sizeof(DBC)+sizeof(struct __toku_dbc_internal); // internal stuff stuck on the end
+    DBC *result = toku_malloc(result_size);
     if (result == 0)
         return ENOMEM;
-    memset(result, 0, sizeof *result);
+    memset(result, 0, result_size);
 #define SCRS(name) result->name = locked_ ## name
     SCRS(c_get);
     SCRS(c_close);
