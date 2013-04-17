@@ -163,9 +163,13 @@ toku_db_release_ref(DB *db){
 int 
 toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn) {
     int r = 0;
+    // the magic number one comes from the fact that only one loader
+    // or hot indexer may reference a DB at a time. when that changes,
+    // this will break.
     if (db->i->refs != 1) {
         r = EBUSY;
     } else {
+        // TODO: assert(db->i->refs == 0) because we're screwed otherwise
         db->i->refs = 0;
         if (db_opened(db) && db->i->dname) {
             // internal (non-user) dictionary has no dname
