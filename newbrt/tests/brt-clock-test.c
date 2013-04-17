@@ -78,12 +78,12 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     // should sweep and NOT get rid of anything
     PAIR_ATTR attr;
     memset(&attr,0,sizeof(attr));
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     // should sweep and get compress all
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         if (!is_leaf) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED);
@@ -96,12 +96,12 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     BOOL req = toku_brtnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
     toku_brtnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     // should sweep and get compress all
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         if (!is_leaf) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED);
@@ -114,15 +114,15 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     req = toku_brtnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
     toku_brtnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     (*dn)->dirty = 1;
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
@@ -176,11 +176,11 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     assert(!BP_SHOULD_EVICT(*dn, 1));
     PAIR_ATTR attr;
     memset(&attr,0,sizeof(attr));
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     assert(BP_STATE(*dn, 0) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
     assert(BP_STATE(*dn, 1) == PT_AVAIL);
     assert(BP_SHOULD_EVICT(*dn, 1));
-    toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
+    toku_brtnode_pe_callback(*dn, attr, &attr, brt_h);
     assert(BP_STATE(*dn, 1) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
 
     BOOL req = toku_brtnode_pf_req_callback(*dn, &bfe_subset);
