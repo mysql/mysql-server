@@ -103,10 +103,6 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
         r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
                                 poll, poll_extra);
     }
-    if (release_multi_operation_client_lock) {
-        toku_multi_operation_client_unlock();
-    }
-    
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         env_panic(txn->mgrp, r, "Error during commit.\n");
     }
@@ -147,6 +143,13 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     //
     toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
     toku_txn_complete_txn(ttxn);
+    // this lock must be released after toku_txn_complete_txn because
+    // this lock must be held until the references to the open FTs is released
+    // begin checkpoint logs these associations, so we must be protect
+    // the changing of these associations with checkpointing
+    if (release_multi_operation_client_lock) {
+        toku_multi_operation_client_unlock();
+    }
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
 
     //Promote list to parent (dbs that must close before abort)
@@ -211,9 +214,6 @@ toku_txn_abort_only(DB_TXN * txn,
     assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
-    if (release_multi_operation_client_lock) {
-        toku_multi_operation_client_unlock();
-    }
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         env_panic(txn->mgrp, r, "Error during abort.\n");
     }
@@ -221,6 +221,13 @@ toku_txn_abort_only(DB_TXN * txn,
     assert_zero(r);
     r = toku_txn_release_locks(txn);
     toku_txn_complete_txn(db_txn_struct_i(txn)->tokutxn);
+    // this lock must be released after toku_txn_complete_txn because
+    // this lock must be held until the references to the open FTs is released
+    // begin checkpoint logs these associations, so we must be protect
+    // the changing of these associations with checkpointing
+    if (release_multi_operation_client_lock) {
+        toku_multi_operation_client_unlock();
+    }
     return r;
 }
 
