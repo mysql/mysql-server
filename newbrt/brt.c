@@ -716,14 +716,24 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
         retval = FALSE;
         for (int i = 0; i < node->n_children; i++) {
             BP_TOUCH_CLOCK(node,i);
-        }
-        for (int i = 0; i < node->n_children; i++) {
             // if we find a partition that is not available,
             // then a partial fetch is required because
             // the entire node must be made available
             if (BP_STATE(node,i) != PT_AVAIL) {
                 retval = TRUE;
-                break;
+                // do some accounting for the case that we have missed
+                if (BP_STATE(node,i) == PT_COMPRESSED) {
+                    brt_status.partial_fetch_compressed++;
+                }
+                else if (BP_STATE(node,i) == PT_ON_DISK){
+                    brt_status.partial_fetch_miss++;
+                }
+                else {
+                    assert(FALSE);
+                }
+            }
+            else {
+                brt_status.partial_fetch_hit++;
             }
         }
     }
@@ -741,7 +751,24 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
             bfe->search
             );
         BP_TOUCH_CLOCK(node,bfe->child_to_read);
-        retval = (BP_STATE(node,bfe->child_to_read) != PT_AVAIL);
+        // child we want to read is not available, must set retval to TRUE
+        if (BP_STATE(node,bfe->child_to_read) != PT_AVAIL) {
+            retval = TRUE;
+            // do some accounting for the case that we have missed
+            if (BP_STATE(node,bfe->child_to_read) == PT_COMPRESSED) {
+                brt_status.partial_fetch_compressed++;
+            }
+            else if (BP_STATE(node,bfe->child_to_read) == PT_ON_DISK){
+                brt_status.partial_fetch_miss++;
+            }
+            else {
+                assert(FALSE);
+            }
+        }
+        else {
+            retval = FALSE;
+            brt_status.partial_fetch_hit++;
+        }
     }
     else {
         // we have a bug. The type should be known
