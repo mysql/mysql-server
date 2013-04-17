@@ -4360,6 +4360,13 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     //
     uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
 
+    //
+    // status message to be shown in "show process list"
+    //
+    char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
+    ulonglong num_processed = 0; //variable that stores number of elements inserted thus far
+    thd_proc_info(thd, "Adding indexes");
+
     newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
     tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
@@ -4482,13 +4489,13 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     info.prim_key = &current_primary_key;
     info.buf = tmp_record;
 
+
     cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
     while (cursor_ret_val != DB_NOTFOUND) {
         if (cursor_ret_val) {
             error = cursor_ret_val;
             goto cleanup;
         }
-
 
         for (uint i = 0; i < num_of_keys; i++) {
             bool cluster_row_created = false;
@@ -4532,10 +4539,23 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
                 goto cleanup;
             }
         }
+        num_processed++; 
+
+        if ((num_processed % 1000) == 0) {
+            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, share->rows);
+            thd_proc_info(thd, status_msg);
+        }
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
     }
     tmp_cursor->c_close(tmp_cursor);
     tmp_cursor = NULL;
+
+    //
+    // We have an accurate row count, might as well update share->rows
+    //
+    pthread_mutex_lock(&share->mutex);
+    share->rows = num_processed;
+    pthread_mutex_unlock(&share->mutex);
 
     //
     // Now flatten the new DB's created
@@ -4547,12 +4567,18 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             goto cleanup;
         }
         error = 0;
+        num_processed = 0;
         while (error != DB_NOTFOUND) {
             error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_opt_callback, NULL);
             if (error && error != DB_NOTFOUND) {
                 tmp_cursor->c_close(tmp_cursor);
                 txn->commit(txn, 0);
                 goto cleanup;
+            }
+            num_processed++;
+            if ((num_processed % 1000) == 0) {
+                sprintf(status_msg, "Adding indexes: Applied %llu of %llu rows in key-%s.", num_processed, share->rows, key_info[i].name);
+                thd_proc_info(thd, status_msg);
             }
         }
         
