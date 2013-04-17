@@ -3328,7 +3328,7 @@ void st_select_lex_unit::include_down(LEX *lex, st_select_lex *outer)
 */
 void st_select_lex_unit::include_chain(LEX *lex, st_select_lex *outer)
 {
-  st_select_lex_unit *last_unit;
+  st_select_lex_unit *last_unit= this; // Initialization needed for gcc
   for (st_select_lex_unit *unit= this; unit != NULL; unit= unit->next)
   {
     unit->master= outer; // Link to the outer query block
@@ -4008,7 +4008,12 @@ void st_select_lex::include_neighbour(LEX *lex, st_select_lex *before)
 
 
 /**
-  Include on level down (but do not link.)
+  Include query block within the supplied unit.
+
+  Do not link the query block into the global chain of query blocks.
+
+  This function is exclusive for st_select_lex_unit::add_fake_select_lex() -
+  use it with caution.
 
   @param  outer - Query expression this node is included below.
   @param  ref - Handle to the caller's pointer to this node.
