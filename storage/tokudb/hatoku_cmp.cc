@@ -111,7 +111,7 @@ uchar* pack_key_field(
     TOKU_TYPE toku_type = mysql_to_toku_type(field->type());
     switch(toku_type) {
     case (toku_type_int):
-        pack_field(to_tokudb, from_mysql, field, key_part_length);
+        new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     default:
         new_pos= field->pack_key_from_key_image(
