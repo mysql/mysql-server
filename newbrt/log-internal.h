@@ -139,17 +139,7 @@ static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
     in_both += 8; // for the number of block headers
     assert(bs.btt_size.b< 30000000); // otherwise we in trouble on the next line
     in_both += 12*bs.btt_size.b;
-    if (bs.n_named_roots==-1)
-	return in_both+8;
-    else {
-	int sum_of_pieces=0;
-	int i;
-	for (i=0; i<bs.n_named_roots; i++) {
-	    sum_of_pieces += 4+8+1+strlen(bs.u.many.names[i]);
-	}
-	return in_both+sum_of_pieces;
-    }
-	
+    return in_both+8;
 }
 
 static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {

@@ -21,6 +21,13 @@ typedef struct toku_pthread {
     void *ret;
 } *toku_pthread_t;
 
+typedef struct toku_pthread_rwlockattr *toku_pthread_rwlockattr_t;
+
+typedef struct toku_pthread_rwlock {
+    SRWLOCK rwlock;
+    BOOL    initialized;
+} toku_pthread_rwlock_t;
+
 typedef struct toku_pthread_mutexattr *toku_pthread_mutexattr_t;
 
 typedef struct toku_pthread_mutex {
@@ -70,7 +77,12 @@ int toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex);
 
 int toku_pthread_mutex_unlock(toku_pthread_mutex_t *mutex);
 
-
+int toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr);
+int toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock);
+int toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock);
+int toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock);
+int toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock);
+int toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock);
 
 int toku_pthread_cond_init(toku_pthread_cond_t *cond, const toku_pthread_condattr_t *attr);
 

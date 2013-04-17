@@ -101,8 +101,6 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
 			    long      size         __attribute__((__unused__)),
 			    BOOL      write_me     __attribute__((__unused__)),
 			    BOOL      keep_me      __attribute__((__unused__)),
-			    LSN       modified_lsn __attribute__((__unused__)),
-			    BOOL      rename_p     __attribute__((__unused__)),
 			    BOOL      for_checkpoint     __attribute__((__unused__))) {
     if (keep_me) return;
     int *v = value;

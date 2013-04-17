@@ -81,6 +81,8 @@ BDB_DONTRUN_TESTS = \
 	test_txn_close_open_commit \
 	test_txn_commit8 \
 	test_db_descriptor \
+	test_db_descriptor_named_db \
+	test_heaviside_straddle_1622 \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
@@ -93,7 +95,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
-	test_truncate_subdb \
 	test_txn_nested_abort3 \
 	test_txn_nested_abort4 \
 	test_abort4 \

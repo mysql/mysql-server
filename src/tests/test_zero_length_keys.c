@@ -51,7 +51,8 @@ test_insert_zero_length (int n, int dup_mode, const char *dbname) {
     char fname[strlen(ENVDIR) + strlen("/") + strlen(dbname) + 1];
     sprintf(fname, "%s/%s", ENVDIR, dbname);
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -108,7 +109,8 @@ test_insert_zero_length_keys (int n, int dup_mode, const char *dbname) {
     char fname[strlen(ENVDIR) + strlen("/") + strlen(dbname) + 1];
     sprintf(fname, "%s/%s", ENVDIR, dbname);
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -142,9 +144,6 @@ test_main(int argc, const char *argv[]) {
 #define TFILE __FILE__ ".tktrace"
     unlink(TFILE);
     SET_TRACE_FILE(TFILE);
-
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     test_insert_zero_length(32, 0, "test0");
     test_insert_zero_length_keys(32, 0, "test0keys");

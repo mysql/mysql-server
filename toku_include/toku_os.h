@@ -63,6 +63,13 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 //
 int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
+#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
+#include <sys/types.h>
+#include <sys/stat.h>
+//Test if st_mode (from stat) is a directory
+#define S_ISDIR(bitvector)  (((bitvector)&_S_IFDIR)!=0)
+#endif
+
 // Portable linux 'stat'
 int toku_stat(const char *name, toku_struct_stat *statbuf) __attribute__((__visibility__("default")));
 // Portable linux 'fstat'

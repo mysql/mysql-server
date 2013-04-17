@@ -40,6 +40,13 @@ static void test_get_both(int n, int dup_mode, int op) {
     snprintf(fname, sizeof(fname), "%s/test_icdi_search_brt", annotated_envdir);
     int r;
 
+    {
+	char rmcmd[sizeof(annotated_envdir)+10];
+	snprintf(rmcmd, sizeof(rmcmd), "rm -rf %s", annotated_envdir);
+	system(rmcmd);
+    }
+    toku_os_mkdir(annotated_envdir, S_IRWXU+S_IRWXG+S_IRWXO);
+
     unlink(fname);
 
     /* create the dup database file */

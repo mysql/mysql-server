@@ -11,14 +11,12 @@
 
 typedef struct __toku_db_id {
     struct fileid   id;
-    char*           sub_database_name;
     u_int32_t       saved_hash;
     u_int32_t       ref_count;
 } toku_db_id;
 
 /* db_id methods */
-int toku_db_id_create(toku_db_id** pdbid, int fd,
-                             const char* sub_database_name);
+int toku_db_id_create(toku_db_id** pdbid, int fd);
 
 BOOL toku_db_id_equals(const toku_db_id* a, const toku_db_id* b);
 

@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "test.h"
-#include "cachetable.h"
+#include "checkpoint.h"
 
 static int N; // how many items in the table
 static CACHEFILE cf;
@@ -27,7 +27,7 @@ sleep_random (void)
 int expect_value = 42; // initially 42, later 43
 
 static void
-flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, BOOL write_me, BOOL keep_me, LSN UU(modified_lsn), BOOL UU(rename_p), BOOL UU(for_checkpoint))
+flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
 {
     // printf("f");
     assert(size == item_size);
@@ -74,7 +74,8 @@ do_update (void *UU(ignore))
 static void*
 do_checkpoint (void *UU(v))
 {
-    int r = toku_cachetable_checkpoint(ct, NULL);
+  // TODO: #1510 Replace with real checkpoint function
+  int r = toku_checkpoint(ct, NULL, NULL);
     assert(r == 0);
     return 0;
 }
@@ -85,7 +86,7 @@ do_checkpoint (void *UU(v))
 // make sure that the stuff that was checkpointed includes only the old versions
 // then do a flush and make sure the new items are written
 
-static void cachetable_checkpoint_pending(void) {
+static void checkpoint_pending(void) {
     if (verbose) printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N);
     const int test_limit = N;
     int r;
@@ -122,13 +123,17 @@ static void cachetable_checkpoint_pending(void) {
     // after the checkpoint, all of the items should be 43
     //printf("E43\n");
     n_flush = n_write_me = n_keep_me = n_fetch = 0; expect_value = 43;
-    r = toku_cachetable_checkpoint(ct, NULL);
+
+    //TODO: #1510 Replace with real checkpoint call
+    r = toku_checkpoint(ct, NULL, NULL);
     assert(r == 0);
     assert(n_flush == N && n_write_me == N && n_keep_me == N);
 
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-    r = toku_cachetable_checkpoint(ct, NULL);
+
+    //TODO: #1510 Replace with real checkpoint call
+    r = toku_checkpoint(ct, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
@@ -155,7 +160,7 @@ test_main(int argc, const char *argv[]) {
     for (N=1; N<=128; N*=2) {
 	int myvalues[N];
 	values = myvalues;
-        cachetable_checkpoint_pending();
+        checkpoint_pending();
 	//printf("\n");
     }
     return 0;

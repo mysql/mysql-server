@@ -20,7 +20,7 @@ static void test3 (int nodesize, int count, int memcheck) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     gettimeofday(&t0, 0);
     unlink(fname);
-    r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, toku_default_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, nodesize, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];

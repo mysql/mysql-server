@@ -44,8 +44,6 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
 		     long size        __attribute__((__unused__)),
 		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
-		     LSN modified_lsn __attribute__((__unused__)),
-		     BOOL rename_p    __attribute__((__unused__)),
 		     BOOL for_checkpoint    __attribute__((__unused__))) {
     int i;
     //printf("Flush\n");

@@ -13,10 +13,9 @@ static u_int32_t       lt_refs[100];
 static toku_lock_tree* lts   [100];
 static toku_ltm*       ltm = NULL;
 static toku_db_id*     db_ids[100];
-static char            subdb [100][5];
 static u_int32_t max_locks = 10;
 int  nums[10000];
-int fd;
+int fd[100];
 
 static void setup_ltm(void) {
     assert(!ltm);
@@ -115,15 +114,15 @@ static void run_test(BOOL dups) {
 
 static void initial_setup(void) {
     u_int32_t i;
-    fd = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
 
     ltm = NULL;
     assert(sizeof(db_ids) / sizeof(db_ids[0]) == sizeof(lts) / sizeof(lts[0]));
-    assert(sizeof(subdb) / sizeof(subdb[0]) == sizeof(lts) / sizeof(lts[0]));
     for (i = 0; i < sizeof(lts) / sizeof(lts[0]); i++) {
         lts[i] = NULL;
-        sprintf(subdb[i], "%05x", i);
-        if (!db_ids[i]) toku_db_id_create(&db_ids[i], fd, subdb[i]);
+        char name[sizeof(TESTDIR) + 256];
+        sprintf(name, TESTDIR "/file%05x.db", i);
+        fd[i] = open(name, O_CREAT|O_RDWR, S_IRWXU);
+        if (!db_ids[i]) toku_db_id_create(&db_ids[i], fd[i]);
         assert(db_ids[i]);
         lt_refs[i] = 0;
     }
@@ -136,6 +135,7 @@ static void close_test(void) {
         assert(db_ids[i]);
         toku_db_id_remove_ref(&db_ids[i]);
         assert(!db_ids[i]);
+        close(fd[i]);
     }
 }
 
@@ -153,7 +153,6 @@ int main(int argc, const char *argv[]) {
     
     run_test(TRUE);
 
-    close(fd);
     close_test();
     return 0;
 }

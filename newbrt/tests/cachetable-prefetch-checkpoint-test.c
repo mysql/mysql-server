@@ -7,14 +7,14 @@
 #include <assert.h>
 
 #include "test.h"
-#include "cachetable.h"
+#include "checkpoint.h"
 
 const int item_size = 1;
 
 int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL UU(for_checkpoint)) {
-    cf = cf; key = key; value = value; extraargs = extraargs; modified_lsn = modified_lsn; rename_p = rename_p;
+static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
+    cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
     assert(size == item_size);
     n_flush++;
@@ -78,7 +78,8 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // the checkpoint should cause n writes, but since n <= the cachetable size,
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-    r = toku_cachetable_checkpoint(ct, NULL);
+
+    r = toku_checkpoint(ct, NULL, NULL);
     assert(r == 0);
     assert(n_flush == n && n_write_me == n && n_keep_me == n);
 
@@ -106,7 +107,8 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
 
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-    r = toku_cachetable_checkpoint(ct, NULL);
+
+    r = toku_checkpoint(ct, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

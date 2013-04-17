@@ -7,66 +7,66 @@
 
 static void
 test_create_destroy (void) {
-    struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
+    struct rwlock the_rwlock, *rwlock = &the_rwlock;
 
-    ctpair_rwlock_init(rwlock);
-    ctpair_rwlock_destroy(rwlock);
+    rwlock_init(rwlock);
+    rwlock_destroy(rwlock);
 }
 
 // test read lock and unlock with no writers
 
 static void
 test_simple_read_lock (int n) {
-    struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
+    struct rwlock the_rwlock, *rwlock = &the_rwlock;
 
-    ctpair_rwlock_init(rwlock);
-    assert(ctpair_pinned(rwlock) == 0);
+    rwlock_init(rwlock);
+    assert(rwlock_readers(rwlock) == 0);
     int i;
     for (i=1; i<=n; i++) {
-        ctpair_read_lock(rwlock, 0);
-        assert(ctpair_pinned(rwlock) == i);
-        assert(ctpair_users(rwlock) == i);
+        rwlock_read_lock(rwlock, 0);
+        assert(rwlock_readers(rwlock) == i);
+        assert(rwlock_users(rwlock) == i);
     }
     for (i=n-1; i>=0; i--) {
-        ctpair_read_unlock(rwlock);
-        assert(ctpair_pinned(rwlock) == i);
-        assert(ctpair_users(rwlock) == i);
+        rwlock_read_unlock(rwlock);
+        assert(rwlock_readers(rwlock) == i);
+        assert(rwlock_users(rwlock) == i);
     }
-    ctpair_rwlock_destroy(rwlock);
+    rwlock_destroy(rwlock);
 }
 
 // test write lock and unlock with no readers
 
 static void
 test_simple_write_lock (void) {
-    struct ctpair_rwlock the_rwlock, *rwlock = &the_rwlock;
+    struct rwlock the_rwlock, *rwlock = &the_rwlock;
 
-    ctpair_rwlock_init(rwlock);
-    assert(ctpair_users(rwlock) == 0);
-    ctpair_write_lock(rwlock, 0);
-    assert(ctpair_writers(rwlock) == 1);
-    assert(ctpair_users(rwlock) == 1);
-    ctpair_write_unlock(rwlock);
-    assert(ctpair_users(rwlock) == 0);
-    ctpair_rwlock_destroy(rwlock);
+    rwlock_init(rwlock);
+    assert(rwlock_users(rwlock) == 0);
+    rwlock_write_lock(rwlock, 0);
+    assert(rwlock_writers(rwlock) == 1);
+    assert(rwlock_users(rwlock) == 1);
+    rwlock_write_unlock(rwlock);
+    assert(rwlock_users(rwlock) == 0);
+    rwlock_destroy(rwlock);
 }
 
 struct rw_event {
     int e;
-    struct ctpair_rwlock the_rwlock;
+    struct rwlock the_rwlock;
     toku_pthread_mutex_t mutex;
 };
 
 static void
 rw_event_init (struct rw_event *rwe) {
     rwe->e = 0;
-    ctpair_rwlock_init(&rwe->the_rwlock);
+    rwlock_init(&rwe->the_rwlock);
     int r = toku_pthread_mutex_init(&rwe->mutex, 0); assert(r == 0);
 }
 
 static void
 rw_event_destroy (struct rw_event *rwe) {
-    ctpair_rwlock_destroy(&rwe->the_rwlock);
+    rwlock_destroy(&rwe->the_rwlock);
     int r = toku_pthread_mutex_destroy(&rwe->mutex); assert(r == 0);
 }
 
@@ -76,13 +76,13 @@ test_writer_priority_thread (void *arg) {
     int r;
 
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_write_lock(&rwe->the_rwlock, &rwe->mutex);
+    rwlock_write_lock(&rwe->the_rwlock, &rwe->mutex);
     rwe->e++; assert(rwe->e == 3);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
     sleep(1);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
     rwe->e++; assert(rwe->e == 4);
-    ctpair_write_unlock(&rwe->the_rwlock);
+    rwlock_write_unlock(&rwe->the_rwlock);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
     
     return arg;
@@ -97,7 +97,7 @@ test_writer_priority (void) {
 
     rw_event_init(rwe);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_read_lock(&rwe->the_rwlock, &rwe->mutex);
+    rwlock_read_lock(&rwe->the_rwlock, &rwe->mutex);
     sleep(1);
     rwe->e++; assert(rwe->e == 1);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
@@ -111,16 +111,16 @@ test_writer_priority (void) {
 
     sleep(1);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_read_unlock(&rwe->the_rwlock);
+    rwlock_read_unlock(&rwe->the_rwlock);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
     sleep(1);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_read_lock(&rwe->the_rwlock, &rwe->mutex);
+    rwlock_read_lock(&rwe->the_rwlock, &rwe->mutex);
     rwe->e++; assert(rwe->e == 5);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
     sleep(1);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_read_unlock(&rwe->the_rwlock);
+    rwlock_read_unlock(&rwe->the_rwlock);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
 
     void *ret;
@@ -137,10 +137,10 @@ test_single_writer_thread (void *arg) {
     int r;
 
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_write_lock(&rwe->the_rwlock, &rwe->mutex);
+    rwlock_write_lock(&rwe->the_rwlock, &rwe->mutex);
     rwe->e++; assert(rwe->e == 3);
-    assert(ctpair_writers(&rwe->the_rwlock) == 1);
-    ctpair_write_unlock(&rwe->the_rwlock);
+    assert(rwlock_writers(&rwe->the_rwlock) == 1);
+    rwlock_write_unlock(&rwe->the_rwlock);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
     
     return arg;
@@ -152,10 +152,10 @@ test_single_writer (void) {
     int r;
 
     rw_event_init(rwe);
-    assert(ctpair_writers(&rwe->the_rwlock) == 0);
+    assert(rwlock_writers(&rwe->the_rwlock) == 0);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
-    ctpair_write_lock(&rwe->the_rwlock, &rwe->mutex);
-    assert(ctpair_writers(&rwe->the_rwlock) == 1);
+    rwlock_write_lock(&rwe->the_rwlock, &rwe->mutex);
+    assert(rwlock_writers(&rwe->the_rwlock) == 1);
     sleep(1);
     rwe->e++; assert(rwe->e == 1);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
@@ -165,15 +165,15 @@ test_single_writer (void) {
     sleep(1);
     r = toku_pthread_mutex_lock(&rwe->mutex); assert(r == 0);
     rwe->e++; assert(rwe->e == 2);
-    assert(ctpair_writers(&rwe->the_rwlock) == 1);
-    assert(ctpair_users(&rwe->the_rwlock) == 2);
-    ctpair_write_unlock(&rwe->the_rwlock);
+    assert(rwlock_writers(&rwe->the_rwlock) == 1);
+    assert(rwlock_users(&rwe->the_rwlock) == 2);
+    rwlock_write_unlock(&rwe->the_rwlock);
     r = toku_pthread_mutex_unlock(&rwe->mutex); assert(r == 0);
 
     void *ret;
     r = toku_pthread_join(tid, &ret); assert(r == 0);
 
-    assert(ctpair_writers(&rwe->the_rwlock) == 0);
+    assert(rwlock_writers(&rwe->the_rwlock) == 0);
     rw_event_destroy(rwe);
 }
 

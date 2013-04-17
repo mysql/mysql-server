@@ -55,7 +55,8 @@ test_cursor_nonleaf_expand (int n, int reverse) {
     const char * const fname = ENVDIR "/" "test.insert.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -90,9 +91,6 @@ test_cursor_nonleaf_expand (int n, int reverse) {
 int
 test_main(int argc, const char *argv[]) {
     parse_args(argc, argv);
-
-    system("rm -rf " ENVDIR);
-    int r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     int i;
     for (i=1; i<=65536; i *= 2) {

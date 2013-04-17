@@ -18,8 +18,7 @@ BOOL toku_db_id_equals(const toku_db_id* a, const toku_db_id* b) {
     return (BOOL)
         (a == b ||
          (a->saved_hash == b->saved_hash &&
-          memcmp(&a->id, &b->id, sizeof(b->id))==0 &&
-          !strcmp(a->sub_database_name, b->sub_database_name)));
+          memcmp(&a->id, &b->id, sizeof(b->id))==0));
 }
 
 void toku_db_id_add_ref(toku_db_id* db_id) {
@@ -30,7 +29,6 @@ void toku_db_id_add_ref(toku_db_id* db_id) {
 
 static void toku_db_id_close(toku_db_id** pdb_id) {
     toku_db_id* db_id = *pdb_id;
-    toku_free(db_id->sub_database_name);
     toku_free(db_id);
     *pdb_id = NULL;
 }
@@ -44,10 +42,8 @@ void toku_db_id_remove_ref(toku_db_id** pdb_id) {
     toku_db_id_close(pdb_id);
 }
 
-int toku_db_id_create(toku_db_id** pdbid, int fd,
-                             const char* sub_database_name) {
+int toku_db_id_create(toku_db_id** pdbid, int fd) {
     int r = ENOSYS;
-    assert(sub_database_name);
     toku_db_id* db_id = NULL;
 
     db_id = (toku_db_id *)toku_malloc(sizeof(*db_id));
@@ -57,11 +53,7 @@ int toku_db_id_create(toku_db_id** pdbid, int fd,
     r = toku_os_get_unique_file_id(fd, &db_id->id);
     if (r!=0) goto cleanup;
 
-    db_id->sub_database_name = toku_strdup(sub_database_name);
-    if (!db_id->sub_database_name) { r = ENOMEM; goto cleanup; }
-
-    db_id->saved_hash = hash_key((unsigned char*)db_id->sub_database_name,
-                                 strlen(db_id->sub_database_name));
+    db_id->saved_hash = hash_key((unsigned char*)&db_id->id, sizeof(db_id->id));
 
     db_id->ref_count = 1;
     *pdbid = db_id;
@@ -69,7 +61,6 @@ int toku_db_id_create(toku_db_id** pdbid, int fd,
 cleanup:
     if (r != 0) {
         if (db_id != NULL) {
-            if (db_id->sub_database_name) { toku_free(db_id->sub_database_name); }
             toku_free(db_id);
         }
     }

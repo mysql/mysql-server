@@ -133,16 +133,7 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
     wbuf_uint(w, h.nodesize);
     wbuf_BLOCKNUM(w, h.free_blocks);
     wbuf_BLOCKNUM(w, h.unused_blocks);
-    wbuf_int(w, h.n_named_roots);
-    if ((signed)h.n_named_roots==-1) {
-	wbuf_BLOCKNUM(w, h.u.one.root);
-    } else {
-	int i;
-	for (i=0; i<h.n_named_roots; i++) {
-	    wbuf_BLOCKNUM(w, h.u.many.roots[i]);
-	    wbuf_bytes  (w, h.u.many.names[i], (u_int32_t)(1+strlen(h.u.many.names[i])));
-	}
-    }
+    wbuf_BLOCKNUM(w, h.root);
     wbuf_BLOCKNUM(w, h.btt_size);
     wbuf_DISKOFF(w, h.btt_diskoff);
     {

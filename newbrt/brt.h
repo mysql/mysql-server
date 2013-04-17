@@ -26,7 +26,7 @@ typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void
 //the element on the other side of the border (as in heaviside function).
 typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
-int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
+int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
@@ -37,7 +37,7 @@ int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 int toku_brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
 int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);
-int toku_brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
+int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
@@ -133,7 +133,7 @@ int toku_brt_stat64 (BRT, TOKUTXN,
 		     u_int64_t *fsize  /* the size of the underlying file                                                 */
 		     );
 
-void toku_brt_init(void);
+void toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
 void toku_brt_destroy(void);
 void toku_pwrite_lock_init(void);
 void toku_pwrite_lock_destroy(void);

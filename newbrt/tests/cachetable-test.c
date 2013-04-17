@@ -107,8 +107,6 @@ static void flush (CACHEFILE f,
 		   long size __attribute__((__unused__)),
 		   BOOL write_me __attribute__((__unused__)),
 		   BOOL keep_me __attribute__((__unused__)),
-		   LSN modified_lsn __attribute__((__unused__)),
-		   BOOL rename_p __attribute__((__unused__)),
 		   BOOL for_checkpoint __attribute__((__unused__))) {
     struct item *it = value;
     int i;
@@ -304,7 +302,6 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
 		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
-		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__ ((__unused__)),
 		     BOOL for_checkpoint __attribute__ ((__unused__))) {
     int *v = value;
     assert(*v==0);
@@ -369,8 +366,6 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         long size        __attribute__((__unused__)),
                         BOOL write_me    __attribute__((__unused__)),
                         BOOL keep_me     __attribute__((__unused__)),
-                        LSN modified_lsn __attribute__((__unused__)),
-                        BOOL rename_p    __attribute__((__unused__)),
                         BOOL for_checkpoint __attribute__((__unused__))) {
 }
 
@@ -445,8 +440,6 @@ static void test_dirty_flush(CACHEFILE f,
 			     long size,
 			     BOOL do_write,
 			     BOOL keep,
-			     LSN modified_lsn __attribute__((__unused__)),
-			     BOOL rename_p __attribute__((__unused__)),
 			     BOOL for_checkpoint __attribute__((__unused__))) {
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
 }
@@ -571,8 +564,6 @@ static void test_size_flush_callback(CACHEFILE f,
 				     long size,
 				     BOOL do_write,
 				     BOOL keep,
-				     LSN modified_lsn __attribute__((__unused__)),
-				     BOOL rename_p __attribute__((__unused__)),
 				     BOOL for_checkpoint __attribute__((__unused__))) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
     if (keep) {

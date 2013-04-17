@@ -56,7 +56,9 @@ test_cursor_delete (int dup_mode) {
     const char * const fname = ENVDIR "/" "test.cursor.delete.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); assert(r == 0);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -106,7 +108,8 @@ test_cursor_delete_dupsort (void) {
     const char * const fname = ENVDIR "/" "test.cursor.delete.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -152,13 +155,8 @@ test_cursor_delete_dupsort (void) {
 
 int
 test_main(int argc, const char *argv[]) {
-    int r;
-
     parse_args(argc, argv);
 
-    r = system("rm -rf " ENVDIR); assert(r == 0);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    
     test_cursor_delete(0);
 #ifdef USE_BDB
     test_cursor_delete(DB_DUP);

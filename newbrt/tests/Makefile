@@ -41,7 +41,6 @@ REGRESSION_TESTS_RAW = \
 	brt-test \
 	brt-test-cursor \
 	brt-test-cursor-2 \
-	brt-test-named-db \
 	brt-test0 \
 	brt-test1 \
 	brt-test2 \
@@ -89,7 +88,6 @@ REGRESSION_TESTS_RAW = \
 	omt-test \
 	shortcut \
 	test1308a \
-	test1626 \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \

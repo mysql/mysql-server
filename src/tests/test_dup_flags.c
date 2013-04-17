@@ -22,7 +22,8 @@ test_dup_flags (u_int32_t dup_flags) {
     const char * const fname = ENVDIR "/" "test_dup_flags.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);

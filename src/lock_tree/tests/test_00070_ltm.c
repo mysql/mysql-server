@@ -41,21 +41,23 @@ static void close_ltm(void) {
 }
 
 static void run_test(BOOL dups) {
-    int fd = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
+    int fd  = open(TESTDIR "/file.db", O_CREAT|O_RDWR, S_IRWXU);
+    assert(fd>=0);
+    int fd2 = open(TESTDIR "/file2.db", O_CREAT|O_RDWR, S_IRWXU);
     assert(fd>=0);
 
     toku_db_id* db_id = NULL;
-    r = toku_db_id_create(&db_id, fd, "subdb");
+    r = toku_db_id_create(&db_id, fd);
     CKERR(r);
     assert(db_id);
 
     toku_db_id* db_id2 = NULL;
-    r = toku_db_id_create(&db_id2, fd, "subdb2");
+    r = toku_db_id_create(&db_id2, fd2);
     CKERR(r);
     assert(db_id);
 
     toku_db_id* db_id3 = NULL;
-    r = toku_db_id_create(&db_id3, fd, "subdb");
+    r = toku_db_id_create(&db_id3, fd);
     CKERR(r);
     assert(db_id);
 

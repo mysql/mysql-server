@@ -29,8 +29,6 @@ test_cursor_current (void) {
     const char * const fname = ENVDIR "/" "test.cursor.current.brt";
     int r;
 
-    unlink(fname);
-
     r = db_create(&db, null_env, 0); CKERR(r);
     db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); CKERR(r);

@@ -60,16 +60,7 @@ typedef struct loggedbrtheader {
     u_int32_t nodesize;
     BLOCKNUM  free_blocks;
     BLOCKNUM  unused_blocks;
-    int32_t n_named_roots; // -1 for the union below to be "one".
-    union {
-	struct {
-	    char **names;
-	    BLOCKNUM *roots;
-	} many;
-	struct {
-	    BLOCKNUM  root;
-	} one;
-    } u;
+    BLOCKNUM  root;
     BLOCKNUM btt_size; // block translation table size
     DISKOFF  btt_diskoff;
     struct logged_btt_pair *btt_pairs;

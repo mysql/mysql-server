@@ -20,7 +20,7 @@ static void test5 (void) {
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);        assert(r==0);
-    r = toku_open_brt(fname, 0, 1, &t, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);   assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);   assert(r==0);
     for (i=0; i<limit/2; i++) {
 	char key[100],val[100];
 	int rk = random()%limit;

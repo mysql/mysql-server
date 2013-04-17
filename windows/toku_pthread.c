@@ -4,6 +4,52 @@
 #include <toku_pthread.h>
 
 int
+toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr) {
+    assert(attr == NULL);
+    // assert(!rwlock->initialized);
+    InitializeSRWLock(&rwlock->rwlock);
+    rwlock->initialized = TRUE;
+    return 0;
+}
+
+int
+toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
+    assert(rwlock->initialized);
+    rwlock->initialized = FALSE;
+    //Windows does not have a cleanup function for SRWLocks.
+    //You just stop using them.
+    //return 0;
+}
+
+int
+toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
+    assert(rwlock->initialized);
+    AcquireSRWLockShared(&rwlock->rwlock);
+    return 0;
+}
+
+int
+toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
+    assert(rwlock->initialized);
+    ReleaseSRWLockShared(&rwlock->rwlock);
+    return 0;
+}
+
+int
+toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
+    assert(rwlock->initialized);
+    AcquireSRWLockExclusive(&rwlock->rwlock);
+    return 0;
+}
+
+int
+toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
+    assert(rwlock->initialized);
+    ReleaseSRWLockExclusive(&rwlock->rwlock);
+    return 0;
+}
+
+int
 toku_pthread_mutex_init(toku_pthread_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     assert(attr == NULL);
     // assert(!mutex->initialized);
