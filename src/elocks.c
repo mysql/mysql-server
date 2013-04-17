@@ -31,6 +31,7 @@ struct ydb_big_lock {
     toku_pthread_key_t time_key;
     uint64_t start_miss_count, start_miss_time;
     uint64_t start_fsync_count, start_fsync_time;
+    struct toku_list all_ydbtimes;
 #endif
 };
 static struct ydb_big_lock ydb_big_lock;
@@ -50,9 +51,21 @@ static inline u_int64_t u64max(u_int64_t a, u_int64_t b) {return a > b ? a : b; 
 #define MAXTHELD 250000   // if lock was apparently held longer than 250 msec, then theld is probably invalid (do we still need this?)
 
 struct ydbtime {          // one per thread, 
+    struct toku_list all_ydbtimes; // must be first
     uint64_t tacquire;    // valid only when lock is not held, this is the next time the thread may take the lock (0 if no latency required)
     uint64_t theld_prev;  // how long was lock held the previous time this thread held the lock
 };
+
+static void
+ydbtime_destr(void *a) {
+    struct ydbtime *ydbtime = (struct ydbtime *) a;
+    int r;
+    // printf("%s %p\n", __FUNCTION__, a);
+    r = pthread_mutex_lock(&ydb_big_lock.lock); assert(r == 0);
+    toku_list_remove(&ydbtime->all_ydbtimes);
+    r = pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
+    toku_free(ydbtime);
+}
 
 // get a timestamp in units of microseconds
 static uint64_t 
@@ -96,7 +109,8 @@ toku_ydb_lock_init(void) {
     r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); assert(r == 0);
 #if YDB_LOCK_MISS_TIME
     ydb_big_lock.waiters = 0;
-    r = toku_pthread_key_create(&ydb_big_lock.time_key, toku_free); assert(r == 0);
+    r = toku_pthread_key_create(&ydb_big_lock.time_key, ydbtime_destr); assert(r == 0);
+    toku_list_init(&ydb_big_lock.all_ydbtimes);
 #endif
     init_status();
     return r;
@@ -105,19 +119,14 @@ toku_ydb_lock_init(void) {
 int 
 toku_ydb_lock_destroy(void) {
     int r;
-    r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
 #if YDB_LOCK_MISS_TIME
-    // If main thread calls here, free memory allocated to main thread
-    // because destructor would not be called on thread exit.
-    void * last_ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
-    if (last_ydbtime) toku_free(last_ydbtime);
-
-    // If some other thread (not main thread) calls here
-    // set the value to NULL so destructor is not called twice
-    r = toku_pthread_setspecific(ydb_big_lock.time_key, NULL); assert(r==0);
-
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
+    while (!toku_list_empty(&ydb_big_lock.all_ydbtimes)) {
+        struct toku_list *list = toku_list_pop(&ydb_big_lock.all_ydbtimes);
+        ydbtime_destr(list);
+    }
 #endif
+    r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
     return r;
 }
 
@@ -130,8 +139,10 @@ toku_ydb_lock(void) {
 #if YDB_LOCK_MISS_TIME
     int r;
     u_int64_t requested_sleep = 0;
+    BOOL new_ydbtime = FALSE;
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
     if (!ydbtime) {          // allocate the per thread timestamp if not yet allocated
+        new_ydbtime = TRUE;
         ydbtime = toku_malloc(sizeof (struct ydbtime));
         assert(ydbtime);
         memset(ydbtime, 0, sizeof (struct ydbtime));
@@ -167,6 +178,8 @@ toku_ydb_lock(void) {
     status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
     toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_miss_count, &ydb_big_lock.start_miss_time);
     toku_get_fsync_times(&ydb_big_lock.start_fsync_count, &ydb_big_lock.start_fsync_time);
+    if (new_ydbtime)
+        toku_list_push(&ydb_big_lock.all_ydbtimes, &ydbtime->all_ydbtimes);
 #endif
 
     status.ydb_lock_ctr++;
