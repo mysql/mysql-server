@@ -156,8 +156,8 @@ static inline void fill_bfe_for_subset_read(
     bfe->h = h;
     bfe->search = search;
     bfe->brt = brt;
-    bfe->range_lock_left_key = left;
-    bfe->range_lock_right_key = right;
+    bfe->range_lock_left_key = (left->data ? left : NULL);
+    bfe->range_lock_right_key = (right->data ? right : NULL);
     bfe->left_is_neg_infty = left_is_neg_infty;
     bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
