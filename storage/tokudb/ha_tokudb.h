@@ -3,6 +3,7 @@
 #endif
 
 #include <db.h>
+#include "hatoku_cmp.h"
 
 typedef struct st_tokudb_share {
     char *table_name;
@@ -46,26 +47,6 @@ typedef struct st_tokudb_share {
     uint ai_field_index;
 } TOKUDB_SHARE;
 
-
-//
-// information for hidden primary keys
-//
-#define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-
-//
-// function to convert a hidden primary key into a byte stream that can be stored in DBT
-//
-inline void hpk_num_to_char(uchar* to, ulonglong num) {
-    int8store(to, num);
-}
-
-//
-// function that takes a byte stream of a hidden primary key and returns a ulonglong
-//
-inline ulonglong hpk_char_to_num(uchar* val) {
-    return uint8korr(val);
-}
-
 #define HA_TOKU_VERSION 2
 //
 // no capabilities yet
@@ -84,18 +65,6 @@ typedef enum {
     hatoku_max_ai, //maximum auto increment value found so far
     hatoku_ai_create_value
 } HA_METADATA_KEY ;
-
-//
-// for storing NULL byte in keys
-//
-#define NULL_COL_VAL 0
-#define NONNULL_COL_VAL 1
-
-//
-// for storing if rest of key is +/- infinity
-//
-#define COL_NEG_INF 0 
-#define COL_POS_INF 1
 
 typedef struct st_prim_key_part_info {
     uint offset;
