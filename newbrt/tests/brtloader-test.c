@@ -303,8 +303,8 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     toku_brt_loader_set_n_rows(&bl, 6+4);
 
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
-    r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
-    r = brt_loader_sort_and_write_rows(&bset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
+    r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
+    r = brt_loader_sort_and_write_rows(&bset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     // destroy_rowset(&aset);
     // destroy_rowset(&bset);
