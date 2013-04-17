@@ -85,6 +85,9 @@ BDB_DONTRUN_TESTS = \
 	test_db_descriptor_named_db \
 	test_heaviside_straddle_1622 \
 	test_dbremove_old \
+	checkpoint_1 \
+	root_fifo_1 \
+	root_fifo_2
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
