@@ -1589,6 +1589,7 @@ brt_leaf_apply_cmd_once (
 	    se->dsize += le_latest_vallen(new_le) + le_keylen(new_le);
 	    assert(se->dsize < (1U<<31)); // make sure we didn't underflow
 	    se->ndata++;
+            bump_nkeys(se, 1);
 	    workdone = newlen;
         }
     }
