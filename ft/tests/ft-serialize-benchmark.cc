@@ -10,7 +10,9 @@
 
 #include "includes.h"
 
+#ifndef MIN
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
 const double USECS_PER_SEC = 1000000.0;
 
 static int omt_cmp(OMTVALUE p, void *q)
