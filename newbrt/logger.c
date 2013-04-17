@@ -446,9 +446,10 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 	// need to fsync and not enough is done
 	// reacquire the locks (acquire output lock first)
 	r = ml_unlock(&logger->input_lock);    if (r!=0) goto panic;
+        have_input_lock = FALSE;
 	r = ml_lock(&logger->output_lock);     if (r!=0) goto panic;
 	r = ml_lock(&logger->input_lock);      if (r!=0) goto panic;
-
+        have_input_lock = TRUE;
     
 	// it's possible that the written lsn is now written enough that we are happy.   If not then do the I/O
 	if (logger->fsynced_lsn.lsn < lsn.lsn) {
@@ -483,12 +484,16 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
     if (have_input_lock) {
 	r = ml_unlock(&logger->input_lock);
 	if (r!=0) goto panic2;
+        have_input_lock = FALSE;
     }
     if ( logger->write_log_files ) 
         toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
     return 0;
  panic:
-    ml_unlock(&logger->input_lock);
+    if (have_input_lock) {
+        ml_unlock(&logger->input_lock);
+        have_input_lock = FALSE;
+    }
  panic2:
     toku_logger_panic(logger, r);
     return r;
