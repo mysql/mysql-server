@@ -303,7 +303,7 @@ tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
 test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	./test1426.tdb -q
 	./test1426.bdb -q
-	db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426
+	$(BDBDIR)/bin/db_dump -p -h dir.test1426.c.bdb main > dump.bdb.1426
 	../../utils/tokudb_dump$(BINSUF) -p -h dir.test1426.c.tdb main > dump.tdb.1426
 	diff -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426
 
