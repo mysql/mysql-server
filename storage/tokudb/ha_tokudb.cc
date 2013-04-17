@@ -4402,6 +4402,10 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     DBUG_VOID_RETURN;
 }
 
+bool ha_tokudb::is_auto_inc_singleton(){
+    return false;
+}
+
 //
 // Adds indexes to the table. Takes the array of KEY passed in key_info, and creates
 // DB's that will go at the end of share->key_file. THE IMPLICIT ASSUMPTION HERE is
