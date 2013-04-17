@@ -1491,6 +1491,7 @@ int ha_tokudb::__close(int mutex_is_locked) {
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         TOKUDB_TRACE("close:%p\n", this);
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     rec_buff = NULL;
     alloc_ptr = NULL;
