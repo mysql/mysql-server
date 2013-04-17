@@ -5627,6 +5627,21 @@ int db_env_set_func_full_write (ssize_t (*write_function)(int, const void *, siz
     return toku_set_func_full_write(write_function);
 }
 
+
+int db_env_set_func_fdopen (FILE * (*fdopen_function)(int, const char *)) {
+    return toku_set_func_fdopen(fdopen_function);
+}
+int db_env_set_func_fopen (FILE * (*fopen_function)(const char *, const char *)) {
+    return toku_set_func_fopen(fopen_function);
+}
+int db_env_set_func_open (int (*open_function)(const char *, int, int)) {
+    return toku_set_func_open(open_function);
+}
+int db_env_set_func_fclose (int (*fclose_function)(FILE*)) {
+    return toku_set_func_fclose(fclose_function);
+}
+
+
 void 
 db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
     brtloader_set_os_fwrite(fwrite_fun);

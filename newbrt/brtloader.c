@@ -156,7 +156,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
     for (int i=0; i<fi->n_files; i++) {
 	if (fi->file_infos[i].is_open) {
 	    invariant(is_error);
-	    fclose(fi->file_infos[i].file); // don't check for errors, since we are in an error case.
+	    toku_os_fclose(fi->file_infos[i].file); // don't check for errors, since we are in an error case.
 	}
 	if (fi->file_infos[i].is_extant) {
 	    invariant(is_error);
@@ -208,7 +208,7 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     invariant(i>=0 && i<fi->n_files);
     invariant(!fi->file_infos[i].is_open);
     invariant(fi->file_infos[i].is_extant);
-    fi->file_infos[i].file = fopen(fi->file_infos[i].fname, mode);
+    fi->file_infos[i].file = toku_os_fopen(fi->file_infos[i].fname, mode);
     if (fi->file_infos[i].file == NULL) { 
         result = errno;
     } else {
@@ -224,12 +224,13 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
     { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
-    invariant(fi->n_files_open>0);
+    invariant(fi->n_files_open>0);   // ### loader-cleanup-test failure
     fi->n_files_open--;
     invariant(idx.idx >=0 && idx.idx < fi->n_files);
     invariant(fi->file_infos[idx.idx].is_open);
     fi->file_infos[idx.idx].is_open = FALSE;
-    int r = fclose(fi->file_infos[idx.idx].file);
+    int r = toku_os_fclose(fi->file_infos[idx.idx].file);
+    lazy_assert(r == 0);  // Barry added this 5/18  // ### loader-cleanup-test failure
     { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
     if (r!=0) return errno;
     else return 0;
@@ -265,7 +266,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
     if (fd < 0) { 
         result = errno;
     } else {
-        f = fdopen(fd, "r+");
+        f = toku_os_fdopen(fd, "r+");
         if (f == NULL)
             result = errno;
         else
@@ -273,11 +274,11 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
     }
     if (result != 0) {
         if (fd >= 0) {
-            close(fd);
+            toku_os_close(fd);
             unlink(fname);
         }
         if (f != NULL)
-            fclose(f);
+            toku_os_fclose(f);  // don't check for error because we're already in an error case
         if (fname != NULL)
             toku_free(fname);
     }
@@ -309,7 +310,7 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     destroy_rowset(&bl->primary_rowset);
 
     for (int i=0; i<bl->N; i++) {
-	invariant(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
+	invariant(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.  // ### loader-cleanup-test failure
     }
     toku_free(bl->fractal_threads);
     toku_free(bl->fractal_queues);
@@ -2191,7 +2192,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
  error: 
     {
-        int rr = close(fd);
+        int rr = toku_os_close(fd);
         if (rr) 
             result = errno;
     }
@@ -2258,7 +2259,7 @@ static int loader_do_i (BRTLOADER bl,
 
     {
 	mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-	int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
+	int fd = toku_os_open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode); // #2621
 	if (fd < 0) {
             r = errno; goto error;
         }

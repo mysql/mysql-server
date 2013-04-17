@@ -484,11 +484,15 @@ int toku_set_trace_file (char *fname) __attribute__((__visibility__("default")))
 int toku_close_trace_file (void) __attribute__((__visibility__("default")));
 int db_env_set_func_free (void (*)(void*)) __attribute__((__visibility__("default")));
 int db_env_set_func_malloc (void *(*)(size_t)) __attribute__((__visibility__("default")));
+int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_full_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_full_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
-int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
+int db_env_set_func_fdopen (FILE* (*)(int, const char *)) __attribute__((__visibility__("default")));
+int db_env_set_func_fopen (FILE* (*)(const char *, const char *)) __attribute__((__visibility__("default")));
+int db_env_set_func_open (int (*)(const char *, int, int)) __attribute__((__visibility__("default")));
+int db_env_set_func_fclose (int (*)(FILE*)) __attribute__((__visibility__("default")));
 void db_env_set_func_loader_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
