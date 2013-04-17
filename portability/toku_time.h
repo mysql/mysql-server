@@ -24,8 +24,7 @@ typedef int clockid_t;
 // without a real clock_gettime()
 #define CLOCK_REALTIME 0x01867234
 #endif
-int
-toku_clock_gettime(clockid_t clk_id, struct timespec *ts);
+int toku_clock_gettime(clockid_t clk_id, struct timespec *ts) __attribute__((__visibility__("default")));
 
 // *************** Performance timers ************************
 // What do you really want from a performance timer:

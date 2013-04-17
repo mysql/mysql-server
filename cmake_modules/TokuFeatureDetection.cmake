@@ -88,6 +88,12 @@ if (NOT HAVE_BACKTRACE_WITHOUT_EXECINFO)
   endif ()
 endif ()
 
+if(HAVE_CLOCK_REALTIME)
+  list(APPEND EXTRA_SYSTEM_LIBS rt)
+else()
+  list(APPEND EXTRA_SYSTEM_LIBS System)
+endif()
+
 set(CMAKE_REQUIRED_LIBRARIES pthread)
 ## check whether we can change rwlock preference
 check_function_exists(pthread_rwlockattr_setkind_np HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
