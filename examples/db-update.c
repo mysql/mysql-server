@@ -25,7 +25,7 @@ static size_t val_size = 8;
 static int verbose = 0;
 
 static void db_error(const DB_ENV *env, const char *prefix, const char *msg) {
-    printf("%s: %s\n", __FUNCTION__, msg);
+    printf("%s: %p %s %s\n", __FUNCTION__, env, prefix, msg);
 }
 
 static int get_int(void *p) {
@@ -36,6 +36,8 @@ static int get_int(void *p) {
 
 #if defined(TOKUDB)
 static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
+    assert(db);
+    assert(key);
     if (old_val == NULL) {
         // insert new_val = extra
         set_val(extra, set_extra);
@@ -54,7 +56,10 @@ static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const 
 }
 #endif
 
-static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b, int c, int d, bool do_update_callback) {
+static void insert_and_update(DB *db, DB_TXN *txn, int a, int b, int c, int d, bool do_update_callback) {
+#if !defined(TOKUDB)
+    assert(!do_update_callback);
+#endif
     int r;
 
     // generate the key
@@ -122,7 +127,7 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
         int b = random() % key_range;
         int c = 1;
         int d = 0; // timestamp
-        insert_and_update(db_env, db, txn, a, b, c, d, do_update_callback);
+        insert_and_update(db, txn, a, b, c, d, do_update_callback);
         n_rows_per_txn++;
         
         // maybe commit
@@ -163,11 +168,17 @@ int main(int argc, char *argv[]) {
     long rows_per_txn = 100;
     long rows_per_report = 100000;
     int key_range = 1000000;
+#if defined(TOKUDB)
     bool do_update_callback = true;
+#else
+    bool do_update_callback = false;
+#endif
     bool do_txn = false;
     u_int64_t cachesize = 1000000000;
     u_int32_t pagesize = 0;
+#if defined(TOKUDB)
     u_int32_t checkpoint_period = 60;
+#endif
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -216,10 +227,12 @@ int main(int argc, char *argv[]) {
             val_size = atoi(argv[++i]);
             continue;
         }
+#if defined(TOKUDB)
         if (strcmp(arg, "--checkpoint_period") == 0 && i+1 < argc) {
             checkpoint_period = atoi(argv[++i]);
             continue;
         }
+#endif
 
         assert(0);
     }

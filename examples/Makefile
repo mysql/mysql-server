@@ -1,7 +1,7 @@
 SRCS = $(wildcard *.c)
 TARGETS = $(patsubst %.c,%,$(SRCS)) $(patsubst %.c,%-bdb,$(SRCS))
 CPPFLAGS = -I../include -D_GNU_SOURCE
-CFLAGS = -g -std=c99 -Wall
+CFLAGS = -g -std=c99 -Wall -Wextra -Werror -Wno-missing-field-initializers
 ifeq ($(USE_STATIC_LIBS),1)
 LIBTOKUDB = tokudb_static
 LIBTOKUPORTABILITY = tokuportability_static

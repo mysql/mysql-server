@@ -69,6 +69,9 @@ static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, s
     t->mult_flags = calloc(ndbs, sizeof (uint32_t));
     for (i = 0; i < ndbs; i++) 
         t->mult_flags[i] = 0;
+#else
+    key_length = key_length;
+    val_length = val_length;
 #endif
 }
 
@@ -82,6 +85,8 @@ static void table_destroy(struct table *t) {
         table_destroy_dbt(&t->mult_vals[i]);
     free(t->mult_vals);
     free(t->mult_flags);
+#else
+    assert(t);
 #endif
 }
 
@@ -101,6 +106,7 @@ static long htonl64(long x) {
 
 #if defined(TOKUDB)
 static int my_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+    assert(src_db);
     assert(dest_key->flags == DB_DBT_USERMEM && dest_key->ulen >= 4 * 8);
     assert(dest_val->flags == DB_DBT_USERMEM && dest_val->ulen >= 4 * 8);
     int index_num; 
@@ -214,6 +220,7 @@ static void insert_row(DB_ENV *db_env, struct table *t, DB_TXN *txn, long a, lon
         r = db_env->put_multiple(db_env, t->dbs[0], txn, &key, &value, t->ndbs, &t->dbs[0], t->mult_keys, t->mult_vals, t->mult_flags); assert(r == 0);
     }
 #else
+    assert(db_env);
     r = t->dbs[0]->put(t->dbs[0], txn, &key, &value, 0); assert(r == 0);
 #endif
 }
@@ -283,7 +290,9 @@ int main(int argc, char *argv[]) {
     u_int32_t pagesize = 0;
     u_int64_t cachesize = 1000000000;
     int ndbs = 4;
+#if defined(TOKUDB)
     u_int32_t checkpoint_period = 60;
+#endif
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -328,10 +337,12 @@ int main(int argc, char *argv[]) {
             force_multiple = atoi(argv[++i]);
             continue;
         }
+#if defined(TOKUDB)
         if (strcmp(arg, "--checkpoint_period") == 0 && i+1 < argc) {
             checkpoint_period = atoi(argv[++i]);
             continue;
         }
+#endif
 
         assert(0);
     }
