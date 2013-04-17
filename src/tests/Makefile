@@ -90,6 +90,7 @@ BDB_DONTRUN_TESTS = \
 	del-simple \
 	del-multiple \
 	del-multiple-huge-primary-row \
+	del-multiple-srcdb \
 	directory_lock \
         diskfull \
         env-put-multiple \
@@ -194,9 +195,10 @@ BDB_DONTRUN_TESTS = \
         test_txn_nested5 \
 	txn-ignore \
         transactional_fileops \
-	update-multiple-nochange \
-	update-multiple-key0 \
 	update-multiple-data-diagonal \
+	update-multiple-key0 \
+	update-multiple-nochange \
+	update-multiple-with-indexer \
         upgrade_simple \
 	upgrade-test-1 \
 	upgrade-test-2 \

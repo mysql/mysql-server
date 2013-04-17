@@ -1570,11 +1570,11 @@ locked_env_set_generate_row_callback_for_del(DB_ENV *env, generate_row_for_del_f
 }
 
 static int env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
-                            const DBT *key, const DBT *val, 
+                            const DBT *src_key, const DBT *src_val, 
                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array);
 
 static int env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
-                            const DBT *key, const DBT *val, 
+                            const DBT *src_key, const DBT *src_val, 
                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array);
 
 static int env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, 
@@ -1585,20 +1585,20 @@ static int env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                                uint32_t num_vals, DBT *vals);
 
 static int
-locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) {
+locked_env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *src_key, const DBT *src_val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array) {
     int r = env_check_avail_fs_space(env);
     if (r == 0) {
 	toku_ydb_lock();
-	r = env_put_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, vals, flags_array);
+	r = env_put_multiple(env, src_db, txn, src_key, src_val, num_dbs, db_array, keys, vals, flags_array);
 	toku_ydb_unlock();
     }
     return r;
 }
 
 static int
-locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) {
+locked_env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *src_key, const DBT *src_val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array) {
     toku_ydb_lock();
-    int r = env_del_multiple(env, src_db, txn, key, val, num_dbs, db_array, keys, flags_array);
+    int r = env_del_multiple(env, src_db, txn, src_key, src_val, num_dbs, db_array, keys, flags_array);
     toku_ydb_unlock();
     return r;
 }
@@ -3843,21 +3843,29 @@ lookup_src_db(uint32_t num_dbs, DB *db_array[], DB *src_db) {
 }
 
 static int
-do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
+do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *src_db, const DBT *src_key) {
+    src_db = src_db; src_key = src_key;
     int r = 0;
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
+
+        // if db is being indexed by an indexer, then insert a delete message into the db if the src key is to the left or equal to the 
+        // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
 	int do_delete = TRUE;
 	DB_INDEXER *indexer = toku_db_get_indexer(db);
 	if (indexer) { // if this db is the index under construction
-            DB *src_db = toku_indexer_get_src_db(indexer);
-            invariant(src_db != NULL);
-            uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
-            if (which_src_db >= num_dbs)
-                r = EINVAL;
-            else
-                do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
+            DB *indexer_src_db = toku_indexer_get_src_db(indexer);
+            invariant(indexer_src_db != NULL);
+            const DBT *indexer_src_key;
+            if (src_db == indexer_src_db)
+                indexer_src_key = src_key;
+            else {
+                uint32_t which_src_db = lookup_src_db(num_dbs, db_array, indexer_src_db);
+                invariant(which_src_db < num_dbs);
+                indexer_src_key = &keys[which_src_db];
+            }
+            do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_db, indexer_src_key);
         }
 	if (r == 0 && do_delete) {
             r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
@@ -3871,8 +3879,8 @@ env_del_multiple(
     DB_ENV *env, 
     DB *src_db, 
     DB_TXN *txn, 
-    const DBT *key, 
-    const DBT *val, 
+    const DBT *src_key, 
+    const DBT *src_val, 
     uint32_t num_dbs, 
     DB **db_array, 
     DBT *keys, 
@@ -3880,14 +3888,6 @@ env_del_multiple(
 {
     int r;
     DBT del_keys[num_dbs];
-    BOOL multi_accounting = TRUE;  // use num_multi_delete accountability counters 
-
-    // special case single DB
-    if (num_dbs == 1 && src_db == db_array[0]) {
-	multi_accounting = FALSE;
-        r = toku_db_del(db_array[0], txn, (DBT *) key, flags_array[0]);
-        goto cleanup;
-    }
 
     HANDLE_PANICKED_ENV(env);
 
@@ -3911,11 +3911,11 @@ env_del_multiple(
         DB *db = db_array[which_db];
 
         if (db == src_db) {
-            del_keys[which_db] = *key;
+            del_keys[which_db] = *src_key;
         }
         else {
         //Generate the key
-            r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val);
+            r = env->i->generate_row_for_del(db, src_db, &keys[which_db], src_key, src_val);
             if (r != 0) goto cleanup;
             del_keys[which_db] = keys[which_db];
         }
@@ -3948,19 +3948,17 @@ env_del_multiple(
     if (num_dbs == 1)
         r = log_del_single(txn, brts[0], &del_keys[0]);
     else
-        r = log_del_multiple(txn, src_db, key, val, num_dbs, brts, del_keys);
+        r = log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
 
     if (r == 0) 
-        r = do_del_multiple(txn, num_dbs, db_array, del_keys);
+        r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key);
     }
 
 cleanup:
-    if (multi_accounting) {
-	if (r == 0)
-	    num_multi_deletes += num_dbs;
-	else
-	    num_multi_deletes_fail += num_dbs;
-    }
+    if (r == 0)
+        num_multi_deletes += num_dbs;
+    else
+        num_multi_deletes_fail += num_dbs;
     return r;
 }
 
@@ -4549,21 +4547,28 @@ log_put_multiple(DB_TXN *txn, DB *src_db, const DBT *src_key, const DBT *src_val
 }
 
 static int
-do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT vals[]) {
+do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT vals[], DB *src_db, const DBT *src_key) {
     int r = 0;
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
+
+        // if db is being indexed by an indexer, then put into that db if the src key is to the left or equal to the 
+        // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
 	int do_put = TRUE;
 	DB_INDEXER *indexer = toku_db_get_indexer(db);
 	if (indexer) { // if this db is the index under construction
-            DB *src_db = toku_indexer_get_src_db(indexer);
-            invariant(src_db != NULL);
-            uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
-            if (which_src_db >= num_dbs)
-                r = EINVAL;
-            else
-                do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
+            DB *indexer_src_db = toku_indexer_get_src_db(indexer);
+            invariant(indexer_src_db != NULL);
+            const DBT *indexer_src_key;
+            if (src_db == indexer_src_db)
+                indexer_src_key = src_key;
+            else {
+                uint32_t which_src_db = lookup_src_db(num_dbs, db_array, indexer_src_db);
+                invariant(which_src_db < num_dbs);
+                indexer_src_key = &keys[which_src_db];
+            }
+            do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, indexer_src_key);
         }
         if (r == 0 && do_put) {
             r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
@@ -4577,8 +4582,8 @@ env_put_multiple(
     DB_ENV *env, 
     DB *src_db, 
     DB_TXN *txn, 
-    const DBT *key, 
-    const DBT *val, 
+    const DBT *src_key, 
+    const DBT *src_val, 
     uint32_t num_dbs, 
     DB **db_array, 
     DBT *keys, 
@@ -4588,14 +4593,6 @@ env_put_multiple(
     int r;
     DBT put_keys[num_dbs];
     DBT put_vals[num_dbs];
-    BOOL multi_accounting = TRUE;  // use num_multi_insert accountability counters 
-
-    // special case for a single DB
-    if (num_dbs == 1 && src_db == db_array[0]) {
-	multi_accounting = FALSE;
-        r = toku_db_put(src_db, txn, (DBT *) key, (DBT *) val, flags_array[0]);
-        goto cleanup;
-    }
 
     HANDLE_PANICKED_ENV(env);
 
@@ -4620,11 +4617,11 @@ env_put_multiple(
 
         //Generate the row
         if (db == src_db) {
-            put_keys[which_db] = *key;
-            put_vals[which_db] = *val;
+            put_keys[which_db] = *src_key;
+            put_vals[which_db] = *src_val;
         }
         else {
-            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val);
+            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], src_key, src_val);
             if (r != 0) goto cleanup;
             put_keys[which_db] = keys[which_db];
             put_vals[which_db] = vals[which_db];            
@@ -4663,77 +4660,18 @@ env_put_multiple(
     if (num_dbs == 1)
         r = log_put_single(txn, brts[0], &put_keys[0], &put_vals[0]);
     else
-        r = log_put_multiple(txn, src_db, key, val, num_dbs, brts);
+        r = log_put_multiple(txn, src_db, src_key, src_val, num_dbs, brts);
     
     if (r == 0)
-        r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals);
+        r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key);
 
     }
 
 cleanup:
-    if (multi_accounting) {
-	if (r == 0)
-	    num_multi_inserts += num_dbs;
-	else
-	    num_multi_inserts_fail += num_dbs;
-    }
-    return r;
-}
-
-static int
-dbt_cmp(const DBT *a, const DBT *b) {
-    if (a->size < b->size)
-        return -1;
-    if (a->size > b->size)
-        return +1;
-    return memcmp(a->data, b->data, a->size);
-}
-
-static int
-update_single(
-    DB_ENV *env,
-    DB *db, 
-    uint32_t flags, 
-    DB_TXN *txn, 
-    DBT *old_key, 
-    DBT *old_data, 
-    DBT *new_key, 
-    DBT *new_data) 
-{
-    int r = 0;
-    uint32_t lock_flags;
-    uint32_t remaining_flags;
-    lock_flags = get_prelocked_flags(flags);
-    remaining_flags = flags & ~lock_flags;
-
-    r = toku_grab_read_lock_on_directory(db, txn);
-    if (r != 0) goto cleanup;
-
-    int (*cmpfun)(DB *db, const DBT *a, const DBT *b) = toku_builtin_compare_fun;
-    if (env->i->bt_compare)
-        cmpfun = env->i->bt_compare;
-
-    BOOL key_eq = cmpfun(db, old_key, new_key) == 0;
-    if (!key_eq) {
-        //Check overwrite constraints only in the case where 
-        // the keys are not equal.
-        // If the keys are equal, then we do not care of the flag is DB_NOOVERWRITE or DB_YESOVERWRITE
-        r = db_put_check_overwrite_constraint(db, txn,
-                                              new_key,
-                                              lock_flags, remaining_flags);
-        if (r != 0) goto cleanup;
-
-        r = toku_db_del(db, txn, (DBT *) old_key, DB_DELETE_ANY);
-    }
-    
-    if (r == 0 && (!key_eq || !(dbt_cmp(old_data, new_data) == 0))) {
-        r = toku_db_put(db, txn, (DBT *) new_key, (DBT *) new_data, DB_YESOVERWRITE);
-    }
-cleanup:
     if (r == 0)
-	num_updates++;
+        num_multi_inserts += num_dbs;
     else
-	num_updates_fail++;
+        num_multi_inserts_fail += num_dbs;
     return r;
 }
 
@@ -4745,22 +4683,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                     uint32_t num_keys, DBT keys[], 
                     uint32_t num_vals, DBT vals[]) {
     int r = 0;
-    BOOL multi_accounting = TRUE;  // use num_multi_update accountability counters 
-
-    // special case for a single DB 
-    if (num_dbs == 1 && src_db == db_array[0]) {
-	multi_accounting = FALSE;	
-        r = update_single(env,
-            db_array[0], 
-            flags_array[0], 
-            txn, 
-            old_src_key, 
-            old_src_data, 
-            new_src_key, 
-            new_src_data
-            );
-        goto cleanup;
-    }
 
     HANDLE_PANICKED_ENV(env);
 
@@ -4790,15 +4712,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
         uint32_t lock_flags[num_dbs];
         uint32_t remaining_flags[num_dbs];
 
-        int (*cmpfun)(DB *db, const DBT *a, const DBT *b) = toku_builtin_compare_fun;
-        if (env->i->bt_compare)
-            cmpfun = env->i->bt_compare;
-
         for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
             DB *db = db_array[which_db];
             DBT curr_old_key, curr_new_key, curr_new_val;
             
-
             lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
             remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
@@ -4832,6 +4749,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 curr_new_key = keys[which_db];
                 curr_new_val = vals[which_db];
             }
+            toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
             BOOL key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
             if (!key_eq) {
                 r = toku_grab_read_lock_on_directory(db, txn);
@@ -4890,8 +4808,8 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 r = log_del_single(txn, del_brts[0], &del_keys[0]);
             else
                 r = log_del_multiple(txn, src_db, old_src_key, old_src_data, n_del_dbs, del_brts, del_keys);
-            if (r == 0) 
-                r = do_del_multiple(txn, n_del_dbs, del_dbs, del_keys);
+            if (r == 0)
+                r = do_del_multiple(txn, n_del_dbs, del_dbs, del_keys, src_db, old_src_key);
         }
 
         if (r == 0 && n_put_dbs > 0) {
@@ -4900,17 +4818,15 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             else
                 r = log_put_multiple(txn, src_db, new_src_key, new_src_data, n_put_dbs, put_brts);
             if (r == 0)
-                r = do_put_multiple(txn, n_put_dbs, put_dbs, put_keys, put_vals);
+                r = do_put_multiple(txn, n_put_dbs, put_dbs, put_keys, put_vals, src_db, new_src_key);
         }
     }
 
 cleanup:
-    if (multi_accounting) {
-	if (r == 0)
-	    num_multi_updates += num_dbs;
-	else
-	    num_multi_updates_fail += num_dbs;
-    }
+    if (r == 0)
+        num_multi_updates += num_dbs;
+    else
+        num_multi_updates_fail += num_dbs;
     return r;
 }
 
