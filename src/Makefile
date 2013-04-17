@@ -12,19 +12,9 @@ DEPEND_COMPILE += \
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
-YDB=ydb.$(AEXT)
-YDB_BUNDLE=ydb.bundle
-TYDB=tydb.$(AEXT)
-TYDB_BUNDLE=tydb.bundle
-
-IPO_YDB       = ipo_libtokudb.$(AEXT)
-NOIPO_YDB     = static_libtokudb.$(AEXT)
-
 LIBNAME=libtokudb
 
-LIBRARY=$(LIBNAME).$(SOEXT)
-
-LIBRARY_S=$(LIBNAME).$(AEXT)
+LIBRARY=../lib/$(LIBNAME).$(SOEXT)
 
 OBJS_RAW = \
 	ydb_lib \
@@ -44,7 +34,6 @@ LIBRARIES=
 
 LIBRARIES+= \
 	$(LIBRARY) \
-	$(LIBRARY_S) \
 #Purposely here for \ at end of prev
 
 ifeq ($(OS_CHOICE),windows)
@@ -61,32 +50,17 @@ LIBRARIES += $(WINYDB)
 libtokudb.pdb :  $(WINYDB);
 endif
 
-INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
-ifeq ($(OS_CHOICE),windows)
-    #INSTALL_LIBRARIES += libtokudb.pdb.install #Disabled dynamic libraries
-endif
+.PHONY: build local build_tests
 
-
-.PHONY:install_libs install.% build install local build_tests
-
-#Half Build Half Install???
 build: local build_tests ;
 
-local: buildlocktrees libs install_libs ;
+local: buildlocktrees libs ;
 
 build_tests: | local
 	cd tests && $(MAKE) build
 
-install_libs: $(INSTALL_LIBRARIES)
-%.install: %
-	if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
-
-.PHONY: install
-install: libs install_libs ;
-
 .PHONY: local libs buildlocktrees
 libs: $(LIBRARIES) ;
-$(IPO_YDB) $(NOIPO_YDB) $(LIBRARIES): | export.def
 
 #Generate export.def
 #Take everything from export.map, add snprintf and vsnprintf, and then convert into export.def format.
@@ -97,36 +71,19 @@ export.def: export.map Makefile
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
-$(YDB):  $(OBJS) 
-
-
-$(LIBRARY):  $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
-
-$(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
-
-#Skip all BDB tests for CYGWIN+ICC
-ifeq ($(CYGWIN),)
-$(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY))
-else ifneq ($(CC),icc)
-$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-else
-$(LIBRARY) $(LIBRARY_S):
-	echo "Dynamic tokudb in windows is deprecated"
-	test 1 = 0
-#$(LIBRARY_S):  $(LIBRARY)  ;
-#$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-#$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+$(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
+NEWBRT_OFILES = $(patsubst %,../%,$(shell cat ../lib/newbrt.olist))
+PORTABILITY_OFILES = $(patsubst %,../%,$(shell cat ../lib/tokuportability.olist))
+$(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT_OFILES) $(PORTABILITY_OFILES)
+ifeq ($(CC),icc)
+ ifeq ($(HAVE_CILK),1)
+  ifeq (0,1)
+   #$(LIBRARY): LINK_FILES+=$(wildcard ../cilk_icc/*.o)
+  else
+   $(LIBRARY): LINK_FILES+=-lcilkrts
+  endif
+ endif
 endif
-
-$(NOIPO_YDB): $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
-	xilib /out:$@ $^
-
-ipo_libtokudb.obj: $(YDB_BUNDLE) $(LOCKTREE_BUNDLE) $(RANGETREE_BUNDLE) $(NEWBRT_BUNDLE)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
-	mv ipo_out.obj $@
-
-$(IPO_YDB): ipo_libtokudb.obj
-	xilib /out:$@ $^
 
 check_globals: $(LIBNAME).$(SOEXT)
 	python tokuglobals.py $<

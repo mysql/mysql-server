@@ -42,13 +42,15 @@ toku_commit_fdelete (u_int8_t   file_was_open,
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
-    char *fname_in_env = fixup_fname(&bs_fname);
-    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+    {
+	char *fname_in_env = fixup_fname(&bs_fname);
+	char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
 
-    r = unlink(fname_in_cwd);
-    assert(r==0 || errno==ENOENT);
-    toku_free(fname_in_env);
-    toku_free(fname_in_cwd);
+	r = unlink(fname_in_cwd);
+	assert(r==0 || errno==ENOENT);
+	toku_free(fname_in_env);
+	toku_free(fname_in_cwd);
+    }
 done:
     return 0;
 }
@@ -107,13 +109,15 @@ toku_rollback_fcreate (FILENUM    filenum,
     r = toku_cachefile_redirect_nullfd(cf);
     assert(r==0);
 
-    char *fname_in_env = fixup_fname(&bs_fname);
-    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+    {
+	char *fname_in_env = fixup_fname(&bs_fname);
+	char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
 
-    r = unlink(fname_in_cwd);
-    assert(r==0 || errno==ENOENT);
-    toku_free(fname_in_env);
-    toku_free(fname_in_cwd);
+	r = unlink(fname_in_cwd);
+	assert(r==0 || errno==ENOENT);
+	toku_free(fname_in_env);
+	toku_free(fname_in_cwd);
+    }
 done:
     return 0;
 }
@@ -230,7 +234,7 @@ toku_rollback_cmdupdate(FILENUM    filenum,
 
 int
 toku_commit_cmdupdatebroadcast(FILENUM    filenum,
-                               u_int8_t   is_resetting_op,
+                               BOOL       is_resetting_op,
                                TOKUTXN    txn,
                                YIELDF     UU(yield),
                                void *     UU(yieldv),
@@ -248,7 +252,7 @@ toku_commit_cmdupdatebroadcast(FILENUM    filenum,
 
 int
 toku_rollback_cmdupdatebroadcast(FILENUM    filenum,
-                                 u_int8_t   UU(is_resetting_op),
+                                 BOOL       UU(is_resetting_op),
                                  TOKUTXN    txn,
                                  YIELDF     UU(yield),
                                  void *     UU(yieldv),

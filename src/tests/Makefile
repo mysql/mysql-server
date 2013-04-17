@@ -24,10 +24,10 @@ LIBTDB=$(WIN_YDB)
 %.tdb$(BINSUF):  LINK_FILES+=$(WIN_YDB)
 TDB_EXTRA_NEEDED=$(WIN_YDB)
 else
-LIBTDB=../libtokudb.$(SOEXT)
+LIBTDB=../../lib/libtokudb.$(SOEXT)
 TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
-%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
+%.tdb$(BINSUF):  RPATH_DIRS+=$(patsubst %/,%,$(dir $(LIBTDB)))
 endif
 
 RECOVER_SRCS = $(wildcard recover-*.c)
@@ -327,7 +327,6 @@ BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DON
 endif
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
-	loader_blobs_leaf_split \
 	test_blobs_leaf_split \
 	test_truncate_txn_abort \
 	test_db_no_env \
@@ -533,7 +532,7 @@ TDB_CFLAGS=
 %.bdb$(BINSUF): BDB_CFLAGS= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0 -DTOKU_ALLOW_DEPRECATED
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(CC) $< $(BDB_CFLAGS) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BDB_CFLAGS) $(BIN_FROM_C_FLAGS) -L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib -ltokuportability $(LINK_MUST_BE_LAST)
 
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
@@ -541,10 +540,10 @@ TDB_CFLAGS=
 %.tdb$(BINSUF) %.tdbt$(BINSUF): TDB_CFLAGS= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
 loader-stress-test: CPPFLAGS+=-I$(TOKUROOT)include -DENVDIR=\"dir.$<\"
-loader-stress-test: LOADLIBES+=-L.. -ltokudb -Wl,-rpath,..
+loader-stress-test: LOADLIBES+=-L../lib -ltokudb -Wl,-rpath,..
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
-	$(CC) $< $(TDB_CFLAGS) $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(TDB_CFLAGS) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =

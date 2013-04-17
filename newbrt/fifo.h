@@ -64,7 +64,7 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
       struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off); \
       ITEMLEN keylenvar = e->keylen;                                                       \
       ITEMLEN datalenvar = e->vallen;                                                 \
-      int     typevar = e->type;                                                      \
+      enum brt_msg_type typevar = (enum brt_msg_type)e->type;		\
       XIDS    xidsvar = &e->xids_s;                                                   \
       bytevec keyvar  = xids_get_end_of_array(xidsvar);                               \
       bytevec datavar = (const u_int8_t*)keyvar + e->keylen;                          \

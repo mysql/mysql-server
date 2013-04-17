@@ -17,13 +17,13 @@ include $(TOKUROOT)toku_include/Makefile.include
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../include -I../toku_include
 CXXFLAGS = $(GCC_VERSION_SPECIFIC) -Werror -Wall -g $(OPTFLAGS) $(GCOV_FLAGS)
-CC = c++
 LDFLAGS = -lz
 SRCS = $(wildcard *.cpp)
 OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
 ifeq ($(CC),icc)
 CXXFLAGS += -diag-disable 981
+CXX=icc
 endif
 
 LIBNAME = libtokudb_cxx

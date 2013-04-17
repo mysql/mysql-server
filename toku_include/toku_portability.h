@@ -109,14 +109,14 @@ typedef int64_t toku_off_t;
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
-#   if defined(__ICL) //Windows Intel Compiler
+#   if defined(__ICL) || defined(__ICC) // Intel Compiler
 #       pragma deprecated (creat, fstat, stat, getpid, syscall, sysconf, mkdir, strdup)
-#       pragma poison   off_t
-#       pragma poison   pthread_attr_t       pthread_t
-#       pragma poison   pthread_mutexattr_t  pthread_mutex_t
-#       pragma poison   pthread_condattr_t   pthread_cond_t
-#       pragma poison   pthread_rwlockattr_t pthread_rwlock_t
-#       pragma poison   timespec
+//#       pragma poison   off_t
+//#       pragma poison   pthread_attr_t       pthread_t
+//#       pragma poison   pthread_mutexattr_t  pthread_mutex_t
+//#       pragma poison   pthread_condattr_t   pthread_cond_t
+//#       pragma poison   pthread_rwlockattr_t pthread_rwlock_t
+//#       pragma poison   timespec
 #    ifndef DONT_DEPRECATE_WRITES
 #       pragma poison   write                pwrite
 #    endif
@@ -155,9 +155,9 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #   endif
 #endif
 
-void *os_malloc(size_t);
-void *os_realloc(void*,size_t);
-void  os_free(void*);
+void *os_malloc(size_t) __attribute__((__visibility__("default")));
+void *os_realloc(void*,size_t) __attribute__((__visibility__("default")));
+void  os_free(void*) __attribute__((__visibility__("default")));
 
 // full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
 void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));

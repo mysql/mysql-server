@@ -79,7 +79,9 @@ xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
         XIDS xids = toku_malloc(sizeof(*xids) + num_child_xids*sizeof(xids->ids[0]));
         if (!xids) rval = ENOMEM;
         else {
-            xids->num_xids = num_child_xids;
+            // comment: invariant (num_child_xids <= MAX_TRANSACTION_RECORDS) 
+            // makes this cast ok
+            xids->num_xids = (u_int8_t)num_child_xids;
             memcpy(xids->ids,
                    parent_xids->ids,
                    parent_xids->num_xids*sizeof(parent_xids->ids[0])); 
@@ -95,7 +97,7 @@ xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
 void
 xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
 		        XIDS * xids_p) {		// xids list created
-    u_int32_t num_xids = rbuf_char(rb);
+    u_int8_t num_xids = rbuf_char(rb);
     invariant(num_xids < MAX_TRANSACTION_RECORDS);
     XIDS xids = toku_xmalloc(sizeof(*xids) + num_xids*sizeof(xids->ids[0]));
     xids->num_xids = num_xids;
@@ -153,7 +155,9 @@ TXNID
 xids_get_innermost_xid(XIDS xids) {
     TXNID rval = TXNID_NONE;
     if (xids_get_num_xids(xids)) {
-        rval = xids_get_xid(xids, xids_get_num_xids(xids)-1);
+        // if clause above makes this cast ok
+        u_int8_t innermost_xid = (u_int8_t)(xids_get_num_xids(xids)-1);
+        rval = xids_get_xid(xids, innermost_xid);
     }
     return rval;
 }

@@ -10,14 +10,20 @@ OPT_AROPT=-qnoipo #Disable ipo for lib creation even when optimization is on.
 
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
-TARGET = libtokuportability.$(AEXT)
+TARGET = $(LIBPORTABILITY)
 
-build install: $(LIBPORTABILITY)
+build install: $(TARGET)
 
-$(LIBPORTABILITY): $(TARGET)
-	if ! diff $< $@ 2>/dev/null; then cp $< $@; fi
+ifeq ($(CC),icc)
+#LINUX_NOSTDLIB=-nostdlib
+LINUX_NOSTDLIB=-static-intel -diag-disable 10237
+else
+LINUX_NOSTDLIB=
+endif
 
 $(TARGET): $(OBJS)
+	echo $(patsubst %,linux/%,$(OBJS)) > ../lib/tokuportability.olist
+	$(CC) -shared $(SYMBOLS) $(OBJS) $(SKIP_WARNING) -o $(TARGET) $(LINUX_NOSTDLIB)
 
 $(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED -D_GNU_SOURCE
 $(OBJS): VISIBILITY=

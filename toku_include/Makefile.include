@@ -45,6 +45,10 @@ ifeq ($(DEBUG),)
     DEBUG = 0
 endif
 
+ifeq ($(HAVE_CILK),)
+    HAVE_CILK = 1
+endif
+
 ifeq ($(VTUNE),1)
     LINK_MUST_BE_LAST = /link /fixed:no
 else
@@ -86,6 +90,14 @@ ifeq ($(SYSTEM),sunos)
 CPPFLAGS += -DTOKU_ALLOW_DEPRECATED
 endif
 
+ifeq ($(CC),icc)
+CPPFLAGS += -DUSING_ICC
+ifeq ($(HAVE_CILK),1)
+CPPFLAGS += -DHAVE_CILK
+LCILKRTS += -lcilkrts
+endif
+endif
+
 ifeq ($(TOKUDB_REVISION),)
 TOKUDB_REVISION = 0
 endif
@@ -119,7 +131,8 @@ else ifeq ($(GCCVERSION),4.4.0)
  GCC_VERSION_SPECIFIC = -Wno-deprecated
 endif
 
-WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
+ -Wpointer-arith # don't do arithmetic on void*.
 
 FORMAT    = -Wmissing-format-attribute #-Wformat=2 #Stronger printf warnings once logger.c cleaned up
 ifeq ($(SYSTEM),sunos)
@@ -128,7 +141,7 @@ else
 VISIBILITY= -fvisibility=hidden
 endif
 FPICFLAGS = -fPIC
-SHADOW    = -Wshadow
+SHADOW = -Wshadow
 SYMBOLS   = -g3 -ggdb3
 PORTABILITY=
 SKIP_WARNING=
@@ -142,15 +155,13 @@ else ifeq ($(GCCVERSION),4.4.1)
 else ifeq ($(GCCVERSION),4.4.0)
  CFLAGS += -Wno-strict-aliasing 
 endif
-LIBPORTABILITY        = $(TOKUROOT)lib/libtokuportability.$(AEXT)
-LIBPORTABILITY_BUNDLE = $(TOKUROOT)lib/libtokuportability.bundle
+LIBPORTABILITY=$(TOKUROOT)lib/libtokuportability.$(SOEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
-ALWAYS_LINK= $(LIBPORTABILITY) -lz -lpthread 
+ALWAYS_LINK= -lz -lpthread 
 ifeq ($(CC),icc)
-ifeq ($(CYGWIN),)
-ALWAYS_LINK += -static-intel
-endif
+# needed for things like intel_fast_memset(), intel_sse2_strlen()
+ALWAYS_LINK+=-lirc
 endif
 C99       = -std=c99
 W64       = #-Wshorten-64-to-32
@@ -263,18 +274,21 @@ ifeq ($(CC),icc)
 	#Linux
         ICC_NOWARN=-diag-disable #Need the space
     endif
-    DISABLE_WARNING +=111# Unreachable code (i.e. assert(0) )
-    DISABLE_WARNING +=271# Remove warnings about trailing comma being nonstandard
-    DISABLE_WARNING +=424# Remove warnings about extra ';' being ignored
-    DISABLE_WARNING +=810# Remove warnings about losing precision
+    #DISABLE_WARNING +=111# Unreachable code (i.e. assert(0) )
+    #DISABLE_WARNING +=271# Remove warnings about trailing comma being nonstandard
+    #DISABLE_WARNING +=424# Remove warnings about extra ';' being ignored
+    #DISABLE_WARNING +=810# Remove warnings about losing precision
     DISABLE_WARNING +=94# Allow arrays of length 0
-    DISABLE_WARNING +=118# Allow void functions to return void functions
-    DISABLE_WARNING +=177# Don't complain about static variables that are not used.
-    #DISABLE_WARNING +=188# Don't complain about enumerated type mixed with another type.
-    DISABLE_WARNING +=589# Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
-    DISABLE_WARNING +=981# Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
-    DISABLE_WARNING +=1324# Don't complain about rdtsc clobbering its registers more than once.
-    DISABLE_WARNING +=1786# Don't complain about 'read/write/other standards' being deprecated
+    #DISABLE_WARNING +=118# Allow void functions to return void functions
+    #DISABLE_WARNING +=177# Do not complain about static variables that are not used.
+    #DISABLE_WARNING +=188# Do not complain about enumerated type mixed with another type.
+    DISABLE_WARNING +=589# Do not complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+    #DISABLE_WARNING +=981# Do not complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+    #DISABLE_WARNING +=1324# Do not complain about rdtsc clobbering its registers more than once.
+    #DISABLE_WARNING +=1786# Do not complain about 'read/write/other standards' being deprecated
+    DISABLE_WARNING +=2259# Do not complain about 'non-pointer conversion from int to u_int8_t (and other small types) may lose significant bits'.  This is a useless warning because it produces too many false positives.
+    DISABLE_WARNING +=11000 11001 11006# Do not remark about multi-file optimizations, single-file optimizations, and object temp files.
+    DISABLE_WARNING += 11003# Don't complain if some file was not compiled with -ipo
     SKIP_WARNING = $(ICC_NOWARN)$(shell sed 's/ /,/g' <<< "$(DISABLE_WARNING)" | sed 's/,//')
 endif
 
@@ -298,7 +312,6 @@ ifneq ($(CYGWIN),)
     HGRIND   =#No Hgrind in cygwin
     FPICFLAGS=#FPIC is default and not allowed as an option.
     VISIBILITY=#Not supported
-    SHADOW=#Not supported
     ifeq ($(CC),icc)
 	#Cygwin icc only
 	ifeq ($(CRUNTIME),)
@@ -452,7 +465,7 @@ LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
 $(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
-$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE) $(LIBPORTABILITY)
+$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(LIBPORTABILITY)
 endif
 
 ifeq ($(SKIP_RANGETREERULE),)
@@ -463,16 +476,10 @@ RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
 $(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
-$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE) $(LIBPORTABILITY)
+$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(LIBPORTABILITY)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
-IPO_NEWBRT       = $(TOKUROOT)newbrt/ipo_newbrt.$(AEXT)
-NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
-NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
-$(NEWBRT) $(NEWBRT_BUNDLE) $(IPO_NEWBRT): $(@D)*.[ch]
-	pwd && cd $(@D) && $(MAKE) $(@F)
-$(NEWBRT): $(NEWBRT_BUNDLE)
 LOG_HEADER       = $(TOKUROOT)newbrt/log_header.h
 $(LOG_HEADER): $(TOKUROOT)newbrt/logformat.c
 	cd $(@D) && $(MAKE) $(@F)
@@ -501,26 +508,18 @@ PTHREAD_LOCAL=
 endif
 
 
-BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS)       $(BINOUTPUT)$@
+BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS)       $(LDLIBS) $(BINOUTPUT)$@
 BIN_FROM_C_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS_NOLIB) $(BINOUTPUT)$@
 %$(BINSUF):%.c       $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
-BIN_FROM_O_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS)       $(BINOUTPUT)$@
+BIN_FROM_O_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS)       $(LDLIBS) $(BINOUTPUT)$@
 BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS_NOLIB) $(BINOUTPUT)$@
 %$(BINSUF):%.$(OEXT) $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_O_FLAGS) $(LINK_MUST_BE_LAST)
 
 %.$(OEXT):%.c        $(DEPEND_COMPILE)
 	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
-
-CILKROOT=/usr/local/cilk/
-CILKPP=$(CILKROOT)bin/cilk++
-CILKFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -std=c99,$(CFLAGS)) $(CPPFLAGS)
-%$(BINSUF):%.cilk   $(DEPEND_COMPILE)
-	$(CILKPP) $(CILKFLAGS) $< $(LOADLIBES) -o $@
-%.serial$(BINSUF): %.cilk
-	$(CILKPP) -fcilk-stub $(CILKFLAGS) $^ $(LOADLIBES) -o $@
 
 CXXFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -std=c99,$(CFLAGS)) $(CPPFLAGS)
 
@@ -556,18 +555,7 @@ endif
 
 SO_FLAGS=$(SHARED) $(BIN_FROM_O_FLAGS) $(EXPORTMAP)
 
-ifeq ($(BRTLOADER),cilk)
-CILK_LINKER_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,now
-ifeq ($(ARCH),x86_64)
-CILKRTS_LIB = -L$(CILKROOT)/lib64 -lcilkrts_pic
-else
-CILKRTS_LIB = -L$(CILKROOT)/lib32 -lcilkrta_pic
-endif
-SO_FLAGS += $(CILK_LINKER_FLAGS) $(CILKRTS_LIB)
-TOKULINKER = $(CXX)
-else
 TOKULINKER = $(CC)
-endif
 
 %.$(SOEXT): $(EXPORTMAPFILE)
 	$(TOKULINKER) $(SO_FLAGS)

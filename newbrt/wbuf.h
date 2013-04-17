@@ -147,6 +147,10 @@ static inline void wbuf_u_int64_t(struct wbuf *w, u_int64_t ull) {
     wbuf_ulonglong(w, ull);
 }
 
+static inline void wbuf_nocrc_BOOL (struct wbuf *w, BOOL b) {
+    wbuf_nocrc_u_int8_t(w, (u_int8_t)(b ? 1 : 0));
+}
+
 static inline void wbuf_nocrc_BYTESTRING (struct wbuf *w, BYTESTRING v) {
     wbuf_nocrc_bytes(w, v.data, v.len);
 }
