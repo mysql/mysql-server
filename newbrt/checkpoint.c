@@ -146,9 +146,9 @@ toku_multi_operation_client_unlock(void) {
 
 void 
 toku_checkpoint_safe_client_lock(void) {
-    toku_multi_operation_client_lock();
     int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);   
     assert(r == 0);
+    toku_multi_operation_client_lock();
 }
 
 void 
@@ -202,10 +202,13 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
     status.footprint = 10;
     assert(initialized);
-    multi_operation_checkpoint_lock();
-    status.footprint = 20;
+    // for #4341, we changed the order these locks are taken.
+    // to keep the status footprints the same, we moved those
+    // as well. That is why 30 comes before 20.
     checkpoint_safe_checkpoint_lock();
     status.footprint = 30;
+    multi_operation_checkpoint_lock();
+    status.footprint = 20;
     ydb_lock();
     
     status.footprint = 40;
