@@ -250,13 +250,6 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_r
         TXNID tl1;
         TXNID xc = ule->uxrs[curr_committed_entry].xid;
 
-        BOOL is_xc_live = toku_is_txn_in_live_root_txn_list(live_root_txns, xc);
-        if (is_xc_live) {
-            curr_committed_entry--;
-            continue;            
-        }
-
-        tl1 = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
         //
         // If we find that the committed transaction is in the live list,
         // then xc is really in the process of being committed. It has not
@@ -266,6 +259,13 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_r
         // As a result, we must mark what is just below xc as necessary and move on.
         // This issue was found while testing flusher threads, and was fixed for #3979
         //
+        BOOL is_xc_live = toku_is_txn_in_live_root_txn_list(live_root_txns, xc);
+        if (is_xc_live) {
+            curr_committed_entry--;
+            continue;            
+        }
+
+        tl1 = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
         if (tl1 == xc) {
             // if tl1 == xc, that means xc should be live and show up in 
             // live_root_txns, which we check above. So, if we get
