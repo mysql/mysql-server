@@ -37,7 +37,7 @@ C_BEGIN
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { OMT_ITEM_OVERHEAD = 0 }; /* No overhead for the OMT item.  The PMA needed to know the idx, but the OMT doesn't. */
-enum { BRT_CMD_OVERHEAD = (1 + sizeof(MSN))     // the type plus MSN
+enum { BRT_CMD_OVERHEAD = (2 + sizeof(MSN))     // the type plus freshness plus MSN
 };
 
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 22 };

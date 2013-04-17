@@ -260,10 +260,11 @@ serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
     // serialize the FIFO, first the number of entries, then the elements
     wbuf_nocrc_int(wb, toku_bnc_n_entries(bnc));
     FIFO_ITERATE(
-        bnc->buffer, key, keylen, data, datalen, type, msn, xids, UU(is_fresh),
+        bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh,
         {
             invariant((int)type>=0 && type<256);
             wbuf_nocrc_char(wb, (unsigned char)type);
+            wbuf_nocrc_char(wb, (unsigned char)is_fresh);
             wbuf_MSN(wb, msn);
             wbuf_nocrc_xids(wb, xids);
             wbuf_nocrc_bytes(wb, key, keylen);
@@ -869,12 +870,13 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     int r;
     int n_bytes_in_buffer = 0;
     int n_in_this_buffer = rbuf_int(rbuf);
-    void **offsets;
+    void **fresh_offsets, **stale_offsets;
     void **broadcast_offsets;
-    int noffsets = 0;
+    int nfresh = 0, nstale = 0;
     int nbroadcast_offsets = 0;
     if (cmp) {
-        MALLOC_N(n_in_this_buffer, offsets);
+        MALLOC_N(n_in_this_buffer, stale_offsets);
+        MALLOC_N(n_in_this_buffer, fresh_offsets);
         MALLOC_N(n_in_this_buffer, broadcast_offsets);
     }
     for (int i = 0; i < n_in_this_buffer; i++) {
@@ -883,6 +885,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         // this is weird but it's necessary to pass icc and gcc together
         unsigned char ctype = rbuf_char(rbuf);
         enum brt_msg_type type = (enum brt_msg_type) ctype;
+        bool is_fresh = rbuf_char(rbuf);
         MSN msn = rbuf_msn(rbuf);
         XIDS xids;
         xids_create_from_buffer(rbuf, &xids);
@@ -892,8 +895,13 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         long *dest;
         if (cmp) {
             if (brt_msg_type_applies_once(type)) {
-                dest = (long *) &offsets[noffsets];
-                noffsets++;
+                if (is_fresh) {
+                    dest = (long *) &fresh_offsets[nfresh];
+                    nfresh++;
+                } else {
+                    dest = (long *) &stale_offsets[nstale];
+                    nstale++;
+                }
             } else if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
                 dest = (long *) &broadcast_offsets[nbroadcast_offsets];
                 nbroadcast_offsets++;
@@ -903,7 +911,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         } else {
             dest = NULL;
         }
-        r = toku_fifo_enq(bnc->buffer, key, keylen, val, vallen, type, msn, xids, true, dest); /* Copies the data into the fifo */
+        r = toku_fifo_enq(bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh, dest); /* Copies the data into the fifo */
         lazy_assert_zero(r);
         n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
         //printf("Inserted\n");
@@ -913,10 +921,15 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
 
     if (cmp) {
         struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = cmp_extra, .cmp = cmp, .fifo = bnc->buffer };
-        r = mergesort_r(offsets, noffsets, sizeof offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
+        r = mergesort_r(fresh_offsets, nfresh, sizeof fresh_offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
         assert_zero(r);
         toku_omt_destroy(&bnc->fresh_message_tree);
-        r = toku_omt_create_steal_sorted_array(&bnc->fresh_message_tree, &offsets, noffsets, n_in_this_buffer);
+        r = toku_omt_create_steal_sorted_array(&bnc->fresh_message_tree, &fresh_offsets, nfresh, n_in_this_buffer);
+        assert_zero(r);
+        r = mergesort_r(stale_offsets, nstale, sizeof stale_offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
+        assert_zero(r);
+        toku_omt_destroy(&bnc->stale_message_tree);
+        r = toku_omt_create_steal_sorted_array(&bnc->stale_message_tree, &stale_offsets, nstale, n_in_this_buffer);
         assert_zero(r);
         toku_omt_destroy(&bnc->broadcast_list);
         r = toku_omt_create_steal_sorted_array(&bnc->broadcast_list, &broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
