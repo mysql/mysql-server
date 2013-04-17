@@ -288,6 +288,7 @@ BDB_DONTRUN_TESTS = \
         test_abort5 \
 	test_blobs_leaf_split \
 	test_bulk_fetch \
+	test_compression_methods \
         test_cursor_delete_2119 \
         test_db_descriptor \
         test_db_descriptor_named_db \

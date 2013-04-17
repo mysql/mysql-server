@@ -6855,7 +6855,7 @@ toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot
 
 void
 toku_brt_header_init(struct brt_header *h, 
-                     BLOCKNUM root_blocknum_on_disk, LSN checkpoint_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize) {
+                     BLOCKNUM root_blocknum_on_disk, LSN checkpoint_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method compression_method) {
     memset(h, 0, sizeof *h);
     h->layout_version   = BRT_LAYOUT_VERSION;
     h->layout_version_original = BRT_LAYOUT_VERSION;
@@ -6872,7 +6872,7 @@ toku_brt_header_init(struct brt_header *h,
     h->root_blocknum    = root_blocknum_on_disk;
     h->flags            = 0;
     h->root_xid_that_created = root_xid_that_created;
-    h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
+    h->compression_method = compression_method;
 }
 
 #include <valgrind/helgrind.h>

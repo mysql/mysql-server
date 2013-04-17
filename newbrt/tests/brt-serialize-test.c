@@ -110,12 +110,14 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         fill_bfe_for_full_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
+        (*dn)->h = brt_h;
     }
     else if (bft == read_compressed || bft == read_none) {
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_min_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
+        (*dn)->h = brt_h;
         // assert all bp's are compressed or on disk.
         for (int i = 0; i < (*dn)->n_children; i++) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED || BP_STATE(*dn, i) == PT_ON_DISK);
@@ -182,6 +184,7 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
 
 static void write_sn_to_disk(int fd, BRT brt, BRTNODE sn, BRTNODE_DISK_DATA* src_ndd, BOOL do_clone) {
     int r;
+    sn->h = brt->h;
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
@@ -254,6 +257,7 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -397,6 +401,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clon
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -536,6 +541,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft, BOOL do_clone) 
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -680,6 +686,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft, BOOL do_clone)
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -840,6 +847,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -965,6 +973,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -1095,6 +1104,7 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
@@ -1240,6 +1250,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
     toku_brtheader_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20

@@ -131,7 +131,7 @@ static int write_dbfile (char *template, int n, char *output_name, BOOL expect_e
     brt_loader_set_error_function(&bl.error_callback, NULL, NULL);
     brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
-    result = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0);
+    result = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD);
 
     toku_set_func_malloc_only(NULL);
     toku_set_func_realloc_only(NULL);
