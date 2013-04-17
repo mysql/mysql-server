@@ -185,7 +185,7 @@ public:
     // Returns limit on the number of keys imposed by tokudb.
     //
     uint max_supported_keys() const {
-        return MAX_KEY - 1;
+        return MAX_KEY;
     } 
 
     uint extra_rec_buf_length() const {
