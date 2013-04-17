@@ -51,7 +51,7 @@ CACHEFILE f;
 static void open_file (void ) {
     int r;
     r = toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   assert(r==0);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 }
 
 static void writeit (void) {
@@ -74,8 +74,9 @@ static void writeit (void) {
 
 static void readit (void) {
     struct timeval start, end;
-    struct rusage start_usage, end_usage;
-    getrusage(RUSAGE_SELF, &start_usage);
+    struct timeval start_usertime, start_systime;
+    struct timeval end_usertime, end_systime;
+    os_get_process_times(&start_usertime, &start_systime);
     gettimeofday(&start, 0);
     int i, r;
     void *block;
@@ -89,10 +90,10 @@ static void readit (void) {
     r = toku_cachefile_close(&f, 0);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
-    getrusage(RUSAGE_SELF, &end_usage);
+    os_get_process_times(&end_usertime, &end_systime);
     double diff = tdiff(&end, &start);
-    double udiff = tdiff(&end_usage.ru_utime, &start_usage.ru_utime);
-    double sdiff = tdiff(&end_usage.ru_stime, &start_usage.ru_stime);
+    double udiff = tdiff(&end_usertime, &start_usertime);
+    double sdiff = tdiff(&end_systime, &start_systime);
     printf("readit  %d blocks of size %d in %6.2fs at %6.2fMB/s   user=%6.2fs sys=%6.2fs\n",
 	   N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6), udiff, sdiff);
 }

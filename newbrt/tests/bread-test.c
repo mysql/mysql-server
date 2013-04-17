@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../brttypes.h"
 #include "../bread.h"
 
 #define FNAME "bread-test.data"
@@ -21,16 +22,16 @@ test (int seed) {
     char buf[RECORDS][100];
     int sizes[RECORDS];
     int sizesn[RECORDS];
-    size_t off = 0;
+    toku_off_t off = 0;
     {
-	int fd = creat(FNAME, 0777);
+        int fd = open(FNAME, O_CREAT+O_RDWR+O_BINARY, 0777);
 	assert(fd>=0);
 	for (i=0; i<RECORDS; i++) {
 	    sizes[i]  = random()%100;
 	    sizesn[i] = htonl(sizes[i]);
 	    int j;
 	    for (j=0; j<sizes[i]; j++) {
-	      buf[i][j]=(char)random();
+		buf[i][j]=(char)random();
 	    }
 	    int r = write(fd, buf[i], sizes[i]);
 	    assert(r==sizes[i]);
@@ -41,7 +42,7 @@ test (int seed) {
 	}
 	{ int r=close(fd); assert(r==0); }
     }
-    int fd = open(FNAME, O_RDONLY);  	assert(fd>=0);
+    int fd = open(FNAME, O_RDONLY+O_BINARY);  	assert(fd>=0);
     // Now read it all backward
     BREAD br = create_bread_from_fd_initialize_at(fd, off, 50);
     while (bread_has_more(br)) {

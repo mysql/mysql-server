@@ -1,3 +1,5 @@
+#include "portability.h"
+#include "os.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -51,7 +53,7 @@ fbusy (void *arg) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
     r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", toku_pthread_self(), __FUNCTION__); 
+    if (verbose) printf("%lu:%s:exit\n", (unsigned long)os_gettid(), __FUNCTION__); 
     return arg;
 }
 
@@ -66,11 +68,15 @@ fidle (void *arg) {
         r = toku_pthread_cond_wait(&my_threadpool->wait, &my_threadpool->mutex); assert(r == 0);
     }
     r = toku_pthread_mutex_unlock(&my_threadpool->mutex); assert(r == 0);
-    if (verbose) printf("%lu:%s:exit\n", toku_pthread_self(), __FUNCTION__); 
+    if (verbose) printf("%lu:%s:exit\n", (unsigned long)os_gettid(), __FUNCTION__); 
     return arg;
 }
 
+#if defined(__linux__)
 #define DO_MALLOC_HOOK 1
+#else
+#define DO_MALLOC_HOOK 0
+#endif
 #if DO_MALLOC_HOOK
 static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
     n = n; p = p;
@@ -88,7 +94,9 @@ usage (void) {
 
 int main(int argc, char *argv[]) {
     int max_threads = 1;
+#if defined(__linux__)
     int do_malloc_fail = 0;
+#endif
 
     int i;
     for (i=1; i<argc; i++) {
@@ -101,9 +109,11 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(arg, "-q") == 0) {
             verbose = 0;
             continue;
+#if defined(__linux__)
         } else if (strcmp(arg, "-malloc-fail") == 0) {
             do_malloc_fail = 1;
             continue;
+#endif
         } else
             max_threads = atoi(arg);
     }

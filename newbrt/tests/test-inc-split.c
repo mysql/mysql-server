@@ -31,7 +31,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-enum { NODESIZE = 1024, KSIZE=NODESIZE-100, PSIZE=20 };
+enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
 CACHETABLE ct;
 BRT t;
@@ -73,8 +73,8 @@ doit (int ksize __attribute__((__unused__))) {
 
     // Now we have a bunch of leaves, all of which are with 100 bytes of full.
     for (i=0; i+1<BRT_FANOUT; i++) {
-	char key[PSIZE];
-	keylens[i]=1+snprintf(key, PSIZE, "%08d", (i+1)*10000);
+	char key[TOKU_PSIZE];
+	keylens[i]=1+snprintf(key, TOKU_PSIZE, "%08d", (i+1)*10000);
 	keys[i]=strdup(key);
     }
 

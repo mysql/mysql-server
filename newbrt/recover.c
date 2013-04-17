@@ -452,7 +452,7 @@ static void
 toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
     char *fixedfname = fixup_fname(&fname);
     CACHEFILE cf;
-    int fd = open(fixedfname, O_RDWR, 0);
+    int fd = open(fixedfname, O_RDWR+O_BINARY, 0);
     assert(fd>=0);
     BRT brt=0;
     int r = toku_brt_create(&brt);
@@ -701,7 +701,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	char lockfname[namelen+20];
 
 	snprintf(lockfname, sizeof(lockfname), "%s/__recoverylock_dont_delete_me", data_dir);
-	lockfd = open(lockfname, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
+	lockfd = open(lockfname, O_RDWR|O_CREAT|O_BINARY, S_IRUSR | S_IWUSR);
 	if (lockfd<0) {
 	    printf("Couldn't open %s\n", lockfname);
 	    return errno;

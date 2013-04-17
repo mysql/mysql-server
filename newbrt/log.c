@@ -141,7 +141,7 @@ static int open_logfile (TOKULOGGER logger) {
     if (logger->write_log_files) {
         logger->fd = creat(fname, O_EXCL | 0700);        if (logger->fd==-1) return errno;
     } else {
-        logger->fd = open(dev_null, O_RDWR);             if (logger->fd==-1) return errno;
+        logger->fd = open(dev_null, O_RDWR+O_BINARY);    if (logger->fd==-1) return errno;
     }
     logger->next_log_file_number++;
     int version_l = htonl(log_format_version);
@@ -864,7 +864,7 @@ int toku_set_func_fsync (int (*fsync_function)(int)) {
 // Find the earliest LSN in a log
 static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
     logger=logger;
-    int fd = open(filename, O_RDONLY);
+    int fd = open(filename, O_RDONLY+O_BINARY);
     if (fd<0) { 
         if (logger->write_log_files) printf("couldn't open: %s\n", strerror(errno)); 
         return errno; 
@@ -986,7 +986,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	    txn->rollentry_filename = toku_malloc(fnamelen);
 	    if (txn->rollentry_filename==0) return errno;
 	    snprintf(txn->rollentry_filename, fnamelen, "%s%s%.16"PRIx64, txn->logger->directory, filenamepart, txn->txnid64);
-	    txn->rollentry_fd = open(txn->rollentry_filename, O_CREAT+O_RDWR+O_EXCL, 0600);
+	    txn->rollentry_fd = open(txn->rollentry_filename, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
 	    if (txn->rollentry_fd==-1) return errno;
 	}
 	ssize_t r = write_it(txn->rollentry_fd, buf, w.ndone);

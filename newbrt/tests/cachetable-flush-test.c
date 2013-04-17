@@ -36,12 +36,12 @@ test_cachetable_flush (int n) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     char fname2[] = __FILE__ "test2.dat";
     unlink(fname2);
     CACHEFILE f2;
-    r = toku_cachetable_openf(&f2, ct, fname2, O_RDWR|O_CREAT, 0777); assert(r == 0);
+    r = toku_cachetable_openf(&f2, ct, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     // insert keys 0..n-1 
     int i;

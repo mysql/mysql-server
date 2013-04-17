@@ -155,7 +155,7 @@ int toku_rollback_fileentries (int fd, toku_off_t filesize, TOKUTXN txn) {
 int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     int r;
     char *fname = fixup_fname(&bs);
-    int fd = open(fname, O_RDONLY);
+    int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
     struct stat statbuf;
     r = fstat(fd, &statbuf);
@@ -172,7 +172,7 @@ int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
 int toku_rollback_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     int r;
     char *fname = fixup_fname(&bs);
-    int fd = open(fname, O_RDONLY);
+    int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
     struct stat statbuf;
     r = fstat(fd, &statbuf);

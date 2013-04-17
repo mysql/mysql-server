@@ -4,34 +4,13 @@
 #include "includes.h"
 #include "test.h"
 
-#if 0
-// this mutex is used by some of the tests to serialize access to some
-// global data, especially between the test thread and the cachetable
-// writeback threads
-
-toku_pthread_mutex_t  test_mutex;
-
-static inline void test_mutex_init() {
-    int r = toku_pthread_mutex_init(&test_mutex, 0); assert(r == 0);
-}
-
-static inline void test_mutex_destroy() {
-    int r = toku_pthread_mutex_destroy(&test_mutex); assert(r == 0);
-}
-
-static inline void test_mutex_lock() {
-    int r = toku_pthread_mutex_lock(&test_mutex); assert(r == 0);
-}
-
-static inline void test_mutex_unlock() {
-    int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
-}
-#endif
-
 // hook my_malloc_always_fails into malloc to control malloc and verify
 // the correct recovery from malloc failures
-
+#if defined(__linux__)
 #define DO_MALLOC_HOOK 1
+#else
+#define DO_MALLOC_HOOK 0
+#endif
 #if DO_MALLOC_HOOK
 static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
     n = n; p = p;
@@ -52,6 +31,7 @@ test_cachetable_create(void) {
 }
 
 // verify that cachetable create with no memory returns ENOMEM
+#if defined(__linux__)
 
 static void
 test_cachetable_create_no_memory (void) {
@@ -63,6 +43,8 @@ test_cachetable_create_no_memory (void) {
     assert(r == ENOMEM);
     __malloc_hook = orig_malloc_hook;
 }
+
+#endif
 
 static const int test_object_size = 1;
 
@@ -150,7 +132,7 @@ static void test0 (void) {
     r=toku_create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
 
     TOKULOGGER logger = toku_cachefile_logger(f);
@@ -291,7 +273,7 @@ static void test_nested_pin (void) {
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     expect_f = f;
 
@@ -317,7 +299,7 @@ static void test_nested_pin (void) {
     assert(r==0);
     r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, 0, test_object_size);
     assert(r==0);
-    //    sleep(1);
+    //    os_usleep(1*1000000);
     r = toku_cachefile_close(&f, 0); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
 }
@@ -350,6 +332,8 @@ static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **
     return 0;
 }
 
+#if !defined(_WIN32)
+
 static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
@@ -362,10 +346,10 @@ static void test_multi_filehandles (void) {
     unlink(fname2);
 
     r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);          assert(r==0);
-    r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, 0777);   assert(r==0);
+    r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
-    r = toku_cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, 0777);   assert(r==0);
-    r = toku_cachetable_openf(&f3, t, fname3, O_RDWR|O_CREAT, 0777);   assert(r==0);
+    r = toku_cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
+    r = toku_cachetable_openf(&f3, t, fname3, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 
     assert(f1==f2);
     assert(f1!=f3);
@@ -394,6 +378,8 @@ static void test_multi_filehandles (void) {
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
+#endif
+
 static void test_dirty_flush(CACHEFILE f,
 			     CACHEKEY key,
 			     void *value,
@@ -403,7 +389,7 @@ static void test_dirty_flush(CACHEFILE f,
 			     BOOL keep,
 			     LSN modified_lsn __attribute__((__unused__)),
 			     BOOL rename_p __attribute__((__unused__))) {
-    if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, do_write, keep);
+    if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
 }
 
 static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
@@ -428,7 +414,7 @@ static void test_dirty() {
 
     char *fname = __FILE__ "test.dat";
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
     key = make_blocknum(1); value = (void*)1;
@@ -528,7 +514,7 @@ static void test_size_flush_callback(CACHEFILE f,
 				     BOOL keep,
 				     LSN modified_lsn __attribute__((__unused__)),
 				     BOOL rename_p __attribute__((__unused__))) {
-    if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, do_write, keep);
+    if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, (unsigned)do_write, (unsigned)keep);
     if (keep) {
         assert(do_write != 0);
         test_size_flush_key = key;
@@ -550,7 +536,7 @@ static void test_size_resize() {
 
     char *fname = __FILE__ "test.dat";
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
     CACHEKEY key = make_blocknum(42);
@@ -605,7 +591,7 @@ static void test_size_flush() {
 
     char *fname = __FILE__ "test.dat";
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
     /* put 2*n keys into the table, ensure flushes occur in key order */
@@ -655,7 +641,9 @@ static void test_size_flush() {
 
 int main (int argc, const char *argv[]) {
     // defaults
+#if defined(__linux__)
     int do_malloc_fail = 0;
+#endif
 
     // parse args
     default_parse_args(argc, argv);
@@ -666,21 +654,29 @@ int main (int argc, const char *argv[]) {
             verbose++;
             continue;
         }
+#if defined(__linux__)
         if (strcmp(arg, "-malloc-fail") == 0) {
             do_malloc_fail = 1;
             continue;
         }
+#endif
     }
 
     // run tests
+#if !defined(_WIN32)
     test_multi_filehandles();
+#endif
     test_cachetable_create();
+#if defined(__linux__)
     if (do_malloc_fail)
         test_cachetable_create_no_memory();    // fails with valgrind
+#endif
     for (i=0; i<1; i++) {
         test0();
         test_nested_pin();
+#if !defined(_WIN32)
         test_multi_filehandles ();
+#endif
         test_dirty();
         test_size_resize();
         test_size_flush();

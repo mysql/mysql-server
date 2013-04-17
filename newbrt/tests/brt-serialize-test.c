@@ -7,7 +7,7 @@ static void test_serialize(void) {
     //    struct brt source_brt;
     int nodesize = 1024;
     struct brtnode sn, *dn;
-    int fd = open(__FILE__ "brt", O_RDWR|O_CREAT, 0777);
+    int fd = open(__FILE__ "brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     int r;
     const u_int32_t randval = random();
     assert(fd>=0);
