@@ -167,7 +167,7 @@ check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
 fastcheck_%: $(PTHREAD_LOCAL)
-	@($(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
+	@(perl -e 'alarm ($(FASTCHECKTIMEOUT) * 60) ; exec @ARGV' $(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
 		if test $$? != 0 ; then \
 			printf "%-60s FAIL\nexamine %s\n" check_$* $*.fastlog; \
 			exit 2 ; \
@@ -176,7 +176,7 @@ fastcheck_%: $(PTHREAD_LOCAL)
 			$(RM) $*.fastlog ; \
 		fi
 fastcheckonlyfail_%: $(PTHREAD_LOCAL)
-	@($(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
+	@(perl -e 'alarm ($(FASTCHECKTIMEOUT) * 60) ; exec @ARGV' $(MAKE) VGRIND= SUMMARIZE=0 check_$*) &>$*.fastlog ; \
 		if test $$? != 0 ; then \
 			printf "%-60s FAIL\nexamine %s\n" check_$* $*.fastlog; \
 			exit 2 ; \

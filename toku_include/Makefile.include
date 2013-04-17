@@ -65,6 +65,10 @@ ifneq ($(PROF),)
     PROF_FLAGS = -pg
 endif
 
+ifeq ($(FASTCHECKTIMEOUT),)
+    FASTCHECKTIMEOUT = 30
+endif
+
 OPT_OPTFLAGS = -O3 -finline-functions
 DBG_OPTFLAGS = -O0
 

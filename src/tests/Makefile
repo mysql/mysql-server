@@ -545,7 +545,7 @@ $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
 
 .PHONY: %.fast %.fastonlyfail
 %.fast: $(DEPEND_COMPILE) $(DEPEND_LINK) $(LIBTDB) $(PTHREAD_LOCAL)
-	@($(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
+	@(perl -e 'alarm ($(FASTCHECKTIMEOUT) * 60) ; exec @ARGV' $(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
 		if test $$? != 0 ; then \
 			printf "%-60s FAIL\nexamine %s\n" $* $*.fastlog; \
 			exit 2 ; \
@@ -554,7 +554,7 @@ $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
 			$(RM) $*.fastlog ; \
 		fi
 %.fastonlyfail: $(DEPEND_COMPILE) $(DEPEND_LINK) $(LIBTDB) $(PTHREAD_LOCAL)
-	@($(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
+	@(perl -e 'alarm ($(FASTCHECKTIMEOUT) * 60) ; exec @ARGV' $(MAKE) VGRIND= SUMMARIZE=0 $*) &>$*.fastlog ; \
 		if test $$? != 0 ; then \
 			printf "%-60s FAIL\nexamine %s\n" $* $*.fastlog; \
 			exit 2 ; \
