@@ -55,6 +55,18 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
+if [ $cc = icc ] ; then
+    d=/opt/intel/bin
+    if [ -d $d ] ; then
+	export PATH=$d:$PATH
+	. $d/compilervars.sh intel64
+    fi
+    d=/opt/intel/cilkutil/bin
+    if [ -d $d ] ; then
+	export PATH=$d:$PATH
+    fi
+fi
+
 # require a revision
 if [ $revision -eq 0 ] ; then exit 1; fi
 if [ $branch = "." ] ; then branch="toku"; fi
