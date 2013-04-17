@@ -842,21 +842,62 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 	  STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
 	  snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
       }
-      else if (engstat.enospc_seal_state == 0) {
+      else if (engstat.enospc_state == 0) {
 	  snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
       }
-      else if (engstat.enospc_seal_state == 1) {
+      else if (engstat.enospc_state == 1) {
 	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
       } 
-      else if (engstat.enospc_seal_state == 2){
+      else if (engstat.enospc_state == 2){
 	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
       }
       else {
-	  snprintf(buf, bufsiz, "information unavailable %" PRIu64, engstat.enospc_seal_state);
+	  snprintf(buf, bufsiz, "information unavailable %" PRIu64, engstat.enospc_state);
       }
       STATPRINT ("disk free space", buf);
 
+      STATPRINT("time of engine startup", engstat.startuptime);
       STATPRINT("time now", engstat.now);
+
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
+      STATPRINT("checkpoint period", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);
+      STATPRINT("checkpoint status code (0 = idle)", buf);
+      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
+      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
+      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.checkpoint_last_lsn);
+      STATPRINT("last complete checkpoint LSN ", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_count);
+      STATPRINT("checkpoints taken  ", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_count_fail);
+      STATPRINT("checkpoints failed", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_begin);
+      STATPRINT("txn begin", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_commit);
+      STATPRINT("txn commits", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_abort);
+      STATPRINT("txn aborts", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_close);
+      STATPRINT("txn close (commit+abort)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_oldest_live);
+      STATPRINT("txn oldest live", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.next_lsn);
+      STATPRINT("next LSN", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts);
+      STATPRINT("dictionary inserts", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts_fail);
+      STATPRINT("dictionary inserts fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes);
+      STATPRINT("dictionary deletes", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes_fail);
+      STATPRINT("dictionary deletes fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.point_queries);
+      STATPRINT("dictionary point queries", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
+      STATPRINT("dictionary sequential queries", buf);
 
       const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       u_int64_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
@@ -888,14 +929,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("max_time_ydb_lock_held", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.total_time_ydb_lock_held);  
       STATPRINT("total_time_ydb_lock_held", buf);
-
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_period);
-      STATPRINT("checkpoint period", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_footprint);
-      STATPRINT("checkpoint status code (0 = idle)", buf);
-      STATPRINT("last checkpoint began ", engstat.checkpoint_time_begin);
-      STATPRINT("last complete checkpoint began ", engstat.checkpoint_time_begin_complete);
-      STATPRINT("last complete checkpoint ended ", engstat.checkpoint_time_end);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_lock_taken);  
       STATPRINT("cachetable lock taken", buf);
@@ -940,18 +973,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("range lock escalation successes", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_failures);
       STATPRINT("range lock escalation failures", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.inserts);
-      STATPRINT("dictionary inserts", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.deletes);
-      STATPRINT("dictionary deletes", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.point_queries);
-      STATPRINT("dictionary point queries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
-      STATPRINT("dictionary sequential queries", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.commits);
-      STATPRINT("txn commits", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.aborts);
-      STATPRINT("txn aborts", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_count);
       STATPRINT("fsync count", buf);
@@ -968,10 +989,31 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("most recent disk full", engstat.enospc_most_recent);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_threads_blocked);
       STATPRINT("threads currently blocked by full disk", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_total);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_ctr);
       STATPRINT("ENOSPC blocked count", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_seal_ctr);
-      STATPRINT("ENOSPC reserve count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_redzone_ctr);
+      STATPRINT("ENOSPC reserve count (redzone)", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create);
+      STATPRINT("loader create (success)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_create_fail);
+      STATPRINT("loader create fail)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put);
+      STATPRINT("loader put", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close);
+      STATPRINT("loader close (success)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close_fail);
+      STATPRINT("loader close fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_abort);
+      STATPRINT("loader abort", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.loader_current);
+      STATPRINT("loaders current", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.loader_max);
+      STATPRINT("loader max", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppress);
+      STATPRINT("log suppress (success) ", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppressfail);
+      STATPRINT("log suppress fail", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
