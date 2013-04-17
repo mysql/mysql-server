@@ -262,6 +262,59 @@ dump_fragmentation(int f, struct brt_header *h) {
     printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
 }
 
+typedef struct {
+    int f;
+    struct brt_header *h;
+    size_t total_space;
+    size_t used_space;
+} garbage_help_extra;
+
+static int
+garbage_leafentry_helper(OMTVALUE v, u_int32_t UU(idx), void *extra) {
+    garbage_help_extra *info = extra;
+    LEAFENTRY le = v;
+    info->total_space += leafentry_disksize(le);
+    info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
+    return 0;
+}
+
+static int
+garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
+    garbage_help_extra *info = extra;
+    BRTNODE n;
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, info->h);
+    int r = toku_deserialize_brtnode_from(info->f, b, 0, &n, &bfe);
+    if (r != 0) {
+        goto exit;
+    }
+    if (n->height > 0) {
+        goto exit;
+    }
+    for (int i = 0; i < n->n_children; ++i) {
+        BASEMENTNODE bn = BLB(n, i);
+        r = toku_omt_iterate(bn->buffer, garbage_leafentry_helper, info);
+        if (r != 0) {
+            goto exit;
+        }
+    }
+exit:
+    return r;
+}
+
+static void
+dump_garbage_stats(int f, struct brt_header *h) {
+    garbage_help_extra info;
+    memset(&info, 0, sizeof info);
+    info.f = f;
+    info.h = h;
+    toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+                            garbage_helper, &info, TRUE, TRUE);
+
+    printf("total_size: %zu\n", info.total_space);
+    printf("used_size:  %zu\n", info.used_space);
+}
+
 static u_int32_t 
 get_unaligned_uint32(unsigned char *p) {
     return *(u_int32_t *)p;
@@ -483,6 +536,8 @@ main (int argc, const char *const argv[]) {
 		dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
 		dump_fragmentation(f, h);
+            } else if (strcmp(fields[0], "garbage") == 0) {
+                dump_garbage_stats(f, h);
 	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
 		u_int64_t offset = getuint64(fields[1]);
 		u_int64_t size = getuint64(fields[2]);
