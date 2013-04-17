@@ -1129,7 +1129,7 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
     DBT key, val;
     int rand_key;
     int rand_key2;
-    update_count++;
+    toku_sync_fetch_and_add(&update_count, 1);
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
@@ -1189,14 +1189,14 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
     int curr_val_sum = 0;
     DBT key, val;
     int update_key;
-    update_count++;
+    uint64_t old_update_count = toku_sync_fetch_and_add(&update_count, 1);
     struct update_op_args* CAST_FROM_VOIDP(op_args, operation_extra);
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
     extra.pad_bytes = 0;
     if (op_args->update_pad_frequency) {
-        if (update_count % (2*op_args->update_pad_frequency) == update_count%op_args->update_pad_frequency) {
+        if (old_update_count % (2*op_args->update_pad_frequency) == old_update_count%op_args->update_pad_frequency) {
             extra.pad_bytes = 100;
         }
     }
@@ -1307,10 +1307,10 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
     extra.type = UPDATE_WITH_HISTORY;
-    update_count++;
+    uint64_t old_update_count = toku_sync_fetch_and_add(&update_count, 1);
     extra.pad_bytes = 0;
     if (op_args->update_pad_frequency) {
-        if (update_count % (2*op_args->update_pad_frequency) != update_count%op_args->update_pad_frequency) {
+        if (old_update_count % (2*op_args->update_pad_frequency) != old_update_count%op_args->update_pad_frequency) {
             extra.pad_bytes = 500;
         }
     }
