@@ -608,6 +608,7 @@ if(BUILD_TESTING)
     test_txn_abort6.tdb
     test_txn_nested2.tdb
     recovery_fileops_stress.tdb
+    recovery_fileops_unit.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
