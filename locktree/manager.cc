@@ -310,7 +310,7 @@ void locktree::manager::get_status(LTM_STATUS status) {
     STATUS_SET(status, LTM_LOCK_REQUESTS_PENDING, UINT64, lock_requests_pending,            "number of pending lock requests");
     STATUS_SET(status, LTM_STO_NUM_ELIGIBLE, UINT64, sto_num_eligible,                      "number of locktrees eligible for the STO");
     STATUS_SET(status, LTM_STO_END_EARLY_COUNT, UINT64, sto_end_early_count,                "number of times a locktree ended the STO early");
-    STATUS_SET(status, LTM_STO_END_EARLY_TIME, TOKUTIME, sto_end_early_time,                "time spent ending the STO early");
+    STATUS_SET(status, LTM_STO_END_EARLY_TIME, TOKUTIME, sto_end_early_time,                "time spent ending the STO early (seconds)");
 }
 
 #undef STATUS_SET
