@@ -24,7 +24,7 @@ The name of the environment's directory if non-\fBNULL\fR.  Can be
 either a relative pathame (relative to the current working directory),
 or an absolute pathname.
 
-if \fidb_home\fR is \fBNULL\fR and the \fBDB_USE_ENVIRON\fR or \fBDB_USE_ENVIRON_ROOT\fB flag is set, then the value of the 
+If \fidb_home\fR is \fBNULL\fR and the \fBDB_USE_ENVIRON\fR or \fBDB_USE_ENVIRON_ROOT\fB flag is set, then the value of the 
 \fBDB_HOME\fR environment variable is used.
 
 .IP \fIflags
@@ -42,6 +42,7 @@ The \fIflags\fR parameter must be set to 0 or the bitwise or of one or more of t
 .IP \fBDB_PRIVATE
 .IP \fBDB_THREAD
 
+If \fBDB_THREAD\fR is specified, then \fBDB_CREATE\fR must also be specified, even if the environment already exists.  This restriction is in place in Berkeley DB 4.6 and 4.7, and so TokuDB also enforces it for compatibility.
 
 .SH RETURN VALUE
 .LP
