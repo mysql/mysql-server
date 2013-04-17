@@ -1797,41 +1797,7 @@ toku_ft_bn_apply_cmd (
         if (r == DB_NOTFOUND) break;
         assert_zero(r);
         CAST_FROM_VOIDP(storeddata, storeddatav);
-
-        while (1) {
-            uint32_t num_leafentries_before = toku_omt_size(bn->buffer);
-
-            toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
-
-            {
-                // Now we must find the next leafentry.
-                uint32_t num_leafentries_after = toku_omt_size(bn->buffer);
-                //idx is the index of the leafentry we just modified.
-                //If the leafentry was deleted, we will have one less leafentry in
-                //the omt than we started with and the next leafentry will be at the
-                //same index as the deleted one. Otherwise, the next leafentry will
-                //be at the next index (+1).
-                paranoid_invariant(num_leafentries_before   == num_leafentries_after ||
-                                   num_leafentries_before-1 == num_leafentries_after);
-                if (num_leafentries_after==num_leafentries_before) idx++; //Not deleted, advance index.
-
-                paranoid_invariant(idx <= num_leafentries_after);
-                if (idx == num_leafentries_after) break; //Reached the end of the leaf
-                r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
-                assert_zero(r);
-            }
-            CAST_FROM_VOIDP(storeddata, storeddatav);
-            {        // Continue only if the next record that we found has the same key.
-                DBT adbt;
-                uint32_t keylen;
-                void *keyp = le_key_and_len(storeddata, &keylen);
-                FAKE_DB(db, desc);
-                if (compare_fun(&db,
-                                toku_fill_dbt(&adbt, keyp, keylen),
-                                cmd->u.id.key) != 0)
-                    break;
-            }
-        }
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
 
         break;
     }
