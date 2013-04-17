@@ -77,7 +77,7 @@ typedef struct st_tokudb_trx_data {
         printf("%d:%s:%d:" f "\n", my_tid(), __FILE__, __LINE__, ##__VA_ARGS__); \
     } \
 } \
-    DBUG_ENTER(f);
+    DBUG_ENTER(__FUNCTION__);
 
 
 #define TOKUDB_DBUG_RETURN(r) \
@@ -90,20 +90,18 @@ typedef struct st_tokudb_trx_data {
 
 #define TOKUDB_DBUG_DUMP(s, p, len) \
 { \
-    if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
-        printf("%d:%s:%d:%s:%s", my_tid(), __FILE__, __LINE__, __FUNCTION__, s); \
-        uint i; \
-        for (i=0; i<len; i++) { \
-            printf("%2.2x", ((uchar*)p)[i]); \
-        } \
-        printf("\n"); \
-    } \
+    printf("%d:%s:%d:%s:%s", my_tid(), __FILE__, __LINE__, __FUNCTION__, s); \
+    uint i;                                                             \
+    for (i=0; i<len; i++) {                                             \
+        printf("%2.2x", ((uchar*)p)[i]);                                \
+    }                                                                   \
+    printf("\n");                                                       \
 }
 
 const char *ha_tokudb_ext = ".tokudb";
 
 //static my_bool tokudb_shared_data = FALSE;
-static u_int32_t tokudb_init_flags = DB_PRIVATE /* | DB_RECOVER */;
+static u_int32_t tokudb_init_flags = DB_PRIVATE | DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 //static ulong tokudb_log_buffer_size = 0;
@@ -1914,10 +1912,10 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
     if (keynr != primary_key) {
         /* We only found the primary key.  Now we have to use this to find the row data */
         if (key_read && found_key) {
-            TOKUDB_DBUG_DUMP("key=", found_key->data, found_key->size);
+            // TOKUDB_DBUG_DUMP("key=", found_key->data, found_key->size);
             unpack_key(buf, found_key, keynr);
             if (!hidden_primary_key) {
-                TOKUDB_DBUG_DUMP("row=", row->data, row->size);
+                // TOKUDB_DBUG_DUMP("row=", row->data, row->size);
                 unpack_key(buf, row, primary_key);
             }
             TOKUDB_DBUG_RETURN(0);
@@ -1934,8 +1932,8 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
             TOKUDB_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
         }
         row = &current_row;
-        TOKUDB_DBUG_DUMP("key=", key.data, key.size);
-        TOKUDB_DBUG_DUMP("row=", row->data, row->size);
+        // TOKUDB_DBUG_DUMP("key=", key.data, key.size);
+        // TOKUDB_DBUG_DUMP("row=", row->data, row->size);
     }
     unpack_row(buf, row);
     if (found_key) { DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size); }
@@ -2050,7 +2048,7 @@ return END_OF_FILE instead of just NOT_FOUND
 //
 int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_read %p find %d", this, find_flag);
-    TOKUDB_DBUG_DUMP("key=", key, key_len);
+    // TOKUDB_DBUG_DUMP("key=", key, key_len);
     DBT row;
     int error;
 
