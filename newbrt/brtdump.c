@@ -167,7 +167,7 @@ static void
 dump_block_translation(struct brt_header *h, u_int64_t offset) {
     if (offset < h->translated_blocknum_limit) {
         struct block_translation_pair *bx = &h->block_translation[offset];
-        printf("%"PRIu64": %"PRId64" %"PRId64"\n", offset, bx->diskoff, bx->size);
+        printf("%" PRIu64 ": %" PRId64 " %" PRId64 "\n", offset, bx->diskoff, bx->size);
     }
 }
 
@@ -208,11 +208,11 @@ dump_fragmentation(int f, struct brt_header *h) {
         fragsizes += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
     }
     free(bx);
-    printf("translated_blocknum_limit: %"PRIu64"\n", h->translated_blocknum_limit);
-    printf("leafblocks: %"PRIu64"\n", leafblocks);
-    printf("blocksizes: %"PRIu64"\n", blocksizes);
-    printf("leafsizes: %"PRIu64"\n", leafsizes);
-    printf("fragsizes: %"PRIu64"\n", fragsizes);
+    printf("translated_blocknum_limit: %" PRIu64 "\n", h->translated_blocknum_limit);
+    printf("leafblocks: %" PRIu64 "\n", leafblocks);
+    printf("blocksizes: %" PRIu64 "\n", blocksizes);
+    printf("leafsizes: %" PRIu64 "\n", leafsizes);
+    printf("fragsizes: %" PRIu64 "\n", fragsizes);
     printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(fragsizes + blocksizes)));
 }
 

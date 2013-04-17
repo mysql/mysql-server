@@ -29,6 +29,7 @@ void x1764_init(struct x1764 *l) {
     l->input=0;
     l->n_input_bytes=0;
 }
+
 void x1764_add (struct x1764 *l, const void *vbuf, int len) {
     if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
     int n_input_bytes = l->n_input_bytes;

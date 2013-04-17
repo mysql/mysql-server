@@ -230,11 +230,13 @@ static void test_chaining (void) {
     test_mutex_destroy();
 }
 
+#if 0
 static void __attribute__((__noreturn__))
 usage (const char *progname) {
     fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
     exit(1);
 }
+#endif
 
 int main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);

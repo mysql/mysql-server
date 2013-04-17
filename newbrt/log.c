@@ -980,13 +980,13 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	assert((ssize_t)w.ndone==bufsize);
 	txn->oldest_logentry = txn->newest_logentry = 0;
 	if (txn->rollentry_fd<0) {
-	    const char filenamepart[] = "/__rolltmp.XXXXXX";
-	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart); 
+	    const char filenamepart[] = "/__rolltmp.";
+	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart)+16; 
 	    assert(txn->rollentry_filename==0);
 	    txn->rollentry_filename = toku_malloc(fnamelen);
 	    if (txn->rollentry_filename==0) return errno;
-	    snprintf(txn->rollentry_filename, fnamelen, "%s%s", txn->logger->directory, filenamepart);
-	    txn->rollentry_fd = mkstemp(txn->rollentry_filename);
+	    snprintf(txn->rollentry_filename, fnamelen, "%s%s%.16"PRIx64, txn->logger->directory, filenamepart, txn->txnid64);
+	    txn->rollentry_fd = open(txn->rollentry_filename, O_CREAT+O_RDWR+O_EXCL, 0600);
 	    if (txn->rollentry_fd==-1) return errno;
 	}
 	ssize_t r = write_it(txn->rollentry_fd, buf, w.ndone);

@@ -53,13 +53,15 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 #if !defined(NO_DB_PRELOCKED)
         int r = db->pre_acquire_table_lock(db, txn);
         assert(r==0);
+#else
+        db = db; txn = txn;
 #endif
     }
 }
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */
 char *dbfilename = "bench.db";
 char *dbname;
 
@@ -68,7 +70,7 @@ DB *db;
 DB_TXN *tid=0;
 
 
-void setup (void) {
+static void setup (void) {
     int r;
    
     {
@@ -133,7 +135,7 @@ void setup (void) {
 
 }
 
-void shutdown (void) {
+static void shutdown (void) {
     int r;
     
     if (do_transactions && singlex) {
@@ -146,13 +148,13 @@ void shutdown (void) {
     assert(r == 0);
 }
 
-void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
+static void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
     int i;
     for (i=0; i<8 && i<array_size; i++)
 	a[i] = (l>>(56-8*i))&0xff;
 }
 
-DBT *fill_dbt(DBT *dbt, const void *data, int size) {
+static DBT *fill_dbt(DBT *dbt, const void *data, int size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->size = size;
     dbt->data = (void *) data;
@@ -160,7 +162,7 @@ DBT *fill_dbt(DBT *dbt, const void *data, int size) {
 }
 
 // Fill array with 0's if compressibilty==-1, otherwise fill array with data that is likely to compress by a factor of compressibility.
-void fill_array (unsigned char *data, int size) {
+static void fill_array (unsigned char *data, int size) {
     memset(data, 0, size);
     if (compressibility>0) {
 	int i;
@@ -170,7 +172,7 @@ void fill_array (unsigned char *data, int size) {
     }
 }
 
-void insert (long long v) {
+static void insert (long long v) {
     unsigned char kc[keysize], vc[valsize];
     DBT  kt, vt;
     fill_array(kc, sizeof kc);
@@ -191,7 +193,7 @@ void insert (long long v) {
     }
 }
 
-void serial_insert_from (long long from) {
+static void serial_insert_from (long long from) {
     long long i;
     if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
@@ -212,11 +214,11 @@ void serial_insert_from (long long from) {
     }
 }
 
-long long llrandom (void) {
+static long long llrandom (void) {
     return (((long long)(random()))<<32) + random();
 }
 
-void random_insert_below (long long below) {
+static void random_insert_below (long long below) {
     long long i;
     if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
@@ -231,11 +233,11 @@ void random_insert_below (long long below) {
     }
 }
 
-double tdiff (struct timeval *a, struct timeval *b) {
+static double tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
 }
 
-void biginsert (long long n_elements, struct timeval *starttime) {
+static void biginsert (long long n_elements, struct timeval *starttime) {
     long long i;
     struct timeval t1,t2;
     int iteration;
@@ -261,7 +263,7 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 
 const long long default_n_items = 1LL<<22;
 
-int print_usage (const char *argv0) {
+static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [--norandom] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
@@ -389,7 +391,7 @@ int main (int argc, const char *argv[]) {
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 
 	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/tdiff(&t3, &t1));
     }
-#ifdef TOKUDB
+#if 0 && defined TOKUDB
     if (verbose) {
 	extern unsigned long toku_get_maxrss(void);
 	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);

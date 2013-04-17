@@ -20,6 +20,10 @@ CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
 LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz -lpthread
 
+ifeq ($(CC),icc)
+CXXFLAGS += -diag-disable 981
+endif
+
 ifneq ($(OSX),)
  VGRIND=
 else
