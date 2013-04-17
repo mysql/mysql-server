@@ -1333,7 +1333,7 @@ DBT* ha_tokudb::create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, 
         //
         if (key_part->field->null_bit) {
             /* Store 0 if the key part is a NULL part */
-            if (record[key_part->null_offset] & key_part->null_bit) {
+            if (record[key_part->null_offset] & key_part->field->null_bit) {
                 *buff++ = 0;
                 //
                 // fractal tree does not handle this falg at the moment
