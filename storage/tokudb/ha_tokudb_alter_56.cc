@@ -784,11 +784,23 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
         return false;
 }
 
+static bool
+is_sorted(Dynamic_array<uint> &a) {
+    bool r = true;
+    if (a.elements() > 0) {
+        uint lastelement = a.at(0);
+        for (uint i = 1; i < a.elements(); i++)
+            if (lastelement > a.at(i))
+                r = false;
+    }
+    return r;
+}
+
 int
 ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
-    assert(ctx->changed_fields.elements() <= 1);
+    assert(is_sorted(ctx->changed_fields)); // since we build the changed_fields array in field order, it must be sorted
     for (int ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
         uint expand_field_num = ctx->changed_fields.at(ai);
         error = alter_table_expand_one_column(altered_table, ha_alter_info, expand_field_num);
@@ -840,29 +852,32 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
     TOKU_TYPE new_field_type = mysql_to_toku_type(new_field);
     assert(old_field_type == new_field_type);
 
+    uchar operation;
+    switch (old_field_type) {
+    case toku_type_int:
+        assert(is_unsigned(old_field) == is_unsigned(new_field));
+        if (is_unsigned(old_field))
+            operation = UPDATE_OP_EXPAND_UINT;
+        else
+            operation = UPDATE_OP_EXPAND_INT;
+        break;
+    case toku_type_fixstring:
+        operation = UPDATE_OP_EXPAND_CHAR;
+        break;
+    case toku_type_fixbinary:
+        operation = UPDATE_OP_EXPAND_BINARY;
+        break;
+    default:
+        assert(0);
+    }
+
     uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
         if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
-            uchar operation;
-
             // make the expand int field message
             DBT expand;
 	    memset(&expand, 0, sizeof(expand));
             expand.size = 1+4+4+4+4;
-            switch (old_field_type) {
-            case toku_type_int:
-                operation = UPDATE_OP_EXPAND_INT;
-                expand.size += 1;
-                break;
-            case toku_type_fixstring:
-                operation = UPDATE_OP_EXPAND_CHAR;
-                break;
-            case toku_type_fixbinary:
-                operation = UPDATE_OP_EXPAND_BINARY;
-                break;
-            default:
-                assert(0);
-            }
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
@@ -872,7 +887,7 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             expand_ptr[0] = operation;
             expand_ptr += sizeof (uchar);
 
-            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
+            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
             memcpy(expand_ptr, &old_offset, sizeof old_offset);
             expand_ptr += sizeof old_offset;
 
@@ -890,19 +905,6 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             memcpy(expand_ptr, &new_length, sizeof new_length);
             expand_ptr += sizeof new_length;
 
-            switch (operation) {
-            case UPDATE_OP_EXPAND_INT:
-                assert(is_unsigned(old_field) == is_unsigned(new_field));
-                expand_ptr[0] = is_unsigned(old_field);
-                expand_ptr += sizeof (uchar);
-                break;
-            case UPDATE_OP_EXPAND_CHAR:
-            case UPDATE_OP_EXPAND_BINARY:
-                break;
-            default:
-                assert(0);
-            }
-
             assert(expand_ptr == (uchar *)expand.data + expand.size);
 
             // and broadcast it into the tree
@@ -916,7 +918,7 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
     return error;
 }
 
-// Return true if the MySQL type is an int type
+// Return true if the MySQL type is an int or unsigned int type
 static bool
 is_int_type(enum_field_types t) {
     switch (t) {

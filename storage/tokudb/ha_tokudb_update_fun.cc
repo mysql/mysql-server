@@ -3,10 +3,11 @@ enum {
     UPDATE_OP_COL_ADD_OR_DROP = 0,
     UPDATE_OP_EXPAND_VARCHAR_OFFSETS = 1,
     UPDATE_OP_EXPAND_INT = 2,
-    UPDATE_OP_EXPAND_CHAR = 3,
-    UPDATE_OP_EXPAND_BINARY = 4,
-    UPDATE_OP_ADD_INT = 5,
-    UPDATE_OP_SUB_INT = 6,
+    UPDATE_OP_EXPAND_UINT = 3,
+    UPDATE_OP_EXPAND_CHAR = 4,
+    UPDATE_OP_EXPAND_BINARY = 5,
+    UPDATE_OP_ADD_INT = 6,
+    UPDATE_OP_SUB_INT = 7,
 };
     
 #define UP_COL_ADD_OR_DROP UPDATE_OP_COL_ADD_OR_DROP
@@ -62,13 +63,11 @@ enum {
 // offset_start  4  starting offset of the variable length field offsets 
 // offset end    4  ending offset of the variable length field offsets  
 
-// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
+// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
 // old offset    4
 // old length    4
 // new offset    4
 // new length    4
-// if operation == UPDATE_OP_EXPAND_INT
-//     is unsigned   1
 
 // operation     1 == UPDATE_OP_INT_ADD or UPDATE_OP_INT_SUB
 // offset        4 starting offset of the int type field
@@ -719,9 +718,8 @@ tokudb_expand_field(
     uchar *extra_pos = (uchar *)extra->data;
 
     uchar operation = extra_pos[0];
-    assert(operation == UPDATE_OP_EXPAND_INT ||
-           operation == UPDATE_OP_EXPAND_CHAR ||
-           operation == UPDATE_OP_EXPAND_BINARY);
+    assert(operation == UPDATE_OP_EXPAND_INT || operation == UPDATE_OP_EXPAND_UINT ||
+           operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY);
     extra_pos += sizeof operation;
 
     uint32_t old_offset;
@@ -740,22 +738,7 @@ tokudb_expand_field(
     memcpy(&new_length, extra_pos, sizeof new_length);
     extra_pos += sizeof new_length;
 
-    uchar is_unsigned; // for int expansion
-    switch (operation) {
-    case UPDATE_OP_EXPAND_INT:
-        is_unsigned = extra_pos[0];
-        extra_pos += sizeof is_unsigned;
-        assert(is_unsigned == 0 || is_unsigned == 1);
-        break;
-    case UPDATE_OP_EXPAND_CHAR:
-    case UPDATE_OP_EXPAND_BINARY:
-        break;
-    default:
-        assert(0);
-    }
-
     assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
-
     assert(old_offset == new_offset); // only expand one field per update, so the offset must be the same
     assert(new_length >= old_length); // expand only
     assert(old_offset + old_length <= old_val->size); // old field within the old val
@@ -783,14 +766,16 @@ tokudb_expand_field(
         // read the old field, expand it, write to the new offset
         switch (operation) {
         case UPDATE_OP_EXPAND_INT:
-            if (is_unsigned) {
+            if (old_val_ptr[old_length-1] & 0x80) // if sign bit on then sign extend
+                memset(new_val_ptr, 0xff, new_length);
+            else
                 memset(new_val_ptr, 0, new_length);
-            } else {
-                if (old_val_ptr[old_length-1] & 0x80) // sign bit on?
-                    memset(new_val_ptr, 0xff, new_length); // sign extend
-                else
-                    memset(new_val_ptr, 0, new_length);
-            }
+            memcpy(new_val_ptr, old_val_ptr, old_length);
+            new_val_ptr += new_length;
+            old_val_ptr += old_length;
+            break;
+        case UPDATE_OP_EXPAND_UINT:
+            memset(new_val_ptr, 0, new_length);
             memcpy(new_val_ptr, old_val_ptr, old_length);
             new_val_ptr += new_length;
             old_val_ptr += old_length;
@@ -854,6 +839,7 @@ tokudb_update_fun(
         error = tokudb_expand_varchar_offsets(db, key, old_val, extra, set_val, set_extra);
         break;
     case UPDATE_OP_EXPAND_INT:
+    case UPDATE_OP_EXPAND_UINT:
     case UPDATE_OP_EXPAND_CHAR:
     case UPDATE_OP_EXPAND_BINARY:
         error = tokudb_expand_field(db, key, old_val, extra, set_val, set_extra);
