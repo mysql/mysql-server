@@ -148,6 +148,10 @@ int toku_cachefile_fd (CACHEFILE);
 // Returns: 0 if success, otherwise an error number
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname);
 
+// Equivalent to toku_cachefile_set_fd to /dev/null but without
+// closing the user data.
+int toku_cachefile_redirect_nullfd (CACHEFILE cf);
+
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);
 

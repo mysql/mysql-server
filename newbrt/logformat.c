@@ -18,9 +18,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#if !defined(TOKU_WINDOWS)
 #include <unistd.h>
-#endif
 
 typedef struct field {
     char *type;
@@ -43,6 +41,7 @@ int logformat_version_number = 0;
 
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"TXNID", "xid", 0},
+			{"FILENUM", "filenum", 0},
 			{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
     {"cmdinsert", 'i', FA{{"TXNID", "xid", 0},
@@ -92,6 +91,7 @@ const struct logtype logtypes[] = {
 		       NULLFIELD}},
 #endif
     {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
+			{"FILENUM",    "filenum", 0},
 			{"BYTESTRING", "fname", 0},
 			{"u_int32_t",  "mode",  "0%o"},
 			NULLFIELD}},
@@ -564,6 +564,8 @@ generate_rollbacks (void) {
 const char *codepath = "log_code.c";
 const char *headerpath = "log_header.h";
 int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
+    chmod(codepath, S_IRUSR|S_IWUSR);
+    chmod(headerpath, S_IRUSR|S_IWUSR);
     unlink(codepath);
     unlink(headerpath);
     cf = fopen(codepath, "w");      assert(cf!=0);

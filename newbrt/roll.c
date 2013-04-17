@@ -11,13 +11,15 @@
 #define TOKU_DO_COMMIT_CMD_DELETE 1
 #define TOKU_DO_COMMIT_CMD_DELETE_BOTH 1
 
-int toku_commit_fcreate (TXNID xid __attribute__((__unused__)),
-			 BYTESTRING bs_fname __attribute__((__unused__)),
-			 TOKUTXN    txn       __attribute__((__unused__))) {
+int toku_commit_fcreate (TXNID UU(xid),
+                         FILENUM UU(filenum),
+			 BYTESTRING UU(bs_fname),
+			 TOKUTXN    UU(txn)) {
     return 0;
 }
 
 int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
+                           FILENUM filenum,
 			   BYTESTRING bs_fname,
 			   TOKUTXN    txn       __attribute__((__unused__))) {
     char *fname = fixup_fname(&bs_fname);
@@ -26,7 +28,14 @@ int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
     char full_fname[full_len];
     int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
     assert(l<=full_len);
-    int r = unlink(full_fname);
+    //Remove reference to the fd in the cachetable
+    CACHEFILE cf;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    if (r == 0) {
+        r = toku_cachefile_redirect_nullfd(cf);
+        assert(r==0);
+    }
+    r = unlink(full_fname);
     assert(r==0);
     free(fname);
     return 0;
@@ -157,10 +166,11 @@ int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-    struct stat statbuf;
-    r = fstat(fd, &statbuf);
+
+    int64_t fsize = 0;
+    r = os_get_file_size(fd, &fsize);
     assert(r==0);
-    r = toku_commit_fileentries(fd, statbuf.st_size, txn);
+    r = toku_commit_fileentries(fd, fsize, txn);
     assert(r==0);
     r = close(fd);
     assert(r==0);
@@ -174,10 +184,10 @@ int toku_rollback_rollinclude (BYTESTRING bs,TOKUTXN txn) {
     char *fname = fixup_fname(&bs);
     int fd = open(fname, O_RDONLY+O_BINARY);
     assert(fd>=0);
-    struct stat statbuf;
-    r = fstat(fd, &statbuf);
+    int64_t fsize = 0;
+    r = os_get_file_size(fd, &fsize);
     assert(r==0);
-    r = toku_rollback_fileentries(fd, statbuf.st_size, txn);
+    r = toku_rollback_fileentries(fd, fsize, txn);
     assert(r==0);
     r = close(fd);
     assert(r==0);

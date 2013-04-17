@@ -1217,3 +1217,21 @@ void toku_cachefile_set_userdata (CACHEFILE cf, void *userdata, int (*close_user
 void *toku_cachefile_get_userdata(CACHEFILE cf) {
     return cf->userdata;
 }
+
+int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
+    int null_fd;
+    struct fileid fileid;
+
+    null_fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);           
+    assert(null_fd>=0);
+    os_get_unique_file_id(null_fd, &fileid);
+    close(cf->fd);
+    cf->fd = null_fd;
+    if (cf->fname) {
+        toku_free(cf->fname);
+        cf->fname = 0;
+    }
+    cachefile_init_filenum(cf, null_fd, NULL, fileid);
+    return 0;
+}
+
