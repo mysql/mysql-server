@@ -230,7 +230,7 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
 // Exit: Holds neither locks nor output permission.
 {
     int r;
-    r = pthread_mutex_lock(&logger->output_condition_lock);        assert(r==0);
+    r = toku_pthread_mutex_lock(&logger->output_condition_lock);        assert(r==0);
     logger->output_is_available = TRUE;
     if (logger->fsynced_lsn.lsn < fsynced_lsn.lsn) {
 	logger->fsynced_lsn = fsynced_lsn;
