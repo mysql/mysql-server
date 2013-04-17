@@ -149,6 +149,7 @@ cmake \
     -D USE_CILK=OFF \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
+make clean
 set +e
 ctest -j$ncpus \
     -D ${ctest_model}Start \
@@ -233,6 +234,7 @@ cmake \
     -D USE_CILK=OFF \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
+make clean
 set +e
 ctest -j$ncpus \
     -D ${ctest_model}Start \
@@ -332,6 +334,7 @@ cmake \
     -D USE_CILK=OFF \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
+make clean
 set +e
 ctest -j$ncpus \
     -D ${ctest_model}Start \
