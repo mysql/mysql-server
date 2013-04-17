@@ -1279,9 +1279,9 @@ lt_borderwrite_insert(toku_lock_tree* tree, toku_interval* query, toku_range* to
             } else {
                 // expand the existing borderwrite range to include the range to be inserted
                 if (toku_lt_point_cmp(to_insert->ends.left, tree->bw_buf[0].ends.left) > 0)
-                    to_insert->ends.left = tree->buf[0].ends.left;
+                    to_insert->ends.left = tree->bw_buf[0].ends.left;
                 if (toku_lt_point_cmp(to_insert->ends.right, tree->bw_buf[0].ends.right) < 0)
-                    to_insert->ends.right = tree->buf[0].ends.right;
+                    to_insert->ends.right = tree->bw_buf[0].ends.right;
                 r = toku_rt_delete(borderwrite, &tree->bw_buf[0]);
                 if (r != 0)
                     return lt_panic(tree, r);
