@@ -182,7 +182,7 @@ toku_verify_brtnode (BRT brt,
                          });
         }
         else {
-            BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
+            BASEMENTNODE bn = BLB(node, i);
             for (u_int32_t j = 0; j < toku_omt_size(bn->buffer); j++) {
                 VERIFY_ASSERTION((rootmsn.msn >= thismsn.msn), 0, "leaf may have latest msn, but cannot be greater than root msn");
                 LEAFENTRY le = get_ith_leafentry(bn, j);

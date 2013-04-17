@@ -2759,7 +2759,8 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT thekey = { .data = key, .size = keylen }; 
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, xids_get_root_xids(), .u.id = { &thekey, &theval } };
-    brt_leaf_apply_cmd_once((BASEMENTNODE)leafnode->bp[0].ptr, &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL);
+    uint64_t workdone=0;
+    brt_leaf_apply_cmd_once(BLB(leafnode,0), &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL, &workdone);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -2994,11 +2995,14 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
     node->totalchildkeylens = totalchildkeylens;
-
-    for (int i = 0; i < n_children; i++) {
-        BP_SUBTREE_EST(node, i) = subtree_info[i].subtree_estimates;
-        BP_BLOCKNUM(node, i) = make_blocknum(subtree_info[i].block);
-        BP_STATE(node, i) = PT_AVAIL;
+    XMALLOC_N(n_children, node->bp);
+    for (int i=0; i<n_children; i++) {
+	set_BNC(node, i, toku_create_empty_nl());
+	BP_BLOCKNUM(node,i)= make_blocknum(subtree_info[i].block);
+        BP_SUBTREE_EST(node,i) = subtree_info[i].subtree_estimates;
+	BP_HAVE_FULLHASH(node,i) = FALSE;
+	BP_FULLHASH(node,i) = 0;
+        BP_STATE(node,i) = PT_AVAIL;
     }
 
     if (result == 0) {
@@ -3029,11 +3033,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	toku_free(node->childkeys[i]);
     }
     for (int i=0; i<n_children; i++) {
-        if (BNC_BUFFER(node, i)) {
-            toku_fifo_free(&BNC_BUFFER(node, i));
-            BNC_BUFFER(node, i) = NULL;
-        }
-        toku_free(node->bp[i].ptr);
+	destroy_nonleaf_childinfo(BNC(node,i));
     }
     toku_free(pivots);
     toku_free(node->bp);

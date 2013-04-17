@@ -11,6 +11,10 @@
 //  - inject message with old msn, verify that row still has value2   (verify cmd.msn < node.max_msn is rejected)
 
 
+// TODO: 
+//  - verify that no work is done by messages that should be ignored (via workdone arg to brt_leaf_put_cmd())
+//  - maybe get counter of messages ignored for old msn (once the counter is implemented in brt.c)
+
 #include "brt-internal.h"
 #include "includes.h"
 #include "test.h"
@@ -40,8 +44,9 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     MSN msn = next_dummymsn();
     BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
 
-    int made_change;
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd, &made_change);
+    bool made_change;
+    u_int64_t workdone=0;
+    toku_apply_cmd_to_leaf(brt, leafnode, &cmd, &made_change, &workdone);
     {
 	int r = toku_brt_lookup(brt, &thekey, lookup_checkf, &pair);
 	assert(r==0);
@@ -49,7 +54,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     }
 
     BRT_MSG_S badcmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &badcmd, &made_change);
+    toku_apply_cmd_to_leaf(brt, leafnode, &badcmd, &made_change, &workdone);
 
     
     // message should be rejected for duplicate msn, row should still have original val
@@ -62,7 +67,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with proper msn gets through
     msn = next_dummymsn();
     BRT_MSG_S cmd2 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &val2 } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd2, &made_change);
+    toku_apply_cmd_to_leaf(brt, leafnode, &cmd2, &made_change, &workdone);
     
     // message should be accepted, val should have new value
     {
@@ -75,7 +80,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
     BRT_MSG_S cmd3 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt, leafnode, &cmd3, &made_change);
+    toku_apply_cmd_to_leaf(brt, leafnode, &cmd3, &made_change, &workdone);
     
     // message should be rejected, val should still have value in pair2
     {

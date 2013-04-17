@@ -372,8 +372,8 @@ serialize_brtnode_info_size(BRTNODE node)
 static void
 serialize_brtnode_info(
     BRTNODE node, 
-    struct sub_block *sb_parts, 
-    struct sub_block *sb // output
+    SUB_BLOCK sb_parts, 
+    SUB_BLOCK sb // output
     ) 
 {
     assert(sb->uncompressed_size == 0);
@@ -537,10 +537,7 @@ rebalance_brtnode_leaf(BRTNODE node)
     node->n_children = num_children;
     XMALLOC_N(num_children, node->bp);    
     for (int i = 0; i < num_children; i++) {
-        node->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
-        memset(bn, 0, sizeof(struct brtnode_leaf_basement_node));
-        toku_setup_empty_bn(bn);
+	set_BLB(node, i, toku_create_empty_bn());
     }
 
     // now we start to fill in the data
@@ -615,7 +612,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     struct sub_block sb[npartitions];
     struct sub_block sb_node_info;
     for (int i = 0; i < npartitions; i++) {
-        sub_block_init(&sb[i]);
+        sub_block_init(&sb[i]);;
     }
     sub_block_init(&sb_node_info);
 
@@ -753,6 +750,7 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf) {
     invariant(rbuf->ndone == rbuf->size);
 
     BNC_NBYTESINBUF(node, cnum) = n_bytes_in_buffer;
+    BP_WORKDONE(node, cnum) = 0;
 }
 
 // dump a buffer to stderr
@@ -791,14 +789,46 @@ dump_bad_block(unsigned char *vp, u_int64_t size) {
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
 
-void toku_setup_empty_bn(BASEMENTNODE bn) {
-    bn->soft_copy_is_up_to_date = TRUE;
+BASEMENTNODE toku_create_empty_bn(void) {
+    BASEMENTNODE bn = toku_create_empty_bn_no_buffer();
     int r;
     r = toku_omt_create(&bn->buffer);
     assert_zero(r);
+    return bn;
+}
+
+BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
+    BASEMENTNODE XMALLOC(bn);
+    bn->soft_copy_is_up_to_date = TRUE;
+    bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
     bn->optimized_for_upgrade = 0;
+    bn->max_msn_applied = ZERO_MSN;
+    return bn;
+}
+
+NONLEAF_CHILDINFO toku_create_empty_nl(void) {
+    NONLEAF_CHILDINFO XMALLOC(cn);
+    cn->n_bytes_in_buffer = 0;
+    int r = toku_fifo_create(&cn->buffer);
+    assert(r==0);
+    return cn;
+}
+
+void destroy_basement_node (BASEMENTNODE bn)
+{
+    // The buffer may have been freed already, in some cases.
+    if (bn->buffer) {
+	toku_omt_destroy(&bn->buffer);
+    }
+    toku_free(bn);
+}
+
+void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
+{
+    toku_fifo_free(&nl->buffer);
+    toku_free(nl);
 }
 
 // 
@@ -939,6 +969,7 @@ deserialize_brtnode_info(
             BP_BLOCKNUM(node,i) = rbuf_blocknum(&rb);
             BP_HAVE_FULLHASH(node, i) = FALSE;            
             BP_FULLHASH(node,i) = 0;
+	    BP_WORKDONE(node, i) = 0;
         }        
     }
 
@@ -957,14 +988,10 @@ deserialize_brtnode_info(
 static void
 setup_available_brtnode_partition(BRTNODE node, int i) {
     if (node->height == 0) {
-        node->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
-        toku_setup_empty_bn(bn);
+	set_BLB(node, i, toku_create_empty_bn());
     }
     else {
-        node->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_nonleaf_childinfo));
-        int r = toku_fifo_create(&BNC_BUFFER(node,i));
-        assert(r == 0);            
+	set_BNC(node, i, toku_create_empty_nl());
     }
 }
 
@@ -995,8 +1022,7 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
             BP_TOUCH_CLOCK(node,i);
         }
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
-            node->bp[i].ptr = toku_xmalloc(sizeof(struct sub_block));
-            sub_block_init((struct sub_block*)node->bp[i].ptr);
+            set_BSB(node, i, sub_block_creat());
         }
         else {
             assert(FALSE);
@@ -1131,7 +1157,7 @@ deserialize_brtnode_from_rbuf(
         rbuf_init(&curr_rbuf, rb->buf + rb->ndone + curr_offset, curr_size);
         
         struct sub_block curr_sb;
-        sub_block_init(&curr_sb);
+	sub_block_init(&curr_sb);
 
         //
         // now we are at the point where we have:
@@ -1158,7 +1184,7 @@ deserialize_brtnode_from_rbuf(
         // case where we leave the partition in the compressed state
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
             read_compressed_sub_block(&curr_rbuf, &curr_sb);
-            struct sub_block* bp_sb = (struct sub_block*)node->bp[i].ptr;
+            SUB_BLOCK bp_sb = BSB(node, i);
             bp_sb->compressed_size = curr_sb.compressed_size;
             bp_sb->uncompressed_size = curr_sb.uncompressed_size;
             bp_sb->compressed_ptr = toku_xmalloc(bp_sb->compressed_size);
@@ -1168,7 +1194,6 @@ deserialize_brtnode_from_rbuf(
                 bp_sb->compressed_size
                 );
         }
-
     }
     *brtnode = node;
     r = 0;
@@ -1182,7 +1207,7 @@ cleanup:
 void
 toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe) {
     assert(BP_STATE(node,childnum) == PT_ON_DISK);
-    assert(node->bp[childnum].ptr == NULL);
+    assert(node->bp[childnum].ptr.tag == BCT_NULL);
     
     //
     // setup the partition
@@ -1229,7 +1254,7 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
 void
 toku_deserialize_bp_from_compressed(BRTNODE node, int childnum) {
     assert(BP_STATE(node, childnum) == PT_COMPRESSED);
-    struct sub_block* curr_sb = (struct sub_block*)node->bp[childnum].ptr;
+    SUB_BLOCK curr_sb = BSB(node, childnum);
 
     assert(curr_sb->uncompressed_ptr == NULL);
     curr_sb->uncompressed_ptr = toku_xmalloc(curr_sb->uncompressed_size);
@@ -2012,7 +2037,7 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
 static int
 serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        int n_sub_blocks,
-                                       struct sub_block sub_block[n_sub_blocks],
+                                       struct sub_block sub_block[/*n_sub_blocks*/],
                                /*out*/ size_t *n_bytes_to_write,
                                /*out*/ char  **bytes_to_write) {
     // allocate space for the compressed uncompressed_buf
