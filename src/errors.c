@@ -10,6 +10,7 @@
   The error handling routines for ydb
 */
 
+#include "portability.h"
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -83,10 +84,6 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
     toku__ydb_error_file(env, use_stderr_if_nothing_else, buf);
 }
 
-int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *string, ...)
-                       __attribute__((__format__(__printf__, 3, 4)));
-
-
 /** Handle all the error cases (but don't do the default thing.) 
     \param dbenv  The environment that is subject to errors
     \param error  The error code
@@ -100,10 +97,6 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
     va_end(ap);
     return error;
 }
-
-void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...)
-                           __attribute__((__format__(__printf__, 3, 4)));
-
 
 /** Handle errors on an environment, guarded by the ydb lock 
     \param dbenv  The environment that is subject to errors
