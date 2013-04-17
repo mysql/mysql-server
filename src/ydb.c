@@ -5497,13 +5497,16 @@ cleanup:
     return r;
 }
 
-static int 
+static int
 toku_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_right) {
     DB *db = dbc->dbp;
     DB_TXN *txn = dbc_struct_i(dbc)->txn;
     HANDLE_PANICKED_DB(db);
-    if (!db->i->lt || !txn) 
-        return EINVAL;
+    toku_brt_cursor_set_range_lock(dbc_struct_i(dbc)->c, key_left, key_right,
+                                   (key_left == toku_lt_neg_infinity),
+                                   (key_right == toku_lt_infinity));
+    if (!db->i->lt || !txn)
+        return 0;
     //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
     if (!dbc_struct_i(dbc)->rmw && dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE)
         return 0;
@@ -5519,7 +5522,7 @@ toku_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_righ
 int 
 toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
     HANDLE_PANICKED_DB(db);
-    if (!db->i->lt || !txn) return EINVAL;
+    if (!db->i->lt || !txn) return 0;
 
     int r;
 

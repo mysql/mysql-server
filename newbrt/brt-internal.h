@@ -89,6 +89,7 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
 enum brtnode_fetch_type {
     brtnode_fetch_none=1, // no partitions needed.  
     brtnode_fetch_subset, // some subset of partitions needed
+    brtnode_fetch_prefetch, // this is part of a prefetch call
     brtnode_fetch_all // every partition is needed
 };
 
@@ -107,6 +108,8 @@ struct brtnode_fetch_extra {
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     brt_search_t* search;
     BRT brt;
+    DBT *range_lock_left_key, *range_lock_right_key;
+    BOOL left_is_neg_infty, right_is_pos_infty;
     // this value will be set during the fetch_callback call by toku_brtnode_fetch_callback or toku_brtnode_pf_req_callback
     // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
     int child_to_read;
@@ -123,8 +126,14 @@ static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struc
     bfe->h = h;
     bfe->search = NULL;
     bfe->brt = NULL;
+    bfe->range_lock_left_key = NULL;
+    bfe->range_lock_right_key = NULL;
+    bfe->left_is_neg_infty = FALSE;
+    bfe->right_is_pos_infty = FALSE;
     bfe->child_to_read = -1;
-};
+}
+
+static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct brt_header *h, BRT brt, BRT_CURSOR c);
 
 //
 // Helper function to fill a brtnode_fetch_extra with data
@@ -136,15 +145,23 @@ static inline void fill_bfe_for_subset_read(
     struct brtnode_fetch_extra *bfe, 
     struct brt_header *h,
     BRT brt,
-    brt_search_t* search
+    brt_search_t* search,
+    DBT *left,
+    DBT *right,
+    BOOL left_is_neg_infty,
+    BOOL right_is_pos_infty
     ) 
 {
     bfe->type = brtnode_fetch_subset;
     bfe->h = h;
     bfe->search = search;
     bfe->brt = brt;
+    bfe->range_lock_left_key = left;
+    bfe->range_lock_right_key = right;
+    bfe->left_is_neg_infty = left_is_neg_infty;
+    bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
-};
+}
 
 //
 // Helper function to fill a brtnode_fetch_extra with data
@@ -157,8 +174,26 @@ static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct
     bfe->h = h;
     bfe->search = NULL;
     bfe->brt = NULL;
+    bfe->range_lock_left_key = NULL;
+    bfe->range_lock_right_key = NULL;
+    bfe->left_is_neg_infty = FALSE;
+    bfe->right_is_pos_infty = FALSE;
     bfe->child_to_read = -1;
-};
+}
+
+static inline void destroy_bfe_for_prefetch(struct brtnode_fetch_extra *bfe) {
+    assert(bfe->type == brtnode_fetch_prefetch);
+    if (bfe->range_lock_left_key != NULL) {
+        toku_destroy_dbt(bfe->range_lock_left_key);
+        toku_free(bfe->range_lock_left_key);
+        bfe->range_lock_left_key = NULL;
+    }
+    if (bfe->range_lock_right_key != NULL) {
+        toku_destroy_dbt(bfe->range_lock_right_key);
+        toku_free(bfe->range_lock_right_key);
+        bfe->range_lock_right_key = NULL;
+    }
+}
 
 // data of an available partition of a nonleaf brtnode
 struct brtnode_nonleaf_childinfo {
@@ -526,6 +561,8 @@ struct brt_cursor {
     BOOL current_in_omt;
     BOOL prefetching;
     DBT key, val;             // The key-value pair that the cursor currently points to
+    DBT range_lock_left_key, range_lock_right_key;
+    BOOL left_is_neg_infty, right_is_pos_infty;
     OMTCURSOR omtcursor;
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
     TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
@@ -534,6 +571,33 @@ struct brt_cursor {
     TOKUTXN ttxn;
     struct brt_cursor_leaf_info  leaf_info;
 };
+
+// this is in a strange place because it needs the cursor struct to be defined
+static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct brt_header *h, BRT brt, BRT_CURSOR c) {
+    bfe->type = brtnode_fetch_prefetch;
+    bfe->h = h;
+    bfe->search = NULL;
+    bfe->brt = brt;
+    {
+        const DBT *left = &c->range_lock_left_key;
+        const DBT *right = &c->range_lock_right_key;
+        if (left->data) {
+            MALLOC(bfe->range_lock_left_key); resource_assert(bfe->range_lock_left_key);
+            toku_fill_dbt(bfe->range_lock_left_key, toku_xmemdup(left->data, left->size), left->size);
+        } else {
+            bfe->range_lock_left_key = NULL;
+        }
+        if (right->data) {
+            MALLOC(bfe->range_lock_right_key); resource_assert(bfe->range_lock_right_key);
+            toku_fill_dbt(bfe->range_lock_right_key, toku_xmemdup(right->data, right->size), right->size);
+        } else {
+            bfe->range_lock_right_key = NULL;
+        }
+    }
+    bfe->left_is_neg_infty = c->left_is_neg_infty;
+    bfe->right_is_pos_infty = c->right_is_pos_infty;
+    bfe->child_to_read = -1;
+}
 
 typedef struct ancestors *ANCESTORS;
 struct ancestors {
@@ -555,6 +619,11 @@ toku_brt_search_which_child(
 
 bool 
 toku_bfe_wants_child_available (struct brtnode_fetch_extra* bfe, int childnum);
+
+int
+toku_bfe_leftmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node);
+int
+toku_bfe_rightmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node);
 
 // allocate a block number
 // allocate and initialize a brtnode

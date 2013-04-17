@@ -775,6 +775,7 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
         uint32_t hash = log->older_hash;
         CACHEFILE cf = txn->logger->rollback_cachefile;
         struct brt_header *h = toku_cachefile_get_userdata(cf);
+        BOOL doing_prefetch = FALSE;
         r = toku_cachefile_prefetch(cf, name, hash,
                                     toku_rollback_flush_callback,
                                     toku_rollback_fetch_callback,
@@ -782,7 +783,8 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
                                     toku_brtnode_pf_req_callback,
                                     toku_brtnode_pf_callback,
                                     h,
-                                    h);
+                                    h,
+                                    &doing_prefetch);
         assert(r==0);
     }
     return r;

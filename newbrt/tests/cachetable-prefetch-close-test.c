@@ -77,7 +77,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
     toku_cachetable_verify(ct);
 
     // close with the prefetch in progress. the close should block until

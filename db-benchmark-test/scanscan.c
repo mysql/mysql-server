@@ -138,9 +138,9 @@ static void parse_args (int argc, char *const argv[]) {
     }
     //Prelocking is meaningless without transactions
     if (do_txns==0) {
-        prelockflag=0;
+      //prelockflag=0;
         lock_flag=0;
-        prelock=0;
+        //prelock=0;
     }
 }
 
@@ -294,6 +294,9 @@ static void scanscan_lwc (void) {
 	double prevtime = gettime();
 	DBC *dbc;
 	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+	if(prelock) {
+            r = dbc->c_pre_acquire_range_lock(dbc, db->dbt_neg_infty(), db->dbt_pos_infty()); assert(r==0);
+	}
         u_int32_t f_flags = 0;
         if (prelockflag && (counter || prelock)) {
             f_flags |= lock_flag;

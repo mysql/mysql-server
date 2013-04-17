@@ -76,7 +76,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     {
         CACHEKEY key = make_blocknum(n+1);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
     }
 
