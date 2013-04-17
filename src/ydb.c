@@ -1467,6 +1467,22 @@ locked_env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
 }
 
 static int
+locked_env_create_indexer(DB_ENV *env,
+                          DB_TXN *txn,
+                          DB_INDEXER **indexerp,
+                          DB *src_db,
+                          int N,
+                          DB *dest_dbs[N],
+                          uint32_t db_flags[N],
+                          uint32_t indexer_flags) {
+    toku_ydb_lock();
+    int r = toku_indexer_create_indexer(env, txn, indexerp, src_db, N, dest_dbs, db_flags, indexer_flags);
+    toku_ydb_unlock();
+    return r;
+}
+
+
+static int
 env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
@@ -2106,9 +2122,10 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(txn_stat);
     result->txn_begin = locked_txn_begin;
     SENV(set_redzone);
-#undef SENV
+    SENV(create_indexer);
+    // note : create_loader should use SENV
     result->create_loader = toku_loader_create_loader;
-    result->create_indexer = toku_indexer_create_indexer;
+#undef SENV
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
@@ -5608,8 +5625,15 @@ locked_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
 
 int 
 toku_db_set_indexer(DB *db, DB_INDEXER * indexer) {
-    db->i->indexer = indexer;
-    return 0;
+    int r = 0;
+    if ( db->i->indexer != NULL && indexer != NULL ) {
+        // you are trying to overwrite a valid indexer
+        r = EINVAL;
+    }
+    else {
+        db->i->indexer = indexer;
+    }
+    return r;
 }
 
 static int 

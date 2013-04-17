@@ -16,7 +16,6 @@ struct __toku_indexer_internal {
     DB *src_db;
     int N;
     DB **dest_dbs; /* [N] */
-    uint32_t *db_flags;
     uint32_t indexer_flags;
     void (*error_callback)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra);
     void *error_extra;
