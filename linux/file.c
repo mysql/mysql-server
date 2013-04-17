@@ -10,17 +10,17 @@
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
-static uint64_t toku_write_enospc_last_report;
-static uint64_t toku_write_enospc_last_time;
-static uint32_t toku_write_enospc_current;
-static uint64_t toku_write_enospc_total;
+static uint64_t toku_write_enospc_last_report;      // timestamp of most recent report to error log
+static time_t   toku_write_enospc_last_time;        // timestamp of most recent ENOSPC
+static uint32_t toku_write_enospc_current;          // number of threads currently blocked on ENOSPC
+static uint64_t toku_write_enospc_total;            // total number of times ENOSPC was returned from an attempt to write
 
 void toku_set_assert_on_write_enospc(int do_assert) {
     toku_assert_on_write_enospc = do_assert;
 }
 
 void
-toku_fs_get_write_info(uint64_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
+toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
     *enospc_last_time = toku_write_enospc_last_time;
     *enospc_current = toku_write_enospc_current;
     *enospc_total = toku_write_enospc_total;
@@ -148,6 +148,7 @@ toku_os_full_write (int fd, const void *buf, size_t len) {
     assert(len == 0);
 }
 
+#if 0
 int
 toku_os_write (int fd, const void *buf, size_t len) {
     while (len > 0) {
@@ -164,6 +165,7 @@ toku_os_write (int fd, const void *buf, size_t len) {
     }
     return 0;
 }
+#endif
 
 // t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
