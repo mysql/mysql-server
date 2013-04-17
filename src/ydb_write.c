@@ -281,7 +281,7 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
 
     BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
-        r = toku_db_pre_acquire_table_lock(db, txn, TRUE);
+        r = toku_db_pre_acquire_table_lock(db, txn);
         if (r != 0) { goto cleanup; }
     }
 

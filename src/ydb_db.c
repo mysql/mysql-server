@@ -647,66 +647,11 @@ cleanup:
 
 // needed by loader.c
 int 
-toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL UU(just_lock)) {
+toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return 0;
     int r;
     r = get_range_lock(db, txn, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_WRITE);
-// commented out code for log suppression and recovery suppression.
-// TODO: figure out right thing to do with this code.
-#if 0
-    if (r==0 && !just_lock &&
-        !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
-        toku_brt_is_empty_fast(db->i->brt)
-    ) {
-        //Try to suppress both rollback and recovery logs
-        DB_LOADER *loader;
-        DB *dbs[1] = {db};
-        uint32_t db_flags[1]  = {DB_NOOVERWRITE};
-        uint32_t dbt_flags[1] = {0};
-        uint32_t loader_flags = DB_PRELOCKED_WRITE; //Don't recursively prelock
-        DB_ENV *env = db->dbenv;
-	DB_TXN *child = NULL;
-	
-	{
-	    // begin child
-	    int rt = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-	    assert(rt==0);
-	}
-
-        toku_ydb_unlock(); //Cannot hold ydb lock when creating loader
-	
-        int r_loader = env->create_loader(env, child, &loader, NULL, 1, dbs, db_flags, dbt_flags, loader_flags);
-        if (r_loader==0) {
-            r_loader = loader->set_error_callback(loader, NULL, NULL);
-            assert(r_loader==0);
-            r_loader = loader->set_poll_function(loader, NULL, NULL);
-            assert(r_loader==0);
-            // close the loader
-            r_loader = loader->close(loader);
-	    if (r_loader==0) {
-		toku_brt_suppress_recovery_logs(db->i->brt, db_txn_struct_i(child)->tokutxn);
-	    }
-        }
-        else if (r_loader != DB_LOCK_NOTGRANTED) {
-            //Lock not granted is not an error.
-            //It just means we cannot use the loader optimization.
-            assert(r==0);
-            r = r_loader;
-        }
-	if (r_loader == 0) { // commit
-	    r = locked_txn_commit(child, 0);
-	    assert(r==0);
-	    STATUS_VALUE(YDB_LAYER_LOGSUPPRESS)++;  // accountability 
-	}
-	else {  // abort
-	    r = locked_txn_abort(child);
-	    assert(r==0);
-	    STATUS_VALUE(YDB_LAYER_LOGSUPPRESS_FAIL)++;  // accountability 
-	}
-        toku_ydb_lock(); //Reaquire ydb lock.
-    }
-#endif
     return r;
 }
 
@@ -766,7 +711,7 @@ toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
         if (r != 0) {
             return r;
         }
-        r = toku_db_pre_acquire_table_lock(db, txn, TRUE);
+        r = toku_db_pre_acquire_table_lock(db, txn);
         if (r != 0) {
             return r;
         }
@@ -1003,7 +948,7 @@ toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float
 
 static int 
 db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
-    return toku_db_pre_acquire_table_lock(db, txn, TRUE);
+    return toku_db_pre_acquire_table_lock(db, txn);
 }
 
 int toku_close_db_internal (DB * db, bool oplsn_valid, LSN oplsn) {
