@@ -60,10 +60,10 @@ typedef struct __toku_msn { u_int64_t msn; } MSN;
 #define MIN_MSN  ((MSN){(u_int64_t)1000*1000*1000})  // first 1B values reserved for messages created before Dr. No (for upgrade)
 #define MAX_MSN  ((MSN){UINT64_MAX})
 
-typedef int64_t DSN; // DESERIALIZATION sequence number
-#define INVALID_DSN -1
-#define MIN_DSN 0
-#define MAX_DSN INT64_MAX
+typedef struct __toku_dsn { int64_t dsn; } DSN; // DESERIALIZATION sequence number
+#define INVALID_DSN ((DSN){-1})
+#define MIN_DSN ((DSN){0})
+#define MAX_DSN ((DSN){INT64_MAX})
 
 /* At the brt layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.

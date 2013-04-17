@@ -149,9 +149,9 @@ toku_assert_entire_node_in_memory(BRTNODE node) {
 //
 static void
 set_new_DSN_for_node(BRTNODE node, BRT t) {
-    assert(t->h->curr_dsn > MIN_DSN);
+    assert(t->h->curr_dsn.dsn > MIN_DSN.dsn);
     node->dsn = t->h->curr_dsn;
-    t->h->curr_dsn++;
+    t->h->curr_dsn.dsn++;
 }
 
 static u_int32_t
@@ -293,7 +293,7 @@ int toku_pin_brtnode_if_clean(
         ); // this one doesn't need to use the toku_pin_brtnode function because it doesn't bring anything in, so it cannot create a non-up-to-date leaf node.
     if (r==0) {
         BRTNODE node = node_v;
-        if (node->dsn == INVALID_DSN) {
+        if (node->dsn.dsn == INVALID_DSN.dsn) {
             set_new_DSN_for_node(node, brt);
         }
         maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
@@ -324,7 +324,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
-        if (node->dsn == INVALID_DSN) {
+        if (node->dsn.dsn == INVALID_DSN.dsn) {
             set_new_DSN_for_node(node, brt);
         }
 	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
@@ -358,7 +358,7 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         );
     assert(r==0);
     BRTNODE node = node_v;
-    if (node->dsn == INVALID_DSN) {
+    if (node->dsn.dsn == INVALID_DSN.dsn) {
         set_new_DSN_for_node(node, brt);
     }
     maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
@@ -1002,7 +1002,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 	invariant(msna.msn == msnb.msn);
 	newroot->max_msn_applied_to_node_on_disk = msna;
     }
-    newroot->dsn = (nodea->dsn > nodeb->dsn) ? nodea->dsn : nodeb->dsn;
+    newroot->dsn = (nodea->dsn.dsn > nodeb->dsn.dsn) ? nodea->dsn : nodeb->dsn;
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
     newroot->dirty = 1;
@@ -2399,7 +2399,7 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 	    invariant(msn_max.msn <= parent->max_msn_applied_to_node_on_disk.msn);  // parent msn must be >= children's msn
 	}
     }
-    dsn_max = (a->dsn > b->dsn) ? a->dsn : b->dsn; 
+    dsn_max = (a->dsn.dsn > b->dsn.dsn) ? a->dsn : b->dsn; 
     if (a->height == 0) {
 	maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
@@ -2615,7 +2615,7 @@ static void assert_leaf_up_to_date(BRTNODE node) {
     assert(node->height == 0);
     toku_assert_entire_node_in_memory(node);
     for (int i=0; i < node->n_children; i++) {
-	assert(BLB_MAX_DSN_APPLIED(node, i) >= MIN_DSN);
+	assert(BLB_MAX_DSN_APPLIED(node, i).dsn >= MIN_DSN.dsn);
     }
 }
 
@@ -3668,7 +3668,7 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
-    t->h->curr_dsn = MIN_DSN + 1; // start at MIN_DSN + 1, as MIN_DSN is reserved for basement nodes
+    t->h->curr_dsn.dsn = MIN_DSN.dsn + 1; // start at MIN_DSN + 1, as MIN_DSN is reserved for basement nodes
 
     r = brt_init_header(t, txn);
     if (r != 0) goto died2;
@@ -5179,7 +5179,7 @@ partition_requires_msg_application(BRTNODE node, int childnum, ANCESTORS ancesto
         curr_ancestors = curr_ancestors->next
         ) 
     {
-        if (curr_ancestors->node->dsn > BLB_MAX_DSN_APPLIED(node,childnum)) {
+        if (curr_ancestors->node->dsn.dsn > BLB_MAX_DSN_APPLIED(node,childnum).dsn) {
             requires_msg_application = TRUE;
             break;
         }
@@ -5227,7 +5227,7 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
                 curr_ancestors->childnum,
                 &curr_bounds
                 );
-            curr_bn->max_dsn_applied = (curr_ancestors->node->dsn > curr_bn->max_dsn_applied) 
+            curr_bn->max_dsn_applied = (curr_ancestors->node->dsn.dsn > curr_bn->max_dsn_applied.dsn) 
                 ? curr_ancestors->node->dsn 
                 : curr_bn->max_dsn_applied;
 	    curr_ancestors= curr_ancestors->next;
@@ -5266,7 +5266,7 @@ brt_search_basement_node(
     BRT_CURSOR brtcursor
     )
 {
-    assert(bn->max_dsn_applied >= MIN_DSN);
+    assert(bn->max_dsn_applied.dsn >= MIN_DSN.dsn);
 
     // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
