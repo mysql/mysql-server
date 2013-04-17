@@ -1,3 +1,4 @@
+#include <toku_portability.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -93,3 +94,46 @@ closedir(DIR *dir) {
     free(dir);
     return r;
 }
+
+#define SUPPORT_CYGWIN_STYLE_STAT 0
+#define CYGWIN_ROOT_DIR_PREFIX "c:/cygwin"
+#define CYGDRIVE_PREFIX        "/cygdrive/"
+int
+toku_stat(const char *name, toku_struct_stat *statbuf) {
+    char new_name[strlen(name) + sizeof(CYGWIN_ROOT_DIR_PREFIX)];
+    int bytes;
+#if SUPPORT_CYGWIN_STYLE_STAT
+    if (name[0] == '/') {
+        char *cygdrive = strstr(name, CYGDRIVE_PREFIX);
+        if (cygdrive==name && isalpha(name[strlen(CYGDRIVE_PREFIX)]))
+             bytes = snprintf(new_name, sizeof(new_name), "%c:%s", name[strlen(CYGDRIVE_PREFIX)], name+strlen(CYGDRIVE_PREFIX)+1); //handle /cygdrive/DRIVELETTER
+        else bytes = snprintf(new_name, sizeof(new_name), "%s%s", CYGWIN_ROOT_DIR_PREFIX, name);                  //handle /usr/local (for example)
+    }
+    else
+#endif
+             bytes = snprintf(new_name, sizeof(new_name), "%s", name);                                            //default
+    //Verify no overflow
+    assert(bytes>=0);
+    assert((size_t)bytes < sizeof(new_name));
+    int needdir = 0;
+    if (bytes>1 && new_name[bytes-1]=='/') {
+        //Strip trailing '/', but this implies it is a directory.
+        new_name[bytes-1] = '\0';
+        needdir = 1;
+    }
+    toku_struct_stat temp;
+    int r = _stati64(new_name, &temp);
+    if (r==0 && needdir && !(temp.st_mode&_S_IFDIR)) {
+        r = -1;
+        errno = ENOENT;
+    }
+    if (r==0) *statbuf = temp;
+    return r;
+}
+
+int
+toku_fstat(int fd, toku_struct_stat *statbuf) {
+    int r = _fstati64(fd, statbuf);
+    return r;
+}
+

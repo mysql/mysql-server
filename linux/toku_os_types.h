@@ -14,6 +14,8 @@ struct fileid {
     ino_t st_ino;
 };
 
+typedef struct stat toku_struct_stat;
+
 #if !defined(O_BINARY)
 #define O_BINARY 0
 #endif

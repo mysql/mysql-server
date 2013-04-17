@@ -39,16 +39,16 @@ do_1324 (int moreflags)
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	{
-	    struct stat sbuf;
-	    r = stat(fname, &sbuf);
+	    toku_struct_stat sbuf;
+	    r = toku_stat(fname, &sbuf);
 	    if (r==0) {
 		fprintf(stderr, "The rolltmp file %s should have been deleted, but was not.\n", fname);
 	    }
 	    assert(r!=0);
 	}
 	{
-	    struct stat sbuf;
-	    r = stat(fnamekeep, &sbuf);
+	    toku_struct_stat sbuf;
+	    r = toku_stat(fnamekeep, &sbuf);
 	    if (r!=0) {
 		fprintf(stderr, "The keepme file %s should NOT have been deleted, but was not.\n", fnamekeep);
 	    }

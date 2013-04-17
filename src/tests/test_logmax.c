@@ -18,8 +18,8 @@ check_logmax (int max) {
 #define FULL_LEN (sizeof(ENVDIR)+NAME_MAX+1)
 	    char full_fname[FULL_LEN];
 	    snprintf(full_fname, FULL_LEN, "%s/%s", ENVDIR, ent->d_name); 
-	    struct stat sbuf;
-	    int r = stat(full_fname, &sbuf);
+	    toku_struct_stat sbuf;
+	    int r = toku_stat(full_fname, &sbuf);
 	    assert(r==0);
 	    if (verbose)
 		printf("%s is of size %"PRId64"\n", ent->d_name, (int64_t)sbuf.st_size);

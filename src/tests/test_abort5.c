@@ -149,9 +149,9 @@ do_nothing(DBT const *UU(a), DBT  const *UU(b), void *UU(c)) {
 
 static void
 verify_and_tear_down(int close_first) {
-    struct stat temp;
+    toku_struct_stat temp;
     int r;
-    r = stat(ENVDIR "/foo.db", &temp);
+    r = toku_stat(ENVDIR "/foo.db", &temp);
     CKERR(r);
     if (close_first) {
         r=db->close(db, 0); CKERR(r);

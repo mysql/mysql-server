@@ -49,7 +49,7 @@ toku_os_get_phys_memory_size(void) {
 
 int
 toku_os_get_file_size(int fildes, int64_t *fsize) {
-    struct stat sbuf;
+    toku_struct_stat sbuf;
     int r = fstat(fildes, &sbuf);
     if (r==0) {
         *fsize = sbuf.st_size;
@@ -59,7 +59,7 @@ toku_os_get_file_size(int fildes, int64_t *fsize) {
 
 int
 toku_os_get_unique_file_id(int fildes, struct fileid *id) {
-    struct stat statbuf;
+    toku_struct_stat statbuf;
     memset(id, 0, sizeof(*id));
     int r=fstat(fildes, &statbuf);
     if (r==0) {
@@ -190,3 +190,16 @@ toku_os_get_max_process_data_size(uint64_t *maxdata) {
         r = errno;
     return r;
 }
+
+int
+toku_stat(const char *name, toku_struct_stat *buf) {
+    int r = stat(name, buf);
+    return r;
+}
+
+int
+toku_stat(int fd, toku_struct_fstat *buf) {
+    int r = fstat(fd, buf);
+    return r;
+}
+

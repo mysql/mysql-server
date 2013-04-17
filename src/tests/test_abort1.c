@@ -21,7 +21,7 @@ test_db_open_aborts (void) {
     DB *db;
 
     int r;
-    struct stat buf;
+    toku_struct_stat buf;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
@@ -35,8 +35,8 @@ test_db_open_aborts (void) {
 	r=tid->abort(tid);        assert(r==0);
     }
     {
-	struct stat buf;
-	r=stat(ENVDIR "/foo.db", &buf);
+	toku_struct_stat buf;
+	r=toku_stat(ENVDIR "/foo.db", &buf);
 	assert(r!=0);
 	assert(errno==ENOENT);
     }
@@ -59,22 +59,22 @@ test_db_open_aborts (void) {
 	r=tid->abort(tid);        assert(r==0);
     }
     {
-	r=stat(ENVDIR "/foo.db", &buf);
+	r=toku_stat(ENVDIR "/foo.db", &buf);
 	assert(r!=0);
 	assert(errno==ENOENT);
-	r=stat(ENVDIR "/foo.db.clean", &buf);
+	r=toku_stat(ENVDIR "/foo.db.clean", &buf);
 	assert(r!=0);
 	assert(errno==ENOENT);
-	r=stat(ENVDIR "/foo.db.dirty", &buf);
+	r=toku_stat(ENVDIR "/foo.db.dirty", &buf);
 	assert(r!=0);
 	assert(errno==ENOENT);
     }
 
     r=db->close(db, 0);       assert(r==0);
-    r=stat(ENVDIR "/foo.db.clean", &buf);
+    r=toku_stat(ENVDIR "/foo.db.clean", &buf);
     assert(r!=0);
     assert(errno==ENOENT);
-    r=stat(ENVDIR "/foo.db.dirty", &buf);
+    r=toku_stat(ENVDIR "/foo.db.dirty", &buf);
     assert(r!=0);
     assert(errno==ENOENT);
     r=env->close(env, 0);     assert(r==0);
@@ -133,8 +133,8 @@ test_db_put_aborts (void) {
     }
     // The database should exist
     {
-	struct stat buf;
-	r=stat(ENVDIR "/foo.db", &buf);
+	toku_struct_stat buf;
+	r=toku_stat(ENVDIR "/foo.db", &buf);
 	assert(r==0);
     }
     // But the item should not be in it.

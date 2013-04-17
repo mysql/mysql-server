@@ -113,9 +113,9 @@ internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, F
     char cleanname[slen + sizeof(CLEANSUFFIX)];
     char dirtyname[slen + sizeof(DIRTYSUFFIX)];
     toku_graceful_fill_names(fixedfname, cleanname, sizeof(cleanname), dirtyname, sizeof(dirtyname));
-    struct stat tmpbuf;
-    BOOL clean_exists = stat(cleanname, &tmpbuf)==0;
-    BOOL dirty_exists = stat(dirtyname, &tmpbuf)==0;
+    toku_struct_stat tmpbuf;
+    BOOL clean_exists = toku_stat(cleanname, &tmpbuf)==0;
+    BOOL dirty_exists = toku_stat(dirtyname, &tmpbuf)==0;
     if (dirty_exists) {
 	if (clean_exists) { int r = unlink(dirtyname);            assert(r==0); }
 	else              { int r = rename(dirtyname, cleanname); assert(r==0); }
