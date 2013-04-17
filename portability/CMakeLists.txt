@@ -15,7 +15,7 @@ add_library(${LIBTOKUPORTABILITY}_static STATIC ${tokuportability_srcs})
 maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static)
 set_property(TARGET ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 set_target_properties(${LIBTOKUPORTABILITY}_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} dl)
+target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
   ## ignore warning about cilkrts linking dynamically

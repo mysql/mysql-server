@@ -9,6 +9,7 @@
 
 #define TOKUDB_REVISION @CMAKE_TOKUDB_REVISION@
 
+#cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_BYTESWAP_H 1
 #cmakedefine HAVE_ENDIAN_H 1
@@ -20,11 +21,14 @@
 #cmakedefine HAVE_MACHINE_ENDIAN_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_MALLOC_MALLOC_H 1
+#cmakedefine HAVE_MALLOC_NP_H 1
 #cmakedefine HAVE_PTHREAD_H 1
+#cmakedefine HAVE_PTHREAD_NP_H 1
 #cmakedefine HAVE_STDINT_H 1
 #cmakedefine HAVE_STDLIB_H 1
 #cmakedefine HAVE_STRING_H 1
 #cmakedefine HAVE_SYSCALL_H 1
+#cmakedefine HAVE_SYS_ENDIAN_H 1
 #cmakedefine HAVE_SYS_FILE_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
@@ -49,6 +53,10 @@
 #cmakedefine HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
+#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+
+#cmakedefine PTHREAD_YIELD_RETURNS_INT 1
+#cmakedefine PTHREAD_YIELD_RETURNS_VOID 1
 
 #cmakedefine HAVE_GNU_TLS 1
 
