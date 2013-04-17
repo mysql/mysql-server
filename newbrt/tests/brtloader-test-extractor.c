@@ -196,7 +196,7 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
         // write min
         write_row(mergef, &f[mini].key, &f[mini].val);
 
-        // refresh i
+        // refresh mini
         if (read_row(f[mini].f, &f[mini].key, &f[mini].val) != 0)
             f[mini].row_valid = FALSE;
     }
