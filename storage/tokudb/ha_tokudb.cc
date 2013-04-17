@@ -869,6 +869,8 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_updated_rows_in_stmt = 0;
     blob_buff = NULL;
     num_blob_bytes = 0;
+    delay_auto_inc_update = false;
+    auto_inc_update_req = false;
 }
 
 //
@@ -2348,6 +2350,28 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
         return COMPATIBLE_DATA_NO;
     return COMPATIBLE_DATA_YES;
 }
+
+
+void ha_tokudb::start_bulk_insert(ha_rows rows) {
+    //
+    // make sure delay_auto_inc_update is true
+    //
+    delay_auto_inc_update = true;
+    auto_inc_update_req = false;
+}
+
+int ha_tokudb::end_bulk_insert() {
+    int error = 0;
+    if (auto_inc_update_req) {
+        pthread_mutex_lock(&share->mutex);
+        error = update_max_auto_inc(share->status_block, share->last_auto_increment);
+        pthread_mutex_unlock(&share->mutex);
+    }
+    delay_auto_inc_update = false;
+    auto_inc_update_req = false;
+    return error;
+}
+
   
 //
 // Stores a row in the table, called when handling an INSERT query
@@ -2403,11 +2427,14 @@ int ha_tokudb::write_row(uchar * record) {
             record
             );
         if (curr_auto_inc > share->last_auto_increment) {
-            error = update_max_auto_inc(share->status_block, curr_auto_inc);
-            if (!error) {
-                share->last_auto_increment = curr_auto_inc;
+            share->last_auto_increment = curr_auto_inc;
+            if (delay_auto_inc_update) {
+                auto_inc_update_req = true;
             }
-        }
+            else {
+                update_max_auto_inc(share->status_block, share->last_auto_increment);
+            }
+         }
         pthread_mutex_unlock(&share->mutex);
     }
 
@@ -5100,8 +5127,13 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     else {
         nr = share->last_auto_increment + increment;
     }
-    update_max_auto_inc(share->status_block, nr + (nb_desired_values - 1)*increment);
     share->last_auto_increment = nr + (nb_desired_values - 1)*increment;
+    if (delay_auto_inc_update) {
+        auto_inc_update_req = true;
+    }
+    else {
+        update_max_auto_inc(share->status_block, share->last_auto_increment);
+    }
 
     if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) {
         TOKUDB_TRACE("get_auto_increment(%lld,%lld,%lld):got:%lld:%lld\n",

@@ -222,6 +222,13 @@ private:
     bool range_lock_grabbed;
 
     //
+    // For bulk inserts, we want option of not updating auto inc
+    // until all inserts are done. By default, is false
+    //
+    bool delay_auto_inc_update;
+    bool auto_inc_update_req;
+
+    //
     // buffer for updating the status of long insert, delete, and update
     // statements. Right now, the the messages are 
     // "[inserted|updated|deleted] about %llu rows",
@@ -334,6 +341,9 @@ public:
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
+
+    void start_bulk_insert(ha_rows rows);
+    int end_bulk_insert();
 
     int prepare_index_scan();
     int prepare_index_key_scan( const uchar * key, uint key_len );
