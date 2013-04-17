@@ -1225,51 +1225,69 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
 }
 
 static uint32_t recover_get_num_live_txns(RECOVER_ENV renv) {
-    return toku_omt_size(renv->logger->live_txns);
+    return toku_txn_manager_num_live_txns(renv->logger->txn_manager);
 }
 
+static int
+is_txn_unprepared (OMTVALUE txnv, u_int32_t UU(index), void* extra) {
+    TOKUTXN txn = txnv;
+    if (txn->state != TOKUTXN_PREPARING) {
+        *(TOKUTXN *)extra = txn;
+        return -1; // return -1 to get iterator to return
+    }
+    return 0;
+}
+
+
 static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
-    u_int32_t n_live_txns = toku_omt_size(renv->logger->live_txns);
-    for (u_int32_t i=0; i<n_live_txns; i++) {
-	OMTVALUE v;
-	int r = toku_omt_fetch(renv->logger->live_txns, n_live_txns-1-i, &v);
-	assert(r==0);
-	TOKUTXN txn = (TOKUTXN) v;	
-	if (txn->state == TOKUTXN_PREPARING)
-	    continue;
-	*txnp = txn;
-	return 0;
+    TOKUTXN txn = NULL;
+    int r = toku_txn_manager_iter_over_live_txns(
+        renv->logger->txn_manager,
+        is_txn_unprepared,
+        &txn
+        );
+    assert(r == 0 || r == -1);
+    if (txn != NULL) {
+        *txnp = txn;
+        return 0;
     }
     return DB_NOTFOUND;
+}
+
+static int
+call_prepare_txn_callback_iter (OMTVALUE txnv, u_int32_t UU(index), void* extra) {
+    TOKUTXN txn = txnv;
+    RECOVER_ENV renv = extra;
+    renv->prepared_txn_callback(renv->env, txn);
+    return 0;
 }
 
 // abort all of the remaining live transactions in descending transaction id order
 static void recover_abort_live_txns(RECOVER_ENV renv) {
     while (1) {
-	TOKUTXN txn;
-	int r = find_an_unprepared_txn (renv, &txn);
-	if (r==0) {
-	    // abort the transaction
-	    r = toku_txn_abort_txn(txn, recover_yield, NULL, NULL, NULL);
-	    assert(r == 0);
-	    
-	    // close the transaction
-	    toku_txn_close_txn(txn);
-	} else if (r==DB_NOTFOUND) {
-	    break;
-	} else {
-	    abort();
-	}
+        TOKUTXN txn;
+        int r = find_an_unprepared_txn(renv, &txn);
+        if (r==0) {
+            // abort the transaction
+            r = toku_txn_abort_txn(txn, recover_yield, NULL, NULL, NULL);
+            assert(r == 0);
+            
+            // close the transaction
+            toku_txn_close_txn(txn);
+        } else if (r==DB_NOTFOUND) {
+            break;
+        } else {
+            abort();
+        }
     }
 
     // Now we have only prepared txns.  These prepared txns don't have full DB_TXNs in them, so we need to make some.
-    for (u_int32_t i=0; i<toku_omt_size(renv->logger->live_txns); i++) {
-	OMTVALUE v;
-	int r = toku_omt_fetch(renv->logger->live_txns, i, &v);
-	assert(r==0);
-	TOKUTXN txn = v;
-	renv->prepared_txn_callback(renv->env, txn);
-    }
+    int r = toku_txn_manager_iter_over_live_txns(
+        renv->logger->txn_manager,
+        call_prepare_txn_callback_iter,
+        renv
+        );
+    assert_zero(r);
 }
 
 static void recover_trace_le(const char *f, int l, int r, struct log_entry *le) {

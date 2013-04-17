@@ -171,8 +171,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                          BOOL reset_root_xid_that_created) {
     CACHEFILE cf;
     // 2954 - ignore messages for aborted hot-index
-    int r = toku_txn_ignore_contains(txn, filenum);
-    if ( r != ENOENT ) goto done;  // ENOENT => filenum not in ignore list
+    int r = 0;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     if (r==ENOENT) { //Missing file on recovered transaction is not an error
@@ -510,21 +509,6 @@ toku_commit_hot_index (FILENUMS UU(hot_index_filenums),
     return 0;
 }
 
-//2954
-// function called by toku_omt_iterate to add hot_index filenums to
-//  each live txn's ignore list when a hot index is aborted
-static int 
-live_txn_ignore(OMTVALUE vtxn, u_int32_t UU(idx) , void *vfn) {
-    TOKUTXN                  txn = vtxn;
-    FILENUMS *hot_index_filenums = vfn;
-    int r;
-    for (uint32_t i=0; i<hot_index_filenums->num;i++) {
-        r = toku_txn_ignore_add(txn, hot_index_filenums->filenums[i]);
-        invariant(r==0);
-    }
-    return 0;
-}
-
 int
 toku_rollback_hot_index (FILENUMS UU(hot_index_filenums),
                          TOKUTXN  UU(txn), 
@@ -532,8 +516,7 @@ toku_rollback_hot_index (FILENUMS UU(hot_index_filenums),
                          void *   UU(yield_v), 
                          LSN      UU(oplsn))
 {
-    int r = toku_omt_iterate(txn->logger->live_txns, live_txn_ignore, &hot_index_filenums);
-    return r;
+    return 0;
 }
 
 int

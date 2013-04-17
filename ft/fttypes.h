@@ -134,6 +134,7 @@ typedef struct {
 } FILENUMS;
 
 typedef struct tokulogger *TOKULOGGER;
+typedef struct txn_manager *TXN_MANAGER;
 #define NULL_LOGGER ((TOKULOGGER)0)
 typedef struct tokutxn    *TOKUTXN;
 typedef struct txninfo    *TXNINFO;

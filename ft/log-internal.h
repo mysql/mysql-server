@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <dirent.h>
+#include "txn_manager.h"
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -75,17 +76,7 @@ struct tokulogger {
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
 
     // To access these, you must have the input lock
-    toku_mutex_t txn_list_lock;  // a lock protecting live_list_reverse and snapshot_txnids for now TODO: revisit this decision
     LSN lsn; // the next available lsn
-    OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
-    OMT live_root_txns; // a sorted tree.
-    OMT snapshot_txnids;    //contains TXNID x | x is snapshot txn
-    //contains TXNID pairs (x,y) | y is oldest txnid s.t. x is in y's live list
-    // every TXNID that is in some snapshot's live list is used as the key for this OMT, x, as described above. 
-    // The second half of the pair, y, is the youngest snapshot txnid (that is, has the highest LSN), such that x is in its live list.
-    // So, for example, Say T_800 begins, T_800 commits right after snapshot txn T_1100  begins. Then (800,1100) is in 
-    // this list
-    OMT live_list_reverse;  
     struct logbuf inbuf; // data being accumulated for the write
 
     // To access these, you must have the output condition lock.
@@ -100,8 +91,6 @@ struct tokulogger {
     TOKULOGFILEMGR logfilemgr;
 
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
-    TXNID oldest_living_xid;
-    time_t oldest_living_starttime;   // timestamp in seconds of when txn with oldest_living_xid started
 
     u_int64_t input_lock_ctr;             // how many times has input_lock been taken and released
     u_int64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
@@ -109,8 +98,7 @@ struct tokulogger {
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
     CACHEFILE rollback_cachefile;
-    struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
-    struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
+    TXN_MANAGER txn_manager;
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
@@ -165,7 +153,6 @@ struct tokutxn {
 
     BOOL       recovered_from_checkpoint;
     BOOL checkpoint_needed_before_commit;
-    TXN_IGNORE_S ignore_errors; // 2954
     TOKUTXN_STATE state;
     LSN        do_fsync_lsn;
     BOOL       do_fsync;

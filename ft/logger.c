@@ -5,6 +5,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "txn_manager.h"
 
 static const int log_format_version=TOKU_LOG_VERSION;
 
@@ -68,7 +69,6 @@ static BOOL is_a_logfile (const char *name, long long *number_result) {
 
 
 int toku_logger_create (TOKULOGGER *resultp) {
-    int r;
     TOKULOGGER MALLOC(result);
     if (result==0) return errno;
     result->is_open=FALSE;
@@ -82,11 +82,6 @@ int toku_logger_create (TOKULOGGER *resultp) {
     // ct is uninitialized on purpose
     result->lg_max = 100<<20; // 100MB default
     // lsn is uninitialized
-    toku_mutex_init(&result->txn_list_lock, NULL);
-    r = toku_omt_create(&result->live_txns); if (r!=0) goto panic;
-    r = toku_omt_create(&result->live_root_txns); if (r!=0) goto panic;
-    r = toku_omt_create(&result->snapshot_txnids); if (r!=0) goto panic;
-    r = toku_omt_create(&result->live_list_reverse); if (r!=0) goto panic;
     result->inbuf  = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
     result->outbuf = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
     // written_lsn is uninitialized
@@ -95,8 +90,6 @@ int toku_logger_create (TOKULOGGER *resultp) {
     // next_log_file_number is uninitialized
     // n_in_file is uninitialized
     result->write_block_size = FT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
-    result->oldest_living_xid = TXNID_NONE_LIVING;
-    result->oldest_living_starttime = 0;
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
     ml_init(&result->input_lock);
@@ -107,13 +100,8 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->swap_ctr = 0;
     result->rollback_cachefile = NULL;
     result->output_is_available = TRUE;
-    toku_list_init(&result->prepared_txns);
-    toku_list_init(&result->prepared_and_returned_txns);
+    toku_txn_manager_init(&result->txn_manager);
     return 0;
-
- panic:
-    toku_logger_panic(result, r);
-    return r;
 }
 
 static int fsync_logdir(TOKULOGGER logger) {
@@ -262,7 +250,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
         if ( logger->write_log_files ) {
             r = toku_file_fsync_without_accounting(logger->fd);   if (r!=0) { r=errno; goto panic; }
         }
-	r = close(logger->fd);                                    if (r!=0) { r=errno; goto panic; }
+        r = close(logger->fd);                                    if (r!=0) { r=errno; goto panic; }
     }
     r = close_logdir(logger);  if (r!=0) { r=errno; goto panic; }
     logger->fd=-1;
@@ -276,11 +264,8 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     toku_mutex_destroy(&logger->output_condition_lock);
     toku_cond_destroy(&logger->output_condition);
     logger->is_panicked=TRUE; // Just in case this might help.
+    toku_txn_manager_destroy(logger->txn_manager);
     if (logger->directory) toku_free(logger->directory);
-    toku_omt_destroy(&logger->live_txns);
-    toku_omt_destroy(&logger->live_root_txns);
-    toku_omt_destroy(&logger->snapshot_txnids);
-    toku_omt_destroy(&logger->live_list_reverse);
     toku_logfilemgr_destroy(&logger->logfilemgr);
     toku_free(logger);
     *loggerp=0;
@@ -293,9 +278,8 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
     if (logger->is_open) {
-        if (toku_omt_size(logger->live_txns) == 0) {
-            int r2 = toku_log_shutdown(logger, NULL, TRUE, 0);
-            if (!r) r = r2;
+        if (toku_txn_manager_num_live_txns(logger->txn_manager) == 0) {
+            r = toku_log_shutdown(logger, NULL, TRUE, 0);
         }
     }
     return r;
@@ -1201,43 +1185,10 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
-//Heaviside function to search through an OMT by a TXNID
-static int
-find_by_xid (OMTVALUE v, void *txnidv) {
-    TOKUTXN txn = v;
-    TXNID   txnidfind = *(TXNID*)txnidv;
-    if (txn->txnid64<txnidfind) return -1;
-    if (txn->txnid64>txnidfind) return +1;
-    return 0;
-}
-
-BOOL is_txnid_live(TOKULOGGER logger, TXNID txnid) {
-    assert(logger);
-    TOKUTXN result = NULL;
-    int rval = toku_txnid2txn(logger, txnid, &result);
-    assert(rval == 0);
-    return (result != NULL);
-}
-
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     if (logger==NULL) return -1;
-
-    OMTVALUE txnfound;
-    int rval;
-    int r = toku_omt_find_zero(logger->live_txns, find_by_xid, &txnid, &txnfound, NULL);
-    if (r==0) {
-        TOKUTXN txn = txnfound;
-        assert(txn->txnid64==txnid);
-        *result = txn;
-        rval = 0;
-    }
-    else {
-        assert(r==DB_NOTFOUND);
-        // If there is no txn, then we treat it as the null txn.
-        *result = NULL;
-        rval    = 0;
-    }
-    return rval;
+    toku_txn_manager_id2txn(logger->txn_manager, txnid, result);
+    return 0;
 }
 
 // Find the earliest LSN in a log.  No locks are needed.
@@ -1341,16 +1292,6 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn) {
 
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
     logger->last_completed_checkpoint_lsn = lsn;
-}
-
-TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger, time_t * oldest_living_starttime) {
-    TXNID rval = 0;
-    if (logger) {
-        rval = logger->oldest_living_xid;
-	if (oldest_living_starttime)
-	    *oldest_living_starttime = logger->oldest_living_starttime;
-    }
-    return rval;
 }
 
 LSN
@@ -1468,6 +1409,10 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
             *version_found = highest_version;
     }
     return r;
+}
+
+TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger) {
+    return logger->txn_manager;
 }
 
 #undef STATUS_VALUE

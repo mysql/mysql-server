@@ -23,6 +23,7 @@
 #include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/xids.h>
+#include "ft/txn_manager.h"
 #include "ydb_row_lock.h"
 
 #include "indexer-internal.h"
@@ -181,6 +182,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     int result = 0;
 
     indexer_commit_keys_set_empty(&indexer->i->commit_keys);
+    toku_txn_manager_suspend(toku_logger_get_txn_manager(indexer->i->env->i->logger));
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
@@ -305,7 +307,8 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
         result = indexer_ft_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
 
     xids_destroy(&xids);
-
+    
+    toku_txn_manager_resume(toku_logger_get_txn_manager(indexer->i->env->i->logger));
     return result;
 }
 
@@ -390,8 +393,11 @@ indexer_xid_state(DB_INDEXER *indexer, TXNID xid) {
     } else {
         DB_ENV *env = indexer->i->env;
         TOKUTXN txn = NULL;
-        int r = toku_txnid2txn(env->i->logger, xid, &txn);
-        assert(r == 0);
+        toku_txn_manager_id2txn_unlocked(
+            toku_logger_get_txn_manager(env->i->logger), 
+            xid, 
+            &txn
+            );
         if (txn) 
             result = toku_txn_get_state(txn);
         else 
@@ -410,8 +416,12 @@ indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_
     } else {
         DB_ENV *env = indexer->i->env;
         TOKUTXN txn = NULL;
-        result = toku_txnid2txn(env->i->logger, outermost_live_xid, &txn);
-        assert(result == 0 && txn != NULL);
+        toku_txn_manager_id2txn_unlocked(
+            toku_logger_get_txn_manager(env->i->logger), 
+            outermost_live_xid, 
+            &txn
+            );
+        assert(txn != NULL);
         result = toku_grab_write_lock(hotdb, key, txn);
     }
     return result;
@@ -444,8 +454,11 @@ indexer_get_innermost_live_txn(DB_INDEXER *indexer, XIDS xids) {
     uint8_t num_xids = xids_get_num_xids(xids);
     TXNID xid = xids_get_xid(xids, (u_int8_t)(num_xids-1));
     TOKUTXN txn = NULL;
-    int result = toku_txnid2txn(env->i->logger, xid, &txn);
-    assert(result == 0);
+    toku_txn_manager_id2txn_unlocked(
+        toku_logger_get_txn_manager(env->i->logger), 
+        xid, 
+        &txn
+        );
     return txn;
 }
 

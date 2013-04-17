@@ -2249,29 +2249,19 @@ toku_bnc_flush_to_child(
     // Run garbage collection, if we are a leaf entry.
     TOKULOGGER logger = toku_cachefile_logger(h->cf);
     if (child->height == 0 && logger) {
-        int r;
         OMT snapshot_txnids = NULL;
         OMT live_list_reverse = NULL;
         OMT live_root_txns = NULL;
-        {
-            toku_mutex_lock(&logger->txn_list_lock);
-            r = toku_omt_clone_noptr(&snapshot_txnids,
-                                     logger->snapshot_txnids);
-            assert_zero(r);
-            r = toku_omt_clone_pool(&live_list_reverse,
-                                    logger->live_list_reverse,
-                                    sizeof(XID_PAIR_S));
-            assert_zero(r);
-            r = toku_omt_clone_noptr(&live_root_txns,
-                                     logger->live_root_txns);
-            assert_zero(r);
-            // take advantage of surrounding mutex, update stats.
-            size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
-            STATUS_VALUE(FT_MSG_BYTES_OUT) += buffsize;
-            // may be misleading if there's a broadcast message in there
-            STATUS_VALUE(FT_MSG_BYTES_CURR) -= buffsize;
-            toku_mutex_unlock(&logger->txn_list_lock);
-        }
+        toku_txn_manager_clone_state_for_gc(
+            logger->txn_manager,
+            &snapshot_txnids,
+            &live_list_reverse,
+            &live_root_txns
+            );
+        size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
+        STATUS_VALUE(FT_MSG_BYTES_OUT) += buffsize;
+        // may be misleading if there's a broadcast message in there
+        STATUS_VALUE(FT_MSG_BYTES_CURR) -= buffsize;
         // Perform the garbage collection.
         ft_leaf_gc_all_les(child, h, snapshot_txnids, live_list_reverse, live_root_txns);
 
@@ -2609,25 +2599,27 @@ toku_ft_optimize (FT_HANDLE brt) {
     int r = 0;
 
     TOKULOGGER logger = toku_cachefile_logger(brt->ft->cf);
-    TXNID oldest = toku_logger_get_oldest_living_xid(logger, NULL);
+    if (logger) {
+        TXNID oldest = toku_txn_manager_get_oldest_living_xid(logger->txn_manager, NULL);
 
-    XIDS root_xids = xids_get_root_xids();
-    XIDS message_xids;
-    if (oldest == TXNID_NONE_LIVING) {
-        message_xids = root_xids;
-    }
-    else {
-        r = xids_create_child(root_xids, &message_xids, oldest);
-        invariant(r==0);
-    }
+        XIDS root_xids = xids_get_root_xids();
+        XIDS message_xids;
+        if (oldest == TXNID_NONE_LIVING) {
+            message_xids = root_xids;
+        }
+        else {
+            r = xids_create_child(root_xids, &message_xids, oldest);
+            invariant(r==0);
+        }
 
-    DBT key;
-    DBT val;
-    toku_init_dbt(&key);
-    toku_init_dbt(&val);
-    FT_MSG_S ftcmd = { FT_OPTIMIZE, ZERO_MSN, message_xids, .u.id={&key,&val}};
-    r = toku_ft_root_put_cmd(brt->ft, &ftcmd);
-    xids_destroy(&message_xids);
+        DBT key;
+        DBT val;
+        toku_init_dbt(&key);
+        toku_init_dbt(&val);
+        FT_MSG_S ftcmd = { FT_OPTIMIZE, ZERO_MSN, message_xids, .u.id={&key,&val}};
+        r = toku_ft_root_put_cmd(brt->ft, &ftcmd);
+        xids_destroy(&message_xids);
+    }
     return r;
 }
 

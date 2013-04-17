@@ -193,6 +193,26 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->build                 = build_index;
     indexer->close                 = close_indexer;
     indexer->abort                 = abort_indexer;
+
+    toku_ydb_unlock();
+    //
+    // create and close a dummy loader to get redirection going for the hot indexer
+    // This way, if the hot index aborts, but other transactions have references to the
+    // underlying FT, then those transactions can do dummy operations on the FT
+    // while the DB gets redirected back to an empty dictionary
+    //
+    for (int i = 0; i < N; i++) {
+        DB_LOADER* loader = NULL;
+        int r = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE);
+        if (r) {
+            goto create_exit;
+        }
+        r = loader->close(loader);
+        if (r) {
+            goto create_exit;
+        }
+    }
+    toku_ydb_lock();
     
     // create and initialize the leafentry cursor
     rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);

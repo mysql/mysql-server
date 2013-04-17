@@ -11,6 +11,7 @@
 #include "ydb_txn.h"
 #include <lock_tree/lth.h>
 #include <valgrind/helgrind.h>
+#include "ft/txn_manager.h"
 
 static int 
 toku_txn_release_locks(DB_TXN* txn) {
@@ -110,17 +111,17 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert_zero(r);
 
-    // Close the logger after releasing the locks
-    r = toku_txn_release_locks(txn);
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     TOKULOGGER logger = txn->mgrp->i->logger;
     LSN do_fsync_lsn;
     BOOL do_fsync;
     //
     // quickie fix for 5.2.0, need to extract these variables so that
-    // we can do the fsync after the close of txn. We need to do it 
+    // we can do the fsync after the close of txn. We need to do it
     // after the close because if we do it before, there are race
-    // conditions exposed by test_stress1.c (#4145, #4153)
+    // conditions exposed by test_stress1.c (#4145, #4153)    // release locks after completing the txn
+    //
+    // TODO: (Zardosht) refine this comment
     //
     // Here is what was going on. In Maxwell (5.1.X), we used to 
     // call toku_txn_maybe_fsync_log in between toku_txn_release_locks
@@ -147,6 +148,9 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
     // this lock must be held until the references to the open FTs is released
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
+
+    // Close the logger after releasing the locks
+    r = toku_txn_release_locks(txn);
     if (release_multi_operation_client_lock) {
         toku_multi_operation_client_unlock();
     }
@@ -505,7 +509,10 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
     if (!holds_ydb_lock) {
         toku_ydb_lock();
     }
-    toku_txn_start_txn(db_txn_struct_i(result)->tokutxn);
+    toku_txn_manager_start_txn(
+        toku_logger_get_txn_manager(env->i->logger),
+        db_txn_struct_i(result)->tokutxn
+        );
     if (!holds_ydb_lock) {
         toku_ydb_unlock();
     }
