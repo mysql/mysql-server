@@ -2044,23 +2044,28 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
+static int
+smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
+    DBT* stored_frm = (DBT *)context;
+    stored_frm->size = row->size;
+    stored_frm->data = row->data;
+    return 0;
+}
+
 int ha_tokudb::verify_frm_data(const char* frm_name) {
     uchar* mysql_frm_data = NULL;
     size_t mysql_frm_len = 0;
-    uchar* stored_frm_data = NULL;
-    size_t stored_frm_len = 0;
-    DBT key, value;
+    DBT key, stored_frm;
     int error = 0;
     DB_TXN* txn = NULL;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
-    
     TOKUDB_DBUG_ENTER("ha_tokudb::verify_frm_data %s", frm_name);
 
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
     bzero(&key, sizeof(key));
-    bzero(&value, sizeof(value));
+    bzero(&stored_frm, sizeof(&stored_frm));
     // get the frm data from MySQL
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
     if (error) { goto cleanup; }
@@ -2068,13 +2073,13 @@ int ha_tokudb::verify_frm_data(const char* frm_name) {
     // TODO: get the frm data that we have stored
     key.data = &curr_key;
     key.size = sizeof(curr_key);
-    value.flags = DB_DBT_MALLOC;
-    error = share->status_block->get(
+    error = share->status_block->getf_set(
         share->status_block, 
-        txn, 
+        txn,
+        0,
         &key, 
-        &value, 
-        0
+        smart_dbt_callback_verify_frm, 
+        &stored_frm
         );
     if (error == DB_NOTFOUND) {
         // if not found, write it
@@ -2088,11 +2093,9 @@ int ha_tokudb::verify_frm_data(const char* frm_name) {
     else if (error) {
         goto cleanup;
     }
-    stored_frm_len = value.size;
-    stored_frm_data = (uchar *)value.data;
 
-    if (stored_frm_len != mysql_frm_len || 
-        memcmp(stored_frm_data, mysql_frm_data, stored_frm_len))
+    if (stored_frm.size != mysql_frm_len || 
+        memcmp(stored_frm.data, mysql_frm_data, stored_frm.size))
     {
         error = HA_ERR_TABLE_DEF_CHANGED;
         goto cleanup;
