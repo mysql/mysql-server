@@ -48,7 +48,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, txn, test_brt_cursor_keycompare, null_db);
     assert(error == 0);
 
-    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL);
+    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL, false);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
@@ -68,7 +68,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         assert(error == 0);
     }
 
-    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL);
+    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL, false);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
@@ -114,7 +114,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, txn, test_brt_cursor_keycompare, null_db);
     assert(error == 0);
 
-    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL);
+    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL, false);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
@@ -165,11 +165,11 @@ test_provdel(const char *logdir, const char *fname, int n) {
     error = le_cursor_close(cursor);
     assert(error == 0);
 
-    error = toku_txn_commit_txn(cursortxn, TRUE, txn_yield, NULL, NULL, NULL);
+    error = toku_txn_commit_txn(cursortxn, TRUE, txn_yield, NULL, NULL, NULL, false);
     assert(error == 0);
     toku_txn_close_txn(cursortxn);
 
-    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL);
+    error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL, false);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
