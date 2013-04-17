@@ -41,7 +41,6 @@ struct brtloader_s {
 
     const char *temp_file_template;
     FIDX fprimary_rows; // the file index (in the file_infos) for the data
-    FIDX fprimary_idx;  // the file index for the index
     u_int64_t fprimary_offset;
     CACHETABLE cachetable;
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
@@ -74,7 +73,7 @@ int init_rowset (struct rowset *rows);
 void destroy_rowset (struct rowset *rows);
 void add_row (struct rowset *rows, DBT *key, DBT *val);
 
-int loader_write_row(DBT *key, DBT *val, FIDX data, FIDX idx, u_int64_t *dataoff, BRTLOADER bl);
+int loader_write_row(DBT *key, DBT *val, FIDX data, u_int64_t *dataoff, BRTLOADER bl);
 int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl);
 
 struct error_callback_s {
@@ -93,7 +92,6 @@ int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare
 struct merge_fileset {
     int n_temp_files, n_temp_files_limit;
     FIDX *data_fidxs;
-    FIDX *idx_fidxs;
 };
 
 void init_merge_fileset (struct merge_fileset *fs);
