@@ -360,10 +360,11 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	//printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, h->translated_blocknum_limit, blocknum.b);
 	//printf("%s:%d allocator=%p\n", __FILE__, __LINE__, h->block_allocator);
 	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
-	h->dirty = 1; // Allocating a block dirties the header.
 	size_t n_to_write = uncompressed_magic_len + compression_header_len + compressed_len;
 	u_int64_t offset;
-        toku_block_realloc(h->blocktable, blocknum, n_to_write, &offset);
+
+        //h will be dirtied
+        toku_block_realloc(h->blocktable, blocknum, n_to_write, &offset, &h->dirty);
 	ssize_t n_wrote;
 	r=toku_pwrite_extend(fd, compressed_buf, n_to_write, offset, &n_wrote);
 	if (r) {
