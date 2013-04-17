@@ -31,11 +31,10 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
     ROLLBACK_LOG_NODE  log = rollback_v;
     FT h   = extraargs;
 
-    assert(h->cf == cachefile);
     assert(log->blocknum.b==logname.b);
-
     if (write_me && !h->panic) {
         int n_workitems, n_threads; 
+        assert(h->cf == cachefile);
         toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
 
         r = toku_serialize_rollback_log_to(fd, log->blocknum, log, h, n_workitems, n_threads, for_checkpoint);

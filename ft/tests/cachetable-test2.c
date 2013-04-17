@@ -36,7 +36,8 @@ static const int test_object_size = 1;
 
 static CACHETABLE ct;
 
-enum { N_PRESENT_LIMIT = 4, TRIALS=20000, N_FILES=2 };
+// increasing N_FILES may break test
+enum { N_PRESENT_LIMIT = 4, TRIALS=20000, N_FILES=1 };
 static int n_present=0;
 static struct present_items {
     CACHEKEY key;
@@ -71,7 +72,7 @@ static void item_becomes_not_present(CACHEFILE cf, CACHEKEY key) {
     test_mutex_lock();
     assert(n_present<=N_PRESENT_LIMIT);
     for (i=0; i<n_present; i++) {
-        if (present_items[i].cf==cf && present_items[i].key.b==key.b) {
+        if (present_items[i].key.b==key.b) {
             present_items[i]=present_items[n_present-1];
             n_present--;
             test_mutex_unlock();
