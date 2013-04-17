@@ -474,8 +474,8 @@ static const char * curr_env_ver_key = "current_version";
 // Following keys added in version 14, add more keys for future versions
 static const char * creation_time_key         = "creation_time";
 static const char * last_lsn_of_v13_key       = "last_lsn_of_v13";
-static const char * upgrade_v14_time_key      = "upgrade_v14_time";      
-static const char * upgrade_v14_footprint_key = "upgrade_v14_footprint";
+//static const char * upgrade_v14_time_key      = "upgrade_v14_time";      
+//static const char * upgrade_v14_footprint_key = "upgrade_v14_footprint";
 static const char * upgrade_v19_time_key      = "upgrade_v19_time";      
 static const char * upgrade_v19_footprint_key = "upgrade_v19_footprint";
 
