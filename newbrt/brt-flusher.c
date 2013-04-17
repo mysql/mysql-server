@@ -27,6 +27,8 @@ void toku_brt_flusher_get_status(BRT_FLUSHER_STATUS status) {
 #define ft_flush_before_merge 6
 #define ft_flush_after_merge 7
 #define ft_flush_after_rebalance 8
+#define ft_flush_before_unpin_remove 9
+#define ft_flush_before_pin_second_node_for_merge 10
 
 //
 // For test purposes only.
@@ -1323,6 +1325,8 @@ brt_merge_child(
         fill_bfe_for_full_read(&bfe, h);
         toku_pin_brtnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, 1, &node, &childa);
     }
+    // for test
+    call_flusher_thread_callback(ft_flush_before_pin_second_node_for_merge);
     {
         BRTNODE dep_nodes[2];
         dep_nodes[0] = node;
@@ -1385,6 +1389,9 @@ brt_merge_child(
     //
     if (did_merge) {
         BLOCKNUM bn = childb->thisnodename;
+        // for test
+        call_flusher_thread_callback(ft_flush_before_unpin_remove);
+
         // merge_remove_key_callback will free the blocknum
         int rrb = toku_cachetable_unpin_and_remove(
             h->cf,
