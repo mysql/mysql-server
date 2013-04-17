@@ -243,6 +243,25 @@ static int get_name_length(const char *name) {
     return n;
 }
 
+
+//
+// returns maximum length of dictionary name, such as key-NAME
+// NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
+//
+#define MAX_DICT_NAME_LEN NAME_CHAR_LEN + 10
+
+//
+// returns maximum length of path to a dictionary
+//
+static int get_max_dict_name_path_length(const char *tablename) {
+    int n = 0;
+    n += get_name_length(tablename);
+    n += 1; //for the '/'
+    n += MAX_DICT_NAME_LEN;
+    n += strlen(ha_tokudb_ext);
+    return n;
+}
+
 static void make_name(char *newname, const char *tablename, const char *dictname) {
     const char *newtablename = tablename;
     char *nn = newname;
@@ -815,15 +834,22 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
 //
 int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type) {
     int error = ENOSYS;
-    char part[MAX_ALIAS_NAME + 10];
+    char dict_name[MAX_DICT_NAME_LEN];
     char name_buff[FN_REFLEN];
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     char* newname = NULL;
-    newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
+    uint newname_len = 0;
+    
+    sprintf(dict_name, "key-%s", key_info->name);
+
+    newname_len = get_max_dict_name_path_length(name);
+    newname = (char *)my_malloc(newname_len, MYF(MY_WME|MY_ZEROFILL));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
     }
+    make_name(newname, name, dict_name);
+    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     open_flags += DB_AUTO_COMMIT;
 
@@ -831,9 +857,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
         my_errno = error;
         goto cleanup;
     }
-    sprintf(part, "key-%s", key_info->name);
-    make_name(newname, name, part);
-    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
     *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
     (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);    
     
@@ -929,11 +952,16 @@ int ha_tokudb::initialize_share(
     open_flags += DB_AUTO_COMMIT;
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
-    newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN,MYF(MY_WME));
+    newname = (char *)my_malloc(
+        get_max_dict_name_path_length(name),
+        MYF(MY_WME|MY_ZEROFILL)
+        );
     if (newname == NULL) { 
         error = ENOMEM;
         goto exit;
     }
+    make_name(newname, name, "main");
+    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
 
     //
@@ -1040,8 +1068,6 @@ int ha_tokudb::initialize_share(
     //
     share->file->set_bt_compare(share->file, tokudb_cmp_dbt_key);
     
-    make_name(newname, name, "main");
-    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
     error = share->file->open(share->file, 0, name_buff, NULL, DB_BTREE, open_flags, 0);
     if (error) {
         goto exit;
@@ -2091,7 +2117,10 @@ int ha_tokudb::get_status() {
     //
     if (!share->status_block) {
         char name_buff[FN_REFLEN];
-        newname = (char *)my_malloc(get_name_length(share->table_name) + NAME_CHAR_LEN, MYF(MY_WME));
+        newname = (char *)my_malloc(
+            get_max_dict_name_path_length(share->table_name), 
+            MYF(MY_WME)
+            );
         if (newname == NULL) {
             error = ENOMEM;
             goto cleanup;
@@ -4401,9 +4430,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     row_desc_buff = (uchar *)my_malloc(2*(form->s->fields * 6)+10 ,MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
-    dirname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
+    dirname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (dirname == NULL){ error = ENOMEM; goto cleanup;}
-    newname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
+    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
     primary_key = form->s->primary_key;
     hidden_primary_key = (primary_key  >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
@@ -4468,12 +4497,12 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
 
     /* Create the keys */
-    char part[MAX_ALIAS_NAME + 10];
+    char dict_name[MAX_DICT_NAME_LEN];
     for (uint i = 0; i < form->s->keys; i++) {
         if (i != primary_key) {
             int flags = (form->s->key_info[i].flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
-            sprintf(part, "key-%s", form->s->key_info[i].name);
-            make_name(newname, name, part);
+            sprintf(dict_name, "key-%s", form->s->key_info[i].name);
+            make_name(newname, name, dict_name);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             //
             // setup the row descriptor
@@ -4559,7 +4588,7 @@ int ha_tokudb::delete_table(const char *name) {
     int error;
     // remove all of the dictionaries in the table directory 
     char* newname = NULL;
-    newname = (char *)my_malloc((tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
+    newname = (char *)my_malloc(get_max_dict_name_path_length(name), MYF(MY_WME|MY_ZEROFILL));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -4990,6 +5019,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DBT current_primary_key;
     DB_TXN* txn = NULL;
     char* newname = NULL;
+    uint newname_len = 0;
     uchar* tmp_key_buff = NULL;
     uchar* tmp_prim_key_buff = NULL;
     uchar* tmp_record = NULL;
@@ -5014,7 +5044,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     ulonglong num_processed = 0; //variable that stores number of elements inserted thus far
     thd_proc_info(thd, "Adding indexes");
 
-    newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
+    newname_len = get_max_dict_name_path_length(share->table_name);
+    newname = (char *)my_malloc(newname_len, MYF(MY_WME));
     tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = table->record[0];
@@ -5056,11 +5087,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // first create all the DB's files
     //
     row_descriptor.data = row_desc_buff;
-    char part[MAX_ALIAS_NAME + 10];
+    char dict_name[MAX_DICT_NAME_LEN];
     for (uint i = 0; i < num_of_keys; i++) {
         int flags = (key_info[i].flags & HA_CLUSTERING) ? 0 : DB_DUP + DB_DUPSORT;
-        sprintf(part, "key-%s", key_info[i].name);
-        make_name(newname, share->table_name, part);
+        sprintf(dict_name, "key-%s", key_info[i].name);
+        make_name(newname, share->table_name, dict_name);
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
         //
         // setup the row descriptor
@@ -5301,8 +5332,8 @@ cleanup:
         }
         for (uint i = 0; i < num_files_created; i++) {
             DB* tmp;
-            sprintf(part, "key-%s", key_info[i].name);
-            make_name(newname, share->table_name, part);
+            sprintf(dict_name, "key-%s", key_info[i].name);
+            make_name(newname, share->table_name, dict_name);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             if (!(db_create(&tmp, db_env, 0))) {
                 tmp->remove(tmp, name_buff, NULL, 0);
@@ -5338,10 +5369,13 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     int error;
     char name_buff[FN_REFLEN];
     char* newname = NULL;
-    char part[MAX_ALIAS_NAME + 10];
+    char dict_name[MAX_DICT_NAME_LEN];
     DB** dbs_to_remove = NULL;
 
-    newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
+    newname = (char *)my_malloc(
+        get_max_dict_name_path_length(share->table_name), 
+        MYF(MY_WME|MY_ZEROFILL)
+        );
     if (newname == NULL) {
         error = ENOMEM; 
         goto cleanup;
@@ -5371,8 +5405,8 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
         share->key_file[curr_index]->close(share->key_file[curr_index],0);
         share->key_file[curr_index] = NULL;
         
-        sprintf(part, "key-%s", table_arg->key_info[curr_index].name);
-        make_name(newname, share->table_name, part);
+        sprintf(dict_name, "key-%s", table_arg->key_info[curr_index].name);
+        make_name(newname, share->table_name, dict_name);
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
         dbs_to_remove[i]->remove(dbs_to_remove[i], name_buff, NULL, 0);
