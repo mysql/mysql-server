@@ -50,7 +50,7 @@ static void test_sub_block(int n) {
     assert(error == 0);
 
     BRT_CURSOR cursor;
-    error = toku_brt_cursor(brt, &cursor);
+    error = toku_brt_cursor(brt, &cursor, NULL);
     assert(error == 0);
 
     for (i=0; ; i++) {

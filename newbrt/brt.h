@@ -84,7 +84,7 @@ int toku_verify_brt (BRT brt);
 //int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
-int toku_brt_cursor (BRT, BRT_CURSOR*);
+int toku_brt_cursor (BRT, BRT_CURSOR*, TOKULOGGER);
 
 // get is deprecated in favor of the individual functions below
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags, TOKUTXN txn);

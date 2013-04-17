@@ -2752,7 +2752,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
 	dbc_struct_i(result)->skey = &dbc_struct_i(result)->skey_s;
 	dbc_struct_i(result)->sval = &dbc_struct_i(result)->sval_s;
     }
-    int r = toku_brt_cursor(db->i->brt, &dbc_struct_i(result)->c);
+    int r = toku_brt_cursor(db->i->brt, &dbc_struct_i(result)->c, db->dbenv->i->logger);
     assert(r == 0);
     *c = result;
     return 0;

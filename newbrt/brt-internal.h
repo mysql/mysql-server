@@ -277,6 +277,7 @@ struct brt_cursor {
     DBT key, val;             // The key-value pair that the cursor currently points to
     OMTCURSOR omtcursor;
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
+    TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
     struct brt_cursor_leaf_info  leaf_info;
 };
 

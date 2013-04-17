@@ -42,9 +42,9 @@ void toku_rollback_txn_close (TOKUTXN txn) {
         assert(r==0);
     }
 
-    assert(oldest_living_xid <= txn->txnid64);
-    assert(oldest_living_xid < MAX_TXNID);
-    if (txn->txnid64 == oldest_living_xid) {
+    assert(txn->logger->oldest_living_xid <= txn->txnid64);
+    assert(txn->logger->oldest_living_xid < MAX_TXNID);
+    if (txn->txnid64 == txn->logger->oldest_living_xid) {
         TOKULOGGER logger = txn->logger;
 
         OMTVALUE oldest_txnv;
@@ -52,13 +52,13 @@ void toku_rollback_txn_close (TOKUTXN txn) {
         if (r==0) {
             TOKUTXN oldest_txn = oldest_txnv;
             assert(oldest_txn != txn); // We just removed it
-            assert(oldest_txn->txnid64 > oldest_living_xid); //Must be newer than the previous oldest
-            oldest_living_xid = oldest_txn->txnid64;
+            assert(oldest_txn->txnid64 > txn->logger->oldest_living_xid); //Must be newer than the previous oldest
+            txn->logger->oldest_living_xid = oldest_txn->txnid64;
         }
         else {
             //No living transactions
             assert(r==EINVAL);
-            oldest_living_xid = MAX_TXNID;
+            txn->logger->oldest_living_xid = MAX_TXNID;
         }
     }
 
