@@ -5581,6 +5581,55 @@ toku_brt_is_empty (BRT brt, /*out*/BOOL *try_again) {
     return is_empty_struct.is_empty_so_far;
 }
 
+static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
+    if (node->height > 0) {
+	if (node->u.n.n_bytes_in_buffers!=0) return 0; // it's not empty if there are bytes in buffers
+	for (int childnum=0; childnum<node->u.n.n_children; childnum++) {
+	    BRTNODE childnode;
+	    {
+		void *node_v;
+		BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
+		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
+		int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+		assert(rr ==0);
+		childnode = node_v;
+	    }
+	    int child_is_empty = is_empty_fast_iter(brt, childnode);
+	    {
+		int rr = toku_unpin_brtnode(brt, childnode);
+		assert(rr==0);
+	    }
+	    if (!child_is_empty) return 0;
+	}
+	return 1;
+    } else {
+	// leaf:  If the omt is empty, we are happy.
+	return toku_omt_size(node->u.l.buffer)==0;	
+    }
+}
+
+BOOL toku_brt_is_empty_fast (BRT brt)
+// A fast check to see if the tree is empty.  If there are any messages or leafentries, we consider the tree to be nonempty.  It's possible that those
+// messages and leafentries would all optimize away and that the tree is empty, but we'll say it is nonempty.
+{
+    u_int32_t fullhash;
+    CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
+    BRTNODE node;
+    //assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
+    {
+	void *node_v;
+	int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
+					     &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
+	assert(rr==0);
+	node = node_v;
+    }
+    BOOL r = is_empty_fast_iter(brt, node);
+    {
+	int rr = toku_unpin_brtnode(brt, node);
+	assert(rr==0);
+    }
+    return r;
+}
 
 int toku_brt_strerror_r(int error, char *buf, size_t buflen)
 {
