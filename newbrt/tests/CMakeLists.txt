@@ -104,6 +104,7 @@ if(BUILD_TESTING)
     subblock-test-compression
     benchmark-test
     benchmark-test_256
+    is_empty
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
 endif(BUILD_TESTING)
