@@ -114,16 +114,28 @@ int toku_cachefile_fsync(CACHEFILE cf);
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
 // Can access fd (fd is protected by a readlock during call)
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
 // Returns: 0 if success, otherwise an error number.  The address and size of the object
 // associated with the key are returned.
 // Can access fd (fd is protected by a readlock during call)
-typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs);
+typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *read_extraargs);
 
-typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
+typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *write_extraargs);
+
+// This callback is called by the cachetable to ask if a partial fetch is required of brtnode_pv. If a partial fetch
+// is required, then CACHETABLE_PARTIAL_FETCH_CALLBACK is called (possibly with ydb lock released). The reason
+// this callback exists instead of just doing the same functionality in CACHETABLE_PARTIAL_FETCH_CALLBACK 
+// is so that we can call this cheap function with the ydb lock held, in the hopes of avoiding the more expensive sequence
+// of releasing the ydb lock, calling the partial_fetch_callback, reading nothing, reacquiring the ydb lock
+typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, void *read_extraargs);
+
+// The partial fetch callback is called when a thread needs to read a subset of a PAIR into memory
+// Returns: 0 if success, otherwise an error number.  
+// The number of bytes added is returned in sizep
+typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, long *sizep);
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
@@ -154,9 +166,8 @@ CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 			void *value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback,
-                        CACHETABLE_FETCH_CALLBACK fetch_callback,
                         CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                        void *extraargs
+                        void *write_extraargs
                         );
 
 // Get and pin a memory object.
@@ -164,12 +175,20 @@ int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 // Otherwise, fetch it from storage by calling the fetch callback.  If the fetch
 // succeeded, add the memory object to the cachetable with a read lock on it.
 // Returns: 0 if the memory object is in memory, otherwise an error number.
-int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
-				void **/*value*/, long *sizep,
-				CACHETABLE_FLUSH_CALLBACK flush_callback,
-                                CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                                CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                                void *extraargs);
+int toku_cachetable_get_and_pin (
+    CACHEFILE cachefile, 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void**value, 
+    long *sizep,
+    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    void* read_extraargs,
+    void* write_extraargs
+    );
 
 typedef struct unlockers *UNLOCKERS;
 struct unlockers {
@@ -182,12 +201,22 @@ struct unlockers {
 // Effect:  If the block is in the cachetable, then return it. 
 //   Otherwise call the release_lock_callback, call the functions in unlockers, fetch the data (but don't pin it, since we'll just end up pinning it again later),
 //   and return TOKU_DB_TRYAGAIN.
-int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
-					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-					     void *extraargs,
-					     UNLOCKERS unlockers);
+int toku_cachetable_get_and_pin_nonblocking (
+    CACHEFILE cf, 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void**value, 
+    long *sizep,
+    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    void *read_extraargs,
+    void* write_extraargs,
+    UNLOCKERS unlockers
+    );
+
 #define CAN_RELEASE_LOCK_DURING_IO
 
 int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
@@ -227,8 +256,11 @@ int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing somethin
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                            void *extraargs);
+                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
+                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
+                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+                            void *read_extraargs, 
+                            void *write_extraargs);
 // Effect: Prefetch a memory object for a given key into the cachetable
 // Precondition: The cachetable mutex is NOT held.
 // Postcondition: The cachetable mutex is NOT held.

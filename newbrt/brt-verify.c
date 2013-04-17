@@ -113,8 +113,20 @@ toku_verify_brtnode (BRT brt,
     
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     {
-        int r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL,
-                                            toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+        int r = toku_cachetable_get_and_pin(
+            brt->cf, 
+            blocknum, 
+            fullhash, 
+            &node_v, 
+            NULL,
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback, 
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            brt->h, 
+            brt->h
+            );
         assert_zero(r); // this is a bad failure if it happens.
     }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);

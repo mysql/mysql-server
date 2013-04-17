@@ -54,20 +54,6 @@ other_flush (CACHEFILE f __attribute__((__unused__)),
        ) {
 }
 
-static int
-other_fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
-       int  *dirtyp,
-       void *extraargs    __attribute__((__unused__))
-       ) {
-    *dirtyp = 0;
-    return 0;
-}
-
 static int 
 pe_callback (
     void *brtnode_pv, 
@@ -95,6 +81,13 @@ other_pe_callback (
 {
     return 0;
 }
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+  return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+  assert(FALSE);
+}
 
 
 static void
@@ -113,24 +106,24 @@ cachetable_test (void) {
     long s1, s2;
     flush_may_occur = FALSE;
     for (int i = 0; i < 100000; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, pe_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
         r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, 4);
     }
     for (int i = 0; i < 8; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, pe_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
         r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, 4);
     }
     for (int i = 0; i < 4; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, flush, fetch, pe_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
         r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, 4);
     }
     for (int i = 0; i < 2; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, flush, fetch, pe_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
         r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, 4);
     }
     flush_may_occur = FALSE;
     expected_bytes_to_free = 4;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, 4, other_flush, other_fetch, other_pe_callback, NULL);
+    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, 4, other_flush, other_pe_callback, NULL);
     flush_may_occur = TRUE;
     r = toku_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, 4);
 

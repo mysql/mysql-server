@@ -19,16 +19,6 @@ static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *ext
     if (keep_me) n_keep_me++;
 }
 
-static int fetch(CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs) {
-    cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
-    assert(0); // should not be called
-    n_fetch++;
-    *value = 0;
-    *sizep = item_size;
-    *dirtyp = 0;
-    return 0;
-}
-
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -82,7 +72,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, fetch, pe_callback, 0);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_callback, 0);
         assert(r == 0);
 
         r = toku_cachetable_unpin(f1, key, hi, dirty, item_size);
