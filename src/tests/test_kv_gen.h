@@ -84,9 +84,11 @@ pkey_for_val(int key, int i) {
     return rotr32(key, i) - MAGIC;
 }
 
+
+  // don't check first n rows (expect to have been deleted)
 static void UU()
-check_results(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows)
-{
+check_results_after_row_n(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows, const int first_row_to_check) {
+
     for(int j=0;j<num_dbs;j++){
         DBT key, val;
         unsigned int k=0, v=0;
@@ -102,7 +104,7 @@ check_results(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows)
         DBC *cursor;
         r = dbs[j]->cursor(dbs[j], txn, &cursor, 0);
         CKERR(r);
-        for(int i=0;i<num_rows;i++) {
+        for(int i=first_row_to_check; i<num_rows; i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);    
             CKERR(r);
             k = *(unsigned int*)key.data;
@@ -123,6 +125,13 @@ check_results(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows)
     }
     if ( verbose ) {printf("ok");fflush(stdout);}
 }
+
+static void UU()
+check_results(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows)
+{
+  check_results_after_row_n(env, dbs, num_dbs, num_rows, 0);
+}
+
 
 static int UU() 
 put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
