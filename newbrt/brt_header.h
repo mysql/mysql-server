@@ -58,6 +58,7 @@ toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn);
 void
 toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn);
 
-CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
+void toku_calculate_root_offset_pointer ( struct brt_header* h, CACHEKEY* root_key, u_int32_t *roothash);
+void toku_brtheader_set_new_root_blocknum(struct brt_header* h, CACHEKEY new_root_key); 
 
 #endif

@@ -403,10 +403,11 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_brtheader_grab_treelock(h);
 
             u_int32_t fullhash;
-            CACHEKEY *rootp = toku_calculate_root_offset_pointer(h, &fullhash);
+            CACHEKEY root;
+            toku_calculate_root_offset_pointer(h, &root, &fullhash);
             struct brtnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, TRUE, 0, NULL, &root_node);
+            toku_pin_brtnode_off_client_thread(h, root, fullhash, &bfe, TRUE, 0, NULL, &root_node);
             toku_assert_entire_node_in_memory(root_node);
 
             toku_brtheader_release_treelock(h);

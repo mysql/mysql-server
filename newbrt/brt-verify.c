@@ -407,8 +407,9 @@ toku_verify_brt_with_progress (BRT brt, int (*progress_callback)(void *extra, fl
         toku_brtheader_grab_treelock(brt->h);
 
         u_int32_t root_hash;
-        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &root_hash);
-        toku_get_node_for_verify(*rootp, brt, &root_node);
+        CACHEKEY root_key;
+        toku_calculate_root_offset_pointer(brt->h, &root_key, &root_hash);
+        toku_get_node_for_verify(root_key, brt, &root_node);
 
         toku_brtheader_release_treelock(brt->h);
     }

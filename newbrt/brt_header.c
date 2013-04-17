@@ -336,7 +336,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 }
 
 //
-// End of Functions that are callbacks to the cachefule
+// End of Functions that are callbacks to the cachefile
 /////////////////////////////////////////////////////////////////////////
 
 static int setup_initial_brtheader_root_node (struct brt_header* h, BLOCKNUM blocknum) {
@@ -873,9 +873,21 @@ toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn) {
     }
 }
 
-CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *roothash) {
+void toku_calculate_root_offset_pointer (
+    struct brt_header* h, 
+    CACHEKEY* root_key, 
+    u_int32_t *roothash
+    ) 
+{
     *roothash = toku_cachetable_hash(h->cf, h->root_blocknum);
-    return &h->root_blocknum;
+    *root_key = h->root_blocknum;
 }
 
+void toku_brtheader_set_new_root_blocknum(
+    struct brt_header* h, 
+    CACHEKEY new_root_key
+    ) 
+{
+    h->root_blocknum = new_root_key;
+}
 

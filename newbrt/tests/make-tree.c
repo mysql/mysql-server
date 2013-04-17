@@ -132,13 +132,8 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     int seq = 0, minkey, maxkey;
     BRTNODE newroot = make_tree(brt, height, fanout, nperleaf, &seq, &minkey, &maxkey);
 
-    // discard the old root block
-    u_int32_t fullhash = 0;
-    CACHEKEY *rootp;
-    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
     // set the new root to point to the new tree
-    *rootp = newroot->thisnodename;
+    toku_brtheader_set_new_root_blocknum(brt->h, newroot->thisnodename);
 
     newroot->max_msn_applied_to_node_on_disk = last_dummymsn(); // capture msn of last message injected into tree
 
