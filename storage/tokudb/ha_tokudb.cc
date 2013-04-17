@@ -578,8 +578,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         // No primary key
         primary_key = table_share->keys;
         key_used_on_scan = MAX_KEY;
-        ref_length = hidden_primary_key = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
-    } 
+        hidden_primary_key = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
+        ref_length = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(u_int32_t);
+	}
     else {
         key_used_on_scan = primary_key;
     }
@@ -1674,7 +1675,7 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         ref2 + sizeof(u_int32_t),
         *(u_int32_t *)ref2,
         (uchar *)share->file->descriptor.data + 4,
-        *(u_int32_t *)share->file->descriptor.data,
+        *(u_int32_t *)share->file->descriptor.data - 4,
         false
         );
     return ret_val;
@@ -2982,14 +2983,8 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
     bzero((void *) to, sizeof(*to));
-    if (hidden_primary_key) {
-        to->data = pos;
-        to->size = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
-    }
-    else {
-        to->data = pos + sizeof(u_int32_t);
-        to->size = *(u_int32_t *)pos;
-    }
+    to->data = pos + sizeof(u_int32_t);
+    to->size = *(u_int32_t *)pos;
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
     DBUG_RETURN(to);
 }
@@ -3153,8 +3148,9 @@ void ha_tokudb::position(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::position");
     DBT key;
     if (hidden_primary_key) {
-        DBUG_ASSERT(ref_length == TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
-        memcpy_fixed(ref, (char *) current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+        DBUG_ASSERT(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(u_int32_t)));
+        memcpy_fixed(ref + sizeof(u_int32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+		*(u_int32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
     } 
     else {
         bool has_null;
