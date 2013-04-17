@@ -41,6 +41,8 @@ int test_main (int argc, char *argv[]) {
 	    r = db->put(db, txnx, dbt_init(&key, "x", 4), dbt_init(&val, "x", 4), 0);   CKERR(r);
 	    dbt_init_malloc(&val);
 	    r = db->get(db, txna, dbt_init(&key, "x", 4), &val, 0);                     CKERR(r);
+            toku_free(val.data);
+            val.data = NULL;
 	}
 //	r = txnb->commit(txnb, 0);                                                      CKERR(r);
     }
