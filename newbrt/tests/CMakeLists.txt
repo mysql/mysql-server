@@ -109,13 +109,19 @@ if(BUILD_TESTING)
     subblock-test-compression
     is_empty
     recovery-bad-last-entry
+    brtloader-test-extractor-3a
+    upgrade_test_simple
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
     subblock-test-checksum
+    )
+  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
+  ## these take a really long time with valgrind
+  set(phenomenally_long_tests
     benchmark-test
     benchmark-test_256
     )
-  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
+  set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING)
