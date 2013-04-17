@@ -5,6 +5,15 @@
 #include <db.h>
 #include "hatoku_cmp.h"
 
+typedef struct st_col_pack_info {
+    u_int32_t col_pack_val; //offset if fixed, pack_index if var
+} COL_PACK_INFO;
+
+typedef struct st_multi_col_pack_info {
+    u_int32_t var_len_offset; //where the fixed length stuff ends and the offsets for var stuff begins
+    u_int32_t len_of_offsets; //length of the offset bytes in a packed row
+} MULTI_COL_PACK_INFO;
+
 typedef struct st_tokudb_share {
     char *table_name;
     uint table_name_length, use_count;
@@ -36,7 +45,6 @@ typedef struct st_tokudb_share {
     u_int32_t key_type[MAX_KEY +1];
     uint status, version, capabilities;
     uint ref_length;
-    bool fixed_length_row; 
     //
     // whether table has an auto increment column
     //
@@ -45,6 +53,15 @@ typedef struct st_tokudb_share {
     // index of auto increment column in table->field, if auto_inc exists
     //
     uint ai_field_index;
+
+    MY_BITMAP key_filters[MAX_KEY+1];
+    uchar* field_lengths; //stores the field lengths of fixed size fields (255 max)
+    uchar* length_bytes; // stores the length of lengths of varchars and varbinaries
+    u_int32_t* blob_fields; // list of indexes of blob fields
+    u_int32_t num_blobs;
+    MULTI_COL_PACK_INFO mcp_info[MAX_KEY+1];
+    COL_PACK_INFO* cp_info[MAX_KEY+1];
+    u_int32_t num_offset_bytes; //number of bytes needed to encode the offset
 } TOKUDB_SHARE;
 
 #define HA_TOKU_VERSION 2
@@ -66,10 +83,10 @@ typedef ulonglong HA_METADATA_KEY;
 #define hatoku_max_ai 2 //maximum auto increment value found so far
 #define hatoku_ai_create_value 3
 
-typedef struct st_prim_key_part_info {
+typedef struct st_filter_key_part_info {
     uint offset;
     uint part_index;
-} PRIM_KEY_PART_INFO;
+} FILTER_KEY_PART_INFO;
 
 typedef enum {
     lock_read = 0,
@@ -125,6 +142,19 @@ private:
     //
     uchar *primary_key_buff;
 
+    bool unpack_entire_row;
+
+    //
+    // buffers (and their sizes) that will hold the indexes
+    // of fields that need to be read for a query
+    //
+    u_int32_t* fixed_cols_for_query;
+    u_int32_t num_fixed_cols_for_query;
+    u_int32_t* var_cols_for_query;
+    u_int32_t num_var_cols_for_query;
+    bool read_blobs;
+    bool read_key;
+
     //
     // transaction used by ha_tokudb's cursor
     //
@@ -159,11 +189,6 @@ private:
     ulonglong num_deleted_rows_in_stmt;
     ulonglong num_updated_rows_in_stmt;
 
-    //
-    // index into key_file that holds DB* that is indexed on
-    // the primary_key. this->key_file[primary_index] == this->file
-    //
-    uint primary_key;
     uint last_dup_key;
     //
     // if set to 0, then the primary key is not hidden
@@ -186,8 +211,6 @@ private:
     //
     bool range_lock_grabbed;
 
-    PRIM_KEY_PART_INFO* primary_key_offsets;
-
     //
     // buffer for updating the status of long insert, delete, and update
     // statements. Right now, the the messages are 
@@ -200,7 +223,11 @@ private:
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
-    int pack_row(DBT * row, const uchar * record, bool strip_pk);
+    int pack_row(
+        DBT * row, 
+        const uchar* record,
+        uint index
+        );
     u_int32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
     void unpack_key(uchar * record, DBT const *key, uint index);
     u_int32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
@@ -222,6 +249,12 @@ private:
     int update_max_auto_inc(DB* db, ulonglong val);
     int write_auto_inc_create(DB* db, ulonglong val);
     void init_auto_increment();
+    int initialize_share(
+        const char* name,
+        int mode
+        );
+
+    void set_query_columns(uint keynr);
 
  
 public:
@@ -361,9 +394,20 @@ public:
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     void read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
-    void unpack_row(uchar * record, DBT const *row, DBT const *key, bool pk_stripped);
+    void unpack_row(
+        uchar* record, 
+        DBT const *row, 
+        DBT const *key,
+        uint index
+        );
 
     int heavi_ret_val;
+
+    //
+    // index into key_file that holds DB* that is indexed on
+    // the primary_key. this->key_file[primary_index] == this->file
+    //
+    uint primary_key;
 
 private:
     int read_full_row(uchar * buf);
