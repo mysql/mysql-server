@@ -473,6 +473,7 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 
 int
 toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_threads), /*out*/ size_t *n_bytes_to_write, /*out*/ char  **bytes_to_write) {
+    int result = 0;
 
     // get the size of the serialized node
     size_t calculated_size = toku_serialize_brtnode_size(node); 
@@ -492,18 +493,22 @@ toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_th
 
     // allocate space for the serialized node
     char *MALLOC_N(calculated_size, buf);
-    //toku_verify_counts(node);
-    //assert(size>0);
-    //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
+    if (buf == NULL)
+        result = errno;
+    else {
+        //toku_verify_counts(node);
+        //assert(size>0);
+        //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
 
-    // serialize the node into buf
-    serialize_node(node, buf, calculated_size, n_sub_blocks, sub_block);
+        // serialize the node into buf
+        serialize_node(node, buf, calculated_size, n_sub_blocks, sub_block);
 
-    //Compress and malloc buffer to write
-    serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
-                                           n_bytes_to_write, bytes_to_write);
-    toku_free(buf);
-    return 0;
+        //Compress and malloc buffer to write
+        serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+                                               n_bytes_to_write, bytes_to_write);
+        toku_free(buf);
+    }
+    return result;
 }
 
 int 
