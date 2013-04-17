@@ -137,11 +137,15 @@ enum brt_header_flags {
 };
 
 int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);
+struct brtstat64_s {
+    u_int64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
+    u_int64_t ndata; /* estimate the number of pairs (exact when flattened and committed)               */
+    u_int64_t dsize; /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
+    u_int64_t fsize;  /* the size of the underlying file                                                */
+    u_int64_t ffree; /* Number of free bytes in the underlying file                                    */
+};
 int toku_brt_stat64 (BRT, TOKUTXN,
-		     u_int64_t *nkeys, /* estimate how many unique keys (even when flattened this may be an estimate)     */
-		     u_int64_t *ndata, /* estimate the number of pairs (exact when flattened and committed)               */
-		     u_int64_t *dsize, /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
-		     u_int64_t *fsize  /* the size of the underlying file                                                 */
+		     struct brtstat64_s *stat
 		     );
 
 int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));

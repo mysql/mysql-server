@@ -42,7 +42,7 @@ create_block_allocator (BLOCK_ALLOCATOR * ba, u_int64_t reserve_at_beginning, u_
 //  Aborts if we run out of memory.
 // Parameters
 //  ba (OUT):                        Result stored here.
-//  reserve_at_beginning (IN)        Size of reserved block at beginning.
+//  reserve_at_beginning (IN)        Size of reserved block at beginning.  This size does not have to be aligned.
 //  alignment (IN)                   Block alignment.
 
 void
@@ -73,7 +73,7 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
 //  The block address will be a multiple of the alignment.
 // Parameters:
 //  ba (IN/OUT):  The block allocator.   (Modifies ba.)
-//  size (IN):    The size of the block.
+//  size (IN):    The size of the block.  (The size does not have to be aligned.)
 //  offset (OUT): The location of the block.
 
 void
@@ -108,5 +108,12 @@ block_allocator_allocated_limit (BLOCK_ALLOCATOR ba);
 // Rationale: When writing the root FIFO we don't know how big the block is.
 //  So we start at the "infinite" block, write the fifo, and then
 //  allocate_block_at of the correct size and offset to account for the root FIFO.
+
+int
+block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, u_int64_t b, u_int64_t *offset, u_int64_t *size);
+// Effect: Consider the blocks in sorted order.  The reserved block at the beginning is number 0.  The next one is number 1 and so forth.
+// Return the offset and size of the block with that number.
+// Return 0 if there is a block that big, return nonzero if b is too big.
+// This is probably only useful for tests.
 
 #endif

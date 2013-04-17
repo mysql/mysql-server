@@ -3558,14 +3558,21 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 static int toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    return toku_brt_stat64(db->i->brt, db_txn_struct_i(txn)->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize, &s->bt_fsize);
+    struct brtstat64_s brtstat;
+    int r = toku_brt_stat64(db->i->brt, db_txn_struct_i(txn)->tokutxn, &brtstat);
+    if (r==0) {
+	s->bt_nkeys = brtstat.nkeys;
+	s->bt_ndata = brtstat.ndata;
+	s->bt_dsize = brtstat.dsize;
+	s->bt_fsize = brtstat.fsize;
+    }
+    return r;
 }
 static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     toku_ydb_lock();
     int r = toku_db_stat64(db, txn, s);
     toku_ydb_unlock();
     return r;
-
 }
 
 static int toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
