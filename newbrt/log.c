@@ -3,6 +3,17 @@
 
 #include "includes.h"
 
+static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+void toku_logger_lock_init(void) {
+    int r = toku_pthread_mutex_init(&logger_mutex, NULL);
+    assert(r == 0);
+}
+
+void toku_logger_lock_destroy(void) {
+    int r = toku_pthread_mutex_destroy(&logger_mutex);
+    assert(r == 0);
+}
+
 void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {
     return malloc_in_memarena(txn->rollentry_arena, size);
 }
@@ -309,25 +320,35 @@ int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsy
 // No locks held on entry
 // No locks held on exit.
 // No locks are needed, since you cannot legally close the log concurrently with doing anything else.
-// But grab the locks just to be careful.
+// But grab the locks just to be careful, including one to prevent access
+// between unlocking and destroying.
 int toku_logger_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     if (logger->is_panicked) return EINVAL;
     int r = 0;
+    int locked_logger = 0;
     if (!logger->is_open) goto is_closed;
     r = ml_lock(&logger->output_lock); if (r!=0) goto panic;
-    r = ml_lock(&logger->input_lock); if (r!=0) goto panic;
-    r = do_write(logger, 1);              if (r!=0) goto panic;
+    r = ml_lock(&logger->input_lock);  if (r!=0) goto panic;
+    r = toku_pthread_mutex_lock(&logger_mutex); if (r!=0) goto panic;
+    locked_logger = 1;
+    r = do_write(logger, 1);           if (r!=0) goto panic; //Releases the input lock
     if (logger->fd!=-1) {
-	r = close(logger->fd);                if (r!=0) { r=errno; goto panic; }
+	r = close(logger->fd);         if (r!=0) { r=errno; goto panic; }
     }
     logger->fd=-1;
-    r = ml_unlock(&logger->output_lock);
+
+    r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
+    r = ml_destroy(&logger->output_lock); if (r!=0) goto panic;
+    r = ml_destroy(&logger->input_lock);  if (r!=0) goto panic;
  is_closed:
     logger->is_panicked=1; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_free(logger);
     *loggerp=0;
+    if (locked_logger) {
+        r = toku_pthread_mutex_unlock(&logger_mutex); if (r!=0) goto panic;
+    }
     return r;
  panic:
     toku_logger_panic(logger, r);
@@ -1093,3 +1114,4 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     if (r == 0) *txnptr = txnv;
     return r;
 }
+
