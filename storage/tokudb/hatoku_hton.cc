@@ -762,6 +762,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable wait reading", buf);
       sprintf(buf, "%" PRIu64, engstat.cachetable_wait_writing);  
       STATPRINT("cachetable wait writing", buf);
+      sprintf(buf, "%" PRIu64, engstat.puts);  
+      STATPRINT("cachetable puts (new node)", buf);
+      sprintf(buf, "%" PRIu64, engstat.prefetches);  
+      STATPRINT("cachetable prefetches", buf);
+      sprintf(buf, "%" PRIu64, engstat.maybe_get_and_pins);  
+      STATPRINT("cachetable maybe_get_and_pins", buf);
+      sprintf(buf, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
+      STATPRINT("cachetable maybe_get_and_pin_hits", buf);
       sprintf(buf, "%" PRIu64, engstat.cachetable_size_current);  
       STATPRINT("cachetable size_current", buf);
       sprintf(buf, "%" PRIu64, engstat.cachetable_size_limit);  
