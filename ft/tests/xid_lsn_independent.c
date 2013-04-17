@@ -133,7 +133,7 @@ static void test_xid_lsn_independent_crash_recovery(int N) {
 
     TXNID last_xid_after = logger_get_last_xid(logger);
 
-    invariant(last_xid_after >= last_xid_before);
+    invariant(last_xid_after == last_xid_before);
 
     shutdown_after_recovery(&logger, &ct);
 }
@@ -159,7 +159,7 @@ static void test_xid_lsn_independent_shutdown_recovery(int N) {
 
     TXNID last_xid_after = logger_get_last_xid(logger);
 
-    invariant(last_xid_after >= last_xid_before);
+    invariant(last_xid_after == last_xid_before);
 
     shutdown_after_recovery(&logger, &ct);
 }

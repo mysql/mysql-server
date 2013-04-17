@@ -53,6 +53,8 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define lazy_assert(a)          assert(a)      // indicates code is incomplete 
 #define lazy_assert_zero(a)     assert_zero(a) // indicates code is incomplete 
 #define invariant(a)            assert(a)      // indicates a code invariant that must be true
+#define invariant_null(a)       assert_zero(a) // indicates a code invariant that must be true
+#define invariant_notnull(a)    assert(a)      // indicates a code invariant that must be true
 #define invariant_zero(a)       assert_zero(a) // indicates a code invariant that must be true
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable

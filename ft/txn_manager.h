@@ -69,7 +69,7 @@ void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN t
 void toku_txn_manager_suspend(TXN_MANAGER txn_manager);
 void toku_txn_manager_resume(TXN_MANAGER txn_manager);
 
-void toku_txn_manager_set_last_xid_from_logger(TXN_MANAGER txn_manager, TOKULOGGER logger);
+void toku_txn_manager_set_last_xid_from_logger(TXN_MANAGER txn_manager, TXNID last_xid);
 void toku_txn_manager_set_last_xid_from_recovered_checkpoint(TXN_MANAGER txn_manager, TXNID last_xid);
 TXNID toku_txn_manager_get_last_xid(TXN_MANAGER mgr);
 

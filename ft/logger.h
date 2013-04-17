@@ -25,6 +25,7 @@ enum {
 
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
+int toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid);
 int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create);

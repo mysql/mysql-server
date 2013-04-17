@@ -1143,6 +1143,16 @@ static int toku_recover_backward_comment (struct logtype_comment *UU(l), RECOVER
     return 0;
 }
 
+static int toku_recover_shutdown_up_to_19 (struct logtype_shutdown_up_to_19 *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_backward_shutdown_up_to_19 (struct logtype_shutdown_up_to_19 *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
 static int toku_recover_shutdown (struct logtype_shutdown *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
@@ -1195,8 +1205,6 @@ static int toku_recover_backward_hot_index(struct logtype_hot_index *UU(l), RECO
 
 // Effects: If there are no log files, or if there is a clean "shutdown" at
 // the end of the log, then we don't need recovery to run.
-// Requires: the shutdown log entry does not change between tokudb versions,
-// must always remain readable.
 // Returns: TRUE if we need recovery, otherwise FALSE.
 int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     int needs_recovery;

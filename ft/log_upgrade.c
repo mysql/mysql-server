@@ -24,13 +24,13 @@ toku_log_upgrade_get_footprint(void) {
 
 
 // return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
-static int 
-verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn) {
+static int
+verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn, TXNID *last_xid) {
     int rval = TOKUDB_UPGRADE_FAILURE;
     TOKULOGCURSOR cursor = NULL;
     int r;
     FOOTPRINTSETUP(100);
-    
+
     FOOTPRINT(1);
 
     r = toku_logcursor_create(&cursor, log_dir);
@@ -41,8 +41,12 @@ verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn
         FOOTPRINT(2);
         if (le->cmd==LT_shutdown) {
             LSN lsn = le->u.shutdown.lsn;
-            if (last_lsn)
-            *last_lsn = lsn;
+            if (last_lsn) {
+                *last_lsn = lsn;
+            }
+            if (last_xid) {
+                *last_xid = le->u.shutdown.last_xid;
+            }
             rval = 0;
         }
     }
@@ -54,12 +58,12 @@ verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn
 
 
 // return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
-static int 
-verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
+static int
+verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn, TXNID *last_xid, uint32_t version) {
     int rval = TOKUDB_UPGRADE_FAILURE;
     int r;
     FOOTPRINTSETUP(10);
-    
+
     FOOTPRINT(1);
 
     int n_logfiles;
@@ -73,28 +77,51 @@ verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
     // Only look at newest log
     // basename points to first char after last / in file pathname
     basename = strrchr(logfiles[n_logfiles-1], '/') + 1;
-    int version;
+    uint32_t version_name;
     long long index = -1;
-    r = sscanf(basename, "log%lld.tokulog%d", &index, &version);
+    r = sscanf(basename, "log%lld.tokulog%u", &index, &version_name);
     assert(r==2);  // found index and version
+    invariant(version_name == version);
     assert(version>=TOKU_LOG_MIN_SUPPORTED_VERSION);
     assert(version< TOKU_LOG_VERSION); //Must be old
     // find last LSN
     r = toku_logcursor_create_for_file(&cursor, log_dir, basename);
-    if (r==0) {
-        r = toku_logcursor_last(cursor, &entry);
-        if (r == 0) {
-            FOOTPRINT(2);
-            if (entry->cmd==LT_shutdown) {
-                LSN lsn = entry->u.shutdown.lsn;
-                if (last_lsn)
-                    *last_lsn = lsn;
-                rval = 0;
-            }
-        }
-        r = toku_logcursor_destroy(&cursor);
-        assert(r == 0);
+    if (r != 0) {
+        goto cleanup_no_logcursor;
     }
+    r = toku_logcursor_last(cursor, &entry);
+    if (r != 0) {
+        goto cleanup;
+    }
+    FOOTPRINT(2);
+    //TODO: Remove this special case once FT_LAYOUT_VERSION_19 (and older) are not supported.
+    if (version <= FT_LAYOUT_VERSION_19) {
+        if (entry->cmd==LT_shutdown_up_to_19) {
+            LSN lsn = entry->u.shutdown_up_to_19.lsn;
+            if (last_lsn) {
+                *last_lsn = lsn;
+            }
+            if (last_xid) {
+                // Use lsn as last_xid.
+                *last_xid = lsn.lsn;
+            }
+            rval = 0;
+        }
+    }
+    else if (entry->cmd==LT_shutdown) {
+        LSN lsn = entry->u.shutdown.lsn;
+        if (last_lsn) {
+            *last_lsn = lsn;
+        }
+        if (last_xid) {
+            *last_xid = entry->u.shutdown.last_xid;
+        }
+        rval = 0;
+    }
+cleanup:
+    r = toku_logcursor_destroy(&cursor);
+    assert(r == 0);
+cleanup_no_logcursor:
     for(int i=0;i<n_logfiles;i++) {
         toku_free(logfiles[i]);
     }
@@ -105,14 +132,14 @@ verify_clean_shutdown_of_log_version_old(const char *log_dir, LSN * last_lsn) {
 
 
 static int
-verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN *last_lsn) {
+verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN *last_lsn, TXNID *last_xid) {
     // return 0 if clean shutdown, TOKUDB_UPGRADE_FAILURE if not clean shutdown
     int r = 0;
     FOOTPRINTSETUP(1000);
 
     if (version < TOKU_LOG_VERSION)  {
         FOOTPRINT(1);
-        r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn);
+        r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn, last_xid, version);
 	if (r != 0) {
 	    fprintf(stderr, "Cannot upgrade TokuDB version %d database.", version);
 	    fprintf(stderr, "  Previous improper shutdown detected.\n");
@@ -121,19 +148,19 @@ verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN 
     else {
         FOOTPRINT(2);
         assert(version == TOKU_LOG_VERSION);
-        r = verify_clean_shutdown_of_log_version_current(log_dir, last_lsn);
+        r = verify_clean_shutdown_of_log_version_current(log_dir, last_lsn, last_xid);
     }
     FOOTPRINTCAPTURE;
     return r;
 }
-    
+
 
 // Actually create a log file of the current version, making the environment be of the current version.
 static int
-upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the real deal
+upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn, TXNID last_xid) { // the real deal
     int r;
     FOOTPRINTSETUP(10000);
-    
+
     LSN initial_lsn = last_lsn;
     initial_lsn.lsn++;
     CACHETABLE ct;
@@ -148,7 +175,7 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the rea
         r = toku_logger_create(&logger);
         assert(r == 0);
         toku_logger_set_cachetable(logger, ct);
-        r = toku_logger_open(log_dir, logger);
+        r = toku_logger_open_with_last_xid(log_dir, logger, last_xid);
         assert(r==0);
     }
     { //Checkpoint
@@ -156,7 +183,7 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the rea
         assert(r == 0);
     }
     { //Close cachetable and logger
-        r = toku_logger_shutdown(logger); 
+        r = toku_logger_shutdown(logger);
         assert(r==0);
         r = toku_cachetable_close(&ct);
         assert(r==0);
@@ -164,7 +191,7 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the rea
         assert(r==0);
     }
     {
-        r = verify_clean_shutdown_of_log_version(log_dir, TOKU_LOG_VERSION, NULL);
+        r = verify_clean_shutdown_of_log_version(log_dir, TOKU_LOG_VERSION, NULL, NULL);
         assert(r==0);
     }
     FOOTPRINTCAPTURE;
@@ -184,43 +211,49 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
 
     FOOTPRINT(1);
     r = toku_recover_lock(log_dir, &lockfd);
-    if (r == 0) {
-    FOOTPRINT(2);
-        assert(log_dir);
-        assert(env_dir);
-
-        uint32_t version_of_logs_on_disk;
-        BOOL found_any_logs;
-        r = toku_get_version_of_logs_on_disk(log_dir, &found_any_logs, &version_of_logs_on_disk);
-        if (r==0) {
-        FOOTPRINT(3);
-            if (!found_any_logs)
-                r = 0; //No logs means no logs to upgrade.
-            else if (version_of_logs_on_disk > TOKU_LOG_VERSION)
-                r = TOKUDB_DICTIONARY_TOO_NEW;
-            else if (version_of_logs_on_disk < TOKU_LOG_MIN_SUPPORTED_VERSION)
-                r = TOKUDB_DICTIONARY_TOO_OLD;
-            else if (version_of_logs_on_disk == TOKU_LOG_VERSION)
-                r = 0; //Logs are up to date
-            else {
-                FOOTPRINT(4);
-                LSN last_lsn;
-                r = verify_clean_shutdown_of_log_version(log_dir, version_of_logs_on_disk, &last_lsn);
-                if (r==0) {
-                    FOOTPRINT(5);
-                    *lsn_of_clean_shutdown = last_lsn;
-                    *upgrade_in_progress = TRUE;
-                    r = upgrade_log(env_dir, log_dir, last_lsn);
-                }
-            }
-        }
-        {
-            //Clean up
-            int rc;
-            rc = toku_recover_unlock(lockfd);
-            if (r==0) r = rc;
-        }
+    if (r != 0) {
+        goto cleanup_no_lock;
     }
+    FOOTPRINT(2);
+    assert(log_dir);
+    assert(env_dir);
+
+    uint32_t version_of_logs_on_disk;
+    BOOL found_any_logs;
+    r = toku_get_version_of_logs_on_disk(log_dir, &found_any_logs, &version_of_logs_on_disk);
+    if (r != 0) {
+        goto cleanup;
+    }
+    FOOTPRINT(3);
+    if (!found_any_logs)
+        r = 0; //No logs means no logs to upgrade.
+    else if (version_of_logs_on_disk > TOKU_LOG_VERSION)
+        r = TOKUDB_DICTIONARY_TOO_NEW;
+    else if (version_of_logs_on_disk < TOKU_LOG_MIN_SUPPORTED_VERSION)
+        r = TOKUDB_DICTIONARY_TOO_OLD;
+    else if (version_of_logs_on_disk == TOKU_LOG_VERSION)
+        r = 0; //Logs are up to date
+    else {
+        FOOTPRINT(4);
+        LSN last_lsn;
+        TXNID last_xid;
+        r = verify_clean_shutdown_of_log_version(log_dir, version_of_logs_on_disk, &last_lsn, &last_xid);
+        if (r != 0) {
+            goto cleanup;
+        }
+        FOOTPRINT(5);
+        *lsn_of_clean_shutdown = last_lsn;
+        *upgrade_in_progress = TRUE;
+        r = upgrade_log(env_dir, log_dir, last_lsn, last_xid);
+    }
+cleanup:
+    {
+        //Clean up
+        int rc;
+        rc = toku_recover_unlock(lockfd);
+        if (r==0) r = rc;
+    }
+cleanup_no_lock:
     FOOTPRINTCAPTURE;
     return r;
 }

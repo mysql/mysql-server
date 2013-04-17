@@ -243,7 +243,7 @@ TXNID
 toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
     TXNID rval = TXNID_NONE_LIVING;
     toku_mutex_lock(&txn_manager->txn_manager_lock);
-    
+
     if (toku_omt_size(txn_manager->live_root_txns) > 0) {
         OMTVALUE txnidv;
         // We use live_root_txns because roots are always older than children,
@@ -831,10 +831,9 @@ void toku_txn_manager_resume(TXN_MANAGER txn_manager) {
 }
 
 void
-toku_txn_manager_set_last_xid_from_logger(TXN_MANAGER txn_manager, TOKULOGGER logger) {
+toku_txn_manager_set_last_xid_from_logger(TXN_MANAGER txn_manager, TXNID last_xid) {
     invariant(txn_manager->last_xid == TXNID_NONE);
-    LSN last_lsn = toku_logger_last_lsn(logger);
-    txn_manager->last_xid = last_lsn.lsn;
+    txn_manager->last_xid = last_xid;
 }
 
 void

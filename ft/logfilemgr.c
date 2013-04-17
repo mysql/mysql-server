@@ -44,8 +44,9 @@ int toku_logfilemgr_destroy(TOKULOGFILEMGR *lfm) {
     return r;
 }
 
-int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
-    assert(lfm!=0);
+int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir, TXNID *last_xid_if_clean_shutdown) {
+    invariant_notnull(lfm);
+    invariant_notnull(last_xid_if_clean_shutdown);
 
     int r;
     int n_logfiles;
@@ -60,6 +61,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
     long long index = -1;
     char *basename;
     LSN tmp_lsn = {0};
+    TXNID last_xid = TXNID_NONE;
     for(int i=0;i<n_logfiles;i++){
         lf_info = toku_xmalloc(sizeof(struct toku_logfile_info));
         // find the index
@@ -74,12 +76,20 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
         lf_info->version = version;
         // find last LSN in logfile
         r = toku_logcursor_create_for_file(&cursor, log_dir, basename);
-        if (r!=0) 
+        if (r!=0) {
             return r;
+        }
         r = toku_logcursor_last(cursor, &entry);  // set "entry" to last log entry in logfile
-        if ( r == 0 ) {
+        if (r == 0) {
             lf_info->maxlsn = toku_log_entry_get_lsn(entry);
+
+            invariant(lf_info->maxlsn.lsn >= tmp_lsn.lsn);
             tmp_lsn = lf_info->maxlsn;
+            if (entry->cmd == LT_shutdown) {
+                last_xid = entry->u.shutdown.last_xid;
+            } else {
+                last_xid = TXNID_NONE;
+            }
         }
         else {
             lf_info->maxlsn = tmp_lsn; // handle empty logfile (no LSN in file) case
@@ -93,6 +103,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
         toku_free(logfiles[i]);
     }
     toku_free(logfiles);
+    *last_xid_if_clean_shutdown = last_xid;
     return 0;
 }
 

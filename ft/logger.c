@@ -135,13 +135,15 @@ static int close_logdir(TOKULOGGER logger) {
     return closedir(logger->dir);
 }
 
-int toku_logger_open (const char *directory, TOKULOGGER logger) {
+int
+toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid) {
     if (logger->is_open) return EINVAL;
     if (logger->is_panicked) return EINVAL;
 
     int r;
-    r = toku_logfilemgr_init(logger->logfilemgr, directory);
-    if ( r!=0 ) 
+    TXNID last_xid_if_clean_shutdown;
+    r = toku_logfilemgr_init(logger->logfilemgr, directory, &last_xid_if_clean_shutdown);
+    if ( r!=0 )
         return r;
     logger->lsn = toku_logfilemgr_get_last_lsn(logger->logfilemgr);
     logger->written_lsn = logger->lsn;
@@ -159,10 +161,17 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
 
     logger->next_log_file_number = nexti;
     open_logfile(logger);
-    toku_txn_manager_set_last_xid_from_logger(logger->txn_manager, logger);
+    if (last_xid == TXNID_NONE) {
+        last_xid = last_xid_if_clean_shutdown;
+    }
+    toku_txn_manager_set_last_xid_from_logger(logger->txn_manager, last_xid);
 
     logger->is_open = TRUE;
     return 0;
+}
+
+int toku_logger_open (const char *directory, TOKULOGGER logger) {
+    return toku_logger_open_with_last_xid(directory, logger, TXNID_NONE);
 }
 
 bool toku_logger_rollback_is_open (TOKULOGGER logger) {
@@ -281,13 +290,7 @@ int toku_logger_shutdown(TOKULOGGER logger) {
         TXN_MANAGER mgr = logger->txn_manager;
         if (toku_txn_manager_num_live_txns(mgr) == 0) {
             TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
-            // Increase the LSN of the shutdown log entry if it would be smaller
-            // than last_xid because we use the LSN of the shutdown log entry
-            // to seed the last_xid on bootup.
-            if (logger->lsn.lsn < last_xid) {
-                logger->lsn.lsn = last_xid;
-            }
-            r = toku_log_shutdown(logger, NULL, TRUE, 0);
+            r = toku_log_shutdown(logger, NULL, TRUE, 0, last_xid);
         }
     }
     return r;
