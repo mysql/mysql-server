@@ -2,13 +2,13 @@
 
 function usage() {
     echo "run.fractal.tree.tests.bash - run the nightly fractal tree test suite"
-    echo "[--ftcc=$ftcc] [--BDBVERSION=$BDBVERSION] [--ctest_model=$ctest_model]"
-    echo "[--commit=$commit]"
+    echo "[--ftcc=$ftcc] [--ftcxx=$ftcxx] [--BDBVERSION=$BDBVERSION] [--ctest_model=$ctest_model]"
+    echo "[--commit=$commit] [--generator=$generator] [--toku_svnroot=$toku_svnroot]"
     return 1
 }
 
-. /etc/profile.d/gcc47.sh
-. /etc/profile.d/binutils222.sh
+[ -f /etc/profile.d/gcc47.sh ] && . /etc/profile.d/gcc47.sh
+[ -f /etc/profile.d/binutils222.sh ] && . /etc/profile.d/binutils222.sh
 
 set -e
 
@@ -33,9 +33,12 @@ export TOKUDB_NAME=$tokudb_name
 
 productname=$tokudb_name
 
-ftcc=g++47
+ftcc=gcc47
+ftcxx=g++47
 BDBVERSION=5.3
 ctest_model=Nightly
+generator="UNIX Makefiles"
+toku_svnroot=$FULLTOKUDBDIR/../..
 commit=1
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -51,7 +54,11 @@ if [[ ! ( ( $ctest_model = Nightly ) || ( $ctest_model = Experimental ) || ( $ct
     usage
 fi
 
-export CMAKE_PREFIX_PATH=/usr/local/BerkeleyDB.$BDBVERSION:$CMAKE_PREFIX_PATH
+BDBDIR=/usr/local/BerkeleyDB.$BDBVERSION
+if [ -d $BDBDIR ] ; then
+    CMAKE_PREFIX_PATH=$BDBDIR:$CMAKE_PREFIX_PATH
+    export CMAKE_PREFIX_PATH
+fi
 
 # delete some characters that cygwin and osx have trouble with
 function sanitize() {
@@ -65,13 +72,15 @@ system=$(uname -s | tr '[:upper:]' '[:lower:]' | sanitize)
 release=$(uname -r | sanitize)
 arch=$(uname -m | sanitize)
 date=$(date +%Y%m%d)
-ncpus=$(grep bogomips /proc/cpuinfo | wc -l)
-njobs=$(echo "$ncpus / 3" | bc)
+ncpus=$([ -f /proc/cpuinfo ] && (grep bogomips /proc/cpuinfo | wc -l) || sysctl -n hw.ncpu)
+njobs=$(if [ $ncpus -gt 8 ] ; then echo "$ncpus / 3" | bc ; else echo "$ncpus" ; fi)
 
-export ftar=`which ar`
-export ftld=`which ld`
-
-export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
+GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
+export GCCVERSION
+CC=$ftcc
+export CC
+CXX=$ftcxx
+export CXX
 
 function retry() {
     local cmd
@@ -120,15 +129,18 @@ fi
 
 function getsysinfo() {
     tracefile=$1; shift
+    set +e
     uname -a >$tracefile 2>&1
     ulimit -a >>$tracefile 2>&1
     cmake --version >>$tracefile 2>&1
     $ftcc -v >>$tracefile 2>&1
+    $ftcxx -v >>$tracefile 2>&1
     valgrind --version >>$tracefile 2>&1
     cat /etc/issue >>$tracefile 2>&1
     cat /proc/version >>$tracefile 2>&1
     cat /proc/cpuinfo >>$tracefile 2>&1
     env >>$tracefile 2>&1
+    set -e
 }
 
 function get_latest_svn_revision() {
@@ -148,27 +160,26 @@ else
     longtests=OFF
 fi
 ################################################################################
-## run valgrind on gcc optimized build
+## run normal and valgrind on optimized build
 resultsdir=$tracefilepfx-Release
 mkdir $resultsdir
 tracefile=$tracefilepfx-Release/trace
 
 getsysinfo $tracefile
 
-mkdir -p $FULLTOKUDBDIR/gccopt >/dev/null 2>&1
-cd $FULLTOKUDBDIR/gccopt
-CC=gcc47 CXX=g++47 cmake \
+mkdir -p $FULLTOKUDBDIR/opt >/dev/null 2>&1
+cd $FULLTOKUDBDIR/opt
+cmake \
     -D CMAKE_BUILD_TYPE=Release \
-    -D INTEL_CC=OFF \
     -D USE_VALGRIND=ON \
-    -D BUILD_TESTING=ON \
     -D USE_BDB=ON \
     -D RUN_LONG_TESTS=$longtests \
-    -D USE_CILK=OFF \
     -D USE_CTAGS=OFF \
     -D USE_GTAGS=OFF \
     -D USE_ETAGS=OFF \
     -D USE_CSCOPE=OFF \
+    -D TOKU_SVNROOT="$toku_svnroot" \
+    -G "$generator" \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
 make clean
@@ -181,11 +192,11 @@ ctest -j$njobs \
     -D ${ctest_model}Configure \
     -D ${ctest_model}Build \
     -D ${ctest_model}Test \
-    -E 'drd_' \
+    -E '/drd' \
     2>&1 | tee -a $tracefile
 ctest -j$njobs \
     -D ${ctest_model}MemCheck \
-    -E '^ydb/.*\.bdb$|test1426.tdb|drd_' \
+    -E '^ydb/.*\.bdb$|test1426.tdb|/drd' \
     2>&1 | tee -a $tracefile
 set -e
 
@@ -260,27 +271,26 @@ BEGIN {
 fi
 
 ################################################################################
-## run valgrind on gcc debug build
+## run drd tests on debug build
 resultsdir=$tracefilepfx-Debug
 mkdir $resultsdir
 tracefile=$tracefilepfx-Debug/trace
 
 getsysinfo $tracefile
 
-mkdir -p $FULLTOKUDBDIR/gccdbg >/dev/null 2>&1
-cd $FULLTOKUDBDIR/gccdbg
-CC=gcc47 CXX=g++47 cmake \
+mkdir -p $FULLTOKUDBDIR/dbg >/dev/null 2>&1
+cd $FULLTOKUDBDIR/dbg
+cmake \
     -D CMAKE_BUILD_TYPE=Debug \
-    -D INTEL_CC=OFF \
     -D USE_VALGRIND=ON \
-    -D BUILD_TESTING=ON \
-    -D USE_BDB=ON \
+    -D USE_BDB=OFF \
     -D RUN_LONG_TESTS=$longtests \
-    -D USE_CILK=OFF \
     -D USE_CTAGS=OFF \
     -D USE_GTAGS=OFF \
     -D USE_ETAGS=OFF \
     -D USE_CSCOPE=OFF \
+    -D TOKU_SVNROOT="$toku_svnroot" \
+    -G "$generator" \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
 make clean
@@ -293,7 +303,7 @@ ctest -j$njobs \
     -D ${ctest_model}Configure \
     -D ${ctest_model}Build \
     -D ${ctest_model}Test \
-    -R 'drd_' \
+    -R '/drd' \
     2>&1 | tee -a $tracefile
 set -e
 
@@ -351,26 +361,27 @@ BEGIN {
 fi
 
 ################################################################################
-## run gcov on gcc debug build
+## run gcov on debug build
 resultsdir=$tracefilepfx-Coverage
 mkdir $resultsdir
 tracefile=$tracefilepfx-Coverage/trace
 
 getsysinfo $tracefile
 
-mkdir -p $FULLTOKUDBDIR/Coverage >/dev/null 2>&1
-cd $FULLTOKUDBDIR/Coverage
-CC=gcc47 CXX=g++47 cmake \
+mkdir -p $FULLTOKUDBDIR/cov >/dev/null 2>&1
+cd $FULLTOKUDBDIR/cov
+cmake \
     -D CMAKE_BUILD_TYPE=Debug \
     -D BUILD_TESTING=ON \
     -D USE_GCOV=ON \
     -D USE_BDB=OFF \
     -D RUN_LONG_TESTS=$longtests \
-    -D USE_CILK=OFF \
     -D USE_CTAGS=OFF \
     -D USE_GTAGS=OFF \
     -D USE_ETAGS=OFF \
     -D USE_CSCOPE=OFF \
+    -D TOKU_SVNROOT="$toku_svnroot" \
+    -G "$generator" \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
 make clean
