@@ -565,6 +565,19 @@ ha_tokudb::fill_row_mutator(
     return pos-buf;
 }
 
+static bool
+all_fields_are_same_type(TABLE *table_a, TABLE *table_b) {
+    if (table_a->s->fields != table_b->s->fields)
+        return false;
+    for (uint i = 0; i < table_a->s->fields; i++) {
+        Field *field_a = table_a->field[i];
+        Field *field_b = table_b->field[i];
+        if (!fields_are_same_type(field_a, field_b))
+            return false;
+    }
+    return true;
+}
+
 static bool 
 column_rename_supported(
     TABLE* orig_table, 
@@ -584,13 +597,13 @@ column_rename_supported(
         retval = false;
         goto cleanup;
     }
+    if (!all_fields_are_same_type(orig_table, new_table)) {
+        retval = false;
+        goto cleanup;
+    }
     for (uint i = 0; i < orig_table->s->fields; i++) {
         Field* orig_field = orig_table->field[i];
         Field* new_field = new_table->field[i];
-        if (!fields_are_same_type(orig_field, new_field)) {
-            retval = false;
-            goto cleanup;
-        }
         if (!fields_have_same_name(orig_field, new_field)) {
             num_fields_with_different_names++;
             field_with_different_name = i;
