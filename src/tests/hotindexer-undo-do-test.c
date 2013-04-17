@@ -200,6 +200,29 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
     return 0;
 }
 
+static int
+del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+    dest_db = dest_db; src_db = src_db; dest_key = dest_key; src_key = src_key; src_data = src_data;
+
+    lazy_assert(src_db != NULL && dest_db != NULL);
+
+    switch (dest_key->flags) {
+    case 0:
+        dest_key->data = src_data->data;
+        dest_key->size = src_data->size;
+        break;
+    case DB_DBT_REALLOC:
+        dest_key->data = toku_realloc(dest_key->data, src_data->size);
+        memcpy(dest_key->data, src_data->data, src_data->size);
+        dest_key->size = src_data->size;
+        break;
+    default:
+        lazy_assert(0);
+    }
+    return 0;
+}
+
+
 static DB_INDEXER *test_indexer = NULL;
 static DB *test_hotdb = NULL;
 
@@ -425,6 +448,7 @@ run_test(char *envdir, char *testname) {
     r = env->set_redzone(env, 0); assert_zero(r);
 
     r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
+    r = env->set_generate_row_callback_for_del(env, del_callback); assert_zero(r);
 
     r = env->open(env, envdir, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 

@@ -385,6 +385,8 @@ void toku_txn_complete_txn(TOKUTXN txn) {
     assert(txn->roll_info.spilled_rollback_head.b == ROLLBACK_NONE.b);
     assert(txn->roll_info.spilled_rollback_tail.b == ROLLBACK_NONE.b);
     assert(txn->roll_info.current_rollback.b == ROLLBACK_NONE.b);
+    assert(txn->num_pin == 0);
+    assert(txn->state == TOKUTXN_COMMITTING || txn->state == TOKUTXN_ABORTING);
     toku_txn_manager_finish_txn(txn->logger->txn_manager, txn);
     // note that here is another place we depend on
     // this function being called with the multi operation lock
