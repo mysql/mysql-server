@@ -351,7 +351,7 @@ class Worker(Thread):
         debug('%s exiting.' % self)
 
 class Scheduler(Queue):
-    def __init__(self, nworkers, maxlarge, logger, email):
+    def __init__(self, nworkers, maxlarge, logger, email, branch):
         Queue.__init__(self)
         info('Initializing scheduler with %d jobs.', nworkers)
         self.nworkers = nworkers
@@ -365,6 +365,7 @@ class Scheduler(Queue):
         self.timer = None
         self.error = None
         self.email = email
+        self.branch = branch
 
     def run(self, timeout):
         info('Starting workers.')
@@ -427,7 +428,7 @@ class Scheduler(Queue):
 ''' % runner.oldversionstr
         else:
             upgradestr = ''
-        m = MIMEText('''A stress test failed on %(hostname)s at svn revision %(rev)s after %(test_duration)d seconds.
+        m = MIMEText('''A stress test failed on %(hostname)s running %(branch)s at svn revision %(rev)s after %(test_duration)d seconds.
 %(upgradestr)sIts environment is saved to %(tarfile)s on that machine.
 
 The test configuration was:
@@ -447,14 +448,15 @@ num_update_threads:  %(num_update)d
                 'tsize': runner.tsize,
                 'csize': runner.csize,
                 'num_ptquery': runner.num_ptquery,
-                'num_update': runner.num_update
+                'num_update': runner.num_update,
+                'branch': self.branch,
                 })
 
         fromaddr = 'tim@tokutek.com'
         toaddrs = ['tokueng@tokutek.com']
         m['From'] = fromaddr
         m['To'] = ', '.join(toaddrs)
-        m['Subject'] = 'Stress test failure on %s.' % h
+        m['Subject'] = 'Stress test failure on %(hostname)s running %(branch)s.' % { 'hostname': h, 'branch': self.branch }
         s = SMTP('192.168.1.114')
         s.sendmail(fromaddr, toaddrs, str(m))
         s.quit()
@@ -533,7 +535,7 @@ def main(opts):
     info('Saving pass/fail logs to %s.', opts.log)
     info('Saving failure environments to %s.', opts.savedir)
 
-    scheduler = Scheduler(opts.jobs, opts.maxlarge, logger, opts.email)
+    scheduler = Scheduler(opts.jobs, opts.maxlarge, logger, opts.email, opts.branch)
 
     runners = []
     for tsize in [2000, 200000, 50000000]:
@@ -689,6 +691,20 @@ if __name__ == '__main__':
     parser.add_option('--tokudb', type='string', dest='tokudb',
                       default=default_toplevel,
                       help=('top of the tokudb tree (contains ft/ and src/) [default=%s]' % os.path.relpath(default_toplevel)))
+    toplevel_basename = os.path.basename(default_toplevel)
+    if toplevel_basename == 'tokudb':
+        maybe_absolute_branchpath = os.path.dirname(default_toplevel)
+        if os.path.dirname(maybe_absolute_branchpath) == 'mysql.branches':
+            default_branchname = os.path.basename(maybe_absolute_branchpath)
+        else:
+            default_branchname = 'mainline'
+    elif toplevel_basename[:7] == 'tokudb.':
+        default_branchname = toplevel_basename[7:]
+    else:
+        default_branchname = 'unknown branch'
+    parser.add_option('--branch', type='string', dest='branch',
+                      default=default_branchname,
+                      help=('what to call this branch [default=%s]' % default_branchname))
 
     test_group = OptionGroup(parser, 'Scheduler Options', 'Control how the scheduler runs jobs.')
     test_group.add_option('-t', '--test_time', type='int', dest='test_time',
