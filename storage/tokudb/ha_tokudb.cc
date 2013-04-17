@@ -6238,7 +6238,7 @@ double ha_tokudb::scan_time() {
 
 double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
 {
-  if (table->key_info[index].flags & HA_CLUSTERING) {
+  if ((table->key_info[index].flags & HA_CLUSTERING) || (index == primary_key)) {
     return read_time(index, ranges, rows);
   }
   /*
