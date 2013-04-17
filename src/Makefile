@@ -12,9 +12,7 @@ DEPEND_COMPILE += \
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
-LIBNAME=libtokudb
-
-LIBRARY=../lib/$(LIBNAME).$(SOEXT)
+LIBRARY=../lib/lib$(LIBTOKUDB).$(SOEXT)
 
 OBJS_RAW = \
 	ydb_lib \
@@ -84,7 +82,7 @@ ifeq ($(CC),icc)
  endif
 endif
 
-check_globals: $(LIBNAME).$(SOEXT)
+check_globals: lib$(LIBTOKUDB).$(SOEXT)
 	python tokuglobals.py $<
 
 .PHONY: check_tests

@@ -24,7 +24,7 @@ LIBTDB=$(WIN_YDB)
 %.tdb$(BINSUF):  LINK_FILES+=$(WIN_YDB)
 TDB_EXTRA_NEEDED=$(WIN_YDB)
 else
-LIBTDB=../../lib/libtokudb.$(SOEXT)
+LIBTDB=../../lib/lib$(LIBTOKUDB).$(SOEXT)
 TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(patsubst %/,%,$(dir $(LIBTDB)))
@@ -621,14 +621,14 @@ TDB_CFLAGS=
 %.bdb$(BINSUF): BDB_CFLAGS= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0 -DTOKU_ALLOW_DEPRECATED
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(CC) $< $(BDB_CFLAGS) $(BIN_FROM_C_FLAGS) -L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib -ltokuportability $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BDB_CFLAGS) $(BIN_FROM_C_FLAGS) -L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib -l$(LIBTOKUPORTABILITY) $(LINK_MUST_BE_LAST)
 
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): TDB_CFLAGS= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
-%.tdb$(BINSUF) %.tdbt$(BINSUF): LDFLAGS+=-ltokuportability
+%.tdb$(BINSUF) %.tdbt$(BINSUF): LDFLAGS+=-l$(LIBTOKUPORTABILITY)
 loader-stress-test: CPPFLAGS+=-I$(TOKUROOT)include -DENVDIR=\"dir.$<\"
 loader-stress-test: LOADLIBES+=-L../lib -ltokudb -Wl,-rpath,..
 

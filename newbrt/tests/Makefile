@@ -250,7 +250,7 @@ clean:
 	rm -f test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind *.fastlog
 
-$(BINS): LDFLAGS=-L../../lib -ltokuportability -lnewbrt $(ALWAYS_LINK) -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
+$(BINS): LDFLAGS=-L../../lib -l$(LIBTOKUPORTABILITY) -lnewbrt $(ALWAYS_LINK) -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 $(BINS): test.h
 
 foo:
