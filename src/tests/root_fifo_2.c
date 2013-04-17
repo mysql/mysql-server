@@ -68,7 +68,7 @@ static void root_fifo_1(int n) {
     for (i=0; i<n; i++) {
         DB *db = null_db;
         r = db_create(&db, env, 0); assert(r == 0); assert(db != NULL);
-        if (verbose) printf("db %p brt %p\n", db, db->i->brt);
+        if (0) printf("db %p brt %p\n", db, db->i->brt);
 
         r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
         assert(r == 0);
