@@ -1761,6 +1761,34 @@ locked_env_set_redzone(DB_ENV *env, int redzone) {
     return r;
 }
 
+static int
+env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_usec) {
+    toku_ltm_get_lock_wait_time(env->i->ltm, lock_timeout_usec);
+    return 0;
+}
+
+static int
+locked_env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_usec) {
+    toku_ydb_lock();
+    int r = env_get_lock_timeout(env, lock_timeout_usec);
+    toku_ydb_unlock();
+    return r;
+}
+
+static int
+env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_usec) {
+    toku_ltm_set_lock_wait_time(env->i->ltm, lock_timeout_usec);
+    return 0;
+}
+
+static int
+locked_env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_usec) {
+    toku_ydb_lock();
+    int r = env_set_lock_timeout(env, lock_timeout_usec);
+    toku_ydb_unlock();
+    return r;
+}
+
 static void
 format_time(const time_t *timer, char *buf) {
     ctime_r(timer, buf);
@@ -2329,6 +2357,8 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(set_redzone);
     SENV(create_indexer);
     SENV(create_loader);
+    SENV(get_lock_timeout);
+    SENV(set_lock_timeout);
 #undef SENV
 
     MALLOC(result->i);
@@ -2347,6 +2377,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
                          toku_db_get_compare_fun,
                          toku_malloc, toku_free, toku_realloc);
     if (r!=0) { goto cleanup; }
+    toku_ltm_set_mutex(result->i->ltm, toku_ydb_mutex());
 
     {
 	r = toku_logger_create(&result->i->logger);
@@ -3184,7 +3215,10 @@ toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
 
 static int 
 locked_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    toku_ydb_lock();  int r = toku_c_getf_first(c, flag, f, extra); toku_ydb_unlock(); return r;
+    toku_ydb_lock();  
+    int r = toku_c_getf_first(c, flag, f, extra); 
+    toku_ydb_unlock(); 
+    return r;
 }
 
 static int 
@@ -3227,82 +3261,51 @@ locked_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBACK_
     toku_ydb_lock();  int r = toku_c_getf_set_range_reverse(c, flag, key, f, extra); toku_ydb_unlock(); return r;
 }
 
-typedef struct {
-    BOOL            is_write_lock;
-    DB_TXN         *txn;
-    DB             *db;
-    toku_lock_tree *lt;
-    DBT const      *left_key;
-    DBT const      *right_key;
-} *RANGE_LOCK_REQUEST, RANGE_LOCK_REQUEST_S;
-
-static void
-range_lock_request_init(RANGE_LOCK_REQUEST request,
-                        BOOL       is_write_lock,
-                        DB_TXN    *txn,
-                        DB        *db,
-                        DBT const *left_key,
-                        DBT const *right_key) {
-    request->is_write_lock = is_write_lock;
-    request->txn = txn;
-    request->db = db;
-    request->lt = db->i->lt;
-    request->left_key = left_key;
-    request->right_key = right_key;
-}
-
-static void
-read_lock_request_init(RANGE_LOCK_REQUEST request,
-                       DB_TXN    *txn,
-                       DB        *db,
-                       DBT const *left_key,
-                       DBT const *right_key) {
-    range_lock_request_init(request, FALSE, txn, db, left_key, right_key);
-}
-
-static void
-write_lock_request_init(RANGE_LOCK_REQUEST request,
-                        DB_TXN    *txn,
-                        DB        *db,
-                        DBT const *left_key,
-                        DBT const *right_key) {
-    range_lock_request_init(request, TRUE, txn, db, left_key, right_key);
-}
-
 static int
-grab_range_lock(RANGE_LOCK_REQUEST request) {
+get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, toku_lock_type lock_type) {
     int r;
-    //TODO: (Multithreading) Grab lock protecting lock tree
-    DB_TXN *txn_anc = toku_txn_ancestor(request->txn);
-    r = toku_txn_add_lt(txn_anc, request->lt);
-    if (r==0) {
+    DB_TXN *txn_anc = toku_txn_ancestor(txn);
+    r = toku_txn_add_lt(txn_anc, db->i->lt);
+    if (r == 0) {
         TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
-        if (request->is_write_lock)
-            r = toku_lt_acquire_range_write_lock(request->lt, request->db, txn_anc_id,
-                                                 request->left_key, request->right_key);
-        else 
-            r = toku_lt_acquire_range_read_lock(request->lt, request->db, txn_anc_id,
-                                                request->left_key, request->right_key);
+        toku_lock_request lock_request;
+        toku_lock_request_init(&lock_request, db, txn_anc_id, left_key, right_key, lock_type);
+        r = toku_lt_acquire_lock_request_with_default_timeout_locked(db->i->lt, &lock_request);
+        toku_lock_request_destroy(&lock_request);
     }
-    //TODO: (Multithreading) Release lock protecting lock tree
     return r;
 }
 
+static int
+get_range_lock_request(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, toku_lock_type lock_type, toku_lock_request *lock_request) {
+    int r;
+    DB_TXN *txn_anc = toku_txn_ancestor(txn);
+    r = toku_txn_add_lt(txn_anc, db->i->lt);
+    if (r == 0) {
+        TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
+        toku_lock_request_set(lock_request, db, txn_anc_id, left_key, right_key, lock_type);
+        r = toku_lock_request_start_locked(lock_request, db->i->lt, true);
+    }
+    return r;
+}
+
+static int 
+get_point_write_lock(DB *db, DB_TXN *txn, const DBT *key) {
+    int r = get_range_lock(db, txn, key, key, LOCK_REQUEST_WRITE);
+    return r;
+}
+
+// assume ydb is locked
 int
 toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
-    char *   dname = db->i->dname;
-    DBT key_in_directory;
-
     // bad hack because some environment dictionaries do not have a dname
+    char *dname = db->i->dname;
     if (!dname || (db->dbenv->i->directory->i->lt == NULL))
         return 0;
 
-    toku_fill_dbt(&key_in_directory, dname, strlen(dname)+1);
     //Left end of range == right end of range (point lock)
-    RANGE_LOCK_REQUEST_S request;
-    read_lock_request_init(&request, txn, db->dbenv->i->directory,
-                           &key_in_directory, &key_in_directory);
-    int r = grab_range_lock(&request);
+    DBT key_in_directory = { .data = dname, .size = strlen(dname)+1 };
+    int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_READ);
     if (r == 0)
 	directory_read_locks++;
     else
@@ -3317,29 +3320,30 @@ typedef struct query_context_base_t {
     BRT_CURSOR  c;
     DB_TXN     *txn;
     DB         *db;
+    YDB_CALLBACK_FUNCTION f;
     void       *f_extra;
     int         r_user_callback;
     BOOL        do_locking;
     BOOL        is_write_op;
+    toku_lock_request lock_request;
 } *QUERY_CONTEXT_BASE, QUERY_CONTEXT_BASE_S;
 
 typedef struct query_context_t {
     QUERY_CONTEXT_BASE_S  base;
-    YDB_CALLBACK_FUNCTION f;
 } *QUERY_CONTEXT, QUERY_CONTEXT_S;
 
 typedef struct query_context_with_input_t {
     QUERY_CONTEXT_BASE_S  base;
-    YDB_CALLBACK_FUNCTION f;
     DBT                  *input_key;
     DBT                  *input_val;
 } *QUERY_CONTEXT_WITH_INPUT, QUERY_CONTEXT_WITH_INPUT_S;
 
 static void
-query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, BOOL is_write_op, void *extra) {
+query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, BOOL is_write_op, YDB_CALLBACK_FUNCTION f, void *extra) {
     context->c       = dbc_struct_i(c)->c;
     context->txn     = dbc_struct_i(c)->txn;
     context->db      = c->dbp;
+    context->f       = f;
     context->f_extra = extra;
     context->is_write_op = is_write_op;
     u_int32_t lock_flags = get_cursor_prelocked_flags(flag, c);
@@ -3347,28 +3351,31 @@ query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, BOOL
         lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
     context->do_locking = (BOOL)(context->db->i->lt!=NULL && !(lock_flags & (DB_PRELOCKED|DB_PRELOCKED_WRITE)));
     context->r_user_callback = 0;
+    toku_lock_request_default_init(&context->lock_request);
+}
+
+static void
+query_context_base_destroy(QUERY_CONTEXT_BASE context) {
+    toku_lock_request_destroy(&context->lock_request);
 }
 
 static void
 query_context_init_read(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     BOOL is_write = FALSE;
-    query_context_base_init(&context->base, c, flag, is_write, extra);
-    context->f = f;
+    query_context_base_init(&context->base, c, flag, is_write, f, extra);
 }
 
 static void
 query_context_init_write(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     BOOL is_write = TRUE;
-    query_context_base_init(&context->base, c, flag, is_write, extra);
-    context->f = f;
+    query_context_base_init(&context->base, c, flag, is_write, f, extra);
 }
 
 static void
 query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     // grab write locks if the DB_RMW flag is set or the cursor was created with the DB_RMW flag
     BOOL is_write = ((flag & DB_RMW) != 0) || dbc_struct_i(c)->rmw;
-    query_context_base_init(&context->base, c, flag, is_write, extra);
-    context->f         = f;
+    query_context_base_init(&context->base, c, flag, is_write, f, extra);
     context->input_key = key;
     context->input_val = val;
 }
@@ -3390,13 +3397,21 @@ toku_c_del(DBC * c, u_int32_t flags) {
     BOOL do_locking = (BOOL)(c->dbp->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
 
     int r = 0;
-    if (unchecked_flags!=0) r = EINVAL;
+    if (unchecked_flags!=0) 
+        r = EINVAL;
     else {
         if (do_locking) {
             QUERY_CONTEXT_S context;
             query_context_init_write(&context, c, lock_flags, NULL, NULL);
-            //We do not need a read lock, we must already have it.
-            r = toku_c_getf_current_binding(c, DB_PRELOCKED, c_del_callback, &context);
+            while (r == 0) {
+                //We do not need a read lock, we must already have it.
+                r = toku_c_getf_current_binding(c, DB_PRELOCKED, c_del_callback, &context);
+                if (r == DB_LOCK_NOTGRANTED)
+                    r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+                else
+                    break;
+            }
+            query_context_base_destroy(&context.base);
         }
         if (r==0) {
             //Do the actual delete.
@@ -3419,11 +3434,10 @@ c_del_callback(DBT const *key, DBT const *val, void *extra) {
     assert(context->is_write_op);
     assert(key!=NULL);
     assert(val!=NULL);
+
     //Lock:
     //  left(key,val)==right(key,val) == (key, val);
-    RANGE_LOCK_REQUEST_S request;
-    write_lock_request_init(&request, context->txn, context->db, key, key);
-    r = grab_range_lock(&request);
+    r = get_range_lock_request(context->db, context->txn, key, key, LOCK_REQUEST_WRITE, &context->lock_request);
 
     //Give brt-layer an error (if any) to return from toku_c_getf_current_binding
     return r;
@@ -3431,7 +3445,8 @@ c_del_callback(DBT const *key, DBT const *val, void *extra) {
 
 static int c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra);
 
-static void c_query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+static void 
+c_query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     BOOL is_write_op = FALSE;
     // grab write locks if the DB_RMW flag is set or the cursor was created with the DB_RMW flag
     if ((flag & DB_RMW) || dbc_struct_i(c)->rmw)
@@ -3442,16 +3457,31 @@ static void c_query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, 
         query_context_init_read(context, c, flag, f, extra);
 }
 
+static void 
+c_query_context_destroy(QUERY_CONTEXT context) {
+    query_context_base_destroy(&context->base);
+}
+
 static int
 toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     num_point_queries++;   // accountability
+    int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra);
-    //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    while (r == 0) {
+        //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+        else {
+            if (r == TOKUDB_USER_CALLBACK_ERROR)
+                r = context.base.r_user_callback;
+            break;
+        }
+    }
+    c_query_context_destroy(&context);
     return r;
 }
 
@@ -3462,28 +3492,20 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
-
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        if (key!=NULL) {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    toku_lt_neg_infinity, &found_key);
-        } else {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    toku_lt_neg_infinity, toku_lt_infinity);
-        }
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = toku_lt_neg_infinity;
+        const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3498,11 +3520,21 @@ toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     num_point_queries++;   // accountability
+    int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
-    //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    while (r == 0) {
+        //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+        else {
+            if (r == TOKUDB_USER_CALLBACK_ERROR)
+                r = context.base.r_user_callback;
+            break;
+        }
+    }
+    c_query_context_destroy(&context);
     return r;
 }
 
@@ -3513,28 +3545,20 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
-
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        if (key!=NULL) {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    &found_key,           toku_lt_infinity);
-        } else {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    toku_lt_neg_infinity, toku_lt_infinity);
-        }
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
+        const DBT *right_key = toku_lt_infinity;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3549,13 +3573,24 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
+    if (toku_c_uninitialized(c)) 
+        r = toku_c_getf_first(c, flag, f, extra);
     else {
+        r = 0;
         QUERY_CONTEXT_S context; //Describes the context of this query.
         c_query_context_init(&context, c, flag, f, extra); 
-        //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
-        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+        while (r == 0) {
+            //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
+            r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
+            if (r == DB_LOCK_NOTGRANTED)
+                r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+            else {
+                if (r == TOKUDB_USER_CALLBACK_ERROR)
+                    r = context.base.r_user_callback;
+                break;
+            }
+        }
+        c_query_context_destroy(&context);
     }
     return r;
 }
@@ -3567,29 +3602,24 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
+
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
     num_sequential_queries++;   // accountability
 
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
-
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        const DBT *prevkey;
-        const DBT *prevval;
-        const DBT *right_key = key==NULL ? toku_lt_infinity : &found_key;
-
+        const DBT *prevkey, *prevval;
         toku_brt_cursor_peek(context->c, &prevkey, &prevval);
-        range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                prevkey, right_key);
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = prevkey;
+        const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3604,13 +3634,24 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
+    if (toku_c_uninitialized(c)) 
+        r = toku_c_getf_last(c, flag, f, extra);
     else {
+        r = 0;
         QUERY_CONTEXT_S context; //Describes the context of this query.
-        c_query_context_init(&context, c, flag, f, extra); 
-        //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
-        if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+        c_query_context_init(&context, c, flag, f, extra);
+        while (r == 0) {
+            //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
+            r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
+            if (r == DB_LOCK_NOTGRANTED)
+                r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+            else {
+                if (r == TOKUDB_USER_CALLBACK_ERROR)
+                    r = context.base.r_user_callback;
+                break;
+            }
+        }
+        c_query_context_destroy(&context);
     }
     return r;
 }
@@ -3622,29 +3663,23 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
-
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
     num_sequential_queries++;   // accountability
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
 
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        const DBT *prevkey;
-        const DBT *prevval;
-        const DBT *left_key = key==NULL ? toku_lt_neg_infinity : &found_key;
-
+        const DBT *prevkey, *prevval;
         toku_brt_cursor_peek(context->c, &prevkey, &prevval);
-        range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                left_key, prevkey);
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
+        const DBT *right_key = prevkey;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3665,6 +3700,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    c_query_context_destroy(&context);
     return r;
 }
 
@@ -3674,17 +3710,16 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
     QUERY_CONTEXT      super_context = extra;
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    int r;
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
-    int r=0;
     //Call application-layer callback if found.
     if (key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
-    }
+    } else
+        r = 0;
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_current
     return r;
@@ -3701,6 +3736,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    c_query_context_destroy(&context);
     return r;
 }
 
@@ -3711,12 +3747,22 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
+    int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, c_getf_set_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    while (r == 0) {
+        //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, c_getf_set_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+        else {
+            if (r == TOKUDB_USER_CALLBACK_ERROR)
+                r = context.base.r_user_callback;
+            break;
+        }
+    }
+    query_context_base_destroy(&context.base);
     return r;
 }
 
@@ -3727,26 +3773,21 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
-
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
     //Lock:
     //  left(key,val)  = (input_key, -infinity)
     //  right(key,val) = (input_key, found ? found_val : infinity)
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        range_lock_request_init(&request, context->is_write_op, context->txn, context->db, 
-                                super_context->input_key, super_context->input_key);
-        r = grab_range_lock(&request);
+        r = get_range_lock_request(context->db, context->txn, super_context->input_key, super_context->input_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3761,12 +3802,22 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
+    int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    while (r == 0) {
+        //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+        else {
+            if (r == TOKUDB_USER_CALLBACK_ERROR)
+                r = context.base.r_user_callback;
+            break;
+        }
+    }
+    query_context_base_destroy(&context.base);
     return r;
 }
 
@@ -3777,31 +3828,24 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
-
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
     //Lock:
     //  left(key,val)  = (input_key, -infinity)
     //  right(key) = found ? found_key : infinity
     //  right(val) = found ? found_val : infinity
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        if (key!=NULL)
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db, 
-                                    super_context->input_key, &found_key);
-        else
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db, 
-                                    super_context->input_key, toku_lt_infinity);
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = super_context->input_key;
+        const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3816,12 +3860,22 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
+    int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
-    if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
+    while (r == 0) {
+        //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
+        r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
+        else {
+            if (r == TOKUDB_USER_CALLBACK_ERROR)
+                r = context.base.r_user_callback;
+            break;
+        }
+    }
+    query_context_base_destroy(&context.base);
     return r;
 }
 
@@ -3832,32 +3886,24 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
     QUERY_CONTEXT_BASE       context       = &super_context->base;
 
     int r;
-
-    DBT found_key;
-    DBT found_val;
-    toku_fill_dbt(&found_key, key, keylen);
-    toku_fill_dbt(&found_val, val, vallen);
+    DBT found_key = { .data = (void *) key, .size = keylen };
+    DBT found_val = { .data = (void *) val, .size = vallen };
 
     //Lock:
     //  left(key) = found ? found_key : -infinity
     //  left(val) = found ? found_val : -infinity
     //  right(key,val)  = (input_key, infinity)
     if (context->do_locking) {
-        RANGE_LOCK_REQUEST_S request;
-        if (key!=NULL) {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    &found_key, super_context->input_key);
-        } else {
-            range_lock_request_init(&request, context->is_write_op, context->txn, context->db,
-                                    toku_lt_neg_infinity, super_context->input_key);
-        }
-        r = grab_range_lock(&request);
-    }
-    else r = 0;
+        const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
+        const DBT *right_key = super_context->input_key;
+        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
+                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+    } else 
+        r = 0;
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
-        context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
+        context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
     }
 
@@ -3876,12 +3922,6 @@ static int toku_c_close(DBC * c) {
 #endif
     toku_free(c);
     return r;
-}
-
-static inline int 
-keyeq(DBC *c, DBT *a, DBT *b) {
-    DB *db = c->dbp;
-    return db->i->brt->compare_fun(db, a, b) == 0;
 }
 
 // Return the number of entries whose key matches the key currently 
@@ -3948,17 +3988,6 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
     return r;
 }
 
-////////////
-
-static int 
-get_point_lock(DB *db, DB_TXN *txn, const DBT *key) {
-    RANGE_LOCK_REQUEST_S request;
-    //Left end of range == right end of range (point lock)
-    write_lock_request_init(&request, txn, db, key, key);
-    int r = grab_range_lock(&request);
-    return r;
-}
-
 static int
 toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
@@ -3986,7 +4015,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     }
     if (r == 0 && do_locking) {
         //Do locking if necessary.
-        r = get_point_lock(db, txn, key);
+        r = get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
         //Do the actual deleting.
@@ -4142,7 +4171,7 @@ env_del_multiple(
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_lock(db, txn, &del_keys[which_db]);
+            r = get_point_write_lock(db, txn, &del_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
@@ -4711,7 +4740,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     BOOL do_locking = (BOOL)(db->i->lt && !(lock_flags&DB_PRELOCKED_WRITE));
     if (r == 0 && do_locking) {
         //Do locking if necessary.
-        r = get_point_lock(db, txn, key);
+        r = get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
         //Insert into the brt.
@@ -4731,28 +4760,20 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
 }
 
 static int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
-    char *   dname = db->i->dname;
-    DBT key_in_directory;
-    //
     // bad hack because some environment dictionaries do not have a dname
-    //
-    if (!dname) {
+    char *dname = db->i->dname;
+    if (!dname)
         return 0;
-    }
-    toku_fill_dbt(&key_in_directory, dname, strlen(dname)+1);
+
+    DBT key_in_directory = { .data = dname, .size = strlen(dname)+1 };
     //Left end of range == right end of range (point lock)
-    RANGE_LOCK_REQUEST_S request;
-    write_lock_request_init(&request, txn, db->dbenv->i->directory,
-                            &key_in_directory, &key_in_directory);
-    int r = grab_range_lock(&request);
+    int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_WRITE);
     if (r == 0)
 	directory_write_locks++;
     else
 	directory_write_locks_fail++;
     return r;
 }
-
-
 
 static int
 toku_db_update(DB *db, DB_TXN *txn,
@@ -4776,7 +4797,7 @@ toku_db_update(DB *db, DB_TXN *txn,
 
     BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
     if (do_locking) {
-        r = get_point_lock(db, txn, key);
+        r = get_point_write_lock(db, txn, key);
         if (r != 0) { goto cleanup; }
     }
 
@@ -4976,7 +4997,7 @@ env_put_multiple(
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_lock(db, txn, &put_keys[which_db]);
+            r = get_point_write_lock(db, txn, &put_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
@@ -5096,7 +5117,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
                 // lock old key
                 if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
-                    r = get_point_lock(db, txn, &curr_old_key);
+                    r = get_point_write_lock(db, txn, &curr_old_key);
                     if (r != 0) goto cleanup;
                 }
                 del_dbs[n_del_dbs] = db;
@@ -5115,7 +5136,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
                 // lock new key
                 if (db->i->lt) {
-                    r = get_point_lock(db, txn, &curr_new_key);
+                    r = get_point_write_lock(db, txn, &curr_new_key);
                     if (r != 0) goto cleanup;
                 }
                 put_dbs[n_put_dbs] = db;
@@ -5540,9 +5561,8 @@ toku_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_righ
     if (!dbc_struct_i(dbc)->rmw && dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE)
         return 0;
 
-    RANGE_LOCK_REQUEST_S request;
-    range_lock_request_init(&request, dbc_struct_i(dbc)->rmw, txn, db, key_left, key_right);
-    int r = grab_range_lock(&request);
+    toku_lock_type lock_type = dbc_struct_i(dbc)->rmw ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ;
+    int r = get_range_lock(db, txn, key_left, key_right, lock_type);
     return r;
 }
 
@@ -5555,12 +5575,7 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
 
     int r;
 
-    {
-        RANGE_LOCK_REQUEST_S request;
-        write_lock_request_init(&request, txn, db,
-                                toku_lt_neg_infinity, toku_lt_infinity);
-        r = grab_range_lock(&request);
-    }
+    r = get_range_lock(db, txn, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_WRITE);
 
     if (r==0 && !just_lock &&
         !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
@@ -6506,13 +6521,16 @@ toku_test_get_checkpointing_user_data_status (void) {
     return toku_cachetable_get_checkpointing_user_data_status();
 }
 
+// acquire a point write lock on the key for a given txn.
+// this does not block the calling thread.
 int
-toku_grab_write_lock (DB* db, DBT* key, TOKUTXN tokutxn) {
-    DB_TXN * txn = toku_txn_get_container_db_txn(tokutxn);
-    //Left end of range == right end of range (point lock)
-    RANGE_LOCK_REQUEST_S request;
-    write_lock_request_init(&request, txn, db, key, key);
-    int r = grab_range_lock(&request);
+toku_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
+    DB_TXN *txn = toku_txn_get_container_db_txn(tokutxn);
+    DB_TXN *txn_anc = toku_txn_ancestor(txn);
+    int r = toku_txn_add_lt(txn_anc, db->i->lt);
+    if (r == 0) {
+        TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
+        r = toku_lt_acquire_write_lock(db->i->lt, db, txn_anc_id, key);
+    }
     return r;
 }
-

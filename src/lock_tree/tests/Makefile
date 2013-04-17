@@ -22,6 +22,7 @@ SRCS = $(wildcard *.c)
 LOG_TESTS =  $(patsubst %.c,%.log$(BINSUF),$(SRCS))
 TLOG_TESTS = $(patsubst %.c,%.tlog$(BINSUF),$(SRCS))
 LIN_TESTS =  $(patsubst %.c,%.lin$(BINSUF),$(SRCS))
+WFG_TESTS =  $(patsubst %.c,%.lin$(BINSUF), $(wildcard test_wfg*.c))
 
 ALL_TESTS = $(LIN_TESTS) $(TLOG_TESTS) #$(LOG_TESTS)
 
@@ -29,6 +30,7 @@ RUN_LOG_TESTS  = $(patsubst %.log$(BINSUF),%.logrun,$(LOG_TESTS))
 RUN_TLOG_TESTS = $(patsubst %.tlog$(BINSUF),%.tlogrun,$(TLOG_TESTS))
 RUN_LIN_TESTS  = $(patsubst %.lin$(BINSUF),%.linrun,$(LIN_TESTS))
 RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) #$(RUN_LOG_TESTS)
+RUN_WFG_TESTS  = $(patsubst %.lin$(BINSUF),%.linrun,$(WFG_TESTS))
 
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
@@ -42,6 +44,7 @@ tests.tlog: $(TLOG_TESTS)
 check.tlog: $(RUN_TLOG_TESTS)
 tests.log:  $(LOG_TESTS)
 check.log:  $(RUN_LOG_TESTS)
+check.wfg:  $(RUN_WFG_TESTS)
 
 .PHONY: %.linrun %.logrun %.run %.tlogrun
 # STUFF!!!!

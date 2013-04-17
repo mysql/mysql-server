@@ -17,7 +17,7 @@
    each other, due to some system error like failed malloc,
    we defer to the db panic handler. Pass in another parameter to do this.
 */
-
+#include <stdbool.h>
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
@@ -25,7 +25,7 @@
 #include <rth.h>
 #include <idlth.h>
 #include <omt.h>
-
+#include "toku_pthread.h"
 #include "toku_assert.h"
 
 #if defined(__cplusplus)
@@ -117,6 +117,8 @@ struct __toku_lock_tree {
     /** DICTIONARY_ID associated with the lock tree */
     DICTIONARY_ID      dict_id;
     OMT                dbs; //The extant dbs using this lock tree.
+
+    OMT                lock_requests;
 };
 
 
@@ -162,6 +164,10 @@ struct __toku_ltm {
     void              (*free)   (void*);
     /** The user realloc function */
     void*             (*realloc)(void*, size_t);
+
+    toku_pthread_mutex_t lock;
+    toku_pthread_mutex_t *use_lock;
+    struct timeval lock_wait_time;
 };
 
 extern const DBT* const toku_lt_infinity;     /**< Special value denoting 
@@ -471,6 +477,149 @@ toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
 toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
 
 void toku_lt_verify(toku_lock_tree *tree, DB *db);
+
+typedef enum {
+    LOCK_REQUEST_INIT = 0,
+    LOCK_REQUEST_PENDING = 1,
+    LOCK_REQUEST_COMPLETE = 2,
+} toku_lock_request_state;
+
+// TODO: use DB_LOCK_READ/WRITE instead?
+typedef enum {
+    LOCK_REQUEST_UNKNOWN = 0,
+    LOCK_REQUEST_READ = 1,
+    LOCK_REQUEST_WRITE = 2,
+} toku_lock_type;
+
+typedef struct {
+    DB *db;
+    TXNID txnid;
+    const DBT *key_left; const DBT *key_right;
+    DBT key_left_copy, key_right_copy;
+    toku_lock_type type;
+    toku_lock_tree *tree;
+    int complete_r;
+    toku_lock_request_state state;
+    toku_pthread_cond_t wait;
+    bool wait_initialized;
+} toku_lock_request;
+
+// a lock request contains the db, the key range, the lock type, and the transaction id that describes a potential row range lock.
+// the typical use case is:
+// - initialize a lock request
+// - start to try to acquire the lock
+// - do something else
+// - wait for the lock request to be resolved on the wait condition variable and a timeout.
+// - destroy the lock request
+// a lock request is resolved when its state is no longer pending, or when it becomes granted, or timedout, or deadlocked.
+// when resolved, the state of the lock request is changed and any waiting threads are awakened.
+
+// initialize a lock request (default initializer).
+void toku_lock_request_default_init(toku_lock_request *lock_request);
+
+// initialize the lock request parameters.
+// this API allows a lock request to be reused.
+void toku_lock_request_set(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
+
+// initialize and set the parameters for a lock request.  it is equivalent to _default_init followed by _set.
+void toku_lock_request_init(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type type);
+
+// destroy a lock request.
+void toku_lock_request_destroy(toku_lock_request *lock_request);
+
+// try to acquire a lock described by a lock request. 
+// if the lock is granted, then set the lock request state to granted
+// otherwise, add the lock request to the lock request tree and check for deadlocks
+// returns 0 (success), DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK
+int toku_lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted);
+
+// try to acquire a lock described by a lock request.
+// if the lock is not granted and copy_keys_if_not_granted is true, then make a copy of the keys in the key range.
+// this is necessary when used in the ydb cursor callbacks where the keys are only valid when in the callback function.
+// called with the lock tree already locked.
+int toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted);
+
+// sleep on the lock request until it becomes resolved or the wait time occurs.
+// if the wait time is not specified, then wait for as long as it takes.
+int toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time);
+
+// use the default timeouts set in the ltm
+int toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, toku_lock_tree *tree);
+
+// wakeup any threads that are waiting on a lock request.
+void toku_lock_request_wakeup(toku_lock_request *lock_request, toku_lock_tree *tree);
+
+// returns the lock request state
+toku_lock_request_state toku_lock_request_get_state(toku_lock_request *lock_request);
+
+// a lock request tree contains pending lock requests. 
+// initialize a lock request tree.
+void toku_lock_request_tree_init(toku_lock_tree *tree);
+
+// destroy a lock request tree.
+// the tree must be empty when destroyed.
+void toku_lock_request_tree_destroy(toku_lock_tree *tree);
+
+// insert a lock request into the tree.
+void toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_request);
+
+// delete a lock request from the tree.
+void toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_request);
+
+// find a lock request for a given transaction id.
+toku_lock_request *toku_lock_request_tree_find(toku_lock_tree *tree, TXNID id);
+
+// retry all pending lock requests. 
+// for all lock requests, if the lock request is resolved, then wakeup any threads waiting on the lock request.
+// called with the lock tree already locked.
+void toku_lt_retry_lock_requests_locked(toku_lock_tree *tree);
+
+// try to acquire a lock described by a lock request. if the lock is granted then return success.
+// otherwise wait on the lock request until the lock request is resolved (either granted or
+// deadlocks), or the given timer has expired.
+// returns 0 (success), DB_LOCK_NOTGRANTED
+int toku_lt_acquire_lock_request_with_timeout(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time);
+
+// called with the lock tree already locked
+int toku_lt_acquire_lock_request_with_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time);
+
+// call acquire_lock_request_with_timeout with the default lock wait timeout
+int toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_lock_request *lock_request);
+
+// called with the lock tree already locked
+int toku_lt_acquire_lock_request_with_default_timeout_locked (toku_lock_tree *tree, toku_lock_request *lock_request);
+
+// check if a given lock request could deadlock with any granted locks.
+void toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *lock_request);
+
+#include "txnid_set.h"
+
+// internal function that finds all transactions that conflict with a given lock request
+// for read lock requests
+//     conflicts = all transactions in the BWT that conflict with the lock request
+// for write lock requests
+//     conflicts = all transactions in the GRT that conflict with the lock request UNION
+//                 all transactions in the BWT that conflict with the lock request
+// adds all of the conflicting transactions to the conflicts transaction set
+// returns an error code (0 == success)
+int toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock_request, txnid_set *conflicts);
+
+// set the ltm mutex (used to override the internal mutex) and use a user supplied mutex instead to protect the
+// lock tree).  the first use is to use the ydb mutex to protect the lock tree.  eventually, the ydb code will
+// be refactored to use the ltm mutex instead.
+void toku_ltm_set_mutex(toku_ltm *ltm, toku_pthread_mutex_t *use_lock);
+
+// lock the lock tree
+void toku_ltm_lock_mutex(toku_ltm *mgr);
+
+// unlock the lock tree
+void toku_ltm_unlock_mutex(toku_ltm *mgr);
+
+// set the default lock timeout. units are microseconds.
+void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_usec);
+
+// get the default lock timeout
+void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_usec);
 
 #if defined(__cplusplus)
 }

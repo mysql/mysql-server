@@ -86,8 +86,10 @@ int main(int argc, const char *argv[]) {
     
     unsigned oldbufsize = bufsize;
     bufsize = 0;
+#if 0
     r = toku_rt_find(tree, &range.ends, 2, &buf, &bufsize, &found);
     CKERR2(r, EINVAL);
+#endif
     bufsize = oldbufsize;
     
     r = toku_rt_find(tree, &range.ends, 2, &buf, &bufsize, NULL);

@@ -1307,7 +1307,6 @@ static void flush_and_maybe_remove (CACHETABLE ct, PAIR p) {
     }
 }
 
-
 static void do_partial_eviction(CACHETABLE ct, PAIR p) {
     // This really should be something else, but need to set it to something
     // other than CTPAIR_IDLE so that other threads know to not hold

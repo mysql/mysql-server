@@ -210,7 +210,7 @@ typedef struct __toku_engine_status {
   uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ 
   uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ 
   uint64_t         mem_freed;               /* number of bytes freed */ 
-  uint64_t         max_mem_in_use;          /* estimatd max value of (used - freed) */ 
+  uint64_t         max_mem_in_use;          /* estimated max value of (used - freed) */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
@@ -348,6 +348,8 @@ struct __toku_db_env {
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
   int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max);
   void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
+  int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_usec);
+  int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_usec);
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);

@@ -1,6 +1,5 @@
-
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007-8 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -59,11 +58,14 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
     assert(buf);
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
     if (*buflen < num) {
-        u_int32_t temp_len = *buflen;
+        u_int32_t temp_len = *buflen; 
+        if (temp_len == 0)
+            temp_len = 1;
         while (temp_len < num) 
             temp_len *= 2;
         toku_range* temp_buf = tree->realloc(*buf, temp_len * sizeof(toku_range));
-        if (!temp_buf) return errno;
+        if (!temp_buf) 
+            return errno;
         *buf = temp_buf;
         *buflen = temp_len;
     }

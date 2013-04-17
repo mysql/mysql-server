@@ -28,6 +28,9 @@
 /* TODO: During integration, make sure we first verify the NULL CONSISTENCY,
          (return EINVAL if necessary) before making lock tree calls. */
 
+#if DEBUG
+static int toku_lt_debug = 0;
+#endif
 
 static inline int lt_panic(toku_lock_tree *tree, int r) {
     return tree->panic(tree->db, r);
@@ -40,6 +43,40 @@ static const DBT __toku_lt_neg_infinity;
 
 const DBT* const toku_lt_infinity     = &__toku_lt_infinity;
 const DBT* const toku_lt_neg_infinity = &__toku_lt_neg_infinity;
+
+static toku_pthread_mutex_t *
+toku_ltm_get_mutex(toku_ltm *ltm) {
+    toku_pthread_mutex_t *lock = ltm->use_lock;
+    if (lock == NULL)
+        lock = &ltm->lock;
+    return lock;
+}
+
+void 
+toku_ltm_set_mutex(toku_ltm *ltm, toku_pthread_mutex_t *use_lock) {
+    ltm->use_lock = use_lock;
+}
+
+static void 
+toku_ltm_init_mutex(toku_ltm *ltm) {
+    int r = toku_pthread_mutex_init(&ltm->lock, NULL); assert_zero(r);
+    ltm->use_lock = NULL;
+}
+
+static void 
+toku_ltm_destroy_mutex(toku_ltm *ltm) {
+    int r = toku_pthread_mutex_destroy(&ltm->lock); assert_zero(r);
+}
+
+void 
+toku_ltm_lock_mutex(toku_ltm *ltm) {
+    int r = toku_pthread_mutex_lock(toku_ltm_get_mutex(ltm)); assert_zero(r);
+}
+
+void 
+toku_ltm_unlock_mutex(toku_ltm *ltm) {
+    int r = toku_pthread_mutex_unlock(toku_ltm_get_mutex(ltm)); assert_zero(r);
+}
 
 char* toku_lt_strerror(TOKU_LT_ERROR r) {
     if (r >= 0) 
@@ -64,12 +101,14 @@ static inline int infinite_compare(const DBT* a, const DBT* b) {
 }
 
 static inline BOOL lt_is_infinite(const DBT* p) {
+    BOOL r;
     if (p == toku_lt_infinity || p == toku_lt_neg_infinity) {
         DBT* dbt = (DBT*)p;
         assert(!dbt->data && !dbt->size);
-        return TRUE;
-    }
-    return FALSE;
+        r = TRUE;
+    } else
+        r = FALSE;
+    return r;
 }
 
 /* Verifies that NULL data and size are consistent.
@@ -172,6 +211,7 @@ int toku_ltm_create(toku_ltm** pmgr,
     if (!tmp_mgr->idlth) { 
         r = ENOMEM; goto cleanup; 
     }
+    toku_ltm_init_mutex(tmp_mgr);
     r = 0;
     *pmgr = tmp_mgr;
 cleanup:
@@ -204,6 +244,7 @@ int toku_ltm_close(toku_ltm* mgr) {
     }
     toku_lth_close(mgr->lth);
     toku_idlth_close(mgr->idlth);
+    toku_ltm_destroy_mutex(mgr);
     mgr->free(mgr);
 
     r = first_error;
@@ -1016,7 +1057,7 @@ static inline int lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt, BO
         r = 0;
         toku_rt_clear(rt);
     }
-    assert(r == 0);
+    assert_zero(r);
     return r;
 }
 
@@ -1303,6 +1344,7 @@ int toku_lt_create(toku_lock_tree** ptree,
     r = toku_omt_create(&tmp_tree->dbs);
     if (r != 0) 
         goto cleanup;
+    toku_lock_request_tree_init(tmp_tree);
     
     tmp_tree->ref_count = 1;
     *ptree = tmp_tree;
@@ -1419,6 +1461,7 @@ int toku_lt_close(toku_lock_tree* tree) {
     if (!tree) { 
         r = EINVAL; goto cleanup; 
     }
+    toku_lock_request_tree_destroy(tree);
     r = toku_rt_close(tree->borderwrite);
     if (!first_error && r != 0)
         first_error = r;
@@ -1711,7 +1754,7 @@ static int lt_do_escalation(toku_lock_tree* lt) {
 
     assert(toku_omt_size(lt->dbs) > 0);  // there is at least one db associated with this locktree
     r = toku_omt_fetch(lt->dbs, 0, &dbv);
-    assert(r == 0);
+    assert_zero(r);
     db = dbv;
     lt_set_comparison_functions(lt, db);
     
@@ -1790,6 +1833,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     }
     return r;
 }
+
 
 static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
                                            DB* db, TXNID txn,
@@ -2084,11 +2128,16 @@ int toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {
     if (!tree) { 
         r = EINVAL; goto cleanup;
     }
+#if DEBUG
+    if (toku_lt_debug) 
+        printf("%s:%u %lu\n", __FUNCTION__, __LINE__, txn);
+#endif
     r = lt_defer_unlocking_txn(tree, txn);
     if (r != 0) 
         goto cleanup;
     if (toku_rth_is_empty(tree->txns_still_locked))
         lt_clear(tree);
+    toku_lt_retry_lock_requests_locked(tree);
     r = 0;
 cleanup:
     return r;
@@ -2170,7 +2219,8 @@ void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
     assert_zero(r);
 }
 
-static void lt_verify(toku_lock_tree *lt) {    
+static void 
+lt_verify(toku_lock_tree *lt) {    
     // verify the borderwrite tree
     toku_rt_verify(lt->borderwrite);
 
@@ -2185,8 +2235,432 @@ static void lt_verify(toku_lock_tree *lt) {
     }
 }
 
-void toku_lt_verify(toku_lock_tree *lt, DB *db) {
+void 
+toku_lt_verify(toku_lock_tree *lt, DB *db) {
     lt_set_comparison_functions(lt, db);
     lt_verify(lt);
     lt_clear_comparison_functions(lt);
+}
+
+static void
+toku_lock_request_init_wait(toku_lock_request *lock_request) {
+    if (!lock_request->wait_initialized) {
+        int r = toku_pthread_cond_init(&lock_request->wait, NULL); assert_zero(r);
+        lock_request->wait_initialized = true;
+    }
+}
+
+static void
+toku_lock_request_destroy_wait(toku_lock_request *lock_request) {
+    if (lock_request->wait_initialized) {
+        int r = toku_pthread_cond_destroy(&lock_request->wait); assert_zero(r);
+        lock_request->wait_initialized = false;
+    }
+}
+
+void 
+toku_lock_request_default_init(toku_lock_request *lock_request) {
+    lock_request->db = NULL;
+    lock_request->txnid = 0;
+    lock_request->key_left = lock_request->key_right = NULL;
+    lock_request->key_left_copy = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
+    lock_request->key_right_copy = (DBT) { .data = NULL, .size = 0, .flags = DB_DBT_REALLOC };
+    lock_request->state = LOCK_REQUEST_INIT;
+    lock_request->complete_r = 0;
+    lock_request->type = LOCK_REQUEST_UNKNOWN;
+    lock_request->tree = NULL;
+    lock_request->wait_initialized = false;
+}
+
+void 
+toku_lock_request_set(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
+    assert(lock_request->state != LOCK_REQUEST_PENDING);
+    lock_request->db = db;
+    lock_request->txnid = txnid;
+    lock_request->key_left = key_left;
+    lock_request->key_right = key_right;
+    lock_request->type = lock_type;
+    lock_request->state = LOCK_REQUEST_INIT;
+}
+
+void 
+toku_lock_request_init(toku_lock_request *lock_request, DB *db, TXNID txnid, const DBT *key_left, const DBT *key_right, toku_lock_type lock_type) {
+    toku_lock_request_default_init(lock_request);
+    toku_lock_request_set(lock_request, db, txnid, key_left, key_right, lock_type);
+}
+
+void 
+toku_lock_request_destroy(toku_lock_request *lock_request) {
+    if (lock_request->state == LOCK_REQUEST_PENDING)
+        toku_lock_request_tree_delete(lock_request->tree, lock_request); 
+    toku_lock_request_destroy_wait(lock_request);
+    toku_free(lock_request->key_left_copy.data);
+    toku_free(lock_request->key_right_copy.data);
+}
+
+static void
+toku_lock_request_complete(toku_lock_request *lock_request, int complete_r) {
+    lock_request->state = LOCK_REQUEST_COMPLETE;
+    lock_request->complete_r = complete_r;
+}
+
+static const struct timeval max_timeval = { ~0, 0 };
+
+int
+toku_lock_request_wait(toku_lock_request *lock_request, toku_lock_tree *tree, struct timeval *wait_time) {
+#if DEBUG
+    if (toku_lt_debug)
+        printf("%s:%u %lu\n", __FUNCTION__, __LINE__, lock_request->txnid);
+#endif
+    int r = 0;
+    if (wait_time && wait_time->tv_sec != max_timeval.tv_sec) {
+        struct timeval now;
+        r = gettimeofday(&now, NULL); assert_zero(r);
+        long int sec = now.tv_sec + wait_time->tv_sec;
+        long int usec = now.tv_usec + wait_time->tv_usec;
+        long int d_sec = usec / 1000000;
+        long int d_usec = usec % 1000000;
+        struct timespec ts = { sec + d_sec, d_usec * 1000 };
+        while (lock_request->state == LOCK_REQUEST_PENDING) {
+            toku_lock_request_init_wait(lock_request);
+            r = pthread_cond_timedwait(&lock_request->wait, toku_ltm_get_mutex(tree->mgr), &ts);
+            assert(r == 0 || r == ETIMEDOUT);
+            if (r == ETIMEDOUT && lock_request->state == LOCK_REQUEST_PENDING) {
+                toku_lock_request_tree_delete(tree, lock_request);
+                toku_lock_request_complete(lock_request, DB_LOCK_NOTGRANTED);
+            }
+        }
+    } else {
+        while (lock_request->state == LOCK_REQUEST_PENDING) {
+            toku_lock_request_init_wait(lock_request);
+            r = toku_pthread_cond_wait(&lock_request->wait, toku_ltm_get_mutex(tree->mgr)); assert_zero(r);
+        }
+    }
+    assert(lock_request->state == LOCK_REQUEST_COMPLETE);
+    return lock_request->complete_r;
+}
+
+int 
+toku_lock_request_wait_with_default_timeout(toku_lock_request *lock_request, toku_lock_tree *tree) {
+    return toku_lock_request_wait(lock_request, tree, &tree->mgr->lock_wait_time);
+}
+
+void 
+toku_lock_request_wakeup(toku_lock_request *lock_request, toku_lock_tree *tree UU()) {
+    if (lock_request->wait_initialized) {
+        int r = toku_pthread_cond_broadcast(&lock_request->wait); assert_zero(r);
+    }
+}
+
+void 
+toku_lock_request_tree_init(toku_lock_tree *tree) {
+    int r = toku_omt_create(&tree->lock_requests); assert_zero(r);
+}
+
+void 
+toku_lock_request_tree_destroy(toku_lock_tree *tree) {
+    assert(toku_omt_size(tree->lock_requests) == 0);
+    toku_omt_destroy(&tree->lock_requests);
+}
+
+static int 
+compare_lock_request(OMTVALUE a, void *b) {
+    toku_lock_request *a_lock_request = (toku_lock_request *) a;
+    TXNID b_id = * (TXNID *) b;
+    if (a_lock_request->txnid < b_id) 
+        return -1;
+    if (a_lock_request->txnid > b_id)
+        return +1;
+    return 0;
+}
+
+void 
+toku_lock_request_tree_insert(toku_lock_tree *tree, toku_lock_request *lock_request) {
+    lock_request->tree = tree;
+    int r;
+    OMTVALUE v;
+    u_int32_t idx;
+    r = toku_omt_find_zero(tree->lock_requests, compare_lock_request, &lock_request->txnid, &v, &idx); assert(r == DB_NOTFOUND);
+    r = toku_omt_insert_at(tree->lock_requests, lock_request, idx); assert_zero(r);
+}
+
+void 
+toku_lock_request_tree_delete(toku_lock_tree *tree, toku_lock_request *lock_request) {
+    int r;
+    OMTVALUE v;
+    u_int32_t idx;
+    r = toku_omt_find_zero(tree->lock_requests, compare_lock_request, &lock_request->txnid, &v, &idx);
+    if (r == 0) {
+        r = toku_omt_delete_at(tree->lock_requests, idx); assert_zero(r);
+    }
+}
+
+toku_lock_request *
+toku_lock_request_tree_find(toku_lock_tree *tree, TXNID id) {
+    int r;
+    OMTVALUE v;
+    u_int32_t idx;
+    r = toku_omt_find_zero(tree->lock_requests, compare_lock_request, &id, &v, &idx);
+    toku_lock_request *lock_request = NULL;
+    if (r == 0) 
+        lock_request = (toku_lock_request *) v;
+    return lock_request;
+}
+
+static void
+copy_dbt(DBT *dest, const DBT *src) {
+    dest->size = src->size;
+    if (dest->size > 0) {
+        dest->data = toku_xrealloc(dest->data, dest->size);
+        memcpy(dest->data, src->data, dest->size);
+    }
+}
+
+#if DEBUG
+#include <ctype.h>
+static void print_key(const char *sp, const DBT *k) {
+    printf("%s", sp);
+    if (k == toku_lt_neg_infinity)
+        printf("-inf");
+    else if (k == toku_lt_infinity)
+        printf("inf");
+    else {
+        char *data = (char *) k->data;
+        for (unsigned i = 0; i < k->size; i++)
+            printf("%2.2x", data[i]);
+        printf(" ");
+        for (unsigned i = 0; i < k->size; i++) {
+            int c = data[i];
+            printf("%c", isprint(c) ? c : '.');
+        }
+    }
+    printf("\n");
+}
+#endif
+
+int 
+toku_lock_request_start_locked(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted) { 
+    int r;
+    assert(lock_request->state == LOCK_REQUEST_INIT);
+    if (lock_request->type == LOCK_REQUEST_READ) {
+        r = toku_lt_acquire_range_read_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
+    } else if (lock_request->type == LOCK_REQUEST_WRITE) {
+        r = toku_lt_acquire_range_write_lock(tree, lock_request->db, lock_request->txnid, lock_request->key_left, lock_request->key_right);
+    } else
+        assert(0);
+#if DEBUG
+    if (toku_lt_debug) {
+        printf("%s:%u %lu db=%p %s %u\n", __FUNCTION__, __LINE__, lock_request->txnid, lock_request->db, lock_request->type == LOCK_REQUEST_READ ? "r" : "w", lock_request->state);
+        print_key("left=", lock_request->key_left);
+        print_key("right=", lock_request->key_right);
+    }
+#endif
+    if (r == DB_LOCK_NOTGRANTED) {
+        lock_request->state = LOCK_REQUEST_PENDING;
+        if (copy_keys_if_not_granted) {
+            copy_dbt(&lock_request->key_left_copy, lock_request->key_left);
+            if (!lt_is_infinite(lock_request->key_left))
+                lock_request->key_left = &lock_request->key_left_copy;
+            copy_dbt(&lock_request->key_right_copy, lock_request->key_right);
+            if (!lt_is_infinite(lock_request->key_right))
+                lock_request->key_right = &lock_request->key_right_copy;
+        }
+        toku_lock_request_tree_insert(tree, lock_request);
+
+        // check for deadlock
+        toku_lt_check_deadlock(tree, lock_request);
+        if (lock_request->state == LOCK_REQUEST_COMPLETE)
+            r = lock_request->complete_r;
+    } else 
+        toku_lock_request_complete(lock_request, r);
+
+    return r;
+}
+
+int 
+toku_lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted) {
+    toku_ltm_lock_mutex(tree->mgr);
+    int r = toku_lock_request_start_locked(lock_request, tree, copy_keys_if_not_granted);
+    toku_ltm_unlock_mutex(tree->mgr);
+    return r;
+}
+
+int 
+toku_lt_acquire_lock_request_with_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time) {
+    int r = toku_lock_request_start_locked(lock_request, tree, false);
+    if (r == DB_LOCK_NOTGRANTED)
+        r = toku_lock_request_wait(lock_request, tree, wait_time);
+    return r;
+}
+
+int 
+toku_lt_acquire_lock_request_with_timeout(toku_lock_tree *tree, toku_lock_request *lock_request, struct timeval *wait_time) {
+    toku_ltm_lock_mutex(tree->mgr);
+    int r = toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, wait_time);
+    toku_ltm_unlock_mutex(tree->mgr);
+    return r;
+}
+
+int
+toku_lt_acquire_lock_request_with_default_timeout_locked(toku_lock_tree *tree, toku_lock_request *lock_request) {
+    return toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, &tree->mgr->lock_wait_time);
+}
+
+int
+toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_lock_request *lock_request) {
+    toku_ltm_lock_mutex(tree->mgr);
+    int r = toku_lt_acquire_lock_request_with_timeout_locked(tree, lock_request, &tree->mgr->lock_wait_time);
+    toku_ltm_unlock_mutex(tree->mgr);
+    return r;
+}
+
+void 
+toku_lt_retry_lock_requests_locked(toku_lock_tree *tree) {
+    int r;
+    for (uint32_t i = 0; i < toku_omt_size(tree->lock_requests); ) {
+        OMTVALUE v;
+        r = toku_omt_fetch(tree->lock_requests, i, &v); assert_zero(r);
+        toku_lock_request *lock_request = (toku_lock_request *) v;
+        assert(lock_request->state == LOCK_REQUEST_PENDING);
+        lock_request->state = LOCK_REQUEST_INIT;
+        toku_omt_delete_at(tree->lock_requests, i);
+        r = toku_lock_request_start_locked(lock_request, tree, false);
+        if (lock_request->state == LOCK_REQUEST_COMPLETE) {
+            toku_lock_request_wakeup(lock_request, tree);
+        } else {
+            assert(lock_request->state == LOCK_REQUEST_PENDING);
+            i++;
+        }
+    }
+}
+
+#include <stdbool.h>
+#include "wfg.h"
+
+// build the WFG for a given lock request
+//
+// for each transaction B that blocks A's lock request
+//     if B is blocked then add (A,T) to the WFG and if B is new, fill in the WFG from B
+static void 
+build_wfg_for_a_lock_request(toku_lock_tree *tree, struct wfg *wfg, toku_lock_request *a_lock_request) {
+    txnid_set conflicts; txnid_set_init(&conflicts);
+    int r = toku_lt_get_lock_request_conflicts(tree, a_lock_request, &conflicts); assert_zero(r);
+    size_t n_conflicts = txnid_set_size(&conflicts);
+    for (size_t i = 0; i < n_conflicts; i++) {
+        TXNID b = txnid_set_get(&conflicts, i);
+        toku_lock_request *b_lock_request = toku_lock_request_tree_find(tree, b);
+        if (b_lock_request) {
+            bool b_exists = wfg_node_exists(wfg, b);
+            wfg_add_edge(wfg, a_lock_request->txnid, b);
+            if (!b_exists)
+                build_wfg_for_a_lock_request(tree, wfg, b_lock_request);
+        }
+    }
+    txnid_set_destroy(&conflicts);
+}
+
+// check if a given lock request could deadlock with any granted locks.
+void 
+toku_lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *a_lock_request) {
+    // init the wfg
+    struct wfg wfg_static; 
+    struct wfg *wfg = &wfg_static; wfg_init(wfg);
+
+    // build the wfg rooted with a lock request
+    build_wfg_for_a_lock_request(tree, wfg, a_lock_request);
+
+    // find cycles in the wfg rooted with A
+    // if cycles exists then
+    //     pick all necessary transactions T from the cycle needed to break the cycle
+    //     hand T the deadlock error
+    //         remove T's lock request
+    //         set the lock request state to deadlocked
+    //         wakeup T's lock request
+    if (wfg_exist_cycle_from_txnid(wfg, a_lock_request->txnid)) {
+        assert(a_lock_request->state == LOCK_REQUEST_PENDING);
+        toku_lock_request_complete(a_lock_request, DB_LOCK_DEADLOCK);
+        toku_lock_request_tree_delete(tree, a_lock_request);
+        toku_lock_request_wakeup(a_lock_request, tree);
+    }
+
+    // destroy the wfg
+    wfg_destroy(wfg);
+}
+
+static void 
+add_conflicts(txnid_set *conflicts, toku_range *ranges, uint32_t nranges, TXNID id) {
+    for (uint32_t i = 0; i < nranges; i++) 
+        if (ranges[i].data != id)
+            txnid_set_add(conflicts, ranges[i].data);
+}
+
+static void 
+find_read_conflicts(toku_lock_tree *tree, toku_interval *query, TXNID id, txnid_set *conflicts, toku_range **range_ptr, uint32_t *n_expected_ranges_ptr) {
+    uint32_t numfound;
+    toku_rth_start_scan(tree->rth);
+    rt_forest *forest;
+    while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        if (forest->self_read != NULL && lt_txn_cmp(forest->hash_key, id)) {
+            numfound = 0;
+            int r = toku_rt_find(forest->self_read, query, 0, range_ptr, n_expected_ranges_ptr, &numfound);
+            if (r == 0)
+                add_conflicts(conflicts, *range_ptr, numfound, id);
+        }
+    }
+}
+
+// find transactions that conflict with a given lock request
+// for read lock requests
+//     conflicts = all transactions in the BWT that conflict with the lock request
+// for write lock requests
+//     conflicts = all transactions in the GRT that conflict with the lock request UNION
+//                 all transactions in the BWT that conflict with the lock request
+int 
+toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock_request, txnid_set *conflicts) {
+    int r;
+
+    // build a query from the lock request
+    toku_point left; init_point(&left,  tree, lock_request->key_left);
+    toku_point right; init_point(&right, tree, lock_request->key_right);
+    toku_interval query; init_query(&query, &left, &right);
+    lt_set_comparison_functions(tree, lock_request->db);
+
+    uint32_t n_expected_ranges = 0;
+    toku_range *ranges = NULL;
+
+    if (lock_request->type == LOCK_REQUEST_WRITE) {
+        // check conflicts with read locks
+        find_read_conflicts(tree, &query, lock_request->txnid, conflicts, &ranges, &n_expected_ranges);
+    }
+ 
+    // check conflicts with write locks
+    uint32_t numfound = 0;
+    r = toku_rt_find(tree->borderwrite, &query, 0, &ranges, &n_expected_ranges, &numfound);
+    if (r == 0) {
+        for (uint32_t i = 0; i < numfound; i++) 
+            if (ranges[i].data != lock_request->txnid)
+                txnid_set_add(conflicts, ranges[i].data);
+    }
+
+    if (ranges) 
+        tree->free(ranges);
+
+    lt_clear_comparison_functions(tree);
+    return r;
+}
+
+void 
+toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_usec) {
+    if (lock_wait_time_usec == UINT64_MAX)
+        mgr->lock_wait_time = max_timeval;
+    else
+        mgr->lock_wait_time = (struct timeval) { lock_wait_time_usec / 1000000, lock_wait_time_usec % 1000000 };
+}
+
+void 
+toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_usec) {
+    if (mgr->lock_wait_time.tv_sec == max_timeval.tv_sec && mgr->lock_wait_time.tv_usec == max_timeval.tv_usec)
+        *lock_wait_time_usec = UINT64_MAX;
+    else
+        *lock_wait_time_usec = mgr->lock_wait_time.tv_sec * 1000000 + mgr->lock_wait_time.tv_usec;
 }
