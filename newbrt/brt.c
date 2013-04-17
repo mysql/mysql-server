@@ -2968,7 +2968,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     if (is_create) {
         r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h);
-        if (r==-1) {
+        if (r==TOKUDB_DICTIONARY_NO_HEADER) {
             r = toku_brt_alloc_init_header(t);
             if (r != 0) goto died_after_read_and_pin;
         }

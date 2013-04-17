@@ -970,30 +970,46 @@ void toku_verify_counts (BRTNODE node) {
     }
 }
 
-int toku_serialize_brt_header_size (struct brt_header *UU(h)) {
-    unsigned int size = (+8 // "tokudata"
-			 +4 // size
-			 +4 // version
-                         +8 // byte order verification
-                         +8 // checkpoint_count
-                         +8 // checkpoint_lsn
-			 +4 // tree's nodesize
-			 +8 // translation_size_on_disk
-			 +8 // translation_address_on_disk
-                         +4 // checksum
-			 );
-    size+=(+8 // diskoff
-           +4 // flags
-           );
+static u_int32_t
+serialize_brt_header_min_size (u_int32_t version) {
+    u_int32_t size;
+    switch(version) {
+        case BRT_LAYOUT_VERSION_10:
+            size = (+8 // "tokudata"
+                    +4 // version
+                    +4 // size
+                    +8 // byte order verification
+                    +8 // checkpoint_count
+                    +8 // checkpoint_lsn
+                    +4 // tree's nodesize
+                    +8 // translation_size_on_disk
+                    +8 // translation_address_on_disk
+                    +4 // checksum
+                    );
+            size+=(+8 // diskoff
+                   +4 // flags
+                   );
+            break;
+        default:
+            assert(FALSE);
+    }
     assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
 
+int toku_serialize_brt_header_size (struct brt_header *h) {
+    u_int32_t size = serialize_brt_header_min_size(h->layout_version);
+    //Add any dynamic data.
+    assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
+    return size;
+}
+
+
 int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk) {
     unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
     wbuf_literal_bytes(wbuf, "tokudata", 8);
-    wbuf_network_int  (wbuf, size); //MUST be in network order regardless of disk order
     wbuf_network_int  (wbuf, h->layout_version); //MUST be in network order regardless of disk order
+    wbuf_network_int  (wbuf, size); //MUST be in network order regardless of disk order
     wbuf_literal_bytes(wbuf, &toku_byte_order_host, 8); //Must not translate byte order
     wbuf_ulonglong(wbuf, h->checkpoint_count);
     wbuf_LSN    (wbuf, h->checkpoint_lsn);
@@ -1191,6 +1207,15 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     struct rbuf rc = *rb;
     memset(rb, 0, sizeof(*rb));
 
+    //Verification of initial elements.
+    {
+        //Check magic number
+        bytevec magic;
+        rbuf_literal_bytes(&rc, &magic, 8);
+        assert(memcmp(magic,"tokudata",8)==0);
+    }
+ 
+
     struct brt_header *CALLOC(h);
     if (h==0) return errno;
     int ret=-1;
@@ -1203,12 +1228,16 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
     assert(h->layout_version==BRT_LAYOUT_VERSION_10);
+
+    //Size MUST be in network order regardless of disk order.
+    u_int32_t size = rbuf_network_int(&rc);
+    assert(size==rc.size);
+
     bytevec tmp_byte_order_check;
     rbuf_literal_bytes(&rc, &tmp_byte_order_check, 8); //Must not translate byte order
     int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
     assert(byte_order_stored == toku_byte_order_host);
 
-    assert(h->layout_version==BRT_LAYOUT_VERSION_10);
     h->checkpoint_count = rbuf_ulonglong(&rc);
     h->checkpoint_lsn   = rbuf_lsn(&rc);
     h->nodesize      = rbuf_int(&rc);
@@ -1248,59 +1277,93 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     return 0;
 }
 
-//-1 means we can overwrite everything in the file AND the header is useless
+//TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the file AND the header is useless
 static int
 deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *rb, u_int64_t *checkpoint_count) {
     int r = 0;
-    const int prefix_size = 8 + // magic ("tokudata")
-                            4;  // size
-    char prefix[prefix_size];
+    const int64_t prefix_size = 8 + // magic ("tokudata")
+                                4 + // version
+                                4;  // size
+    unsigned char prefix[prefix_size];
     rb->buf = NULL;
     int64_t n = pread(fd, prefix, prefix_size, offset);
-    if (n==0) r = -1;
-    else if (n<0) r = errno;
+    if (n==0) r = TOKUDB_DICTIONARY_NO_HEADER;
+    else if (n<0) {r = errno; assert(r!=0);}
     else if (n!=prefix_size) r = EINVAL;
-    else if (memcmp(prefix,"tokudata",8)!=0) {
-        if ((*(u_int64_t*)&prefix[0]) == 0) r = -1; //Could be a tokudb file but header never written
-        else r = EINVAL; //Not a tokudb file! Do not use.
-    }
     else {
-        // It's version 7 or later, and the magic looks OK
-        //Size must be stored in network order regardless of DISK_ORDER
-        u_int32_t size = toku_ntohl(*(u_int32_t*)(prefix+8));
-        rb->size  = size;
-        rb->ndone = prefix_size;
-        rb->buf   = toku_malloc(rb->size);
-        if (!rb->buf) r = ENOMEM;
-        else {
-            n = pread(fd, rb->buf, rb->size, offset);
-            if (n!=(int64_t)size) r = EINVAL; //Header might be useless (wrong size) or could be an error.
-            if (r==0) {
-                //check version (before checksum, since older versions didn't have checksums)
-                int version = rbuf_network_int(rb);
-                if (version != BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
-            }
-            if (r==0) {
-                u_int32_t calculated_x1764 = x1764_memory(rb->buf, size-4);
-                u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+size-4));
-                if (calculated_x1764!=stored_x1764) r = -1; //Header useless
-                else r = 0;
-            }
-            if (r==0) {
-                //Verify byte order
-                bytevec tmp_byte_order_check;
-                rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
-                int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
-                if (byte_order_stored != toku_byte_order_host) r = EINVAL; //Cannot use
-            }
-            if (r==0) {
-                *checkpoint_count = rbuf_ulonglong(rb);
-                //Restart after 'size'
-                rb->ndone = prefix_size;
+        rb->size  = prefix_size;
+        rb->ndone = 0;
+        rb->buf   = prefix;
+        {
+            //Check magic number
+            bytevec magic;
+            rbuf_literal_bytes(rb, &magic, 8);
+            if (memcmp(magic,"tokudata",8)!=0) {
+                if ((*(u_int64_t*)magic) == 0) r = TOKUDB_DICTIONARY_NO_HEADER;
+                else r = EINVAL; //Not a tokudb file! Do not use.
             }
         }
+        u_int32_t version = 0;
+        if (r==0) {
+            //Version MUST be in network order regardless of disk order.
+            version = rbuf_network_int(rb);
+            if (version < BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
+            if (version > BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
+        }
+        u_int32_t size;
+        if (r==0) {
+            const int64_t max_header_size = BLOCK_ALLOCATOR_HEADER_RESERVE;
+            int64_t min_header_size = serialize_brt_header_min_size(version);
+            //Size MUST be in network order regardless of disk order.
+            size = rbuf_network_int(rb);
+            //If too big, it is corrupt.  We would probably notice during checksum
+            //but may have to do a multi-gigabyte malloc+read to find out.
+            //If its too small reading rbuf would crash, so verify.
+            if (size > max_header_size || size < min_header_size) r = TOKUDB_DICTIONARY_NO_HEADER;
+        }
+        if (r!=0) {
+            rb->buf = NULL; //Prevent freeing of 'prefix'
+        }
+        if (r==0) {
+            assert(rb->ndone==prefix_size);
+            rb->size = size;
+            rb->buf  = toku_xmalloc(rb->size);
+        }
+        if (r==0) {
+            n = pread(fd, rb->buf, rb->size, offset);
+            if (n==-1) {
+                r = errno;
+                assert(r!=0);
+            }
+            else if (n!=(int64_t)rb->size) r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
+        }
+        //It's version 10 or later.  Magic looks OK.
+        //We have an rbuf that represents the header.
+        //Size is within acceptable bounds.
+        if (r==0) {
+            //Verify checksum
+            u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
+            u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
+            if (calculated_x1764!=stored_x1764) r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
+        }
+        if (r==0) {
+            //Verify byte order
+            bytevec tmp_byte_order_check;
+            rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
+            int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
+            if (byte_order_stored != toku_byte_order_host) r = TOKUDB_DICTIONARY_NO_HEADER; //Cannot use dictionary
+        }
+        if (r==0) {
+            //Load checkpoint count
+            *checkpoint_count = rbuf_ulonglong(rb);
+            //Restart at beginning during regular deserialization
+            rb->ndone = 0;
+        }
     }
-    if (r!=0 && rb->buf) toku_free(rb->buf);
+    if (r!=0 && rb->buf) {
+        toku_free(rb->buf);
+        rb->buf = NULL;
+    }
     return r;
 }
 
@@ -1325,18 +1388,31 @@ int toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
         r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1);
     }
     struct rbuf *rb = NULL;
-    if (r0==0) rb = &rb_0;
-    if (r1==0 && (r0!=0 || checkpoint_count_1 > checkpoint_count_0)) rb = &rb_1;
+    
+    if (r0!=TOKUDB_DICTIONARY_TOO_NEW && r1!=TOKUDB_DICTIONARY_TOO_NEW) {
+        if (r0==0) rb = &rb_0;
+        if (r1==0 && (r0!=0 || checkpoint_count_1 > checkpoint_count_0)) rb = &rb_1;
+        if (r0==0 && r1==0) assert(checkpoint_count_1 != checkpoint_count_0);
+    }
     int r = 0;
     if (rb==NULL) {
-        r = r0;
-        if (r1==TOKUDB_DICTIONARY_TOO_OLD) r = r1;
+        // We were unable to read either header or at least one is too new.
+        // Certain errors are higher priority than others. Order of these if/else if is important.
+        if (r0==TOKUDB_DICTIONARY_TOO_NEW || r1==TOKUDB_DICTIONARY_TOO_NEW)
+            r = TOKUDB_DICTIONARY_TOO_NEW;
+        else if (r0==TOKUDB_DICTIONARY_TOO_OLD || r1==TOKUDB_DICTIONARY_TOO_OLD) {
+            r = TOKUDB_DICTIONARY_TOO_OLD;
+        }
+        else if (r0==TOKUDB_DICTIONARY_NO_HEADER || r1==TOKUDB_DICTIONARY_NO_HEADER) {
+            r = TOKUDB_DICTIONARY_NO_HEADER;
+        }
+        else r = r0; //Arbitrarily report the error from the first header.
         assert(r!=0);
     }
 
     if (r==0) r = deserialize_brtheader(fd, rb, brth);
-    if (r0==0 && rb_0.buf) toku_free(rb_0.buf);
-    if (r1==0 && rb_1.buf) toku_free(rb_1.buf);
+    if (rb_0.buf) toku_free(rb_0.buf);
+    if (rb_1.buf) toku_free(rb_1.buf);
     return r;
 }
 
