@@ -34,7 +34,7 @@ run_test(void) {
 
     // create a tree with 2 children
     uint32_t key_size = 9;
-    uint32_t val_size = db_basement_size / 4;
+    uint32_t val_size = db_basement_size / 32;
     size_t est_row_size_with_overhead = 8 + key_size + 4 + val_size + 4; // xid + key + key_len + val + val)len
     size_t rows_per_basement = db_basement_size / est_row_size_with_overhead;
 
