@@ -19,6 +19,7 @@
 static const char *pname;
 static enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE, RUN_FLATTEN} run_mode = RUN_HWC;
 static int do_txns=1, prelock=0, prelockflag=0;
+static int cleaner_period=0, cleaner_iterations=0;
 static u_int32_t lock_flag = 0;
 static long limitcount=-1;
 static u_int32_t cachesize = 127*1024*1024;
@@ -33,24 +34,26 @@ static const char *log_dir = NULL;
 
 static int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR] [--verbose]\n", argv0);
-    fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
-    fprintf(stderr, "  --flatten           Flatten only using special flatten function\n");
-    fprintf(stderr, "  --lwc               run light weight cursors instead of heavy weight cursors\n");
-    fprintf(stderr, "  --prelock           acquire a read lock on the entire table before running\n");
-    fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
-    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
-    fprintf(stderr, "  --nox               no transactions (no locking)\n");
-    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
-    fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
-    fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
-    fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
-    fprintf(stderr, "  --log_dir LOGDIR    put the logs in LOGDIR\n");
-    fprintf(stderr, "  --range LOW HIGH    set the LOW and HIGH key boundaries in which random range queries are made\n");
-    fprintf(stderr, "  --experiments N     run N experiments (default:%d)\n", n_experiments);
-    fprintf(stderr, "  --srandom N         srandom(N)\n");
-    fprintf(stderr, "  --recover           run recovery\n");
-    fprintf(stderr, "  --verbose           print verbose information\n");
-    fprintf(stderr, "  --bulk_fetch 0|1    do bulk fetch on lwc operations (default: 1)\n");
+    fprintf(stderr, "  --verify-lwc             means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
+    fprintf(stderr, "  --flatten                Flatten only using special flatten function\n");
+    fprintf(stderr, "  --lwc                    run light weight cursors instead of heavy weight cursors\n");
+    fprintf(stderr, "  --prelock                acquire a read lock on the entire table before running\n");
+    fprintf(stderr, "  --prelockflag            pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
+    fprintf(stderr, "  --prelockwriteflag       pass DB_PRELOCKED_WRITE to the cursor get operation\n");
+    fprintf(stderr, "  --nox                    no transactions (no locking)\n");
+    fprintf(stderr, "  --count <count>          read the first COUNT rows and then  stop.\n");
+    fprintf(stderr, "  --cachesize <n>          set the env cachesize to <n>\n");
+    fprintf(stderr, "  --cleaner-period <n>     set the cleaner period to <n>\n");
+    fprintf(stderr, "  --cleaner-iterations <n> set the cleaner iterations to <n>\n");
+    fprintf(stderr, "  --mysql                  compare keys that are mysql big int not null types\n");
+    fprintf(stderr, "  --env DIR                put db files in DIR instead of default\n");
+    fprintf(stderr, "  --log_dir LOGDIR         put the logs in LOGDIR\n");
+    fprintf(stderr, "  --range LOW HIGH         set the LOW and HIGH key boundaries in which random range queries are made\n");
+    fprintf(stderr, "  --experiments N          run N experiments (default:%d)\n", n_experiments);
+    fprintf(stderr, "  --srandom N              srandom(N)\n");
+    fprintf(stderr, "  --recover                run recovery\n");
+    fprintf(stderr, "  --verbose                print verbose information\n");
+    fprintf(stderr, "  --bulk_fetch 0|1         do bulk fetch on lwc operations (default: 1)\n");
     return 1;
 }
 
@@ -106,6 +109,14 @@ static void parse_args (int argc, char *const argv[]) {
             char *end;
             argc--; argv++; 
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
+        } else if (strcmp(*argv, "--cleaner-period")==0 && argc>0) {
+            char *end;
+            argc--; argv++; 
+            cleaner_period=(u_int32_t)strtol(*argv, &end, 10);
+        } else if (strcmp(*argv, "--cleaner-iterations")==0 && argc>0) {
+            char *end;
+            argc--; argv++; 
+            cleaner_iterations=(u_int32_t)strtol(*argv, &end, 10);
 	} else if (strcmp(*argv, "--env") == 0) {
             argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
@@ -187,6 +198,14 @@ static void scanscan_setup (void) {
     double tend = gettime();
     if (verbose)
         printf("env open %f seconds\n", tend-tstart);
+#ifdef TOKUDB
+    if (cleaner_period) {
+        r = env->cleaner_set_period(env, cleaner_period); assert(r == 0);
+    }
+    if (cleaner_iterations) {
+        r = env->cleaner_set_iterations(env, cleaner_iterations); assert(r == 0);
+    }
+#endif
     r = db_create(&db, env, 0);                                                           assert(r==0);
 #ifndef TOKUDB
     if (do_mysql) {
