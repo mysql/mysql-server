@@ -11,6 +11,7 @@
    db_env_set_func_free;
    db_env_set_func_pwrite;
    db_env_set_func_write;
+   db_env_set_checkpoint_callback;
 
    toku_os_get_max_rss;
 
