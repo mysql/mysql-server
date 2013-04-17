@@ -621,10 +621,7 @@ int compare_field(
             );
         goto exit;
     default:
-        *a_bytes_read = field->packed_col_length(a_buf, key_part_length);
-        *b_bytes_read = field->packed_col_length(b_buf, key_part_length);
-        ret_val = field->pack_cmp(a_buf, b_buf, key_part_length, 0);
-        goto exit;
+        assert(false);
     }
     assert(false);
 exit:
@@ -720,14 +717,7 @@ uchar* pack_toku_field(
             );
         goto exit;
     default:
-        assert(toku_type == toku_type_unknown);
-        new_pos = field->pack_key(
-            to_tokudb, 
-            from_mysql,
-            key_part_length, 
-            TRUE
-            );
-        goto exit;
+        assert(false);
     }
     assert(false);
 exit:
@@ -774,15 +764,9 @@ uchar* pack_key_toku_field(
             );
         goto exit;
     default:
-        assert(toku_type == toku_type_unknown);
-        new_pos= field->pack_key_from_key_image(
-            to_tokudb, 
-            from_mysql,
-            key_part_length, 
-            true
-            );
-        goto exit;
+        assert(false);
     }
+
     assert(false);
 exit:
     return new_pos;
@@ -855,14 +839,7 @@ uchar* unpack_toku_field(
             );
         goto exit;
     default:
-        assert(toku_type == toku_type_unknown);
-        new_pos = (uchar *) field->unpack_key(
-            to_mysql, 
-            from_tokudb,
-            key_part_length, 
-            TRUE
-            );
-        goto exit;
+        assert(false);
     }
     assert(false);
 exit:
