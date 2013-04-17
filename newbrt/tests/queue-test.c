@@ -1,3 +1,5 @@
+#include <toku_portability.h>
+#include "toku_os.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
