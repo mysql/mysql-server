@@ -533,7 +533,9 @@ static void *worker(void *arg_v) {
     DB_ENV *env = arg->env;
     DB_TXN *txn = NULL;
     if (verbose) {
-        printf("%lu starting %p\n", (unsigned long) toku_pthread_self(), arg->operation);
+        toku_pthread_t self = toku_pthread_self();
+        uintptr_t intself = (uintptr_t) self;
+        printf("%lu starting %p\n", (unsigned long) intself, arg->operation);
     }
     if (arg->cli->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
@@ -576,7 +578,9 @@ static void *worker(void *arg_v) {
         { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     }
     if (verbose) {
-        printf("%lu returning\n", (unsigned long) toku_pthread_self());
+        toku_pthread_t self = toku_pthread_self();
+        uintptr_t intself = (uintptr_t) self;
+        printf("%lu returning\n", (unsigned long) intself);
     }
     toku_free(random_buf);
     return arg;
