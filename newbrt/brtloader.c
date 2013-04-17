@@ -95,11 +95,28 @@ toku_brtloader_get_rowset_budget_for_testing (void)
     return 16ULL*size_factor*1024ULL;
 }
 
+int brt_loader_lock_init(BRTLOADER bl) {
+    invariant(!bl->mutex_init);
+    int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
+    if (r == 0)
+        bl->mutex_init = TRUE;
+    return r;
+}
+
+void brt_loader_lock_destroy(BRTLOADER bl) {
+    if (bl->mutex_init) {
+        int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
+        bl->mutex_init = FALSE;
+    }
+}
+
 static void brt_loader_lock(BRTLOADER bl) {
+    invariant(bl->mutex_init);
     int r = toku_pthread_mutex_lock(&bl->mutex); resource_assert(r == 0);
 }
 
 static void brt_loader_unlock(BRTLOADER bl) {
+    invariant(bl->mutex_init);
     int r = toku_pthread_mutex_unlock(&bl->mutex); resource_assert(r == 0);
 }
 
@@ -312,10 +329,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 }
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
-    if (bl->mutex_init) {
-        int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
-        bl->mutex_init = FALSE;
-    }
+    brt_loader_lock_destroy(bl);
 
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
@@ -406,12 +420,14 @@ static unsigned brt_loader_get_fractal_workers_count(BRTLOADER bl) {
     return w;
 }
 
+CILK_BEGIN
 static void brt_loader_set_fractal_workers_count(BRTLOADER bl) {
     brt_loader_lock(bl);
     if (bl->fractal_workers == 0)
         bl->fractal_workers = cilk_worker_count;
     brt_loader_unlock(bl);
 }
+CILK_END
 
 // To compute a merge, we have a certain amount of memory to work with.
 // We perform only one fanin at a time.
@@ -539,10 +555,9 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
         if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
-    {   
-        int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
+    {
+        int r = brt_loader_lock_init(bl);
         if (r != 0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
-        bl->mutex_init = TRUE;
     }
 
     *blp = bl;
@@ -590,7 +605,6 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 	    bl->extractor_live = TRUE;
 	} else  { 
 	    result = r;
-            (void) toku_pthread_mutex_destroy(&bl->mutex);
             (void) toku_brtloader_internal_destroy(bl, TRUE);
         }
     }
@@ -3221,16 +3235,13 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 
 CILK_END
 
-#if 0
-// C function for testing write_file_to_dbfile
-int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation) {
+void brt_loader_set_fractal_workers_count_from_c(BRTLOADER bl) {
 #if defined(__cilkplusplus)
-    return cilk::run(write_file_to_dbfile, outfile, infile, bl, descriptor, progress_allocation);
+    cilk::run(brt_loader_set_fractal_workers_count, bl);
 #else
-    return           write_file_to_dbfile (outfile, infile, bl, descriptor, progress_allocation);
+              brt_loader_set_fractal_workers_count (bl);
 #endif
 }
-#endif
 
 C_END
 

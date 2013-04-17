@@ -86,8 +86,10 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
         .temp_file_template = template,
         .reserved_memory = 512*1024*1024,
     };
-    int r = brtloader_init_file_infos(&bl.file_infos);
-    CKERR(r);
+    int r = brtloader_init_file_infos(&bl.file_infos); CKERR(r);
+    r = brt_loader_lock_init(&bl); CKERR(r);
+    brt_loader_set_fractal_workers_count_from_c(&bl);
+
     struct merge_fileset fs;
     init_merge_fileset(&fs);
 
@@ -173,6 +175,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     verify_dbfile(n, output_name);
 
     brt_loader_destroy_error_callback(&bl.error_callback);
+    brt_loader_lock_destroy(&bl);
 }
 
 static int nrows = 1;
