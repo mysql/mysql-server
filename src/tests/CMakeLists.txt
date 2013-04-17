@@ -586,13 +586,15 @@ if(BUILD_TESTING)
   set_tests_properties(${tdb_tests_that_should_fail} PROPERTIES WILL_FAIL TRUE)
 
   ## give some tests, that time out when run with valgrind, 1 hour to complete
-  set_tests_properties(
+  set(long_tests
     drd_test_4015.tdb
-    test1426.tdb
     test_query.tdb
     loader-stress-del.p.loader
     loader-stress-del.nop.loader
     test1572.tdb
-    PROPERTIES TIMEOUT 3600
     )
+  if (BDB_FOUND)
+    list(APPEND long_tests test1426.tdb)
+  endif (BDB_FOUND)
+  set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
 endif(BUILD_TESTING)
