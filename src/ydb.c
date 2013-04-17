@@ -5005,39 +5005,45 @@ error_cleanup:
     return r;
 }
 
-//Return 0 if proposed pair do not violate size constraints of DB
-//(insertion is legal)
-//Return non zero otherwise.
+// Return 0 if proposed pair do not violate size constraints of DB
+// (insertion is legal)
+// Return non zero otherwise.
 static int
 db_put_check_size_constraints(DB *db, const DBT *key, const DBT *val) {
-    unsigned int klimit, vlimit;
     int r = 0;
+    unsigned int klimit, vlimit;
+
     toku_brt_get_maximum_advised_key_value_lengths(&klimit, &vlimit);
-    if (key->size > klimit)
-	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest key allowed is %u bytes", klimit);
-    else if (val->size > vlimit)
-	r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest value allowed is %u bytes", vlimit);
-    
+    if (key->size > klimit) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, 
+                "The largest key allowed is %u bytes", klimit);
+    } else if (val->size > vlimit) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, 
+                "The largest value allowed is %u bytes", vlimit);
+    }
     return r;
 }
 
-//Return 0 if supported.
-//Return ERANGE if out of range.
+// Return 0 if supported.
+// Return ERANGE if out of range.
 static int
-db_row_size_supported(DB *db, u_int32_t size) {
+db_row_size_supported(DB *db, uint32_t key_size, uint32_t val_size) {
+    int r = 0;
     DBT key, val;
 
-    toku_fill_dbt(&key, NULL, size);
-    toku_fill_dbt(&val, NULL, 0);
-    int r = db_put_check_size_constraints(db, &key, &val);
-    if (r!=0) r = ERANGE;
+    toku_fill_dbt(&key, NULL, key_size);
+    toku_fill_dbt(&val, NULL, val_size);
+    r = db_put_check_size_constraints(db, &key, &val);
+    if (r != 0) {
+        r = ERANGE;
+    }
     return r;
 }
 
 static int
-locked_db_row_size_supported(DB *db, u_int32_t size) {
+locked_db_row_size_supported(DB *db, uint32_t key_size, uint32_t val_size) {
     toku_ydb_lock();
-    int r = db_row_size_supported(db, size);
+    int r = db_row_size_supported(db, key_size, val_size);
     toku_ydb_unlock();
     return r;
 }
