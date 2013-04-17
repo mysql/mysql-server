@@ -263,6 +263,9 @@ void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
     uint64_t pc_key = pc->pc_key;
     struct local_counter *lc = get_thread_local_counter(pc_key, &thread_local_array);
     if (lc==NULL) {
+	XMALLOC(lc);    // Might as well do the malloc without holding the pc lock.  But most of the rest of this work needs the lock.
+	pc_lock();
+
         // Set things up so that this thread terminates, the thread-local parts of the counter will be destroyed and merged into their respective counters.
         if (!thread_local_array_inited) {
             pk_setspecific(thread_destructor_key, "dont care");
@@ -271,13 +274,10 @@ void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
             all_thread_local_arrays.insert(&thread_local_ll_elt, &thread_local_array);
         }
 
-	XMALLOC(lc);
 	lc->sum         = 0;
 	HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&lc->sum, sizeof(lc->sum)); // the counter increment is kind of racy.
 	lc->owner_pc    = pc;
         lc->thread_local_array = &thread_local_array;
-
-	pc_lock();  // Might as well do the malloc without holding the pc lock.  But the rest of this work needs the lock.
 
         // Grow the array if needed, filling in NULLs
         while (thread_local_array.get_size() <= pc_key) {

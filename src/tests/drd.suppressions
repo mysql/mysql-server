@@ -57,3 +57,16 @@
    drd:ConflictingAccess
    fun:clone
 }
+
+{
+   <insert_a_suppression_name_here>
+   drd:ConflictingAccess
+   ...
+   fun:_dl_runtime_resolve
+}
+{
+   <insert_a_suppression_name_here>
+   drd:ConflictingAccess
+   ...
+   fun:random
+}
