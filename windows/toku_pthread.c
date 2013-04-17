@@ -6,7 +6,7 @@
 int
 toku_pthread_mutex_init(toku_pthread_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     assert(attr == NULL);
-    // assert(!mutex->initialized);
+    assert(!mutex->initialized);
     InitializeCriticalSection(&mutex->section);
     mutex->initialized = TRUE;
     return 0;
@@ -22,10 +22,6 @@ toku_pthread_mutex_destroy(toku_pthread_mutex_t *mutex) {
 
 int
 toku_pthread_mutex_lock(toku_pthread_mutex_t *mutex) {
-    if (!mutex->initialized) {
-        int r = toku_pthread_mutex_init(mutex, NULL);
-        assert(r==0);
-    }
     assert(mutex->initialized);
     EnterCriticalSection(&mutex->section);
     return 0;
@@ -34,6 +30,7 @@ toku_pthread_mutex_lock(toku_pthread_mutex_t *mutex) {
 #if 0
 int
 toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex) {
+    assert(mutex->initialized);
     int r = 0;
     if (!TryEnterCriticalSection(&mutex->section))
         r = EBUSY;
