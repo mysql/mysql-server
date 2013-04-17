@@ -2298,6 +2298,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     TOKUDB_DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
     int error;
+    char dirname[get_name_length(name) + 32];
     char newname[get_name_length(name) + 32];
 
     uint i;
@@ -2321,22 +2322,23 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     }            
 
     // a table is a directory of dictionaries
-    make_name(newname, name, 0);
-    error = mkdirpath(newname, 0777);
+    make_name(dirname, name, 0);
+    error = mkdirpath(dirname, 0777);
     if (error != 0) {
         TOKUDB_DBUG_RETURN(errno);
     }
-
-    // QQQ rmall if the create fails
 
     make_name(newname, name, "main");
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     /* Create the main table that will hold the real rows */
-    if ((error = create_sub_table(name_buff, "main", DB_BTREE, 0)))
-        TOKUDB_DBUG_RETURN(error);
+    error = create_sub_table(name_buff, "main", DB_BTREE, 0);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-        printf("%d:%s:%d:create:%s\n", my_tid(), __FILE__, __LINE__, newname);
+        printf("%d:%s:%d:create:%s:error=%d\n", my_tid(), __FILE__, __LINE__, newname, error);
+    if (error) {
+        rmall(dirname);
+        TOKUDB_DBUG_RETURN(error);
+    }
 
     primary_key = form->s->primary_key;
 
@@ -2348,11 +2350,13 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             sprintf(part, "key%d", index++);
             make_name(newname, name, part);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-            if ((error = create_sub_table(name_buff, part, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT)))
-                TOKUDB_DBUG_RETURN(error);
+            error = create_sub_table(name_buff, part, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT);
             if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-                printf("%d:%s:%d:create:%s:%ld\n", my_tid(), __FILE__, __LINE__, newname, form->key_info[i].flags);
-
+                printf("%d:%s:%d:create:%s:flags=%ld:error=%d\n", my_tid(), __FILE__, __LINE__, newname, form->key_info[i].flags, error);
+            if (error) {
+                rmall(dirname);
+                TOKUDB_DBUG_RETURN(error);
+            }
         }
     }
 
@@ -2373,9 +2377,12 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             status_block->close(status_block, 0);
         }
         if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-            printf("%d:%s:%d:create:%s:%d\n", my_tid(), __FILE__, __LINE__, newname, error);
+            printf("%d:%s:%d:create:%s:error=%d\n", my_tid(), __FILE__, __LINE__, newname, error);
 
     }
+
+    if (error)
+        rmall(dirname);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2504,8 +2511,8 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range
 
 void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values) {
     ulonglong nr;
-    pthread_mutex_lock(&share->mutex);
 
+    pthread_mutex_lock(&share->mutex);
     if (!(share->status & STATUS_AUTO_INCREMENT_INIT)) {
         share->status |= STATUS_AUTO_INCREMENT_INIT;
         int error = read_last();
@@ -2518,6 +2525,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     nr = share->last_auto_increment + increment;
     share->last_auto_increment = nr + nb_desired_values - 1;
     pthread_mutex_unlock(&share->mutex);
+
     if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT)
         printf("%d:%s:%d:get_auto_increment(%lld,%lld,%lld):got:%lld:%lld\n",
                my_tid(), __FILE__, __LINE__, offset, increment, nb_desired_values, nr, nb_desired_values);
