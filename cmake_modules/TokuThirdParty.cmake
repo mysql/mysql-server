@@ -4,7 +4,7 @@ set(TOKU_SVNROOT "${TokuDB_SOURCE_DIR}/../.." CACHE FILEPATH "The top of the tok
 include(ExternalProject)
 
 ## add jemalloc with an external project
-set(JEMALLOC_SOURCE_DIR "${TOKU_SVNROOT}/jemalloc-3.2.0" CACHE FILEPATH "Where to find jemalloc sources.")
+set(JEMALLOC_SOURCE_DIR "${TOKU_SVNROOT}/jemalloc-3.3.0" CACHE FILEPATH "Where to find jemalloc sources.")
 if (NOT EXISTS "${JEMALLOC_SOURCE_DIR}/configure")
   message(FATAL_ERROR "Can't find jemalloc sources.  Please check them out to ${JEMALLOC_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or JEMALLOC_SOURCE_DIR.")
 endif ()
