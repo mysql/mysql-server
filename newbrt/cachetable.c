@@ -45,7 +45,7 @@ static void cachetable_reader(WORKITEM);
 #define WHEN_TRACE_CT(x) ((void)0)
 #endif
 
-#define TOKU_DO_WAIT_TIME 0
+#define TOKU_DO_WAIT_TIME 1
 
 // these should be in the cachetable object, but we make them file-wide so that gdb can get them easily
 static u_int64_t cachetable_hit;
@@ -57,8 +57,8 @@ static u_int64_t cachetable_prefetches;    // how many times has a block been pr
 static u_int64_t cachetable_maybe_get_and_pins;      // how many times has get_and_pin been called?
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin() returned with a node?
 #if TOKU_DO_WAIT_TIME
-static u_int64_t cachetable_miss_time;
-static u_int64_t cachetable_wait_time;
+static u_int64_t cachetable_misstime;
+static u_int64_t cachetable_waittime;
 #endif
 
 static u_int32_t cachetable_lock_ctr = 0;
@@ -1074,8 +1074,10 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 }
 
 #if TOKU_DO_WAIT_TIME
-static u_int64_t tdelta(struct timeval *tnew, struct timeval *told) {
-    return (tnew->tv_sec * 1000000ULL + tnew->tv_usec) - (told->tv_sec * 1000000ULL + told->tv_usec);
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 #endif
 
@@ -1142,7 +1144,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 #if TOKU_DO_WAIT_TIME
-	    struct timeval t0;
+	    uint64_t t0 = 0;
 	    int do_wait_time = 0;
 #endif
             if (p->rwlock.writer || p->rwlock.want_write) {
@@ -1152,7 +1154,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
                     cachetable_wait_writing++;
 #if TOKU_DO_WAIT_TIME
 		do_wait_time = 1;
-		gettimeofday(&t0, NULL);
+		t0 = get_tnow();
 #endif
             }
 	    if (p->checkpoint_pending) {
@@ -1180,11 +1182,8 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 		    rwlock_read_lock(&p->rwlock, ct->mutex);
 		}
 #if TOKU_DO_WAIT_TIME
-	    if (do_wait_time) {
-		struct timeval tnow;
-		gettimeofday(&tnow, NULL);
-		cachetable_wait_time += tdelta(&tnow, &t0);
-	    }
+	    if (do_wait_time)
+		cachetable_waittime += get_tnow() - t0;
 #endif
 	    get_and_pin_footprint = 8;
             if (p->state == CTPAIR_INVALID) {
@@ -1217,8 +1216,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
 #if TOKU_DO_WAIT_TIME
-	struct timeval t0;
-	gettimeofday(&t0, NULL);
+        uint64_t t0 = get_tnow();
 #endif
         r = cachetable_fetch_pair(ct, cachefile, p);
         if (r) {
@@ -1228,9 +1226,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
         }
         cachetable_miss++;
 #if TOKU_DO_WAIT_TIME
-	struct timeval tnow;
-	gettimeofday(&tnow, NULL);
-	cachetable_miss_time += tdelta(&tnow, &t0);
+	cachetable_misstime += get_tnow() - t0;
 #endif
 	get_and_pin_footprint = 11;
         rwlock_read_lock(&p->rwlock, ct->mutex);
@@ -1609,6 +1605,15 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_free(ct);
     *ctp = 0;
     return 0;
+}
+
+void toku_cachetable_get_miss_times(CACHETABLE UU(ct), uint64_t *misscount, uint64_t *misstime) {
+    if (misscount) *misscount = cachetable_miss;
+#if TOKU_DO_WAIT_TIME
+    if (misstime) *misstime = cachetable_misstime;
+#else
+    if (misstime) *misstime = 0;
+#endif
 }
 
 int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {

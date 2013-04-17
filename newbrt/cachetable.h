@@ -60,9 +60,11 @@ int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **erro
 void toku_cachetable_minicron_shutdown(CACHETABLE ct);
 
 // Close the cachetable.
-// Effects: All of the memory objects are flushed to disk, and the cachetable is
-// destroyed.
+// Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.
 int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
+
+// Get the number of cachetable misses (in misscount) and the accumulated time waiting for reads (in misstime, units of microseconds)
+void toku_cachetable_get_miss_times(CACHETABLE ct, uint64_t *misscount, uint64_t *misstime);
 
 // Open a file and bind the file to a new cachefile object.
 int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, const char */*fname_relative_to_env*/,int flags, mode_t mode);
