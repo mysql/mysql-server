@@ -3051,7 +3051,7 @@ verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
 
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix)
 // fname is relative to the cwd (or absolute)
-int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
+int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, int recovery_force_fcreate) {
     int r;
     BOOL txn_created = FALSE;
 
@@ -3099,7 +3099,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         r=toku_cachetable_openfd_with_filenum(&t->cf,
                                               cachetable, fd, fname_in_env, t->did_set_filenum||did_create, reserved_filenum, did_create);
         if (r != 0) goto died1;
-        if (did_create) {
+        if (did_create || recovery_force_fcreate) {
 	    if (txn) {
 		BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
 		r = toku_logger_save_rollback_fcreate(txn, toku_cachefile_filenum(t->cf), bs); // bs is a copy of the fname relative to the cwd
@@ -3206,6 +3206,11 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
+}
+
+int
+toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
+    return toku_brt_open_recovery(t, fname, fname_in_env, is_create, only_create, cachetable, txn, db, FALSE);
 }
 
 int toku_brt_get_fd(BRT brt, int *fdp) {
