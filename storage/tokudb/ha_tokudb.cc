@@ -1334,7 +1334,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
             for (; key_part != end; key_part++)
                 ref_length += key_part->field->max_packed_col_length(key_part->length);
-            share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length);
+            share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length + sizeof(uchar));
             share->status |= STATUS_PRIMARY_KEY_INIT;
         }
         share->ref_length = ref_length;
@@ -3375,12 +3375,13 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     // this should really be done through pack_key functions
     //
     to->data = pos;
-    if (!hidden_primary_key) {
-        *pos++ = COL_NEG_INF;
-    }
     if (share->fixed_length_primary_key)
         to->size = ref_length;
     else {
+        //
+        // move up infinity byte
+        //
+        pos++;
         KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
         KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
 
