@@ -87,7 +87,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	for (i=0; i<n->u.n.n_children; i++) {
 	    if (i>0) printf(" ");
 	    struct subtree_estimates *est = &(BNC_SUBTREE_ESTIMATES(n, i));
-	    printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 "}", est->nkeys, est->ndata, est->dsize);
+	    printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
 	}
 	printf("}\n");
 	printf(" pivots:\n");
@@ -141,6 +141,8 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	    }
 	}
     } else {
+        struct subtree_estimates *est = &n->u.l.leaf_stats;
+        printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }\n", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
 	printf(" n_bytes_in_buffer=%u\n", n->u.l.n_bytes_in_buffer);
 	printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.buffer));
 	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
