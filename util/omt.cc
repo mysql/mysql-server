@@ -717,7 +717,7 @@ template<typename iterate_extra_t,
 void omt<omtdata_t, omtdataout_t, supports_marks>::iterate_ptr_internal(const uint32_t left, const uint32_t right,
                                                         const subtree &subtree, const uint32_t idx,
                                                         iterate_extra_t *const iterate_extra) {
-    if (!subtree->is_null()) { 
+    if (!subtree.is_null()) { 
         omt_node &n = this->d.t.nodes[subtree.get_index()];
         const uint32_t idx_root = idx + this->nweight(n.left);
         if (left < idx_root) {
