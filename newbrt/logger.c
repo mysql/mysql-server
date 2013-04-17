@@ -8,11 +8,16 @@
 static const int log_format_version=TOKU_LOG_VERSION;
 
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+static u_int32_t logger_lock_ctr = 0;	// useful for debug at a live installation
 
 static int (*toku_os_fsync_function)(int)=fsync;
 static int open_logfile (TOKULOGGER logger);
 static int delete_logfile(TOKULOGGER logger, long long index);
 static int do_write (TOKULOGGER logger, int do_fsync);
+
+u_int32_t toku_logger_get_lock_ctr(void) {
+    return logger_lock_ctr;
+}
 
 int toku_logger_create (TOKULOGGER *resultp) {
     int r;
@@ -139,6 +144,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     r = ml_lock(&logger->output_lock); if (r!=0) goto panic;
     r = ml_lock(&logger->input_lock);  if (r!=0) goto panic;
     r = toku_pthread_mutex_lock(&logger_mutex); if (r!=0) goto panic;
+    logger_lock_ctr++;
     locked_logger = 1;
     r = do_write(logger, 1);           if (r!=0) goto panic; //Releases the input lock
     if (logger->fd!=-1) {
@@ -157,6 +163,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     toku_free(logger);
     *loggerp=0;
     if (locked_logger) {
+	logger_lock_ctr++;
         r = toku_pthread_mutex_unlock(&logger_mutex); if (r!=0) goto panic;
     }
     return r;
@@ -247,6 +254,7 @@ int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize) {
 
 int toku_logger_lock_init(void) {
     int r = toku_pthread_mutex_init(&logger_mutex, NULL);
+    logger_lock_ctr = 0;
     assert(r == 0);
     return r;
 }

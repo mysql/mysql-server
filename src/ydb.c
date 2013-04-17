@@ -988,7 +988,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     else {
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
-	engstat->ydb_lock_ctr = toku_ydb_lock_ctr();                       // is ydb lock held? how many times?
+	engstat->ydb_lock_ctr = toku_ydb_lock_ctr();                       // is ydb lock held? how many times taken/released?
+	engstat->logger_lock_ctr = toku_logger_get_lock_ctr();             // is logger lock held? how many times taken/released?
 	env_checkpointing_get_period(env, &(engstat->checkpoint_period));  // do not take ydb lock (take minicron lock, but that's a very ephemeral low-level lock)
 	{
             CHECKPOINT_STATUS_S cpstat;
