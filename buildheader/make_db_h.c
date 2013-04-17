@@ -506,7 +506,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
     printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");
     printf("  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ \n");
-    printf("  u_int64_t        maybe_get_and_pin_if_in_memorys;  /* how many times has get_and_pin_if_in_memory been called */ \n");
     printf("  int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ \n");
     printf("  int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ \n");
     printf("  int64_t          cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ \n");
