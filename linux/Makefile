@@ -11,6 +11,8 @@ SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
 TARGET = libtokuportability.$(AEXT)
 
+$(OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED_FSTAT
+
 install: $(TARGET)
 	$(MAYBEATSIGN)cp $(TARGET) $(LIBPORTABILITY)
 

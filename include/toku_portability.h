@@ -69,6 +69,11 @@ extern "C" {
 
 #define UU(x) x __attribute__((__unused__))
 
+// Deprecated functions.
+#if !defined(TOKU_ALLOW_DEPRECATED_FSTAT)
+int fstat() __attribute__((__deprecated__));
+#endif
+
 #if defined __cplusplus
 };
 #endif
