@@ -8,7 +8,7 @@ DEBUG = 1
 # sources to target
 SRCS = $(wildcard *.cc)
 OBJS = $(patsubst %.cc,%.o,$(SRCS))
-TARGET = $(patsubst %.o,%.so,$(OBJS))
+TARGET = ha_tokudb.so
 
 ifeq ($(GCOV),1)
 GCOV_FLAGS = -ftest-coverage -fprofile-arcs
@@ -42,8 +42,8 @@ LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
 
 all: $(TARGET)
 
-%.so: %.o
-	$(CXX) $(LDFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS) $(BEGINLIBS) $< $(LIBS) $(ENDLIBS) -o $@
+$(TARGET): $(OBJS)
+	$(CXX) $(LDFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS) $(BEGINLIBS) $^ $(LIBS) $(ENDLIBS) -o $@
 
 clean:
 	rm -rf $(TARGET) $(OBJS) *.gcno *.gcda *.gcov
