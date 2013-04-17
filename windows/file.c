@@ -52,6 +52,16 @@ pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
     r = WriteFile(filehandle, buf, nbyte, &bytes_written, &win_offset);
     if (!r) {
         errno = GetLastError();
+        if (errno == ERROR_HANDLE_DISK_FULL ||
+            errno == ERROR_DISK_FULL) {
+            char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+            snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", len, fd);
+            perror(err_msg);
+            fflush(stdout);
+            int out_of_disk_space = 1;
+            assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
+        }
+
         r = -1;
     }
     else    r = bytes_written;
