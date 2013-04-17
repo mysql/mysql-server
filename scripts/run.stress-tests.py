@@ -698,7 +698,7 @@ if __name__ == '__main__':
     toplevel_basename = os.path.basename(default_toplevel)
     if toplevel_basename == 'tokudb':
         maybe_absolute_branchpath = os.path.dirname(default_toplevel)
-        if os.path.dirname(maybe_absolute_branchpath) == 'mysql.branches':
+        if os.path.basename(os.path.dirname(maybe_absolute_branchpath)) == 'mysql.branches':
             default_branchname = os.path.basename(maybe_absolute_branchpath)
         else:
             default_branchname = 'mainline'
