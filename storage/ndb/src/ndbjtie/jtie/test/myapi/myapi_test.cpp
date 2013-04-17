@@ -634,7 +634,9 @@ test10()
 
     printf("\ndelete[] (new C0[0])\n");
     C0 * c0a0 = new C0[0];
-    assert(c0a0 != NULL);
+    // Check that zero length array new worked
+    if (c0a0 == NULL)
+      abort();
     delete[] c0a0;
 
     const int n = 3;
@@ -643,8 +645,6 @@ test10()
     C1 * c1a = new C1[n];
     const C1 * c1ca = c1a;
 
-    // for debugging
-    //for (int i = 0; i < n; i++) {
     for (int i = 0; i < 0; i++) {
         printf("\nc0a[i].print()\n");
         c0a[i].print();
