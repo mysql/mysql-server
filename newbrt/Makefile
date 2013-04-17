@@ -102,11 +102,11 @@ check: bins
 %$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
 
 checko2:
-ifeq ($(OPTFLAGS),-O3)
-	@echo OPTFLAGS=$(OPTFLAGS) ok
-else
-	@echo OPTFLAGS=$(OPTFLAGS) bad; exit 1
-endif
+	if [[ "$(OPTFLAGS)" =~ "-O([2-3])" ]] ; then \
+		echo OPTFLAGS=$(OPTFLAGS) ok; \
+	else \
+		echo OPTFLAGS=$(OPTFLAGS) bad; exit 1; \
+	fi
 
 clean: clean-local clean-tests
 clean-tests:
