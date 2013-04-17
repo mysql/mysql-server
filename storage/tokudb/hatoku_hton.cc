@@ -46,7 +46,7 @@ static MYSQL_THDVAR_BOOL(commit_sync,
     "sync on txn commit",
     /* check */ NULL, 
     /* update */ NULL,
-    /* default*/ TRUE
+    /* default*/ true
     );
 
 static MYSQL_THDVAR_UINT(pk_insert_mode,
@@ -64,49 +64,49 @@ static MYSQL_THDVAR_BOOL(load_save_space,
   "if on, intial loads are slower but take less space",
   NULL, 
   NULL, 
-  FALSE
+  false
   );
 static MYSQL_THDVAR_BOOL(disable_slow_alter,
   0,
   "if on, alter tables that require copy are disabled",
   NULL, 
   NULL, 
-  FALSE
+  false
   );
 static MYSQL_THDVAR_BOOL(disable_hot_alter,
   0,
   "if on, hot alter table is disabled",
   NULL, 
   NULL, 
-  FALSE
+  false
   );
 static MYSQL_THDVAR_BOOL(create_index_online,
   0,
   "if on, create index done online",
   NULL, 
   NULL, 
-  TRUE
+  true
   );
 static MYSQL_THDVAR_BOOL(disable_prefetching,
   0,
   "if on, prefetching disabled",
   NULL, 
   NULL, 
-  FALSE
+  false
   );
 static MYSQL_THDVAR_BOOL(prelock_empty,
   0,
   "Tokudb Prelock Empty Table",
   NULL, 
   NULL, 
-  TRUE
+  true
   );
 static MYSQL_THDVAR_BOOL(log_client_errors,
   0,
   "Tokudb Log Client Errors",
   NULL, 
   NULL, 
-  FALSE
+  false
   );
 static MYSQL_THDVAR_UINT(block_size,
   0,
@@ -150,7 +150,7 @@ tokudb_checkpoint_lock_update(
     const void* save) 
 {
     my_bool* val = (my_bool *) var_ptr;
-    *val= *(my_bool *) save ? TRUE : FALSE;
+    *val= *(my_bool *) save ? true : false;
     if (*val) {
         tokudb_checkpoint_lock(thd);
     }
@@ -164,7 +164,7 @@ static MYSQL_THDVAR_BOOL(checkpoint_lock,
   "Tokudb Checkpoint Lock",
   NULL, 
   tokudb_checkpoint_lock_update, 
-  FALSE
+  false
   );
 
 static const char *tokudb_row_format_names[] = {
@@ -255,16 +255,16 @@ void toku_hton_assert_fail(const char* expr_as_string, const char * fun, const c
 
 
 
-//my_bool tokudb_shared_data = FALSE;
-static u_int32_t tokudb_init_flags = 
+//my_bool tokudb_shared_data = false;
+static uint32_t tokudb_init_flags = 
     DB_CREATE | DB_THREAD | DB_PRIVATE | 
     DB_INIT_LOCK | 
     DB_INIT_MPOOL |
     DB_INIT_TXN | 
     DB_INIT_LOG |
     DB_RECOVER;
-static u_int32_t tokudb_env_flags = 0;
-// static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
+static uint32_t tokudb_env_flags = 0;
+// static uint32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
@@ -276,9 +276,9 @@ static char *tokudb_log_dir;
 // static ulong tokudb_region_size = 0;
 // static ulong tokudb_cache_parts = 1;
 const char *tokudb_hton_name = "TokuDB";
-static u_int32_t tokudb_checkpointing_period;
-u_int32_t tokudb_write_status_frequency;
-u_int32_t tokudb_read_status_frequency;
+static uint32_t tokudb_checkpointing_period;
+uint32_t tokudb_write_status_frequency;
+uint32_t tokudb_read_status_frequency;
 #ifdef TOKUDB_VERSION
 char *tokudb_version = (char*) TOKUDB_VERSION;
 #else
@@ -444,7 +444,7 @@ static int tokudb_init_func(void *p) {
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
-        r = db_env->set_cachesize(db_env, (u_int32_t)(tokudb_cache_size >> 30), (u_int32_t)(tokudb_cache_size % (1024L * 1024L * 1024L)), 1);
+        r = db_env->set_cachesize(db_env, (uint32_t)(tokudb_cache_size >> 30), (uint32_t)(tokudb_cache_size % (1024L * 1024L * 1024L)), 1);
         if (r) {
             DBUG_PRINT("info", ("set_cachesize %d\n", r));
             goto error; 
@@ -462,7 +462,7 @@ static int tokudb_init_func(void *p) {
         }
     }
     
-    u_int32_t gbytes, bytes; int parts;
+    uint32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
@@ -551,7 +551,7 @@ static int tokudb_init_func(void *p) {
     //3938: succeeded, set the init status flag and unlock
     tokudb_hton_initialized = 1;
     rw_unlock(&tokudb_hton_initialized_lock);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
 error:
     if (metadata_db) {
@@ -567,7 +567,7 @@ error:
     // 3938: failed to initialized, drop the flag and lock
     tokudb_hton_initialized = 0;
     rw_unlock(&tokudb_hton_initialized_lock);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 }
 
 static int tokudb_done_func(void *p) {
@@ -637,7 +637,7 @@ bool tokudb_flush_logs(handlerton * hton) {
     TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
-    u_int32_t curr_tokudb_checkpointing_period = 0;
+    uint32_t curr_tokudb_checkpointing_period = 0;
 
     //
     // get the current checkpointing period
@@ -780,7 +780,7 @@ void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
 }
 
 
-static void commit_txn_with_progress(DB_TXN* txn, u_int32_t flags, THD* thd) {
+static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
     int r;
     struct txn_progress_info info;
     info.thd = thd;
@@ -805,7 +805,7 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_commit");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
-    u_int32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
+    uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     if (*txn) {
@@ -1059,7 +1059,7 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);    
 }
 
-static int store_dbname_tablename_size(TABLE *table, char *name, u_int64_t size, THD *thd) {
+static int store_dbname_tablename_size(TABLE *table, char *name, uint64_t size, THD *thd) {
     char *tp = strrchr(name, '/');
     assert(tp);
     char *tablename = tp + 1;
@@ -1181,7 +1181,7 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
         if (!error) {
             char* name = (char *)curr_key.data;
             char* newname;
-            u_int64_t curr_num_bytes = 0;
+            uint64_t curr_num_bytes = 0;
             DB_BTREE_STAT64 dict_stats;
 
             error = db_create(&curr_db, db_env, 0);
@@ -1241,14 +1241,14 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
                 // in this case, we have a hidden primary key, do not
                 // want to report space taken up by the hidden primary key to the user
                 //
-                u_int64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
+                uint64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
                 curr_num_bytes = (hpk_space > curr_num_bytes) ? 0 : curr_num_bytes - hpk_space;
             }
             else {
                 //
                 // one infinity byte per key needs to be subtracted
                 //
-                u_int64_t inf_byte_space = dict_stats.bt_ndata;
+                uint64_t inf_byte_space = dict_stats.bt_ndata;
                 curr_num_bytes = (inf_byte_space > curr_num_bytes) ? 0 : curr_num_bytes - inf_byte_space;
             }
 
@@ -1456,7 +1456,7 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * sta
     default:
         break;
     }
-    return FALSE;
+    return false;
 }
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer) {

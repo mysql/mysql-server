@@ -79,7 +79,7 @@ static void share_key_file_unlock(TOKUDB_SHARE * share)
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
-static inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+static inline uint32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint offset = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         if (kc_info->field_lengths[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
@@ -90,7 +90,7 @@ static inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SH
 }
 
 
-static inline u_int32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+static inline uint32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint len = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         if (kc_info->length_bytes[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
@@ -121,9 +121,9 @@ static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INF
     //
     // create the field lengths
     //
-    kc_info->field_lengths = (u_int16_t *)my_malloc(table_share->fields*sizeof(u_int16_t), MYF(MY_WME | MY_ZEROFILL));
+    kc_info->field_lengths = (uint16_t *)my_malloc(table_share->fields*sizeof(uint16_t), MYF(MY_WME | MY_ZEROFILL));
     kc_info->length_bytes= (uchar *)my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
-    kc_info->blob_fields= (u_int32_t *)my_malloc(table_share->fields*sizeof(u_int32_t), MYF(MY_WME | MY_ZEROFILL));
+    kc_info->blob_fields= (uint32_t *)my_malloc(table_share->fields*sizeof(uint32_t), MYF(MY_WME | MY_ZEROFILL));
     
     if (kc_info->field_lengths == NULL || 
         kc_info->length_bytes == NULL || 
@@ -636,7 +636,7 @@ static inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
     }
 }
 
-static inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
+static inline uint32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
     if (lvl == hatoku_iso_read_uncommitted) {
         return DB_READ_UNCOMMITTED;
     }
@@ -724,7 +724,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
 static inline uchar* pack_fixed_field(
     uchar* to_tokudb,
     const uchar* from_mysql,
-    u_int32_t num_bytes
+    uint32_t num_bytes
     )
 {
     switch (num_bytes) {
@@ -753,7 +753,7 @@ static inline uchar* pack_fixed_field(
 static inline const uchar* unpack_fixed_field(
     uchar* to_mysql,
     const uchar* from_tokudb,
-    u_int32_t num_bytes
+    uint32_t num_bytes
     )
 {
     switch (num_bytes) {
@@ -784,15 +784,15 @@ static inline uchar* write_var_field(
     uchar* to_tokudb_data, // location where data is going to be written
     uchar* to_tokudb_offset_start, //location where offset starts, IS THIS A BAD NAME????
     const uchar * data, // the data to write
-    u_int32_t data_length, // length of data to write
-    u_int32_t offset_bytes // number of offset bytes
+    uint32_t data_length, // length of data to write
+    uint32_t offset_bytes // number of offset bytes
     )
 {
     memcpy(to_tokudb_data, data, data_length);
     //
     // for offset, we pack the offset where the data ENDS!
     //
-    u_int32_t offset = to_tokudb_data + data_length - to_tokudb_offset_start;
+    uint32_t offset = to_tokudb_data + data_length - to_tokudb_offset_start;
     switch(offset_bytes) {
     case (1):
         to_tokudb_offset_ptr[0] = (uchar)offset;
@@ -807,12 +807,12 @@ static inline uchar* write_var_field(
     return to_tokudb_data + data_length;
 }
 
-static inline u_int32_t get_var_data_length(
+static inline uint32_t get_var_data_length(
     const uchar * from_mysql, 
-    u_int32_t mysql_length_bytes 
+    uint32_t mysql_length_bytes 
     ) 
 {
-    u_int32_t data_length;
+    uint32_t data_length;
     switch(mysql_length_bytes) {
     case(1):
         data_length = from_mysql[0];
@@ -832,8 +832,8 @@ static inline uchar* pack_var_field(
     uchar* to_tokudb_data, // pointer to where tokudb data should be written
     uchar* to_tokudb_offset_start, //location where data starts, IS THIS A BAD NAME????
     const uchar * from_mysql, // mysql data
-    u_int32_t mysql_length_bytes, //number of bytes used to store length in from_mysql
-    u_int32_t offset_bytes //number of offset_bytes used in tokudb row
+    uint32_t mysql_length_bytes, //number of bytes used to store length in from_mysql
+    uint32_t offset_bytes //number of offset_bytes used in tokudb row
     )
 {
     uint data_length = get_var_data_length(from_mysql, mysql_length_bytes);    
@@ -850,8 +850,8 @@ static inline uchar* pack_var_field(
 static inline void unpack_var_field(
     uchar* to_mysql,
     const uchar* from_tokudb_data,
-    u_int32_t from_tokudb_data_len,
-    u_int32_t mysql_length_bytes
+    uint32_t from_tokudb_data_len,
+    uint32_t mysql_length_bytes
     )
 {
     //
@@ -880,14 +880,14 @@ static uchar* pack_toku_field_blob(
     Field* field
     )
 {
-    u_int32_t len_bytes = field->row_pack_length();
-    u_int32_t length = 0;
+    uint32_t len_bytes = field->row_pack_length();
+    uint32_t length = 0;
     uchar* data_ptr = NULL;
     memcpy(to_tokudb, from_mysql, len_bytes);
 
     switch (len_bytes) {
     case (1):
-        length = (u_int32_t)(*from_mysql);
+        length = (uint32_t)(*from_mysql);
         break;
     case (2):
         length = uint2korr(from_mysql);
@@ -1067,13 +1067,13 @@ static inline int tokudb_generate_row(
 
     DB* curr_db = dest_db;
     uchar* row_desc = NULL;
-    u_int32_t desc_size;
+    uint32_t desc_size;
     uchar* buff = NULL;
-    u_int32_t max_key_len = 0;
+    uint32_t max_key_len = 0;
     
     row_desc = (uchar *)curr_db->descriptor->dbt.data;
-    row_desc += (*(u_int32_t *)row_desc);
-    desc_size = (*(u_int32_t *)row_desc) - 4;
+    row_desc += (*(uint32_t *)row_desc);
+    desc_size = (*(uint32_t *)row_desc) - 4;
     row_desc += 4;
     
     if (is_key_pk(row_desc, desc_size)) {
@@ -1141,7 +1141,7 @@ static inline int tokudb_generate_row(
     }
 
     row_desc += desc_size;
-    desc_size = (*(u_int32_t *)row_desc) - 4;
+    desc_size = (*(uint32_t *)row_desc) - 4;
     row_desc += 4;
     if (dest_val != NULL) {
         if (!is_key_clustering(row_desc, desc_size) || src_val->size == 0) {
@@ -1257,7 +1257,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     abort_loader = false;
     memset(&lc, 0, sizeof(lc));
     lock.type = TL_IGNORE;
-    for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
+    for (uint32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = 0;
         mult_del_flags[i] = DB_DELETE_ANY;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
@@ -1307,7 +1307,7 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     int error;
     char* newname = NULL;
     uint open_mode = DB_THREAD;
-    u_int32_t pagesize = 0;
+    uint32_t pagesize = 0;
     newname = (char *)my_malloc(
         get_max_dict_name_path_length(name), 
         MYF(MY_WME)
@@ -1461,8 +1461,8 @@ static int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* tabl
         goto exit;
     }
     {
-    u_int32_t curr_fixed_offset = 0;
-    u_int32_t curr_var_index = 0;
+    uint32_t curr_fixed_offset = 0;
+    uint32_t curr_var_index = 0;
     for (uint j = 0; j < table_share->fields; j++) {
         COL_PACK_INFO* curr = &kc_info->cp_info[keynr][j];
         //
@@ -1511,8 +1511,8 @@ static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
 
 static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
     int error = 0;
-    u_int32_t curr_blob_field_index = 0;
-    u_int32_t max_var_bytes = 0;
+    uint32_t curr_blob_field_index = 0;
+    uint32_t max_var_bytes = 0;
     //
     // fill in the field lengths. 0 means it is a variable sized field length
     // fill in length_bytes, 0 means it is fixed or blob
@@ -1529,7 +1529,7 @@ static int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, K
         case toku_type_fixstring:
             pack_length = field->pack_length();
             assert(pack_length < 1<<16);
-            kc_info->field_lengths[i] = (u_int16_t)pack_length;
+            kc_info->field_lengths[i] = (uint16_t)pack_length;
             kc_info->length_bytes[i] = 0;
             break;
         case toku_type_blob:
@@ -1643,7 +1643,7 @@ int ha_tokudb::initialize_share(
     )
 {
     int error = 0;
-    u_int64_t num_rows = 0;
+    uint64_t num_rows = 0;
     bool table_exists;
     DB_TXN* txn = NULL;
     bool do_commit = false;
@@ -1734,7 +1734,7 @@ int ha_tokudb::initialize_share(
         // We need to set the ref_length to start at 5, to account for
         // the "infinity byte" in keys, and for placing the DBT size in the first four bytes
         //
-        ref_length = sizeof(u_int32_t) + sizeof(uchar);
+        ref_length = sizeof(uint32_t) + sizeof(uchar);
         KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
         KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
         for (; key_part != end; key_part++) {
@@ -1811,7 +1811,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         primary_key = table_share->keys;
         key_used_on_scan = MAX_KEY;
         hidden_primary_key = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
-        ref_length = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(u_int32_t);
+        ref_length = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t);
     } 
     else {
         key_used_on_scan = primary_key;
@@ -1829,8 +1829,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         &prelocked_left_range, max_key_length, 
         &prelocked_right_range, max_key_length, 
         &primary_key_buff, (hidden_primary_key ? 0 : max_key_length),
-        &fixed_cols_for_query, table_share->fields*sizeof(u_int32_t),
-        &var_cols_for_query, table_share->fields*sizeof(u_int32_t),
+        &fixed_cols_for_query, table_share->fields*sizeof(uint32_t),
+        &var_cols_for_query, table_share->fields*sizeof(uint32_t),
         NullS
         );
     if (alloc_ptr == NULL) {
@@ -1859,11 +1859,11 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         goto exit;
     }
 
-    for (u_int32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
         mult_key_dbt[i].flags = DB_DBT_REALLOC;
     }
 
-    for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+    for (uint32_t i = 0; i < curr_num_DBs; i++) {
         mult_rec_dbt[i].flags = DB_DBT_REALLOC;
     }
 
@@ -1929,7 +1929,7 @@ exit:
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn) {
+int ha_tokudb::estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn) {
     int error = ENOSYS;
     DBC* crsr = NULL;
     bool do_commit = false;
@@ -2193,13 +2193,13 @@ int ha_tokudb::__close(int mutex_is_locked) {
     my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
-    for (u_int32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
         if (mult_rec_dbt[i].flags == DB_DBT_REALLOC &&
                 mult_rec_dbt[i].data != NULL) {
             free(mult_rec_dbt[i].data);
         }
     }
-    for (u_int32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
         if (mult_key_dbt[i].flags == DB_DBT_REALLOC &&
                 mult_key_dbt[i].data != NULL) {
             free(mult_key_dbt[i].data);
@@ -2366,7 +2366,7 @@ int ha_tokudb::pack_old_row_for_update(
 int ha_tokudb::unpack_blobs(
     uchar* record,
     const uchar* from_tokudb_blob,
-    u_int32_t num_bytes,
+    uint32_t num_bytes,
     bool check_bitmap
     )
 {
@@ -2390,13 +2390,13 @@ int ha_tokudb::unpack_blobs(
     memcpy(blob_buff, from_tokudb_blob, num_bytes);
     buff= blob_buff;
     for (uint i = 0; i < share->kc_info.num_blobs; i++) {
-        u_int32_t curr_field_index = share->kc_info.blob_fields[i]; 
+        uint32_t curr_field_index = share->kc_info.blob_fields[i]; 
         bool skip = check_bitmap ? 
             !(bitmap_is_set(table->read_set,curr_field_index) || 
                 bitmap_is_set(table->write_set,curr_field_index)) : 
             false;
         Field* field = table->field[curr_field_index];
-        u_int32_t len_bytes = field->row_pack_length();
+        uint32_t len_bytes = field->row_pack_length();
         buff = unpack_toku_field_blob(
             record + field_offset(field, table),
             buff,
@@ -2432,7 +2432,7 @@ int ha_tokudb::unpack_row(
     const uchar* fixed_field_ptr = (const uchar *) row->data;
     const uchar* var_field_offset_ptr = NULL;
     const uchar* var_field_data_ptr = NULL;
-    u_int32_t data_end_offset = 0;
+    uint32_t data_end_offset = 0;
     memcpy(record, fixed_field_ptr, table_share->null_bytes);
     fixed_field_ptr += table_share->null_bytes;
 
@@ -2446,7 +2446,7 @@ int ha_tokudb::unpack_row(
         unpack_key(record,key,index);
     }
 
-    u_int32_t last_offset = 0;
+    uint32_t last_offset = 0;
     //
     // we have two methods of unpacking, one if we need to unpack the entire row
     // the second if we unpack a subset of the entire row
@@ -2499,7 +2499,7 @@ int ha_tokudb::unpack_row(
         error = unpack_blobs(
             record,
             var_field_data_ptr,
-            row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data),
+            row->size - (uint32_t)(var_field_data_ptr - (const uchar *)row->data),
             false
             );
         if (error) {
@@ -2514,7 +2514,7 @@ int ha_tokudb::unpack_row(
         //
         // first the fixed fields
         //
-        for (u_int32_t i = 0; i < num_fixed_cols_for_query; i++) {
+        for (uint32_t i = 0; i < num_fixed_cols_for_query; i++) {
             uint field_index = fixed_cols_for_query[i];
             Field* field = table->field[field_index];
             unpack_fixed_field(
@@ -2528,12 +2528,12 @@ int ha_tokudb::unpack_row(
         // now the var fields
         // here, we do NOT modify var_field_data_ptr or var_field_offset_ptr
         //
-        for (u_int32_t i = 0; i < num_var_cols_for_query; i++) {
+        for (uint32_t i = 0; i < num_var_cols_for_query; i++) {
             uint field_index = var_cols_for_query[i];
             Field* field = table->field[field_index];
-            u_int32_t var_field_index = share->kc_info.cp_info[index][field_index].col_pack_val;
-            u_int32_t data_start_offset;
-            u_int32_t field_len;
+            uint32_t var_field_index = share->kc_info.cp_info[index][field_index].col_pack_val;
+            uint32_t data_start_offset;
+            uint32_t field_len;
             
             get_var_field_info(
                 &field_len, 
@@ -2566,7 +2566,7 @@ int ha_tokudb::unpack_row(
             error = unpack_blobs(
                 record,
                 var_field_data_ptr,
-                row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data),
+                row->size - (uint32_t)(var_field_data_ptr - (const uchar *)row->data),
                 true
                 );
             if (error) {
@@ -2579,7 +2579,7 @@ exit:
     return error;
 }
 
-u_int32_t ha_tokudb::place_key_into_mysql_buff(
+uint32_t ha_tokudb::place_key_into_mysql_buff(
     KEY* key_info, 
     uchar * record, 
     uchar* data
@@ -2626,7 +2626,7 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(
 //                  unpacking a key of
 //
 void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
-    u_int32_t bytes_read;
+    uint32_t bytes_read;
     uchar *pos = (uchar *) key->data + 1;
     bytes_read = place_key_into_mysql_buff(
         &table->key_info[index], 
@@ -2645,7 +2645,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
     }
 }
 
-u_int32_t ha_tokudb::place_key_into_dbt_buff(
+uint32_t ha_tokudb::place_key_into_dbt_buff(
     KEY* key_info, 
     uchar * buff, 
     const uchar * record, 
@@ -2721,7 +2721,7 @@ DBT* ha_tokudb::create_dbt_key_from_key(
     int key_length
     ) 
 {
-    u_int32_t size = 0;
+    uint32_t size = 0;
     uchar* tmp_buff = buff;
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
@@ -3065,12 +3065,12 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
     int ret_val = 0;
     ret_val = tokudb_compare_two_keys(
-        ref1 + sizeof(u_int32_t),
-        *(u_int32_t *)ref1,
-        ref2 + sizeof(u_int32_t),
-        *(u_int32_t *)ref2,
+        ref1 + sizeof(uint32_t),
+        *(uint32_t *)ref1,
+        ref2 + sizeof(uint32_t),
+        *(uint32_t *)ref2,
         (uchar *)share->file->descriptor->dbt.data + 4,
-        *(u_int32_t *)share->file->descriptor->dbt.data - 4,
+        *(uint32_t *)share->file->descriptor->dbt.data - 4,
         false
         );
     return ret_val;
@@ -3173,7 +3173,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 if (!thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !hidden_primary_key) {
                     mult_put_flags[primary_key] = DB_NOOVERWRITE;
                 }
-                u_int32_t loader_flags = (get_load_save_space(thd)) ? 
+                uint32_t loader_flags = (get_load_save_space(thd)) ? 
                     LOADER_USE_PUTS : 0;
 
                 int error = db_env->create_loader(
@@ -3307,7 +3307,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     DBC* tmp_cursor1 = NULL;
     DBC* tmp_cursor2 = NULL;
     DBT key1, key2, val, packed_key1, packed_key2;
-    u_int64_t cnt = 0;
+    uint64_t cnt = 0;
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     THD* thd = ha_thd();
     memset(&key1, 0, sizeof(key1));
@@ -3594,9 +3594,9 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     tmp_pk_val.size = pk_val->size;
 
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-        u_int32_t tmp_num_bytes = 0;
+        uint32_t tmp_num_bytes = 0;
         uchar* row_desc = NULL;
-        u_int32_t desc_size = 0;
+        uint32_t desc_size = 0;
         
         if (keynr == primary_key) {
             continue;
@@ -3608,8 +3608,8 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         // TEST
         //
         row_desc = (uchar *)share->key_file[keynr]->descriptor->dbt.data;
-        row_desc += (*(u_int32_t *)row_desc);
-        desc_size = (*(u_int32_t *)row_desc) - 4;
+        row_desc += (*(uint32_t *)row_desc);
+        desc_size = (*(uint32_t *)row_desc) - 4;
         row_desc += 4;
         tmp_num_bytes = pack_key_from_desc(
             key_buff3,
@@ -3632,9 +3632,9 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             tmp_buff = (uchar *)my_malloc(alloced_rec_buff_length,MYF(MY_WME));
             assert(tmp_buff);
             row_desc = (uchar *)share->key_file[keynr]->descriptor->dbt.data;
-            row_desc += (*(u_int32_t *)row_desc);
-            row_desc += (*(u_int32_t *)row_desc);
-            desc_size = (*(u_int32_t *)row_desc) - 4;
+            row_desc += (*(uint32_t *)row_desc);
+            row_desc += (*(uint32_t *)row_desc);
+            desc_size = (*(uint32_t *)row_desc) - 4;
             row_desc += 4;
             tmp_num_bytes = pack_clustering_val_from_desc(
                 tmp_buff,
@@ -3667,10 +3667,10 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 void ha_tokudb::set_main_dict_put_flags(
     THD* thd, 
     bool opt_eligible,
-    u_int32_t* put_flags
+    uint32_t* put_flags
     ) 
 {
-    u_int32_t old_prelock_flags = 0;
+    uint32_t old_prelock_flags = 0;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
     bool using_ignore_flag_opt = do_ignore_flag_optimization(
@@ -3713,7 +3713,7 @@ void ha_tokudb::set_main_dict_put_flags(
 
 int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
     int error = 0;
-    u_int32_t put_flags = mult_put_flags[primary_key];
+    uint32_t put_flags = mult_put_flags[primary_key];
     THD *thd = ha_thd();
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
 
@@ -4234,8 +4234,8 @@ cleanup:
 // and var_cols_for_query
 //
 void ha_tokudb::set_query_columns(uint keynr) {
-    u_int32_t curr_fixed_col_index = 0;
-    u_int32_t curr_var_col_index = 0;
+    uint32_t curr_fixed_col_index = 0;
+    uint32_t curr_var_col_index = 0;
     read_key = false;
     read_blobs = false;
     //
@@ -4699,7 +4699,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     DBT row;
     DBT lookup_key;
     int error = 0;    
-    u_int32_t flags = 0;
+    uint32_t flags = 0;
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     struct smart_dbt_info info;
@@ -4801,7 +4801,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
     memset((void *) &curr_key, 0, sizeof(curr_key));
     
     // get key info
-    u_int32_t key_size = *(u_int32_t *)curr_pos;
+    uint32_t key_size = *(uint32_t *)curr_pos;
     curr_pos += sizeof(key_size);
     uchar* curr_key_buff = curr_pos;
     curr_pos += key_size;
@@ -4821,7 +4821,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
         DBT curr_val;
         memset((void *) &curr_val, 0, sizeof(curr_val));
         uchar* curr_val_buff = NULL;
-        u_int32_t val_size = 0;
+        uint32_t val_size = 0;
         // in this case, we don't have a val, we are simply extracting the pk
         if (!need_val) {
             curr_val.data = curr_val_buff;
@@ -4834,7 +4834,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
             // need to extract a val and place it into buf
             if (unpack_entire_row) {
                 // get val info
-                val_size = *(u_int32_t *)curr_pos;
+                val_size = *(uint32_t *)curr_pos;
                 curr_pos += sizeof(val_size);
                 curr_val_buff = curr_pos;
                 curr_pos += val_size;
@@ -4853,7 +4853,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
                 curr_pos += table_share->null_bytes;
 
                 // now the fixed sized rows                
-                for (u_int32_t i = 0; i < num_fixed_cols_for_query; i++) {
+                for (uint32_t i = 0; i < num_fixed_cols_for_query; i++) {
                     uint field_index = fixed_cols_for_query[i];
                     Field* field = table->field[field_index];
                     unpack_fixed_field(
@@ -4864,10 +4864,10 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
                     curr_pos += share->kc_info.field_lengths[field_index];
                 }
                 // now the variable sized rows
-                for (u_int32_t i = 0; i < num_var_cols_for_query; i++) {
+                for (uint32_t i = 0; i < num_var_cols_for_query; i++) {
                     uint field_index = var_cols_for_query[i];
                     Field* field = table->field[field_index];
-                    u_int32_t field_len = *(u_int32_t *)curr_pos;
+                    uint32_t field_len = *(uint32_t *)curr_pos;
                     curr_pos += sizeof(field_len);
                     unpack_var_field(
                         buf + field_offset(field, table),
@@ -4879,7 +4879,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
                 }
                 // now the blobs
                 if (read_blobs) {
-                    u_int32_t blob_size = *(u_int32_t *)curr_pos;
+                    uint32_t blob_size = *(uint32_t *)curr_pos;
                     curr_pos += sizeof(blob_size);
                     error = unpack_blobs(
                         buf,
@@ -4921,24 +4921,24 @@ int ha_tokudb::fill_range_query_buf(
     //
     // first put the value into range_query_buf
     //
-    u_int32_t size_remaining = size_range_query_buff - bytes_used_in_range_query_buff;
-    u_int32_t size_needed;
-    u_int32_t user_defined_size = get_tokudb_read_buf_size(thd);
+    uint32_t size_remaining = size_range_query_buff - bytes_used_in_range_query_buff;
+    uint32_t size_needed;
+    uint32_t user_defined_size = get_tokudb_read_buf_size(thd);
     uchar* curr_pos = NULL;
     if (need_val) {
         if (unpack_entire_row) {
-            size_needed = 2*sizeof(u_int32_t) + key->size + row->size;
+            size_needed = 2*sizeof(uint32_t) + key->size + row->size;
         }
         else {
             // this is an upper bound
-            size_needed = sizeof(u_int32_t) + // size of key length
+            size_needed = sizeof(uint32_t) + // size of key length
                           key->size + row->size + //key and row
-                          num_var_cols_for_query*(sizeof(u_int32_t)) + //lengths of varchars stored
-                          sizeof(u_int32_t); //length of blobs
+                          num_var_cols_for_query*(sizeof(uint32_t)) + //lengths of varchars stored
+                          sizeof(uint32_t); //length of blobs
         }
     }
     else {
-        size_needed = sizeof(u_int32_t) + key->size;
+        size_needed = sizeof(uint32_t) + key->size;
     }
     if (size_remaining < size_needed) {
         range_query_buff = (uchar *)my_realloc(
@@ -4958,14 +4958,14 @@ int ha_tokudb::fill_range_query_buf(
     //
     curr_pos = range_query_buff + bytes_used_in_range_query_buff;
 
-    *(u_int32_t *)curr_pos = key->size;
-    curr_pos += sizeof(u_int32_t);
+    *(uint32_t *)curr_pos = key->size;
+    curr_pos += sizeof(uint32_t);
     memcpy(curr_pos, key->data, key->size);
     curr_pos += key->size;
     if (need_val) {
         if (unpack_entire_row) {
-            *(u_int32_t *)curr_pos = row->size;
-            curr_pos += sizeof(u_int32_t);
+            *(uint32_t *)curr_pos = row->size;
+            curr_pos += sizeof(uint32_t);
             memcpy(curr_pos, row->data, row->size);
             curr_pos += row->size;
         }
@@ -4987,7 +4987,7 @@ int ha_tokudb::fill_range_query_buf(
             //
             // first the fixed fields
             //
-            for (u_int32_t i = 0; i < num_fixed_cols_for_query; i++) {
+            for (uint32_t i = 0; i < num_fixed_cols_for_query; i++) {
                 uint field_index = fixed_cols_for_query[i];
                 memcpy(
                     curr_pos, 
@@ -5000,11 +5000,11 @@ int ha_tokudb::fill_range_query_buf(
             //
             // now the var fields
             //
-            for (u_int32_t i = 0; i < num_var_cols_for_query; i++) {
+            for (uint32_t i = 0; i < num_var_cols_for_query; i++) {
                 uint field_index = var_cols_for_query[i];
-                u_int32_t var_field_index = share->kc_info.cp_info[active_index][field_index].col_pack_val;
-                u_int32_t data_start_offset;
-                u_int32_t field_len;
+                uint32_t var_field_index = share->kc_info.cp_info[active_index][field_index].col_pack_val;
+                uint32_t data_start_offset;
+                uint32_t field_len;
                 
                 get_var_field_info(
                     &field_len, 
@@ -5020,8 +5020,8 @@ int ha_tokudb::fill_range_query_buf(
             }
             
             if (read_blobs) {
-                u_int32_t blob_offset = 0;
-                u_int32_t data_size = 0;
+                uint32_t blob_offset = 0;
+                uint32_t data_size = 0;
                 //
                 // now the blobs
                 //
@@ -5031,7 +5031,7 @@ int ha_tokudb::fill_range_query_buf(
                     var_field_data_ptr, 
                     share->kc_info.num_offset_bytes
                     );
-                data_size = row->size - blob_offset - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data);
+                data_size = row->size - blob_offset - (uint32_t)(var_field_data_ptr - (const uchar *)row->data);
                 memcpy(curr_pos, &data_size, sizeof(data_size));
                 curr_pos += sizeof(data_size);
                 memcpy(curr_pos, var_field_data_ptr + blob_offset, data_size);
@@ -5111,7 +5111,7 @@ cleanup:
 
 int ha_tokudb::get_next(uchar* buf, int direction) {
     int error = 0; 
-    u_int32_t flags = SET_PRELOCK_FLAG(0);
+    uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     bool need_val;
@@ -5244,7 +5244,7 @@ int ha_tokudb::index_first(uchar * buf) {
     invalidate_bulk_fetch();
     int error = 0;
     struct smart_dbt_info info;
-    u_int32_t flags = SET_PRELOCK_FLAG(0);
+    uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     HANDLE_INVALID_CURSOR();
@@ -5287,7 +5287,7 @@ int ha_tokudb::index_last(uchar * buf) {
     invalidate_bulk_fetch();
     int error = 0;
     struct smart_dbt_info info;
-    u_int32_t flags = SET_PRELOCK_FLAG(0);
+    uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     HANDLE_INVALID_CURSOR();
@@ -5430,8 +5430,8 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
     memset((void *) to, 0, sizeof(*to));
-    to->data = pos + sizeof(u_int32_t);
-    to->size = *(u_int32_t *)pos;
+    to->data = pos + sizeof(uint32_t);
+    to->size = *(uint32_t *)pos;
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
     DBUG_RETURN(to);
 }
@@ -5613,20 +5613,20 @@ void ha_tokudb::position(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::position");
     DBT key;
     if (hidden_primary_key) {
-        DBUG_ASSERT(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(u_int32_t)));
-        memcpy_fixed(ref + sizeof(u_int32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
-        *(u_int32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
+        DBUG_ASSERT(ref_length == (TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH + sizeof(uint32_t)));
+        memcpy_fixed(ref + sizeof(uint32_t), current_ident, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+        *(uint32_t *)ref = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
     } 
     else {
         bool has_null;
         //
         // save the data
         //
-        create_dbt_key_from_table(&key, primary_key, ref + sizeof(u_int32_t), record, &has_null);
+        create_dbt_key_from_table(&key, primary_key, ref + sizeof(uint32_t), record, &has_null);
         //
         // save the size of data in the first four bytes of ref
         //
-        memcpy(ref, &key.size, sizeof(u_int32_t));
+        memcpy(ref, &key.size, sizeof(uint32_t));
     }
     DBUG_VOID_RETURN;
 }
@@ -5652,7 +5652,7 @@ int ha_tokudb::info(uint flag) {
         }
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
-            u_int64_t num_rows = 0;
+            uint64_t num_rows = 0;
             TOKU_DB_FRAGMENTATION_S frag_info;
             memset(&frag_info, 0, sizeof frag_info);
 
@@ -5698,14 +5698,14 @@ int ha_tokudb::info(uint flag) {
                 // in this case, we have a hidden primary key, do not
                 // want to report space taken up by the hidden primary key to the user
                 //
-                u_int64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
+                uint64_t hpk_space = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH*dict_stats.bt_ndata;
                 stats.data_file_length = (hpk_space > stats.data_file_length) ? 0 : stats.data_file_length - hpk_space;
             }
             else {
                 //
                 // one infinity byte per key needs to be subtracted
                 //
-                u_int64_t inf_byte_space = dict_stats.bt_ndata;
+                uint64_t inf_byte_space = dict_stats.bt_ndata;
                 stats.data_file_length = (inf_byte_space > stats.data_file_length) ? 0 : stats.data_file_length - inf_byte_space;
             }
 
@@ -5875,7 +5875,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
             TOKUDB_TRACE("just created master:%p\n", trx->all);
         }
         trx->sp_level = trx->all;
-        trans_register_ha(thd, TRUE, tokudb_hton);
+        trans_register_ha(thd, true, tokudb_hton);
     }
     DBUG_PRINT("trans", ("starting transaction stmt"));
     if (trx->stmt) { 
@@ -5883,7 +5883,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
             TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
         }
     }
-    u_int32_t txn_begin_flags;
+    uint32_t txn_begin_flags;
     if (trx->all == NULL) {
         txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
         if (txn_begin_flags == 0 && is_autocommit && thd_sql_command(thd) == SQLCOM_SELECT) {
@@ -5903,7 +5903,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         TOKUDB_TRACE("just created stmt:%p:%p\n", trx->sp_level, trx->stmt);
     }
     reset_stmt_progress(&trx->stmt_progress);
-    trans_register_ha(thd, FALSE, tokudb_hton);
+    trans_register_ha(thd, false, tokudb_hton);
 cleanup:
     return error;
 }
@@ -6062,13 +6062,13 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
     transaction = trx->sub_sp_level;
-    trans_register_ha(thd, FALSE, tokudb_hton);
+    trans_register_ha(thd, false, tokudb_hton);
 cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
 
-u_int32_t ha_tokudb::get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd) {
+uint32_t ha_tokudb::get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd) {
     uint sql_command = thd_sql_command(thd);
     bool in_lock_tables = thd_in_lock_tables(thd);
 
@@ -6241,7 +6241,7 @@ static int create_sub_table(
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file = NULL;
-    u_int32_t create_flags;
+    uint32_t create_flags;
     
     
     error = db_create(&file, db_env, 0);
@@ -6392,22 +6392,22 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
     }
 }
 
-static u_int32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
-    u_int32_t max_row_desc_buff_size;
+static uint32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
+    uint32_t max_row_desc_buff_size;
     max_row_desc_buff_size = 2*(form->s->fields * 6)+10; // upper bound of key comparison descriptor
     max_row_desc_buff_size += get_max_secondary_key_pack_desc_size(kc_info); // upper bound for sec. key part
     max_row_desc_buff_size += get_max_clustering_val_pack_desc_size(form->s); // upper bound for clustering val part
     return max_row_desc_buff_size;
 }
 
-static u_int32_t create_secondary_key_descriptor(
+static uint32_t create_secondary_key_descriptor(
     uchar* buf,
     KEY* key_info,
     KEY* prim_key,
     uint hpk,
     TABLE* form,
     uint primary_key,
-    u_int32_t keynr,
+    uint32_t keynr,
     KEY_AND_COL_INFO* kc_info    
     ) 
 {
@@ -6453,7 +6453,7 @@ int ha_tokudb::create_secondary_dictionary(
     KEY* key_info, 
     DB_TXN* txn, 
     KEY_AND_COL_INFO* kc_info, 
-    u_int32_t keynr,
+    uint32_t keynr,
     bool is_hot_index,
     enum row_type row_type
     ) 
@@ -6464,7 +6464,7 @@ int ha_tokudb::create_secondary_dictionary(
     char* newname = NULL;
     KEY* prim_key = NULL;
     char dict_name[MAX_DICT_NAME_LEN];
-    u_int32_t max_row_desc_buff_size;
+    uint32_t max_row_desc_buff_size;
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
     uint32_t block_size;
     uint32_t read_block_size;
@@ -6518,7 +6518,7 @@ cleanup:
 }
 
 
-static u_int32_t create_main_key_descriptor(
+static uint32_t create_main_key_descriptor(
     uchar* buf,
     KEY* prim_key,
     uint hpk,
@@ -6561,7 +6561,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     uchar* row_desc_buff = NULL;
     char* newname = NULL;
     KEY* prim_key = NULL;
-    u_int32_t max_row_desc_buff_size;
+    uint32_t max_row_desc_buff_size;
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
     uint32_t block_size;
     uint32_t read_block_size;
@@ -7115,9 +7115,9 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     DBT key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
     DB *kfile = share->key_file[keynr];
-    u_int64_t less, equal, greater;
-    u_int64_t total_rows_estimate = HA_TOKUDB_RANGE_COUNT;
-    u_int64_t start_rows, end_rows, rows;
+    uint64_t less, equal, greater;
+    uint64_t total_rows_estimate = HA_TOKUDB_RANGE_COUNT;
+    uint64_t start_rows, end_rows, rows;
     int is_exact;
     int error;
     uchar inf_byte;
@@ -7364,11 +7364,11 @@ int ha_tokudb::tokudb_add_index(
     DB_INDEXER* indexer = NULL;
     bool loader_use_puts = get_load_save_space(thd);
     bool use_hot_index = (lock.type == TL_WRITE_ALLOW_WRITE);
-    u_int32_t loader_flags = loader_use_puts ? LOADER_USE_PUTS : 0;
-    u_int32_t indexer_flags = 0;
-    u_int32_t mult_db_flags[MAX_KEY + 1] = {0};
-    u_int32_t mult_put_flags[MAX_KEY + 1];
-    u_int32_t mult_dbt_flags[MAX_KEY + 1];
+    uint32_t loader_flags = loader_use_puts ? LOADER_USE_PUTS : 0;
+    uint32_t indexer_flags = 0;
+    uint32_t mult_db_flags[MAX_KEY + 1] = {0};
+    uint32_t mult_put_flags[MAX_KEY + 1];
+    uint32_t mult_dbt_flags[MAX_KEY + 1];
     bool creating_hot_index = false;
     struct loader_context lc;
     memset(&lc, 0, sizeof lc);
@@ -7380,7 +7380,7 @@ int ha_tokudb::tokudb_add_index(
     *modified_DBs = false;
     invalidate_bulk_fetch();
     unpack_entire_row = true; // for bulk fetching rows
-    for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
+    for (uint32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = 0;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
     }
@@ -7526,7 +7526,7 @@ int ha_tokudb::tokudb_add_index(
         // you need the val if you have a clustering index and key_read is not 0;
         bf_info.direction = 1;
         bf_info.thd = ha_thd();
-        bf_info.need_val = TRUE;
+        bf_info.need_val = true;
 
         error = db_env->create_loader(
             db_env, 
@@ -7596,14 +7596,14 @@ int ha_tokudb::tokudb_add_index(
             // at this point, we know the range query buffer has at least one key/val pair
             uchar* curr_pos = range_query_buff+curr_range_query_buff_offset;
             
-            u_int32_t key_size = *(u_int32_t *)curr_pos;    
+            uint32_t key_size = *(uint32_t *)curr_pos;    
             curr_pos += sizeof(key_size);    
             uchar* curr_key_buff = curr_pos;    
             curr_pos += key_size;        
             curr_pk_key.data = curr_key_buff;    
             curr_pk_key.size = key_size;
             
-            u_int32_t val_size = *(u_int32_t *)curr_pos;    
+            uint32_t val_size = *(uint32_t *)curr_pos;    
             curr_pos += sizeof(val_size);    
             uchar* curr_val_buff = curr_pos;    
             curr_pos += val_size;        

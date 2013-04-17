@@ -209,7 +209,7 @@ static inline void make_name(char *newname, const char *tablename, const char *d
     nn += sprintf(nn, "-%s", dictname);
 }
 
-static inline void commit_txn(DB_TXN* txn, u_int32_t flags) {
+static inline void commit_txn(DB_TXN* txn, uint32_t flags) {
     int r;
     r = txn->commit(txn, flags);
     if (r != 0) {
