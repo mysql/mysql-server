@@ -4320,6 +4320,9 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     error = 0;
 cleanup:
     if (error) {
+        if (error == DB_LOCK_NOTGRANTED) {
+            error = HA_ERR_LOCK_WAIT_TIMEOUT;
+        }
         last_cursor_error = error;
         //
         // cursor should be initialized here, but in case it is not, 
