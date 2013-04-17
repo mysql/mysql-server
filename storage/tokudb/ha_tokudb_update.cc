@@ -4,7 +4,8 @@
 
 // Restrictions:
 //   No triggers
-//   No binary logging
+//   Statement or mixed replication
+//   Does not support row based replication
 //   Primary key must be defined
 //   Simple and compound primary key
 //   Int, char and varchar primary key types
@@ -21,7 +22,6 @@
 
 // Future features:
 //   Support more primary key types
-//   Allow statement based binary logging
 //   Force statement logging for fast updates
 //   Support clustering keys using broadcast updates
 //   Support primary key ranges using multicast messages
@@ -487,17 +487,17 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
 }
 
 static void marshall_varchar_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO *kc_info, uint key_num) {
-    b.append_uint32('v');
-    b.append_uint32(table->s->null_bytes + kc_info->mcp_info[key_num].fixed_field_size);
+    b.append_ui<uint32_t>('v');
+    b.append_ui<uint32_t>(table->s->null_bytes + kc_info->mcp_info[key_num].fixed_field_size);
     uint32_t var_offset_bytes = kc_info->mcp_info[key_num].len_of_offsets;
-    b.append_uint32(var_offset_bytes);
-    b.append_uint32(var_offset_bytes == 0 ? 0 : kc_info->num_offset_bytes);
+    b.append_ui<uint32_t>(var_offset_bytes);
+    b.append_ui<uint32_t>(var_offset_bytes == 0 ? 0 : kc_info->num_offset_bytes);
 }
 
 static void marshall_blobs_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO *kc_info) {
-    b.append_uint32('b');
+    b.append_ui<uint32_t>('b');
     uint32_t n = kc_info->num_blobs;
-    b.append_uint32(n);
+    b.append_ui<uint32_t>(n);
     for (uint i = 0; i < n; i++) {
         uint blob_field_index = kc_info->blob_fields[i];
         assert(blob_field_index < table->s->fields);
@@ -615,11 +615,11 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, T
     }
 
     // marshall the update fields into the buffer
-    b.append_uint32(update_operation);
-    b.append_uint32(field_type);
-    b.append_uint32(field_null_num);
-    b.append_uint32(offset);
-    b.append_uint32(v_length);
+    b.append_ui<uint32_t>(update_operation);
+    b.append_ui<uint32_t>(field_type);
+    b.append_ui<uint32_t>(field_null_num);
+    b.append_ui<uint32_t>(offset);
+    b.append_ui<uint32_t>(v_length);
     b.append(v_ptr, v_length);
 }
 
@@ -703,7 +703,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
     }
 
     // append the updates
-    update_message.append_uint32(num_updates);
+    update_message.append_ui<uint32_t>(num_updates);
     
     if (num_varchars > 0 || num_blobs > 0) 
         marshall_varchar_descriptor(update_message, table, &share->kc_info, table->s->primary_key);
@@ -839,7 +839,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     update_message.append(&op, sizeof op);
 
     // append the row
-    update_message.append_uint32(row.size);
+    update_message.append_ui<uint32_t>(row.size);
     update_message.append(row.data, row.size);
 
     uint32_t num_updates = update_fields.elements;
@@ -861,7 +861,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     }
 
     // append the updates
-    update_message.append_uint32(num_updates);
+    update_message.append_ui<uint32_t>(num_updates);
     
     if (num_varchars > 0 || num_blobs > 0) 
         marshall_varchar_descriptor(update_message, table, &share->kc_info, table->s->primary_key);

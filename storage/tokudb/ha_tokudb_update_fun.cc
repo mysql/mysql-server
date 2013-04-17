@@ -1455,23 +1455,23 @@ static int tokudb_upsert_1_fun(
 
 // Decode and apply a sequence of update operations defined in the extra to the old value and put the result in the new value.
 static void apply_2_updates(tokudb::value_map &vd, tokudb::buffer &new_val, tokudb::buffer &old_val, tokudb::buffer &extra_val) {
-    uint32_t num_updates = extra_val.consume_uint32();
+    uint32_t num_updates; extra_val.consume_ui<uint32_t>(&num_updates);
     for (uint32_t i = 0; i < num_updates; i++) {
-        uint32_t update_operation = extra_val.consume_uint32();
+        uint32_t update_operation; extra_val.consume_ui<uint32_t>(&update_operation);
         if (update_operation == 'v') {
-            uint32_t var_field_offset = extra_val.consume_uint32();
-            uint32_t var_offset_bytes = extra_val.consume_uint32();
-            uint32_t bytes_per_offset = extra_val.consume_uint32();
+            uint32_t var_field_offset; extra_val.consume_ui<uint32_t>(&var_field_offset);
+            uint32_t var_offset_bytes; extra_val.consume_ui<uint32_t>(&var_offset_bytes);
+            uint32_t bytes_per_offset; extra_val.consume_ui<uint32_t>(&bytes_per_offset);
             vd.init_var_fields(var_field_offset, var_offset_bytes, bytes_per_offset);
         } else if (update_operation == 'b') {
-            uint32_t num_blobs = extra_val.consume_uint32();
+            uint32_t num_blobs; extra_val.consume_ui<uint32_t>(&num_blobs);
             uint8_t *blob_lengths = (uint8_t *)extra_val.consume_ptr(num_blobs);
             vd.init_blob_fields(num_blobs, blob_lengths);
         } else {
-            uint32_t field_type = extra_val.consume_uint32();
-            uint32_t field_null_num = extra_val.consume_uint32();
-            uint32_t the_offset = extra_val.consume_uint32();
-            uint32_t extra_val_length = extra_val.consume_uint32();
+            uint32_t field_type; extra_val.consume_ui<uint32_t>(&field_type);
+            uint32_t field_null_num; extra_val.consume_ui<uint32_t>(&field_null_num);
+            uint32_t the_offset; extra_val.consume_ui<uint32_t>(&the_offset);
+            uint32_t extra_val_length; extra_val.consume_ui<uint32_t>(&extra_val_length);
             void *extra_val_ptr = extra_val.consume_ptr(extra_val_length);
 
             switch (field_type) {
@@ -1572,7 +1572,7 @@ static int tokudb_upsert_2_fun(
     extra_val.consume(&op, sizeof op);
     assert(op == UPDATE_OP_UPSERT_2);
 
-    uint32_t insert_length = extra_val.consume_uint32();
+    uint32_t insert_length; extra_val.consume_ui<uint32_t>(&insert_length);
     assert(insert_length < extra_val.limit());
     void *insert_row = extra_val.consume_ptr(insert_length);
 
@@ -1653,3 +1653,8 @@ int tokudb_update_fun(
     }
     return error;
 }
+
+namespace tokudb {
+    template size_t vlq_encode_ui(uint32_t n, void *p, size_t s);
+    template size_t vlq_decode_ui(uint32_t *np, void *p, size_t s);
+};
