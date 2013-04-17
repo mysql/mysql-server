@@ -782,18 +782,6 @@ XIDS toku_txn_get_xids (TOKUTXN txn) {
     else return txn->xids;
 }
 
-BOOL toku_txnid_older(TXNID a, TXNID b) {
-    return (BOOL)(a < b); // TODO need modulo 64 arithmetic
-}
-
-BOOL toku_txnid_newer(TXNID a, TXNID b) {
-    return (BOOL)(a > b); // TODO need modulo 64 arithmetic
-}
-
-BOOL toku_txnid_eq(TXNID a, TXNID b) {
-    return (BOOL)(a == b);
-}
-
 void toku_txn_force_fsync_on_commit(TOKUTXN txn) {
     txn->force_fsync_on_commit = TRUE;
 }
