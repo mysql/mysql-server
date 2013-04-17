@@ -12,19 +12,11 @@
 #include "./lock_tree/idlth.h"
 #include <limits.h>
 
-struct db_header {
-    int n_databases; // Or there can be >=1 named databases.  This is the count.
-    char *database_names; // These are the names
-    BRT  *database_brts;  // These 
-};
-
 struct __toku_lock_tree;
 
 struct __toku_db_internal {
     DB *db; // A pointer back to the DB.
     int freed;
-    struct db_header *header;
-    int database_number; // -1 if it is the single unnamed database.  Nonnengative number otherwise.
     char *fname;
     char *full_fname;
     //int fd;
