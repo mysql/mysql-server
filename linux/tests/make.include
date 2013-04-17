@@ -1,0 +1,14 @@
+LINUX_TESTS_SRCS = $(wildcard linux/tests/test-*.c)
+LINUX_TESTS_TARGETS = $(patsubst %.c,%,$(LINUX_TESTS_SRCS))
+LINUX_TESTS_RUNTARGETS = $(patsubst %,%.tdbrun,$(LINUX_TESTS_TARGETS))
+linux/tests/build: $(LINUX_TESTS_TARGETS)
+linux/tests/check: $(LINUX_TESTS_RUNTARGETS)
+
+linux/tests/%: CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Itoku_include -Ilinux -Ilinux/tests
+linux/tests/%: CFLAGS = -Wall -Werror -g -O0 -std=c99 $(CC_VERSION_SPECIFIC_FLAGS)
+linux/tests/%: LOADLIBES = lib/libtokuportability.a -lpthread
+linux/tests/%.tdbrun: linux/tests/%
+	$(VGRIND) ./$< $(SUMMARIZE_CMD)
+linux/tests/test-gettime: LOADLIBES += -lrt
+linux/tests/foo:
+	echo $(VGRIND)

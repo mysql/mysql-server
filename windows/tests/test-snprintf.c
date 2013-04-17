@@ -23,20 +23,20 @@ check_snprintf(int i) {
 
     int bytes = snprintf(target, sizeof target, "%"PRId64, n);
     assert(bytes==i+1 ||
-           (i+1>=sizeof target && bytes>=sizeof target));
-    if (bytes>=sizeof target) {
+           (i+1>=(int)(sizeof target) && bytes>=(int)(sizeof target)));
+    if (bytes>=(int)(sizeof target)) {
         //Overflow prevented by snprintf
         assert(target[sizeof target - 1] == '\0');
         assert(strlen(target)==sizeof target-1);
     }
     else {
         assert(target[bytes] == '\0');
-        assert(strlen(target)==bytes);
+        assert(strlen(target)==(size_t)bytes);
     }
 }
 
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     int i;
     for (i = 0; i < 8; i++) {
         check_snprintf(i);

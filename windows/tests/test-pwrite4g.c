@@ -12,7 +12,7 @@ static int iszero(char *cp, size_t n) {
     return 1;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     char fname[] = "pwrite4g.data";
     int r;
     unlink(fname);

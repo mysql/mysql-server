@@ -384,6 +384,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
     printf("  int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
     printf("  int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
+    printf("  int  (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */\n");
     printf("};\n");
 
     //engine status info

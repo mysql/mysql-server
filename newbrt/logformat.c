@@ -614,10 +614,21 @@ generate_log_entry_functions(void) {
     fprintf(cf, "}\n");
 }
 
-const char *codepath = "log_code.c";
-const char *printpath = "log_print.c";
-const char *headerpath = "log_header.h";
-int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
+const char codefile[] = "log_code.c";
+const char printfile[] = "log_print.c";
+const char headerfile[] = "log_header.h";
+int main (int argc, const char *argv[]) {
+    assert(argc==2); // the single argument is the directory into which to put things
+    const char *dir = argv[1];
+    size_t codepathlen   = sizeof(codefile) + strlen(dir) + 4;
+    size_t printpathlen  = sizeof(printfile) + strlen(dir) + 4; 
+    size_t headerpathlen = sizeof(headerfile) + strlen(dir) + 4; 
+    char codepath[codepathlen];
+    char printpath[printpathlen];
+    char headerpath[headerpathlen];
+    { int r = snprintf(codepath,   codepathlen,   "%s/%s", argv[1], codefile);    assert(r<(int)codepathlen); }
+    { int r = snprintf(printpath,  printpathlen,  "%s/%s", argv[1], printfile);   assert(r<(int)printpathlen); }
+    { int r = snprintf(headerpath, headerpathlen, "%s/%s", argv[1], headerfile);  assert(r<(int)headerpathlen); }
     chmod(codepath, S_IRUSR|S_IWUSR);
     chmod(headerpath, S_IRUSR|S_IWUSR);
     unlink(codepath);

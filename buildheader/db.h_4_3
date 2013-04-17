@@ -54,6 +54,7 @@ struct __toku_loader {
   int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */
   int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */
   int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
+  int  (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
 };
 typedef struct __toku_engine_status {
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
