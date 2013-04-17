@@ -1,5 +1,8 @@
 
+TARGETS= CMakeLists.txt
+
 .DELETE_ON_ERROR:
+.PHONY: CMakeLists.txt #It depends on the contents of the TOKUDB_DIR variable, simpler to just make it phony then depend on that.
 ifeq ($(TOKUDB_DIR),)
     #error
 CMakeLists.txt: CMakeLists.in
@@ -8,4 +11,7 @@ else
 CMakeLists.txt: CMakeLists.in
 	sed "s?TOKUDB_DIR_REPLACE_ME?$(TOKUDB_DIR)?g" < $< > $@
 endif
+
+clean:
+	rm -f $(TARGETS)
 
