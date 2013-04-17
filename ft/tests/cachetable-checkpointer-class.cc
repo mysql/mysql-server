@@ -14,15 +14,15 @@
 struct checkpointer_test {
   checkpointer m_cp;
   pair_list m_pl;
-  
+
   // Tests
   void test_begin_checkpoint();
   void test_pending_bits();
   void test_end_checkpoint();
-  
+
   // Test Helper
-  void add_pairs(struct cachefile *cf, 
-    ctpair pairs[], 
+  void add_pairs(struct cachefile *cf,
+    ctpair pairs[],
     uint32_t count,
     uint32_t k);
 };
@@ -34,15 +34,15 @@ static int dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p))
 { return 0; }
 static int dummy_log_rollback(CACHEFILE UU(cf), void* UU(p))
 { return 0; }
-static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), char** UU(c), bool UU(b), LSN UU(lsn)) 
+static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), char** UU(c), bool UU(b), LSN UU(lsn))
 { return 0; }
 static int dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p))
 { return 0; }
-static int dummy_begin(LSN UU(lsn), void* UU(p)) 
+static int dummy_begin(LSN UU(lsn), void* UU(p))
 { return 0; }
-static int dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) 
+static int dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p))
 { return 0; }
-static int dummy_note_pin(CACHEFILE UU(cf), void* UU(p)) 
+static int dummy_note_pin(CACHEFILE UU(cf), void* UU(p))
 { return 0; }
 static int dummy_note_unpin(CACHEFILE UU(cf), void* UU(p))
 { return 0; }
@@ -75,19 +75,19 @@ create_dummy_functions(CACHEFILE cf)
 //
 void checkpointer_test::test_begin_checkpoint() {
     int r = 0;
-    
+
     cachefile_list cfl;
     cfl.init();
-    
+
     cachetable ctbl;
     ctbl.list.init();
-    
+
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
 
     // 1. Call checkpoint with NO cachefiles.
     r = m_cp.begin_checkpoint();
     if (r) { assert(!"CHECKPOINTER: Checkpoint with no cachefiles failed!\n"); }
-    
+
     // 2. Call checkpoint with ONE cachefile.
     //cachefile cf;
     struct cachefile cf;
@@ -95,7 +95,7 @@ void checkpointer_test::test_begin_checkpoint() {
     cf.for_checkpoint = false;
     m_cp.m_cf_list->m_head = &cf;
     create_dummy_functions(&cf);
-    
+
     r = m_cp.begin_checkpoint();
     if (r) { assert(!"CHECKPOINTER: Checkpoint with one cachefile failed!\n"); }
     assert(m_cp.m_checkpoint_num_files == 1);
@@ -114,7 +114,7 @@ void checkpointer_test::test_begin_checkpoint() {
             cfs[i].next = &cfs[i + 1];
         }
     }
-    
+
     r = m_cp.begin_checkpoint();
     if (r) { assert(!"CHECKPOINTER: Multiple checkpoint failed!\n"); }
     assert(m_cp.m_checkpoint_num_files == count);
@@ -133,15 +133,17 @@ void checkpointer_test::test_begin_checkpoint() {
 void checkpointer_test::test_pending_bits() {
     cachefile_list cfl;
     cfl.init();
-    
+
     cachetable ctbl;
     ctbl.list.init();
-    
+
+    m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
+
     //
     // 1. Empty hash chain.
     //
     m_cp.turn_on_pending_bits();
-    
+
     //
     // 2. One entry in pair chain
     //
@@ -151,14 +153,14 @@ void checkpointer_test::test_pending_bits() {
     cf.for_checkpoint = true;
     m_cp.m_cf_list->m_head = &cf;
     create_dummy_functions(&cf);
-    
+
     CACHEKEY k;
     k.b = 0;
     uint32_t hash = toku_cachetable_hash(&cf, k);
-    
+
     ctpair p;
     CACHETABLE_WRITE_CALLBACK cb;
-    
+
     pair_attr_s attr;
     attr.size = 0;
     attr.nonleaf_size = 0;
@@ -166,33 +168,33 @@ void checkpointer_test::test_pending_bits() {
     attr.rollback_size = 0;
     attr.cache_pressure_size = 0;
     attr.is_valid = true;
-    
-    pair_init(&p, 
-        &cf, 
-        k, 
-        NULL, 
-        attr, 
+
+    pair_init(&p,
+        &cf,
+        k,
+        NULL,
+        attr,
         CACHETABLE_CLEAN,
         hash,
-        cb, 
-        NULL, 
+        cb,
+        NULL,
         &ctbl.list);
 
     m_cp.m_list->put(&p);
-    
+
     m_cp.turn_on_pending_bits();
     assert(p.checkpoint_pending);
     m_cp.m_list->evict(&p);
-    
+
     //
     // 3. Many hash chain entries.
     //
     const uint32_t count = 3;
-    ctpair pairs[count];    
+    ctpair pairs[count];
     add_pairs(&cf, pairs, count, 0);
-    
+
     m_cp.turn_on_pending_bits();
-    
+
     for (uint32_t i = 0; i < count; ++i) {
         assert(pairs[i].checkpoint_pending);
     }
@@ -204,9 +206,10 @@ void checkpointer_test::test_pending_bits() {
         assert(pp);
         m_cp.m_list->evict(pp);
     }
-    
+
     int r = ctbl.list.destroy();
     assert_zero(r);
+    m_cp.destroy();
 }
 
 //------------------------------------------------------------------------------
@@ -227,7 +230,7 @@ void checkpointer_test::add_pairs(struct cachefile *cf,
     attr.cache_pressure_size = 0;
     attr.is_valid = true;
     CACHETABLE_WRITE_CALLBACK cb;
-    
+
     for (uint32_t i = k; i < count + k; ++i) {
         CACHEKEY key;
         key.b = i;
@@ -248,11 +251,11 @@ void checkpointer_test::add_pairs(struct cachefile *cf,
 }
 
 //------------------------------------------------------------------------------
-// get_number_pending_pairs() - 
+// get_number_pending_pairs() -
 //
 // Description: Helper function that iterates over pending list, and returns
 //   the number of pairs discovered.
-// 
+//
 static uint32_t get_number_pending_pairs(pair_list *list)
 {
     PAIR p;
@@ -263,7 +266,7 @@ static uint32_t get_number_pending_pairs(pair_list *list)
         list->m_pending_head = list->m_pending_head->pending_next;
         count++;
     }
-    
+
     list->m_pending_head = head;
     return count;
 }
@@ -280,13 +283,13 @@ void checkpointer_test::test_end_checkpoint() {
 
     cachefile_list cfl;
     cfl.init();
-    
+
     struct cachefile cf;
     memset(&cf, 0, sizeof(cf));
     cf.next = NULL;
     cf.for_checkpoint = true;
     create_dummy_functions(&cf);
-    
+
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
     m_cp.m_cf_list->m_head = &cf;
 
@@ -295,7 +298,7 @@ void checkpointer_test::test_end_checkpoint() {
     ctpair pairs[count];
     add_pairs(&cf, pairs, count / 2, 0);
     assert(m_cp.m_list->m_n_in_table == count / 2);
-    
+
     // 3. Call begin checkpoint.
     m_cp.begin_checkpoint();
     assert(m_cp.m_checkpoint_num_files == 1);
@@ -303,7 +306,7 @@ void checkpointer_test::test_end_checkpoint() {
     {
         assert(pairs[i].checkpoint_pending);
     }
-    
+
     // 4. Add new data between starting and stopping checkpoint.
     add_pairs(&cf, pairs, count / 2, count / 2);
     assert(m_cp.m_list->m_n_in_table == count);
@@ -311,11 +314,11 @@ void checkpointer_test::test_end_checkpoint() {
     {
         assert(!pairs[i].checkpoint_pending);
     }
-    
+
     uint32_t pending_pairs = 0;
     pending_pairs = get_number_pending_pairs(m_cp.m_list);
     assert(pending_pairs == count / 2);
-        
+
     // 5. Call end checkpoint
     m_cp.end_checkpoint(NULL, NULL);
 
@@ -327,7 +330,7 @@ void checkpointer_test::test_end_checkpoint() {
     {
         assert(!pairs[i].checkpoint_pending);
     }
-    
+
     // 6. Cleanup
     for (uint32_t i = 0; i < count; ++i) {
         CACHEKEY key;
@@ -353,13 +356,11 @@ test_main(int argc, const char *argv[]) {
     int r = 0;
     default_parse_args(argc, argv);
     checkpointer_test cp_test;
-    
+
     // Run the tests.
     cp_test.test_begin_checkpoint();
     cp_test.test_pending_bits();
     cp_test.test_end_checkpoint();
-    
+
     return r;
 }
-
-
