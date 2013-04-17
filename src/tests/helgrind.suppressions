@@ -58,8 +58,6 @@
    ...
    fun:pthread_cond_destroy@*
    ...
-   fun:_ZL14rwlock_destroyP6rwlock
-   fun:_ZL16nb_mutex_destroyP8nb_mutex
    fun:_Z23toku_blocktable_destroyPP11block_table
 }
 {
@@ -109,4 +107,20 @@
    fun:pthread_cond_destroy@*
    ...
    fun:_Z17toku_logger_closePP10tokulogger
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZL20cachetable_free_pairP6ctpair
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   ...
+   fun:_ZN7evictor7destroyEv
 }
