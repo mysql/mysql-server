@@ -139,13 +139,15 @@ int test_main(int argc, char * const argv[]) {
     r = db_env->get_timeout(db_env, &t, DB_SET_TXN_TIMEOUT); assert(r == 0);
     if (verbose) printf("txn %d\n", t);
 
-    r = db_env->set_timeout(db_env, 5, DB_SET_LOCK_TIMEOUT); assert(r == 0);
-    r = db_env->set_timeout(db_env, 5, DB_SET_TXN_TIMEOUT); assert(r == 0);
+    r = db_env->set_timeout(db_env, 5000000, DB_SET_LOCK_TIMEOUT); assert(r == 0);
+    r = db_env->set_timeout(db_env, 5000000, DB_SET_TXN_TIMEOUT); assert(r == 0);
 
     r = db_env->get_timeout(db_env, &t, DB_SET_LOCK_TIMEOUT); assert(r == 0);
     if (verbose) printf("lock %d\n", t);
     r = db_env->get_timeout(db_env, &t, DB_SET_TXN_TIMEOUT); assert(r == 0);
     if (verbose) printf("txn %d\n", t);
+
+    r = db_env->set_lk_detect(db_env, DB_LOCK_EXPIRE); assert(r == 0);
 #endif
 #if USE_TDB
     uint64_t lock_timeout_msec;

@@ -109,8 +109,8 @@ int test_main(int argc, char * const argv[]) {
     r = db->open(db, NULL, db_filename, NULL, DB_BTREE, DB_CREATE|DB_AUTO_COMMIT|DB_THREAD, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     toku_pthread_t tids[nthreads];
+    struct blocking_put_args a = { db_env, db, nrows, sleeptime };
     for (int i = 0; i < nthreads-1; i++) {
-        struct blocking_put_args a = { db_env, db, nrows, sleeptime };
         r = toku_pthread_create(&tids[i], NULL, blocking_put_thread, &a); assert(r == 0);
     }
     blocking_put(db_env, db, nrows, sleeptime);

@@ -101,8 +101,8 @@ static void *blocking_set_range_thread(void *arg) {
 static void run_test(DB_ENV *db_env, DB *db, int nthreads, uint64_t nrows, long sleeptime, uint64_t the_key) {
     int r;
     toku_pthread_t tids[nthreads];
+    struct blocking_set_range_args a = { db_env, db, nrows, sleeptime, the_key };
     for (int i = 0; i < nthreads-1; i++) {
-        struct blocking_set_range_args a = { db_env, db, nrows, sleeptime, the_key };
         r = toku_pthread_create(&tids[i], NULL, blocking_set_range_thread, &a); assert(r == 0);
     }
     blocking_set_range(db_env, db, nrows, sleeptime, the_key);
