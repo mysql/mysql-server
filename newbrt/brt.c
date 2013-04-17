@@ -397,7 +397,7 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
     BRTNODE B;
     int r;
 
-    printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), node->nodesize);
+    //printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), node->nodesize);
 
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
@@ -501,9 +501,9 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
     *nodea = node;
     *nodeb = B;
 
-    printf("%s:%d new sizes Node %" PRIu64 " size=%u omtsize=%d dirty=%d; Node %" PRIu64 " size=%u omtsize=%d dirty=%d\n", __FILE__, __LINE__,
-	   node->thisnodename.b, toku_serialize_brtnode_size(node), node->height==0 ? (int)(toku_omt_size(node->u.l.buffer)) : -1, node->dirty,
-	   B   ->thisnodename.b, toku_serialize_brtnode_size(B   ), B   ->height==0 ? (int)(toku_omt_size(B   ->u.l.buffer)) : -1, B->dirty);
+    //printf("%s:%d new sizes Node %" PRIu64 " size=%u omtsize=%d dirty=%d; Node %" PRIu64 " size=%u omtsize=%d dirty=%d\n", __FILE__, __LINE__,
+    //	   node->thisnodename.b, toku_serialize_brtnode_size(node), node->height==0 ? (int)(toku_omt_size(node->u.l.buffer)) : -1, node->dirty,
+    //	   B   ->thisnodename.b, toku_serialize_brtnode_size(B   ), B   ->height==0 ? (int)(toku_omt_size(B   ->u.l.buffer)) : -1, B->dirty);
     //toku_dump_brtnode(t, node->thisnodename, 0, NULL, 0, NULL, 0);
     //toku_dump_brtnode(t, B   ->thisnodename, 0, NULL, 0, NULL, 0);
     return 0;
@@ -1277,9 +1277,9 @@ push_some_brt_cmds_down_simple (BRT t, BRTNODE node, int childnum, BOOL *must_sp
     //verify_local_fingerprint_nonleaf(child);
     VERIFY_NODE(child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
-    printf("%s:%d before pushing into Node %" PRIu64 ", disksize=%d", __FILE__, __LINE__, child->thisnodename.b, toku_serialize_brtnode_size(child));
-    if (child->height==0) printf(" omtsize=%d", toku_omt_size(child->u.l.buffer));
-    printf("\n");
+    //printf("%s:%d before pushing into Node %" PRIu64 ", disksize=%d", __FILE__, __LINE__, child->thisnodename.b, toku_serialize_brtnode_size(child));
+    //if (child->height==0) printf(" omtsize=%d", toku_omt_size(child->u.l.buffer));
+    //printf("\n");
     assert(toku_serialize_brtnode_size(child)<=child->nodesize);
     if (child->height>0 && child->u.n.n_children>0) assert(BNC_BLOCKNUM(child, child->u.n.n_children-1).b!=0);
   
@@ -1331,9 +1331,9 @@ push_some_brt_cmds_down_simple (BRT t, BRTNODE node, int childnum, BOOL *must_sp
     }
     assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     //verify_local_fingerprint_nonleaf(node);
-    printf("%s:%d after pushing %d into Node %" PRIu64 ", disksize=%d", __FILE__, __LINE__, pushed_count, child->thisnodename.b, toku_serialize_brtnode_size(child));
-    if (child->height==0) printf(" omtsize=%d", toku_omt_size(child->u.l.buffer));
-    printf("\n");
+    //printf("%s:%d after pushing %d into Node %" PRIu64 ", disksize=%d", __FILE__, __LINE__, pushed_count, child->thisnodename.b, toku_serialize_brtnode_size(child));
+    //if (child->height==0) printf(" omtsize=%d", toku_omt_size(child->u.l.buffer));
+    //printf("\n");
     r=toku_unpin_brtnode(t, child);
     if (r!=0) return r;
     *must_split = some_must_split;
@@ -2161,7 +2161,7 @@ merge (void) {
     return 0;
 }
 
-static int
+static inline int
 brt_serialize_size_of_child (BRT t, BRTNODE node, int childnum) {
     assert(node->height>0);
     BLOCKNUM childblocknum = BNC_BLOCKNUM(node, childnum);
@@ -2180,7 +2180,7 @@ brt_serialize_size_of_child (BRT t, BRTNODE node, int childnum) {
 // Return the new fanout of node.
 static int
 brt_nonleaf_maybe_split_or_merge (BRT t, BRTNODE node, int childnum, BOOL should_split, BOOL should_merge, TOKULOGGER logger, u_int32_t *new_fanout) {
-    printf("%s:%d Node %" PRIu64 " is size %d, child %d is Node %" PRIu64 " size is %d\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), childnum, BNC_BLOCKNUM(node, childnum).b, brt_serialize_size_of_child(t, node, childnum));
+    //printf("%s:%d Node %" PRIu64 " is size %d, child %d is Node %" PRIu64 " size is %d\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), childnum, BNC_BLOCKNUM(node, childnum).b, brt_serialize_size_of_child(t, node, childnum));
     assert(!(should_split && should_merge));
     if (should_split) { int r = brt_split_child(t, node, childnum, logger); if (r!=0) return r; }
     if (should_merge) { int r = merge(); if (r!=0) return r; }
@@ -2230,7 +2230,7 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
 	find_heaviest_child(node, &biggest_child);
-	printf("%s:%d Pushing into child %d (Node %" PRIu64 ", size %d)\n", __FILE__, __LINE__, biggest_child, BNC_BLOCKNUM(node, biggest_child).b, brt_serialize_size_of_child(t, node, biggest_child));
+	//printf("%s:%d Pushing into child %d (Node %" PRIu64 ", size %d)\n", __FILE__, __LINE__, biggest_child, BNC_BLOCKNUM(node, biggest_child).b, brt_serialize_size_of_child(t, node, biggest_child));
 	int r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
 	if (r!=0) return r;
 	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
