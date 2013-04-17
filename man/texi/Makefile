@@ -23,7 +23,7 @@ endif
 build: default;
 
 tokudb.dvi: tokudb.texi $(MANPAGES_TEXI) $(SECTIONS_TEXI)
-	texi2dvi4a2ps tokudb.texi
+	LC_ALL=C texi2dvi4a2ps -c tokudb.texi
 
 
 $(MANPAGES_POD): everyman.texi
@@ -31,3 +31,5 @@ $(MANPAGES_POD): everyman.texi
 	perl texi2pod.pl $< > $@
 %.3: %.pod
 	pod2man --center "TokuDB Programmer's Manual" --section 3 $< > $@
+clean:
+	rm -f tokudb.aux tokudb.dvi tokudb.cp tokudb.fn tokudb.ky tokudb.log tokudb.pg tokudb.tmp tokudb.toc tokudb.tp tokudb.vr
