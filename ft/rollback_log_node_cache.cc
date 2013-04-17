@@ -33,7 +33,7 @@ bool rollback_log_node_cache::give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_N
     if (m_num_avail < m_max_num_avail) {
         retval = true;
         uint32_t index = m_first + m_num_avail;
-        if (index > m_max_num_avail) {
+        if (index >= m_max_num_avail) {
             index -= m_max_num_avail;
         }
         m_avail_blocknums[index].b = log->blocknum.b;
