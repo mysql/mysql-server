@@ -52,15 +52,17 @@ compare_pair_to_key (BRT brt, struct kv_pair *a, bytevec key, ITEMLEN keylen) {
 }
 
 static int
-verify_msg_in_child_buffer(BRT brt, int type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot)
+verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot)
     __attribute__((warn_unused_result));
 
 static int
-verify_msg_in_child_buffer(BRT brt, int type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot) {
+verify_msg_in_child_buffer(BRT brt, enum brt_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot) {
     int result = 0;
     if (msn.msn == ZERO_MSN.msn)
         result = EINVAL;
     switch (type) {
+    default:
+        break;
     case BRT_INSERT:
     case BRT_INSERT_NO_OVERWRITE:
     case BRT_DELETE_ANY:

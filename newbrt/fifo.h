@@ -26,6 +26,24 @@ struct __attribute__((__packed__)) fifo_entry {
     XIDS_S        xids_s;
 };
 
+// get and set the brt message type for a fifo entry.
+// it is internally stored as a single unsigned char.
+static inline enum brt_msg_type 
+fifo_entry_get_msg_type(const struct fifo_entry * entry)
+{
+    enum brt_msg_type msg_type;
+    msg_type = (enum brt_msg_type) entry->type;
+    return msg_type;
+}
+
+static inline void
+fifo_entry_set_msg_type(struct fifo_entry * entry,
+        enum brt_msg_type msg_type)
+{
+    unsigned char type = (unsigned char) msg_type;
+    entry->type = type;
+}
+
 #if TOKU_WINDOWS
 #pragma pack(pop)
 #endif
@@ -47,7 +65,7 @@ int toku_fifo_n_entries(FIFO);
 
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *dest);
 
-int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, bool is_fresh, long *dest);
+int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest);
 
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, MSN *msn, XIDS *xids, bool *is_fresh);
 
@@ -65,7 +83,7 @@ unsigned long toku_fifo_memory_size(FIFO); // return how much memory fifo has al
 //These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
 //int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);
 //int toku_fifo_peek_deq_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
-void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
+void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
 
 #define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,msnvar,xidsvar,is_freshvar,body) ({ \
   for (int fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                          \
@@ -74,7 +92,7 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
       struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off); \
       ITEMLEN keylenvar = e->keylen;                                                       \
       ITEMLEN datalenvar = e->vallen;                                                 \
-      enum brt_msg_type typevar = (enum brt_msg_type)e->type;                         \
+      enum brt_msg_type typevar = fifo_entry_get_msg_type(e);                         \
       MSN     msnvar  = e->msn;                                                       \
       XIDS    xidsvar = &e->xids_s;                                                   \
       bytevec keyvar  = xids_get_end_of_array(xidsvar);                               \

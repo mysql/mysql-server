@@ -136,7 +136,7 @@ unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
 int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
-int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp);
+int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
 int toku_bnc_flush_to_child(
     brt_compare_func compare_fun, 
@@ -485,7 +485,7 @@ void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h);
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
 
 // append a cmd to a nonleaf node child buffer
-void toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
+void toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
 // Mark a node as dirty and update statistics in header.
 // Other than the node's constructor, this should be the ONLY place

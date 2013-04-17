@@ -1757,7 +1757,7 @@ toku_fifo_entry_key_msn_cmp(void *extrap, const void *ap, const void *bp)
 }
 
 int
-toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp)
+toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp)
 // Effect: Enqueue the message represented by the parameters into the
 //   bnc's buffer, and put it in either the fresh or stale message tree,
 //   or the broadcast list.
@@ -1768,8 +1768,7 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
     long offset;
     int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
     assert_zero(r);
-    enum brt_msg_type etype = (enum brt_msg_type) type;
-    if (brt_msg_type_applies_once(etype)) {
+    if (brt_msg_type_applies_once(type)) {
         struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer, .key = key, .keylen = keylen, .msn = msn };
         if (is_fresh) {
             r = toku_omt_insert(bnc->fresh_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
@@ -1778,7 +1777,7 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
             r = toku_omt_insert(bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
             assert_zero(r);
         }
-    } else if (brt_msg_type_applies_all(etype) || brt_msg_type_does_nothing(etype)) {
+    } else if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
         u_int32_t idx = toku_omt_size(bnc->broadcast_list);
         r = toku_omt_insert_at(bnc->broadcast_list, (OMTVALUE) offset, idx);
         assert_zero(r);
@@ -1792,7 +1791,7 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 // append a cmd to a nonleaf node's child buffer
 // should be static, but used by test programs
 void
-toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
+toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
     assert(BP_STATE(node,childnum) == PT_AVAIL);
     int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun); 
     invariant_zero(r);
@@ -2055,7 +2054,7 @@ toku_bnc_flush_to_child(
         bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
         ({
             DBT hk,hv;
-            BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
+            BRT_MSG_S brtcmd = { type, msn, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
                                                                              toku_fill_dbt(&hv, val, vallen)} };
             brtnode_put_cmd(
                 compare_fun,
@@ -4383,7 +4382,7 @@ do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, 
     if (entry->msn.msn > bn->max_msn_applied.msn) {
         ITEMLEN keylen = entry->keylen;
         ITEMLEN vallen = entry->vallen;
-        enum brt_msg_type type = (enum brt_msg_type)entry->type;
+        enum brt_msg_type type = fifo_entry_get_msg_type(entry);
         MSN msn = entry->msn;
         const XIDS xids = (XIDS) &entry->xids_s;
         bytevec key = xids_get_end_of_array(xids);
