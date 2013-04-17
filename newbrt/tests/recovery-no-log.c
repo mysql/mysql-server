@@ -1,3 +1,5 @@
+// test recovery with no log
+
 #include "test.h"
 #include "includes.h"
 

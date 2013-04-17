@@ -1,3 +1,5 @@
+// test recovery of a clean shutdown
+
 #include "test.h"
 #include "includes.h"
 

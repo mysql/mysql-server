@@ -1,3 +1,5 @@
+// test recovery with a NULL log directory
+
 #include "test.h"
 #include "includes.h"
 

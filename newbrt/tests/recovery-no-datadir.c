@@ -1,3 +1,5 @@
+// test recovery with no data directory 
+
 #include "test.h"
 #include "includes.h"
 

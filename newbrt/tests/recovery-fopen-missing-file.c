@@ -17,6 +17,10 @@ run_test(void) {
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+    LSN beginlsn;
+    r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+
     BYTESTRING iname  = { strlen("missing_tokudb_file"), "missing_tokudb_file" };
     FILENUM filenum = {42};
     uint32_t treeflags = 0;
