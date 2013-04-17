@@ -1687,20 +1687,20 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     int version = node->layout_version_read_from_disk;
 
     if(version == FT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
-        (void) rbuf_int(rb);  // 6. fingerprint
+        (void) rbuf_int(rb);                          // 10. fingerprint
     }
 
-    node->n_children = rbuf_int(rb); // 7. n_children
+    node->n_children = rbuf_int(rb);                  // 11. n_children
 
     // Sub-tree esitmates...
     for (int i = 0; i < node->n_children; ++i) {
         if (version == FT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
-            (void) rbuf_int(rb);  // 8. fingerprint
+            (void) rbuf_int(rb);                      // 12. fingerprint
         }
-        uint64_t nkeys = rbuf_ulonglong(rb);
-        uint64_t ndata = rbuf_ulonglong(rb);
-        uint64_t dsize = rbuf_ulonglong(rb);
-        (void) rbuf_char(rb);       // 12. exact (char)
+        uint64_t nkeys = rbuf_ulonglong(rb);          // 13. nkeys
+        uint64_t ndata = rbuf_ulonglong(rb);          // 14. ndata
+        uint64_t dsize = rbuf_ulonglong(rb);          // 15. dsize
+        (void) rbuf_char(rb);                         // 16. exact (char)
         invariant(nkeys == ndata);
         if (info) {
             // info is non-null if we're trying to upgrade old subtree
@@ -1716,10 +1716,9 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     XMALLOC_N(node->n_children - 1, node->childkeys);
     // II. Copy keys from buffer to allocated keys in ftnode.
     for (int i = 0; i < node->n_children - 1; ++i) {
-        // 13. child key pointers and offsets
         bytevec childkeyptr;
         unsigned int cklen;
-        rbuf_bytes(rb, &childkeyptr, &cklen);
+        rbuf_bytes(rb, &childkeyptr, &cklen);         // 17. child key pointers
         toku_fill_dbt(&node->childkeys[i],
                       toku_xmemdup(childkeyptr, cklen),
                       cklen);
@@ -1731,8 +1730,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
 
     // Set the child blocknums.
     for (int i = 0; i < node->n_children; ++i) {
-        // 14. blocknums
-        BP_BLOCKNUM(node, i) = rbuf_blocknum(rb);
+        BP_BLOCKNUM(node, i) = rbuf_blocknum(rb);    // 18. blocknums
         BP_WORKDONE(node, i) = 0;
     }
 
@@ -1741,7 +1739,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     for (int i = 0; i < node->n_children; ++i) {
         // The following fields are read in the
         // sub_block_map_deserialize() call:
-        // 15. index 16. offset 17. size
+        // 19. index 20. offset 21. size
         sub_block_map_deserialize(&child_buffer_map[i], rb);
     }
 
@@ -1777,7 +1775,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     // Deserialize de-compressed buffers.
     for (int i = 0; i < node->n_children; ++i) {
         NONLEAF_CHILDINFO bnc = BNC(node, i);
-        int n_in_this_buffer = rbuf_int(rb);
+        int n_in_this_buffer = rbuf_int(rb);          // 22. node count
 
         int32_t *fresh_offsets = NULL;
         int32_t *broadcast_offsets = NULL;
@@ -1803,12 +1801,12 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         for (int j = 0; j < n_in_this_buffer; ++j) {
             bytevec key; ITEMLEN keylen;
             bytevec val; ITEMLEN vallen;
-            unsigned char ctype = rbuf_char(rb);
+            unsigned char ctype = rbuf_char(rb);       // 23. message type
             enum ft_msg_type type = (enum ft_msg_type) ctype;
             XIDS xids;
-            xids_create_from_buffer(rb, &xids);
-            rbuf_bytes(rb, &key, &keylen);
-            rbuf_bytes(rb, &val, &vallen);
+            xids_create_from_buffer(rb, &xids);        // 24. XID
+            rbuf_bytes(rb, &key, &keylen);             // 25. key
+            rbuf_bytes(rb, &val, &vallen);             // 26. value
 
             // <CER> can we factor this out?
             int32_t *dest;
@@ -1865,7 +1863,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     // Must compute the checksum now (rather than at the end, while we
     // still have the pointer to the buffer).
     if (version >= FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
-        uint32_t expected_xsum = toku_dtoh32(*(uint32_t*)(rb->buf+rb->size-4));
+        uint32_t expected_xsum = toku_dtoh32(*(uint32_t*)(rb->buf+rb->size-4)); // 27. checksum
         uint32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
@@ -1897,9 +1895,9 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // This is a leaf node, so the offsets in the buffer will be
     // different from the internal node offsets above.
-    uint64_t nkeys = rbuf_ulonglong(rb);  // 6. nkeys
-    uint64_t ndata = rbuf_ulonglong(rb);  // 7. ndata
-    uint64_t dsize = rbuf_ulonglong(rb);  // 8. dsize
+    uint64_t nkeys = rbuf_ulonglong(rb);                // 10. nkeys
+    uint64_t ndata = rbuf_ulonglong(rb);                // 11. ndata
+    uint64_t dsize = rbuf_ulonglong(rb);                // 12. dsize
     invariant(nkeys == ndata);
     if (info) {
         // info is non-null if we're trying to upgrade old subtree
@@ -1908,16 +1906,17 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
         info->numbytes += dsize;
     }
 
+    // This is the optimized for upgrade field.
     if (version == FT_LAYOUT_VERSION_14) {
-        (void) rbuf_int(rb);  // 9. optimized_for_upgrade
+        (void) rbuf_int(rb);                            // 13. optimized
     }
 
-    // 10. npartitions - This is really the number of leaf entries in
+    // npartitions - This is really the number of leaf entries in
     // our single basement node.  There should only be 1 (ONE)
     // partition, so there shouldn't be any pivot key stored.  This
     // means the loop will not iterate.  We could remove the loop and
     // assert that the value is indeed 1.
-    int npartitions = rbuf_int(rb);
+    int npartitions = rbuf_int(rb);                     // 14. npartitions
     assert(npartitions == 1);
 
     // Set number of children to 1, since we will only have one
@@ -1945,8 +1944,8 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // Copy all of the leaf entries into the single basement node.
 
-    // 12. The number of leaf entries in buffer.
-    int n_in_buf = rbuf_int(rb);
+    // The number of leaf entries in buffer.
+    int n_in_buf = rbuf_int(rb);                        // 15. # of leaves
     BLB_NBYTESINBUF(node,0) = 0;
     BLB_SEQINSERT(node,0) = 0;
     BASEMENTNODE bn = BLB(node, 0);
@@ -1955,7 +1954,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     // is the start of the leaf entries.
     uint32_t start_of_data = rb->ndone;
 
-    // 13. Read the leaf entries from the buffer, advancing the buffer
+    // Read the leaf entries from the buffer, advancing the buffer
     // as we go.
     if (version <= FT_LAYOUT_VERSION_13) {
         // Create our mempool.
@@ -1966,7 +1965,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
         for (int i = 0; i < n_in_buf; ++i) {
             LEAFENTRY_13 le = reinterpret_cast<LEAFENTRY_13>(&rb->buf[rb->ndone]);
             uint32_t disksize = leafentry_disksize_13(le);
-            rb->ndone += disksize;
+            rb->ndone += disksize;                       // 16. leaf entry (13)
             invariant(rb->ndone<=rb->size);
             LEAFENTRY new_le;
             size_t new_le_size;
@@ -1994,7 +1993,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
         for (int i = 0; i < n_in_buf; ++i) {
             LEAFENTRY le = reinterpret_cast<LEAFENTRY>(&rb->buf[rb->ndone]);
             uint32_t disksize = leafentry_disksize(le);
-            rb->ndone += disksize;
+            rb->ndone += disksize;                       // 16. leaf entry (14)
             invariant(rb->ndone <= rb->size);
             array[i] = le;
         }
@@ -2033,9 +2032,9 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     bn->stale_ancestor_messages_applied = false;
     node->max_msn_applied_to_node_on_disk = bn->max_msn_applied;
 
-    // 14. Checksum (end to end) is only on version 14
+    // Checksum (end to end) is only on version 14
     if (version >= FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
-        uint32_t expected_xsum = rbuf_int(rb);
+        uint32_t expected_xsum = rbuf_int(rb);             // 17. checksum 
         uint32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
@@ -2066,7 +2065,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
                                             struct rbuf *rb,
                                             /* out */ int *layout_version_p);
 
-// This function upgrades a version 14 ftnode to the current
+// This function upgrades a version 14 or 13 ftnode to the current
 // verison. NOTE: This code assumes the first field of the rbuf has
 // already been read from the buffer (namely the layout_version of the
 // ftnode.)
@@ -2097,33 +2096,34 @@ deserialize_and_upgrade_ftnode(FTNODE node,
     // restarting with a fresh rbuf.
     {
         bytevec magic;
-        rbuf_literal_bytes(&rb, &magic, 8);
+        rbuf_literal_bytes(&rb, &magic, 8);              // 1. magic
     }
 
     // II. Start reading ftnode fields out of the decompressed buffer.
 
     // Copy over old version info.
-    node->layout_version_read_from_disk = rbuf_int(&rb);
+    node->layout_version_read_from_disk = rbuf_int(&rb); // 2. layout version
     version = node->layout_version_read_from_disk;
     assert(version <= FT_LAYOUT_VERSION_14);
     // Upgrade the current version number to the current version.
     node->layout_version = FT_LAYOUT_VERSION;
 
-    node->layout_version_original = rbuf_int(&rb);
-    node->build_id = rbuf_int(&rb);
+    node->layout_version_original = rbuf_int(&rb);      // 3. original layout
+    node->build_id = rbuf_int(&rb);                     // 4. build id
 
     // The remaining offsets into the rbuf do not map to the current
     // version, so we need to fill in the blanks and ignore older
     // fields.
-    (void)rbuf_int(&rb); // 1. nodesize
-    node->flags = rbuf_int(&rb);    // 2. flags
-    node->height = rbuf_int(&rb);   // 3. height
+    (void)rbuf_int(&rb);                                // 5. nodesize
+    node->flags = rbuf_int(&rb);                        // 6. flags
+    node->height = rbuf_int(&rb);                       // 7. height
 
     // If the version is less than 14, there are two extra ints here.
     // we would need to ignore them if they are there.
+    // These are the 'fingerprints'.
     if (version == FT_LAYOUT_VERSION_13) {
-        (void) rbuf_int(&rb);       // 4. rand4
-        (void) rbuf_int(&rb);       // 5. local
+        (void) rbuf_int(&rb);                           // 8. rand4
+        (void) rbuf_int(&rb);                           // 9. local
     }
 
     // The next offsets are dependent on whether this is a leaf node
