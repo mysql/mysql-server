@@ -2,7 +2,7 @@
 CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
 OPTFLAGS = -O0 
-CFLAGS = -W -Wall -Werror -g $(OPTFLAGS) -std=c99
+CFLAGS = -Wall -Werror -g $(OPTFLAGS) -std=c99
 ifeq ($(GCCVERSION),4.4.4)
 	CFLAGS += -Wno-deprecated
 else ifeq ($(GCCVERSION),4.4.2)
