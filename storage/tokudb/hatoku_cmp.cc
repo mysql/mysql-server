@@ -71,15 +71,34 @@ inline TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
-        assert(false);
-    goto exit;
     default:
-        ret_val = toku_type_unknown;
-        goto exit;
+        assert(false);
     }
 exit:
     return ret_val;
 }
+
+
+//
+// used to read the length of a variable sized field in a tokudb key (buf).
+//
+inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
+    u_int32_t length = (u_int32_t)(buf[0]);
+    if (length_bytes == 2) {
+        u_int32_t rest_of_length = (u_int32_t)buf[1];
+        length += rest_of_length<<8;
+    }
+    return length;
+}
+
+//
+// used to deduce the number of bytes used to store the length of a varstring/varbinary
+// in a key field stored in tokudb
+//
+inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
+    return (max_num_bytes > 255) ? 2 : 1;
+}
+
 
 
 //
@@ -376,26 +395,6 @@ inline int cmp_toku_string(
     return ret_val;
 }
 
-//
-// used to read the length of a variable sized field in a tokudb key (buf).
-//
-inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
-    u_int32_t length = (u_int32_t)(buf[0]);
-    if (length_bytes == 2) {
-        u_int32_t rest_of_length = (u_int32_t)buf[1];
-        length += rest_of_length<<8;
-    }
-    return length;
-}
-
-//
-// used to deduce the number of bytes used to store the length of a varstring/varbinary
-// in a key field stored in tokudb
-//
-inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
-    return (max_num_bytes > 255) ? 2 : 1;
-}
-
 inline uchar* pack_toku_varbinary(
     uchar* to_tokudb, 
     uchar* from_mysql, 
@@ -474,6 +473,91 @@ inline uchar* unpack_toku_varbinary(
     memcpy(to_mysql + length_bytes_in_mysql, from_tokudb + length_bytes_in_tokudb, length);
     return from_tokudb + length_bytes_in_tokudb+ length;
 }
+
+inline int cmp_toku_varbinary(
+    uchar* a_buf, 
+    uchar* b_buf, 
+    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read
+    ) 
+{
+    int ret_val = 0;
+    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
+    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
+    ret_val = cmp_toku_binary(
+        a_buf + length_bytes,
+        a_len,
+        b_buf + length_bytes,
+        b_len
+        );
+    *a_bytes_read = a_len + length_bytes;
+    *b_bytes_read = b_len + length_bytes;
+    return ret_val;
+}
+
+inline uchar* pack_toku_blob(
+    uchar* to_tokudb, 
+    uchar* from_mysql, 
+    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    u_int32_t max_num_bytes,
+    CHARSET_INFO* charset
+    ) 
+{
+    u_int32_t length = 0;
+    u_int32_t local_char_length = 0;
+    uchar* blob_buf = NULL;
+
+    switch (length_bytes_in_mysql) {
+    case (0):
+        length = max_num_bytes;
+        break;
+    case (1):
+        length = (u_int32_t)(*from_mysql);
+        break;
+    case (2):
+        length = uint2korr(from_mysql);
+        break;
+    case (3):
+        length = uint3korr(from_mysql);
+        break;
+    case (4):
+        length = uint4korr(from_mysql);
+        break;
+    }
+    set_if_smaller(length,max_num_bytes);
+
+    memcpy(&blob_buf,from_mysql+length_bytes_in_mysql,sizeof(uchar *));
+
+    local_char_length= ((charset->mbmaxlen > 1) ?
+                       max_num_bytes/charset->mbmaxlen : max_num_bytes);
+    if (length > local_char_length)
+    {
+      local_char_length= my_charpos(
+        charset, 
+        blob_buf, 
+        blob_buf+length,
+        local_char_length
+        );
+      set_if_smaller(length, local_char_length);
+    }
+
+
+    //
+    // copy the length bytes, assuming both are in little endian
+    //
+    to_tokudb[0] = (uchar)length & 255;
+    if (length_bytes_in_tokudb > 1) {
+        to_tokudb[1] = (uchar) (length >> 8);
+    }
+    //
+    // copy the string
+    //
+    memcpy(to_tokudb + length_bytes_in_tokudb, blob_buf, length);
+    return to_tokudb + length + length_bytes_in_tokudb;
+}
+
 
 inline uchar* unpack_toku_blob(
     uchar* to_mysql, 
@@ -573,90 +657,6 @@ inline uchar* pack_toku_varstring(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
-
-inline uchar* pack_toku_blob(
-    uchar* to_tokudb, 
-    uchar* from_mysql, 
-    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
-    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
-    u_int32_t max_num_bytes,
-    CHARSET_INFO* charset
-    ) 
-{
-    u_int32_t length = 0;
-    u_int32_t local_char_length = 0;
-    uchar* blob_buf = NULL;
-
-    switch (length_bytes_in_mysql) {
-    case (0):
-        length = max_num_bytes;
-        break;
-    case (1):
-        length = (u_int32_t)(*from_mysql);
-        break;
-    case (2):
-        length = uint2korr(from_mysql);
-        break;
-    case (3):
-        length = uint3korr(from_mysql);
-        break;
-    case (4):
-        length = uint4korr(from_mysql);
-        break;
-    }
-    set_if_smaller(length,max_num_bytes);
-
-    memcpy(&blob_buf,from_mysql+length_bytes_in_mysql,sizeof(uchar *));
-
-    local_char_length= ((charset->mbmaxlen > 1) ?
-                       max_num_bytes/charset->mbmaxlen : max_num_bytes);
-    if (length > local_char_length)
-    {
-      local_char_length= my_charpos(
-        charset, 
-        blob_buf, 
-        blob_buf+length,
-        local_char_length
-        );
-      set_if_smaller(length, local_char_length);
-    }
-
-
-    //
-    // copy the length bytes, assuming both are in little endian
-    //
-    to_tokudb[0] = (uchar)length & 255;
-    if (length_bytes_in_tokudb > 1) {
-        to_tokudb[1] = (uchar) (length >> 8);
-    }
-    //
-    // copy the string
-    //
-    memcpy(to_tokudb + length_bytes_in_tokudb, blob_buf, length);
-    return to_tokudb + length + length_bytes_in_tokudb;
-}
-
-inline int cmp_toku_varbinary(
-    uchar* a_buf, 
-    uchar* b_buf, 
-    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
-    u_int32_t* a_bytes_read, 
-    u_int32_t* b_bytes_read
-    ) 
-{
-    int ret_val = 0;
-    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
-    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
-    ret_val = cmp_toku_binary(
-        a_buf + length_bytes,
-        a_len,
-        b_buf + length_bytes,
-        b_len
-        );
-    *a_bytes_read = a_len + length_bytes;
-    *b_bytes_read = b_len + length_bytes;
-    return ret_val;
-}
 
 inline int cmp_toku_varstring(
     uchar* a_buf, 
