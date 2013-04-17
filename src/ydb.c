@@ -2029,7 +2029,7 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
         FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE) = FS_BLOCKED;
     else
         FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE) = env->i->fs_state;
-    *redzone_state = FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE);
+    *redzone_state = (fs_redzone_state) FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE);
     FS_STATUS_VALUE(FS_ENOSPC_THREADS_BLOCKED) = enospc_threads_blocked;
     FS_STATUS_VALUE(FS_ENOSPC_REDZONE_CTR) = env->i->enospc_redzone_ctr;
     FS_STATUS_VALUE(FS_ENOSPC_MOST_RECENT) = enospc_most_recent_timestamp;
