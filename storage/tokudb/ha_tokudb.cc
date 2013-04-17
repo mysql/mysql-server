@@ -3959,25 +3959,16 @@ cleanup:
 }
 
 /* Compare if a key in a row has changed */
-int ha_tokudb::key_cmp(uint keynr, const uchar * old_row, const uchar * new_row) {
-    KEY_PART_INFO *key_part = table->key_info[keynr].key_part;
-    KEY_PART_INFO *end = key_part + table->key_info[keynr].key_parts;
+bool ha_tokudb::key_changed(uint keynr, const uchar * old_row, const uchar * new_row) {
+    DBT old_key;
+    DBT new_key;
+    bzero((void *) &old_key, sizeof(old_key));
+    bzero((void *) &new_key, sizeof(new_key));
 
-    for (; key_part != end; key_part++) {
-        if (key_part->null_bit) {
-            if ((old_row[key_part->null_offset] & key_part->null_bit) != (new_row[key_part->null_offset] & key_part->null_bit))
-                return 1;
-        }
-        if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART)) {
-
-            if (key_part->field->cmp_binary((uchar *) (old_row + key_part->offset), (uchar *) (new_row + key_part->offset), (ulong) key_part->length))
-                return 1;
-        } else {
-            if (memcmp(old_row + key_part->offset, new_row + key_part->offset, key_part->length))
-                return 1;
-        }
-    }
-    return 0;
+    bool has_null;
+    create_dbt_key_from_table(&new_key, keynr, key_buff2, new_row, &has_null);
+    create_dbt_key_for_lookup(&old_key,&table->key_info[keynr], key_buff3, old_row, &has_null);
+    return tokudb_prefix_cmp_dbt_key(share->key_file[keynr], &old_key, &new_key);
 }
 
 //
@@ -3993,7 +3984,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     TOKUDB_DBUG_ENTER("update_row");
     DBT prim_key, old_prim_key, prim_row, old_prim_row;
     int error;
-    bool primary_key_changed;
     bool has_null;
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
@@ -4051,7 +4041,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 
 
     if (hidden_primary_key) {
-        primary_key_changed = 0;
         bzero((void *) &prim_key, sizeof(prim_key));
         prim_key.data = (void *) current_ident;
         prim_key.size = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
@@ -4059,7 +4048,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     } 
     else {
         create_dbt_key_from_table(&prim_key, primary_key, key_buff, new_row, &has_null);
-        if ((primary_key_changed = key_cmp(primary_key, old_row, new_row))) {
+        if (key_changed(primary_key, old_row, new_row)) {
             create_dbt_key_from_table(&old_prim_key, primary_key, primary_key_buff, old_row, &has_null);
         }
         else {
@@ -4077,8 +4066,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                 continue;
             }
             if (is_unique_key) {
-                bool key_changed = key_cmp(keynr, old_row, new_row);
-                if (key_changed) {
+                bool key_ch = key_changed(keynr, old_row, new_row);
+                if (key_ch) {
                     bool is_unique;
                     error = is_val_unique(&is_unique, new_row, &table->key_info[keynr], keynr, txn);
                     if (error) goto cleanup;
