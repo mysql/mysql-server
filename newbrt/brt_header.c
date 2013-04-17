@@ -89,6 +89,7 @@ toku_brtheader_release_treelock(struct brt_header* h) {
 // Start of Functions that are callbacks to the cachefule
 //
 
+// maps to cf->log_fassociate_during_checkpoint
 static int
 brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     struct brt_header *h = header_v;
@@ -101,6 +102,7 @@ brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     return r;
 }
 
+// maps to cf->log_suppress_rollback_during_checkpoint
 static int
 brtheader_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
     int r = 0;
@@ -115,6 +117,7 @@ brtheader_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v)
     return r;
 }
 
+// Maps to cf->begin_checkpoint_userdata
 // Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
 //Has access to fd (it is protected).
 static int
@@ -137,6 +140,7 @@ brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
     return r;
 }
 
+// maps to cf->checkpoint_userdata
 // Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
 // Copy current header's version of checkpoint_staging stat64info to checkpoint header.
 // Must have access to fd (protected).
@@ -205,6 +209,7 @@ handle_error:
 
 }
 
+// maps to cf->end_checkpoint_userdata
 // free unused disk space 
 // (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
 // Must have access to fd (protected)
@@ -223,7 +228,8 @@ brtheader_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
     return r;
 }
 
-//Has access to fd (it is protected).
+// maps to cf->close_userdata
+// Has access to fd (it is protected).
 static int
 brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
     struct brt_header *h = header_v;
@@ -281,6 +287,7 @@ brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_er
     return r;
 }
 
+// maps to cf->note_pin_by_checkpoint
 //Must be protected by ydb lock.
 //Is only called by checkpoint begin, which holds it
 static int
@@ -294,6 +301,7 @@ brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
     return 0;
 }
 
+// maps to cf->note_unpin_by_checkpoint
 //Must be protected by ydb lock.
 //Called by end_checkpoint, which grabs ydb lock around note_unpin
 static int
@@ -335,7 +343,8 @@ static int setup_initial_brtheader_root_node (struct brt_header* h, BLOCKNUM blo
     return r;
 }
 
-
+// TODO: (Zardosht) move this functionality to brt_init_header
+// No need in having brt_init_header call this function
 static int
 brt_init_header_partial (BRT t, CACHEFILE cf, TOKUTXN txn) {
     int r;
