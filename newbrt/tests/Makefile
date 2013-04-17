@@ -98,9 +98,9 @@ check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.$@
 
 check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.$@
 
-check_brtloader-test-extractor$(BINSUF): $(patsubst %,check_brtloader-test-extractor-%, 1 2 3 1a 2a 3a)
+check_brtloader-test-extractor$(BINSUF): $(patsubst %,check_brtloader-test-extractor-%, 1 2 3 1a 2a 3a 4a 5a)
 	true $(SUMMARIZE_CMD)
-# the 1,2,3 tests don't use valgrind, the 1a,2a,3a tests use valgrind.
+# the 1,2,3 tests don't use valgrind, the 1a,2a,3a,4a,5a tests use valgrind.
 check_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
 	./$< $(VERBVERBOSE) -s -r 1000 --rowsets 1000 --asc dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
@@ -113,6 +113,10 @@ check_brtloader-test-extractor-2a: brtloader-test-extractor$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -s -r 1000 --rowsets 1000 --dsc dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-extractor-3a: brtloader-test-extractor$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -s -r 1000 --rowsets 1000 --random dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-extractor-4a: brtloader-test-extractor$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -s -r 1000 --rowsets 3 --asc dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-extractor-5a: brtloader-test-extractor$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -s -r 1000 --rowsets 3 --asc --asc-poison dir.$@ $(SUMMARIZE_CMD)
 
 check_brtloader-test-extractor-errors$(BINSUF): $(patsubst %,check_brtloader-test-extractor-errors-%, 1 2)
 	true $(SUMMARIZE_CMD)
