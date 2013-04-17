@@ -5648,6 +5648,7 @@ int ha_tokudb::delete_all_rows() {
     if (error == 0)
         share->rows = 0;
 
+
     TOKUDB_DBUG_RETURN(error);
 }
 

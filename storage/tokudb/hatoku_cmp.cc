@@ -1205,6 +1205,7 @@ uchar* unpack_toku_key_field(
 {
     uchar* new_pos = NULL;
     u_int32_t num_bytes = 0;
+    u_int32_t num_bytes_copied;
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
@@ -1235,12 +1236,15 @@ uchar* unpack_toku_key_field(
             );
         goto exit;
     case (toku_type_fixstring):
+        num_bytes = field->pack_length();
         new_pos = unpack_toku_varbinary(
             to_mysql,
             from_tokudb,
             get_length_bytes_from_max(key_part_length),
             0
             );
+        num_bytes_copied = new_pos - (from_tokudb + get_length_bytes_from_max(key_part_length));
+        bfill(to_mysql+num_bytes_copied, num_bytes - num_bytes_copied, field->charset()->pad_char);
         goto exit;
     case (toku_type_varbinary):
     case (toku_type_varstring):
