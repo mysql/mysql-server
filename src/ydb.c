@@ -476,6 +476,8 @@ static const char * creation_time_key         = "creation_time";
 static const char * last_lsn_of_v13_key       = "last_lsn_of_v13";
 static const char * upgrade_v14_time_key      = "upgrade_v14_time";      
 static const char * upgrade_v14_footprint_key = "upgrade_v14_footprint";
+static const char * upgrade_v19_time_key      = "upgrade_v19_time";      
+static const char * upgrade_v19_footprint_key = "upgrade_v19_footprint";
 
 
 // Values read from (or written into) persistent environment,
@@ -551,22 +553,25 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
         r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
         assert_zero(r);
-	
+
+        // although the variable name is last_lsn_of_v13, this key really represents
+        // the last lsn of whatever we upgraded from, may be be v13 or 14, or in the
+        // future, something else
 	uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
 	toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
 	toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
 	r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
         assert_zero(r);
 	
-	time_t upgrade_v14_time_d = toku_htod64(time(NULL));
-	toku_fill_dbt(&key, upgrade_v14_time_key, strlen(upgrade_v14_time_key));
-	toku_fill_dbt(&val, &upgrade_v14_time_d, sizeof(upgrade_v14_time_d));
+	time_t upgrade_v19_time_d = toku_htod64(time(NULL));
+	toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
+	toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
 	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
         assert_zero(r);
 
-	uint64_t upgrade_v14_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
-	toku_fill_dbt(&key, upgrade_v14_footprint_key, strlen(upgrade_v14_footprint_key));
-	toku_fill_dbt(&val, &upgrade_v14_footprint_d, sizeof(upgrade_v14_footprint_d));
+	uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
+	toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
+	toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
 	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
         assert_zero(r);
     }
