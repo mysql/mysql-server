@@ -1,6 +1,6 @@
 #include <stdarg.h>
-#include <assert.h>
 #include <errno.h>
+#include <toku_assert.h>
 #include "../newbrt/brttypes.h"
 #include <db_cxx.h>
 
