@@ -135,9 +135,6 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
 static void verify_excl_ops_fail(DB_ENV* env, DB* db) {
     DB_TXN* txn = NULL;
     int r; 
-    DB_LOADER* loader = NULL;
-    uint32_t put_flags = 0;
-    uint32_t dbt_flags = 0;
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = db->pre_acquire_fileops_lock(db, txn);
