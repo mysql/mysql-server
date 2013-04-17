@@ -23,6 +23,7 @@ typedef struct st_tokudb_share {
 } TOKUDB_SHARE;
 
 class ha_tokudb : public handler {
+private:
     THR_LOCK_DATA lock;         ///< MySQL lock
     TOKUDB_SHARE *share;        ///< Shared lock info
 
@@ -57,29 +58,36 @@ class ha_tokudb : public handler {
     int read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * key, bool);
     DBT *get_pos(DBT * to, uchar * pos);
 
-  public:
-      ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
-     ~ha_tokudb() {
-    } const char *table_type() const {
+public:
+    ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
+    ~ha_tokudb() {
+    } 
+    const char *table_type() const {
         return "TOKUDB";
-    } const char *index_type(uint inx) {
+    } 
+    const char *index_type(uint inx) {
         return "BTREE";
     }
     const char **bas_ext() const;
     ulonglong table_flags(void) const {
         return int_table_flags;
-    } ulong index_flags(uint inx, uint part, bool all_parts) const;
+    } 
+    ulong index_flags(uint inx, uint part, bool all_parts) const;
 
     uint max_supported_keys() const {
         return MAX_KEY - 1;
-    } uint extra_rec_buf_length() const {
+    } 
+    uint extra_rec_buf_length() const {
         return TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
-    } ha_rows estimate_rows_upper_bound();
+    } 
+    ha_rows estimate_rows_upper_bound();
     uint max_supported_key_length() const {
         return UINT_MAX32;
-    } uint max_supported_key_part_length() const {
+    } 
+    uint max_supported_key_part_length() const {
         return UINT_MAX32;
-    } const key_map *keys_to_use_for_scanning() {
+    } 
+    const key_map *keys_to_use_for_scanning() {
         return &key_map_full;
     }
 
@@ -146,7 +154,7 @@ class ha_tokudb : public handler {
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-  private:
+private:
     int __close(int mutex_is_locked);
     int read_last();
     ulong field_offset(Field *);
