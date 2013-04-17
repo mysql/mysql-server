@@ -241,6 +241,7 @@ env_shutdown(void) {
     int r;
     r = env->close(env, 0);
     CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 }
 
 static void
@@ -607,5 +608,3 @@ test_main(int argc, char * const argv[]) {
         recover_and_verify();
     return 0;
 }
-
-

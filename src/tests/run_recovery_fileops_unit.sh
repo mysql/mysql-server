@@ -12,4 +12,5 @@ $bin -X novalgrind -c $@ 2> $errorfile
 test $? -eq $abortcode || { cat $errorfile; echo Error: no crash in $errorfile; exit 1; }
 set -e
 grep -q 'HAPPY CRASH' $errorfile || { cat $errorfile; echo Error: incorrect crash in $errorfile; exit 1; }
+rm -f $errorfile
 exec $bin -r $@
