@@ -1,4 +1,4 @@
-\#!/bin/bash
+#!/bin/bash
 
 # build.check.bash --revision=10500
 # build.check.bash --tokudb=tokudb.1489 --revision=10500
@@ -12,11 +12,12 @@ function usage() {
     echo "--tokudb=$tokudb"
     echo "--revision=$revision"
     echo "--bdb=$bdb"
-    echo "--valgrind=$dovalgrind"
+    echo "--valgrind=$dovalgrind --VALGRIND=$VALGRIND"
     echo "--commit=$docommit"
     echo "--j=$makejobs"
     echo "--deleteafter=$deleteafter"
     echo "--doclean=$doclean"
+    echo "--cc=$cc --cxx=$cxx"
 }
 
 function retry() {
@@ -200,10 +201,10 @@ function build() {
     runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make check_drd -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make stress_tests.drdrun -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
     # upgrade tests
-    runcmd 0 $productbuilddir/src/tests make upgrade-test-4-valgrind.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make upgrade-tests.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
     # benchmark tests
     runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
