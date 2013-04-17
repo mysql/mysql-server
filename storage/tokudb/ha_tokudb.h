@@ -399,14 +399,14 @@ public:
     int delete_all_rows();
     void extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key);
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
-    void read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    int read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
-    void unpack_blobs(
+    int unpack_blobs(
         uchar* record,
         const uchar* from_tokudb_blob,
         u_int32_t num_blob_bytes
         );
-    void unpack_row(
+    int unpack_row(
         uchar* record, 
         DBT const *row, 
         DBT const *key,
