@@ -54,7 +54,6 @@ if(BUILD_TESTING)
       helgrind2.c
       helgrind3.c
       hotindexer-bw.c
-      hotindexer-db-busy.c
       hotindexer-error-callback.c
       hotindexer-insert-committed-optimized.c
       hotindexer-insert-committed.c
@@ -79,7 +78,6 @@ if(BUILD_TESTING)
       loader-cleanup-test.c
       loader-create-abort.c
       loader-create-close.c
-      loader-db-busy.c
       loader-dup-test.c
       loader-no-puts.c
       loader-reference-test.c
