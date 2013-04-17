@@ -739,14 +739,8 @@ LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stre
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
 
-UNPACKED_DIRS = env_preload.4.1.1.cleanshutdown env_preload.4.1.1.flat.cleanshutdown env_preload.4.1.1.node4k.cleanshutdown
-%.cleanshutdown: %.cleanshutdown.tar.bz2
-	bzcat $< | tar xf -
-upgrade-test-1.tdbrun: $(UNPACKED_DIRS)
-
 clean:
 	rm -f $(ALL_BINS)
 	rm -rf dir.* *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 	rm -f *.bdb *.tdb
-	rm -rf $(UNPACKED_DIRS)
