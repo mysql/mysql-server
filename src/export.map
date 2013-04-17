@@ -67,8 +67,6 @@
 
    test_db_redirect_dictionary;
 
-   get_tdiff;
-
  local: *;
 };
 
