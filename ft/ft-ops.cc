@@ -2693,19 +2693,19 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             child_fullhash = compute_child_fullhash(ft->cf, newparent, childnum);
             toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, PL_READ, 1, &newparent, &newchild);
             newre = get_node_reactivity(newchild, ft->h->nodesize);
-            if (newre == RE_FUSIBLE) {
-                if (newparent->n_children < 2) {
-                    // weird case where newparent is the root node and
-                    // can't merge, so it might only have one child.  In
-                    // this case, just return false so we can insert
-                    // anyway.
-                    return false;
-                }
+            if (newre == RE_FUSIBLE && newparent->n_children >= 2) {
                 toku_unpin_ftnode_read_only(ft, newchild);
                 toku_ft_merge_child(ft, newparent, childnum);
             } else {
-                // some other thread already got it, just unpin and tell the
-                // caller to retry
+                // Could be a weird case where newparent has only one
+                // child.  In this case, we want to inject here but we've
+                // already unpinned the caller's copy of parent so we have
+                // to ask them to re-pin, or they could (very rarely)
+                // dereferenced memory in a freed node.  TODO: we could
+                // give them back the copy of the parent we pinned.
+                //
+                // Otherwise, some other thread already got it, just unpin
+                // and tell the caller to retry
                 toku_unpin_ftnode_read_only(ft, newchild);
                 toku_unpin_ftnode_read_only(ft, newparent);
             }
