@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: expandtab:ts=8:sw=4:softtabstop=4:
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 /* try a reverse compare function to verify that the database always uses the application's
    compare function */

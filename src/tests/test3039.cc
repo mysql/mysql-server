@@ -8,7 +8,7 @@
  * Step 3: Add a thread that does requests in parallel.
  */
 
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
 #include "test.h"

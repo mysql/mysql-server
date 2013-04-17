@@ -2,7 +2,7 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 // Test quicklz.
 // Compare to compress-test which tests the toku compression (which is a composite of quicklz and zlib).
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
 #include "test.h"

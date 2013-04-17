@@ -5,7 +5,7 @@
  */
 
 #ident "$Id$"
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 // Fair readers/writer locks.  These are fair (meaning first-come first-served.  No reader starvation, and no writer starvation).  And they are
 // probably faster than the linux readers/writer locks (pthread_rwlock_t).

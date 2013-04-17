@@ -3,7 +3,7 @@
 #ifndef FTLOADER_INTERNAL_H
 #define FTLOADER_INTERNAL_H
 #ident "$Id$"
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 #include <db.h>
 #include "fttypes.h"

@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#ident "Copyright (c) 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2008-2013 Tokutek Inc.  All rights reserved."
 
 // Test toku_ft_handle_stat64 to make sure it works even if the comparison function won't allow an arbitrary prefix of the key to work.
 

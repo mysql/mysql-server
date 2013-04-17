@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
 
 // verify that the log file trimmer does not delete the log file containing the
 // begin checkpoint when the checkpoint log entries span multiple log files.
