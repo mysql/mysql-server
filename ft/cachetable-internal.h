@@ -311,7 +311,7 @@ public:
 //
 class checkpointer {
 public:
-    void init(CACHETABLE _ct, TOKULOGGER _logger, cachefile_list *files);
+    void init(CACHETABLE _ct, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
     void destroy();
     int set_checkpoint_period(uint32_t new_period);
     uint32_t get_checkpoint_period();
@@ -333,6 +333,7 @@ private:
     cachefile_list *m_cf_list;
     // <CER> TEMP?
     CACHETABLE m_ct;
+    evictor *m_ev;
     
     // variable used by the checkpoint thread to know
     // when all work induced by cloning on client threads is done

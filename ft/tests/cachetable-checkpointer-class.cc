@@ -82,7 +82,7 @@ void checkpointer_test::test_begin_checkpoint() {
     cachetable ctbl;
     ctbl.list.init();
     
-    m_cp.init(&ctbl, NULL, &cfl);
+    m_cp.init(&ctbl, NULL, &ctbl.ev, &cfl);
 
     // 1. Call checkpoint with NO cachefiles.
     r = m_cp.begin_checkpoint();
@@ -289,7 +289,7 @@ void checkpointer_test::test_end_checkpoint() {
     cf.for_checkpoint = true;
     create_dummy_functions(&cf);
     
-    m_cp.init(&ctbl, NULL, &cfl);
+    m_cp.init(&ctbl, NULL, &ctbl.ev, &cfl);
     m_cp.m_cf_list->m_head = &cf;
 
     // 2. Add data before running checkpoint.
