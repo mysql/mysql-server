@@ -2959,13 +2959,7 @@ brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL
         // unlock the parent
         assert(node->dirty);
         toku_unpin_brtnode_off_client_thread(h, node);
-
-        if (childb->height > 0 && nonleaf_node_is_gorged(childb)) {
-            cilk_spawn flush_some_child(h, childb);
-        }
-        else {
-            toku_unpin_brtnode_off_client_thread(h, childb);
-        }
+        toku_unpin_brtnode_off_client_thread(h, childb);
     }
     if (childa->height > 0 && nonleaf_node_is_gorged(childa)) {
         flush_some_child(h, childa);
@@ -2973,7 +2967,6 @@ brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL
     else {
         toku_unpin_brtnode_off_client_thread(h, childa);
     }
-    cilk_sync;
 }
 
 static void
