@@ -1174,7 +1174,11 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         }
         share->ref_length = ref_length;
 
-        get_status();
+        error = get_status();
+        if (error) {
+            __close(1);
+            TOKUDB_DBUG_RETURN(1);
+        }
 
     }
     ref_length = share->ref_length;     // If second open
@@ -1760,12 +1764,12 @@ void ha_tokudb::init_hidden_prim_key_info() {
 /** @brief
     Get metadata info stored in status.tokudb
     */
-void ha_tokudb::get_status() {
+int ha_tokudb::get_status() {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
-    //
-    // retrieve metadata from status_block
-    //
-
+    DB_TXN* txn = NULL;
+    DBT key, value;
+    HA_METADATA_KEY curr_key;
+    int error;
     //
     // open status.tokudb
     //
@@ -1779,31 +1783,23 @@ void ha_tokudb::get_status() {
         if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
             TOKUDB_TRACE("open:%s\n", newname);
         }
-        if (!db_create(&share->status_block, db_env, 0)) {
-            if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
-                share->status_block->close(share->status_block, 0);
-                share->status_block = NULL;
-            }
-        }
+        error = db_create(&share->status_block, db_env, 0);
+        if (error) { goto cleanup; }
+
+        error = share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0);
+        if (error) { goto cleanup; }
     }
-    
-    //
-    // get capabilities and version
-    //
     
     //
     // transaction to be used for putting metadata into status.tokudb
     //
-    DB_TXN* txn = NULL;
-    DBT key, value;
-    HA_METADATA_KEY curr_key;
     bzero(&key, sizeof(key));
     bzero(&value, sizeof(value));
     key.data = &curr_key;
     key.size = sizeof(curr_key);
     value.flags = DB_DBT_MALLOC;
-    int error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { DBUG_VOID_RETURN; }
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
 
     if (share->status_block) {
         int error;
@@ -1825,7 +1821,7 @@ void ha_tokudb::get_status() {
             share->version = *(uint *)value.data;
         }
         else {
-            // error case
+            goto cleanup;
         }
         //
         // get capabilities
@@ -1845,11 +1841,21 @@ void ha_tokudb::get_status() {
             share->capabilities= *(uint *)value.data;
         }
         else {
-            // error case
+            goto cleanup;
         }
     }
-    txn->commit(txn,0);
-    DBUG_VOID_RETURN;
+    error = 0;
+cleanup:
+    if (txn) {
+        txn->commit(txn,0);
+    }
+    if (error) {
+        if (share->status_block) {
+            share->status_block->close(share->status_block, 0);
+            share->status_block = NULL;
+        }
+    }
+    TOKUDB_DBUG_RETURN(error);
 }
 
 /** @brief
