@@ -3033,7 +3033,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 trx->sp_level = trx->all;
                 trans_register_ha(thd, TRUE, tokudb_hton);
                 if (thd->in_lock_tables) {
-                    error = 0;
+                    error = 0;          // Don't create stmt trans
                     goto cleanup;
                 }
             }
