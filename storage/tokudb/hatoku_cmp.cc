@@ -408,7 +408,7 @@ inline uchar* unpack_toku_varbinary(
     uchar* to_mysql, 
     uchar* from_tokudb, 
     u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
-    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_tokudb
+    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
     ) 
 {
     u_int32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
@@ -568,7 +568,7 @@ exit:
 // cannot do it until all functions converted, because until
 // then, still relying on field->pack_cmp
 //
-uchar* pack_field(
+uchar* pack_toku_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -643,7 +643,7 @@ exit:
     return new_pos;
 }
 
-uchar* pack_key_field(
+uchar* pack_key_toku_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -660,7 +660,7 @@ uchar* pack_key_field(
     case (toku_type_bitstream):
     case (toku_type_fixbinary):
     case (toku_type_fixstring):
-        new_pos = pack_field(to_tokudb, from_mysql, field, key_part_length);
+        new_pos = pack_toku_field(to_tokudb, from_mysql, field, key_part_length);
         goto exit;
     case (toku_type_varbinary):
     case (toku_type_varstring):
@@ -689,7 +689,7 @@ exit:
 }
 
 
-uchar* unpack_field(
+uchar* unpack_toku_field(
     uchar* to_mysql,
     uchar* from_tokudb,
     Field* field,
