@@ -1097,6 +1097,22 @@ static DBT make_dbt (void *data, u_int32_t size) {
 #define inc_error_count() error_count++
 #endif
 
+static TXNID leafentry_xid(BRTLOADER bl, int which_db) {
+    TXNID le_xid = TXNID_NONE;
+    if (bl->root_xids_that_created && bl->load_root_xid != bl->root_xids_that_created[which_db])
+        le_xid = bl->load_root_xid;
+    return le_xid;
+}
+
+size_t brtloader_leafentry_size(size_t key_size, size_t val_size, TXNID xid) {
+    size_t s = 0;
+    if (xid == TXNID_NONE)
+        s = LE_CLEAN_MEMSIZE(key_size, val_size);
+    else
+        s = LE_MVCC_COMMITTED_MEMSIZE(key_size, val_size);
+    return s;
+}
+
 CILK_BEGIN
 
 static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_rowset)
@@ -1144,7 +1160,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
                 }
 	    }
 
-	    bl->extracted_datasizes[i] += skey.size + sval.size + disksize_row_overhead;
+	    bl->extracted_datasizes[i] += brtloader_leafentry_size(skey.size, sval.size, leafentry_xid(bl, i));
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
 		//printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
@@ -2027,10 +2043,11 @@ struct dbuf {
 struct leaf_buf {
     BLOCKNUM blocknum;
     TXNID xid;
-    int nkeys, ndata, dsize;
+    uint64_t nkeys, ndata, dsize;
     BRTNODE node;
+    XIDS xids;
+    uint64_t off;
 };
-
 
 struct translation {
     int64_t off, size;
@@ -2166,14 +2183,21 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     lbuf->blocknum.b = lblocknum;
     lbuf->xid = xid;
     lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
+    lbuf->off = 0;
+
+    lbuf->xids = xids_get_root_xids();
+    if (xid != TXNID_NONE) {
+        XIDS new_xids = NULL;
+        int r = xids_create_child(lbuf->xids, &new_xids, xid); 
+        assert(r == 0 && new_xids);
+        xids_destroy(&lbuf->xids);
+        lbuf->xids = new_xids;
+    }
 
     BRTNODE XMALLOC(node);
-    lbuf->node = node;
-
-    int height = 0;
-    int n_bn = 1;
-    toku_initialize_empty_brtnode(node, lbuf->blocknum, height, n_bn, BRT_LAYOUT_VERSION, target_nodesize, 0);
+    toku_initialize_empty_brtnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, BRT_LAYOUT_VERSION, target_nodesize, 0);
     BP_STATE(node, 0) = PT_AVAIL;
+    lbuf->node = node;
 
     return lbuf;
 }
@@ -2182,7 +2206,7 @@ CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl);
 static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize);
 CILK_END
-static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen);
+static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn, TXNID root_xid, uint32_t target_nodesize);
 
@@ -2290,10 +2314,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     int64_t lblock;
     result = allocate_block(&out, &lblock);
     invariant(result == 0); // can not fail since translations reserved above
-    TXNID le_xid = TXNID_NONE;
-    if (bl->root_xids_that_created && bl->load_root_xid != bl->root_xids_that_created[which_db]) {
-        le_xid = bl->load_root_xid;
-    }
+
+    TXNID le_xid = leafentry_xid(bl, which_db);
     struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock, le_xid, target_nodesize);
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
@@ -2320,35 +2342,21 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    DBT key = make_dbt(output_rowset->data+output_rowset->rows[i].off,                               output_rowset->rows[i].klen);
 	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
 
-	    used_estimate += key.size + val.size + disksize_row_overhead;
-#if 0
+            size_t this_leafentry_size = brtloader_leafentry_size(key.size, val.size, le_xid);
+
+	    used_estimate += this_leafentry_size;
+
 	    // Spawn off a node if
             //   a) there is at least one row in it, and
 	    //   b) this item would make the nodesize too big, or
 	    //   c) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
-	    int remaining_amount = total_disksize_estimate - used_estimate;
-	    int used_here = lbuf->dbuf.off + 1000; // leave 1000 for various overheads.
-	    int target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
-	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
-	    if (lbuf->n_in_buf > 0 && 
-                ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && lbuf->dbuf.off > remaining_amount))) {
-#else
-	    // Spawn off a node if
-            //   a) there is at least one row in it, and
-	    //   b) this item would make the nodesize too big, or
-	    //   c) the remaining amount won't fit in the current node and the current node's data is more than the remaining amount
-	    int remaining_amount = total_disksize_estimate - used_estimate;
-            int off = lbuf->dsize + lbuf->nkeys * disksize_row_overhead;
-	    int used_here = off + 1000; // leave 1000 for various overheads.
-	    int target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
-	    int used_here_with_next_key = used_here + key.size + val.size + disksize_row_overhead;
+	    uint64_t remaining_amount = total_disksize_estimate - used_estimate;
+	    uint64_t used_here = lbuf->off + 1000;             // leave 1000 for various overheads.
+	    uint64_t target_size = (target_nodesize*7L)/8;     // use only 7/8 of the node.
+	    uint64_t used_here_with_next_key = used_here + this_leafentry_size;
 	    if (lbuf->nkeys > 0 && 
-                ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && off > remaining_amount))) {
-#endif
-		//if (used_here_with_next_key < target_size) {
-		//    printf("%s:%d Runt avoidance: used_here=%d, remaining_amount=%d target_size=%d dbuf.off=%d\n", __FILE__, __LINE__, used_here, remaining_amount, target_size, lbuf->dbuf.off);  
-		//}
-		    
+                ((used_here_with_next_key >= target_size) || (used_here + remaining_amount >= target_size && lbuf->off > remaining_amount))) {
+
 		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
 		progress_allocation -= progress_this_node;
 		old_n_rows_remaining = n_rows_remaining;
@@ -2377,7 +2385,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		lbuf = start_leaf(&out, descriptor, lblock, le_xid, target_nodesize);
 	    }
 	
-	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size);
+	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size, this_leafentry_size);
 	    n_rows_remaining--;
 
             update_maxkey(&maxkey, &key); // set the new maxkey to the current key
@@ -2746,10 +2754,11 @@ int toku_brt_loader_get_error(BRTLOADER bl, int *error) {
     return 0;
 }
 
-static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen) {
+static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size) {
     lbuf->nkeys++; // assume NODUP
     lbuf->ndata++;
-    lbuf->dsize += keylen + vallen;    
+    lbuf->dsize += keylen + vallen;
+    lbuf->off += this_leafentry_size;
 
     // append this key val pair to the leafnode 
     // #3588 TODO just make a clean ule and append it to the omt
@@ -2758,7 +2767,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
     DBT thekey = { .data = key, .size = keylen }; 
     DBT theval = { .data = val, .size = vallen };
-    BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
     brt_leaf_apply_cmd_once(BLB(leafnode,0), &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL, &workdone);
 }
@@ -2797,6 +2806,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     if (serialized_leaf)
         toku_free(serialized_leaf);
     toku_brtnode_free(&lbuf->node);
+    xids_destroy(&lbuf->xids);
     toku_free(lbuf);
 
     //printf("Nodewrite %d (%.1f%%):", progress_allocation, 100.0*progress_allocation/PROGRESS_MAX);
@@ -2995,13 +3005,10 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
     node->totalchildkeylens = totalchildkeylens;
-    XMALLOC_N(n_children, node->bp);
+    assert(node->bp);
     for (int i=0; i<n_children; i++) {
-	set_BNC(node, i, toku_create_empty_nl());
-	BP_BLOCKNUM(node,i)= make_blocknum(subtree_info[i].block);
+        BP_BLOCKNUM(node,i)  = make_blocknum(subtree_info[i].block); 
         BP_SUBTREE_EST(node,i) = subtree_info[i].subtree_estimates;
-	BP_HAVE_FULLHASH(node,i) = FALSE;
-	BP_FULLHASH(node,i) = 0;
         BP_STATE(node,i) = PT_AVAIL;
     }
 

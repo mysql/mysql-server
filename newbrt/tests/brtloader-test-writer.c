@@ -25,7 +25,6 @@ static int qsort_compare_ints (const void *a, const void *b) {
     if (avalue<bvalue) return -1;
     if (avalue>bvalue) return +1;
     return 0;
-
 }
 
 static int compare_ints (DB *dest_db, const DBT *akey, const DBT *bkey) {
@@ -47,7 +46,6 @@ static void verify_dbfile(int n, const char *name) {
 
     CACHETABLE ct;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-
 
     TOKUTXN const null_txn = NULL;
     BRT t = NULL;
@@ -84,14 +82,19 @@ static void verify_dbfile(int n, const char *name) {
     if (verbose) traceit("verify done");
 }
 
-static void test_write_dbfile (char *template, int n, char *output_name) {
+static void test_write_dbfile (char *template, int n, char *output_name, TXNID xid) {
     if (verbose) traceit("test start");
 
     DB *dest_db = NULL;
     struct brtloader_s bl = {
         .temp_file_template = template,
         .reserved_memory = 512*1024*1024,
+        .load_root_xid = xid,
     };
+    if (xid) {
+        bl.root_xids_that_created = toku_xcalloc(1, sizeof (TXNID));
+        bl.root_xids_that_created[0] = 0;
+    }
     int r = brtloader_init_file_infos(&bl.file_infos); CKERR(r);
     r = brt_loader_lock_init(&bl); CKERR(r);
     brt_loader_set_fractal_workers_count_from_c(&bl);
@@ -104,12 +107,10 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     uint64_t size_est = 0;
     init_rowset(&aset, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
-	DBT key = {.size=sizeof i,
-		   .data=&i};
-	DBT val = {.size=sizeof i,
-		   .data=&i};
+	DBT key = { .size = sizeof i, .data = &i};
+	DBT val = { .size = sizeof i, .data = &i};
 	add_row(&aset, &key, &val);
-	size_est += key.size + val.size + disksize_row_overhead;
+	size_est += brtloader_leafentry_size(key.size, val.size, xid);
      }
 
     toku_brt_loader_set_n_rows(&bl, n);
@@ -145,7 +146,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
 	    assert(row->klen==sizeof(int));
 	    assert(row->vlen==sizeof(int));
 	    assert((int)(num_found+i)==*(int*)(rs->data+row->off));
-	    found_size_est += row->klen + row->vlen + disksize_row_overhead; 
+	    found_size_est += brtloader_leafentry_size(row->klen, row->vlen, xid);
  	}
 
 	num_found += rs->n_rows;
@@ -172,7 +173,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     assert(r==0);
 
     r = queue_destroy(q2);
-    assert(r==0);
+    assert_zero(r);
    
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, FALSE);
@@ -182,13 +183,16 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
 
     brt_loader_destroy_error_callback(&bl.error_callback);
     brt_loader_lock_destroy(&bl);
+
+    toku_free(bl.root_xids_that_created);
 }
 
 static int nrows = 1;
+static TXNID xid = 0;
 
 static int usage(const char *progname) {
-     fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-s] directory\n", progname, nrows);
-     return 1;
+    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-x %lu] [-s] directory\n", progname, nrows, xid);
+    return 1;
 }
 
 int test_main (int argc, const char *argv[]) {
@@ -204,6 +208,9 @@ int test_main (int argc, const char *argv[]) {
         } else if (strcmp(argv[0], "-r") == 0) {
             argc--; argv++;
             nrows = atoi(argv[0]);
+        } else if (strcmp(argv[0], "-x") == 0) {
+            argc--; argv++;
+            xid = atol(argv[0]);
         } else if (strcmp(argv[0], "-s") == 0) {
             toku_brtloader_set_size_factor(1);
 	} else if (argv[0][0] == '-' || argc != 1) {
@@ -232,7 +239,7 @@ int test_main (int argc, const char *argv[]) {
     int  olen = snprintf(output_name, templen, "%s/test.tokudb", directory);
     assert (olen>0 && olen<templen);
 
-    test_write_dbfile(template, nrows, output_name);
+    test_write_dbfile(template, nrows, output_name, xid);
 
 #if 0
     r = system(unlink_all);

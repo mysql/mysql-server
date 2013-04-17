@@ -44,6 +44,8 @@ void toku_brtloader_set_size_factor (uint32_t factor);
 
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
+size_t brtloader_leafentry_size(size_t key_size, size_t val_size, TXNID xid);
+
 C_END
 
 #endif // BRTLOADER_H

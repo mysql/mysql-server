@@ -125,12 +125,25 @@ check_brtloader-test-extractor-errors-2: brtloader-test-extractor-errors$(BINSUF
 
 check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir_$@
 
-check_brtloader-test-writer$(BINSUF): $(patsubst %,check_brtloader-test-writer-%, 1 2)
+check_brtloader-test-writer$(BINSUF): $(patsubst %,check_brtloader-test-writer-%, 1 1000 100000 1000000 1-42 1000-42 100000-42 1000000-42)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 1 -s dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-1000: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000 -s dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-100000: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 100000 -s dir.$@ $(SUMMARIZE_CMD)
-check_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
+check_brtloader-test-writer-1000000: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000000 -s dir.$@ $(SUMMARIZE_CMD)
+
+check_brtloader-test-writer-1-42: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 1 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-1000-42: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-100000-42: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 100000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-1000000-42: brtloader-test-writer$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
 
 check_brtloader-test-writer-errors$(BINSUF): $(patsubst %,check_brtloader-test-writer-errors-%, 1 2 3 4)
 	true $(SUMMARIZE_CMD)
