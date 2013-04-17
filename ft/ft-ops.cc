@@ -289,13 +289,13 @@ toku_ft_get_status(FT_STATUS s) {
     *s = ft_status;
 }
 
-#define STATUS_INC(x, d)                            \
-    do {                                            \
-        if (ft_status.status[x].type == PARCOUNT) { \
-            increment_partitioned_counter(ft_status.status[x].value.parcount, d); \
-        } else {                                    \
-            ft_status.status[x].value.num += d;     \
-        }                                           \
+#define STATUS_INC(x, d)                                                            \
+    do {                                                                            \
+        if (ft_status.status[x].type == PARCOUNT) {                                 \
+            increment_partitioned_counter(ft_status.status[x].value.parcount, d);   \
+        } else {                                                                    \
+            toku_sync_fetch_and_add(&ft_status.status[x].value.num, d);             \
+        }                                                                           \
     } while (0)
 
 bool is_entire_node_in_memory(FTNODE node) {
