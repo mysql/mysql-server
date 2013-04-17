@@ -285,6 +285,7 @@ toku_brt_hot_optimize(BRT brt,
             // Since there are no children to flush, we should abort
             // the HOT call.
             flusher.rightmost_leaf_seen = 1;
+            toku_unpin_brtnode_off_client_thread(brt->h, root);
         }
 
         // Set the highest pivot key seen here, since the parent may
