@@ -351,7 +351,7 @@ struct brt_header {
     struct brt_header * checkpoint_header;
     CACHEFILE cf;
     // lock used by a thread to pin the root node to start a descent into 
-    // the tree. This lock protects the blocknum of the root node. Any 
+    // the tree. This lock protects the blocknum of the root node (root_blocknum). Any 
     // thread that wants to descend down the tree starting at the root 
     // must grab this lock before pinning the root.
     toku_pthread_mutex_t tree_lock; 
@@ -377,6 +377,7 @@ struct brt_header {
     int64_t num_blocks_to_upgrade_14;   // Number of v14 blocks still not newest version. 
     unsigned int nodesize;
     unsigned int basementnodesize;
+    // this field is protected by tree_lock, see comment for tree_lock
     BLOCKNUM root_blocknum;            // roots of the dictionary
     unsigned int flags;
     DESCRIPTOR_S descriptor;

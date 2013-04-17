@@ -2223,7 +2223,9 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
             pair_touch(p);
             // used for shortcutting a path to getting the user the data
-            // helps scalability for in-memory workloads
+            // helps scalability for in-memory workloads by not holding the cachetable lock
+            // when calling pf_req_callback, and if possible, returns the PAIR to the user without
+            // reacquiring the cachetable lock
             BOOL fast_checkpointing = (resolve_checkpointing_fast(p) && num_dependent_pairs == 0);
             if (p->checkpoint_pending && fast_checkpointing) write_locked_pair_for_checkpoint(ct, p);
             cachetable_unlock(ct);
@@ -2525,6 +2527,10 @@ int toku_cachetable_get_and_pin_nonblocking (
                     write_locked_pair_for_checkpoint(ct, p);
                 }
                 pair_touch(p);
+                // release the cachetable lock before calling pf_req_callback
+                // helps scalability for in-memory workloads by not holding the cachetable lock
+                // when calling pf_req_callback, and if possible, returns the PAIR to the user without
+                // reacquiring the cachetable lock
                 cachetable_unlock(ct);
                 BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
                 //
