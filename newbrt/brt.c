@@ -5419,7 +5419,7 @@ brt_search_node(
     )
 {   int r = 0;
     // assert that we got a valid child_to_search
-    assert(child_to_search >= 0 || child_to_search < node->n_children);
+    assert(child_to_search >= 0 && child_to_search < node->n_children);
     //
     // At this point, we must have the necessary partition available to continue the search
     //
