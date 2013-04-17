@@ -14,7 +14,6 @@ DEPEND_COMPILE += \
 	./*.h \
 #end
 
-SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 HERE = db-benchmark-test-cxx
 include $(TOKUROOT)toku_include/Makefile.include
 

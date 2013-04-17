@@ -6,6 +6,7 @@
 
 #include <db.h>
 #include <toku_pthread.h>
+#include <toku_time.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -90,9 +91,9 @@ static void
 printtdiff (char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
-    double tdiff = thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec);
+    double diff = toku_tdiff(&thistime, &prevtime);
     int fcount=get_fsync_count();
-    if (verbose) printf("%s: %10.6fs %d fsyncs for %s\n", progname, tdiff, fcount-prev_count, str);
+    if (verbose) printf("%s: %10.6fs %d fsyncs for %s\n", progname, diff, fcount-prev_count, str);
     prevtime=thistime;
     prev_count=fcount;
 }

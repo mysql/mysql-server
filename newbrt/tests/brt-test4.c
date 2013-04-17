@@ -3,6 +3,7 @@
 
 #include "includes.h"
 #include "test.h"
+#include "toku_time.h"
 
 static const char fname[]= __FILE__ ".brt";
 
@@ -35,8 +36,8 @@ static void test4 (int nodesize, int count, int memcheck) {
     toku_memory_check_all_free();
     gettimeofday(&t1, 0);
     {
-	double tdiff = (t1.tv_sec-t0.tv_sec)+1e-6*(t1.tv_usec-t0.tv_usec);
-	if (verbose) printf("random insertions: blocksize=%d %d insertions in %.3f seconds, %.2f insertions/second\n", nodesize, count, tdiff, count/tdiff);
+	double diff = toku_tdiff(&t1, &t0);
+	if (verbose) printf("random insertions: blocksize=%d %d insertions in %.3f seconds, %.2f insertions/second\n", nodesize, count, diff, count/diff);
     }
 }
 

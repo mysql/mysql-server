@@ -54,7 +54,7 @@ endif
 .DELETE_ON_ERROR:
 
 ifneq ($(GCOV),)
-    GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+    GCOV_FLAGS = -fprofile-arcs -ftest-coverage -DGCOV
 endif
 
 ifneq ($(PROF),)
@@ -81,10 +81,7 @@ CPPFLAGS = $(INCLUDEDIRS) -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include
 # Add -Wconversion #DISABLED for now.
 
 WERROR    = -Werror
-WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast
-ifeq ($(SKIP_NORETURN),)
-WALL     += -Wmissing-noreturn
-endif
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn
 
 FORMAT    = -Wmissing-format-attribute
 VISIBILITY= -fvisibility=hidden
@@ -215,7 +212,7 @@ ifneq ($(CYGWIN),)
     ifeq ($(WINDBG),1)
 	VGRIND = windbg -hd -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
     else
-    	VGRIND =
+	VGRIND =
     endif
     HGRIND   =#No Hgrind in cygwin
     FPICFLAGS=#FPIC is default and not allowed as an option.
