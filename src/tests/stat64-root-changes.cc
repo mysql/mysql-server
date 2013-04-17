@@ -117,6 +117,11 @@ run_test (void) {
     }
 
     // verify update of non-existing key inserts a row
+    //
+    //
+    // NOTE: #5744 was caught by this test below.
+    //
+    //
     {
         r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
         int key = 1; char val = 1;
