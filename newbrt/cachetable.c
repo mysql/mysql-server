@@ -3566,6 +3566,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
     }
     // default is an error
     assert(0);
+    return 0;
 }
 
 // TODO: #1510 locking of cachetable is suspect
