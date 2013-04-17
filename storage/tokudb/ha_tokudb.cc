@@ -4,24 +4,19 @@
 
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
-extern "C" {
-#include "stdint.h"
-#include "os.h"
-#include "misc.h"
-}
 
 #if !defined(HA_END_SPACE_KEY) || HA_END_SPACE_KEY != 0
 #error
 #endif
 
 unsigned long my_getphyspages() {
-    return (unsigned long)os_get_phys_memory_size();
+    return sysconf(_SC_PHYS_PAGES);
 }
 
-//#include <syscall.h>
+#include <syscall.h>
 
 unsigned int my_tid() {
-    return (unsigned int)os_gettid();
+    return syscall(__NR_gettid);
 }
 
 static inline void *thd_data_get(THD *thd, int slot) {
@@ -1274,7 +1269,7 @@ inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
 
 inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
     if (lvl == hatoku_iso_read_uncommitted) {
-        return 0;//DB_READ_UNCOMMITTED;
+        return DB_READ_UNCOMMITTED;
     }
     else {
         return 0;
@@ -4272,42 +4267,32 @@ static int create_sub_table(const char *table_name, const char *sub_name, DBTYPE
 }
 
 static int mkdirpath(char *name, mode_t mode) {
-    char* parent = NULL; 
-    int r = os_mkdir(name, mode);
+    int r = mkdir(name, mode);
     if (r == -1 && errno == ENOENT) {
-        parent = (char *)my_malloc(strlen(name)+1,MYF(MY_WME));
-        if (parent == NULL) {
-            r = ENOMEM;
-            goto cleanup;
-        }
+        char parent[strlen(name)+1];
         strcpy(parent, name);
         char *cp = strrchr(parent, '/');
         if (cp) {
             *cp = 0;
-            r = os_mkdir(parent, 0755);
+            r = mkdir(parent, 0755);
             if (r == 0)
-                r = os_mkdir(name, mode);
+                r = mkdir(name, mode);
         }
     }
-cleanup:
-    my_free(parent, MYF(MY_ALLOW_ZERO_PTR));
     return r;
 }
 
-extern "C" {
 #include <dirent.h>
-}
 
 static int rmall(const char *dname) {
     int error = 0;
     DIR *d = opendir(dname);
-	char* fname = NULL;
     if (d) {
         struct dirent *dirent;
         while ((dirent = readdir(d)) != 0) {
             if (0 == strcmp(dirent->d_name, ".") || 0 == strcmp(dirent->d_name, ".."))
                 continue;
-            fname = (char *)my_malloc(strlen(dname) + 1 + strlen(dirent->d_name) + 1, MYF(MY_WME));
+            char fname[strlen(dname) + 1 + strlen(dirent->d_name) + 1];
             sprintf(fname, "%s/%s", dname, dirent->d_name);
             if (dirent->d_type == DT_DIR) {
                 error = rmall(fname);
@@ -4348,8 +4333,6 @@ static int rmall(const char *dname) {
                         break;
                     }
                 }
-   		        my_free(fname, MYF(MY_ALLOW_ZERO_PTR));
-			    fname = NULL;
             }
         }
         closedir(d);
