@@ -10,7 +10,8 @@
 #endif
 
 void mkfile (const char *fname) {
-    int fd = creat(fname, O_WRONLY);
+    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+    int fd = open(fname, O_WRONLY | O_CREAT | O_BINARY, mode); 
     if (fd<0) perror("opening");
     assert(fd>=0);
     int r  = write(fd, "hello\n", 6);                                     assert(r==6);
