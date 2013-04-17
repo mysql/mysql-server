@@ -330,7 +330,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     brt_loader_init_poll_callback(&bl->poll_callback);
 
     { int r = init_rowset(&bl->primary_rowset); if (r!=0) return r; }
-    { int r = queue_create(&bl->primary_rowset_queue, 1); if (r!=0) return r; }
+    { int r = queue_create(&bl->primary_rowset_queue, 2); if (r!=0) return r; }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
     { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
     bl->extractor_live = TRUE;
