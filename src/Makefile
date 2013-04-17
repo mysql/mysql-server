@@ -50,6 +50,10 @@ ifeq ($(OS_CHOICE),windows)
 endif
 
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
+ifeq ($(OS_CHOICE),windows)
+    INSTALL_LIBRARIES += libtokudb.pdb.install
+endif
+
 
 .PHONY:install_libs install.% build install local build_tests
 
@@ -64,6 +68,9 @@ build_tests: | local
 install_libs: $(INSTALL_LIBRARIES)
 %.install: %
 	if ! diff $* ../lib/$* > /dev/null 2>&1; then cp $* ../lib/; fi
+
+libtokudb.pdb.install: libtokudb.pdb
+	if ! diff $< ../lib/$< > /dev/null 2>&1; then cp $< ../lib/; fi
 
 .PHONY: install
 install: libs install_libs ;
