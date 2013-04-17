@@ -19,11 +19,12 @@ static double tdiff (struct timeval *a, struct timeval *b) {
 static void f_flush (CACHEFILE f,
 		     CACHEKEY key,
 		     void *value,
+		     void *extra       __attribute__((__unused__)),
 		     long size,
 		     BOOL write_me,
 		     BOOL keep_me,
 		     LSN  modified_lsn __attribute__((__unused__)),
-		     BOOL rename_p    __attribute__((__unused__))) {
+		     BOOL rename_p     __attribute__((__unused__))) {
     assert(size==BLOCKSIZE);
     if (write_me) {
 	int r = pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key.b);

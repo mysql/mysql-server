@@ -505,7 +505,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
 #if DO_CALLBACK_UNLOCK
         cachetable_unlock(ct);
 #endif
-        p->flush_callback(p->cachefile, p->key, p->value, p->size, FALSE, FALSE, 
+        p->flush_callback(p->cachefile, p->key, p->value, p->extraargs, p->size, FALSE, FALSE, 
                           ct->lsn_of_checkpoint, need_to_rename_p(ct, p));
         ctpair_destroy(p);
 #if DO_CALLBACK_UNLOCK
@@ -528,7 +528,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     cachetable_unlock(ct);
 #endif
     // write callback
-    p->flush_callback(p->cachefile, p->key, p->value, p->size, p->dirty && p->write_me, TRUE,
+    p->flush_callback(p->cachefile, p->key, p->value, p->extraargs, p->size, p->dirty && p->write_me, TRUE,
                       ct->lsn_of_checkpoint, need_to_rename_p(ct, p));
 #if DO_CALLBACK_USLEEP
     usleep(DO_CALLBACK_USLEEP);

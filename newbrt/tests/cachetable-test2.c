@@ -99,6 +99,7 @@ static void file_is_not_present(CACHEFILE cf) {
 static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
 			    CACHEKEY  key,
 			    void     *value,
+			    void     *extra        __attribute__((__unused__)),
 			    long      size         __attribute__((__unused__)),
 			    BOOL      write_me     __attribute__((__unused__)),
 			    BOOL      keep_me      __attribute__((__unused__)),

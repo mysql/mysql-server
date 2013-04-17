@@ -42,10 +42,12 @@ static CACHEKEY  keys[KEYLIMIT];
 static void*     vals[KEYLIMIT];
 static int       n_keys=0;
 
-static void r_flush (CACHEFILE f __attribute__((__unused__)),
-		     CACHEKEY k, void *value,
-		     long size __attribute__((__unused__)),
-		     BOOL write_me  __attribute__((__unused__)),
+static void r_flush (CACHEFILE f      __attribute__((__unused__)),
+		     CACHEKEY k,
+		     void *value,
+		     void *extra      __attribute__((__unused__)),
+		     long size        __attribute__((__unused__)),
+		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
 		     LSN modified_lsn __attribute__((__unused__)),
 		     BOOL rename_p    __attribute__((__unused__))) {
