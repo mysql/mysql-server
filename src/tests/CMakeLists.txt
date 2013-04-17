@@ -513,6 +513,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif ()
   endforeach(src)
 
+  configure_file(run_with_env.sh . COPYONLY)
+
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case
   #declare_custom_tests(test_thread_stack.tdb)
   #add_custom_command(OUTPUT run_test_thread_stack.sh
