@@ -8,7 +8,7 @@ NEWBRT=$(TOKUROOT)newbrt/newbrt.$(AEXT)
 DEPEND_COMPILE+=$(NEWBRT)
 
 LINK_FILES=$(NEWBRT)
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.
@@ -21,6 +21,7 @@ TLOG_TESTS = $(patsubst %.c,%.tlog$(BINSUF),$(SRCS))
 LIN_TESTS =  $(patsubst %.c,%.lin$(BINSUF),$(SRCS))
 
 ALL_TESTS = $(LIN_TESTS) $(TLOG_TESTS) #$(LOG_TESTS)
+$(ALL_TESTS): CPPFLAGS+=-I$(TOKUROOT)include
 
 RUN_LOG_TESTS  = $(patsubst %.log$(BINSUF),%.logrun,$(LOG_TESTS))
 RUN_TLOG_TESTS = $(patsubst %.tlog$(BINSUF),%.tlogrun,$(TLOG_TESTS))

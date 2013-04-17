@@ -10,7 +10,7 @@ DEPEND_COMPILE += \
 #end
 
 HERE = cxx
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 #
 #
 # OPTFLAGS = -O2

@@ -11,8 +11,8 @@ DEPEND_COMPILE += \
 	$(TOKUROOT)newbrt/log.c \
 #End of line
 ydbtrace.o tdbtrace.o: tdbtrace.h
-include $(TOKUROOT)include/Makefile.include
-CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE
+include $(TOKUROOT)toku_include/Makefile.include
+CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
 YDB=ydb.$(AEXT)
 TYDB=tydb.$(AEXT)
@@ -68,6 +68,7 @@ libs: $(LIBRARIES) ;
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
+$(OBJS) $(TOBJS): CPPFLAGS+=-I$(TOKUROOT)include
 $(YDB):  $(OBJS) 
 $(TYDB): $(TOBJS)
 
@@ -122,6 +123,7 @@ clean:
 	cd lock_tree && $(MAKE) clean
 	cd range_tree && $(MAKE) clean
 
+ydbtrace.$(OEXT): CPPFLAGS+=-DTOKUTRACE
 ydbtrace.$(OEXT): ydb.c $(DEPEND_COMPILE)
-	$(CC) $< $(O_FROM_C_FLAGS) -DTOKUTRACE
+	$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 

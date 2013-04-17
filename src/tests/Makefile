@@ -10,8 +10,8 @@ DEPEND_COMPILE += \
 	test.h \
 #end
 SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
-include $(TOKUROOT)include/Makefile.include
-CPPFLAGS += -D_GNU_SOURCE
+include $(TOKUROOT)toku_include/Makefile.include
+CPPFLAGS+=-D_GNU_SOURCE
 LIBTDB=../libtokudb.$(SOEXT)
 TLIBTDB=../libtokudbtrace.$(SOEXT)
 
@@ -165,6 +165,7 @@ endif
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
+%.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))

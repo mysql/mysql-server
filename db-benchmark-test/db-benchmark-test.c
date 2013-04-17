@@ -2,6 +2,10 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Insert a bunch of stuff */
+#ifdef BDB
+typedef unsigned int u_int;
+#endif
+#include <db.h>
 #include <toku_portability.h>
 #include <assert.h>
 #include <errno.h>
@@ -10,7 +14,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <db.h>
 
 #if !defined(DB_YESOVERWRITE)
 #define DB_YESOVERWRITE 0

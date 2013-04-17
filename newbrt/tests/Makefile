@@ -1,8 +1,8 @@
 .DEFAULT_GOAL=build
 TOKUROOT=../../
 INCLUDEDIRS=-I. -I..
-include $(TOKUROOT)include/Makefile.include
-CPPFLAGS += -D_GNU_SOURCE
+include $(TOKUROOT)toku_include/Makefile.include
+CPPFLAGS+=-D_GNU_SOURCE
 
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.

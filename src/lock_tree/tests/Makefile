@@ -10,7 +10,7 @@ DEPEND_COMPILE += \
 DEPEND_COMPILE+= $(NEWBRT)
 
 LINK_FILES=$(NEWBRT)
-include $(TOKUROOT)include/Makefile.include
+include $(TOKUROOT)toku_include/Makefile.include
 
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.

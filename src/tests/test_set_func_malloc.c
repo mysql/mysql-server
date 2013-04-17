@@ -72,6 +72,8 @@ test1 (void)
     r = db_env_set_func_realloc(brealloc); assert(r==0);
     r = db_env_set_func_free(bfree);       assert(r==0);
     
+#ifdef USE_TDB
+    // toku_malloc isn't affected by calling the BDB set_fun_malloc calls.
     malloc_counter = realloc_counter = free_counter = 0;
 
     {
@@ -80,7 +82,6 @@ test1 (void)
 	toku_free(x);	                        assert(malloc_counter==1 && free_counter==1 && realloc_counter==1);
     }
 
-#ifdef USE_TDB
     r = db_env_set_func_malloc(dlmalloc);   assert(r==0);
     r = db_env_set_func_realloc(dlrealloc); assert(r==0);
     r = db_env_set_func_free(dlfree);       assert(r==0);
