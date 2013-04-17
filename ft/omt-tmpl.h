@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <db.h>
 
-#if defined(__ICL) || defined(__ICC)
+#if defined(__ICL) || defined(__ICC) || defined(__clang__)
 # define static_assert(foo, bar) // nothing
 #else
 # include <type_traits>
@@ -69,7 +69,7 @@ struct omt {
      * 
      */
     __attribute__((nonnull))
-    void split_at(omt *const newomt, const uint32_t idx) {
+    int split_at(omt *const newomt, const uint32_t idx) {
         invariant_notnull(newomt);
         if (idx > this->size()) { return EINVAL; }
         this->convert_to_array();
@@ -77,6 +77,7 @@ struct omt {
         newomt->create_from_sorted_array(&this->d.a.values[this->d.a.start_idx + idx], newsize);
         this->d.a.num_values = idx;
         this->maybe_resize_array();
+        return 0;
     }
 
     /**
