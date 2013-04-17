@@ -225,7 +225,9 @@ inline uint32_t frwlock::blocked_users(void) const {
     return m_num_want_read + m_num_want_write;
 }
 inline uint32_t frwlock::writers(void) const {
-    toku_mutex_assert_locked(m_mutex);
+    // this is sometimes called as "assert(lock->writers())" when we
+    // assume we have the write lock.  if that's the assumption, we may
+    // not own the mutex, so we don't assert_locked here
     return m_num_writers;
 }
 inline uint32_t frwlock::blocked_writers(void) const {
