@@ -307,6 +307,7 @@ struct cachefile {
                                           // when things finish.
 };
 
+// FIXME global with no toku prefix
 void add_background_job(CACHEFILE cf, bool already_locked)
 {
     if (!already_locked) {
@@ -318,6 +319,7 @@ void add_background_job(CACHEFILE cf, bool already_locked)
     }
 }
 
+// FIXME global with no toku prefix
 void remove_background_job(CACHEFILE cf, bool already_locked)
 {
     if (!already_locked) {
@@ -331,12 +333,14 @@ void remove_background_job(CACHEFILE cf, bool already_locked)
     }
 }
 
+// FIXME global with no toku prefix
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra)
 // The function f must call remove_background_job when it completes
 {
     add_background_job(cf, false);
     toku_kibbutz_enq(cf->cachetable->kibbutz, f, extra);
 }
+
 static void wait_on_background_jobs_to_finish (CACHEFILE cf) {
     cachetable_lock(cf->cachetable);
     while (cf->n_background_jobs>0) {
@@ -3866,6 +3870,7 @@ cleaner_thread_rate_pair(PAIR p)
 
 static int const CLEANER_N_TO_CHECK = 8;
 
+// FIXME this is global but no one uses it except cachetable.c
 int
 toku_cleaner_thread (void *cachetable_v)
 // Effect:  runs a cleaner.

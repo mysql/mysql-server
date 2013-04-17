@@ -1414,6 +1414,8 @@ brt_merge_child(
     }
 }
 
+// FIXME started_at_root does not exist anymore. this is out of date.
+//
 // The parameter "started_at_root" is needed to resolve #4147 and #4160,
 // which are subtle interactions of background flushing (cleaner and
 // flusher threads) and MSN logic.

@@ -111,6 +111,16 @@ struct flusher_advice {
     void* extra; // parameter passed into callbacks
 };
 
+// FIXME all of these need the toku prefix
+//
+// how about: 
+//
+// toku_brtnode_flush_some_child()
+// toku_fa_flusher_advice_init()
+// toku_fa_always_recursively_flush()
+// toku_fa_dont_destroy_basement_nodes()
+// toku_fa_default_merge_child()
+// toku_fa_default_pick_child_after_split()
 
 void
 flusher_advice_init(

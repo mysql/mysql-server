@@ -3,38 +3,71 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-
 /*
 
 Managing the tree shape:  How insertion, deletion, and querying work
 
 When we insert a message into the BRT, here's what happens.
 
-insert_a_message_at_root(msg):
-   root = find the root node
-   if root needs to be split (has fissible reactivity):
+insert_a_message_at_root(msg) {
+    root = find the root node
+    if root needs to be split {
         split the root
         root = find the new root node
-   insert_msg_into_node_buffer(root, msg)
-   if root has too many messages in its buffer and is a nonleaf node:
-        flush the buffer on a background thread
+    }
+    insert_msg_into_node_buffer(root, msg)
+    if root has too many messages in its buffer and is a nonleaf node {
+        child = heaviest child of root 
+        if that child is non reactive and pinnable {
+            target = child
+            buffer = child's buffer
+        } else {
+            target = root
+            buffer = null
+        }
+        post a flusher thread work item to the cachetable kibbutz = {
+            flush_nonleaf_node(node_to_flush, buffer)
+        }
+    }
+}
 
-flush_nonleaf_node(node, height, key):
-        
-To process a nonleaf node (height, key)
-   Note: Height is always > 0.
-   Note: This process occurs asynchrnously, but we get the YDB lock at the beginning.
-   Descend the tree following KEY until	 a node of HEIGHT is found.
-      While the node is too full then 
-	 pick the heaviest child
-	 bring that child into memory (use nonblocking get_and_pin, which means that if we get a try-again, we go back up and restart the process_a_node job.
-	 move all messages for that child from the node to the child.
-	 If the child needs to be split or merged, then split or merge the child.
-	 If the resulting child's (or children's) buffers are too full then create a work item for each such child to process the child.  (This can only happen
-	       for nonleaf children, since otherwise there are no buffers to be too full).
+flush_nonleaf_node(node, buffer) {
+    if we have a specific target node and non null buffer to flush {
+        flush_buffer_to_node(node, buffer)
+        if that node is now gorged and needs flushing {
+            flush_some_child(node, advice)
+        }
+    } else {
+        // the buffer is null, so the node given is not going to
+        // be the TARGET of a flush, but instead the source of one.
+        // we should find some child of the node and flush it.
+        flush_some_child(node, advice)
+    }
+}
 
-We also have a background thread that traverses the tree (relatively slowly) to flatten the tree.
-Background_flattener:
+flush_some_child(parent, advice) {
+    child = advice->pick_child()
+
+    buffer = remove_child_buffer_from_parent(parent, child)
+    if the buffer is non null {
+        flush_buffer_to_node(child, buffer)
+    }
+
+    if child is stable and the advice says to recursively flush {
+        flush_some_child(child, advice)
+    } else if child needs to be split {
+        split the child
+    } else if the child _could_ be merged {
+        maybe_merge_child(child, parent)
+    }
+}
+
+We also have a background cleaner thread that traverses and flattens the tree:
+
+cleaner_thread() {
+
+}
+
    It's state is a height and a key and a child number
    Repeat:
       sleep (say 1s)
@@ -53,7 +86,6 @@ Background_flattener:
 		      It may be important for the flattener not to run if there've been no message insertions since the last time it ran.
       The background flattener should also garbage collect MVCC versions.  The flattener should remember the MVCC versions it has encountered
 	so that if any of those are no longer live, it can run again.
-			 
 
 To shrink a file: Let X be the size of the reachable data.  
     We define an acceptable bloat constant of C.  For example we set C=2 if we are willing to allow the file to be as much as 2X in size.
