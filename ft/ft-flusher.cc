@@ -629,7 +629,7 @@ ftleaf_get_split_loc(
     }
     case SPLIT_RIGHT_HEAVY: {
         *num_left_bns = 1;
-        *num_left_les = 1;
+        *num_left_les = toku_omt_size(BLB_BUFFER(node, 0)) ? 1 : 0;
         goto exit;
     }
     case SPLIT_EVENLY: {
