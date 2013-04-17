@@ -1872,12 +1872,6 @@ exit:
         rec_buff = NULL;
         my_free(rec_update_buff, MYF(MY_ALLOW_ZERO_PTR));
         rec_update_buff = NULL;
-        for (u_int32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
-            my_free(mult_rec_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
-        }
-        for (u_int32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-            my_free(mult_key_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
-        }
         
         if (error) {
             my_errno = error;
@@ -2152,10 +2146,10 @@ int ha_tokudb::__close(int mutex_is_locked) {
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     my_free(range_query_buff, MYF(MY_ALLOW_ZERO_PTR));
     for (u_int32_t i = 0; i < sizeof(mult_rec_dbt)/sizeof(mult_rec_dbt[0]); i++) {
-        if (mult_rec_dbt[i].flags == DB_DBT_REALLOC) my_free(mult_rec_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
+        if (mult_rec_dbt[i].flags == DB_DBT_REALLOC && mult_rec_dbt[i].data != NULL) my_free(mult_rec_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
     }
     for (u_int32_t i = 0; i < sizeof(mult_key_dbt)/sizeof(mult_key_dbt[0]); i++) {
-        if (mult_key_dbt[i].flags == DB_DBT_REALLOC) my_free(mult_key_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
+        if (mult_key_dbt[i].flags == DB_DBT_REALLOC && mult_key_dbt[i].data != NULL) my_free(mult_key_dbt[i].data, MYF(MY_ALLOW_ZERO_PTR));
     }
     rec_buff = NULL;
     rec_update_buff = NULL;
