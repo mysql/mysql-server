@@ -93,6 +93,10 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
         //pin log
         r = toku_get_and_pin_rollback_log(txn, txn->txnid64, last_sequence-1, next_log, next_log_hash, &log);
         assert(r==0);
+
+        r = toku_maybe_prefetch_older_rollback_log(txn, log);
+        assert(r==0);
+
         last_sequence = log->sequence;
         if (func) {
             while ((item=log->newest_logentry)) {
@@ -587,6 +591,23 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     OMTVALUE txnv;
     int r = toku_omt_find_zero(brt->txns, find_xid, &fake_txn, &txnv, &index, NULL);
     if (r == 0) *txnptr = txnv;
+    return r;
+}
+
+int
+toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
+    //Currently processing 'log'.  Prefetch the next (older) log node.
+    BLOCKNUM name = log->older;
+    int r = 0;
+    if (name.b != ROLLBACK_NONE.b) {
+        uint32_t hash = log->older_hash;
+        CACHEFILE cf = txn->logger->rollback_cachefile;
+        r = toku_cachefile_prefetch(cf, name, hash,
+                                    toku_rollback_flush_callback,
+                                    toku_rollback_fetch_callback,
+                                    txn);
+        assert(r==0);
+    }
     return r;
 }
 

@@ -306,6 +306,9 @@ toku_apply_rollinclude (TXNID      xid,
         r = toku_get_and_pin_rollback_log(txn, xid, last_sequence - 1, next_log, next_log_hash, &log);
         assert(r==0);
         last_sequence = log->sequence;
+        
+        r = toku_maybe_prefetch_older_rollback_log(txn, log);
+        assert(r==0);
 
         while ((item=log->newest_logentry)) {
             log->newest_logentry = item->prev;
