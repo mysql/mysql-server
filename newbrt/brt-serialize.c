@@ -225,8 +225,9 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 		  buf[uncompressed_magic_len],   buf[uncompressed_magic_len+1],
 		  buf[uncompressed_magic_len+2], buf[uncompressed_magic_len+3]);
     {
-	int r = compress(((Bytef*)compressed_buf)+uncompressed_magic_len + compression_header_len, &compressed_len,
-			 ((Bytef*)buf)+uncompressed_magic_len, calculated_size-uncompressed_magic_len);
+	int r = compress2(((Bytef*)compressed_buf)+uncompressed_magic_len + compression_header_len, &compressed_len,
+			  ((Bytef*)buf)+uncompressed_magic_len, calculated_size-uncompressed_magic_len,
+			  1);
 	assert(r==Z_OK);
     }
 
