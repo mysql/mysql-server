@@ -100,6 +100,7 @@ static void  UU()
     int r;
     r = db_env_create(&env, 0);
         CKERR(r);
+    r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);
         CKERR(r);
     r = env->set_default_dup_compare(env, int64_dbt_cmp);
