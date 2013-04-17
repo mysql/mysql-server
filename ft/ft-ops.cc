@@ -259,10 +259,14 @@ status_init(void)
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)");
 
     // CPU time statistics for [de]serialization and [de]compression.
-    STATUS_INIT(FT_NODE_COMPRESS_TOKUTIME,                             TOKUTIME, "node compression to memory (seconds)");
-    STATUS_INIT(FT_NODE_SERIALIZE_TOKUTIME,                            TOKUTIME, "node serialization to memory (seconds)");
-    STATUS_INIT(FT_NODE_DECOMPRESS_TOKUTIME,                           TOKUTIME, "node decompression to memory (seconds)");
-    STATUS_INIT(FT_NODE_DESERIALIZE_TOKUTIME,                          TOKUTIME, "node deserialization to memory (seconds)");
+    STATUS_INIT(FT_LEAF_COMPRESS_TOKUTIME,                                  TOKUTIME, "leaf compression to memory (seconds)");
+    STATUS_INIT(FT_LEAF_SERIALIZE_TOKUTIME,                                 TOKUTIME, "leaf serialization to memory (seconds)");
+    STATUS_INIT(FT_LEAF_DECOMPRESS_TOKUTIME,                                TOKUTIME, "leaf decompression to memory (seconds)");
+    STATUS_INIT(FT_LEAF_DESERIALIZE_TOKUTIME,                               TOKUTIME, "leaf deserialization to memory (seconds)");
+    STATUS_INIT(FT_NONLEAF_COMPRESS_TOKUTIME,                               TOKUTIME, "nonleaf compression to memory (seconds)");
+    STATUS_INIT(FT_NONLEAF_SERIALIZE_TOKUTIME,                              TOKUTIME, "nonleaf serialization to memory (seconds)");
+    STATUS_INIT(FT_NONLEAF_DECOMPRESS_TOKUTIME,                             TOKUTIME, "nonleaf decompression to memory (seconds)");
+    STATUS_INIT(FT_NONLEAF_DESERIALIZE_TOKUTIME,                            TOKUTIME, "nonleaf deserialization to memory (seconds)");
 
     // Promotion statistics.
     STATUS_INIT(FT_PRO_NUM_ROOT_SPLIT,                     PARCOUNT, "promotion: roots split");
@@ -1229,14 +1233,34 @@ ft_status_update_partial_fetch_reason(
     }
 }
 
-void toku_ft_status_update_serialize_times(tokutime_t serialize_time, tokutime_t compress_time) {
-    STATUS_INC(FT_NODE_SERIALIZE_TOKUTIME, serialize_time);
-    STATUS_INC(FT_NODE_COMPRESS_TOKUTIME, compress_time);
+void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time) {
+    if (node->height == 0) {
+        STATUS_INC(FT_LEAF_SERIALIZE_TOKUTIME, serialize_time);
+        STATUS_INC(FT_LEAF_COMPRESS_TOKUTIME, compress_time);
+    } else {
+        STATUS_INC(FT_NONLEAF_SERIALIZE_TOKUTIME, serialize_time);
+        STATUS_INC(FT_NONLEAF_COMPRESS_TOKUTIME, compress_time);
+    }
+    static int calls;
+    if (calls++ % 10000) {
+        printf("height %d serialize %lf\n", node->height, tokutime_to_seconds(serialize_time));
+        printf("height %d compress %lf\n", node->height, tokutime_to_seconds(compress_time));
+    }
 }
 
-void toku_ft_status_update_deserialize_times(tokutime_t deserialize_time, tokutime_t decompress_time) {
-    STATUS_INC(FT_NODE_DESERIALIZE_TOKUTIME, deserialize_time);
-    STATUS_INC(FT_NODE_DECOMPRESS_TOKUTIME, decompress_time);
+void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time) {
+    if (node->height == 0) {
+        STATUS_INC(FT_LEAF_DESERIALIZE_TOKUTIME, deserialize_time);
+        STATUS_INC(FT_LEAF_DECOMPRESS_TOKUTIME, decompress_time);
+    } else {
+        STATUS_INC(FT_NONLEAF_DESERIALIZE_TOKUTIME, deserialize_time);
+        STATUS_INC(FT_NONLEAF_DECOMPRESS_TOKUTIME, decompress_time);
+    }
+    static int calls;
+    if (calls++ % 10000) {
+        printf("height %d deserialize %lf\n", node->height, tokutime_to_seconds(deserialize_time));
+        printf("height %d decompress %lf\n", node->height, tokutime_to_seconds(decompress_time));
+    }
 }
 
 // callback for partially reading a node

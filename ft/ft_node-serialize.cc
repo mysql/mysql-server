@@ -660,7 +660,7 @@ toku_create_compressed_partition_from_available(
     memset(&st, 0, sizeof(st));
 
     serialize_and_compress_partition(node, childnum, compression_method, sb, &st);
-    toku_ft_status_update_serialize_times(st.serialize_time, st.compress_time);
+    toku_ft_status_update_serialize_times(node, st.serialize_time, st.compress_time);
 
     //
     // now we have an sb that would be ready for being written out,
@@ -829,7 +829,7 @@ int toku_serialize_ftnode_to_memory(FTNODE node,
 
     // update the serialize times, ignore the header for simplicity. we captured all
     // of the partitions' serialize times so that's probably good enough.
-    toku_ft_status_update_serialize_times(st.serialize_time, st.compress_time);
+    toku_ft_status_update_serialize_times(node, st.serialize_time, st.compress_time);
 
     // now we have compressed each of our pieces into individual sub_blocks,
     // we can put the header and all the subblocks into a single buffer
@@ -1719,8 +1719,8 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     *ftnode = node;
     r = 0;
 
- cleanup:
-    toku_ft_status_update_deserialize_times(deserialize_time, decompress_time);
+cleanup:
+    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
     if (r != 0) {
         if (node) {
             toku_free(*ndd);
@@ -2389,7 +2389,7 @@ cleanup:
 
     t1 = toku_time_now();
     deserialize_time = (t1 - t0) - decompress_time;
-    toku_ft_status_update_deserialize_times(deserialize_time, decompress_time);
+    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
 
     if (r != 0) {
         // NOTE: Right now, callers higher in the stack will assert on
@@ -2467,7 +2467,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     tokutime_t io_time = t1 - t0;
     tokutime_t decompress_time = t2 - t1;
     tokutime_t deserialize_time = t3 - t2;
-    toku_ft_status_update_deserialize_times(deserialize_time, decompress_time);
+    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
 
     bfe->bytes_read = rlen;
     bfe->io_time = io_time;
@@ -2507,7 +2507,7 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fet
 
     tokutime_t decompress_time = t1 - t0;
     tokutime_t deserialize_time = t2 - t1;
-    toku_ft_status_update_deserialize_times(deserialize_time, decompress_time);
+    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
 
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);

@@ -636,8 +636,8 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
 void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
-void toku_ft_status_update_serialize_times(tokutime_t serialize_time, tokutime_t compress_time);
-void toku_ft_status_update_deserialize_times(tokutime_t deserialize_time, tokutime_t decompress_time);
+void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time);
+void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time);
 
 void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 void toku_ftnode_checkpoint_complete_callback(void *value_data);
@@ -1044,10 +1044,14 @@ typedef enum {
     FT_NUM_MSG_BUFFER_FETCHED_WRITE,
     FT_BYTES_MSG_BUFFER_FETCHED_WRITE,
     FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,
-    FT_NODE_COMPRESS_TOKUTIME, // seconds spent compressing nodes to memory
-    FT_NODE_SERIALIZE_TOKUTIME, // seconds spent serializing nodes to memory
-    FT_NODE_DECOMPRESS_TOKUTIME, // seconds spent decompressing nodes to memory
-    FT_NODE_DESERIALIZE_TOKUTIME, // seconds spent deserializing nodes to memory
+    FT_LEAF_COMPRESS_TOKUTIME, // seconds spent compressing leaf leaf nodes to memory
+    FT_LEAF_SERIALIZE_TOKUTIME, // seconds spent serializing leaf node to memory
+    FT_LEAF_DECOMPRESS_TOKUTIME, // seconds spent decompressing leaf nodes to memory
+    FT_LEAF_DESERIALIZE_TOKUTIME, // seconds spent deserializing leaf nodes to memory
+    FT_NONLEAF_COMPRESS_TOKUTIME, // seconds spent compressing nonleaf nodes to memory
+    FT_NONLEAF_SERIALIZE_TOKUTIME, // seconds spent serializing nonleaf nodes to memory
+    FT_NONLEAF_DECOMPRESS_TOKUTIME, // seconds spent decompressing nonleaf nodes to memory
+    FT_NONLEAF_DESERIALIZE_TOKUTIME, // seconds spent deserializing nonleaf nodes to memory
     FT_PRO_NUM_ROOT_SPLIT,
     FT_PRO_NUM_ROOT_H0_INJECT,
     FT_PRO_NUM_ROOT_H1_INJECT,
