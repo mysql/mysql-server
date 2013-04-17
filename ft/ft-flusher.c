@@ -1758,7 +1758,7 @@ static void flush_node_fun(void *fe_v)
         // It is the responsibility of flush_some_child to unlock the node
         flush_some_child(fe->h, fe->node, &fa);
     }
-    remove_background_job(fe->h->cf, false);
+    remove_background_job_from_cf(fe->h->cf);
     toku_free(fe);
 }
 
