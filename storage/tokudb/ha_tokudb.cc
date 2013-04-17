@@ -5977,7 +5977,7 @@ int ha_tokudb::delete_table(const char *name) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
     int error;
     error = delete_or_rename_table(name, NULL, true);
-    if (error == DB_LOCK_NOTGRANTED) {
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
         sql_print_error("Could not delete table %s because \
 another transaction has accessed the table. \
 To drop the table, make sure no transactions touch the table.", name);
@@ -5999,7 +5999,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     TOKUDB_DBUG_ENTER("%s %s %s", __FUNCTION__, from, to);
     int error;
     error = delete_or_rename_table(from, to, false);
-    if (error == DB_LOCK_NOTGRANTED) {
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
         sql_print_error("Could not rename table from %s to %s because \
 another transaction has accessed the table. \
 To rename the table, make sure no transactions touch the table.", from, to);
@@ -6531,7 +6531,7 @@ cleanup:
             commit_txn(txn,0);
         }
     }
-            if (error == DB_LOCK_NOTGRANTED) {
+            if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
                 sql_print_error("Could not add indexes to table %s because \
 another transaction has accessed the table. \
 To add indexes, make sure no transactions touch the table.", share->table_name);
@@ -6585,7 +6585,7 @@ cleanup:
             commit_txn(txn,0);
         }
     }
-        if (error == DB_LOCK_NOTGRANTED) {
+        if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
             sql_print_error("Could not drop indexes from table %s because \
 another transaction has accessed the table. \
 To drop indexes, make sure no transactions touch the table.", share->table_name);
@@ -6841,7 +6841,7 @@ cleanup:
         }
     }
 
-            if (error == DB_LOCK_NOTGRANTED) {
+            if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
                 sql_print_error("Could not truncate table %s because \
 another transaction has accessed the table. \
 To truncate the table, make sure no transactions touch the table.", share->table_name);
