@@ -2578,7 +2578,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int i
     if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
     u_int32_t txn_flags = 0;
     txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks.
-    TOKU_ISOLATION child_isolation = 0;
+    TOKU_ISOLATION child_isolation = TOKU_ISO_SERIALIZABLE;
     u_int32_t iso_flags = flags & DB_ISOLATION_FLAGS;
     if (!(iso_flags == 0 || 
           iso_flags == DB_TXN_SNAPSHOT || 
