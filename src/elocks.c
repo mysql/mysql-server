@@ -18,7 +18,7 @@
 #include <toku_pthread.h>
 #include <sys/types.h>
 
-#if __linux__
+#if defined(__linux__) && __linux__
 #define YDB_LOCK_MISS_TIME 1
 #else
 #define YDB_LOCK_FIFO 0
@@ -26,7 +26,7 @@
 
 struct ydb_big_lock {
     toku_pthread_mutex_t lock;
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     int32_t waiters;
     toku_pthread_key_t time_key;
     uint64_t start_misscount, start_misstime;
@@ -38,11 +38,11 @@ static struct ydb_big_lock ydb_big_lock;
 // It does not need to be perfectly thread-safe.
 static SCHEDULE_STATUS_S status;
 
-static inline u_int64_t max(u_int64_t a, u_int64_t b) {return a > b ? a : b; }
+static inline u_int64_t u64max(u_int64_t a, u_int64_t b) {return a > b ? a : b; }
 
 #define MAX_SLEEP 1000000  // 1 second covers the case of a 5 level tree with 30 millisecond read delays and a few waiting threads
 
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
 
 #include "toku_atomic.h"
 
@@ -66,7 +66,7 @@ get_tnow(void) {
 static void 
 init_status(void) {
     uint64_t cpuhz = 0;
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     int r = toku_os_get_processor_frequency(&cpuhz); assert(r == 0);
 #endif
     status.ydb_lock_ctr = 0;
@@ -93,7 +93,7 @@ int
 toku_ydb_lock_init(void) {
     int r;
     r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); assert(r == 0);
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     ydb_big_lock.waiters = 0;
     r = toku_pthread_key_create(&ydb_big_lock.time_key, toku_free); assert(r == 0);
 #endif
@@ -105,7 +105,7 @@ int
 toku_ydb_lock_destroy(void) {
     int r;
     r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
 #endif
     return r;
@@ -117,7 +117,7 @@ toku_ydb_lock(void) {
     int r = toku_pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
 #endif
 
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     int r;
     u_int64_t requested_sleep = 0;
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
@@ -154,7 +154,7 @@ toku_ydb_lock(void) {
         assert(r == 0);
         (void) toku_sync_fetch_and_add_int32(&ydb_big_lock.waiters, -1);
     }
-    status.max_requested_sleep = max(status.max_requested_sleep, requested_sleep);
+    status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
     toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_misscount, &ydb_big_lock.start_misstime);
 #endif
 
@@ -171,7 +171,7 @@ toku_ydb_unlock(void) {
     int r = toku_pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
 #endif
 
-#if YDB_LOCK_MISS_TIME
+#if defined(YDB_LOCK_MISS_TIME) && YDB_LOCK_MISS_TIME
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
     assert(ydbtime);
 
@@ -193,13 +193,13 @@ toku_ydb_unlock(void) {
 	    theld = misstime ? misstime : misscount * 20000ULL; // if we decide not to compile in misstime, then backoff to 20 milliseconds per cache miss
 
 	    if (theld < MAXTHELD) {
-		status.max_time_ydb_lock_held = max(status.max_time_ydb_lock_held, theld);
+		status.max_time_ydb_lock_held = u64max(status.max_time_ydb_lock_held, theld);
 		ydbtime->theld_prev = theld;
 	    } else {                                      // thread appears to have migrated (theld out of range)
 		theld = ydbtime->theld_prev;              // if time measurement unavailable, assume same as previous use of ydb lock by this thread
 		status.time_ydb_lock_held_unavailable++;
 	    }
-	    status.max_waiters = max(status.max_waiters, waiters);
+	    status.max_waiters = u64max(status.max_waiters, waiters);
 	    status.total_time_ydb_lock_held += theld;
 	}
     }
