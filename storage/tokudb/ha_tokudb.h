@@ -31,6 +31,11 @@ typedef struct st_tokudb_share {
 
 } TOKUDB_SHARE;
 
+typedef struct st_prim_key_part_info {
+    uint offset;
+    uint part_index;
+} PRIM_KEY_PART_INFO;
+
 class ha_tokudb : public handler {
 private:
     THR_LOCK_DATA lock;         ///< MySQL lock
@@ -110,13 +115,15 @@ private:
     uint hidden_primary_key;
     uint version;
     bool key_read, using_ignore;
+
+    PRIM_KEY_PART_INFO* primary_key_offsets;
     bool fix_rec_buff_for_blob(ulong length);
 #define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 5 // QQQ why 5?
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
     int pack_row(DBT * row, const uchar * record);
-    void unpack_row(uchar * record, DBT * row);
+    void unpack_row(uchar * record, DBT * row, DBT* key);
     void unpack_key(uchar * record, DBT * key, uint index);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
