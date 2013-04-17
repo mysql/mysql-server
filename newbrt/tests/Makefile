@@ -94,9 +94,9 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
 
-check_brtloader-test-write-dbfile$(BINSUF): EXTRA_ARGS=-s -r 100000 dir.brtloader-test-write-dbfile
+check_brtloader-test-writer$(BINSUF): EXTRA_ARGS=-s -r 100000 dir.brtloader-test-writer
 
-check_brtloader-test-write-dbfile-enospc$(BINSUF): EXTRA_ARGS=-s -r 10000 dir.brtloader-test-write-dbfile-enospc
+check_brtloader-test-writer-errors$(BINSUF): EXTRA_ARGS=-s -r 10000 dir.brtloader-test-writer-errors
 
 brtloader-%$(BINSUF): brtloader-%.$(OEXT)
 ifeq ($(BRTLOADER),cilk)

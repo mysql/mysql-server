@@ -217,12 +217,19 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_destroy_error_callback(&bl.error_callback);
 }
 
+static int usage(const char *progname, int n) {
+    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r %d] [-s] directory\n", progname, n);
+    return 1;
+}
+
 int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     int n = 1;
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0],"-v")==0) {
+        if (strcmp(argv[0],"-h")==0) {
+            return usage(progname, n);
+	} else if (strcmp(argv[0],"-v")==0) {
 	    verbose=1;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose=0;
@@ -232,8 +239,7 @@ int test_main (int argc, const char *argv[]) {
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
 	} else if (argc!=1) {
-	    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r %d] [-s] directory\n", progname, n);
-	    exit(1);
+            return usage(progname, n);
 	}
         else {
             break;

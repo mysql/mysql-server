@@ -104,14 +104,13 @@ static void cleanup_big_buffer(struct file_info *file) {
 }
 
 int brtloader_init_file_infos (struct file_infos *fi) {
-    int r = toku_pthread_mutex_init(&fi->lock, NULL);
-    assert(r==0);
+    int r = toku_pthread_mutex_init(&fi->lock, NULL); assert(r == 0);
     fi->n_files = 0;
     fi->n_files_limit = 1;
     fi->n_files_open = 0;
     fi->n_files_extant = 0;
     MALLOC_N(fi->n_files_limit, fi->file_infos);
-    if (fi->n_files_limit) return 0;
+    if (fi->file_infos) return 0;
     else return errno;
 }
 
@@ -121,7 +120,7 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 // If !is_error then requires that all the temp files have been closed and destroyed
 // No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
 {
-    toku_pthread_mutex_destroy(&fi->lock);
+    int r = toku_pthread_mutex_destroy(&fi->lock); assert(r == 0);
     if (!is_error) {
 	assert(fi->n_files_open==0);
 	assert(fi->n_files_extant==0);
@@ -239,6 +238,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 }
 
 static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
+    int r = toku_pthread_mutex_destroy(&bl->mutex); assert(r == 0);
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
@@ -259,7 +259,6 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
         destroy_merge_fileset(&bl->fs[i]);
     toku_free(bl->fs);
 
-    // 
     for (int i=0; i<bl->N; i++) {
 	assert(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
     }
@@ -267,7 +266,8 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     toku_free(bl->fractal_queues);
     toku_free(bl->fractal_threads_live);
 
-    toku_cachetable_release_reserved_memory(bl->cachetable, bl->reserved_memory);
+    if (bl->cachetable)
+        toku_cachetable_release_reserved_memory(bl->cachetable, bl->reserved_memory);
 
     brt_loader_destroy_error_callback(&bl->error_callback);
     brt_loader_destroy_poll_callback(&bl->poll_callback);
@@ -314,7 +314,8 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
-    bl->reserved_memory = toku_cachetable_reserve_memory(cachetable, 0.5);
+    if (bl->cachetable)
+        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 0.5);
 
     bl->src_db = src_db;
     bl->N = N;
@@ -345,8 +346,8 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     bl->n_rows   = 0; 
     bl->progress = 0;
 
-    bl->rows = (struct rowset *) toku_malloc(N*sizeof(struct rowset));                   if (bl->rows == NULL) return ENOSPC;
-    bl->fs   = (struct merge_fileset *) toku_malloc(N*sizeof(struct merge_fileset));     if (bl->rows == NULL) return ENOSPC;
+    bl->rows = (struct rowset *) toku_malloc(N*sizeof(struct rowset));                   if (bl->rows == NULL) return errno;
+    bl->fs   = (struct merge_fileset *) toku_malloc(N*sizeof(struct merge_fileset));     if (bl->rows == NULL) return errno;
     for(int i=0;i<N;i++) {
         { int r = init_rowset(&bl->rows[i]); if (r!=0) return r; }
         init_merge_fileset(&bl->fs[i]);
@@ -358,6 +359,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     { int r = init_rowset(&bl->primary_rowset); if (r!=0) return r; }
     { int r = queue_create(&bl->primary_rowset_queue, 2); if (r!=0) return r; }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
+    { int r = toku_pthread_mutex_init(&bl->mutex, NULL); if (r != 0) return r; }
     { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
     bl->extractor_live = TRUE;
 
@@ -367,10 +369,14 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 }
 
 static void brt_loader_set_panic(BRTLOADER bl, int error) {
-    // RFP2578 fix races on bl->panic etc
-    if (!bl->panic) {
+    int r = toku_pthread_mutex_lock(&bl->mutex); assert(r == 0);
+    BOOL is_panic = bl->panic;
+    if (!is_panic) {
         bl->panic = TRUE;
         bl->panic_errno = error;
+    }
+    r = toku_pthread_mutex_unlock(&bl->mutex); assert(r == 0);
+    if (!is_panic) {
         brt_loader_set_error(&bl->error_callback, error, NULL, 0, NULL, NULL);
     }
 }
@@ -566,29 +572,31 @@ static int loader_read_row_from_dbufio (DBUFIO_FILESET bfs, int filenum, DBT *ke
 }
 
 
-int init_rowset (struct rowset *rows)
+int init_rowset (struct rowset *rows) 
 /* Effect: Initialize a collection of rows to be empty. */
 {
+    int result = 0;
+
     rows->rows = NULL;
     rows->data = NULL;
 
     rows->n_rows = 0;
     rows->n_rows_limit = 100;
     MALLOC_N(rows->n_rows_limit, rows->rows);
-    int err = errno;
+    if (rows->rows == NULL)
+        result = errno;
     rows->n_bytes = 0;
     rows->n_bytes_limit = 1024*size_factor*16;
     rows->data = (char *) toku_malloc(rows->n_bytes_limit);
     if (rows->rows==NULL || rows->data==NULL) {
-	int r = errno ? errno : err;
+        if (result == 0)
+            result = errno;
 	toku_free(rows->rows);
 	toku_free(rows->data);
 	rows->rows = NULL;
 	rows->data = NULL;
-	return r;
-    } else {
-	return 0;
     }
+    return result;
 }
 
 static void zero_rowset (struct rowset *rows) {
@@ -690,8 +698,6 @@ static void* extractor_thread (void *blv) {
 
 	//printf("%s:%d extractor got %ld rows\n", __FILE__, __LINE__, primary_rowset.n_rows);
 
-	assert(primary_rowset->n_rows>0);
-
 	// Now we have some rows to output
 	{
 	    r = process_primary_rows(bl, primary_rowset);
@@ -783,6 +789,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 // if primary_rowset is NULL then treat it as empty.
 {
     int error_count = 0;
+    // cilk++ bug int error_codes[bl-N]; 
     int *MALLOC_N(bl->N, error_codes);
 
     // Do parallelize this loop with cilk_grainsize = 1 so that every iteration will run in parallel.
@@ -867,7 +874,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	for (int i=0; i<bl->N; i++) {
 	    if (error_codes[i]) r = error_codes[i];
 	}
-	assert(r); // could not find the error code.  This is an error in the program if we get here.
+	assert(r); // found the error 
     }
     toku_free(error_codes);
     BL_TRACE(blt_extractor);
@@ -880,7 +887,7 @@ static int process_primary_rows (BRTLOADER bl, struct rowset *primary_rowset) {
 #if defined(__cilkplusplus)
     int r = cilk::run(process_primary_rows_internal, bl, primary_rowset);
 #else
-    int r = process_primary_rows_internal (bl, primary_rowset);
+    int r =           process_primary_rows_internal (bl, primary_rowset);
 #endif
     BL_TRACE(blt_extractor);
     return r;
@@ -1161,13 +1168,13 @@ static int update_progress (int N,
 {
     // Need a lock here because of cilk and also the various pthreads.
     // Must protect the increment and the call to the poll_function.
-    toku_pthread_mutex_lock(&update_progress_lock);
+    { int r = toku_pthread_mutex_lock(&update_progress_lock); assert(r == 0); }
     bl->progress+=N;
 
     //printf(" %20s: %d ", message, bl->progress);
-    int r = brt_loader_call_poll_function(&bl->poll_callback, (float)bl->progress/(float)PROGRESS_MAX);
-    toku_pthread_mutex_unlock(&update_progress_lock);
-    return r;
+    int result = brt_loader_call_poll_function(&bl->poll_callback, (float)bl->progress/(float)PROGRESS_MAX);
+    { int r = toku_pthread_mutex_unlock(&update_progress_lock); assert(r == 0); }
+    return result;
 }
 
 CILK_BEGIN
@@ -2190,8 +2197,11 @@ int toku_brt_loader_close (BRTLOADER bl,
 
     brt_loader_set_poll_function(&bl->poll_callback, poll_function, poll_extra);
 
-    r = finish_extractor(bl);
-    assert(r==0); // !!! should check this error code and cleanup if needed.
+    if (bl->extractor_live) {
+        r = finish_extractor(bl);
+        assert(r == 0); // LAZY !!! should check this error code and cleanup if needed.
+        assert(!bl->extractor_live);
+    }
 
     // check for an error during extraction
     r = brt_loader_call_error_function(&bl->error_callback);
@@ -2205,6 +2215,18 @@ int toku_brt_loader_close (BRTLOADER bl,
     return r;
 }
 
+int toku_brt_loader_finish_extractor(BRTLOADER bl) {
+    int result = 0;
+    if (!bl->extractor_live)
+        result = EINVAL;
+    else {
+        int r = finish_extractor(bl);
+        if (r)
+            result = r;
+    }
+    return result;
+}
+
 int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
 /* Effect : Abort the bulk loader, free brtloader resources */
 {
@@ -2212,15 +2234,24 @@ int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error)
     if (bl->extractor_live) {
         int r = finish_extractor(bl);
         assert(r == 0);
+        assert(!bl->extractor_live);
     }
 
-    assert(!bl->extractor_live);
     for (int i = 0; i < bl->N; i++)
 	assert(!bl->fractal_threads_live[i]);
 
     int result = 0;
     brtloader_destroy(bl, is_error);
     return result;
+}
+
+int toku_brt_loader_get_error(BRTLOADER bl, int *error) {
+    *error = 0;
+    if (bl->panic)
+        *error = bl->panic_errno;
+    else if (bl->error_callback.error)
+        *error = bl->error_callback.error;
+    return 0;
 }
 
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen) {
