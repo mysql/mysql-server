@@ -9,10 +9,6 @@
 
 /*
  *   The loader
- *
- *   (Once we have a functioning loader - currently defaults to reference model)
- *   If LOADER_USE_REFERENCE_MODEL is defined at compile time, a reference model is compiled
- *       $ make LOADER_USE_REFERENCE_MODEL=1 ...
  */
 
 #include <toku_portability.h>
@@ -184,9 +180,6 @@ int toku_loader_create_loader(DB_ENV *env,
     }
 
     // time to open the big kahuna
-#ifdef LOADER_USE_REFERENCE_MODEL
-    loader->i->loader_flags |= LOADER_USE_PUTS;
-#endif
     if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
         XCALLOC_N(loader->i->N, loader->i->ekeys);
         XCALLOC_N(loader->i->N, loader->i->evals);
