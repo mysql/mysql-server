@@ -109,7 +109,7 @@ unlock_and_maybe_close_db(struct db_bucket *bucket, ARG arg) {
     int k = ((unsigned) myrandom_r(arg->random_data)) % 100;
     // we should close with probability approximately p / 100
     assert(bucket->is_open);
-    if (false && k <= p) {
+    if (k <= p) {
         DB *db = bucket->db;
         int r = db->close(db, 0);
         CKERR(r);
