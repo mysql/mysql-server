@@ -25,7 +25,7 @@ typedef pthread_key_t toku_pthread_key_t;
 typedef struct timespec toku_timespec_t;
 
 #ifndef TOKU_PTHREAD_DEBUG
-# error "You should have defined TOKU_PTHREAD_DEBUG, include config.h."
+# define TOKU_PTHREAD_DEBUG 0
 #endif
 
 typedef struct toku_mutex {
