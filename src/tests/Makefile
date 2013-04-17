@@ -133,6 +133,7 @@ endif
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
+	x2 \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
@@ -433,7 +434,7 @@ ifeq ($(OS_CHOICE),windows)
     #Windows BDB cannot run 1426.  Save output from linux and compare.
 dump.bdb.1426: test1426.bdbdump/dump.bdb.1426
 	cat $< | unix2dos --u2d > $@
-    	
+
 else
 dump.bdb.1426: test1426.bdb$(BINSUF) test1426.bdbdump/dump.bdb.1426
 	./$< -q  && \
