@@ -95,6 +95,7 @@ BDB_DONTRUN_TESTS = \
         helgrind1 \
         helgrind2 \
         helgrind3 \
+	insert-dup-prelock \
         isolation \
         isolation-read-committed \
         keyrange \
@@ -474,6 +475,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 # Don't run valgrind on the diskfull test (since it aborts)
 diskfull.tdbrun: VGRIND=
 stress-gc.tdbrun: VGRIND=
+insert-dup-prelock: VGRIND=
 
 
 libs:
