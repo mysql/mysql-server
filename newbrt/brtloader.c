@@ -828,10 +828,10 @@ static int finish_primary_rows_internal (BRTLOADER bl)
     if (ra==NULL) return errno;
 
     cilk_for (int i = 0; i < bl->N; i++) {
-	struct rowset *rows = &(bl->rows[i]);
+	struct rowset rowi = bl->rows[i];
 	//printf("%s:%d extractor finishing index %d with %ld rows\n", __FILE__, __LINE__, i, rows->n_rows);
-	ra[i] = cilk_spawn sort_and_write_rows(*rows, &(bl->fs[i]), bl, i, bl->dbs[i], bl->bt_compare_funs[i]);
-	zero_rowset(rows);
+	ra[i] = cilk_spawn sort_and_write_rows(rowi, &(bl->fs[i]), bl, i, bl->dbs[i], bl->bt_compare_funs[i]);
+	zero_rowset(&bl->rows[i]);
     }
     // Implicit cilk_sync after that cilk_for loop.
 

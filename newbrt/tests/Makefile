@@ -158,7 +158,11 @@ cilkscreen_brtloader-test-1: brtloader-test$(BINSUF)
 	cilkscreen ./$< dir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
+	cilkscreen ./$< xdir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
 	cilkscreen ./$< -s xdir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-extractor-3: brtloader-test-extractor$(BINSUF)
+	cilkscreen ./$< -s -r 100 --rowsets 100 xdir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
 	cilkscreen ./$< -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
