@@ -24,7 +24,7 @@ typedef struct loader_context {
 
 typedef struct hot_optimize_context {
     THD *thd;
-    char write_status_msg[200];
+    char* write_status_msg;
     ha_tokudb *ha;
     uint current_table;
     uint num_tables;
