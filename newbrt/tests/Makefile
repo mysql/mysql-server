@@ -244,6 +244,11 @@ cilkscreen_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 
 cilkscreen_brtloader: cilkscreen_brtloader-tests cilkscreen_brtloader-extractor-tests cilkscreen_brtloader-writer-tests cilkscreen_brtloader-writer-error-tests
 
+check_upgrade_test_simple: VGRIND=
+
+check_upgrade_test_simple_with_valgrind: upgrade_test_simple
+	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
+
 clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir dir.*
