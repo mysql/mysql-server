@@ -1470,8 +1470,11 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
     }
     assert(!ct->pending_head);
 
+    cachetable_unlock(ct);
+
     {   // have just written data blocks, so next write the translation and header for each open dictionary
 	CACHEFILE cf;
+        //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
 	for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 	    if (cf->checkpoint_userdata) {
 		int r = cf->checkpoint_userdata(cf, cf->userdata);
@@ -1484,6 +1487,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
 	// ... so fsync and call checkpoint-end function in block translator
 	//     to free obsolete blocks on disk used by previous checkpoint
 	CACHEFILE cf;
+        //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
 	for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
 	    if (cf->end_checkpoint_userdata) {
 		int r = cf->end_checkpoint_userdata(cf, cf->userdata);
@@ -1497,20 +1501,18 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
         //remove reference
         //clear bit saying they're in checkpoint
 	CACHEFILE cf;
+        //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
         while ((cf = ct->cachefiles_in_checkpoint)) {
             ct->cachefiles_in_checkpoint = cf->next_in_checkpoint; 
             cf->next_in_checkpoint       = NULL;
             cf->for_checkpoint           = FALSE;
-            cachetable_unlock(ct);
             int r = toku_cachefile_close(&cf, logger, error_string);
             if (r!=0) {
                 retval = r;
                 goto panic;
             }
-            cachetable_lock(ct);
         }
     }
-    cachetable_unlock(ct);
 
     if (logger) {
 	int r = toku_log_end_checkpoint(logger, NULL, 0, ct->lsn_of_checkpoint_in_progress.lsn);
