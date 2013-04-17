@@ -110,8 +110,13 @@ whoami(user)
 
 ## construct SITE, seems to have to happen before include(CTest)
 set(SITE "${user}@${host}")
+if (USE_GCOV)
+  set(buildname_build_type "Coverage")
+else (USE_GCOV)
+  set(buildname_build_type "${CMAKE_BUILD_TYPE}")
+endif (USE_GCOV)
 ## construct BUILDNAME, seems to have to happen before include(CTest)
-set(BUILDNAME "${branchname} ${CMAKE_BUILD_TYPE} ${CMAKE_SYSTEM} ${machine_type} ${CMAKE_CXX_COMPILER_ID} ${real_cxx_compiler} ${CMAKE_CXX_COMPILER_VERSION}" CACHE STRING "CTest build name" FORCE)
+set(BUILDNAME "${branchname} ${buildname_build_type} ${CMAKE_SYSTEM} ${machine_type} ${CMAKE_CXX_COMPILER_ID} ${real_cxx_compiler} ${CMAKE_CXX_COMPILER_VERSION}" CACHE STRING "CTest build name" FORCE)
 
 include(CTest)
 
