@@ -134,7 +134,9 @@ static void err_cb(DB *db UU(), int dbn, int err, DBT *key UU(), DBT *val UU(), 
     abort();
 }
 
-enum { N_SOURCES = 2, N_RECORDS=10, N_DEST_DBS=1 };
+enum { N_SOURCES = 2, N_DEST_DBS=1 };
+
+int N_RECORDS = 10;
 
 static char *make_fname(const char *directory, const char *fname, int idx) {
     int len = strlen(directory)+strlen(fname)+20;
@@ -145,16 +147,37 @@ static char *make_fname(const char *directory, const char *fname, int idx) {
 }
 
 
+struct consumer_thunk {
+    QUEUE q;
+    int64_t n_read;
+};
+
+static void *consumer_thread (void *ctv) {
+    struct consumer_thunk *cthunk = (struct consumer_thunk *)ctv;
+    while (1) {
+	void *item;
+	int r = queue_deq(cthunk->q, &item, NULL, NULL);
+	if (r==EOF) return NULL;
+	assert(r==0);
+	struct rowset *rowset = (struct rowset *)item;
+	cthunk->n_read += rowset->n_rows;
+	destroy_rowset(rowset);
+	toku_free(rowset);
+    }
+}
+
 
 static void test (const char *directory) {
 
     int *XMALLOC_N(N_SOURCES, fds);
 
     char **XMALLOC_N(N_SOURCES, fnames);
+    int *XMALLOC_N(N_SOURCES, n_records_in_fd);
     for (int i=0; i<N_SOURCES; i++) {
 	fnames[i] = make_fname(directory, "temp", i);
 	fds[i] = open(fnames[i], O_CREAT|O_RDWR, S_IRWXU);
 	assert(fds[i]>=0);
+	n_records_in_fd[i] = 0;
     }
     for (int i=0; i<N_RECORDS; i++) {
 	int size=4;
@@ -164,6 +187,7 @@ static void test (const char *directory) {
 	{ int r = write(fd, &i,    4);  assert(r==4); }
 	{ int r = write(fd, &size, 4);  assert(r==4); }
 	{ int r = write(fd, &i,    4);  assert(r==4); }
+	n_records_in_fd[fdi]++;
     }
     for (int i=0; i<N_SOURCES; i++) {
 	off_t r = lseek(fds[i], 0, SEEK_SET);
@@ -224,18 +248,22 @@ static void test (const char *directory) {
     bl->file_infos.n_files = N_SOURCES;
     bl->file_infos.n_files_limit = N_SOURCES;
     bl->file_infos.n_files_open  = 0;
-    bl->file_infos.n_files_extant = N_SOURCES;
+    bl->file_infos.n_files_extant = 0;
     XREALLOC_N(bl->file_infos.n_files_limit, bl->file_infos.file_infos);
-    const int BUFFER_SIZE = 100;
     for (int i=0; i<N_SOURCES; i++) {
-	bl->file_infos.file_infos[i] = (struct file_info){ .is_open   = FALSE,
-							   .is_extant = TRUE,
-							   .fname     = toku_strdup(fnames[i]),
-							   .file      = (FILE*)NULL,
-							   .n_rows    = N_RECORDS,
-							   .buffer_size = BUFFER_SIZE,
-							   .buffer      = toku_xmalloc(BUFFER_SIZE)}; 
+	// all we really need is the number of records in the file.  The rest of the file_info is unused by the dbufio code.n
+	bl->file_infos.file_infos[i].n_rows = n_records_in_fd[i];
+	// However we need these for the destroy method to work right.
+	bl->file_infos.file_infos[i].is_extant = FALSE;
+	bl->file_infos.file_infos[i].is_open   = FALSE;
+	bl->file_infos.file_infos[i].buffer    = NULL;
 	src_fidxs[i].idx = i;
+    }
+    toku_pthread_t consumer;
+    struct consumer_thunk cthunk = {q, 0};
+    {
+	int r = toku_pthread_create(&consumer, NULL, consumer_thread, (void*)&cthunk);
+	assert(r==0);
     }
     {
 	int r = toku_merge_some_files_using_dbufio(TRUE, FIDX_NULL, q, N_SOURCES, bfs, src_fidxs, bl, 0, (DB*)NULL, compare_ints, 10000);
@@ -243,13 +271,47 @@ static void test (const char *directory) {
 	assert(r==0);
     }
     {
-	int r = toku_brtloader_destroy(bl);
+	int r = queue_eof(q);
 	assert(r==0);
     }
+    {
+	void *result;
+	int r = toku_pthread_join(consumer, &result);
+	assert(r==0);
+	assert(result==NULL);
+	//printf("n_read = %ld, N_SOURCES=%d N_RECORDS=%d\n", cthunk.n_read, N_SOURCES, N_RECORDS);
+	assert(cthunk.n_read == N_RECORDS);
+    }
+    printf("%s:%d Destroying\n", __FILE__, __LINE__);
+    {
+	int r = queue_destroy(bl->primary_rowset_queue);
+	assert(r==0);
+    }
+    {
+	int r = queue_destroy(q);
+	assert(r==0);
+    }
+    toku_brtloader_internal_destroy(bl, FALSE);
     {
 	int r = toku_cachetable_close(&ct);
 	assert(r==0);
     }
+    for (int i=0; i<N_DEST_DBS; i++) {
+	toku_free((void*)new_fnames_in_env[i]);
+    }
+    for (int i=0; i<N_SOURCES; i++) {
+	toku_free(fnames[i]);
+    }
+    destroy_dbufio_fileset(bfs);
+    toku_free(fnames);
+    toku_free(fds);
+    toku_free(dbs);
+    toku_free(descriptors);
+    toku_free(new_fnames_in_env);
+    toku_free(bt_compare_functions);
+    toku_free(lsnp);
+    toku_free(src_fidxs);
+    toku_free(n_records_in_fd);
 }
 
 
@@ -265,24 +327,23 @@ static int usage(const char *progname, int n) {
 
 int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
-    int n = 1;
     argc--; argv++;
     while (argc>0) {
         if (strcmp(argv[0],"-h")==0) {
-            return usage(progname, n);
+            return usage(progname, N_RECORDS);
 	} else if (strcmp(argv[0],"-v")==0) {
 	    verbose=1;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose=0;
         } else if (strcmp(argv[0],"-r") == 0) {
             argc--; argv++;
-            n = atoi(argv[0]);
+            N_RECORDS = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
         } else if (strcmp(argv[0],"-m") == 0) {
             my_malloc_event = 1;
 	} else if (argc!=1) {
-            return usage(progname, n);
+            return usage(progname, N_RECORDS);
 	}
         else {
             break;

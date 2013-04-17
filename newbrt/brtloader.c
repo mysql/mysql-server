@@ -278,7 +278,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
     return result;
 }
 
-static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
+void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
     int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
@@ -389,8 +389,8 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     bl->N = N;
     bl->load_lsn = load_lsn;
 
-#define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; }
-#define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; brtloader_destroy(bl, TRUE); return r; } lval = v; } while (0)
+#define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; toku_brtloader_internal_destroy(bl, TRUE); return r; }
+#define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_brtloader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->dbs);
     for (int i=0; i<N; i++) bl->dbs[i]=dbs[i];
@@ -409,7 +409,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 
     {
         int r = brtloader_init_file_infos(&bl->file_infos); 
-        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+        if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
 
     SET_TO_MY_STRDUP(bl->temp_file_template, temp_file_template);
@@ -422,28 +422,28 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     for(int i=0;i<N;i++) {
         { 
             int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); 
-            if (r!=0) {brtloader_destroy(bl, TRUE); return r; } 
+            if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; } 
         }
         init_merge_fileset(&bl->fs[i]);
     }
     { // note : currently brt_loader_init_error_callback always returns 0
         int r = brt_loader_init_error_callback(&bl->error_callback);
-        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+        if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
         
     brt_loader_init_poll_callback(&bl->poll_callback);
 
     { 
         int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
-        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+        if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
     {   int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); 
-        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+        if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
     {   
         int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
-        if (r != 0) { brtloader_destroy(bl, TRUE); return r; }
+        if (r != 0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
 
     bl->extractor_live = TRUE;
@@ -493,7 +493,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
         if (r!=0) { 
 	    result = r;
             toku_pthread_mutex_destroy(&bl->mutex);
-            brtloader_destroy(bl, TRUE);
+            toku_brtloader_internal_destroy(bl, TRUE);
         }
     }
     BL_TRACE(blt_open);
@@ -2405,7 +2405,7 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
     invariant(bl->file_infos.n_files_extant == 0);
     invariant(bl->progress == PROGRESS_MAX);
  error:
-    brtloader_destroy(bl, (BOOL)(result!=0));
+    toku_brtloader_internal_destroy(bl, (BOOL)(result!=0));
     BL_TRACE(blt_close);
     BL_TRACE_END;
     return result;
@@ -2445,7 +2445,7 @@ int toku_brt_loader_close (BRTLOADER bl,
         if (r && result == 0)
             result = r;
     } else
-        brtloader_destroy(bl, TRUE);
+        toku_brtloader_internal_destroy(bl, TRUE);
 
     return result;
 }
@@ -2478,7 +2478,7 @@ int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error)
     for (int i = 0; i < bl->N; i++)
 	invariant(!bl->fractal_threads_live[i]);
 
-    brtloader_destroy(bl, is_error);
+    toku_brtloader_internal_destroy(bl, is_error);
     return result;
 }
 
