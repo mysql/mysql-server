@@ -248,8 +248,7 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
 	    return child_fullhash;
 	}
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static void
@@ -986,6 +985,7 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     int cnum;
     int r;
 
+    WHEN_NOT_GCOV(
     if (toku_brt_debug_mode) {
 	int i;
 	printf("%s:%d Child %d splitting on %s\n", __FILE__, __LINE__, childnum, (char*)splitk->data);
@@ -993,6 +993,7 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	for(i=0; i<node->u.n.n_children-1; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
 	printf("\n");
     }
+		  )
 
     node->dirty = 1;
 
@@ -1044,12 +1045,14 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, pivot);
     }
 
+    WHEN_NOT_GCOV(
     if (toku_brt_debug_mode) {
 	int i;
 	printf("%s:%d splitkeys:", __FILE__, __LINE__);
 	for(i=0; i<node->u.n.n_children-2; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
 	printf("\n");
     }
+		  )
 
     //verify_local_fingerprint_nonleaf(node);
 
@@ -1155,8 +1158,7 @@ should_compare_both_keys (BRTNODE node, BRT_CMD cmd)
     case BRT_NONE:
 	break;
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
@@ -1289,8 +1291,7 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 	return 0;
     case BRT_NONE: break;
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static int apply_cmd_to_le_provpair (TXNID xid,
@@ -1341,8 +1342,7 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 			    newlen, disksize, new_data);
     case BRT_NONE: break;
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 static int
@@ -1379,7 +1379,7 @@ apply_cmd_to_leaf (BRT_CMD cmd,
 	LESWITCHCALL(stored_data, apply_cmd_to, cmd,
 		     newlen, disksize, new_data);
     }
-    abort(); return 0; // make certain compilers happy    
+    abort();
 }
 
 static int
@@ -1910,7 +1910,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 		if (r!=0) goto return_r;
 		goto reacted;
 	    }
-	    assert(0); // this cannot happen
+	    abort(); // this cannot happen
 	reacted:
 	    if (*did_io) break;
 	next_child: ; /* nothing */
@@ -1971,8 +1971,7 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
     case RE_FUSIBLE:
 	return 0; // Cannot merge anything at the root, so return happy.
     }
-    assert(0); // cannot happen
-    return -1;
+    abort();
 }
 
 static void compute_and_fill_remembered_hash (BRT brt, int rootnum) {
@@ -2015,7 +2014,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
 	    }
 	}
     }
-    abort(); return 0; // make certain compilers happy
+    abort();
 }
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
@@ -2768,8 +2767,7 @@ pair_leafval_heaviside_le_committed (u_int32_t klen, void *kval,
     case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
     case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
     }
-    assert(0);
-    return 0;
+    abort();
 }
 
 
@@ -2924,7 +2922,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
 	    goto return_r;
 	}
     }
-    assert(0); // enum is broken
+    abort(); // enum is broken
  return_r:
     {
 	int rr = toku_cachetable_unpin(brt->cf, childnode->thisnodename, childnode->fullhash, childnode->dirty, brtnode_memory_size(childnode)); 
@@ -3032,7 +3030,7 @@ toku_brt_search (BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULO
 	case RE_FUSIBLE:
 	    goto return_r; // Cannot merge anything at the root, so return happy.
 	}
-	assert(0); // cannot happen
+	abort(); // cannot happen
     }
 
  return_r:
@@ -3711,7 +3709,7 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
 
 /* ********************* debugging dump ************************ */
 static int
-toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
+toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -3720,33 +3718,33 @@ toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEML
 					&node_v, NULL,
 					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt->h);
     assert(r==0);
-    printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
+    fprintf(file, "%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
     assert(node->fullhash==fullhash);
     result=toku_verify_brtnode(brt, blocknum, lorange, lolen, hirange, hilen, 0);
-    printf("%*sNode=%p\n", depth, "", node);
+    fprintf(file, "%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
-	printf("%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",
+	fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  n_bytes_in_buffers=%u keyrange=%s %s\n",
 	       depth, "", blocknum.b, node->nodesize, node->height, node->u.n.n_children, node->u.n.n_bytes_in_buffers, (char*)lorange, (char*)hirange);
 	//printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
 	{
 	    int i;
 	    for (i=0; i< node->u.n.n_children; i++) {
-		printf("%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
+		fprintf(file, "%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  {
 				      data=data; datalen=datalen; keylen=keylen;
-				      printf("%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
+				      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
 				      //assert(strlen((char*)key)+1==keylen);
 				      //assert(strlen((char*)data)+1==datalen);
 				  });
 	    }
 	    for (i=0; i<node->u.n.n_children; i++) {
-		printf("%*schild %d\n", depth, "", i);
+		fprintf(file, "%*schild %d\n", depth, "", i);
 		if (i>0) {
-		    printf("%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
+		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
 		}
-		toku_dump_brtnode(brt, BNC_BLOCKNUM(node, i), depth+4,
+		toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
 				  (i==0) ? lorange : node->u.n.childkeys[i-1]->key,
 				  (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
 				  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i]->key,
@@ -3755,7 +3753,7 @@ toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEML
 	    }
 	}
     } else {
-	printf("%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange=%u %u\n",
+	fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_bytes_in_buffer=%u keyrange=%u %u\n",
 	       depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
 	int size = toku_omt_size(node->u.l.buffer);
 	int i;
@@ -3764,21 +3762,21 @@ toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEML
 	    OMTVALUE v;
 	    r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);
 	    assert(r==0);
-	    printf(" [%d]=", i);
-	    print_leafentry(stdout, v);
+	    fprintf(file, " [%d]=", i);
+	    print_leafentry(file, v);
 	}
 	//	     printf(" (%d)%u ", len, *(int*)le_any_key(data)));
-	printf("\n");
+	fprintf(file, "\n");
     }
     r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, 0, 0);
     assert(r==0);
     return result;
 }
 
-int toku_dump_brt (BRT brt) {
+int toku_dump_brt (FILE *f, BRT brt) {
     CACHEKEY *rootp;
     assert(brt->h);
     u_int32_t fullhash;
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
-    return toku_dump_brtnode(brt, *rootp, 0, 0, 0, 0, 0);
+    return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0, 0, 0);
 }

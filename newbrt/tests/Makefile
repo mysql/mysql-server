@@ -121,6 +121,7 @@ REGRESSION_TESTS = \
 	brt-test3 \
 	brt-test4 \
 	brt-test5 \
+	test-dump-brt \
 	cachetable-rwlock-test \
 	cachetable-writequeue-test \
 	threadpool-test \

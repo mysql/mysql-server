@@ -37,7 +37,7 @@ int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
 int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
 int toku_close_brt (BRT, TOKULOGGER);
 
-int toku_dump_brt (BRT brt);
+int toku_dump_brt (FILE *,BRT brt);
 
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 void brt_flush (BRT); /* fsync and clear the caches. */ 
