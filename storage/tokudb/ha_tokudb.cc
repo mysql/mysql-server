@@ -2146,7 +2146,23 @@ DBT *ha_tokudb::pack_key(
     DBUG_RETURN(key);
 }
 
-int ha_tokudb::read_last() {
+bool ha_tokudb::is_auto_inc_first_column (uint* keynr) {
+    bool ret_val = false;
+    for (uint i = 0; i < table->s->keys; i++) {
+        KEY *key = &table->s->key_info[i];
+        KEY_PART_INFO *key_part = &key->key_part[0];
+        Field *field = key_part->field;
+        if (field->flags & AUTO_INCREMENT_FLAG) {
+            ret_val = true;
+            *keynr = i;
+            break;
+        }
+    }
+    return ret_val;
+}
+
+
+int ha_tokudb::read_last(uint keynr) {
     TOKUDB_DBUG_ENTER("ha_tokudb::read_last");
     int do_commit = 0;
     if (transaction == NULL) {
@@ -2154,7 +2170,7 @@ int ha_tokudb::read_last() {
         assert(r == 0);
         do_commit = 1;
     }
-    int error = index_init(primary_key, 0);
+    int error = index_init(keynr, 0);
     if (error == 0)
         error = index_last(table->record[1]);
     index_end();
@@ -2174,7 +2190,7 @@ void ha_tokudb::init_hidden_prim_key_info() {
     pthread_mutex_lock(&share->mutex);
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
         (void) extra(HA_EXTRA_KEYREAD);
-        int error = read_last();
+        int error = read_last(primary_key);
         (void) extra(HA_EXTRA_NO_KEYREAD);
         if (error == 0) {
             share->auto_ident = hpk_char_to_num(current_ident);
@@ -2354,9 +2370,10 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
     //
-    // make sure delay_auto_inc_update is true
+    // make sure delay_auto_inc_update is true, iff the auto inc column
+    // is the first column of a key
     //
-    delay_auto_inc_update = true;
+    delay_auto_inc_update = share->ai_first_col ? true : false;
     auto_inc_update_req = false;
 }
 
@@ -5053,6 +5070,7 @@ void ha_tokudb::init_auto_increment() {
     DBT key;
     DBT value;
     int error;
+    uint auto_inc_keynr;
     HA_METADATA_KEY key_val = hatoku_max_ai;
     bzero(&key, sizeof(key));
     bzero(&value, sizeof(value));
@@ -5086,6 +5104,25 @@ void ha_tokudb::init_auto_increment() {
         }
         else {
             share->last_auto_increment = 0;
+        }
+        if (is_auto_inc_first_column(&auto_inc_keynr)) {
+            share->ai_first_col = true;
+            (void) extra(HA_EXTRA_KEYREAD);
+            error = read_last(auto_inc_keynr);
+            (void) extra(HA_EXTRA_NO_KEYREAD);
+            if (!error) {                
+                ulonglong last_entry = retrieve_auto_increment(
+                    table->field[share->ai_field_index]->key_type(), 
+                    field_offset(table->field[share->ai_field_index], table),
+                    table->record[1]
+                    );
+                if (last_entry > share->last_auto_increment) {
+                    share->last_auto_increment = last_entry;
+                }
+            }
+        }
+        else {
+            share->ai_first_col = false;
         }
         //
         // Now retrieve the initial auto increment value, as specified by create table
