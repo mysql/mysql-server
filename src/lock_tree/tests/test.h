@@ -33,14 +33,9 @@ static inline int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const
 }
 
 toku_dbt_cmp compare_fun = dbcmp;
-toku_dbt_cmp dup_compare = dbcmp;
 
 static inline toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* db) {
     return compare_fun;
-}
-
-static inline toku_dbt_cmp get_dup_compare_from_db(__attribute__((unused)) DB* db) {
-    return dup_compare;
 }
 
 BOOL panicked = FALSE;
@@ -78,17 +73,17 @@ static inline void parse_args (int argc, const char *argv[]) {
 }
 
 // Simle LCG random number generator.  Not high quality, but good enough.
-static u_int32_t rstate=1;
+static uint32_t rstate=1;
 static inline void mysrandom (int s) {
     rstate=s;
 }
-static inline u_int32_t myrandom (void) {
-    rstate = (279470275ull*(u_int64_t)rstate)%4294967291ull;
+static inline uint32_t myrandom (void) {
+    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
     return rstate;
 }
 
 
-static inline DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
+static inline DBT *dbt_init(DBT *dbt, void *data, uint32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
     dbt->size = size;
@@ -98,12 +93,12 @@ static inline DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
 
 /**
    A comparison function between toku_point's.
-   It is implemented as a wrapper of db compare and dup_compare functions,
+   It is implemented as a wrapper of db compare functions,
    but it checks whether the point is +/- infty.
    Parameters are of type toku_point.
    Return values conform to cmp from qsort(3).
  */
-// extern int toku__lt_point_cmp(void* a, void* b);
+// extern int toku_lt_point_cmp(void* a, void* b);
 
 static inline void init_point(toku_point* point, toku_lock_tree* tree) {
     assert(point && tree);

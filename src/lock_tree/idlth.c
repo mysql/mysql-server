@@ -17,9 +17,9 @@
 
 /* TODO: investigate whether we can remove the user_memory functions */
 /* TODO: reallocate the hash idlth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
-const u_int32_t __toku_idlth_init_size = 521;
+const uint32_t __toku_idlth_init_size = 521;
 
-static inline u_int32_t toku__idlth_hash(toku_idlth* idlth, DICTIONARY_ID dict_id) {
+static inline uint32_t toku__idlth_hash(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     uint32_t tmp = dict_id.dictid;
     return tmp % idlth->num_buckets;
 }
@@ -66,7 +66,7 @@ cleanup:
 toku_lt_map* toku_idlth_find(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     assert(idlth);
 
-    u_int32_t index         = toku__idlth_hash(idlth, dict_id);
+    uint32_t index         = toku__idlth_hash(idlth, dict_id);
     toku_idlth_elt* head    = &idlth->buckets[index];
     toku_idlth_elt* current = head->next_in_bucket;
     while (current) {
@@ -105,7 +105,7 @@ void toku_idlth_delete(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     /* Must have elements. */
     assert(idlth->num_keys);
 
-    u_int32_t index = toku__idlth_hash(idlth, dict_id);
+    uint32_t index = toku__idlth_hash(idlth, dict_id);
     toku_idlth_elt* head    = &idlth->buckets[index]; 
     toku_idlth_elt* prev    = head; 
     toku_idlth_elt* current = prev->next_in_bucket;
@@ -131,7 +131,7 @@ int toku_idlth_insert(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     assert(idlth);
     toku__invalidate_scan(idlth);
 
-    u_int32_t index = toku__idlth_hash(idlth, dict_id);
+    uint32_t index = toku__idlth_hash(idlth, dict_id);
 
     /* Allocate a new one. */
     toku_idlth_elt* element = (toku_idlth_elt*)idlth->malloc(sizeof(*element));

@@ -6,7 +6,9 @@ int r;
 toku_lock_tree* lt  = NULL;
 toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
-u_int32_t max_locks = 10;
+enum { MAX_LT_LOCKS = 10 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 BOOL duplicates = FALSE;
 int  nums[10000];
 
@@ -35,14 +37,15 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
                         get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    //ask ltm for lock tree
+    DICTIONARY_ID dict_id = {0x1234};
+    r = toku_ltm_get_lt(ltm, &lt, dict_id, db);
+
     CKERR(r);
     assert(lt);
     init_query();
@@ -50,8 +53,8 @@ static void setup_tree(void) {
 
 static void close_tree(void) {
     assert(lt && ltm);
-    r = toku_lt_close(lt);
-        CKERR(r);
+
+    toku_lt_remove_db_ref(lt, db);
     r = toku_ltm_close(ltm);
         CKERR(r);
     lt = NULL;
@@ -354,7 +357,6 @@ static void init_test(void) {
     buflen = 64;
     buf = (toku_range*) toku_malloc(buflen*sizeof(toku_range));
     compare_fun = intcmp;
-    dup_compare = intcmp;
 }
 
 static void close_test(void) {

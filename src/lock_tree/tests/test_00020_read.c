@@ -7,7 +7,9 @@ toku_lock_tree* lt  = NULL;
 toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
 TXNID           txn = (TXNID)1;
-u_int32_t max_locks = 1000;
+enum { MAX_LT_LOCKS = 1000 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 BOOL duplicates = FALSE;
 int  nums[100];
 
@@ -40,7 +42,7 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
                         get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);
@@ -90,7 +92,7 @@ static void lt_insert(int key_l, int key_r) {
     CKERR(r);
 }
 
-static void setup_payload_len(void** payload, u_int32_t* len, int val) {
+static void setup_payload_len(void** payload, uint32_t* len, int val) {
     assert(payload && len);
 
     DBT temp;
@@ -133,8 +135,8 @@ temporarily_fake_comparison_functions();
     setup_payload_len(&right.key_payload, &right.key_len, key_r);
     unsigned i;
     for (i = 0; i < numfound; i++) {
-        if (toku__lt_point_cmp(buf[i].ends.left,  &left ) == 0 &&
-            toku__lt_point_cmp(buf[i].ends.right, &right) == 0 &&
+        if (toku_lt_point_cmp(buf[i].ends.left,  &left ) == 0 &&
+            toku_lt_point_cmp(buf[i].ends.right, &right) == 0 &&
             buf[i].data == find_txn) { goto cleanup; }
     }
     assert(FALSE);  //Crash since we didn't find it.
@@ -193,7 +195,7 @@ static void runtest(void) {
     
     lt_insert(3, 7);
     lt_insert(4, 5);
-    rt = toku__lt_ifexist_selfread(lt, txn);
+    rt = toku_lt_ifexist_selfread(lt, txn);
     assert(rt);
 
     lt_find(rt, 1,
@@ -221,7 +223,7 @@ static void runtest(void) {
     lt_insert(4, 5);
     lt_insert(3, 7);
     
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
 
     lt_find(rt, 1,
             3,
@@ -243,7 +245,7 @@ static void runtest(void) {
     lt_insert(3, 3);
     lt_insert(4, 4);
     lt_insert(3, 3);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 2, 3, 3, txn);
     lt_find(rt, 2, 4, 4, txn);
 #ifndef TOKU_RT_NOOVERLAPS
@@ -258,7 +260,7 @@ static void runtest(void) {
     for (i = 0; i < 20; i += 2) {
         lt_insert(i, i + 1);
     }
-    rt = toku__lt_ifexist_selfread(lt, txn);
+    rt = toku_lt_ifexist_selfread(lt, txn);
     assert(rt);
     for (i = 0; i < 20; i += 2) {
         lt_find(rt, 10, i, i + 1, txn);
@@ -270,7 +272,7 @@ static void runtest(void) {
     }
 #endif
     lt_insert(0, 20);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(  rt, 1, 0, 20, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -286,7 +288,7 @@ static void runtest(void) {
     lt_insert(4, 5);
     lt_insert(3, 4);
     
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 2,   0, 2, txn);
     lt_find(rt, 2,   3, 5, txn);
 #ifndef TOKU_RT_NOOVERLAPS
@@ -297,7 +299,7 @@ static void runtest(void) {
 
     lt_insert(2, 3);
 
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   0, 5, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -310,7 +312,7 @@ static void runtest(void) {
     lt_insert(1, 3);
     lt_insert(4, 6);
     lt_insert(2, 5);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   1, 6, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -323,7 +325,7 @@ static void runtest(void) {
     lt_insert(           4, 5);
     lt_insert(           6, 8);
     lt_insert(           2, 7);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   neg_infinite, 8, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -335,7 +337,7 @@ static void runtest(void) {
     lt_insert(1, 2);
     lt_insert(3, infinite);
     lt_insert(2, 3);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   1, infinite, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -348,7 +350,7 @@ static void runtest(void) {
     lt_insert(3, 4);
     lt_insert(5, 6);
     lt_insert(2, 5);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   1, 6, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);
@@ -360,7 +362,7 @@ static void runtest(void) {
     lt_insert(1, 2);
     lt_insert(3, 5);
     lt_insert(2, 4);
-    rt = toku__lt_ifexist_selfread(lt, txn);   assert(rt);
+    rt = toku_lt_ifexist_selfread(lt, txn);   assert(rt);
     lt_find(rt, 1,   1, 5, txn);
 #ifndef TOKU_RT_NOOVERLAPS
     rt = lt->mainread;                          assert(rt);

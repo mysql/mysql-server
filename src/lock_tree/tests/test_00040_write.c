@@ -6,7 +6,9 @@ int r;
 toku_lock_tree* lt  = NULL;
 toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
-u_int32_t max_locks = 1000;
+enum { MAX_LT_LOCKS = 1000 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
 int  nums[100];
 
 DBT _keys_left[2];
@@ -34,7 +36,7 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
                         get_compare_fun_from_db,
                         toku_malloc, toku_free, toku_realloc);
     CKERR(r);

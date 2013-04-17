@@ -105,8 +105,9 @@ typedef struct __toku_engine_status {
   int64_t          local_checkpoint_files;  /* number of files subjec to local checkpoint is taken for commit */ 
   int64_t          local_checkpoint_during_checkpoint;  /* number of times a local checkpoint happens during normal checkpoint */ 
   u_int32_t        range_locks_max;         /* max total number of range locks */ 
-  u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ 
   u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
+  u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ 
+  u_int64_t        range_locks_curr_memory;  /* total bytes of range locks currently in use */ 
   u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
   u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
   u_int64_t        range_read_locks;        /* total range read locks taken */ 
@@ -271,6 +272,8 @@ struct __toku_db_env {
                                                                          void *extra));
   int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
+  int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
+  int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max);
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
   int  (*dbremove) (DB_ENV *, DB_TXN *, const char *, const char *, u_int32_t);

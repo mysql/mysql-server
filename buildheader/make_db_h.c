@@ -468,8 +468,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  int64_t          local_checkpoint_files;  /* number of files subjec to local checkpoint is taken for commit */ \n");
     printf("  int64_t          local_checkpoint_during_checkpoint;  /* number of times a local checkpoint happens during normal checkpoint */ \n");
     printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
-    printf("  u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ \n");
     printf("  u_int32_t        range_locks_curr;        /* total range locks currently in use */ \n");
+    printf("  u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ \n");
+    printf("  u_int64_t        range_locks_curr_memory;  /* total bytes of range locks currently in use */ \n");
     printf("  u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ \n");
     printf("  u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ \n");
     printf("  u_int64_t        range_read_locks;        /* total range read locks taken */ \n");
@@ -553,6 +554,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "                                                                         void *extra))",
                              "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
                              "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
+                             "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
+                             "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

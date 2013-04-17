@@ -22,6 +22,8 @@ test_setup (void) {
 
     r=db_env_create(&env, 0); CKERR(r);
     env->set_errfile(env, stderr);
+    multiply_locks_for_n_dbs(env, NFILES);
+
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
@@ -64,7 +66,7 @@ doit (void) {
 	dbt_init(&data, str, 1+strlen(str));
 	for (i=0; i<NFILES; i++) {
 	    r = dbs[i]->put(dbs[i], txn, &key, &data, DB_YESOVERWRITE);
-	    assert(r==0);
+	    CKERR(r);
 	}
     }
     r=txn->commit(txn, 0); assert(r==0);

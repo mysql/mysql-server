@@ -22,9 +22,9 @@ extern "C" {
 
 typedef struct __rt_forest rt_forest;
 struct __rt_forest {
-    TXNID          hash_key;
-    toku_range_tree* self_read;
-    toku_range_tree* self_write;
+    TXNID            hash_key;
+    toku_range_tree* self_read;  //Set of range read locks held by txn 'hash_key'
+    toku_range_tree* self_write; //Set of range write locks held by txn 'hash_key'
 };
 
 typedef struct __toku_rth_elt toku_rth_elt;
@@ -38,8 +38,8 @@ struct __toku_rth_elt {
 typedef struct __toku_rth toku_rth;
 struct __toku_rth {
     toku_rth_elt*   buckets;
-    u_int32_t       num_buckets;
-    u_int32_t       num_keys;
+    uint32_t       num_buckets;
+    uint32_t       num_keys;
     toku_rth_elt    iter_head;
     toku_rth_elt*   iter_curr;
     BOOL            iter_is_valid;
