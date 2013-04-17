@@ -15,7 +15,6 @@
 
 #include "test.h"
 
-#include <ft/tokuconst.h>
 #include <ft/fttypes.h>
 #include <ft/omt.h>
 #include <ft/leafentry.h>
