@@ -84,6 +84,24 @@ fi
 
 export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
 
+function retry() {
+    local cmd
+    local retries
+    local exitcode
+    cmd=$*
+    let retries=0
+    while [ $retries -le 10 ] ; do
+        echo `date` $cmd
+        bash -c "$cmd"
+        exitcode=$?
+        echo `date` $cmd $exitcode $retries
+        let retries=retries+1
+        if [ $exitcode -eq 0 ] ; then break; fi
+        sleep 10
+    done
+    test $exitcode = 0
+}
+
 if [[ $commit -eq 1 ]]; then
     svnbase=~/svn.build
     if [ ! -d $svnbase ] ; then mkdir $svnbase ; fi
@@ -97,10 +115,11 @@ if [[ $commit -eq 1 ]]; then
     # make the build directory, possibly on multiple machines simultaneously, there can be only one
     builddir=$buildbase/$date
     pushd $buildbase
-    while [ ! -d $date ] ; do
-        (svn mkdir $svnserver/tokudb.build/$date -m "" ;
-            svn co -q $svnserver/tokudb.build/$date) || rm -rf $date
-    done
+    retry (svn mkdir $svnserver/tokudb.build/$date -m "" ;
+        svn co -q $svnserver/tokudb.build/$date) || rm -rf $date
+    if [ ! -d $date ] ; then
+        exit 1
+    fi
     popd
 
     tracefilepfx=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
