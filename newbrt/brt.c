@@ -3261,7 +3261,7 @@ update_descriptor_in_memory(BRT t, const DBT* new_descriptor) {
 }
 
 int
-toku_change_descriptor(
+toku_brt_change_descriptor(
     BRT t, 
     const DBT* old_descriptor, 
     const DBT* new_descriptor, 
