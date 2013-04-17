@@ -6166,6 +6166,26 @@ double ha_tokudb::scan_time() {
     DBUG_RETURN(ret_val);
 }
 
+double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
+{
+  if (table->key_info[index].flags & HA_CLUSTERING) {
+    return read_time(index, ranges, rows);
+  }
+  /*
+    It is assumed that we will read trough the whole key range and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read. This model does not take into account clustered indexes -
+    engines that support that (e.g. InnoDB) may want to overwrite this method.
+  */
+  double keys_per_block= (stats.block_size/2.0/
+                          (table->key_info[index].key_length +
+                           ref_length) + 1);
+  return (rows + keys_per_block - 1)/ keys_per_block;
+}
+
+
 //
 // Calculate the time it takes to read a set of ranges through an index
 // This enables us to optimize reads for clustered indexes.
