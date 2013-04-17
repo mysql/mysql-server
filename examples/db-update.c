@@ -19,6 +19,8 @@
 #include <arpa/inet.h>
 #include "db.h"
 
+static size_t key_size = 8;
+static size_t val_size = 8;
 static int verbose = 0;
 
 static void db_error(const DB_ENV *env, const char *prefix, const char *msg) {
@@ -37,12 +39,10 @@ static int my_update_callback(DB *db, const DBT *key, const DBT *old_val, const 
         // insert new_val = extra
         set_val(extra, set_extra);
     } else {
-        if (verbose) {
-            printf("u"); fflush(stdout);
-        }
+        if (verbose) printf("u");
         // update new_val = old_val + extra
-        assert(old_val->size == 8 && extra->size == 8);
-        char new_val_buffer[8];
+        assert(old_val->size == val_size && extra->size == val_size);
+        char new_val_buffer[val_size];
         memcpy(new_val_buffer, old_val->data, sizeof new_val_buffer);
         int newc = htonl(get_int(old_val->data) + get_int(extra->data)); // newc = oldc + newc
         memcpy(new_val_buffer, &newc, sizeof newc);
@@ -57,14 +57,16 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
     int r;
 
     // generate the key
-    char key_buffer[8];
+    assert(key_size >= 8);
+    char key_buffer[key_size];
     int newa = htonl(a);
     memcpy(key_buffer, &newa, sizeof newa);
     int newb = htonl(b);
     memcpy(key_buffer+4, &newb, sizeof newb);
 
     // generate the value
-    char val_buffer[8];
+    assert(val_size >= 8);
+    char val_buffer[val_size];
     int newc = htonl(c);
     memcpy(val_buffer, &newc, sizeof newc);
     int newd = htonl(d);
@@ -84,8 +86,9 @@ static void insert_and_update(DB_ENV *db_env, DB *db, DB_TXN *txn, int a, int b,
         DBT oldvalue = { };
         r = db->get(db, txn, &key, &oldvalue, 0);
         assert(r == 0 || r == DB_NOTFOUND);
-	if (r == 0) { 
+	if (r == 0) {
             // update it
+            if (verbose) printf("U");
             int oldc = get_int(oldvalue.data);
             newc = htonl(oldc + c); // newc = oldc + newc
             memcpy(val_buffer, &newc, sizeof newc);
@@ -155,13 +158,13 @@ int main(int argc, char *argv[]) {
 #endif
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     char *db_filename = "update.db";
-    long rows = 100000000;
+    long rows = 1000000000;
     long rows_per_txn = 100;
     long rows_per_report = 100000;
-    int key_range = 100000;
+    int key_range = 1000000;
     bool do_update_callback = true;
     bool do_txn = false;
-    u_int64_t cachesize = 32000000;
+    u_int64_t cachesize = 1000000000;
     u_int32_t pagesize = 0;
 
     int i;
@@ -203,6 +206,14 @@ int main(int argc, char *argv[]) {
             do_update_callback = atoi(argv[++i]) != 0;
             continue;
         }
+        if (strcmp(arg, "--key_size") == 0 && i+1 < argc) {
+            key_size = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(arg, "--val_size") == 0 && i+1 < argc) {
+            val_size = atoi(argv[++i]);
+            continue;
+        }
 
         assert(0);
     }
@@ -221,12 +232,14 @@ int main(int argc, char *argv[]) {
     db_env->set_update(db_env, my_update_callback);
 #endif
     if (cachesize) {
+        if (verbose) printf("cachesize %llu\n", (unsigned long long)cachesize);
         const u_int64_t gig = 1 << 30;
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
     db_env->set_errcall(db_env, db_error);
+    if (verbose) printf("env %s\n", db_env_dir);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // create the db
