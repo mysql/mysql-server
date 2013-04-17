@@ -46,7 +46,7 @@ ifeq ($(OS_CHOICE),windows)
     ifeq ($(DEBUG),0)
 	LIBRARIES += $(IPO_YDB)
     else
-    	LIBRARIES += $(NOIPO_YDB)
+	LIBRARIES += $(NOIPO_YDB)
     endif
 endif
 

@@ -342,7 +342,7 @@ clean-default:
 ifeq ($(SKIP_LIBPORTABILITYRULE),)
 ifeq ($(CYGWIN),)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
-	cd $(TOKUROOT)linux &&   $(MAKE) install
+	pwd && cd $(TOKUROOT)linux &&   $(MAKE) install
 else ifneq ($(CC),icc)
 $(LIBPORTABILITY): $(TOKUROOT)linux/*.[ch]
 	cd $(TOKUROOT)linux &&   $(MAKE) install
@@ -360,6 +360,7 @@ LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
 $(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
+$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE) $(LIBPORTABILITY)
 endif
 
 ifeq ($(SKIP_RANGETREERULE),)
@@ -370,6 +371,7 @@ RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
 $(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
+$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(NEWBRT_BUNDLE) $(LIBPORTABILITY_BUNDLE) $(LIBPORTABILITY)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
@@ -377,7 +379,8 @@ IPO_NEWBRT       = $(TOKUROOT)newbrt/ipo_newbrt.$(AEXT)
 NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
 NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
 $(NEWBRT) $(NEWBRT_BUNDLE) $(IPO_NEWBRT): $(@D)*.[ch]
-	cd $(@D) && $(MAKE) $(@F)
+	pwd && cd $(@D) && $(MAKE) $(@F)
+$(NEWBRT): $(NEWBRT_BUNDLE)
 endif
 
 ifeq ($(SKIP_YDBRULE),)
