@@ -115,7 +115,7 @@ static MYSQL_THDVAR_UINT(block_size,
     NULL, 
     4<<20, // default
     4096,  // min
-    ~0L,   // max
+    ~0U,   // max
     1      // blocksize???
 );
 static MYSQL_THDVAR_UINT(read_block_size,
@@ -125,7 +125,7 @@ static MYSQL_THDVAR_UINT(read_block_size,
     NULL, 
     128*1024, // default
     4096,  // min
-    ~0L,   // max
+    ~0U,   // max
     1      // blocksize???
 );
 static MYSQL_THDVAR_UINT(read_buf_size,
@@ -569,21 +569,14 @@ error:
 
 static int tokudb_done_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_done_func");
-    int error = 0;
-
-    if (tokudb_open_tables.records)
-        error = 1;
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
     pthread_mutex_destroy(&tokudb_meta_mutex);
 #if defined(_WIN64)
-        toku_ydb_destroy();
+    toku_ydb_destroy();
 #endif
-
     TOKUDB_DBUG_RETURN(0);
 }
-
-
 
 static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, MEM_ROOT * mem_root) {
     return new(mem_root) ha_tokudb(hton, table);
@@ -885,7 +878,7 @@ static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
     TOKUDB_DBUG_ENTER("tokudb_xa_recover");
     int r = 0;
     if (len == 0 || xid_list == NULL) {
-        return(0);
+        TOKUDB_DBUG_RETURN(0);
     }
     long num_returned = 0;
     r = db_env->txn_xa_recover(
@@ -895,6 +888,7 @@ static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
         &num_returned,
         DB_NEXT
         );
+    assert(r == 0);
     TOKUDB_DBUG_RETURN((int)num_returned);
 }
 
@@ -1544,9 +1538,7 @@ static void tokudb_lock_timeout_update(THD * thd,
 static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
         0, "TokuDB lock timeout", 
         NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
-        0, ~0LL, 0);
-
-
+        0, ~0ULL, 0);
 
 static void tokudb_cleaner_period_update(THD * thd,
         struct st_mysql_sys_var * sys_var, 
@@ -1564,8 +1556,7 @@ static void tokudb_cleaner_period_update(THD * thd,
 static MYSQL_SYSVAR_ULONG(cleaner_period, tokudb_cleaner_period,
         0, "TokuDB cleaner_period", 
         NULL, tokudb_cleaner_period_update, DEFAULT_CLEANER_PERIOD,
-        0, ~0LL, 0);
-
+        0, ~0UL, 0);
 
 static void tokudb_cleaner_iterations_update(THD * thd,
         struct st_mysql_sys_var * sys_var, 
@@ -1583,15 +1574,13 @@ static void tokudb_cleaner_iterations_update(THD * thd,
 static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
         0, "TokuDB cleaner_iterations", 
         NULL, tokudb_cleaner_iterations_update, DEFAULT_CLEANER_ITERATIONS,
-        0, ~0LL, 0);
-
-
+        0, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
         PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
-        0, ~0LL, 0);
-static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0LL, 0);
-static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
+        0, ~0ULL, 0);
+static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0ULL, 0);
+static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0UL, 0);
 
 static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
 
@@ -1599,11 +1588,11 @@ static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB 
 
 static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Version", NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
+static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0U, 0);
 
-static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 60, 0, ~0L, 0);
-static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
-static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
+static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 60, 0, ~0U, 0);
+static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0U, 0);
+static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0U, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 

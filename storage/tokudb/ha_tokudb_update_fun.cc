@@ -207,7 +207,7 @@ tokudb_update_fun(
     uint32_t overall_null_bits_left;
 
     uint32_t old_num_var_fields;
-    uint32_t new_num_var_fields;
+    // uint32_t new_num_var_fields;
     uint32_t curr_old_num_var_field;
     uint32_t curr_new_num_var_field;
     uchar* old_var_field_offset_ptr = NULL;
@@ -268,7 +268,7 @@ tokudb_update_fun(
     curr_new_fixed_offset = 0;
 
     old_num_var_fields = old_len_of_offsets/old_num_offset_bytes;
-    new_num_var_fields = new_len_of_offsets/new_num_offset_bytes;
+    // new_num_var_fields = new_len_of_offsets/new_num_offset_bytes;
     // following fields will change as we write the variable data
     old_var_field_offset_ptr = old_fixed_field_ptr + old_fixed_field_size;
     new_var_field_offset_ptr = new_fixed_field_ptr + new_fixed_field_size;
