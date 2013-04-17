@@ -6540,6 +6540,8 @@ cleanup:
         tmp_cursor = NULL;
     }
     if (loader != NULL) {
+        sprintf(status_msg, "aborting creation of indexes.");
+        thd_proc_info(thd, status_msg);
         loader->abort(loader);
     }
     if (txn) {
