@@ -657,7 +657,11 @@ public:
         THD* thd
         );
 
+#if MYSQL_VERSION_ID >= 50521
+    enum row_type get_row_type() const;
+#else
     enum row_type get_row_type();
+#endif
 
 private:
     int read_full_row(uchar * buf);
@@ -665,6 +669,7 @@ private:
     int get_next(uchar* buf, int direction);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
     void invalidate_bulk_fetch();
+    int delete_all_rows_internal();
 };
 
 int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
