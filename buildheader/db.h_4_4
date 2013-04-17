@@ -215,7 +215,7 @@ struct __toku_db {
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
-  DBT descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
+  const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*set_descriptor) (DB*, const DBT*) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   void* __toku_dummy0[27];
   char __toku_dummy1[96];

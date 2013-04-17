@@ -168,7 +168,7 @@ struct brt_header {
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
-    struct simple_dbt descriptor;
+    DBT descriptor;
 
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 

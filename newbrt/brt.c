@@ -3031,8 +3031,9 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
             }
         }
     }
+    assert(t->h);
     if (t->did_set_descriptor) {
-        if (t->h->descriptor.len!=t->temp_descriptor.size ||
+        if (t->h->descriptor.size!=t->temp_descriptor.size ||
             memcmp(t->h->descriptor.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
             DISKOFF offset;
             //4 for checksum
@@ -3040,16 +3041,13 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
             r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(t->cf), &t->temp_descriptor, offset);
             if (r!=0) goto died_after_read_and_pin;
             if (t->h->descriptor.data) toku_free(t->h->descriptor.data);
-            t->h->descriptor.data = t->temp_descriptor.data;
-            t->h->descriptor.len = t->temp_descriptor.size;
-            t->temp_descriptor.data = NULL;
+            toku_fill_dbt(&t->h->descriptor, t->temp_descriptor.data, t->temp_descriptor.size);
         }
+        else toku_free(t->temp_descriptor.data);
+        t->temp_descriptor.data = NULL;
         t->did_set_descriptor = 0;
     }
-    if (t->db) {
-        toku_fill_dbt(&t->db->descriptor, t->h->descriptor.data, t->h->descriptor.len);
-    }
-    assert(t->h);
+    if (t->db) t->db->descriptor = &t->h->descriptor;
 
     //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
     toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);

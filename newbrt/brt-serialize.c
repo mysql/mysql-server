@@ -1091,7 +1091,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset) {
 }
 
 static void
-deserialize_descriptor_from(int fd, struct brt_header *h, struct simple_dbt *desc) {
+deserialize_descriptor_from(int fd, struct brt_header *h, DBT *desc) {
     DISKOFF offset;
     DISKOFF size;
     toku_get_descriptor_offset_size(h->blocktable, &offset, &size);
@@ -1113,7 +1113,7 @@ deserialize_descriptor_from(int fd, struct brt_header *h, struct simple_dbt *des
                 u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 assert(x1764 == stored_x1764);
             }
-            desc->len  = size-4;
+            desc->size = size-4;
             desc->data = dbuf; //Uses 4 extra bytes, but fast.
         }
     }

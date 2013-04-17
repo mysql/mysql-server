@@ -1134,7 +1134,7 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     return 0;
 }
 
-static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
+static int remove_brt (OMTVALUE txnv, u_int32_t idx, void *brtv) {
     TOKUTXN txn = txnv;
     BRT     brt = brtv;
     OMTVALUE brtv_again=NULL;
@@ -1142,6 +1142,7 @@ static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
     int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index, NULL);
     assert(r==0);
     assert((void*)brtv_again==brtv);
+    assert(index==idx);
     r = toku_omt_delete_at(txn->open_brts, index);
     assert(r==0);
     return 0;
@@ -1153,7 +1154,7 @@ int toku_txn_note_close_brt (BRT brt) {
     return 0;
 }
 
-static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
+static int remove_txn (OMTVALUE brtv, u_int32_t idx, void *txnv) {
     BRT brt     = brtv;
     TOKUTXN txn = txnv;
     OMTVALUE txnv_again=NULL;
@@ -1161,6 +1162,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv_again, &index, NULL);
     assert(r==0);
     assert((void*)txnv_again==txnv);
+    assert(index==idx);
     r = toku_omt_delete_at(brt->txns, index);
     assert(r==0);
     return 0;

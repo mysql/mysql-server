@@ -37,7 +37,7 @@ int manual_truncate = 0;
 
 static void
 verify_db_matches(void) {
-    DBT * dbt = &db->descriptor;
+    const DBT * dbt = db->descriptor;
 
     if (last_open_descriptor<0) {
         assert(dbt->size == 0 && dbt->data == NULL);
