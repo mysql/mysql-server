@@ -40,24 +40,25 @@ toku_rt_create(toku_range_tree** ptree,
     int r = ENOSYS;
     toku_range_tree* tmptree = NULL;
 
-    if (allow_overlaps) 
-        return EINVAL;
+    if (allow_overlaps) {
+        r = EINVAL;
+        goto cleanup;
+    }
+
     r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps, incr_memory_size, decr_memory_size, extra_memory_size);
     if (r != 0)
         goto cleanup;
     
     //Any local initializers go here.
     r = toku_omt_create(&tmptree->i.omt);
-    if (r != 0)
-        goto cleanup;
+    assert_zero(r);
 
     tmptree->incr_memory_size(tmptree->extra_memory_size, toku_rt_memory_size(tmptree));
     *ptree = tmptree;
     r = 0;
 cleanup:
     if (r != 0) {
-        if (tmptree) 
-            toku_free(tmptree);
+        assert(tmptree == NULL);
     }
     return r;
 }
@@ -185,10 +186,8 @@ toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
     r = toku_omt_iterate_on_range(tree->i.omt, leftmost, rightmost, rt_find_helper, &info);
     if (r == TOKUDB_SUCCEEDED_EARLY) 
         r = 0;
-    if (r != 0) 
-        goto cleanup;
-    *numfound = info.numfound;
-    r = 0;
+    if (r == 0)
+        *numfound = info.numfound;
 cleanup:
     return r;    
 }
@@ -226,8 +225,7 @@ toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     r = 0;
 cleanup:
     if (r != 0) {
-        if (insert_range) 
-            toku_free(insert_range);
+        toku_free(insert_range);
     }
     return r;
 }

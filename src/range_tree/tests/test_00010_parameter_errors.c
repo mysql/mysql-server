@@ -169,6 +169,11 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_close(tree);                                CKERR(r);
     tree = NULL;    
 
+#ifdef TOKU_RT_NOOVERLAPS
+    r = toku_rt_create(&tree, int_cmp,   TXNID_cmp,   true, test_incr_memory_size, test_decr_memory_size, NULL);
+    CKERR2(r, EINVAL);
+#endif
+
     /* That's it: clean up and go home */
     toku_free(buf);
     buf = NULL;

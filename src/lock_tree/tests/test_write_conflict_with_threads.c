@@ -10,7 +10,14 @@ static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     toku_lock_request lr;
     toku_lock_request_init(&lr, (DB*)1, txnid, &key, &key, LOCK_REQUEST_WRITE);
-    int r = toku_lt_acquire_lock_request_with_timeout(lt, &lr, NULL);
+    int r;
+    if (0) {
+        r = toku_lt_acquire_lock_request_with_timeout(lt, &lr, NULL);
+    } else {
+        r = toku_lock_request_start(&lr, lt, true);
+        if (r == DB_LOCK_NOTGRANTED)
+            r = toku_lock_request_wait_with_default_timeout(&lr, lt);
+    }
     toku_lock_request_destroy(&lr);
     return r;
 }
@@ -67,6 +74,7 @@ int main(int argc, const char *argv[]) {
     toku_ltm *ltm = NULL;
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
+    toku_ltm_set_lock_wait_time(ltm, UINT64_MAX);
 
     DB *fake_db = (DB *) 1;
 

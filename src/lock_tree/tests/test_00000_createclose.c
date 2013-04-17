@@ -9,6 +9,8 @@ int main(void) {
 
     r = toku_ltm_create(&mgr, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
+    r = toku_ltm_open(mgr);
+    CKERR(r);
     
     {
         r = toku_lt_create(&lt, mgr, dbcmp);
