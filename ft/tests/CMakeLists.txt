@@ -112,10 +112,11 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    ft/log-test7
-    ft/subblock-test-compression
-    ft/recovery-bad-last-entry
     ft/ftloader-test-extractor-3a
+    ft/helgrind_test_partitioned_counter
+    ft/log-test7
+    ft/recovery-bad-last-entry
+    ft/subblock-test-compression
     ft/upgrade_test_simple
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
