@@ -1,0 +1,74 @@
+#include <cilk-lib.cilkh>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+
+int usage() {
+    printf("measure multi-thread work scheduling overhead\n");
+    printf("-nworkitems N (number of work items, default 1)\n");
+    printf("-usleeptime N (work time, default 100)\n");
+    printf("-ntests N (number of test iterations, default 1)\n");
+    return 1;
+}
+
+typedef struct workitem *WORKITEM;
+struct workitem {
+    int usleeptime;
+};
+
+cilk void do_work(WORKITEM wi) {
+#if 0
+    // sleep for usleeptime microseconds
+    usleep(wi->usleeptime);
+#else
+    // busy wait for usleeptime loop interations
+    int n = wi->usleeptime;
+    volatile int i;
+    for (i=0; i<n; i++);
+#endif
+}
+
+cilk int main(int argc, char *argv[]) {
+    int ntests = 1;
+    int nworkitems = 1;
+    int usleeptime = 100;
+
+    int i;
+    int t;
+
+    struct workitem *work;
+
+    for (i=1; i<argc; i++) {
+        char *arg = argv[i];
+        if (strcmp(arg, "-help") == 0) {
+            return usage();
+        }
+        if (strcmp(arg, "-ntests") == 0) {
+            assert(i+1 < argc);
+            ntests = atoi(argv[++i]);
+        }
+        if (strcmp(arg, "-nworkitems") == 0) {
+            assert(i+1 < argc);
+            nworkitems = atoi(argv[++i]);
+        }
+        if (strcmp(arg, "-usleeptime") == 0) {
+            assert(i+1 < argc);
+            usleeptime = atoi(argv[++i]);
+        }
+    }
+
+    printf("ntests=%d nworkitems=%d usleeptime=%d\n", ntests, nworkitems, usleeptime);
+    work = (struct workitem *) calloc(nworkitems, sizeof (struct workitem));
+    for (t=0; t<ntests; t++) {
+        for (i=0; i<nworkitems; i++) {
+            work[i].usleeptime = usleeptime;
+            spawn do_work(&work[i]);
+        }
+        sync;
+    }
+    free(work);
+    return 0;
+}

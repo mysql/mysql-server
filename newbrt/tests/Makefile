@@ -68,11 +68,13 @@ REGRESSION_TESTS = \
 	cachetable-test \
 	cachetable-test2 \
 	cachetable-put-test \
+	cachetable-getandpin-test \
 	cachetable-unpin-test \
 	cachetable-rename-test \
 	cachetable-fd-test \
 	cachetable-flush-test \
 	cachetable-count-pinned-test \
+	cachetable-debug-test \
 	cachetable-debug-test \
 	fifo-test \
 	list-test \

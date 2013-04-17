@@ -18,12 +18,16 @@
 #include "log_header.h"
 #include "threadpool.h"
 #include "cachetable-rwlock.h"
+#include <malloc.h>
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
 #define DO_WRITER_THREAD 1
 #if DO_WRITER_THREAD
 static void *cachetable_writer(void *);
 #endif
+
+// we use 4 threads since gunzip is 4 times faster than gzip
+#define MAX_WRITER_THREADS 4
 
 // use cachetable locks 0->no 1->yes
 #define DO_CACHETABLE_LOCK 1
@@ -87,9 +91,10 @@ struct cachetable {
     long size_writing;      // the sum of the sizes of the pairs being written
     LSN lsn_of_checkpoint;  // the most recent checkpoint in the log.
     TOKULOGGER logger;
-    pthread_mutex_t mutex;  // course lock that protects the cachetable, the cachefiles, and the pair's
+    pthread_mutex_t mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pair's
     struct writequeue wq;   // write queue for the writer threads
     THREADPOOL threadpool;  // pool of writer threads
+    char checkpointing;     // checkpoint in progress
 };
 
 // lock the cachetable mutex
@@ -165,14 +170,14 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     t->size_writing = 0;
     t->lsn_of_checkpoint = initial_lsn;
     t->logger = logger;
-
+    t->checkpointing = 0;
     int r;
     writequeue_init(&t->wq);
     r = pthread_mutex_init(&t->mutex, 0); assert(r == 0);
 
-    // set the max number of writeback threads to min(4,nprocs_online)
+    // set the max number of writeback threads to min(MAX_WRITER_THREADS,nprocs_online)
     int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-    if (nprocs > 4) nprocs = 4;
+    if (nprocs > MAX_WRITER_THREADS) nprocs = MAX_WRITER_THREADS;
     r = threadpool_create(&t->threadpool, nprocs); assert(r == 0);
 
 #if DO_WRITER_THREAD
@@ -294,7 +299,7 @@ static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
     }
 }
 
-static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf, BOOL do_remove);
+static int cachefile_write_maybe_remove (CACHETABLE, CACHEFILE cf, BOOL do_remove);
 
 // Increment the reference count
 void toku_cachefile_refup (CACHEFILE cf) {
@@ -309,7 +314,7 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
     cf->refcount--;
     if (cf->refcount==0) {
 	int r;
-	if ((r = cachetable_flush_cachefile(ct, cf, TRUE))) {
+	if ((r = cachefile_write_maybe_remove(ct, cf, TRUE))) {
             cachetable_unlock(ct);
             return r;
         }
@@ -344,46 +349,9 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
 int toku_cachefile_flush (CACHEFILE cf) {
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
-    int r = cachetable_flush_cachefile(ct, cf, TRUE);
+    int r = cachefile_write_maybe_remove(ct, cf, TRUE);
     cachetable_unlock(ct);
     return r;
-}
-
-int toku_cachetable_assert_all_unpinned (CACHETABLE t) {
-    u_int32_t i;
-    int some_pinned=0;
-    cachetable_lock(t);
-    for (i=0; i<t->table_size; i++) {
-	PAIR p;
-	for (p=t->table[i]; p; p=p->hash_chain) {
-	    assert(ctpair_pinned(&p->rwlock)>=0);
-	    if (ctpair_pinned(&p->rwlock)) {
-		printf("%s:%d pinned: %" PRId64 " (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
-		some_pinned=1;
-	    }
-	}
-    }
-    cachetable_unlock(t);
-    return some_pinned;
-}
-
-int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
-    u_int32_t i;
-    int n_pinned=0;
-    CACHETABLE t = cf->cachetable;
-    cachetable_lock(t);
-    for (i=0; i<t->table_size; i++) {
-	PAIR p;
-	for (p=t->table[i]; p; p=p->hash_chain) {
-	    assert(ctpair_pinned(&p->rwlock)>=0);
-	    if (ctpair_pinned(&p->rwlock) && (cf==0 || p->cachefile==cf)) {
-		if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
-		n_pinned++;
-	    }
-	}
-    }
-    cachetable_unlock(t);
-    return n_pinned;
 }
 
 // This hash function comes from Jenkins:  http://burtleburtle.net/bob/c/lookup3.c
@@ -607,8 +575,13 @@ static void flush_and_remove (CACHETABLE ct, PAIR p, int write_me) {
     ct->size_writing += p->size; assert(ct->size_writing >= 0);
     p->write_me = write_me;
 #if DO_WRITER_THREAD
-    threadpool_maybe_add(ct->threadpool, cachetable_writer, ct);
-    writequeue_enq(&ct->wq, p);
+    if (!p->dirty || !p->write_me) {
+        // evictions without a write can be run in the current thread
+        cachetable_write_pair(ct, p);
+    } else {
+        threadpool_maybe_add(ct->threadpool, cachetable_writer, ct);
+        writequeue_enq(&ct->wq, p);
+    }
 #else
     cachetable_write_pair(ct, p);
 #endif
@@ -794,6 +767,10 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     return r;
 }
 
+// Lookup a key in the cachetable.  If it is found and it is not being written, then
+// acquire a read lock on the pair, update the LRU list, and return sucess.  However,
+// if it is being written, then allow the writer to evict it.  This prevents writers
+// being suspended on a block that was just selected for eviction.
 int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
@@ -802,7 +779,6 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile && !p->writing) {
-	    note_hash_count(count);
 	    *value = p->value;
 	    ctpair_read_lock(&p->rwlock, &t->mutex);
 	    lru_touch(t,p);
@@ -955,16 +931,17 @@ static void assert_cachefile_is_flushed_and_removed (CACHETABLE t, CACHEFILE cf)
     }
 }
 
-// write all dirty entries and maybe remove them 
+// Write all of the pairs associated with a cachefile to storage.  Maybe remove
+// these pairs from the cachetable after they have been written.
 
-static int cachetable_flush_cachefile (CACHETABLE ct, CACHEFILE cf, BOOL do_remove) {
+static int cachefile_write_maybe_remove(CACHETABLE ct, CACHEFILE cf, BOOL do_remove) {
     unsigned nfound = 0;
     struct writequeue cq;
     writequeue_init(&cq);
     unsigned i;
     for (i=0; i < ct->table_size; i++) {
 	PAIR p;
-	for (p = ct->table[i]; p; p=p->hash_chain) {
+	for (p = ct->table[i]; p; p = p->hash_chain) {
  	    if (cf == 0 || p->cachefile==cf) {
                 nfound++;
                 p->cq = &cq;
@@ -993,7 +970,7 @@ int toku_cachetable_close (CACHETABLE *tp) {
     CACHETABLE t=*tp;
     int r;
     cachetable_lock(t);
-    if ((r=cachetable_flush_cachefile(t, 0, TRUE))) {
+    if ((r=cachefile_write_maybe_remove(t, 0, TRUE))) {
         cachetable_unlock(t);
         return r;
     }
@@ -1083,11 +1060,7 @@ int cachefile_pread  (CACHEFILE cf, void *buf, size_t count, off_t offset) {
 }
 #endif
 
-
-
 int toku_cachetable_checkpoint (CACHETABLE ct) {
-    // Single threaded checkpoint.
-    // In future: for multithreaded checkpoint we should not proceed if the previous checkpoint has not finished.
     // Requires: Everything is unpinned.  (In the multithreaded version we have to wait for things to get unpinned and then
     //  grab them (or else the unpinner has to do something.)
     // Algorithm:  Write a checkpoint record to the log, noting the LSN of that record.
@@ -1096,31 +1069,41 @@ int toku_cachetable_checkpoint (CACHETABLE ct) {
     //      flush the node (giving it a new nodeid, and fixing up the downpointer in the parent)
     // Watch out since evicting the node modifies the hash table.
 
-//?? This is a skeleton.  It compiles, but doesn't do anything reasonable yet.
-//??    log_the_checkpoint();
+    //?? This is a skeleton.  It compiles, but doesn't do anything reasonable yet.
+    //??    log_the_checkpoint();
 
-    unsigned nfound = 0;
     struct writequeue cq;
     writequeue_init(&cq);
+
     cachetable_lock(ct);
-    unsigned i;
-    for (i=0; i < ct->table_size; i++) {
-	PAIR p;
-	for (p = ct->table[i]; p; p=p->hash_chain) {
-            // p->dirty && p->modified_lsn.lsn>ct->lsn_of_checkpoint.lsn
- 	    if (1) {
-                nfound++;
-                p->cq = &cq;
-                if (!p->writing)
-                    flush_and_remove(ct, p, 1);
-	    }
-	}
+    
+    // set the checkpoint in progress flag. if already set then just return.
+    if (!ct->checkpointing) {
+        ct->checkpointing = 1;
+        
+        unsigned nfound = 0;
+        unsigned i;
+        for (i=0; i < ct->table_size; i++) {
+            PAIR p;
+            for (p = ct->table[i]; p; p=p->hash_chain) {
+                // p->dirty && p->modified_lsn.lsn>ct->lsn_of_checkpoint.lsn
+                if (1) {
+                    nfound++;
+                    p->cq = &cq;
+                    if (!p->writing)
+                        flush_and_remove(ct, p, 1);
+                }
+            }
+        }
+        for (i=0; i<nfound; i++) {
+            PAIR p = 0;
+            int r = writequeue_deq(&cq, &ct->mutex, &p); assert(r == 0);
+            cachetable_complete_write_pair(ct, p, FALSE);
+        }
+
+        ct->checkpointing = 0; // clear the checkpoint in progress flag
     }
-    for (i=0; i<nfound; i++) {
-        PAIR p = 0;
-        int r = writequeue_deq(&cq, &ct->mutex, &p); assert(r == 0);
-        cachetable_complete_write_pair(ct, p, FALSE);
-    }
+
     cachetable_unlock(ct);
     writequeue_destroy(&cq);
 
@@ -1162,21 +1145,58 @@ static void *cachetable_writer(void *arg) {
 
 // debug functions
 
+int toku_cachetable_assert_all_unpinned (CACHETABLE t) {
+    u_int32_t i;
+    int some_pinned=0;
+    cachetable_lock(t);
+    for (i=0; i<t->table_size; i++) {
+	PAIR p;
+	for (p=t->table[i]; p; p=p->hash_chain) {
+	    assert(ctpair_pinned(&p->rwlock)>=0);
+	    if (ctpair_pinned(&p->rwlock)) {
+		printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
+		some_pinned=1;
+	    }
+	}
+    }
+    cachetable_unlock(t);
+    return some_pinned;
+}
+
+int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
+    u_int32_t i;
+    int n_pinned=0;
+    CACHETABLE t = cf->cachetable;
+    cachetable_lock(t);
+    for (i=0; i<t->table_size; i++) {
+	PAIR p;
+	for (p=t->table[i]; p; p=p->hash_chain) {
+	    assert(ctpair_pinned(&p->rwlock)>=0);
+	    if (ctpair_pinned(&p->rwlock) && (cf==0 || p->cachefile==cf)) {
+		if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
+		n_pinned++;
+	    }
+	}
+    }
+    cachetable_unlock(t);
+    return n_pinned;
+}
+
 void toku_cachetable_print_state (CACHETABLE ct) {
-     u_int32_t i;
-     cachetable_lock(ct);
-     for (i=0; i<ct->table_size; i++) {
-         PAIR p = ct->table[i];
-         if (p != 0) {
-             printf("t[%d]=", i);
-             for (p=ct->table[i]; p; p=p->hash_chain) {
-                 printf(" {%"PRId64", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, p->dirty, p->rwlock.pinned, p->size);
-             }
-             printf("\n");
-         }
-     }
-     cachetable_unlock(ct);
- }
+    u_int32_t i;
+    cachetable_lock(ct);
+    for (i=0; i<ct->table_size; i++) {
+        PAIR p = ct->table[i];
+        if (p != 0) {
+            printf("t[%d]=", i);
+            for (p=ct->table[i]; p; p=p->hash_chain) {
+                printf(" {%"PRId64", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, p->dirty, p->rwlock.pinned, p->size);
+            }
+            printf("\n");
+        }
+    }
+    cachetable_unlock(ct);
+}
 
 void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
     cachetable_lock(ct);

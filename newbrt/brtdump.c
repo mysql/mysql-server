@@ -1,4 +1,6 @@
 /* Tell me the diff between two brt files. */
+#include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -119,8 +121,10 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	for (i=0; i<n->u.n.n_children-1; i++) {
 	    struct kv_pair *piv = n->u.n.childkeys[i];
 	    printf("  pivot %d:", i);
+            assert(n->flags == 0 || n->flags == TOKU_DB_DUP+TOKU_DB_DUPSORT);
 	    print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
-	    assert(n->flags==0); // if not zero, we must print the other part of the pivot.
+            if (n->flags == TOKU_DB_DUP+TOKU_DB_DUPSORT) 
+                print_item(kv_pair_val_const(piv), kv_pair_vallen(piv));
 	    printf("\n");
 	}
 	printf(" children:\n");
@@ -162,12 +166,33 @@ void dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     toku_brtnode_free(&n);
 }
 
+void readline(char *line, int maxline) {
+    int i = 0;
+    int c;
+    while ((c = getchar()) != EOF && c != '\n' && i < maxline) {
+        line[i++] = c;
+    }
+    line[i++] = 0;
+}
+
+int split_fields(char *line, char *fields[], int maxfields) {
+    int i;
+    for (i=0; i<maxfields; i++, line=NULL) {
+        fields[i] = strtok(line, " ");
+        if (fields[i] == NULL) break;
+    }
+    return i;
+}
+
 int main (int argc, const char *argv[]) {
     const char *arg0 = argv[0];
+    static int interactive = 0;
     argc--; argv++;
     while (argc>1) {
 	if (strcmp(argv[0], "--nodata")==0) {
 	    dump_data = 0;
+        } else if (strcmp(argv[0], "--interactive") == 0) {
+            interactive = 1;
 	} else {
 	    printf("Usage: %s [--nodata] brtfilename\n", arg0);
 	    exit(1);
@@ -179,9 +204,35 @@ int main (int argc, const char *argv[]) {
     int f = open(n, O_RDONLY);  assert(f>=0);
     struct brt_header *h;
     dump_header(f, &h);
-    BLOCKNUM blocknum;
-    for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
-	dump_node(f, blocknum, h);
+    if (interactive) {
+        while (1) {
+            printf("brtdump>"); fflush(stdout);
+            const int maxline = 64;
+            char line[maxline+1];
+            readline(line, maxline);
+            if (strcmp(line, "") == 0) 
+                break;
+            const int maxfields = 2;
+            char *fields[maxfields];
+            int nfields = split_fields(line, fields, maxfields);
+            if (nfields == 0) 
+                continue;
+            if (strcmp(fields[0], "header") == 0) {
+                toku_brtheader_free(h);
+                dump_header(f, &h);
+            } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
+                long long strtoll(char *, char **, int);
+                BLOCKNUM off = make_blocknum(strtoll(fields[1], NULL, 10));
+                dump_node(f, off, h);
+            } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
+                break;
+            }
+        }
+    } else {
+	BLOCKNUM blocknum;
+	for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
+	    dump_node(f, blocknum, h);
+        }
     }
     toku_brtheader_free(h);
     toku_malloc_cleanup();
