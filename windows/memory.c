@@ -77,13 +77,15 @@ toku_strdup(const char *s) {
 
 void
 toku_free(void *p) {
-    size_t used = p ? malloc_usable_size(p) : 0;
-    __sync_add_and_fetch(&status.free_count, 1L);
-    __sync_add_and_fetch(&status.freed, used);
-    if (t_free)
-	t_free(p);
-    else
-	os_free(p);
+    if (p) {
+	size_t used = malloc_usable_size(p);
+	__sync_add_and_fetch(&status.free_count, 1L);
+	__sync_add_and_fetch(&status.freed, used);
+	if (t_free)
+	    t_free(p);
+	else
+	    os_free(p);
+    }
 }
 
 void
