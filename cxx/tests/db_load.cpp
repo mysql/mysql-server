@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <db_cxx.h>
 
-static void hexdump(Dbt *d) {
+static inline void hexdump(Dbt *d) {
     unsigned char *cp = (unsigned char *) d->get_data();
     int n = d->get_size();
     printf(" ");

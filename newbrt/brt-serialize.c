@@ -271,7 +271,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 	printf("%s:%d w.done=%u calculated_size=%u\n", __FILE__, __LINE__, w.ndone, calculated_size);
     assert(calculated_size==w.ndone);
 
-    // The uncompressed part of the header is
+    // The uncompressed part of the block header is
     //   tokuleaf(8),
     //   version(4),
     //   lsn(8),

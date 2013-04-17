@@ -33,13 +33,16 @@
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 
-int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result);
+int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result,
+		  OMT, struct mempool *, void **maybe_free);
 int le_both (TXNID xid, u_int32_t cklen, void* ckval, u_int32_t cdlen, void* cdval, u_int32_t pdlen, void* pdval,
-	     u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result);
-int le_provdel  (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
-		 u_int32_t *resultsize, u_int32_t *memsize, LEAFENTRY *result);
-int le_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
-		 u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result);
+	     u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
+	     OMT, struct mempool *, void **maybe_free);
+int le_provdel (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
+		u_int32_t *resultsize, u_int32_t *memsize, LEAFENTRY *result,
+		OMT, struct mempool *, void **maybe_free);
+int le_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
+		 OMT omt, struct mempool *mp, void **maybe_free);
 
 enum le_state { LE_COMMITTED=1, // A committed pair.
 		LE_BOTH,        // A committed pair and a provisional pair.

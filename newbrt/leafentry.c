@@ -6,9 +6,20 @@ u_int32_t toku_le_crc(LEAFENTRY v) {
     return x1764_memory(v, leafentry_memsize(v));
 }
 
-int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result) {
+static void *
+le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
+{
+    if (omt)
+	return mempool_malloc_from_omt(omt, mp, size, maybe_free);
+    else
+	return toku_malloc(size);
+}
+
+int
+le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result,
+	      OMT omt, struct mempool *mp, void **maybe_free) {
     size_t size = 9+klen+dlen;
-    unsigned char *lec=toku_malloc(size);
+    unsigned char *lec=le_malloc(omt, mp, size, maybe_free);
     assert(lec);
     lec[0] = LE_COMMITTED;
     putint(lec+1, klen);
@@ -20,10 +31,12 @@ int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int3
     *result=(LEAFENTRY)lec;
     return 0;
 }
+
 int le_both (TXNID xid, u_int32_t klen, void* kval, u_int32_t clen, void* cval, u_int32_t plen, void* pval,
-	     u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result) {
+	     u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result,
+	     OMT omt, struct mempool *mp, void **maybe_free) {
     size_t size = 1+8+4*3+klen+clen+plen;
-    unsigned char *lec=toku_malloc(size);
+    unsigned char *lec=le_malloc(omt, mp, size, maybe_free);
     assert(lec);
     lec[0] = LE_BOTH;
     putint64(lec+1,          xid);
@@ -39,10 +52,13 @@ int le_both (TXNID xid, u_int32_t klen, void* kval, u_int32_t clen, void* cval, 
     return 0;
     
 }
-int le_provdel  (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval, 
-		 u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result) {
+
+int
+le_provdel (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
+	    u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
+	    OMT omt, struct mempool *mp, void **maybe_free) {
     size_t size = 1 + 8 + 2*4 + klen + dlen;
-    unsigned char *lec=toku_malloc(size);
+    unsigned char *lec= le_malloc(omt, mp, size, maybe_free);
     assert(lec);
     lec[0] = LE_PROVDEL;
     putint64(lec+1,          xid);
@@ -55,9 +71,12 @@ int le_provdel  (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dv
     *result=(LEAFENTRY)lec;
     return 0;
 }
-int le_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result) {
+
+int
+le_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
+	     OMT omt, struct mempool *mp, void **maybe_free) {
     size_t size = 1 + 8 + 2*4 + klen + plen;
-    unsigned char *lec=toku_malloc(size);
+    unsigned char *lec= le_malloc(omt, mp, size, maybe_free);
     assert(lec);
     lec[0] = LE_PROVPAIR;
     putint64(lec+1,          xid);
@@ -154,7 +173,8 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *checksum, u_int32
 	r = toku_fread_BYTESTRING(f, &a, checksum, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, checksum, len);  if (r!=0) return r;
 	r = le_committed(a.len, a.data, b.len, b.data,
-			 &memsize, &disksize, le);
+			 &memsize, &disksize, le,
+			 0, 0, 0);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	return r;
@@ -164,7 +184,8 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *checksum, u_int32
 	r = toku_fread_BYTESTRING(f, &b, checksum, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &c, checksum, len);  if (r!=0) return r;
 	r = le_both(xid, a.len, a.data, b.len, b.data, c.len, c.data,
-		    &memsize, &disksize, le);
+		    &memsize, &disksize, le,
+		    0, 0, 0);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	toku_free_BYTESTRING(c);
@@ -174,7 +195,8 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *checksum, u_int32
 	r = toku_fread_BYTESTRING(f, &a, checksum, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, checksum, len);  if (r!=0) return r;
 	r = le_provdel(xid, a.len, a.data, b.len, b.data,
-		       &memsize, &disksize, le);
+		       &memsize, &disksize, le,
+		       0, 0, 0);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	return r;
@@ -183,7 +205,8 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *checksum, u_int32
 	r = toku_fread_BYTESTRING(f, &a, checksum, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, checksum, len);  if (r!=0) return r;
 	r = le_provpair(xid, a.len, a.data, b.len, b.data,
-			&memsize, &disksize, le);
+			&memsize, &disksize, le,
+			0, 0, 0);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	return r;

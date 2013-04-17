@@ -11,10 +11,9 @@
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
-#include "leafentry.h"
-
 typedef void *OMTVALUE;
 #include "omt.h"
+#include "leafentry.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -263,7 +262,13 @@ int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
 int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
 
-void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
+void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
+// Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
+//  from the OMT (which items refer to items in the old mempool) into the new mempool.
+//  If MAYBE_FREE is NULL then free the old mempool's space.
+//  Otherwise, store the old mempool's space in maybe_free.
+
+void mempool_release(struct mempool *); // release anything that was not released when the ..._norelease function was called.
 
 void toku_verify_all_in_mempool(BRTNODE node);
 
@@ -281,6 +286,7 @@ enum brt_layout_version_e {
 
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, void *header_v);
+int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 
 #define BLOCK_ALLOCATOR_ALIGNMENT 4096
 // How much must be reserved at the beginning for the block?
