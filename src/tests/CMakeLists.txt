@@ -317,7 +317,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     test_log10.recover
     recover-missing-dbfile.abortrecover
     recover-missing-dbfile-2.abortrecover
-    recover-dbopen-eclose.abortrecover
     loader-tpch-load.loader
     )
 
