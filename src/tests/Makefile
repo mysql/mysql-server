@@ -165,6 +165,8 @@ BDB_DONTRUN_TESTS = \
         recover-descriptor8 \
         recover-descriptor9 \
         recover-descriptor10 \
+        recover-descriptor11 \
+        recover-descriptor12 \
         recover-fclose-in-checkpoint \
         recover-loader-test \
         recover-lsn-filter-multiple \
@@ -182,9 +184,13 @@ BDB_DONTRUN_TESTS = \
 	recover-update-multiple \
 	recover-update-multiple-abort \
 	recover-update_aborts \
+	recover-update_aborts2 \
+	recover-update_aborts3 \
 	recover-update_aborts_before_checkpoint \
 	recover-update_aborts_before_close \
 	recover-update_changes_values \
+	recover-update_changes_values2 \
+	recover-update_changes_values3 \
 	recover-update_changes_values_before_checkpoint \
 	recover-update_changes_values_before_close \
 	recover-update_broadcast_aborts \
