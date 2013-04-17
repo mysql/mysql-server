@@ -122,7 +122,7 @@ main(int argc, const char *argv[]) {
 #if IS_TDB && (defined(_WIN32) || defined(_WIN64))
     toku_ydb_init();
 #endif
-#if !IS_TDB
+#if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
     r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
     r = db_env_set_func_free(toku_free);      assert(r==0);
     r = db_env_set_func_realloc(toku_realloc);   assert(r==0);

@@ -5,8 +5,7 @@
 /* Is it feasible to run 4 billion transactions in one test in the regression tests? */
 #include <db.h>
 #include <sys/stat.h>
-
-extern void toku_set_lsn_increment (uint64_t incr);
+#include "log.h"
 
 static void
 four_billion_subtransactions (int do_something_in_children, int use_big_increment) {
