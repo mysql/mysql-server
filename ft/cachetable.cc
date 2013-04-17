@@ -1410,7 +1410,8 @@ static bool try_pin_pair(
     enum cachetable_dirty* dependent_dirty,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    void* read_extraargs
+    void* read_extraargs,
+    bool already_slept
     )
 {
     bool dep_checkpoint_pending[num_dependent_pairs];
@@ -1459,7 +1460,7 @@ static bool try_pin_pair(
         try_again = false;
         goto exit;
     }
-    if (ct->ev.should_client_thread_sleep()) {
+    if (ct->ev.should_client_thread_sleep() && !already_slept) {
         pair_lock(p);
         nb_mutex_unlock(&p->value_nb_mutex);
         pair_unlock(p);
@@ -1514,6 +1515,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs_batched (
 {
     CACHETABLE ct = cachefile->cachetable;
     bool wait = false;
+    bool already_slept = false;
     PAIR dependent_pairs[num_dependent_pairs];
     bool dep_checkpoint_pending[num_dependent_pairs];
 
@@ -1528,6 +1530,7 @@ beginning:
         // We shouldn't be holding the read list lock while
         // waiting for the evictor to remove pairs.
         ct->list.read_list_unlock();
+        already_slept = true;
         ct->ev.wait_for_cache_pressure_to_subside();
         ct->list.read_list_lock();
     }
@@ -1557,7 +1560,8 @@ beginning:
             dependent_dirty,
             pf_req_callback,
             pf_callback,
-            read_extraargs
+            read_extraargs,
+            already_slept
             );
         if (try_again) {
             wait = true;
@@ -1568,7 +1572,11 @@ beginning:
         }
     }
     else {
-        if (ct->ev.should_client_thread_sleep()) {
+        // we only want to sleep once per call to get_and_pin. If we have already
+        // slept and there is still cache pressure, then we might as 
+        // well just complete the call, because the sleep did not help
+        // This happens in extreme scenarios.
+        if (ct->ev.should_client_thread_sleep() && !already_slept) {
             wait = true;
             goto beginning;
         }
@@ -1599,7 +1607,8 @@ beginning:
                 dependent_dirty,
                 pf_req_callback,
                 pf_callback,
-                read_extraargs
+                read_extraargs,
+                already_slept
                 );
             if (try_again) {
                 wait = true;
