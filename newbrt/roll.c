@@ -152,7 +152,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
     (void)toku_cachefile_get_and_pin_fd(cf);
     if (!toku_cachefile_is_dev_null_unlocked(cf)) {
         OMTVALUE brtv=NULL;
-        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
         assert(r==0);
         BRT brt = brtv;
 
@@ -561,7 +561,7 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
     fd = toku_cachefile_get_and_pin_fd(cf);
     if (!toku_cachefile_is_dev_null_unlocked(cf)) {
         OMTVALUE brtv=NULL;
-        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
         assert(r==0);
         BRT brt = brtv;
         DESCRIPTOR_S d;

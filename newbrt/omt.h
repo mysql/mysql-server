@@ -153,7 +153,6 @@ extern "C" {
 //typedef struct value *OMTVALUE; // A slight improvement over using void*.
 typedef void *OMTVALUE;
 typedef struct omt *OMT;
-typedef struct omt_cursor *OMTCURSOR;
 
 
 int toku_omt_create (OMT *omtp);
@@ -302,13 +301,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t idx);
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
-void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t idx);
-// Effect:
-//  Set the abstract index.
-// Requires:
-//  The cursor is not invalid.
-
-int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
+int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v);
 // Effect: Set *v=V_i
 //   If c!=NULL then set c's abstract offset to i.
 // Requires: v   != NULL
@@ -323,14 +316,14 @@ int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
 //   function, the function must remove c's association with the old
 //   OMT, and associate it with the new OMT.
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *idx, OMTCURSOR c);
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *idx);
 // Effect:  Find the smallest i such that h(V_i, extra)>=0
 //  If there is such an i and h(V_i,extra)==0 then set *index=i and return 0.
 //  If there is such an i and h(V_i,extra)>0  then set *index=i and return DB_NOTFOUND.
 //  If there is no such i then set *index=toku_omt_size(V) and return DB_NOTFOUND.
 // Requires: index!=NULL
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *idx, OMTCURSOR c);
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *idx);
 //   Effect:
 //    If direction >0 then find the smallest i such that h(V_i,extra)>0.
 //    If direction <0 then find the largest  i such that h(V_i,extra)<0.
@@ -422,98 +415,6 @@ void toku_omt_clear(OMT omt);
 unsigned long toku_omt_memory_size (OMT omt);
 // Effect: Return the size (in bytes) of the omt, as it resides in main memory.  Don't include any of the OMTVALUES.
 
-int toku_omt_cursor_create (OMTCURSOR *p);
-// Effect: Create an OMTCURSOR.  Stores it in *p.  The OMTCURSOR is
-// initially invalid.
-// Requires: p != NULL
-// Returns:
-//   0        success
-//   ENOMEM   out of memory (and doesn't modify *omtp)
-// Performance: constant time.
-
-void toku_omt_cursor_destroy (OMTCURSOR *p);
-// Effect:  Invalidates *p (if it is valid) and frees any memory
-// associated with *p.
-//  Also sets *p=NULL.
-// Rationale:  The usage is to do something like
-//   toku_omt_cursor_destroy(&c);
-// and now c will have a NULL pointer instead of a dangling freed pointer.
-// Rationale: Returns no values since free() cannot fail.
-
-int toku_omt_cursor_is_valid (OMTCURSOR c);
-// Effect:  returns 0 iff c is invalid.
-// Performance:  time=O(1)
-
-int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v);
-// Effect: Increment c's offset, and find and store the value in v.
-// Requires: v != NULL
-// Returns
-//   0 success
-//   EINVAL if the offset goes out of range or c is invalid.
-// On nonzero return, *v is unchanged and c is invalidated.
-// Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
-//  chosen initial position.
-
-int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *idx);
-// Effect: Stores c's offset in *index.
-// Requires: index != NULL
-// Returns
-//  0 success
-//  EINVAL c is invalid
-// On nonzero return, *index is unchanged and c is unchanged.
-// Performance: time=O(1)
-
-OMT toku_omt_cursor_get_omt(OMTCURSOR c);
-// Effect: returns the associated omt or NULL if not associated.
-// Performance: time=O(1)
-
-int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v);
-// Effect: Store in v the value pointed by c's abstract offset
-// Requires: v != NULL
-// Returns
-//  0 success
-//  EINVAL if c is invalid
-// On non-zero return, *v is unchanged
-// Performance: O(1) time
-
-int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v);
-// Effect: Decrement c's offset, and find and store the value in v.
-// Requires: v != NULL
-// Returns
-//   0 success
-//   EINVAL if the offset goes out of range or c is invalid.
-// On nonzero return, *v is unchanged and c is invalidated.
-// Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
-//  chosen initial position.
-
-
-void toku_omt_cursor_invalidate (OMTCURSOR c);
-// Effect: Invalidate c.  (This does not mean that c is destroyed or
-// that its memory is freed.)
-// If c is valid, the invalidate callback function (if any) will be called
-// before invalidating c.
-
-void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,void*), void* extra);
-// Effect:
-//  Saves function 'f' to be called whenever the cursor is invalidated.
-//  'extra' is passed as an additional parameter to f.
-// Requires:
-//  The lifetime of the 'extra' parameter must continue at least till the cursor
-//  is destroyed.
-
-void toku_omt_cursor_associate(OMT omt, OMTCURSOR c);
-// Effect:
-//  Associates an omtcursor with an omt.
-// Requires:
-//  The omtcursor is not associated with any other omt.
-// Requires:
-//  toku_omt_associate must be called when the omt-lock is held
-// Rationale:
-//  This is used by brt_cursors for omts representing leaf nodes.
-//  These omts are touched by multiple threads, and therefore require locks
-//  for modifying the list of omtcursors.
-//  We do not want to grab two locks (one for omt, and one for the old
-//  associated omt).
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

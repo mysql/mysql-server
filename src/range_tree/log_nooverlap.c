@@ -157,7 +157,7 @@ toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
     extra.end_cmp = tree->end_cmp;
     extra.query   = *query;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &leftmost, NULL);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &leftmost);
     if (r == DB_NOTFOUND) {
         /* Nothing overlaps. */
         *numfound = 0;
@@ -199,7 +199,7 @@ toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     extra.end_cmp = tree->end_cmp;
     extra.query   = range->ends;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &index, NULL);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &index);
     if (r == 0) { 
         r = EDOM; goto cleanup;
     }
@@ -233,7 +233,7 @@ toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     extra.end_cmp = tree->end_cmp;
     extra.query   = range->ends;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, &value, &index, NULL);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, &value, &index);
     if (r != 0) { 
         r = EDOM; goto cleanup; 
     }
@@ -270,7 +270,7 @@ rt_neightbor(toku_range_tree* tree, toku_point* point,
     extra.query.right = point;
 
     assert(direction==1 || direction==-1);
-    r = toku_omt_find(tree->i.omt, rt_heaviside, &extra, direction, &value, &index, NULL);
+    r = toku_omt_find(tree->i.omt, rt_heaviside, &extra, direction, &value, &index);
     if (r == DB_NOTFOUND) {
         *wasfound = FALSE;
         r = 0;
@@ -349,14 +349,14 @@ toku_rt_verify(toku_range_tree *tree) {
         for (u_int32_t i = 0; i < tree->numelements; i++) {
             // assert left <= right
 	    OMTVALUE omtv;
-            r = toku_omt_fetch(tree->i.omt, i, &omtv, NULL);
+            r = toku_omt_fetch(tree->i.omt, i, &omtv);
             assert_zero(r);
 	    toku_range *v = (toku_range *) omtv;
             assert(tree->end_cmp(v->ends.left, v->ends.right) <= 0);
             // assert ranges are sorted
             if (i < tree->numelements-1) {
 		OMTVALUE omtvnext;
-                r = toku_omt_fetch(tree->i.omt, i+1, &omtvnext, NULL);
+                r = toku_omt_fetch(tree->i.omt, i+1, &omtvnext);
                 assert_zero(r);
                 toku_range *vnext = (toku_range *) omtvnext;
                 assert(tree->end_cmp(v->ends.right, vnext->ends.left) < 0);
@@ -365,11 +365,11 @@ toku_rt_verify(toku_range_tree *tree) {
         // verify no overlaps
         for (u_int32_t i = 1; i < tree->numelements; i++) {
 	    OMTVALUE omtvprev;
-            r = toku_omt_fetch(tree->i.omt, i-1, &omtvprev, NULL);
+            r = toku_omt_fetch(tree->i.omt, i-1, &omtvprev);
             assert_zero(r);
             toku_range *vprev = (toku_range *) omtvprev;
 	    OMTVALUE omtv;
-            r = toku_omt_fetch(tree->i.omt, i, &omtv, NULL);
+            r = toku_omt_fetch(tree->i.omt, i, &omtv);
             assert_zero(r);
             toku_range *v = (toku_range *) omtv;
             assert(!toku__rt_overlap(tree, &vprev->ends, &v->ends));

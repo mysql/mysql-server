@@ -292,6 +292,7 @@ typedef enum {
 #define TOKUDB_UPGRADE_FAILURE -100011
 #define TOKUDB_TRY_AGAIN -100012
 #define TOKUDB_NEEDS_REPAIR -100013
+#define TOKUDB_CURSOR_CONTINUE -100014
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);

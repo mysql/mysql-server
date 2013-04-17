@@ -176,7 +176,7 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
 
     int r;
     OMT reverse = txn->logger->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx, NULL);
+    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx);
     invariant(r==0);
     pair = pairv;
     invariant(pair->xid1 == *live_xid); //sanity check
@@ -188,7 +188,7 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
         OMT snapshot = txn->logger->snapshot_txnids;
         BOOL should_delete = TRUE;
         // find the youngest txn in snapshot that is older than xid
-        r = toku_omt_find(snapshot, toku_find_xid_by_xid, &xid, -1, &olderv, &olderidx, NULL);
+        r = toku_omt_find(snapshot, toku_find_xid_by_xid, &xid, -1, &olderv, &olderidx);
         if (r==0) {
             //There is an older txn
             olderxid = olderv;
@@ -237,7 +237,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             //Remove txn from list (omt) of live transactions
             OMTVALUE txnagain;
             u_int32_t idx;
-            r = toku_omt_find_zero(txn->logger->live_txns, find_xid, txn, &txnagain, &idx, NULL);
+            r = toku_omt_find_zero(txn->logger->live_txns, find_xid, txn, &txnagain, &idx);
             assert(r==0);
             assert(txn==txnagain);
             r = toku_omt_delete_at(txn->logger->live_txns, idx);
@@ -248,7 +248,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             OMTVALUE txnagain;
             u_int32_t idx;
             //Remove txn from list of live root txns
-            r = toku_omt_find_zero(txn->logger->live_root_txns, find_xid, txn, &txnagain, &idx, NULL);
+            r = toku_omt_find_zero(txn->logger->live_root_txns, find_xid, txn, &txnagain, &idx);
             assert(r==0);
             assert(txn==txnagain);
             r = toku_omt_delete_at(txn->logger->live_root_txns, idx);
@@ -266,7 +266,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
                 u_int32_t idx;
                 OMTVALUE v;
                 //Free memory used for snapshot_txnids
-                r = toku_omt_find_zero(txn->logger->snapshot_txnids, toku_find_xid_by_xid, &txn->txnid64, &v, &idx, NULL);
+                r = toku_omt_find_zero(txn->logger->snapshot_txnids, toku_find_xid_by_xid, &txn->txnid64, &v, &idx);
                 invariant(r==0);
                 TXNID *xid = v;
                 invariant(*xid == txn->txnid64);
@@ -280,7 +280,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
                 invariant(toku_omt_size(txn->live_root_txn_list) > 0);
                 OMTVALUE v;
                 //store a single array of txnids
-                r = toku_omt_fetch(txn->live_root_txn_list, 0, &v, NULL);
+                r = toku_omt_fetch(txn->live_root_txn_list, 0, &v);
                 invariant(r==0);
                 toku_free(v);
                 toku_omt_destroy(&txn->live_root_txn_list);
@@ -293,7 +293,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
         TOKULOGGER logger = txn->logger;
 
         OMTVALUE oldest_txnv;
-        r = toku_omt_fetch(logger->live_txns, 0, &oldest_txnv, NULL);
+        r = toku_omt_fetch(logger->live_txns, 0, &oldest_txnv);
         if (r==0) {
             TOKUTXN oldest_txn = oldest_txnv;
             assert(oldest_txn != txn); // We just removed it
@@ -638,7 +638,7 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     OMTVALUE txnv;
     u_int32_t index;
     // Does brt already know about transaction txn?
-    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv, &index, NULL);
+    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv, &index);
     if (r==0) {
 	// It's already there.
 	assert((TOKUTXN)txnv==txn);
@@ -669,7 +669,7 @@ static int swap_brt (OMTVALUE txnv, u_int32_t UU(idx), void *extra) {
     int r;
     r = toku_txn_note_brt(txn, info->live); //Add new brt.
     assert(r==0);
-    r = toku_omt_find_zero(txn->open_brts, find_filenum, info->zombie, &zombie_again, &index, NULL);
+    r = toku_omt_find_zero(txn->open_brts, find_filenum, info->zombie, &zombie_again, &index);
     assert(r==0);
     assert((void*)zombie_again==info->zombie);
     r = toku_omt_delete_at(txn->open_brts, index); //Delete old brt.
@@ -703,7 +703,7 @@ static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
     BRT     brt = brtv;
     OMTVALUE brtv_again=NULL;
     u_int32_t index;
-    int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index, NULL);
+    int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index);
     assert(r==0);
     assert((void*)brtv_again==brtv);
     r = toku_omt_delete_at(txn->open_brts, index);
@@ -723,7 +723,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     TOKUTXN txn = txnv;
     OMTVALUE txnv_again=NULL;
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv_again, &index, NULL);
+    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv_again, &index);
     assert(r==0);
     assert((void*)txnv_again==txnv);
     r = toku_omt_delete_at(brt->txns, index);
@@ -760,7 +760,7 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     struct tokutxn fake_txn; fake_txn.txnid64 = xid;
     u_int32_t index;
     OMTVALUE txnv;
-    int r = toku_omt_find_zero(brt->txns, find_xid, &fake_txn, &txnv, &index, NULL);
+    int r = toku_omt_find_zero(brt->txns, find_xid, &fake_txn, &txnv, &index);
     if (r == 0) *txnptr = txnv;
     return r;
 }

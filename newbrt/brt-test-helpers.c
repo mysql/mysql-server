@@ -142,7 +142,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 
 
     struct cmd_leafval_heaviside_extra be = {brt, &keydbt};
-    r = toku_omt_find_zero(BLB_BUFFER(node, 0), toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
+    r = toku_omt_find_zero(BLB_BUFFER(node, 0), toku_cmd_leafval_heaviside, &be, &storeddatav, &idx);
 
 
     if (r==0) {

@@ -264,94 +264,30 @@ test_create_from_sorted_array_size (enum create_type create_choice, enum close_w
 static void
 test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
     u_int32_t i;
-    int j;
     int r;
     TESTVALUE v = (TESTVALUE)&i;
     TESTVALUE oldv = v;
-
-    OMTCURSOR c;
-    r = toku_omt_cursor_create(&c);
-    CKERR(r);
 
     assert(len == toku_omt_size(omtree));
     for (i = 0; i < len; i++) {
         assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, &v, NULL);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
         assert(V(v)->number == V(val[i])->number);
         v = oldv;
-        r = toku_omt_fetch(omtree, i, &v, c);
-        CKERR(r);
-        assert(v != NULL);
-        assert(v != oldv);
-        assert(v == val[i]);
-        assert(V(v)->number == V(val[i])->number);
-        assert(toku_omt_cursor_is_valid(c));
- 
-        v = oldv;
-        r = toku_omt_cursor_current(c, &v);
-        CKERR(r);
-        assert(v != NULL);
-        assert(v != oldv);
-        assert(v == val[i]);
-        assert(V(v)->number == V(val[i])->number);
-        assert(toku_omt_cursor_is_valid(c));
-
-        v = oldv;
-        j = i + 1;
-        while ((r = toku_omt_cursor_next(c, &v)) == 0) {
-            assert(toku_omt_cursor_is_valid(c));
-            assert(v != NULL);
-            assert(v != oldv);
-            assert(v == val[j]);
-            assert(V(v)->number == V(val[j])->number);
-            j++;
-            v = oldv;
-        }
-        CKERR2(r, EINVAL);
-        assert(j == (int) len);
-
-        assert(oldv!=val[i]);
-        v = NULL;
-        r = toku_omt_fetch(omtree, i, &v, c);
-        CKERR(r);
-        assert(v != NULL);
-        assert(v != oldv);
-        assert(v == val[i]);
-        assert(V(v)->number == V(val[i])->number);
-
-        v = oldv;
-        j = i - 1;
-        while ((r = toku_omt_cursor_prev(c, &v)) == 0) {
-            assert(toku_omt_cursor_is_valid(c));
-            assert(v != NULL);
-            assert(v != oldv);
-            assert(v == val[j]);
-            assert(V(v)->number == V(val[j])->number);
-            j--;
-            v = oldv;
-        }
-        CKERR2(r, EINVAL);
-        assert(j == -1);
-
     }
 
     for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_omt_fetch(omtree, i, &v, NULL);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR2(r, EINVAL);
         assert(v == oldv);
-        v = NULL;
-        r = toku_omt_fetch(omtree, i, &v, c);
-        CKERR2(r, EINVAL);
-        assert(v == NULL);
     }
 
-    toku_omt_cursor_destroy(&c);
 }
 
 static void
@@ -700,69 +636,22 @@ heavy_extra (h_extra* extra, u_int32_t first_zero, u_int32_t first_pos) {
 static void
 test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
 	       int r_expect, BOOL idx_will_change, u_int32_t idx_expect,
-	       u_int32_t number_expect, BOOL cursor_valid) {
+	       u_int32_t number_expect, BOOL UU(cursor_valid)) {
     u_int32_t idx     = UINT32_MAX;
     u_int32_t old_idx = idx;
-    TESTVALUE omt_val, omt_val_curs;
-    OMTCURSOR c;
+    TESTVALUE omt_val;
     int r;
-    BOOL found;
-
-    r = toku_omt_cursor_create(&c);
-    CKERR(r);
 
     omt_val = NULL;
-    if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      &omt_val, &idx, c);
-    }
-    else {
-        r = toku_omt_find(     omt, h, extra, dir, &omt_val, &idx, c);
-    }
-    CKERR2(r, r_expect);
-    if (idx_will_change) {
-        assert(idx == idx_expect);
-    }
-    else {
-        assert(idx == old_idx);
-    }
-    if (r == DB_NOTFOUND) {
-        assert(omt_val == NULL);
-        found = FALSE;
-    }
-    else {
-        assert(V(omt_val)->number == number_expect);
-        found = TRUE;
-    }
- 
-    assert(!cursor_valid == !toku_omt_cursor_is_valid(c));
-    if (cursor_valid) {
-        TESTVALUE tmp;
-        assert(idx_will_change);
-        omt_val_curs = NULL;
-        r = toku_omt_cursor_current(c, &omt_val_curs);
-        CKERR(r);
-        assert(toku_omt_cursor_is_valid(c));
-        r = toku_omt_fetch(omt, idx, &tmp, NULL);
-        CKERR(r);
-        if (found) assert(tmp==omt_val);
-        assert(omt_val_curs != NULL);
-        assert(omt_val_curs == tmp);
-        assert(V(omt_val_curs)->number == V(tmp)->number);
-        if (found) assert(V(omt_val_curs)->number==number_expect);
-    }
-
-    toku_omt_cursor_invalidate(c);
-    assert(!toku_omt_cursor_is_valid(c));
-    toku_omt_cursor_destroy(&c);
 
     /* Verify we can pass NULL value. */
     omt_val = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      NULL, &idx, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      NULL, &idx);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, NULL, &idx, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, NULL, &idx);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -777,10 +666,10 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      &omt_val, 0, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      &omt_val, 0);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, &omt_val, 0, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, &omt_val, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -795,10 +684,10 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      NULL, 0, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      NULL, 0);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, NULL, 0, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, NULL, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -880,99 +769,11 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
 }
 
 static void
-invalidate_callback_null (OMTCURSOR c, void *extra) {
-    assert(c && !extra);
-}
-
-static void
-invalidate_callback_inc (OMTCURSOR c, void *extra) {
-    assert(c);
-    int *num = extra;
-    (*num)++;
-}
-
-static void
-test_invalidate (enum create_type create_choice, BOOL set_callback, BOOL invalidate_callback) {
-    init_identity_values(random_seed, 100);
-    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-
-    OMTCURSOR c;
-    int invalidate_count = 0;
-        
-    int r = toku_omt_cursor_create(&c);
-    if (set_callback || invalidate_callback) {
-        toku_omt_cursor_set_invalidate_callback(c, invalidate_callback_inc, &invalidate_count);
-    } 
-    if (invalidate_callback) {
-        toku_omt_cursor_set_invalidate_callback(c, invalidate_callback_null, NULL);
-    }
-    OMTVALUE val;
-    r = toku_omt_fetch(omt, 0, &val, c); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    assert(invalidate_count==0);
-    r = toku_omt_cursor_prev(c, &val); CKERR2(r, EINVAL);
-    assert(!toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
-    else                                      assert(invalidate_count==0);
-    r = toku_omt_cursor_prev(c, &val); CKERR2(r, EINVAL);
-    assert(!toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
-    else                                      assert(invalidate_count==0);
-
-    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
-    else                                      assert(invalidate_count==0);
-
-    r = toku_omt_cursor_prev(c, &val); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
-    else                                      assert(invalidate_count==0);
-    r = toku_omt_cursor_next(c, &val); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
-    else                                      assert(invalidate_count==0);
-    r = toku_omt_cursor_next(c, &val); CKERR2(r, EINVAL);
-    assert(!toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==2);
-    else                                      assert(invalidate_count==0);
-
-    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==2);
-    else                                      assert(invalidate_count==0);
-
-    test_close(CLOSE_WHEN_DONE);
-    assert(!toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==3);
-    else                                      assert(invalidate_count==0);
-
-    init_identity_values(random_seed, 100);
-    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
-    assert(toku_omt_cursor_is_valid(c));
-    if (set_callback && !invalidate_callback) assert(invalidate_count==3);
-    else                                      assert(invalidate_count==0);
-
-    toku_omt_cursor_destroy(&c);
-    if (set_callback && !invalidate_callback) assert(invalidate_count==4);
-    else                                      assert(invalidate_count==0);
-
-    test_close(CLOSE_WHEN_DONE);
-    if (set_callback && !invalidate_callback) assert(invalidate_count==4);
-    else                                      assert(invalidate_count==0);
-}
-
-static void
 runtests_create_choice (enum create_type create_choice) {
     test_create_array(create_choice, TEST_SORTED);
     test_create_array(create_choice, TEST_RANDOM);
     test_create_array(create_choice, TEST_IDENTITY);
     test_find(        create_choice, CLOSE_WHEN_DONE);
-    test_invalidate(  create_choice, FALSE, FALSE);
-    test_invalidate(  create_choice, FALSE, TRUE);
-    test_invalidate(  create_choice, TRUE,  FALSE);
-    test_invalidate(  create_choice, TRUE,  TRUE);
 }
 
 int

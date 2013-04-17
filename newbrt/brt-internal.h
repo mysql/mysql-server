@@ -429,7 +429,6 @@ struct brt_header {
     unsigned int flags;
     DESCRIPTOR_S descriptor;
 
-    u_int64_t root_put_counter; // the generation number of the brt
 
     BLOCK_TABLE blocktable;
     // If a transaction created this BRT, which one?
@@ -549,8 +548,6 @@ struct brt_cursor_leaf_info_to_be {
 
 // Values to be used to pin a leaf for shortcut searches
 struct brt_cursor_leaf_info {
-    BLOCKNUM  blocknumber;
-    u_int32_t fullhash;
     struct brt_cursor_leaf_info_to_be  to_be;
 };
 
@@ -558,13 +555,10 @@ struct brt_cursor_leaf_info {
 struct brt_cursor {
     struct toku_list cursors_link;
     BRT brt;
-    BOOL current_in_omt;
     BOOL prefetching;
     DBT key, val;             // The key-value pair that the cursor currently points to
     DBT range_lock_left_key, range_lock_right_key;
     BOOL left_is_neg_infty, right_is_pos_infty;
-    OMTCURSOR omtcursor;
-    u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
     TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
     BOOL is_snapshot_read; // true if query is read_committed, false otherwise
     BOOL is_leaf_mode;

@@ -83,7 +83,7 @@ verify_msg_in_child_buffer(BRT brt, int type, MSN msn, bytevec key, ITEMLEN keyl
 static LEAFENTRY 
 get_ith_leafentry (BASEMENTNODE bn, int i) {
     OMTVALUE le_v;
-    int r = toku_omt_fetch(bn->buffer, i, &le_v, NULL);
+    int r = toku_omt_fetch(bn->buffer, i, &le_v);
     invariant(r == 0); // this is a bad failure if it happens.
     return (LEAFENTRY)le_v;
 }
