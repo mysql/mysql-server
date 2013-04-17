@@ -9,7 +9,7 @@
 #include <assert.h>
 #include "toku_os.h"
 
-void
+static void
 check_snprintf(int i) {
     char buf_before[8];
     char target[5];
