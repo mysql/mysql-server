@@ -887,7 +887,6 @@ void toku_brt_get_status(BRT_STATUS);
 // FIXME needs toku prefix
 void
 brt_leaf_apply_cmd_once (
-    BRTNODE leafnode,
     BASEMENTNODE bn,
     const BRT_MSG cmd,
     u_int32_t idx,
@@ -902,7 +901,6 @@ brt_leaf_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
     DESCRIPTOR desc,
-    BRTNODE leafnode,
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
     uint64_t *workdone,
