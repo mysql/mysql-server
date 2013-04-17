@@ -3,9 +3,9 @@
 #ident "$Id$"
 
 
-// Purpose of this test is to verify that a dictionary created by the 4.1.1 
+// Purpose of this test is to verify that a dictionary created by the 4.2.0 
 // loader can be properly read with 5.0.
-// This file was derived from the 4.1.1 version of loader-stress-test.c,
+// This file was derived from the 4.2.0 version of loader-stress-test.c,
 // which was used to create the dictionary. 
 // This test only reads (and upgrades) the dictionary, it does not load it.
 
@@ -212,7 +212,7 @@ char *env_dir = ENVDIR; // the default env_dir.
 char *tmp_subdir = "tmp.subdir";
 
 #define OLDDATADIR "../../../../tokudb.data/"
-char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.loader250kd1.cleanshutdown";
+char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.loader250kd1.cleanshutdown";
 
 
 static void setup(void) {

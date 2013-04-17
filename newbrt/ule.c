@@ -2111,15 +2111,15 @@ bool transaction_open(TXNID xid) {
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif
-struct __attribute__ ((__packed__)) leafentry_12 {
+struct __attribute__ ((__packed__)) leafentry_13 {
     u_int8_t  num_xrs;
     u_int32_t keylen;
     u_int32_t innermost_inserted_vallen;
     union {
-        struct __attribute__ ((__packed__)) leafentry_committed_12 {
+        struct __attribute__ ((__packed__)) leafentry_committed_13 {
             u_int8_t key_val[0];     //Actual key, then actual val
         } comm;
-        struct __attribute__ ((__packed__)) leafentry_provisional_12 {
+        struct __attribute__ ((__packed__)) leafentry_provisional_13 {
             u_int8_t innermost_type;
             TXNID    xid_outermost_uncommitted;
             u_int8_t key_val_xrs[];  //Actual key,
@@ -2135,7 +2135,7 @@ struct __attribute__ ((__packed__)) leafentry_12 {
 //Requires:
 //  Leafentry that ule represents should not be destroyed (is not just all deletes)
 static size_t
-le_memsize_from_ule_12 (ULE ule) {
+le_memsize_from_ule_13 (ULE ule) {
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     assert(num_uxrs);
     size_t rval;
@@ -2165,16 +2165,16 @@ le_memsize_from_ule_12 (ULE ule) {
     return rval;
 }
 
-//This function is mostly copied from 4.1.1
-// Note, number of transaction records in version 12 has been replaced by separate counters in version 13 (MVCC),
+//This function is mostly copied from 4.1.1 (which is version 12, same as 13 except that only 13 is upgradable).
+// Note, number of transaction records in version 13 has been replaced by separate counters in version 14 (MVCC),
 // one counter for committed transaction records and one counter for provisional transaction records.  When 
-// upgrading a version 12 le to version 13, the number of committed transaction records is always set to one (1)
+// upgrading a version 13 le to version 14, the number of committed transaction records is always set to one (1)
 // and the number of provisional transaction records is set to the original number of transaction records 
 // minus one.  The bottom transaction record is assumed to be a committed value.  (If there is no committed
-// value then the bottom transaction record of version 12 is a committed delete.)
+// value then the bottom transaction record of version 13 is a committed delete.)
 // This is the only change from the 4.1.1 code.  The rest of the leafentry is read as is.
 static void
-le_unpack_12(ULE ule, LEAFENTRY_12 le) {
+le_unpack_13(ULE ule, LEAFENTRY_13 le) {
     //Read num_uxrs
     uint8_t num_xrs = le->num_xrs;
     assert(num_xrs > 0);
@@ -2272,29 +2272,29 @@ le_unpack_12(ULE ule, LEAFENTRY_12 le) {
         assert(found_innermost_insert);
     }
 #if ULE_DEBUG
-    size_t memsize = le_memsize_from_ule_12(ule);
+    size_t memsize = le_memsize_from_ule_13(ule);
     assert(p == ((u_int8_t*)le) + memsize);
 #endif
 }
 
 size_t
-leafentry_disksize_12(LEAFENTRY_12 le) {
+leafentry_disksize_13(LEAFENTRY_13 le) {
     ULE_S ule;
-    le_unpack_12(&ule, le);
-    size_t memsize = le_memsize_from_ule_12(&ule);
+    le_unpack_13(&ule, le);
+    size_t memsize = le_memsize_from_ule_13(&ule);
     ule_cleanup(&ule);
     return memsize;
 }
 
 int 
-toku_le_upgrade_12_13(LEAFENTRY_12 old_leafentry,
+toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
 		      size_t *new_leafentry_memorysize, 
 		      size_t *new_leafentry_disksize, 
 		      LEAFENTRY *new_leafentry_p) {
     ULE_S ule;
     int rval;
     invariant(old_leafentry);
-    le_unpack_12(&ule, old_leafentry);
+    le_unpack_13(&ule, old_leafentry);
     rval = le_pack(&ule,                // create packed leafentry
                    new_leafentry_memorysize, 
                    new_leafentry_disksize, 

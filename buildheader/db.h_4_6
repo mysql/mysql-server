@@ -178,10 +178,11 @@ typedef struct __toku_engine_status {
   u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
   u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 
   u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ 
+  u_int64_t        optimized_for_upgrade;   /* how many optimized_for_upgrade messages were broadcast */ 
   u_int64_t        original_ver;            /* original environment version  */ 
   u_int64_t        ver_at_startup;          /* environment version at startup */ 
-  u_int64_t        last_lsn_v12;            /* last lsn of version 12 environment */ 
-  char             upgrade_v13_time[26];    /* timestamp of when upgrade to version 13 environment was done */ 
+  u_int64_t        last_lsn_v13;            /* last lsn of version 13 environment */ 
+  char             upgrade_v14_time[26];    /* timestamp of when upgrade to version 14 environment was done */ 
   u_int64_t        env_panic;               /* non-zero if environment is panicked */ 
   u_int64_t        logger_panic;            /* non-zero if logger is panicked */ 
   u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ 

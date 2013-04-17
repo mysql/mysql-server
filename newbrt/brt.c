@@ -3166,8 +3166,10 @@ brt_init_header (BRT t, TOKUTXN txn) {
 
 // allocate and initialize a brt header.
 // t->cf is not set to anything.
-int toku_brt_alloc_init_header(BRT t, TOKUTXN txn) {
+static int 
+brt_alloc_init_header(BRT t, TOKUTXN txn) {
     int r;
+    uint64_t now = (uint64_t) time(NULL);
 
     r = brtheader_alloc(&t->h);
     if (r != 0) {
@@ -3179,6 +3181,12 @@ int toku_brt_alloc_init_header(BRT t, TOKUTXN txn) {
     t->h->layout_version = BRT_LAYOUT_VERSION;
     t->h->layout_version_original = BRT_LAYOUT_VERSION;
     t->h->layout_version_read_from_disk = BRT_LAYOUT_VERSION;	// fake, prevent unnecessary upgrade logic
+
+    t->h->build_id = BUILD_ID;
+    t->h->build_id_original = BUILD_ID;
+    
+    t->h->time_of_creation = now;
+    t->h->time_of_last_modification = 0;
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
@@ -3375,7 +3383,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     if (is_create) {
         r = toku_read_brt_header_and_store_in_cachefile(t->cf, max_acceptable_lsn, &t->h, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
-            r = toku_brt_alloc_init_header(t, txn);
+            r = brt_alloc_init_header(t, txn);
             if (r != 0) goto died_after_read_and_pin;
         }
         else if (r!=0) {

@@ -151,10 +151,13 @@ static void run_test(void)
     r = env->close(env, 0);                                                                                   CKERR(r);
     toku_free(dbs);
 
+    /*********** DO NOT TRIM LOGFILES: Trimming logfiles defeats purpose of upgrade tests which must handle untrimmed logfiles.
     // reopen, then close environment to trim logfiles
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                           CKERR(r);
     r = env->close(env, 0);                                                                                   CKERR(r);
+    ***********/
+
 }
 
 // ------------ infrastructure ----------

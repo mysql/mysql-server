@@ -114,7 +114,7 @@ struct __attribute__ ((__packed__)) leafentry {
 
 
 typedef struct leafentry *LEAFENTRY;
-typedef struct leafentry_12 *LEAFENTRY_12;
+typedef struct leafentry_13 *LEAFENTRY_13;
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 
@@ -190,9 +190,9 @@ int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t 
 
 
 size_t
-leafentry_disksize_12(LEAFENTRY_12 le);
+leafentry_disksize_13(LEAFENTRY_13 le);
 int 
-toku_le_upgrade_12_13(LEAFENTRY_12 old_leafentry, // NULL if there was no stored data.
+toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry, // NULL if there was no stored data.
 		      size_t *new_leafentry_memorysize, 
 		      size_t *new_leafentry_disksize, 
 		      LEAFENTRY *new_leafentry_p);

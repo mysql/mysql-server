@@ -6,6 +6,14 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+// Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
+// BUILD_ID of 1000 indicates development build of main, not a release build.  
+#if defined(TOKUDB_REVISION)
+#define BUILD_ID TOKUDB_REVISION
+#else
+#define BUILD_ID 1000
+#endif
+
 #include "brt_layout_version.h"
 #include "toku_assert.h"
 #include "block_allocator.h"
@@ -92,6 +100,7 @@ struct brtnode {
     int    layout_version; // What version of the data structure?
     int    layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
     int    layout_version_read_from_disk;  // transient, not serialized to disk, (useful for debugging)
+    uint32_t build_id;       // build_id (svn rev number) of software that wrote this node to disk
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
@@ -161,13 +170,17 @@ struct brt_header {
     int dirty;
     BOOL dictionary_opened;     // True once this header has been associated with a dictionary (a brt fully opened)
     DICTIONARY_ID dict_id;      // unique id for dictionary
-    int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
-    char *panic_string; // A malloced string that can indicate what went wrong.
+    int panic;                  // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
+    char *panic_string;         // A malloced string that can indicate what went wrong.
     int layout_version;
     int layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
     int layout_version_read_from_disk;  // transient, not serialized to disk
+    uint32_t build_id;                  // build_id (svn rev number) of software that wrote this node to disk
+    uint32_t build_id_original;         // build_id of software that created this tree (read from disk, overwritten when written to disk)
+    uint64_t time_of_creation;          // time this tree was created
+    uint64_t time_of_last_modification; // last time this header was serialized to disk (read from disk, overwritten when written to disk)
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
-    int64_t num_blocks_to_upgrade;      // Number of v12 blocks still not newest version. When we release layout 14 we may need to turn this to an array or add more variables.  
+    int64_t num_blocks_to_upgrade;      // Number of v13 blocks still not newest version. When we release layout 15 we may need to turn this to an array or add more variables.  
     unsigned int nodesize;
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
@@ -375,10 +388,10 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
 
 
 typedef struct brt_upgrade_status {
-    u_int64_t header_12;    // how many headers upgrade from version 12
-    u_int64_t nonleaf_12;
-    u_int64_t leaf_12;
-    u_int64_t optimized_for_upgrade_12; // how many optimize_for_upgrade messages sent
+    u_int64_t header_13;    // how many headers were upgraded from version 13
+    u_int64_t nonleaf_13;
+    u_int64_t leaf_13;
+    u_int64_t optimized_for_upgrade; // how many optimize_for_upgrade messages were sent
 } BRT_UPGRADE_STATUS_S, *BRT_UPGRADE_STATUS;
 
 void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);

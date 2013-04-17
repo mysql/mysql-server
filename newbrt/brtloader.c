@@ -2226,6 +2226,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     putbuf_bytes(&lbuf->dbuf, "tokuleaf", 8);
     putbuf_int32(&lbuf->dbuf, layout_version);
     putbuf_int32(&lbuf->dbuf, layout_version); // layout_version original
+    putbuf_int32(&lbuf->dbuf, BUILD_ID);       // build_id (svn rev number) of software that wrote this node to disk
 
     putbuf_int32(&lbuf->dbuf, target_nodesize);
     putbuf_int32(&lbuf->dbuf, flags);
@@ -2874,6 +2875,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
         int n_uncompressed_bytes_at_beginning = (8 // tokuleaf
                                                  +4 // layout version
                                                  +4 // layout version original
+                                                 +4 // build_id
                                                  );
         int uncompressed_len = lbuf->dbuf.off - n_uncompressed_bytes_at_beginning;
 
@@ -2905,12 +2907,14 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
             // cppy the uncompressed header to the compressed buffer
             memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);
             
+	    int uncompressed_header_size = n_uncompressed_bytes_at_beginning + sizeof(n_sub_blocks);
+	    
             // serialize the sub block header
-            memcpy(compressed_buf+16, &n_sub_blocks, 4);
+            memcpy(compressed_buf+n_uncompressed_bytes_at_beginning, &n_sub_blocks, 4);
             for (int i = 0; i < n_sub_blocks; i++) {
-                memcpy(compressed_buf+20+12*i+0, &sub_block[i].compressed_size, 4);
-                memcpy(compressed_buf+20+12*i+4, &sub_block[i].uncompressed_size, 4);
-                memcpy(compressed_buf+20+12*i+8, &sub_block[i].xsum, 4);
+                memcpy(compressed_buf+uncompressed_header_size+12*i+0, &sub_block[i].compressed_size, 4);
+                memcpy(compressed_buf+uncompressed_header_size+12*i+4, &sub_block[i].uncompressed_size, 4);
+                memcpy(compressed_buf+uncompressed_header_size+12*i+8, &sub_block[i].xsum, 4);
             }
             
             // compute the header checksum and serialize it
@@ -2994,12 +2998,15 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
 
     struct brt_header h; memset(&h, 0, sizeof h);
     h.layout_version   = BRT_LAYOUT_VERSION;
+    h.layout_version_original = BRT_LAYOUT_VERSION;
+    h.build_id         = BUILD_ID;
+    h.build_id_original = BUILD_ID;
+    h.time_of_creation = (uint64_t) time(NULL);
     h.checkpoint_count = 1;
     h.checkpoint_lsn   = load_lsn;
     h.nodesize         = target_nodesize;
     h.root             = root_blocknum_on_disk;
     h.flags            = 0;
-    h.layout_version_original = BRT_LAYOUT_VERSION;
     h.root_xid_that_created = root_xid_that_created;
 
     unsigned int size = toku_serialize_brt_header_size (&h);
@@ -3136,6 +3143,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     node->thisnodename = make_blocknum(blocknum_of_new_node);
     node->layout_version = BRT_LAYOUT_VERSION;
     node->layout_version_original = BRT_LAYOUT_VERSION;
+    node->build_id = BUILD_ID;
     node->height=height;
     node->u.n.n_children = n_children;
     node->flags = 0;

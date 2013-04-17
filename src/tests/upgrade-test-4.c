@@ -47,8 +47,8 @@ int littlenode = 0;
 
 char *env_dir = ENVDIR; // the default env_dir.
 char *db_v5_dir = "dir.preload-db.c.tdb";
-char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.cleanshutdown";
-char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.1.1.node4k.cleanshutdown";
+char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.cleanshutdown";
+char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.2.0.node4k.cleanshutdown";
 
 
 enum {ROWS_PER_TRANSACTION=10000};

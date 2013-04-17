@@ -38,9 +38,9 @@ NONSTANDARD_SRCS= \
 		  $(RECOVER_SRCS) \
 		  $(LOADER_SRCS) \
 
-# TODO: #3228 
-# SRCS = $(sort $(wildcard *.c))
-SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
+SRCS = $(sort $(wildcard *.c))
+# To patch out upgrade tests, replace line above with line below
+#SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
 
 #end
 
@@ -719,9 +719,8 @@ preload-db-nested.tdbrun: VGRIND=
 upgrade-test-4.tdbrun: VGRIND=
 
 
-# TODO: #3228 Restore loader-stress-test3 when ready
-#loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
-loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2)
+
+loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 	true
 
 loader-stress-test0.tdbrun: loader-stress-test.tdb$(BINSUF)

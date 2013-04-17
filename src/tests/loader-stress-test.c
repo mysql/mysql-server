@@ -7,7 +7,7 @@
  *
  * NOTE: This test is used for upgrade testing as well as for exercising the loader.
  *       Changes should not be made gratuitously.
- *       The 4.1.1 version of this test was used to create many of the preloaded
+ *       The 4.2.0 version of this test was used to create many of the preloaded
  *       environments in the <svn-top>/tokudb/tokudb.data directory.
  */
 
@@ -444,7 +444,7 @@ char *env_dir = ENVDIR; // the default env_dir.
 char *tmp_subdir = "tmp.subdir";
 
 #define OLDDATADIR "../../../../tokudb.data/"
-char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.emptydictionaries.cleanshutdown";
+char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.emptydictionaries.cleanshutdown";
 
 static void setup(void) {
     int r;
