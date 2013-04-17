@@ -2511,7 +2511,8 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 void
 toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
     assert(BP_STATE(node,childnum) == PT_AVAIL);
-    int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun); assert_zero(r);
+    int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun); 
+    invariant_zero(r);
     node->dirty = 1;
 }
 
@@ -2582,12 +2583,23 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
 #endif
 }
 
+// TODO Use this function to clean up other places where bits of messages are passed around
+//      such as toku_bnc_insert_msg() and the call stack above it.
+static size_t
+brt_msg_size(BRT_MSG msg) {
+    size_t keylen = msg->u.id.key->size;
+    size_t vallen = msg->u.id.val->size;
+    size_t xids_size = xids_get_serialize_size(msg->xids);
+    size_t rval = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_size;
+    return rval;
+}
+
+
 static void brt_nonleaf_cmd_once(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, BRT_MSG cmd, bool is_fresh)
 // Effect: Insert a message into a nonleaf.  We may put it into a child, possibly causing the child to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
 //  The re_array[i] gets set to reactivity of any modified child.
 {
-
     /* find the right subtree */
     //TODO: accesses key, val directly
     unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, desc, compare_fun);
@@ -3097,7 +3109,10 @@ toku_bnc_flush_to_child(
         assert_zero(r);
         r = toku_omt_clone_pool(&live_list_reverse, logger->live_list_reverse, sizeof(XID_PAIR_S));
         assert_zero(r);
-        toku_pthread_mutex_unlock(&logger->txn_list_lock);
+	size_t buffsize = bnc->n_bytes_in_buffer; 
+	brt_status.msg_bytes_out += buffsize;   // take advantage of surrounding mutex
+	brt_status.msg_bytes_curr -= buffsize;  // may be misleading if there's a broadcast message in there
+	toku_pthread_mutex_unlock(&logger->txn_list_lock);
     } else {
         snapshot_txnids = NULL;
         live_list_reverse = NULL;
@@ -3544,6 +3559,14 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
         node->max_msn_applied_to_node_on_disk = cmd_msn;
 	node->dirty = 1;
    } else {
+	uint64_t msgsize = brt_msg_size(cmd);
+	brt_status.msg_bytes_in += msgsize;
+	brt_status.msg_bytes_curr += msgsize;
+	if (brt_status.msg_bytes_curr > brt_status.msg_bytes_max)
+	    brt_status.msg_bytes_max = brt_status.msg_bytes_curr;
+	brt_status.msg_num++;
+	if (brt_msg_applies_all(cmd))
+	    brt_status.msg_num_broadcast++;	
         brt_nonleaf_put_cmd(brt->compare_fun, &brt->h->descriptor, node, cmd, true);
     }
 }
