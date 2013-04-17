@@ -33,14 +33,14 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation = random_sleep;
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
+    run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }
 
 int
 test_main(int UU(argc), char *const UU(argv[])) {
     struct cli_args args = get_default_args_for_perf();
     db_env_set_mvcc_garbage_collection_verification(1);
-    args.time_of_test = 60;
+    args.num_seconds = 60;
     args.num_ptquery_threads = 12;
     stress_test_main(&args);
     return 0;

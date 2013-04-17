@@ -51,7 +51,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     arg_init(&myarg, dbp, env, cli_args);
     myarg.operation = commit_and_create_txn;
     
-    run_workers(&myarg, 1, cli_args->time_of_test, false, cli_args);
+    run_workers(&myarg, 1, cli_args->num_seconds, false, cli_args);
 
     for (int i = 0; i < num_txns; i++) {
         int chk_r = txns[i]->commit(txns[i], 0);

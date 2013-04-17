@@ -255,7 +255,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[0].operation = hi_inserts;
     myargs[1].operation = hi_create_index;
 
-    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
+    run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }
 
 int

@@ -126,7 +126,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     }
 
     db_env_set_checkpoint_callback2(checkpoint_callback2, NULL);
-    time_til_crash = random() % cli_args->time_of_test;
+    time_til_crash = random() % cli_args->num_seconds;
     start_time = get_tnow();
     run_workers(myargs, num_threads, INT32_MAX, true, cli_args);
 }

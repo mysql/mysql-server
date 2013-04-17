@@ -229,7 +229,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     // stress_openclose_crash_at_end should be changed to true or false, 
     // depending if this test is for recovery or not.
     const bool crash_at_end = stress_openclose_crash_at_end;
-    run_workers(myargs, total_threads, cli_args->time_of_test, crash_at_end, cli_args);
+    run_workers(myargs, total_threads, cli_args->num_seconds, crash_at_end, cli_args);
     
     // the stress test is now complete. get ready for shutdown/close.
     //
