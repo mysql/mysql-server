@@ -69,7 +69,6 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     fill_bfe_for_full_read(&bfe_all, brt_h);
     BRTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_all);
-    (*dn)->h = brt_h;
     BOOL is_leaf = ((*dn)->height == 0);
     assert(r==0);
     for (int i = 0; i < (*dn)->n_children; i++) {
@@ -165,7 +164,6 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     BRTNODE_DISK_DATA ndd = NULL;
     int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_subset);
     assert(r==0);
-    (*dn)->h = brt_h;
     BOOL is_leaf = ((*dn)->height == 0);
     // at this point, although both partitions are available, only the 
     // second basement node should have had its clock
@@ -212,7 +210,6 @@ test3_leaf(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     BRTNODE_DISK_DATA ndd = NULL;
     int r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_min);
     assert(r==0);
-    (*dn)->h = brt_h;
     //
     // make sure we have a leaf
     //
@@ -276,7 +273,6 @@ test_serialize_nonleaf(void) {
     struct brt *XMALLOC(brt);
     struct brt_header *XCALLOC(brt_h);
     brt->h = brt_h;
-    sn.h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -363,7 +359,6 @@ test_serialize_leaf(void) {
     struct brt *XMALLOC(brt);
     struct brt_header *XCALLOC(brt_h);
     brt->h = brt_h;
-    sn.h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
