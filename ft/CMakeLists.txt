@@ -16,6 +16,10 @@ add_custom_command(
   COMMAND $<TARGET_FILE:logformat> .
   DEPENDS logformat
   )
+add_custom_target(
+  generate_log_code
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/log_code.c" "${CMAKE_CURRENT_BINARY_DIR}/log_print.c" "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
+  )
 
 set(FT_SOURCES
   block_allocator.c
