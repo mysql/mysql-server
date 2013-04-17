@@ -28,6 +28,7 @@ OBJS_RAW = \
 	ydb_lib \
 	ydb \
 	errors \
+	dlmalloc \
 	elocks \
 #\end
 #OBJS automatically defined.
