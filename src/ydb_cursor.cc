@@ -639,9 +639,6 @@ toku_c_close(DBC * c) {
     toku_ft_cursor_close(dbc_struct_i(c)->c);
     toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
     toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
-#if !TOKUDB_NATIVE_H
-    toku_free(dbc_struct_i(c));
-#endif
     toku_free(c);
     return 0;
 }
@@ -831,10 +828,6 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_close);
 #undef SCRS
 
-#if !TOKUDB_NATIVE_H
-    MALLOC(result->i); // otherwise it is allocated as part of result->ii
-    assert(result->i);
-#endif
     result->dbp = db;
 
     dbc_struct_i(result)->txn = txn;
@@ -877,9 +870,6 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
         *c = result;
     }
     else {
-#if !TOKUDB_NATIVE_H
-        toku_free(result->i); // otherwise it is allocated as part of result->ii
-#endif
         toku_free(result);
     }
     return r;

@@ -525,7 +525,6 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\nextern \"C\" {\n#endif\n");
 
     printf("#define TOKUDB 1\n");
-    printf("#define TOKUDB_NATIVE_H 1\n");
     printf("#define DB_VERSION_MAJOR %d\n", DB_VERSION_MAJOR);
     printf("#define DB_VERSION_MINOR %d\n", DB_VERSION_MINOR);
     printf("/* As of r40364 (post TokuDB 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
