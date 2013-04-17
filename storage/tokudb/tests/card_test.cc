@@ -32,6 +32,9 @@ uint get_key_parts(KEY_INFO *key_info) {
     assert(key_info);
     return 0;
 }
+#if __APPLE__
+typedef unsigned long ulong;
+#endif
 #include <tokudb_card.h>
 
 // verify that we can create and close a status dictionary

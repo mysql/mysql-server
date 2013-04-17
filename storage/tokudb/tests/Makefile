@@ -15,7 +15,7 @@ endif
 all: $(TARGETS)
 
 clean:
-	rm -rf $(TARGETS) *.gcov *.gcno *.gcda *.testdir
+	rm -rf $(TARGETS) *.gcov *.gcno *.gcda *.testdir *.dSYM
 
 check: $(CHECKS)
 	true
