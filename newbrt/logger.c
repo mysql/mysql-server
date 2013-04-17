@@ -132,7 +132,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     logger->next_log_file_number = nexti;
     open_logfile(logger);
 
-    logger->is_open = 1;
+    logger->is_open = TRUE;
     return 0;
 }
 
@@ -166,7 +166,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     r = ml_destroy(&logger->input_lock);                            if (r!=0) goto panic;
     r = toku_pthread_mutex_destroy(&logger->output_condition_lock); if (r!=0) goto panic;
     r = toku_pthread_cond_destroy(&logger->output_condition);       if (r!=0) goto panic;
-    logger->is_panicked=1; // Just in case this might help.
+    logger->is_panicked=TRUE; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_omt_destroy(&logger->live_txns);
     toku_logfilemgr_destroy(&logger->logfilemgr);
@@ -396,7 +396,7 @@ int toku_logger_fsync (TOKULOGGER logger)
 
 void toku_logger_panic (TOKULOGGER logger, int err) {
     logger->panic_errno=err;
-    logger->is_panicked=1;
+    logger->is_panicked=TRUE;
 }
 int toku_logger_panicked(TOKULOGGER logger) {
     if (logger==0) return 0;
