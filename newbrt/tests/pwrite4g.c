@@ -5,18 +5,19 @@
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     char fname[] = "pwrite4g.data";
-    int r = unlink(fname);
-    assert(r==0);
+    int r;
+    unlink(fname);
     int fd = open(fname, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
     char buf[] = "hello";
-    r = toku_os_pwrite(fd, buf, sizeof(buf), (1LL<<32)+100);
+    int64_t offset = (1LL<<32) + 100;
+    r = toku_os_pwrite(fd, buf, sizeof(buf), offset);
     assert(r==sizeof(buf));
+    int64_t fsize;
+    r = toku_os_get_file_size(fd, &fsize);
+    assert(r == 0);
+    assert(fsize > 100 + (signed)sizeof(buf));
     r = close(fd);
     assert(r==0);
-    struct stat statbuf;
-    r = stat(fname, &statbuf);
-    assert(r==0);
-    assert(statbuf.st_size > 100 + (signed)sizeof(buf));
     return 0;
 }
