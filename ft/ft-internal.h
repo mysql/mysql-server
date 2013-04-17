@@ -973,6 +973,7 @@ typedef enum {
     FT_CREATE_NONLEAF,                         // number of nonleaf nodes created
     FT_DESTROY_LEAF,                           // number of leaf nodes destroyed
     FT_DESTROY_NONLEAF,                        // number of nonleaf nodes destroyed
+    FT_MSG_KEYVAL_BYTES_IN,                    // how many bytes of keyval data ingested by the tree (all tree, no overhead counted)
     FT_MSG_BYTES_IN,                           // how many bytes of messages injected at root (for all trees)
     FT_MSG_BYTES_OUT,                          // how many bytes of messages flushed from h1 nodes to leaves
     FT_MSG_BYTES_CURR,                         // how many bytes of messages currently in trees (estimate)
