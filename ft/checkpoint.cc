@@ -213,6 +213,24 @@ toku_checkpoint_destroy(void) {
     initialized = false;
 }
 
+static bool checkpoint_caller_is_aggressive(checkpoint_caller_t caller_id) {    
+    bool retval;
+    switch (caller_id) {
+    case SCHEDULED_CHECKPOINT:
+    case CLIENT_CHECKPOINT:
+        retval = false;
+        break;
+    case TXN_COMMIT_CHECKPOINT:   
+    case STARTUP_CHECKPOINT: 
+    case UPGRADE_CHECKPOINT:
+    case RECOVERY_CHECKPOINT:
+    case SHUTDOWN_CHECKPOINT:
+        retval = true;
+        break;
+    }
+    return retval;
+}
+
 #define SET_CHECKPOINT_FOOTPRINT(x) STATUS_VALUE(CP_FOOTPRINT) = footprint_offset + x
 
 
@@ -241,16 +259,18 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     
     SET_CHECKPOINT_FOOTPRINT(30);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
-    r = toku_cachetable_begin_checkpoint(cp, logger);
+    r = toku_cachetable_begin_checkpoint(cp);
 
     toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
 
     SET_CHECKPOINT_FOOTPRINT(40);
     if (r==0) {
-        if (callback_f) 
+        if (callback_f) {
             callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-        r = toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
+        }
+        bool aggressive = checkpoint_caller_is_aggressive(caller_id);
+        r = toku_cachetable_end_checkpoint(cp, aggressive, callback2_f, extra2);
     }
     SET_CHECKPOINT_FOOTPRINT(50);
     if (r==0 && logger) {

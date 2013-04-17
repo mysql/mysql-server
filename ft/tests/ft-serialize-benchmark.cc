@@ -139,7 +139,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, true, brt->ft, false);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, true, brt->ft, false, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -269,7 +269,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;

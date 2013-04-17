@@ -24,7 +24,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-       bool UU(is_clone)
+       bool UU(is_clone), bool UU(aggressive)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -91,7 +91,7 @@ cachetable_test (void) {
   // flush will be called only for v1, because v1 is dirty
   //
   CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-  r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
+  r = toku_cachetable_begin_checkpoint(cp); assert(r == 0);
 
 
   r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
@@ -101,7 +101,7 @@ cachetable_test (void) {
   flush_called = false;
   r = toku_cachetable_end_checkpoint(
       cp, 
-      NULL, 
+      false, 
       NULL,
       NULL
       );

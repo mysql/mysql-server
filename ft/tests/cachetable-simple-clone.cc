@@ -32,7 +32,7 @@ flush (
     bool w      __attribute__((__unused__)),
     bool keep   __attribute__((__unused__)),
     bool c      __attribute__((__unused__)),
-    bool UU(is_clone)
+    bool UU(is_clone), bool UU(aggressive)
     ) 
 {  
     if (w) usleep(5*1024*1024);
@@ -86,7 +86,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL);
+    r = toku_cachetable_begin_checkpoint(cp);
     assert_zero(r);
     struct timeval tstart;
     struct timeval tend; 
@@ -132,7 +132,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
 
     r = toku_cachetable_end_checkpoint(
         cp, 
-        NULL, 
+        false, 
         NULL,
         NULL
         );

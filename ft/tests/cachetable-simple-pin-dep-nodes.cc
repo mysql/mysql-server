@@ -25,7 +25,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
        ) {
     /* Do nothing */
     if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -107,7 +107,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         //
         // should mark the v1 and v2 as pending
         //
-        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r==0);
+        r = toku_cachetable_begin_checkpoint(cp); assert(r==0);
     }
     //
     // This call should cause a flush for both
@@ -147,7 +147,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     if (start_checkpoint) {
         r = toku_cachetable_end_checkpoint(
             cp, 
-            NULL, 
+            false, 
             NULL,
             NULL
             );

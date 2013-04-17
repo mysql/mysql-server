@@ -324,7 +324,7 @@ public:
     int begin_checkpoint();
     void add_background_job();
     void remove_background_job();
-    int end_checkpoint(void (*testcallback_f)(void*),  void* testextra);
+    int end_checkpoint(bool aggressive, void (*testcallback_f)(void*),  void* testextra);
     TOKULOGGER get_logger();
     // used during begin_checkpoint
     void increment_num_txns();
@@ -347,7 +347,7 @@ private:
     void turn_on_pending_bits();
     // private methods for end_checkpoint    
     void fill_checkpoint_cfs(CACHEFILE* checkpoint_cfs);
-    void checkpoint_pending_pairs();
+    void checkpoint_pending_pairs(bool aggressive);
     void checkpoint_userdata(CACHEFILE* checkpoint_cfs);
     void log_end_checkpoint();
     void end_checkpoint_userdata(CACHEFILE* checkpoint_cfs);

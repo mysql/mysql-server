@@ -26,7 +26,7 @@ rollback_log_destroy(ROLLBACK_LOG_NODE log) {
 // On success return nbytes.
 void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
                                           void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
-                                          bool write_me, bool keep_me, bool for_checkpoint, bool is_clone) {
+                                          bool write_me, bool keep_me, bool for_checkpoint, bool is_clone, bool UU(aggressive)) {
     int r;
     ROLLBACK_LOG_NODE log = nullptr;
     SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;

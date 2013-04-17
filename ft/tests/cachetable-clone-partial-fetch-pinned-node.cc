@@ -29,7 +29,7 @@ flush (
     bool w      __attribute__((__unused__)),
     bool keep   __attribute__((__unused__)),
     bool c      __attribute__((__unused__)),
-    bool UU(is_clone)
+    bool UU(is_clone), bool UU(aggressive)
     ) 
 {  
     if (is_clone) {
@@ -73,7 +73,7 @@ cachetable_test (void) {
 
     flush_completed = false;
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL); assert_zero(r);
+    r = toku_cachetable_begin_checkpoint(cp); assert_zero(r);
     assert_zero(r);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert_zero(r);
@@ -93,7 +93,7 @@ cachetable_test (void) {
 
     r = toku_cachetable_end_checkpoint(
         cp, 
-        NULL, 
+        false, 
         NULL,
         NULL
         );
