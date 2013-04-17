@@ -254,7 +254,7 @@ getsysinfo $tracefile
 
 mkdir -p $FULLTOKUDBDIR/Coverage >/dev/null 2>&1
 cd $FULLTOKUDBDIR/Coverage
-cmake \
+CC=gcc47 CXX=g++47 cmake \
     -D CMAKE_BUILD_TYPE=Debug \
     -D BUILD_TESTING=ON \
     -D USE_GCOV=ON \
