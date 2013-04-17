@@ -120,18 +120,12 @@
    Memcheck:Leak
    fun:calloc
    fun:_dlerror_run
-   fun:dlsym
+   obj:/lib64/libdl-2.5.so
 }
 {
    dlsym_on_centos
    Memcheck:Leak
    fun:malloc
    fun:_dl_signal_error
-   fun:_dl_signal_cerror
-   fun:_dl_lookup_symbol_x
-   fun:do_sym
-   fun:dlsym_doit
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlsym
+   obj:/lib64/ld-2.5.so
 }

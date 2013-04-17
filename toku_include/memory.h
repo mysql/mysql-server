@@ -13,6 +13,9 @@ extern "C" {
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
 
+int toku_memory_startup(void);
+void toku_memory_shutdown(void);
+
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
@@ -105,6 +108,7 @@ typedef struct memory_status {
     uint64_t freed;           // number of bytes freed;
     uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
     const char *mallocator_version;
+    uint64_t mmap_threshold;
 } MEMORY_STATUS_S, *MEMORY_STATUS;
 
 void toku_memory_get_status(MEMORY_STATUS s);

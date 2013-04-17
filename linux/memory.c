@@ -18,24 +18,46 @@ static realloc_fun_t t_xrealloc = 0;
 
 static MEMORY_STATUS_S status;
 
-//TODO 4222  Replace this hard-coded constant with supplied by mallocator.
-//           Perhaps make this work with libc as well.
-static const size_t mmap_limit = 4 * 1024 * 1024;
+int
+toku_memory_startup(void) {
+    int result = 0;
+   
+    // initialize libc malloc
+    size_t mmap_threshold = 64 * 1024; // 64K and larger should be malloced with mmap().
+    int success = mallopt(M_MMAP_THRESHOLD, mmap_threshold);
+    if (success) {
+        status.mallocator_version = "libc";
+        status.mmap_threshold = mmap_threshold;
+    } else
+        result = EINVAL;
+
+    // jemalloc has a mallctl function, while libc malloc does not.  we can check if jemalloc 
+    // is loaded by checking if the mallctl function can be found.  if it can, we call it 
+    // to get version and mmap threshold configuration.
+    typedef int (*mallctl_fun_t)(const char *, void *, size_t *, void *, size_t);
+    mallctl_fun_t mallctl_f;
+    mallctl_f = (mallctl_fun_t) dlsym(NULL, "mallctl");
+    if (mallctl_f) { // jemalloc is loaded
+        size_t version_length = sizeof status.mallocator_version;
+        result = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
+        if (result == 0) {
+            size_t lg_chunk; // log2 of the mmap threshold
+            size_t lg_chunk_length = sizeof lg_chunk;
+            result  = mallctl_f("lg_chunk", &lg_chunk, &lg_chunk_length, NULL, 0);
+            if (result == 0)
+                status.mmap_threshold = 1 << lg_chunk;
+        }
+    }
+
+    return result;
+}
+
+void
+toku_memory_shutdown(void) {
+}
 
 void 
 toku_memory_get_status(MEMORY_STATUS s) {
-    if (status.mallocator_version == NULL) {
-        // mallctl in jemalloc can be used to get the version string
-        typedef int (*mallctl_fun_t)(const char *, void *, size_t *, void *, size_t);
-        mallctl_fun_t mallctl_f;
-        mallctl_f = (mallctl_fun_t) dlsym(NULL, "mallctl");
-        if (mallctl_f) {
-            size_t version_length = sizeof status.mallocator_version;
-            int r = mallctl_f("version", &status.mallocator_version, &version_length, NULL, 0);
-            assert(r == 0);
-        } else
-            status.mallocator_version = "libc";
-    }
     *s = status;
 }
 
@@ -56,16 +78,15 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
     }
 }
 
-
-
-size_t toku_memory_footprint(void * p, size_t touched) {
+size_t 
+toku_memory_footprint(void * p, size_t touched) {
     static size_t pagesize = 0;
     size_t rval = 0;
     if (!pagesize)
 	pagesize = sysconf(_SC_PAGESIZE);
     if (p) {
-	size_t usable = malloc_usable_size(p);
-	if (usable >= mmap_limit) {
+	size_t usable = my_malloc_usable_size(p);
+	if (usable >= status.mmap_threshold) {
             int num_pages = (touched + pagesize) / pagesize;
             rval = num_pages * pagesize;
 	}
@@ -76,8 +97,8 @@ size_t toku_memory_footprint(void * p, size_t touched) {
     return rval;
 }
 
-
-void *toku_malloc(size_t size) {
+void *
+toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
         size_t used = my_malloc_usable_size(p);
@@ -184,7 +205,7 @@ toku_xrealloc(void *v, size_t size) {
 
 size_t 
 toku_malloc_usable_size(void *p) {
-    return p == NULL ? 0 : malloc_usable_size(p);
+    return my_malloc_usable_size(p);
 }
 
 void *
