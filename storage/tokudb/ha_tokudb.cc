@@ -6157,6 +6157,7 @@ compression_method_to_row_type(enum toku_compression_method method)
     case TOKU_NO_COMPRESSION:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
     case TOKU_ZLIB_METHOD:
+    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
         return ROW_TYPE_TOKU_ZLIB;
     case TOKU_QUICKLZ_METHOD:
         return ROW_TYPE_TOKU_QUICKLZ;
@@ -6201,7 +6202,7 @@ row_type_to_compression_method(enum row_type type)
     case ROW_TYPE_TOKU_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
     case ROW_TYPE_TOKU_ZLIB:
-        return TOKU_ZLIB_METHOD;
+        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
     case ROW_TYPE_TOKU_QUICKLZ:
         return TOKU_QUICKLZ_METHOD;
     case ROW_TYPE_TOKU_LZMA:
