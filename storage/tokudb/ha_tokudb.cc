@@ -699,7 +699,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
     // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
-    changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),lock_grabbed(false), primary_key_offsets(NULL) {
+    changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
 }
 
 static const char *ha_tokudb_exts[] = {
@@ -2215,7 +2215,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     }
     active_index = keynr;
     last_cursor_error = 0;
-    lock_grabbed = false;
+    range_lock_grabbed = false;
     DBUG_ASSERT(keynr <= table->s->keys);
     DBUG_ASSERT(share->key_file[keynr]);
     if ((error = share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, table->reginfo.lock_type > TL_WRITE_ALLOW_READ ? 0 : 0))) {
@@ -2232,7 +2232,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
 int ha_tokudb::index_end() {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_end %p", this);
     int error = 0;
-    lock_grabbed = false;
+    range_lock_grabbed = false;
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
         error = cursor->c_close(cursor);
@@ -2570,7 +2570,7 @@ int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     int error; 
     DBT row;
-    u_int32_t flags = lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+    u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
     CHECK_VALID_CURSOR();
     
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
@@ -2604,11 +2604,11 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
         !(table->key_info[active_index].flags & HA_NOSAME) && 
         !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
 
-        u_int32_t flags = lock_grabbed ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT_DUP;
+        u_int32_t flags = range_lock_grabbed ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT_DUP;
         error = cursor->c_get(cursor, &last_key, &row, flags);
         error = read_row(error, buf, active_index, &row, &last_key, 1);
     } else {
-        u_int32_t flags = lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+        u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
         error = read_row(cursor->c_get(cursor, &last_key, &row, flags), buf, active_index, &row, &last_key, 1);
         if (!error &&::key_cmp_if_same(table, key, active_index, keylen))
             error = HA_ERR_END_OF_FILE;
@@ -2629,7 +2629,7 @@ cleanup:
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     int error;
-    u_int32_t flags = lock_grabbed ? (DB_PREV | DB_PRELOCKED) : DB_PREV;
+    u_int32_t flags = range_lock_grabbed ? (DB_PREV | DB_PRELOCKED) : DB_PREV;
     CHECK_VALID_CURSOR();
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
@@ -2693,7 +2693,7 @@ int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     int error;
     current_row.flags = DB_DBT_REALLOC;
-    lock_grabbed = false;
+    range_lock_grabbed = false;
     if (scan) {
         DB* db = share->key_file[primary_key];
         error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
@@ -2703,12 +2703,12 @@ int ha_tokudb::rnd_init(bool scan) {
     if (error) { goto cleanup;}
 
     //
-    // only want to set lock_grabbed to true after index_init
+    // only want to set range_lock_grabbed to true after index_init
     // successfully executed for two reasons:
     // 1) index_init will reset it to false anyway
     // 2) if it fails, we don't want prelocking on,
     //
-    if (scan) { lock_grabbed = true; }
+    if (scan) { range_lock_grabbed = true; }
     error = 0;
 cleanup:
     TOKUDB_DBUG_RETURN(error);
@@ -2719,7 +2719,7 @@ cleanup:
 //
 int ha_tokudb::rnd_end() {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_end");
-    lock_grabbed = false;
+    range_lock_grabbed = false;
     TOKUDB_DBUG_RETURN(index_end());
 }
 
@@ -2736,7 +2736,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     int error;
     DBT row;    
-    u_int32_t flags = lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+    u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
 
     CHECK_VALID_CURSOR()
     //
@@ -2805,7 +2805,7 @@ int ha_tokudb::read_range_first(
     uchar end_key_buff [table_share->max_key_length + MAX_REF_PARTS * 3];
     bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
     bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
-    lock_grabbed = false;
+    range_lock_grabbed = false;
 
 
     if (start_key) {
@@ -2860,7 +2860,7 @@ int ha_tokudb::read_range_first(
         }
         goto cleanup; 
     }
-    lock_grabbed = true;
+    range_lock_grabbed = true;
     error = handler::read_range_first(start_key, end_key, eq_range, sorted);
 
 cleanup:
@@ -2872,7 +2872,7 @@ int ha_tokudb::read_range_next()
     int error;
     error = handler::read_range_next();
     if (error) {
-        lock_grabbed = false;
+        range_lock_grabbed = false;
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -3010,8 +3010,9 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             TOKUDB_DBUG_RETURN(1);
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
-    if (trx->all == 0)
+    if (trx->all == 0) {
         trx->sp_level = 0;
+    }
     if (lock_type != F_UNLCK) {
         if (!trx->tokudb_lock_count++) {
             DBUG_ASSERT(trx->stmt == 0);
@@ -3045,7 +3046,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             trans_register_ha(thd, FALSE, tokudb_hton);
         }
         transaction = trx->stmt;
-    } else {
+    }
+    else {
         lock.type = TL_UNLOCK;  // Unlocked
         thread_safe_add(share->rows, changed_rows, &share->mutex);
         changed_rows = 0;
@@ -3127,8 +3129,9 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     TOKUDB_DBUG_ENTER("ha_tokudb::store_lock, lock_type=%d", lock_type);
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
-        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables)
+        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables) {
             lock_type = TL_WRITE_ALLOW_WRITE;
+        }
         lock.type = lock_type;
     }
     *to++ = &lock;
