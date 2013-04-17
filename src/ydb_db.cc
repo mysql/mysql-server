@@ -1012,7 +1012,7 @@ locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], char * ne
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (using_txns) {
-        ret = toku_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        ret = toku_txn_begin(env, txn, &child_txn, 0);
         invariant_zero(ret);
     }
 
