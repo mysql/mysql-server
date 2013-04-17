@@ -12,7 +12,6 @@ typedef struct st_tokudb_share {
 
     ulonglong auto_ident;
     ulonglong last_auto_increment;
-    ulong *rec_per_key;
     DB *status_block;
     //
     // DB that is indexed on the primary key

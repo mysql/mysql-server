@@ -366,9 +366,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
     length = (uint) strlen(table_name);
 
     if (!(share = (TOKUDB_SHARE *) hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
-        ulong *rec_per_key;
         char *tmp_name;
-        uint num_keys = table->s->keys;
 
         //
         // create share and fill it with all zeroes
@@ -378,7 +376,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
             my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
                             &share, sizeof(*share),
                             &tmp_name, length + 1, 
-                            &rec_per_key, num_keys * sizeof(ha_rows), 
                             NullS))) {
             pthread_mutex_unlock(&tokudb_mutex);
             return NULL;
@@ -388,7 +385,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
         share->table_name = tmp_name;
         strmov(share->table_name, table_name);
 
-        share->rec_per_key = rec_per_key;
         bzero((void *) share->key_file, sizeof(share->key_file));
 
         if (my_hash_insert(&tokudb_open_tables, (uchar *) share))
@@ -1779,42 +1775,11 @@ void ha_tokudb::get_status() {
         }
 
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
-            DB_TXN *transaction = NULL;
-            int r = 0;
-            if (tokudb_init_flags & DB_INIT_TXN)
-                r = db_env->txn_begin(db_env, 0, &transaction, 0);
-            if (r == 0) {
-                r = share->status_block->cursor(share->status_block, transaction, &cursor, 0);
-                if (r == 0) {
-                    DBT row;
-                    char rec_buff[64];
-                    bzero((void *) &row, sizeof(row));
-                    bzero((void *) &last_key, sizeof(last_key));
-                    row.data = rec_buff;
-                    row.ulen = sizeof(rec_buff);
-                    row.flags = DB_DBT_USERMEM;
-                    if (!cursor->c_get(cursor, &last_key, &row, DB_FIRST)) {
-                        uint i;
-                        uchar *pos = (uchar *) row.data;
-                        //
-                        // used to put read estimate of row count here.
-                        // no longer do so, so for backward compatibility,
-                        // just move pos by 4 bytes
-                        //
-                        pos += 4;
-                        for (i = 0; i < table_share->keys; i++) {
-                            share->rec_per_key[i] = uint4korr(pos);
-                            pos += 4;
-                        }
-                    }
-                    cursor->c_close(cursor);
-                }
-                if (transaction) {
-                    r = transaction->commit(transaction, 0);
-                }
-                transaction = NULL;
-            }
-            cursor = NULL;
+            //
+            // do nothing for now
+            // previously added info from status.tokudb
+            // as of now, that info is not needed so removed dead code
+            //
         }
         share->status |= STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT;
         pthread_mutex_unlock(&share->mutex);
@@ -1859,19 +1824,10 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
                 goto end;
         }
         {
-            char rec_buff[4 + MAX_KEY * 4], *pos = rec_buff;
             //
-            // we used to store estimate of row count here
-            // no longer do so, so for backwards compatibility,
-            // just move ptr up 4 bytes
+            // used to write data here. The data that was written
+            // is no longer required to be put in status.tokudb
             //
-            pos += 4;
-            for (uint i = 0; i < table->s->keys; i++) {
-                int4store(pos, share->rec_per_key[i]);
-                pos += 4;
-            }
-            DBUG_PRINT("info", ("updating status for %s", share->table_name));
-            (void) write_status(share->status_block, rec_buff, (uint) (pos - rec_buff));
             share->status &= ~STATUS_TOKUDB_ANALYZE;
         }
       end:
@@ -3061,7 +3017,7 @@ int ha_tokudb::info(uint flag) {
     if ((flag & HA_STATUS_CONST) || version != share->version) {
         version = share->version;
         for (uint i = 0; i < table_share->keys; i++) {
-            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = share->rec_per_key[i];
+            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 0;
         }
     }
     /* Don't return key if we got an error for the internal primary key */
