@@ -1046,7 +1046,6 @@ int ha_tokudb::open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     error = db_create(ptr, db_env, 0);
     if (error) { goto cleanup; }
     
-    (*ptr)->set_bt_compare((*ptr), tokudb_cmp_dbt_key);
     error = (*ptr)->open((*ptr), txn, newname, NULL, DB_BTREE, open_mode, 0);
     if (error) { 
         goto cleanup; 
@@ -1066,7 +1065,7 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
     int error;    
     char* newname = NULL;
     uint open_flags = (is_read_only ? DB_RDONLY : 0) | DB_THREAD;
-    open_flags += DB_AUTO_COMMIT;
+    open_flags |= DB_AUTO_COMMIT;
 
     assert(share->file == NULL);
     assert(share->key_file[primary_key] == NULL);
@@ -1087,11 +1086,6 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
     }
     share->key_file[primary_key] = share->file;
 
-    //
-    // set comparison function for main.tokudb
-    //
-    share->file->set_bt_compare(share->file, tokudb_cmp_dbt_key);
-    
     error = share->file->open(share->file, txn, newname, NULL, DB_BTREE, open_flags, 0);
     if (error) {
         goto exit;
@@ -1100,6 +1094,8 @@ int ha_tokudb::open_main_dictionary(const char* name, bool is_read_only, DB_TXN*
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("open:%s:file=%p\n", newname, share->file);
     }
+
+    error = 0;
 exit:
     if (error) {
         if (share->file) {
@@ -1135,14 +1131,12 @@ int ha_tokudb::open_secondary_dictionary(DB** ptr, KEY* key_info, const char* na
     }
     make_name(newname, name, dict_name);
 
-    open_flags += DB_AUTO_COMMIT;
+    open_flags |= DB_AUTO_COMMIT;
 
     if ((error = db_create(ptr, db_env, 0))) {
         my_errno = error;
         goto cleanup;
     }
-
-    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);
 
 
     if ((error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0))) {
@@ -4739,12 +4733,11 @@ int toku_dbt_up(DB*,
 }
 
 
-static int create_sub_table(const char *table_name, int flags , DBT* row_descriptor, DB_TXN* txn) {
+static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN* txn) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file = NULL;
     
-    DBUG_PRINT("enter", ("flags: %d", flags));
     
     error = db_create(&file, db_env, 0);
     if (error) {
@@ -4753,15 +4746,13 @@ static int create_sub_table(const char *table_name, int flags , DBT* row_descrip
         goto exit;
     }
         
-    file->set_flags(file, flags);
-
     error = file->set_descriptor(file, 1, row_descriptor, toku_dbt_up);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;
     }
     
-    error = file->open(file, txn, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
+    error = file->open(file, txn, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
@@ -4877,7 +4868,6 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
     char dict_name[MAX_DICT_NAME_LEN];
 
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
-    int flags = 0;
 
     bzero(&row_descriptor, sizeof(row_descriptor));
     row_desc_buff = (uchar *)my_malloc(2*(form->s->fields * 6)+10 ,MYF(MY_WME));
@@ -4902,7 +4892,7 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
         hpk,
         prim_key
         );
-    error = create_sub_table(newname, flags, &row_descriptor, txn);
+    error = create_sub_table(newname, &row_descriptor, txn);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -4946,7 +4936,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
         );
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, 0, &row_descriptor, txn);
+    error = create_sub_table(newname, &row_descriptor, txn);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -4992,9 +4982,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = db_create(&status_block, db_env, 0);
     if (error) { goto cleanup; }
 
-    status_block->set_bt_compare(status_block, tokudb_cmp_dbt_key);
-
-    error = status_block->open(status_block, txn, newname, NULL, DB_BTREE, DB_CREATE, 0);
+    error = status_block->open(status_block, txn, newname, NULL, DB_BTREE, DB_CREATE | DB_EXCL, 0);
     if (error) { goto cleanup; }
 
     version = HA_TOKU_VERSION;
@@ -5133,7 +5121,7 @@ cleanup:
 //
 int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete) {
     int error;
-    DB* status_db;
+    DB* status_db = NULL;
     DBC* status_cursor = NULL;
     DB_TXN* txn = NULL;
     DBT curr_key;
@@ -6082,7 +6070,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             share->table_name, 
             NULL,
             "main", 
-            false, //is key
+            false, //is_key
             txn,
             true // is a delete
             );
@@ -6093,7 +6081,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             share->table_name, 
             NULL,
             table_share->key_info[keynr].name, 
-            true, //is key
+            true, //is_key
             txn,
             true // is a delete
             );

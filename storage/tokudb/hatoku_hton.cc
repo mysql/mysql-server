@@ -202,12 +202,6 @@ static int tokudb_init_func(void *p) {
         DBUG_PRINT("info", ("set_default_bt_compare%d\n", r));
         goto error; 
     }
-    r = db_env->set_default_dup_compare(db_env, tokudb_cmp_dbt_data);
-    if (r) {
-        DBUG_PRINT("info", ("set_default_dup_compare%d\n", r));
-        goto error; 
-    }
-
 
     // config directories
 #if 0
@@ -298,7 +292,6 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
     
-    metadata_db->set_bt_compare(metadata_db, tokudb_cmp_dbt_key);    
 
     r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
     if (r) {
@@ -307,7 +300,7 @@ static int tokudb_init_func(void *p) {
             goto error;
         }
         sql_print_warning("No metadata table exists, so creating it");
-        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask);
+        r= metadata_db->open(metadata_db, NULL, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
         if (r) {
             goto error;
         }
@@ -318,7 +311,6 @@ static int tokudb_init_func(void *p) {
             DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
             goto error;
         }
-        metadata_db->set_bt_compare(metadata_db, tokudb_cmp_dbt_key);    
         r= metadata_db->open(metadata_db, 0, TOKU_METADB_NAME, NULL, DB_BTREE, DB_THREAD|DB_AUTO_COMMIT, 0);
         if (r) {
             goto error;

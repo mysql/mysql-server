@@ -97,8 +97,6 @@ int tokudb_compare_two_keys(
 
 int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
-int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb);
-
 //TODO: QQQ Only do one direction for prefix.
 int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
