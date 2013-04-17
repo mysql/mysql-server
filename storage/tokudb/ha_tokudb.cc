@@ -2282,16 +2282,16 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
 
     if (keynr == active_index && cursor) {
-        error = cursor->c_del(cursor, 0);
+        error = cursor->c_del(cursor, DB_DELETE_ANY);
     }
     else if (keynr == primary_key) {  // Unique key
         DBUG_PRINT("Unique key", ("index: %d", keynr));
-        error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , 0);
+        error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , DB_DELETE_ANY);
     }
     else if (table->key_info[keynr].flags & HA_CLUSTERING) {
         DBUG_PRINT("clustering key", ("index: %d", keynr));
         create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
-        error = share->key_file[keynr]->del(share->key_file[keynr], trans, &key , 0);
+        error = share->key_file[keynr]->del(share->key_file[keynr], trans, &key , DB_DELETE_ANY);
     }
     else {
         create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
