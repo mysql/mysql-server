@@ -4,8 +4,9 @@
  
 /*
 
- We always write nodes to a new location on disk.
- The nodes themselves contain the information about the tree structure.
+Checkpoint and recovery notes:
+
+After a checkpoint, on a the first write of a node, we are supposed to write the node to a new location on disk.
 
 Q: During recovery, how do we find the root node without looking at every block on disk?
 A: The root node is either the designated root near the front of the freelist.
@@ -16,50 +17,100 @@ A: The root node is either the designated root near the front of the freelist.
 
 /*
 
-How insertion, deletion, and querying work:
+Managing the tree shape:  How insertion, deletion, and querying work
 
-Every node in the tree has a target size.  (It might be 1MB).
 
-Eveyr nonleaf node also has a target fanout.  (It might be 16).
+When we insert a message into the BRT, here's what happens.
 
-We say that a node is _overfull_ if it is larger than its target size.
+Insert_message_at_node(msg, node, BOOL *did_io)
+  if (node is leaf) {
+     apply message;
+  } else {
+     for each child i relevant to the msg (e.g., if it's a broadcast, then all children) {
+        rs[i] := Insert_message_to_child(msg, node, i, did_io);
+     for each i such that rs[i] is not stable, while !*did_io
+        (from greatest i to smallest, so that the numbers remain valid)
+        Split_or_merge(node, i, did_io);
+  }     
+  return reaction_state(node)
+}
 
-We say that a node is _underfull_ if it is less than 1/4 of its target size.
+Insert_message_to_child (msg, node, i, BOOL *did_io) {
+  if (child i's queue is empty and 
+      child i is in main memory) {
+    return Insert_message_at_node(msg, child[i], did_io)
+  } else {
+    Insert msg into the buffer[i]
+    while (!*did_io && node is overfull) {
+      rs,child_that_flushed = Flush_some_child(node, did_io);
+      if (rs is reactive) Split_or_merge(node, child_that_flushed, did_io);
+    }
+  }
+}
 
-We say that a nonleaf node is _too fat_ if its fanout is larger than its target fanout.
+Flush_this_child (node, childnum, BOOL *did_io) {
+  while (child i queue not empty) {
+    if (child i is not in memory) *did_io = TRUE;
+    rs = Insert_message_at_node(pop(queue), child i, did_io)
+    // don't do any reshaping if a node becomes reactive.  Deal with it all at the end.
+  }
+  return rs, i; // the last rs is all that matters.  Also return the child that was the heaviest (the one that rs applies to)
+}
 
-We say that a nonleaf node is _too thin_ if its fanout is less than 1/4 of its target fanout.
+Flush_some_child (node, BOOL *did_io) {
+  i = pick heaviest child()
+  assert(i>0); // there must be such a child
+  return Flush_this_child (node, i, did_io)
+}
 
-We say that a node _should be split_ if 
- - it is an overfull leaf, or
- - it is a too-fat nonleaf.
+Split_or_merge (node, childnum, BOOL *did_io) {
+  if (child i is fissible) {
+    fetch node and child i into main memory (set *did_io if we perform I/O)  (Fetch them in canonical order)
+    split child i, producing two nodes A and B, and also a pivot.   Don't worry if the resulting child is still too big or too small.
+    fixup node to point at the two new children.  Don't worry about the node become prolific.
+    return;
+  } else if (child i is fusible (and if there are at least two children)) {
+    fetch node, child i, and a sibling of child i into main memory.  (Set *did_io if needed)  (Fetch them in canonical order)
+    merge the two siblings.
+    fixup the node to point at one child (which means merging the fifos for the two children)
+    Split or merge again, pointing at the relevant child.
+    // Claim:  The number of splits_or_merges is finite, since each time down the merge decrements the number of children
+    //  and as soon as a node splits we return
+  }
+}
 
-We say that a node _should be merged_ if
- - it is a underfull leaf , or
- - it is a too-thin nonleaf.
 
-When we insert a value into the BRT, we insert a message which travels down the tree.  Here's the rules for how far the message travels and what happens.
+lookup (key, node) {
+  if (node is a leaf) {
+     return lookup in leaf.
+  } else {
+     find appropriate child, i, for key.
+     BOOL did_io = FALSE;
+     rs = Flush_this_child(node, i, &did_io);
+     if (rs is reactive) Split_or_merge(node, i, &did_io);
+     return lookup(node, child[i])
+  }
+}
 
 When inserting a message, we send it as far down the tree as possible, but
  - we stop if it would require I/O (we bring in the root node even if does require I/O), and
- - we stop if we reach a node that is overfull 
-   (We don't want to further overfill a node, so we place the message in the overfull node's parent.  If the root is overfull, we place the message in the root.)
+ - we stop if we reach a node that is gorged 
+   (We don't want to further overfill a node, so we place the message in the gorged node's parent.  If the root is gorged, we place the message in the root.)
  - we stop if we find a FIFO that contains a message, since we must preserve the order of messages.  (We enqueue the message).
 
 After putting the message into a node, we may need to adjust the tree.
 Observe that the ancestors of the node into which we placed the
-message are not overfull.  (But they may be underfull or too fat or too thin.)
+message are not gorged.  (But they may be hungry or too fat or too thin.)
 
 
 
-
- - If we put a message into a leaf node, and it is now overfull, then we 
+ - If we put a message into a leaf node, and it is now gorged, then we 
  
- - An overfull leaf node.   We split it.
- - An underfull leaf node.  We merge it with its neighbor (if there is such a neighbor).
- - An overfull nonleaf node.  
+ - An gorged leaf node.   We split it.
+ - An hungry leaf node.  We merge it with its neighbor (if there is such a neighbor).
+ - An gorged nonleaf node.  
     We pick the heaviest child, and push all the messages from the node to the child.
-    If that child is an overfull leaf node, then 
+    If that child is an gorged leaf node, then 
 
 
 --------------------
@@ -72,7 +123,7 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 //  handle_node_that_maybe_the_wrong_shape(node)
 // 
 // Handle_node_that_maybe_the_wrong_shape(node)
-//  If the node is overfull
+//  If the node is gorged
 //    If it is a leaf node, split it.
 //    else (it is an internal node),
 //      pick the heaviest child, and push all that child's messages to that child.
@@ -82,11 +133,11 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 //      else if the node is now too thin:
 //        merge the node
 //      else do nothing
-//  If the node is an underfull leaf:
+//  If the node is an hungry leaf:
 //     merge the node (or distribute the data with its neighbor if the merge would be too big)
 // 
 // 
-// Note: When nodes a merged,  they may become overfull.  But we just let it be overfull.
+// Note: When nodes a merged,  they may become gorged.  But we just let it be gorged.
 // 
 // search()
 //  To search a leaf node, we just do the lookup.
@@ -95,14 +146,14 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 //    Push all data to that child.
 //    search() the child, collecting whatever result is needed.
 //    Then:
-//      If the child is an overfull leaf or a too-fat nonleaf
+//      If the child is an gorged leaf or a too-fat nonleaf
 //         split it
-//      If the child is an underfull leaf or a too-thin nonleaf
+//      If the child is an hungry leaf or a too-thin nonleaf
 //         merge it (or distribute the data with the neighbor if the merge would be too big.)
 //    return from the search.
 // 
-// Note: During search we may end up with overfull nonleaf nodes.
-// (Nonleaf nodes can become overfull because of merging two thin nodes
+// Note: During search we may end up with gorged nonleaf nodes.
+// (Nonleaf nodes can become gorged because of merging two thin nodes
 // that had big buffers.)  We just let that happen, without worrying
 // about it too much.
 // 
@@ -115,12 +166,12 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 //   It's the same routine, except that 
 //     if the fifo leading to the child is empty
 //     and the child is in main memory
-//     and the child is not overfull
+//     and the child is not gorged
 //     then we place the message in the child (and we do this recursively, so we may place the message in the grandchild, or so forth.)
-//       We simply leave any resulting overfull or underfull nodes alone, since the nodes can only be slightly overfull (and for underfullness we don't worry in this case.)
+//       We simply leave any resulting gorged or hungry nodes alone, since the nodes can only be slightly gorged (and for hungryness we don't worry in this case.)
 //   Otherewise put the message in the root and handle_node_that_is_maybe_the_wrong_shape().
 // 
-//       An even more aggresive promotion scheme would be to go ahead and insert the new message in the overfull child, and then do the splits and merges resulting from that child getting overfull.
+//       An even more aggresive promotion scheme would be to go ahead and insert the new message in the gorged child, and then do the splits and merges resulting from that child getting gorged.
 // 
 // */
 // 
@@ -134,7 +185,20 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 // even from unrelated BRTs.  This way we only invalidate an OMTCURSOR if
 static u_int64_t global_root_put_counter = 0;
 
-enum should_status { SHOULD_OK, SHOULD_MERGE, SHOULD_SPLIT };
+enum reactivity { RE_STABLE, RE_FUSIBLE, RE_FISSIBLE };
+
+static enum reactivity
+get_leaf_reactivity (BRTNODE node) {
+    assert(node->height==0);
+    unsigned int size = toku_serialize_brtnode_size(node);
+    if (size     > node->nodesize) return RE_FISSIBLE;
+    if ((size*4) < node->nodesize) return RE_FUSIBLE;
+    return RE_STABLE;
+}
+
+static int
+brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum reactivity *re, BOOL *did_io);
+
 
 //#define SLOW
 #ifdef SLOW
@@ -142,6 +206,25 @@ enum should_status { SHOULD_OK, SHOULD_MERGE, SHOULD_SPLIT };
 #else
 #define VERIFY_NODE(t,n) ((void)0)
 #endif
+
+static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
+    switch (BNC_HAVE_FULLHASH(node, childnum)) {
+    case TRUE:
+	{
+	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
+	    return BNC_FULLHASH(node, childnum);
+	}
+    case FALSE:
+	{
+	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
+	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
+	    BNC_FULLHASH(node, childnum) = child_fullhash;
+	    return child_fullhash;
+	}
+    }
+    assert(0);
+    return 0;
+}
 
 static void
 fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child, BRT UU(brt), TOKULOGGER UU(logger))
@@ -654,11 +737,11 @@ brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 
 static int
 brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
-		  u_int64_t *new_size /*OUT*/
+		  enum reactivity *re /*OUT*/
 		  )
 // Effect: Put a cmd into a leaf.
 //  Return the serialization size in *new_size.
-// The leaf could end up "too big".  It is up to the caller to fix that up.
+// The leaf could end up "too big" or "too small".  It is up to the caller to fix that up.
 {
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     VERIFY_NODE(t, node);
@@ -785,10 +868,101 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
     node->dirty = 1;
 	
 //	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
-
+    *re = get_leaf_reactivity(node);
     VERIFY_NODE(t, node);
-    *new_size = toku_serialize_brtnode_size(node);
     return 0;
+}
+
+static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int childnum, TXNID xid, int type, const char *key, int keylen, const char *data, int datalen, u_int32_t *fingerprint) {
+    BYTESTRING keybs  = {.len=keylen,  .data=(char*)key};
+    BYTESTRING databs = {.len=datalen, .data=(char*)data};
+    u_int32_t old_fingerprint = *fingerprint;
+    u_int32_t fdiff=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+    u_int32_t new_fingerprint = old_fingerprint + fdiff;
+    //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
+    *fingerprint = new_fingerprint;
+    if (t->txn_that_created != xid) {
+	int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs);
+	if (r!=0) return r;
+    }
+    return 0;
+}
+
+static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+				 enum reactivity re_array[], BOOL *didio)
+// Effect: Insert a message into a nonleaf.  We may put it into a child, possibly causing the child to become reactive.
+//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
+//  The re_array[i] gets set to reactivity of any modified child.
+{
+    //verify_local_fingerprint_nonleaf(node);
+    unsigned int childnum;
+
+    /* find the right subtree */
+    childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
+
+    // if the fifo is empty and the child is in main memory and the child isn't gorged, then put it in the child
+    if (BNC_NBYTESINBUF(node, childnum) == 0) {
+	BLOCKNUM childblocknum  = BNC_BLOCKNUM(node, childnum); 
+	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
+	void *child_v;
+	int r = toku_cachetable_maybe_get_and_pin(t->cf, childblocknum, childfullhash, &child_v);
+	if (r!=0) {
+	    // It's not in main memory, so
+	    goto put_in_fifo;
+	}
+	// The child is in main memory.
+	BRTNODE child = child_v;
+
+	r = brtnode_put_cmd (t, child, cmd, logger, &re_array[childnum], didio);
+	int rr = toku_unpin_brtnode(t, child);
+	assert(rr=0);
+	return r;
+    }
+
+ put_in_fifo:
+
+    {
+        int type = cmd->type;
+        DBT *k = cmd->u.id.key;
+        DBT *v = cmd->u.id.val;
+
+	int r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
+	if (r!=0) return r;
+	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+        r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	assert(r==0);
+	node->u.n.n_bytes_in_buffers += diff;
+	BNC_NBYTESINBUF(node, childnum) += diff;
+        node->dirty = 1;
+    }
+
+    return 0;
+}
+
+static int
+brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+		     enum reactivity re_array[], BOOL *did_io)
+// Effect: Put the cmd into a nonleaf node.  We may put it into a child, possibly causing the child to become reactive.
+//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
+//  The re_array[i] gets set to the reactivity of any modified child i.  (And there may be several such children.)
+//
+{
+    switch (cmd->type) {
+    case BRT_INSERT:
+    case BRT_DELETE_BOTH:
+    case BRT_ABORT_BOTH:
+    case BRT_COMMIT_BOTH:
+    do_once:
+        return brt_nonleaf_cmd_once(t, node, cmd, logger, re_array, did_io);
+    case BRT_DELETE_ANY:
+    case BRT_ABORT_ANY:
+    case BRT_COMMIT_ANY:
+	if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // nondupsort delete_any is just do once.
+        return brt_nonleaf_cmd_many(t, node, cmd, logger, re_array, did_io);
+    case BRT_NONE:
+	break;
+    }
+    return EINVAL;
 }
 
 static int
@@ -798,10 +972,10 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum shoul
 //      put CMD into leaf, applying it to the leafentries
 //   If NODE is a nonleaf, then copy the cmd into the relevant child fifos.
 //      For each child fifo that is empty and where the child is in main memory put the command into the child (using this same algorithm)
-//      Use *io_count to determine whether I/O has already been performed.  Once I/O has occured, we avoid additional I/O by leaving nodes that are overfull, underfull, overfat, or underfat.
+//      Use *io_count to determine whether I/O has already been performed.  Once I/O has occured, we avoid additional I/O by leaving nodes that are gorged, hungry, overfat, or underfat.
 //   Set *should as follows:
-//                { SHOULD_SPLIT if the node is overfull
-//      *should = { SHOULD_MERGE if the node is underfull
+//                { SHOULD_SPLIT if the node is gorged
+//      *should = { SHOULD_MERGE if the node is hungry
 //                { SHOULD_OK    if the node is ok.   (Those cases are mutually exclusive.)
 //   For every I/O increment *io_count
 {
@@ -831,17 +1005,17 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
 //   bypassing only empty FIFOs
 //   If the cmd is a broadcast message, we copy the message as needed as we descend the tree so that each relevant subtree receives the message.
 //   At the end of the descent, we are either at a leaf, or we hit a nonempty FIFO.
-//     If it's a leaf, and the leaf is overfull or underfull, then we split the leaf or merge it with the neighbor.
+//     If it's a leaf, and the leaf is gorged or hungry, then we split the leaf or merge it with the neighbor.
 //      Note: for split operations, no disk I/O is required.  For merges, I/O may be required, so for a broadcast delete, quite a bit
 //       of I/O could be induced in the worst case.
-//     If it's a nonleaf, and the node is overfull or underfull, then we flush everything in the heaviest fifo to the child.
-//       During flushing, we allow the child to become overfull. 
+//     If it's a nonleaf, and the node is gorged or hungry, then we flush everything in the heaviest fifo to the child.
+//       During flushing, we allow the child to become gorged. 
 //         (And for broadcast messages, we simply place the messages into all the relevant fifos of the child, rather than trying to descend.)
-//       After flushing to a child, if the child is overfull (underful), then
+//       After flushing to a child, if the child is gorged (underful), then
 //           if the child is leaf, we split (merge) it
 //           if the child is a nonleaf, we flush the heaviest child recursively.
-//       Note: After flushing, a node could still be overfull (or possibly underfull.)  We let it remain so.
-//       Note: During the initial descent, we may overfull many nonleaf nodes.  We wish to flush only one nonleaf node at each level.
+//       Note: After flushing, a node could still be gorged (or possibly hungry.)  We let it remain so.
+//       Note: During the initial descent, we may gorged many nonleaf nodes.  We wish to flush only one nonleaf node at each level.
 {
     BRTNODE node = *nodep;
     enum should_status should;
