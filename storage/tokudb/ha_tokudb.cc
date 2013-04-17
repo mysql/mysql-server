@@ -2902,6 +2902,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
 int ha_tokudb::end_bulk_insert() {
     TOKUDB_DBUG_ENTER("ha_tokudb::end_bulk_insert");
     int error = 0;
+    THD* thd = ha_thd();
     if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
         error = update_max_auto_inc(share->status_block, share->last_auto_increment);
@@ -2912,7 +2913,7 @@ int ha_tokudb::end_bulk_insert() {
     ai_metadata_update_required = false;
     loader_error = 0;
     if (loader) {
-        if (!abort_loader) {
+        if (!abort_loader && !thd->killed) {
             error = loader->close(loader);
             loader = NULL;
             if (error) { goto cleanup; }
