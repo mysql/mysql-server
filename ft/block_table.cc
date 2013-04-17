@@ -74,7 +74,6 @@ struct block_table {
     toku_mutex_t mutex;
     struct nb_mutex safe_file_size_lock;
     bool checkpoint_skipped;
-    bool checkpoint_failed;
     uint64_t safe_file_size;
 };
 
@@ -219,7 +218,6 @@ toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
     copy_translation(&bt->inprogress, &bt->current, TRANSLATION_INPROGRESS);
 
     bt->checkpoint_skipped = false;
-    bt->checkpoint_failed  = false;
 }
 
 //#define PRNTF(str, b, siz, ad, bt) printf("%s[%d] %s %" PRId64 " %" PRId64 " %" PRId64 "\n", __FUNCTION__, __LINE__, str, b, siz, ad); fflush(stdout); if (bt) block_allocator_validate(((BLOCK_TABLE)(bt))->block_allocator);
@@ -268,7 +266,7 @@ toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd) {
     lock_for_blocktable(bt);
     uint64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
     paranoid_invariant_notnull(bt->inprogress.block_translation);
-    if (bt->checkpoint_skipped || bt->checkpoint_failed) {
+    if (bt->checkpoint_skipped) {
         cleanup_failed_checkpoint(bt);
         goto end;
     }
