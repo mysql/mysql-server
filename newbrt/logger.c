@@ -175,7 +175,7 @@ static int close_and_open_logfile (TOKULOGGER logger) {
 }
 
 static int
-max (int a, int b)
+max_int (int a, int b)
 {
     if (a>b) return a;
     return b;
@@ -219,7 +219,7 @@ toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed)
     // the inbuf is empty.  Is it big enough?
     if (n_bytes_needed > logger->inbuf.buf_size) {
 	assert(n_bytes_needed < (1<<30)); // it seems unlikely to work if a logentry gets that big.
-	int new_size = max(logger->inbuf.buf_size * 2, n_bytes_needed); // make it at least twice as big, and big enough for n_bytes
+	int new_size = max_int(logger->inbuf.buf_size * 2, n_bytes_needed); // make it at least twice as big, and big enough for n_bytes
 	assert(new_size < (1<<30));
 	XREALLOC_N(new_size, logger->inbuf.buf);
 	logger->inbuf.buf_size = new_size;

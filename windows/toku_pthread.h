@@ -22,7 +22,7 @@ typedef pthread_cond_t          toku_pthread_cond_t;
 typedef pthread_rwlock_t        toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t    toku_pthread_rwlockattr_t;
 #else
-#include <rwlock.h>
+#include "../newbrt/rwlock.h"
 typedef struct toku_pthread_rwlock_struct {
     struct rwlock rwlock;
     toku_pthread_mutex_t mutex;

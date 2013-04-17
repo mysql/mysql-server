@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../
-INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)src
+INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)newbrt -I$(TOKUROOT)src
 DEPEND_COMPILE += \
 	./*.h \
 #end
