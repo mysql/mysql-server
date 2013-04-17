@@ -23,6 +23,7 @@ typedef enum {
     toku_type_fixstring,
     toku_type_varbinary,
     toku_type_varstring,
+    toku_type_blob,
     toku_type_unknown
 } TOKU_TYPE;
 
