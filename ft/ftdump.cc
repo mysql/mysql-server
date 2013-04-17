@@ -380,10 +380,12 @@ dump_file(int f, uint64_t offset, uint64_t size, FILE *outfp) {
     unsigned char *XMALLOC_N(size, vp);
     uint64_t r = pread(f, vp, size, offset);
     if (r == size) {
-        if (outfp == stdout)
+        if (outfp == stdout) {
             hex_dump(vp, offset, size);
-        else
-            fwrite(vp, size, 1, outfp);
+        } else {
+            size_t wrote = fwrite(vp, size, 1, outfp);
+            assert(wrote == 1);
+        }
     }
     toku_free(vp);
 }
