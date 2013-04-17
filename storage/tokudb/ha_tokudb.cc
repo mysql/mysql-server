@@ -5380,7 +5380,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     //
     for (uint i = 0; i < curr_num_DBs; i++) {
         error = 0;
-        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
+        if ((error = share->key_file[i]->cursor(share->key_file[i], txn, &tmp_cursor, 0))) {
             tmp_cursor = NULL;
             goto cleanup;
         }
