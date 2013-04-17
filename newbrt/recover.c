@@ -107,7 +107,8 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
 	assert(tuple->brt);
         if (!recovery_succeeded) {
             // don't update the brt on close
-            toku_brt_set_panic(tuple->brt, DB_RUNRECOVERY, "recovery failed");
+            r = toku_brt_set_panic(tuple->brt, DB_RUNRECOVERY, "recovery failed");
+	    assert(r==0);
         }
         //Logging is already back on.  No need to pass LSN into close.
         char *error_string = NULL;
@@ -245,11 +246,14 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     r = toku_brt_create(&brt);
     assert(r == 0);
 
-    toku_brt_set_flags(brt, treeflags);
+    r = toku_brt_set_flags(brt, treeflags);
+    assert(r==0);
 
     // set the key compare functions
-    if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare)
-        toku_brt_set_bt_compare(brt, renv->bt_compare);
+    if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare) {
+        r = toku_brt_set_bt_compare(brt, renv->bt_compare);
+	assert(r==0);
+    }
 
     // TODO mode (FUTURE FEATURE)
     mode = mode;

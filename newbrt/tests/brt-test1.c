@@ -20,7 +20,8 @@ static void test1 (void) {
     unlink(fname);
     r = toku_open_brt(fname, 1, &t, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
-    toku_brt_insert(t, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
+    r = toku_brt_insert(t, toku_fill_dbt(&k, "hello", 6), toku_fill_dbt(&v, "there", 6), null_txn);
+    assert(r==0);
     {
 	struct check_pair pair = {6, "hello", 6, "there", 0};
 	r = toku_brt_lookup(t, toku_fill_dbt(&k, "hello", 6), lookup_checkf, &pair);

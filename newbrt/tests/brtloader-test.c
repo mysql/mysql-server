@@ -250,7 +250,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     TOKUTXN const null_txn = NULL;
     BRT t = NULL;
     r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_bt_compare(t, compare_ints); assert(r == 0);
+    r = toku_brt_set_bt_compare(t, compare_ints); assert(r==0);
     r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
 
     BRT_CURSOR cursor = NULL;

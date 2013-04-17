@@ -201,6 +201,24 @@ struct brt {
     BOOL did_set_descriptor;
     DESCRIPTOR_S temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
+
+    // When an upsert message arrives it contains a key, a value (upserted_val), and an extra DBT (upserted_extra).
+    // If there is no such key in the database, then the upserted value is inserted.
+    // If there is such a key in the database, then there is associated with that key another value (prev_val).
+    // The system calls upsert_fun(DB, upserted_value, upserted_extra, prev_val, set_val, set_extra)
+    // where set_val and set_extra are provided by the system.
+    // The upsert_fun can look at the DBTs and the DB (to get the db descriptor) and perform one of the following actions:
+    //  a) It can return DB_DELETE_UPSERT (which is defined in db.h).  In this case, the system deletes the key-value pair.
+    //  b) OR it can return call set_val(new_val, set_extra),
+    //     where new_val is the dbt that was passed in.  The set_val function will copy anything it needs out of new_val, so the memory pointed
+    //     to by new_val may be stack allocated by upsert_fun (or it may be malloced, in which case upsert_fun should free that memory).
+    // Notes: 
+    //   1) The DBTs passed to upsert_fun may point to memory that will be freed after the upsert_fun returns.
+    //   2) Furtheremore, there is likely to be some sort of lock held when upsert_fun is called.
+    // Those notes should not matter, since the upsert_fun should essentially be a pure function of the DBTs and DB descriptor passed in.
+    int (*upsert_fun)(DB*, const DBT*key, const DBT *upserted_val, const DBT *upserted_extra, const DBT *prev_val,
+		      void (*set_val)(const DBT *new_val, void*set_extra), void *set_extra);
+
     DB *db;           // To pass to the compare fun, and close once transactions are done.
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)

@@ -35,7 +35,10 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         int r = toku_os_get_file_size(fd, &file_size);
         assert(r==0);
     }
-    maybe_preallocate_in_file(fd, 1000);
+    {
+	int r = maybe_preallocate_in_file(fd, 1000);
+	assert(r==0);
+    }
     int64_t file_size2;
     {
         int r = toku_os_get_file_size(fd, &file_size2);
