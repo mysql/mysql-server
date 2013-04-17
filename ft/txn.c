@@ -414,7 +414,7 @@ static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
     if (txn->txnid64==h->txnid_that_suppressed_recovery_logs) {
         h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
     }
-    toku_ft_remove_txn_ref(h, txn);
+    toku_ft_remove_txn_ref(h);
 
     return 0;
 }

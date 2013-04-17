@@ -154,7 +154,7 @@ void toku_txn_maybe_note_ft (TOKUTXN txn, FT ft) {
     assert_zero(r);
     // TODO(leif): if there's anything that locks the reflock and then
     // the txn lock, this may deadlock, because it grabs the reflock.
-    toku_ft_add_txn_ref(ft, txn);
+    toku_ft_add_txn_ref(ft);
 exit:
     toku_txn_unlock(txn);
 }

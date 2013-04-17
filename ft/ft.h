@@ -70,10 +70,8 @@ void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
 // This redefines which xid created the dictionary.
 
 
-void
-toku_ft_add_txn_ref(FT h, TOKUTXN txn);
-void
-toku_ft_remove_txn_ref(FT h, TOKUTXN txn);
+void toku_ft_add_txn_ref(FT h);
+void toku_ft_remove_txn_ref(FT h);
 
 void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, u_int32_t *roothash);
 void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key); 

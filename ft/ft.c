@@ -41,7 +41,6 @@ ft_destroy(FT ft) {
     if (ft->cmp_descriptor.dbt.data) toku_free(ft->cmp_descriptor.dbt.data);
     toku_ft_destroy_treelock(ft);
     toku_ft_destroy_reflock(ft);
-    toku_omt_destroy(&ft->txns);
     toku_free(ft->h);
 }
 
@@ -385,8 +384,6 @@ ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
     ft->layout_version_read_from_disk = FT_LAYOUT_VERSION;             // fake, prevent unnecessary upgrade logic
 
     toku_list_init(&ft->live_ft_handles);
-    int r = toku_omt_create(&ft->txns);
-    assert_zero(r);
 
     ft->compare_fun = options->compare_fun;
     ft->update_fun = options->update_fun;
@@ -397,6 +394,7 @@ ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
     ft->cf = cf;
     ft->in_memory_stats = ZEROSTATS;
 
+    int r;
     r = setup_initial_ft_root_node(ft, ft->h->root_blocknum);
     if (r != 0) {
         goto exit;
@@ -550,9 +548,8 @@ toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
 static int
 ft_get_reference_count(FT ft) {
     u_int32_t pinned_by_checkpoint = ft->pinned_by_checkpoint ? 1 : 0;
-    u_int32_t num_txns = toku_omt_size(ft->txns);
     int num_handles = toku_list_num_elements_est(&ft->live_ft_handles);
-    return pinned_by_checkpoint + num_txns + num_handles;
+    return pinned_by_checkpoint + ft->num_txns + num_handles;
 }
 
 // a ft is needed in memory iff its reference count is non-zero
@@ -842,40 +839,23 @@ cleanup:
     return r;
 }
 
-//Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
-static int find_xid (OMTVALUE v, void *txnv) {
-    TOKUTXN txn = v;
-    TOKUTXN txnfind = txnv;
-    if (txn->txnid64<txnfind->txnid64) return -1;
-    if (txn->txnid64>txnfind->txnid64) return +1;
-    return 0;
-}
-
 // Insert reference to transaction into ft
 void
-toku_ft_add_txn_ref(FT ft, TOKUTXN txn) {
+toku_ft_add_txn_ref(FT ft) {
     toku_ft_grab_reflock(ft);
-    uint32_t idx;
-    int r = toku_omt_insert(ft->txns, txn, find_xid, txn, &idx);
-    assert(r==0);
+    ++ft->num_txns;
     toku_ft_release_reflock(ft);
 }
 
 static void
-remove_txn_ref_callback(FT ft, void *context) {
-    TOKUTXN txn = context;
-    OMTVALUE txnv_again=NULL;
-    u_int32_t index;
-    int r = toku_omt_find_zero(ft->txns, find_xid, txn, &txnv_again, &index);
-    assert(r==0);
-    assert(txnv_again == txn);
-    r = toku_omt_delete_at(ft->txns, index);
-    assert(r==0);
+remove_txn_ref_callback(FT ft, void *UU(context)) {
+    invariant(ft->num_txns > 0);
+    --ft->num_txns;
 }
 
 void
-toku_ft_remove_txn_ref(FT ft, TOKUTXN txn) {
-    toku_ft_remove_reference(ft, false, ZERO_LSN, remove_txn_ref_callback, txn);
+toku_ft_remove_txn_ref(FT ft) {
+    toku_ft_remove_reference(ft, false, ZERO_LSN, remove_txn_ref_callback, NULL);
 }
 
 void toku_calculate_root_offset_pointer (
