@@ -47,6 +47,7 @@ if(BUILD_TESTING)
   endforeach(test)
 
   add_helgrind_test(portability/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
+  add_helgrind_test(portability/helgrind_test-circular-buffer $<TARGET_FILE:test-circular-buffer>)
 
   foreach(test ${tests})
     add_test(portability/${test} ${test})
