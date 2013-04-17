@@ -7715,7 +7715,9 @@ void ha_tokudb::restore_add_index(TABLE* table_arg, uint num_of_keys, bool incre
     }
 }
 
-#if MYSQL_VERSION_ID >= 50521
+#if MYSQL_VERSION_ID >= 50606
+
+#elif MYSQL_VERSION_ID >= 50521
 
 class ha_tokudb_add_index : public handler_add_index
 {
