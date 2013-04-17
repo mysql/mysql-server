@@ -15,8 +15,9 @@ include $(TOKUROOT)toku_include/Makefile.include
 
 SHELL=/bin/bash #Use of &> is a bash feature
 
-SHOULD_FAIL = 
+SHOULD_FAIL = check_exceptions
 $(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
+$(SHOULD_FAIL): VGRIND=
 
 HERE = cxx/tests
 ifeq ($(SUMMARIZE),1)
@@ -122,7 +123,7 @@ check: $(TARGETS) \
  check_permissions \
  check_exceptions \
  check_test_db_delete \
- check_a_get_not_found \
+ check_test_get_not_found \
  # line intentionally left blank
 
 check_test_get_not_found: test_get_not_found
@@ -132,7 +133,7 @@ check_test_db_delete: test_db_delete
 	$(VGRIND) ./test_db_delete  $(SUMMARIZE_CMD)
 
 check_exceptions: exceptions
-	$(VGRIND) ./exceptions  $(SUMMARIZE_CMD)
+	$(VGRIND) ./exceptions  $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 check_db_create: db_create
 	rm -rf $@.tdb
