@@ -2638,6 +2638,22 @@ toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *l
     return r;
 }
 
+int 
+toku_brt_log_put (TOKUTXN txn, BRT brt, const DBT *key, const DBT *val) {
+    int r = 0;
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        // if (type == BRT_INSERT)
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        // else
+            // r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+    }
+    return r;
+}
+
 int
 toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) {
     int r = 0;
@@ -2666,7 +2682,8 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     return r;
 }
 
-int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type) {
+int 
+toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type) {
     lazy_assert(type==BRT_INSERT || type==BRT_INSERT_NO_OVERWRITE);
     int r = 0;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
@@ -2715,6 +2732,18 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 }
 
 int
+toku_brt_log_del(TOKUTXN txn, BRT brt, const DBT *key) {
+    int r = 0;
+    TOKULOGGER logger = toku_txn_logger(txn);
+    if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs);
+    }
+    return r;
+}
+
+int
 toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) {
     int r = 0;
     lazy_assert(txn);
@@ -2742,7 +2771,8 @@ toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     return r;
 }
 
-int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
+int 
+toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
     int r;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);

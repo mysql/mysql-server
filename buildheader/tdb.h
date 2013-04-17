@@ -258,7 +258,7 @@ struct __toku_db_env {
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
-                                             void *extra) /* Insert into multiple dbs */;
+                                             void *extra) /* insert into multiple DBs */;
   void *app_private;
   int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
                                              int (*generate_row_for_put)(DB *dest_db, DB *src_db,
@@ -268,12 +268,18 @@ struct __toku_db_env {
   int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,
-                                             void *extra) /* Insert into multiple dbs */;
+                                             void *extra) /* delete from multiple DBs */;
   int (*set_generate_row_callback_for_del)    (DB_ENV *env, 
                                              int (*generate_row_for_del)(DB *dest_db, DB *src_db,
                                                                          DBT *dest_key,
                                                                          const DBT *src_key, const DBT *src_val,
                                                                          void *extra));
+  int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,
+                                             const DBT *old_src_key, const DBT *old_src_data,
+                                             const DBT *new_src_key, const DBT *new_src_data,
+                                             uint32_t num_dbs, DB **db_array,
+                                             uint32_t num_dbts, DBT *keys, DBT *vals,
+                                             void *extra) /* update multiple DBs */;
   int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);

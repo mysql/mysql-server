@@ -75,8 +75,12 @@ test_main (int argc , const char *argv[]) {
     int ncpus = 0;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0) {
+        if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
             verbose++;
+            continue;
+        }
+        if (strcmp(arg, "-q") == 0 || strcmp(arg, "--quiet") == 0) {
+            verbose = 0;
             continue;
         }
         if (strcmp(arg, "--ncpus") == 0 && i+1 < argc) {

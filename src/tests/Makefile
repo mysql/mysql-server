@@ -88,6 +88,8 @@ BDB_DONTRUN_TESTS = \
         checkpoint_stress \
         checkpoint_truncate_1 \
 	cursor-isolation \
+	del-simple \
+	del-multiple \
         diskfull \
         env-put-multiple \
         env_startup \
@@ -117,14 +119,19 @@ BDB_DONTRUN_TESTS = \
         powerfail \
 	preload-3.1-db \
         progress \
+	put-multiple \
         recover-2483 \
         recover-compare-db \
         recover-compare-db-descriptor \
+	recover-del-multiple \
+	recover-del-multiple-abort \
         recover-delboth-after-checkpoint \
         recover-delboth-checkpoint \
         recover-fclose-in-checkpoint \
         recover-loader-test \
         recover-lsn-filter-multiple \
+	recover-put-multiple \
+	recover-put-multiple-abort \
         recover-put-multiple-fdelete-all \
         recover-put-multiple-fdelete-some \
         recover-split-checkpoint \
@@ -133,6 +140,8 @@ BDB_DONTRUN_TESTS = \
 	recover-test-logsuppress-put \
 	recover-upgrade-db-descriptor-multihandle \
 	recover-upgrade-db-descriptor \
+	recover-update-multiple \
+	recover-update-multiple-abort \
         recovery_fileops_stress \
         recovery_fileops_unit \
         recovery_stress \
@@ -167,6 +176,9 @@ BDB_DONTRUN_TESTS = \
         test_txn_nested4 \
         test_txn_nested5 \
         transactional_fileops \
+	update-multiple-nochange \
+	update-multiple-key0 \
+	update-multiple-data-diagonal \
 	upgrade-test-1 \
 	upgrade-test-2 \
 	upgrade-test-3 \
