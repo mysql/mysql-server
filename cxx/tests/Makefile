@@ -16,7 +16,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 
 # OPTFLAGS = -O0
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CPPFLAGS = -I../ -I../../include
+CPPFLAGS = -I../ -I../../include -I../../linux
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
 LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz -lpthread
 

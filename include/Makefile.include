@@ -336,6 +336,7 @@ endif
 
 ifeq ($(SKIP_NEWBRTRULE),)
 NEWBRT           = $(TOKUROOT)newbrt/newbrt.$(AEXT)
+NEWBRT_BUNDLE    = $(TOKUROOT)newbrt/newbrt.bundle
 $(NEWBRT): $(@D)*.[ch]
 	$(MAYBEATSIGN)cd $(@D) && $(MAKE) -s $(@F)
 endif
@@ -355,8 +356,9 @@ O_FROM_C_FLAGS=  $(CFLAGS) $(CPPFLAGS) -c $(OOUTPUT)$@
 	$(MAYBEATSIGN)$(CC) $< $(O_FROM_C_FLAGS) 
 
 %.$(AEXT):
-	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $^
-
+	$(MAYBEATSIGN)$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $^)
+%.bundle: %.$(AEXT)
+	mkdir -p $@; cd $@; $(AR) x ../$(<F)
 
 ifeq ($(SOEXT),so)
 EXPORTMAPFILE=export.map

@@ -11,6 +11,7 @@ DEPEND_COMPILE += \
 # keep this line so I can have a \ on the previous line
 
 NEWBRT           = newbrt.$(AEXT)
+NEWBRT_BUNDLE    = newbrt.bundle
 #All executables need to statically link to newbrt
 LINK_FILES += $(NEWBRT)
 
@@ -71,14 +72,16 @@ newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
 
 
 ifneq ($(CYGWIN),)
-$(NEWBRT): $(BRT_O_FILES)
+NEWBRT_O_FILES = $(BRT_O_FILES)
 else ifeq ($(CC),icc)
-$(NEWBRT): $(BRT_O_FILES)
+NEWBRT_O_FILES = $(BRT_O_FILES)
 else ifeq ($(COMBINE),0)
-$(NEWBRT): $(BRT_O_FILES)
+NEWBRT_O_FILES = $(BRT_O_FILES)
 else
-$(NEWBRT): newbrt.o
+NEWBRT_O_FILES = newbrt.o
 endif
+
+$(NEWBRT): $(NEWBRT_O_FILES)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h: log_code.c
@@ -90,7 +93,7 @@ logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
 	$(MAYBEATSIGN)$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY)
 
 
-libs: $(NEWBRT)
+libs: $(NEWBRT) $(NEWBRT_BUNDLE)
 bins: $(BINS)
 
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)

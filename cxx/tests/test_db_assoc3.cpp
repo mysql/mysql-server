@@ -5,7 +5,7 @@
 #include <db_cxx.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <toku_os.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -520,7 +520,7 @@ int main (int argc, const char *argv[]) {
     switch (mode) {
     case MODE_DEFAULT:
 	system("rm -rf " DIR);
-	mkdir(DIR, 0777); 
+	toku_os_mkdir(DIR, 0777); 
 	create_databases();
 	{
 	    int i;
