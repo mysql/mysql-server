@@ -353,6 +353,10 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     newcf->filenum = filenum;
     cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
     newcf->next = ct->cf_list.m_head;
+    newcf->prev = NULL;
+    if (ct->cf_list.m_head) {
+        ct->cf_list.m_head->prev = newcf;
+    }
     ct->cf_list.m_head = newcf;
 
     bjm_init(&newcf->bjm);
@@ -425,16 +429,15 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
     CACHETABLE ct = cf->cachetable;
     ct->cf_list.write_lock();
     invariant(ct->cf_list.m_head != NULL);
-    if (cf == ct->cf_list.m_head) {
-        ct->cf_list.m_head = cf->next;
+    if (cf->next) {
+        cf->next->prev = cf->prev;
     }
-    else {
-        CACHEFILE curr_cf = ct->cf_list.m_head;
-        while (curr_cf->next != cf) {
-            curr_cf = curr_cf->next;
-        }
-        // at this point, curr_cf->next is pointing to cf
-        curr_cf->next = cf->next;
+    if (cf->prev) {
+        cf->prev->next = cf->next;
+    }
+    if (cf == ct->cf_list.m_head) {
+        invariant(cf->prev == NULL);
+        ct->cf_list.m_head = cf->next;
     }
     ct->cf_list.write_unlock();
 }
