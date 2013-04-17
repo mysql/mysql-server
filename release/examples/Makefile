@@ -17,4 +17,4 @@ checknox: $(TARGETS)
 	./db-insert && ./db-scan --nox --lwc --prelock --prelockflag
 
 clean:
-	rm -rf $(TARGETS) bench.*
+	rm -rf $(TARGETS) bench.* update.env.* insertm.env.*

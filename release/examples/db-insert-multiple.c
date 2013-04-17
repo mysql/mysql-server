@@ -261,7 +261,11 @@ static void insert_all(DB_ENV *db_env, struct table *t, long nrows, long max_row
 }
 
 int main(int argc, char *argv[]) {
-    char *db_env_dir = "putm.env";
+#if defined(TOKDUB)
+    char *db_env_dir = "insertm.env.tokudb";
+#else
+    char *db_env_dir = "insertm.env.bdb";
+#endif
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     long rows = 100000000;
     long rows_per_txn = 1000;
