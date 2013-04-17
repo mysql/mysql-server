@@ -31,9 +31,14 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
 
     // The first index is unique with serial autoincrement keys.
     // The rest are have keys generated with this thread's random data.
-    for (int i = 0; i < num_dbs; i++) {
-        mult_put_flags[i] = get_put_flags(arg->cli) | (i == 0 ? DB_NOOVERWRITE : 0);
-        dbs[i]->app_private = i == 0 ? nullptr : arg->random_data;
+    mult_put_flags[0] = get_put_flags(arg->cli) | DB_NOOVERWRITE;
+    dbs[0]->app_private = nullptr;
+    for (int i = 1; i < num_dbs; i++) {
+        mult_key_dbt[i].flags = DB_DBT_REALLOC;
+        mult_key_dbt[i].size = sizeof(uint64_t);
+        mult_key_dbt[i].data = toku_xmalloc(mult_key_dbt[i].size);
+        mult_put_flags[i] = get_put_flags(arg->cli);
+        dbs[i]->app_private = arg->random_data;
     }
 
     int r = 0;
@@ -69,7 +74,11 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
             puts_to_increment = 0;
         }
     }
+
 cleanup:
+    for (int i = 1; i < num_dbs; i++) {
+        toku_free(mult_key_dbt[i].data);
+    }
     return r;
 }
 
@@ -86,8 +95,6 @@ stress_table(DB_ENV* env, DB** UU(dbp), struct cli_args *cli_args) {
         myargs[i].operation = iibench_put_op;
         myargs[i].operation_extra = &iib_extra;
     }
-    // TODO: set generate row for put callback
-    (void) env;
 
     const bool crash_at_end = false;
     run_workers(myargs, num_threads, cli_args->num_seconds, crash_at_end, cli_args);
@@ -96,13 +103,15 @@ stress_table(DB_ENV* env, DB** UU(dbp), struct cli_args *cli_args) {
 static int iibench_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *UU(src_key), const DBT *src_val) {
     invariant(src_db != dest_db);
     invariant(dest_db->app_private != nullptr);
+    invariant(dest_key->size == sizeof(uint64_t));
+    invariant(dest_key->flags == DB_DBT_REALLOC);
     struct random_data *CAST_FROM_VOIDP(r_data, dest_db->app_private);
     uint64_t key = randu64(r_data);
-    DBT key_dbt = { .data = &key, .size = sizeof(key) };
-    *dest_key = key_dbt;
+    memcpy(dest_key->data, &key, sizeof(key));
     *dest_val = *src_val;
     return 0;
 }
+
 int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
@@ -118,8 +127,6 @@ test_main(int argc, char *const argv[]) {
     if (args.num_put_threads > 1) {
         args.crash_on_operation_failure = false;
     }
-    // TODO: Use a more complex, more expensive comparison function that
-    // unpacks keys and walks a descriptor to satisfy the comparison.
     args.env_args.generate_put_callback = iibench_generate_row_for_put;
     stress_test_main_with_cmp(&args, stress_uint64_dbt_cmp);
     return 0;
