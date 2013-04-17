@@ -371,7 +371,7 @@ $(TDBBRTDUMP) $(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
 	cp dir.$*.c.tdb/tokudb.directory   dir.$*.c.tdb.recover/                   && \
 	cp dir.$*.c.tdb/tokudb.environment dir.$*.c.tdb.recover/                   && \
 	cp dir.$*.c.tdb/tokudb.rollback    dir.$*.c.tdb.recover/                   && \
-	cp dir.$*.c.tdb/*.tokulog          dir.$*.c.tdb.recover/                   && \
+	cp dir.$*.c.tdb/*.tokulog*         dir.$*.c.tdb.recover/                   && \
 	echo doing recovery &&\
 	$(VGRIND) $(TDBRECOVER) dir.$*.c.tdb.recover dir.$*.c.tdb.recover         && \
 	echo dump and compare &&\

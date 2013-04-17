@@ -10,7 +10,7 @@
 static int
 grep_for_in_logs (const char *str) {
 #ifdef TOKUDB
-#define lname ENVDIR "/log000000000000.tokulog"
+#define lname ENVDIR "/log000000000000.tokulog[0-9]*"
 #else
 #define lname ENVDIR "/log.0000000001"
 #endif
