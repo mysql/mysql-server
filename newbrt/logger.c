@@ -171,6 +171,7 @@ static int close_and_open_logfile (TOKULOGGER logger) {
         r = toku_file_fsync(logger->fd);                 if (r!=0) return errno;
 	assert(logger->fsynced_lsn.lsn <= logger->written_lsn.lsn);
 	logger->fsynced_lsn = logger->written_lsn;
+        toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);          // fixes t:2294
     }
     r = close(logger->fd);                               if (r!=0) return errno;
     return open_logfile(logger);
@@ -387,7 +388,7 @@ static int open_logfile (TOKULOGGER logger) {
         if (lf_info == NULL) 
             return ENOMEM;
         lf_info->index = index;
-        lf_info->maxlsn = logger->written_lsn; // ?? not sure this is right, but better than 0 - DSW
+        lf_info->maxlsn = logger->written_lsn; 
         toku_logfilemgr_add_logfile_info(logger->logfilemgr, lf_info);
     }
     logger->fsynced_lsn = logger->written_lsn;
@@ -532,6 +533,7 @@ toku_logger_write_buffer (TOKULOGGER logger, int do_fsync)
 	} else if (do_fsync) {
 	    r = toku_file_fsync(logger->fd);
 	    logger->fsynced_lsn = logger->outbuf.max_lsn_in_buf;
+            toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);  // t:2294
 	} else {
 	    /* nothing */
 	}
