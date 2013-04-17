@@ -183,11 +183,9 @@ test_main (int argc , const char *argv[]) {
 
     char logdir[TOKU_PATH_MAX+1];
     toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "logdir");
-    char ftfile[TOKU_PATH_MAX+1];
-    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "ftfile");
 
-    run_test(logdir, ftfile, 0);
-    run_test(logdir, ftfile, 1000);
+    run_test(logdir, "ftfile", 0);
+    run_test(logdir, "ftfile", 1000);
 
     return 0;
 }

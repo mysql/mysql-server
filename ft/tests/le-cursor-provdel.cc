@@ -202,11 +202,7 @@ static void
 init_logdir(const char *logdir) {
     int error;
 
-    char cmd[32+strlen(logdir)];
-    sprintf(cmd, "rm -rf %s", logdir);
-    error = system(cmd);
-    assert(error == 0);
-
+    toku_os_recursive_delete(logdir);
     error = toku_os_mkdir(logdir, 0777);
     assert(error == 0);
 }
@@ -225,10 +221,8 @@ test_main (int argc , const char *argv[]) {
     assert(error == 0);
 
     const int n = 10;
-    char ftfile[TOKU_PATH_MAX+1];
-    toku_path_join(logdir, 2, TOKU_TEST_FILENAME, "ftfile");
-    create_populate_tree(".", ftfile, n);
-    test_provdel(".", ftfile, n);
+    create_populate_tree(".", "ftfile", n);
+    test_provdel(".", "ftfile", n);
 
     return 0;
 }
