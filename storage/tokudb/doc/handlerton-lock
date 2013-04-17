@@ -57,8 +57,9 @@ error:
     release_hton_init_writelock();
 }
 
-tokudb_hton_done_func() {
+tokudb_end() {
     grab_hton_init_writelock();
+    assert(tokudb_hton_initialized);
     ...
     tokudb_hton_initialized = 0;
     release_hton_init_writelock();
@@ -66,18 +67,6 @@ tokudb_hton_done_func() {
 
 // grab a read lock while assuming
 // the handlerton is usable
-//
-// the user data init/done functions
-// do not actually require this, but
-// for sake of clarity we describe
-// the algorithms as if they did.
-// more importantly, the user data
-// fill function DOES
-tokudb_user_data_init_func() {
-    grab_hton_init_readlock();
-    ...
-    release_hton_init_readlock();
-}
 
 tokudb_user_data_fill() {
     grab_hton_init_readlock();
@@ -89,9 +78,14 @@ error:
     release_hton_init_readlock();
 }
 
-tokudb_user_data_done_func() {
+tokudb_user_data_exact_fill() {
     grab_hton_init_readlock();
+    if (!tokudb_hton_initialized) {
+        goto error;
+    }
     ...
+error:
     release_hton_init_readlock();
 }
+
 }}}
