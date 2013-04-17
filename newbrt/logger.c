@@ -273,7 +273,7 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 	assert(r==0);
     }
     *fsynced_lsn = logger->fsynced_lsn;
-    { int r = toku_pthread_mutex_unlock(&logger->output_condition_lock);  logger->output_condition_lock_ctr++;  assert(r==0); }
+    { logger->output_condition_lock_ctr++;  int r = toku_pthread_mutex_unlock(&logger->output_condition_lock);  assert(r==0); }
     return result;
 }
 
