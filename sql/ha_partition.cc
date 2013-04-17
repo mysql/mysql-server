@@ -4417,19 +4417,12 @@ ha_rows ha_partition::guess_bulk_insert_rows()
 }
 
 
-/*
-  Finish a large batch of insert rows
+/**
+  Finish a large batch of insert rows.
 
-  SYNOPSIS
-    end_bulk_insert()
-
-  RETURN VALUE
-    >0                      Error code
-    0                       Success
-
-  Note: end_bulk_insert can be called without start_bulk_insert
-        being called, see bug¤44108.
-
+  @return Operation status.
+    @retval     0 Success
+    @retval  != 0 Error code
 */
 
 int ha_partition::end_bulk_insert()
@@ -4439,7 +4432,10 @@ int ha_partition::end_bulk_insert()
   DBUG_ENTER("ha_partition::end_bulk_insert");
 
   if (!bitmap_is_set(&m_bulk_insert_started, m_tot_parts))
+  {
+    DBUG_ASSERT(0);
     DBUG_RETURN(error);
+  }
 
   for (i= bitmap_get_first_set(&m_bulk_insert_started);
        i < m_tot_parts;
