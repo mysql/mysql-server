@@ -1175,7 +1175,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     DBT cmp_byte_stream;
     char* newname = NULL;
-    newname = (char *)my_malloc(strlen(name) + 32, MYF(MY_WME));
+    newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -1251,7 +1251,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     open_flags += DB_AUTO_COMMIT;
 
-    newname = (char *)my_malloc(strlen(name) + 32,MYF(MY_WME));
+    newname = (char *)my_malloc(strlen(name) + NAME_CHAR_LEN,MYF(MY_WME));
     if (newname == NULL) { 
         TOKUDB_DBUG_RETURN(1);
     }
@@ -2136,7 +2136,7 @@ int ha_tokudb::get_status() {
     //
     if (!share->status_block) {
         char name_buff[FN_REFLEN];
-        newname = (char *)my_malloc(get_name_length(share->table_name) + 32, MYF(MY_WME));
+        newname = (char *)my_malloc(get_name_length(share->table_name) + NAME_CHAR_LEN, MYF(MY_WME));
         if (newname == NULL) {
             error = ENOMEM;
             goto cleanup;
@@ -4125,9 +4125,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char* dirname = NULL;
     char* newname = NULL;
 
-    dirname = (char *)my_malloc(get_name_length(name) + 32,MYF(MY_WME));
+    dirname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
     if (dirname == NULL){ error = ENOMEM; goto cleanup;}
-    newname = (char *)my_malloc(get_name_length(name) + 32,MYF(MY_WME));
+    newname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
     uint i;    
@@ -4240,7 +4240,7 @@ int ha_tokudb::delete_table(const char *name) {
     int error;
     // remove all of the dictionaries in the table directory 
     char* newname = NULL;
-    newname = (char *)my_malloc((tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + 32, MYF(MY_WME));
+    newname = (char *)my_malloc((tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + NAME_CHAR_LEN, MYF(MY_WME));
     if (newname == NULL) {
         error = ENOMEM;
         goto cleanup;
@@ -4269,7 +4269,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     char* newfrom = NULL;
     char* newto = NULL;
 
-    int n = get_name_length(from) + 32;
+    int n = get_name_length(from) + NAME_CHAR_LEN;
     newfrom = (char *)my_malloc(n,MYF(MY_WME));
     if (newfrom == NULL){
         error = ENOMEM;
@@ -4277,7 +4277,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     }
     make_name(newfrom, from, 0);
 
-    n = get_name_length(to) + 32;
+    n = get_name_length(to) + NAME_CHAR_LEN;
     newto = (char *)my_malloc(n,MYF(MY_WME));
     if (newto == NULL){
         error = ENOMEM;
@@ -4650,7 +4650,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     uchar* tmp_record = NULL;
     THD* thd = ha_thd();
 
-    newname = (char *)my_malloc(share->table_name_length + 32, MYF(MY_WME));
+    newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
     tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
@@ -4892,7 +4892,7 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     char part[MAX_ALIAS_NAME + 10];
     DB** dbs_to_remove = NULL;
 
-    newname = (char *)my_malloc(share->table_name_length + 32, MYF(MY_WME));
+    newname = (char *)my_malloc(share->table_name_length + NAME_CHAR_LEN, MYF(MY_WME));
     if (newname == NULL) {
         error = ENOMEM; 
         goto cleanup;
