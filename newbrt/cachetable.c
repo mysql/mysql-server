@@ -217,6 +217,10 @@ int toku_set_checkpoint_period (CACHETABLE ct, u_int32_t new_period) {
     return toku_minicron_change_period(&ct->checkpointer, new_period);
 }
 
+u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
+    return toku_minicron_get_period(&ct->checkpointer);
+}
+
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
 #if defined __linux__
     {

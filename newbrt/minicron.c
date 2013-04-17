@@ -113,6 +113,15 @@ toku_minicron_change_period(struct minicron *p, u_int32_t new_period)
     return 0;
 }
 
+u_int32_t
+toku_minicron_get_period(struct minicron *p)
+{
+    int r = toku_pthread_mutex_lock(&p->mutex);   assert(r==0);
+    u_int32_t retval = p->period_in_seconds;
+    r = toku_pthread_mutex_unlock(&p->mutex);     assert(r==0);
+    return retval;
+}
+
 int
 toku_minicron_shutdown(struct minicron *p) {
     int r = toku_pthread_mutex_lock(&p->mutex);        assert(r==0);
