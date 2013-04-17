@@ -95,6 +95,7 @@ static char *tokudb_log_dir;
 static ulong tokudb_trans_retry = 1;
 static ulong tokudb_max_lock;
 static ulong tokudb_debug;
+static char* tokudb_version = TOKUDB_VERSION;
 
 static DB_ENV *db_env;
 
@@ -2527,6 +2528,8 @@ static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Lo
 
 static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB Data Directory", NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Version", NULL, NULL, NULL);
+
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -2564,6 +2567,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
+    MYSQL_SYSVAR(version),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),

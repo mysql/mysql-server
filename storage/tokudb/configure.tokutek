@@ -35,6 +35,7 @@ if [ ! -d $libdir ] ; then
 fi
 if [ $error -ne 0 ] ; then exit 1 ; fi
 
+tokudb_version=`basename $tokudb`
 # escape the path names so that the sed works
 # note: i was not smart enough to get this right without a sequence of experiments
 tokudb=`echo $tokudb | sed -e s/\\\//\\\\\\\\\\\//g`
@@ -46,4 +47,5 @@ libdir=`echo $libdir | sed -e s/\\\//\\\\\\\\\\\//g`
 
 sed -e "s/^TOKUDB =\(.*\)$/TOKUDB = $tokudb/" \
     -e "s/^MYSQL_SRC = \(.*\)/MYSQL_SRC = $mysql/" \
-    -e "s/^MYSQL_LIBDIR = \(.*\)/MYSQL_LIBDIR = $libdir/" <Makefile.tokutek >Makefile
+    -e "s/^MYSQL_LIBDIR = \(.*\)/MYSQL_LIBDIR = $libdir/" \
+    -e "s/^TOKUDB_VERSION =\(.*\)/TOKUDB_VERSION = \"$tokudb_version\"/" <Makefile.tokutek >Makefile
