@@ -31,7 +31,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        ) {
     /* Do nothing */
     if (check_flush && !keep) {
-        printf("FLUSH: %d write_me %d\n", (int)k.b, w);
+        if (verbose) { printf("FLUSH: %d write_me %d\n", (int)k.b, w); }
         assert(flush_may_occur);
         assert(!w);
         assert(expected_flushed_key == (int)k.b);
