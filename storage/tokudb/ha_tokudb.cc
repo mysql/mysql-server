@@ -5724,7 +5724,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     u_int32_t txn_begin_flags;
     if (trx->all == NULL) {
         txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
-        if (txn_begin_flags == 0 && is_autocommit) {
+        if (txn_begin_flags == 0 && is_autocommit && thd_sql_command(thd) == SQLCOM_SELECT) {
             txn_begin_flags = DB_TXN_SNAPSHOT;
         }
     }
