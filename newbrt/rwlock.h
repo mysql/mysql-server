@@ -103,6 +103,8 @@ static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_
 // expects: mutex is locked
 
 static inline void rwlock_read_unlock(RWLOCK rwlock) {
+    assert(rwlock->reader > 0);
+    assert(rwlock->writer == 0);
     rwlock->reader--;
     if (rwlock->reader == 0 && rwlock->want_write) {
         int r = toku_pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
@@ -127,6 +129,8 @@ static inline void rwlock_write_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex)
 // expects: mutex is locked
 
 static inline void rwlock_write_unlock(RWLOCK rwlock) {
+    assert(rwlock->reader == 0);
+    assert(rwlock->writer == 1);
     rwlock->writer--;
     if (rwlock->writer == 0) {
         if (rwlock->want_write) {
