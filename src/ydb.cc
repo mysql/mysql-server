@@ -1205,6 +1205,7 @@ static int
 locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
     int ret, r;
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    HANDLE_READ_ONLY_TXN(txn);
 
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
@@ -1235,6 +1236,7 @@ static int env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char 
 static int
 locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
     int ret, r;
+    HANDLE_READ_ONLY_TXN(txn);
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
 
     DB_TXN *child_txn = NULL;
@@ -2413,6 +2415,7 @@ env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u
     if (!env_opened(env) || flags != 0) {
         return EINVAL;
     }
+    HANDLE_READ_ONLY_TXN(txn);
     if (dbname != NULL) {
         // env_dbremove_subdb() converts (fname, dbname) to dname
         return env_dbremove_subdb(env, txn, fname, dbname, flags);
@@ -2519,6 +2522,7 @@ env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, co
     if (!env_opened(env) || flags != 0) {
         return EINVAL;
     }
+    HANDLE_READ_ONLY_TXN(txn);
     if (dbname != NULL) {
         // env_dbrename_subdb() converts (fname, dbname) to dname and (fname, newname) to newdname
         return env_dbrename_subdb(env, txn, fname, dbname, newname, flags);

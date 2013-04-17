@@ -47,6 +47,7 @@ typedef struct txnid_pair_s {
 
 #define TXNID_NONE_LIVING ((TXNID)0)
 #define TXNID_NONE        ((TXNID)0)
+#define TXNID_MAX         ((TXNID)-1)
 
 static const TXNID_PAIR TXNID_PAIR_NONE = { .parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE };
 

@@ -192,9 +192,13 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
 
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
     toku_mutex_destroy(&txn_manager->txn_manager_lock);
+    invariant(txn_manager->live_root_txns.size() == 0);
     txn_manager->live_root_txns.destroy();
+    invariant(txn_manager->live_root_ids.size() == 0);
     txn_manager->live_root_ids.destroy();
+    invariant(txn_manager->snapshot_txnids.size() == 0);
     txn_manager->snapshot_txnids.destroy();
+    invariant(txn_manager->referenced_xids.size() == 0);
     txn_manager->referenced_xids.destroy();
     toku_free(txn_manager);
 }
@@ -264,19 +268,33 @@ max_xid(TXNID a, TXNID b) {
 }
 
 static TXNID get_oldest_referenced_xid_unlocked(TXN_MANAGER txn_manager) {
-    TXNID oldest_referenced_xid = TXNID_NONE_LIVING;
-    int r = txn_manager->live_root_ids.fetch(0, &oldest_referenced_xid);
-    // this function should only be called when we know there is at least
-    // one live transaction
-    invariant_zero(r);
-
-    struct referenced_xid_tuple* tuple;
+    TXNID oldest_referenced_xid = TXNID_MAX;
+    int r;
+    if (txn_manager->live_root_ids.size() > 0) {
+        r = txn_manager->live_root_ids.fetch(0, &oldest_referenced_xid);
+        // this function should only be called when we know there is at least
+        // one live transaction
+        invariant_zero(r);
+    }
+    
     if (txn_manager->referenced_xids.size() > 0) {
+        struct referenced_xid_tuple* tuple;
         r = txn_manager->referenced_xids.fetch(0, &tuple);
         if (r == 0 && tuple->begin_id < oldest_referenced_xid) {
             oldest_referenced_xid = tuple->begin_id;
         }
     }
+    if (txn_manager->snapshot_txnids.size() > 0) {
+        TXNID id;
+        r = txn_manager->snapshot_txnids.fetch(0, &id);
+        if (r == 0 && id < oldest_referenced_xid) {
+            oldest_referenced_xid = id;
+        }
+    }
+    if (txn_manager->last_xid < oldest_referenced_xid) {
+        oldest_referenced_xid = txn_manager->last_xid;
+    }
+    paranoid_invariant(oldest_referenced_xid != TXNID_MAX);
     return oldest_referenced_xid;
 }
 
@@ -492,7 +510,8 @@ void toku_txn_manager_start_txn_for_recovery(
 void toku_txn_manager_start_txn(
     TOKUTXN txn,
     TXN_MANAGER txn_manager,
-    TXN_SNAPSHOT_TYPE snapshot_type
+    TXN_SNAPSHOT_TYPE snapshot_type,
+    bool read_only
     )
 {
     int r;
@@ -528,13 +547,15 @@ void toku_txn_manager_start_txn(
     // is taken into account when the transaction is closed.
 
     // add ancestor information, and maintain global live root txn list
-    xid = ++txn_manager->last_xid;
+    xid = ++txn_manager->last_xid; // we always need an ID, needed for lock tree
     toku_txn_update_xids_in_txn(txn, xid);
-    uint32_t idx = txn_manager->live_root_txns.size();
-    r = txn_manager->live_root_txns.insert_at(txn, idx);
-    invariant_zero(r);
-    r = txn_manager->live_root_ids.insert_at(txn->txnid.parent_id64, idx);
-    invariant_zero(r);
+    if (!read_only) {
+        uint32_t idx = txn_manager->live_root_txns.size();
+        r = txn_manager->live_root_txns.insert_at(txn, idx);
+        invariant_zero(r);
+        r = txn_manager->live_root_ids.insert_at(txn->txnid.parent_id64, idx);
+        invariant_zero(r);
+    }
     txn->oldest_referenced_xid = get_oldest_referenced_xid_unlocked(txn_manager);
     
     if (needs_snapshot) {
@@ -548,6 +569,7 @@ void toku_txn_manager_start_txn(
         verify_snapshot_system(txn_manager);
     }
     txn_manager_unlock(txn_manager);
+    return;
 }
 
 TXNID
@@ -593,37 +615,39 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
             );
     }
 
-    uint32_t idx;
-    //Remove txn from list of live root txns
-    TOKUTXN txnagain;
-    r = txn_manager->live_root_txns.find_zero<TOKUTXN, find_xid>(txn, &txnagain, &idx);
-    invariant_zero(r);
-    invariant(txn==txnagain);
+    if (!txn_declared_read_only(txn)) {
+        uint32_t idx;
+        //Remove txn from list of live root txns
+        TOKUTXN txnagain;
+        r = txn_manager->live_root_txns.find_zero<TOKUTXN, find_xid>(txn, &txnagain, &idx);
+        invariant_zero(r);
+        invariant(txn==txnagain);
 
-    r = txn_manager->live_root_txns.delete_at(idx);
-    invariant_zero(r);
-    r = txn_manager->live_root_ids.delete_at(idx);
-    invariant_zero(r);
+        r = txn_manager->live_root_txns.delete_at(idx);
+        invariant_zero(r);
+        r = txn_manager->live_root_ids.delete_at(idx);
+        invariant_zero(r);
 
-    if (!toku_txn_is_read_only(txn) || garbage_collection_debug) {
-        if (!is_snapshot) {
-            //
-            // If it's a snapshot, we already calculated index_in_snapshot_txnids.
-            // Otherwise, calculate it now.
-            //
-            r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(txn->txnid.parent_id64, nullptr, &index_in_snapshot_txnids);
-            invariant(r == DB_NOTFOUND);
-        }
-        uint32_t num_references = txn_manager->snapshot_txnids.size() - index_in_snapshot_txnids;
-        if (num_references > 0) {
-            // This transaction exists in a live list of another transaction.
-            struct referenced_xid_tuple tuple = {
-                .begin_id = txn->txnid.parent_id64,
-                .end_id = ++txn_manager->last_xid,
-                .references = num_references
-            };
-            r = txn_manager->referenced_xids.insert<TXNID, find_tuple_by_xid>(tuple, txn->txnid.parent_id64, nullptr);
-            lazy_assert_zero(r);
+        if (!toku_txn_is_read_only(txn) || garbage_collection_debug) {
+            if (!is_snapshot) {
+                //
+                // If it's a snapshot, we already calculated index_in_snapshot_txnids.
+                // Otherwise, calculate it now.
+                //
+                r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(txn->txnid.parent_id64, nullptr, &index_in_snapshot_txnids);
+                invariant(r == DB_NOTFOUND);
+            }
+            uint32_t num_references = txn_manager->snapshot_txnids.size() - index_in_snapshot_txnids;
+            if (num_references > 0) {
+                // This transaction exists in a live list of another transaction.
+                struct referenced_xid_tuple tuple = {
+                    .begin_id = txn->txnid.parent_id64,
+                    .end_id = ++txn_manager->last_xid,
+                    .references = num_references
+                };
+                r = txn_manager->referenced_xids.insert<TXNID, find_tuple_by_xid>(tuple, txn->txnid.parent_id64, nullptr);
+                lazy_assert_zero(r);
+            }
         }
     }
 
@@ -638,6 +662,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         txn->live_root_txn_list->destroy();
         toku_free(txn->live_root_txn_list);
     }
+    return;
 }
 
 void toku_txn_manager_clone_state_for_gc(

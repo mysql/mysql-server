@@ -58,7 +58,8 @@ void toku_txn_manager_handle_snapshot_destroy_for_child_txn(
 void toku_txn_manager_start_txn(
     TOKUTXN txn,
     TXN_MANAGER txn_manager,
-    TXN_SNAPSHOT_TYPE snapshot_type
+    TXN_SNAPSHOT_TYPE snapshot_type,
+    bool read_only
     );
 
 void toku_txn_manager_start_txn_for_recovery(

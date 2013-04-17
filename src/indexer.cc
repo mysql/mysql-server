@@ -161,6 +161,7 @@ toku_indexer_create_indexer(DB_ENV *env,
 {
     int rval;
     DB_INDEXER *indexer = 0;   // set later when created
+    HANDLE_READ_ONLY_TXN(txn);
 
     *indexerp = NULL;
 

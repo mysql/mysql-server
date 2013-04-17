@@ -376,6 +376,7 @@ stress_table(DB_ENV* env, DB **dbs, struct cli_args *cli_args) {
         } else {
             myargs[i].operation = iibench_rangequery_op;
             myargs[i].operation_extra = &put_extra;
+            myargs[i].txn_flags |= DB_TXN_READ_ONLY;
             myargs[i].sleep_ms = 1000; // 1 second between range queries
         }
     }

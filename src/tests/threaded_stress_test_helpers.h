@@ -135,7 +135,7 @@ struct arg {
                                 // DB are in [0, num_elements)
                                 // false otherwise
     int sleep_ms; // number of milliseconds to sleep between operations
-    uint32_t txn_type; // isolation level for txn running operation
+    uint32_t txn_flags; // isolation level for txn running operation
     operation_t operation; // function that is the operation to be run
     void* operation_extra; // extra parameter passed to operation
     enum stress_lock_type lock_type; // states if operation must be exclusive, shared, or does not require locking
@@ -155,7 +155,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->bounded_element_range = true;
     arg->sleep_ms = 0;
     arg->lock_type = STRESS_LOCK_NONE;
-    arg->txn_type = DB_TXN_SNAPSHOT;
+    arg->txn_flags = DB_TXN_SNAPSHOT;
     arg->operation_extra = nullptr;
     arg->do_prepare = false;
     arg->prelock_updates = false;
@@ -488,12 +488,12 @@ static void *worker(void *arg_v) {
         printf("%lu starting %p\n", (unsigned long) intself, arg->operation);
     }
     if (arg->cli->single_txn) {
-        r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
+        r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
     }
     while (run_test) {
         lock_worker_op(we);
         if (!arg->cli->single_txn) {
-            r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
+            r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r==0 && !arg->cli->single_txn && arg->do_prepare) {
@@ -2654,7 +2654,7 @@ UU() stress_recover(struct cli_args *args) {
     DB_TXN* txn = nullptr;
     struct arg recover_args;
     arg_init(&recover_args, dbs, env, args);
-    int r = env->txn_begin(env, 0, &txn, recover_args.txn_type);
+    int r = env->txn_begin(env, 0, &txn, recover_args.txn_flags);
     CKERR(r);
     struct scan_op_extra soe = {
         .fast = true,
