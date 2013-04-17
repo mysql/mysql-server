@@ -2210,6 +2210,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
 // Garbage collect all leaf entires.
 static void
 brt_leaf_gc_all_les(BRTNODE node,
+                    struct brt_header* h,
                     OMT snapshot_xids,
                     OMT live_list_reverse,
                     OMT live_root_txns)
@@ -2224,7 +2225,7 @@ brt_leaf_gc_all_les(BRTNODE node,
         delta.numrows = 0;
         delta.numbytes = 0;
         basement_node_gc_all_les(bn, snapshot_xids, live_list_reverse, live_root_txns, &delta);
-        update_header_stats(&(node->h->in_memory_stats), &(delta));
+        update_header_stats(&(h->in_memory_stats), &(delta));
     }
 }
 
@@ -2280,7 +2281,7 @@ toku_bnc_flush_to_child(
             toku_pthread_mutex_unlock(&logger->txn_list_lock);
         }
         // Perform the garbage collection.
-        brt_leaf_gc_all_les(child, snapshot_txnids, live_list_reverse, live_root_txns);
+        brt_leaf_gc_all_les(child, h, snapshot_txnids, live_list_reverse, live_root_txns);
 
         // Free the OMT's we used for garbage collecting.
         toku_omt_destroy(&snapshot_txnids);
