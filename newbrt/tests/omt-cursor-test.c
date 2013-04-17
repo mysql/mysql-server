@@ -1,4 +1,15 @@
-#include "includes.h"
+#include "portability.h"
+#include <errno.h>
+#include <stdio.h>
+
+typedef void *OMTVALUE;
+#include "omt.h"
+#include "memory.h"
+#include "toku_assert.h"
+#include "brttypes.h"
+
+#include <stdlib.h>
+#include <string.h>
 
 enum { N=10 };
 struct value { int x; } vs[N];
