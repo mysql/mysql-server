@@ -99,27 +99,6 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     return 0;
 }
 
-int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *dest) {
-    return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->msn, cmd->xids, is_fresh, dest);
-}
-
-#if 0
-// fill in the BRT_MSG, using the two DBTs for the DBT part.
-int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_MSG cmd, DBT*key, DBT*data) {
-    u_int32_t type;
-    bytevec keyb,datab;
-    unsigned int keylen,datalen;
-    int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xids);
-    if (r!=0) return r;
-    cmd->type=(enum brt_msg_type)type;
-    toku_fill_dbt(key, keyb, keylen);
-    toku_fill_dbt(data, datab, datalen);
-    cmd->u.id.key=key;
-    cmd->u.id.val=data;
-    return 0;
-}
-#endif
-
 int toku_fifo_iterate_internal_start(FIFO UU(fifo)) { return 0; }
 int toku_fifo_iterate_internal_has_more(FIFO fifo, int off) { return off < fifo->memory_used; }
 int toku_fifo_iterate_internal_next(FIFO fifo, int off) {
@@ -136,19 +115,6 @@ void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec d
                  f(key,keylen,data,datalen,type,msn,xids,is_fresh, arg));
 }
 
-void toku_fifo_size_is_stabilized(FIFO fifo) {
-    if (fifo->memory_used < fifo->memory_size/2) {
-        char *old_memory = fifo->memory;
-        int new_memory_size = fifo->memory_used*2;
-        char *new_memory = toku_xmalloc(new_memory_size);
-        memcpy(new_memory, old_memory, fifo->memory_used);
-        fifo->memory       = new_memory;
-        fifo->memory_size  = new_memory_size;
-        toku_free(old_memory);
-    }
-}
-
-
 unsigned int toku_fifo_buffer_size_in_use (FIFO fifo) {
     return fifo->memory_used;
 }
@@ -161,10 +127,6 @@ unsigned long toku_fifo_memory_footprint(FIFO fifo) {
     size_t size_used = toku_memory_footprint(fifo->memory, fifo->memory_used);
     long rval = sizeof(*fifo) + size_used; 
     return rval;
-}
-
-unsigned long toku_fifo_memory_size(FIFO fifo) {
-    return sizeof(*fifo)+fifo->memory_size;
 }
 
 DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry) {

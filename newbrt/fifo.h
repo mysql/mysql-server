@@ -54,23 +54,14 @@ int toku_fifo_create(FIFO *);
 
 void toku_fifo_free(FIFO *);
 
-void toku_fifo_size_is_stabilized(FIFO);
-// Effect: Tell the FIFO that we may have just inserted or removed a bunch of stuff, and now may be a good time to resize memory.
-
 int toku_fifo_n_entries(FIFO);
-
-int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, bool is_fresh, long *dest);
 
 int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, long *dest);
 
-// int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
-                          // THIS ONLY REMAINS FOR TESTING, DO NOT USE IT IN CODE
 unsigned int toku_fifo_buffer_size_in_use (FIFO fifo);
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
 
 unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
-
-unsigned long toku_fifo_memory_size(FIFO); // return how much memory fifo has allocated
 
 //These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
 //int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);
