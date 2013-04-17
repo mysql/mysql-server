@@ -427,7 +427,7 @@ serialize_node(BRTNODE node, char *buf, size_t calculated_size, int n_sub_blocks
 }
 
 
-static void
+static int
 serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        int n_sub_blocks,
                                        struct sub_block sub_block[n_sub_blocks],
@@ -438,6 +438,8 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
     size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
     size_t header_len = node_header_overhead + sub_block_header_len + sizeof (uint32_t); // node + sub_block + checksum
     char *MALLOC_N(header_len + compressed_len, compressed_buf);
+    if (compressed_buf == NULL)
+        return errno;
 
     // copy the header
     memcpy(compressed_buf, uncompressed_buf, node_header_overhead);
@@ -469,6 +471,8 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 
     *n_bytes_to_write = header_len + compressed_len;
     *bytes_to_write   = compressed_buf;
+
+    return 0;
 }
 
 int
@@ -504,8 +508,8 @@ toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_th
         serialize_node(node, buf, calculated_size, n_sub_blocks, sub_block);
 
         //Compress and malloc buffer to write
-        serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
-                                               n_bytes_to_write, bytes_to_write);
+        result = serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+                                                        n_bytes_to_write, bytes_to_write);
         toku_free(buf);
     }
     return result;
@@ -1741,10 +1745,10 @@ toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
     serialize_rollback_log_node_to_buf(log, buf, calculated_size, n_sub_blocks, sub_block);
 
     //Compress and malloc buffer to write
-    serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
-                                           n_bytes_to_write, bytes_to_write);
+    int result = serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+                                                        n_bytes_to_write, bytes_to_write);
     toku_free(buf);
-    return 0;
+    return result;
 }
 
 int

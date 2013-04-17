@@ -343,7 +343,6 @@ int test_main (int argc, const char *argv[]) {
     if (verbose) printf("event_limit=%d\n", event_limit);
 
     for (int i = 1; i <= event_limit; i++) {
-        // if (i == 62 || i == 63 || i == 64 || i == 65 || i == 66 || i == 67) continue;
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;
