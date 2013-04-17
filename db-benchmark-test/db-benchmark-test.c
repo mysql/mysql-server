@@ -376,6 +376,7 @@ test1514(void) {
 int main (int argc, const char *argv[]) {
     struct timeval t1,t2,t3;
     long long total_n_items = default_n_items;
+    char *endptr;
     int i;
     for (i=1; i<argc; i++) {
         const char *arg = argv[i];
@@ -402,15 +403,15 @@ int main (int argc, const char *argv[]) {
 	    check_small_rolltmp = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-            items_per_transaction = strtoll(argv[++i], 0, 10);
+            items_per_transaction = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
         } else if (strcmp(arg, "--abort") == 0) {
             do_abort = 1;
         } else if (strcmp(arg, "--periter") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-            items_per_iteration = strtoll(argv[++i], 0, 10);
+            items_per_iteration = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
         } else if (strcmp(arg, "--cachesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-            cachesize = strtoll(argv[++i], 0, 10);
+            cachesize = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
         } else if (strcmp(arg, "--keysize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             keysize = atoi(argv[++i]);
