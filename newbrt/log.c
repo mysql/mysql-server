@@ -675,6 +675,16 @@ int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, struct x1764 *check
     r = toku_fread_int32_t  (f, &v->n_named_roots, checksum, len); if (r!=0) return r;
     assert(v->n_named_roots==-1);
     r = toku_fread_BLOCKNUM (f, &v->u.one.root,     checksum, len); if (r!=0) return r;
+    r = toku_fread_BLOCKNUM (f, &v->btt_size,       checksum, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->btt_diskoff,    checksum, len); if (r!=0) return r;
+    XMALLOC_N(v->btt_size.b, v->btt_pairs);
+    int64_t i;
+    for (i=0; i<v->btt_size.b; i++) {
+	r = toku_fread_DISKOFF(f, &v->btt_pairs[i].off, checksum, len);
+	if (r!=0) { toku_free(v->btt_pairs); return r; }
+	r = toku_fread_int32_t (f, &v->btt_pairs[i].size, checksum, len);
+	if (r!=0) { toku_free(v->btt_pairs); return r; }
+    }
     return 0;
 }
 
@@ -779,6 +789,13 @@ int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname,
     int r = toku_fread_LOGGEDBRTHEADER(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s={size=%u flags=%u nodesize=%u free_blocks=%" PRId64 " unused_memory=%" PRId64 " n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.free_blocks.b, v.unused_blocks.b, v.n_named_roots);
+    fprintf(outf, " btt_size=%"  PRId64 " btt_diskoff=%" PRId64 " btt_pairs={", v.btt_size.b, v.btt_diskoff) ;
+    int64_t i;
+    for (i=0; i<v.btt_size.b; i++) {
+	if (i>0) printf(" ");
+	fprintf(outf, "%" PRId64 ",%d", v.btt_pairs[i].off, v.btt_pairs[i].size);
+    }
+    fprintf(outf, "}");
     return 0;
 
 }

@@ -34,12 +34,10 @@ void toku_blocktable_create(BLOCK_TABLE *btp,
         BLOCKNUM unused_blocks,
         u_int64_t translated_blocknum_limit,
         u_int64_t block_translation_address_on_disk,
-        u_int64_t block_translation_size_on_disk,
         unsigned char *buffer);
+void toku_blocktable_create_from_loggedheader(BLOCK_TABLE *btp, LOGGEDBRTHEADER);
 void toku_blocktable_create_new(BLOCK_TABLE *bt);
 
-void toku_block_recovery_set_unused_blocks(BLOCK_TABLE bt, BLOCKNUM newunused);
-void toku_block_recovery_set_free_blocks(BLOCK_TABLE bt, BLOCKNUM newfree);
 BLOCKNUM toku_block_get_unused_blocks(BLOCK_TABLE bt);
 BLOCKNUM toku_block_get_free_blocks(BLOCK_TABLE bt);
 u_int64_t toku_block_get_translated_blocknum_limit(BLOCK_TABLE bt);

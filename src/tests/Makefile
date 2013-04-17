@@ -73,10 +73,6 @@ BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DO
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
-	test-recover1 \
-	test-recover2 \
-	test-recover3 \
-	test_txn_recover3 \
 	test944 \
 	test_truncate_txn_abort \
 	test_truncate_subdb \
@@ -87,15 +83,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 #\ ends prev line
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
-	test_log2.recover \
-	test_log3.recover \
-	test_log4.recover \
-	test_log5.recover \
-	test_log6.recover \
-	test_log7.recover \
-	test_log8.recover \
-	test_log9.recover \
-	test_log10.recover \
 #\ ends prev line
 
 ALL_TESTS  = $(TDB_TESTS)
@@ -159,11 +146,16 @@ TDBVGRIND=$(VGRIND)
 	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recover: %.tdb$(BINSUF)
-	$(VGRIND) ./$< && \
-	rm -rf dir.$*.c.tdb.recover && \
-	mkdir dir.$*.c.tdb.recover && \
-	(cd dir.$*.c.tdb.recover && $(VGRIND) ../../../newbrt/tdb-recover ../dir.$*.c.tdb ) && \
-	diff dir.$*.c.tdb dir.$*.c.tdb.recover/foo.db \
+	echo doing ./$< &&\
+	$(VGRIND) ./$<                                                                          && \
+	rm -rf dir.$*.c.tdb.recover                                                             && \
+	mkdir dir.$*.c.tdb.recover                                                              && \
+	echo doing recovery &&\
+	$(VGRIND) ../../newbrt/tdb-recover dir.$*.c.tdb.recover dir.$*.c.tdb                    && \
+	echo dump and compare &&\
+	../../utils/tokudb_dump -h dir.$*.c.tdb         foo.db > dir.$*.c.tdb/foo.dump          && \
+	../../utils/tokudb_dump -h dir.$*.c.tdb.recover foo.db > dir.$*.c.tdb.recover/foo.dump  && \
+	diff dir.$*.c.tdb/foo.dump dir.$*.c.tdb.recover/foo.dump                                   \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recoverwc: %.tdb$(BINSUF)

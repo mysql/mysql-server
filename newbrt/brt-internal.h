@@ -194,6 +194,7 @@ struct brtenv {
 
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn);
+extern int toku_brt_alloc_init_header(BRT t, const char *dbname);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 

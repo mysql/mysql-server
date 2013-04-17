@@ -1488,8 +1488,8 @@ unlock_for_graceful (void) {
     assert(r==0);
 }
 
-static void
-graceful_fill_names(const char *db_fname, char *cleanbuf, size_t cleansize, char *dirtybuf, size_t dirtysize) {
+void
+toku_graceful_fill_names(const char *db_fname, char *cleanbuf, size_t cleansize, char *dirtybuf, size_t dirtysize) {
     int written;
     written = snprintf(cleanbuf, cleansize, "%s.clean", db_fname);
     assert(written>=0);
@@ -1506,7 +1506,7 @@ graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
+    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
@@ -1536,7 +1536,7 @@ graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
+    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
@@ -1562,7 +1562,7 @@ graceful_dirty_get_append_fd(const char *db_fname) {
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
+    toku_graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);

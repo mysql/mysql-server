@@ -17,6 +17,7 @@
 #endif
 
 static DB * const null_db=0;
+static TOKULOGGER const null_tokulogger = 0;
 
 // These data structures really should be part of a recovery data structure.  Recovery could be multithreaded (on different environments...)  But this is OK since recovery can only happen in one
 static CACHETABLE ct;
@@ -82,18 +83,6 @@ create_dir_from_file (const char *fname) {
     toku_free(tmp);
 }
 
-static void
-toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM UU(filenum), BYTESTRING fname,u_int32_t mode) {
-    char *fixed_fname = fixup_fname(&fname);
-    create_dir_from_file(fixed_fname);
-    int fd = open(fixed_fname, O_CREAT+O_TRUNC+O_WRONLY+O_BINARY, mode);
-    assert(fd>=0);
-    toku_free(fixed_fname);
-    toku_free_BYTESTRING(fname);
-    int r = close(fd);
-    assert(r==0);
-}
-
 static int
 toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     if (max_cf_pairs==0) {
@@ -114,6 +103,61 @@ toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     return 0;
 }
 
+#define CLEANSUFFIX ".clean"
+#define DIRTYSUFFIX ".dirty"
+
+static void
+internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum) {
+    // If .dirty file exists rename it to .clean
+    int slen = strlen(fixedfname);
+    char cleanname[slen + sizeof(CLEANSUFFIX)];
+    char dirtyname[slen + sizeof(DIRTYSUFFIX)];
+    toku_graceful_fill_names(fixedfname, cleanname, sizeof(cleanname), dirtyname, sizeof(dirtyname));
+    struct stat tmpbuf;
+    BOOL clean_exists = stat(cleanname, &tmpbuf)==0;
+    BOOL dirty_exists = stat(dirtyname, &tmpbuf)==0;
+    if (dirty_exists) {
+	if (clean_exists) { int r = unlink(dirtyname);            assert(r==0); }
+	else              { int r = rename(dirtyname, cleanname); assert(r==0); }
+    }
+    CACHEFILE cf;
+    int fd = open(fixedfname, O_RDWR|O_BINARY|flags, mode);
+    assert(fd>=0);
+    BRT brt=0;
+    int r = toku_brt_create(&brt);
+    assert(r==0);
+    brt->fname = fixedfname;
+    brt->database_name = 0;
+    brt->h=0;
+    brt->compare_fun = toku_default_compare_fun; // we'll need to set these to the right comparison function, or do without them.
+    brt->dup_compare = toku_default_compare_fun;
+    brt->db = 0;
+    r = toku_cachetable_openfd(&cf, ct, fd, fixedfname);
+    assert(r==0);
+    brt->cf=cf;
+    r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
+    if (r==-1) {
+	r = toku_brt_alloc_init_header(brt, 0);
+    }
+    toku_recover_note_cachefile(filenum, cf, brt);
+}
+
+static void
+toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
+    char *fixedfname = fixup_fname(&fname);
+    toku_free_BYTESTRING(fname);
+    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
+}
+
+// fcreate is like fopen except that the file must be created. Also creates the dir if needed.
+static void
+toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM filenum, BYTESTRING fname,u_int32_t mode) {
+    char *fixedfname = fixup_fname(&fname);
+    toku_free_BYTESTRING(fname);
+    create_dir_from_file(fixedfname);
+    internal_toku_recover_fopen_or_fcreate(O_CREAT|O_TRUNC, mode, fixedfname, filenum);
+}
+
 static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
     int i;
     for (i=0; i<n_cf_pairs; i++) {
@@ -125,7 +169,7 @@ static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
     return 1;
 }
 
-static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,LOGGEDBRTHEADER header) {
+static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, LOGGEDBRTHEADER header) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -137,9 +181,9 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     XMALLOC(h->flags_array);
     h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
-    assert(h->blocktable /* Not initialized.  Is this used? */);
-    toku_block_recovery_set_free_blocks(h->blocktable, header.free_blocks);
-    toku_block_recovery_set_unused_blocks(h->blocktable, header.unused_blocks);
+    toku_blocktable_create_from_loggedheader(&h->blocktable,
+					     header);
+    assert(h->blocktable);
     h->n_named_roots = header.n_named_roots;
     r=toku_fifo_create(&h->fifo);
     assert(r==0);
@@ -195,44 +239,17 @@ toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum,
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
-    void *h_v;
-    u_int32_t fullhash = toku_cachetable_hash(pair->cf, header_blocknum);
-    if (0) {
-	//r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
-    } else {
-	h_v=0;
-	assert(0);
-    }
-    assert(r==0);
-    struct brt_header *h=h_v;
-    r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid);
-    assert(r==0);
-    r = toku_cachetable_unpin(pair->cf, header_blocknum, fullhash, CACHETABLE_DIRTY, 0);
+    
+    struct brt_cmd cmd;
+    DBT keydbt, valdbt;
+    cmd.type=typ;
+    cmd.xid =xid;
+    cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
+    cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
+    r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
     assert(r==0);
     toku_free(key.data);
     toku_free(val.data);
-}
-
-static void
-toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
-    char *fixedfname = fixup_fname(&fname);
-    CACHEFILE cf;
-    int fd = open(fixedfname, O_RDWR+O_BINARY, 0);
-    assert(fd>=0);
-    BRT brt=0;
-    int r = toku_brt_create(&brt);
-    assert(r==0);
-    brt->fname = fixedfname;
-    brt->database_name = 0;
-    brt->h=0;
-    brt->compare_fun = 0;
-    brt->dup_compare = 0;
-    brt->db = 0;
-    r = toku_cachetable_openfd(&cf, ct, fd, fixedfname);
-    assert(r==0);
-    brt->cf=cf;
-    toku_recover_note_cachefile(filenum, cf, brt);
-    toku_free_BYTESTRING(fname);
 }
 
 static void
@@ -240,8 +257,6 @@ toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
-    // Bump up the reference count
-    toku_cachefile_refup(pair->cf);
     r = toku_close_brt(pair->brt, 0, 0);
     assert(r==0);
     pair->brt=0;
@@ -275,16 +290,6 @@ toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroo
 }
 static void
 toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
-
-static void
-toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldunused), BLOCKNUM newunused) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(filenum, &pair);
-    assert(r==0);
-    assert(pair->brt);
-    assert(pair->brt->h);
-    toku_block_recovery_set_unused_blocks(pair->brt->h->blocktable, newunused);
-}
 
 static int toku_recover_checkpoint (LSN UU(lsn)) {
     return 0;

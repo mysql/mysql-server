@@ -825,7 +825,7 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
                                free_blocks, unused_blocks,
                                translated_blocknum_limit,
                                block_translation_address_on_disk,
-                               block_translation_size_on_disk, NULL);
+                               NULL);
     }
     else {
         //Load translation table if it exists on disk.
@@ -850,7 +850,6 @@ deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **
                                free_blocks, unused_blocks,
                                translated_blocknum_limit,
                                block_translation_address_on_disk,
-                               block_translation_size_on_disk,
                                tbuf);
 	unlock_for_pwrite();
 	toku_free(tbuf);

@@ -2670,7 +2670,7 @@ static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BO
     return 0;
 }
 
-static int brt_init_header(BRT t, TOKUTXN txn) {
+static int brt_init_header(BRT t) {
     int r;
     BLOCKNUM root = make_blocknum(1);
 
@@ -2687,19 +2687,24 @@ static int brt_init_header(BRT t, TOKUTXN txn) {
     {
         BLOCKNUM free_blocks = toku_block_get_free_blocks(t->h->blocktable);
         BLOCKNUM unused_blocks = toku_block_get_unused_blocks(t->h->blocktable);
+	u_int64_t n_blocks_translated = toku_block_get_translated_blocknum_limit(t->h->blocktable);
+	assert(n_blocks_translated==0);
         LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
                               .flags = t->flags,
                               .nodesize = t->h->nodesize,
                               .free_blocks = free_blocks,
                               .unused_blocks = unused_blocks,
-                              .n_named_roots = t->h->n_named_roots };
+                              .n_named_roots = t->h->n_named_roots,
+			      .btt_size = make_blocknum(n_blocks_translated),
+			      .btt_diskoff = 0, // No diskoffset yet allocated, since it's a new blocktable.
+			      .btt_pairs = 0};
         if (t->h->n_named_roots>=0) {
             lh.u.many.names = t->h->names;
             lh.u.many.roots = t->h->roots;
         } else {
             lh.u.one.root = t->h->roots[0];
         }
-        if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
+        //if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
     }
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
@@ -2711,7 +2716,7 @@ static int brt_init_header(BRT t, TOKUTXN txn) {
 
 // allocate and initialize a brt header.
 // t->cf is not set to anything.
-static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
+int toku_brt_alloc_init_header(BRT t, const char *dbname) {
     int r;
 
     r = brtheader_alloc(&t->h);
@@ -2736,7 +2741,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
         t->h->names=0;
     }
 
-    r = brt_init_header(t, txn);
+    r = brt_init_header(t);
     if (r != 0) goto died7;
     return r;
 }
@@ -2805,8 +2810,9 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
             if (r != 0) goto died_after_open;
             t->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
-        }
-        r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
+        } else {
+	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
+	}
     }
     if (r!=0) {
         died_after_open: 
@@ -2823,7 +2829,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     if (is_create) {
         r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h);
         if (r==-1) {
-            r = brt_alloc_init_header(t, dbname, txn);
+            r = toku_brt_alloc_init_header(t, dbname);
             if (r != 0) goto died_after_read_and_pin;
         }
         else if (r!=0) {
@@ -4421,7 +4427,7 @@ int toku_brt_truncate (BRT brt) {
 
     // reinit the header
     brtheader_partial_destroy(brt->h);
-    r = brt_init_header(brt, NULL_TXN);
+    r = brt_init_header(brt);
 
     return r;
 }
