@@ -97,6 +97,13 @@ static MYSQL_THDVAR_BOOL(load_save_space,
   NULL, 
   FALSE
   );
+static MYSQL_THDVAR_BOOL(disable_slow_alter,
+  0,
+  "if on, alter tables that require copy are disabled",
+  NULL, 
+  NULL, 
+  FALSE
+  );
 static MYSQL_THDVAR_BOOL(create_index_online,
   0,
   "if on, create index done online",
@@ -386,7 +393,8 @@ static int tokudb_init_func(void *p) {
     assert(!r);
     r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
     assert(!r);
-
+    db_env->set_update(db_env, tokudb_update_fun);
+    
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
@@ -558,6 +566,10 @@ uint get_pk_insert_mode(THD* thd) {
 
 bool get_load_save_space(THD* thd) {
     return (THDVAR(thd, load_save_space) != 0);
+}
+
+bool get_disable_slow_alter(THD* thd) {
+    return (THDVAR(thd, disable_slow_alter) != 0);
 }
 
 bool get_create_index_online(THD* thd) {
@@ -1056,6 +1068,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("dictionary updates", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_fail);
       STATPRINT("dictionary updates fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_broadcast);
+      STATPRINT("dictionary broadcast updates", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.updates_broadcast_fail);
+      STATPRINT("dictionary broadcast updates fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_updates);
+      STATPRINT("leafentry updates", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_updates_broadcast);
+      STATPRINT("leafentry broadcast updates", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
       STATPRINT("dictionary inserts multi", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
@@ -1380,7 +1400,7 @@ void tokudb_cleanup_log_files(void) {
 static uint tokudb_alter_table_flags(uint flags)
 {
     return (HA_ONLINE_ADD_INDEX_NO_WRITES| HA_ONLINE_DROP_INDEX_NO_WRITES |
-            HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES);
+            HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES|HA_GENERAL_ONLINE);
 
 }
 
@@ -1429,6 +1449,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_lock_wait),
     MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(load_save_space),
+    MYSQL_SYSVAR(disable_slow_alter),
     MYSQL_SYSVAR(create_index_online),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),

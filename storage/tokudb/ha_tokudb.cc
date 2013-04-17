@@ -64,7 +64,7 @@ static const char *ha_tokudb_exts[] = {
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
-inline u_int32_t get_var_len_offset(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
+inline u_int32_t get_fixed_field_size(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, uint keynr) {
     uint offset = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         if (kc_info->field_lengths[i] && !bitmap_is_set(&kc_info->key_filters[keynr],i)) {
@@ -291,7 +291,7 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 ulonglong ha_tokudb::table_flags() const {
     return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
-        int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
+        int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_ONLINE_ALTER);
 }
 
 //
@@ -745,33 +745,20 @@ inline const uchar* unpack_fixed_field(
 }
 
 
-inline uchar* pack_var_field(
+inline uchar* write_var_field(
     uchar* to_tokudb_offset_ptr, //location where offset data is going to be written
-    uchar* to_tokudb_data,
-    uchar* to_tokudb_offset_start, //location where offset starts
-    const uchar * from_mysql,
-    u_int32_t mysql_length_bytes,
-    u_int32_t offset_bytes
+    uchar* to_tokudb_data, // location where data is going to be written
+    uchar* to_tokudb_offset_start, //location where offset starts, IS THIS A BAD NAME????
+    const uchar * data, // the data to write
+    u_int32_t data_length, // length of data to write
+    u_int32_t offset_bytes // number of offset bytes
     )
 {
-    uint data_length = 0;
-    u_int32_t offset = 0;
-    switch(mysql_length_bytes) {
-    case(1):
-        data_length = from_mysql[0];
-        break;
-    case(2):
-        data_length = uint2korr(from_mysql);
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    memcpy(to_tokudb_data, from_mysql + mysql_length_bytes, data_length);
+    memcpy(to_tokudb_data, data, data_length);
     //
     // for offset, we pack the offset where the data ENDS!
     //
-    offset = to_tokudb_data + data_length - to_tokudb_offset_start;
+    u_int32_t offset = to_tokudb_data + data_length - to_tokudb_offset_start;
     switch(offset_bytes) {
     case (1):
         to_tokudb_offset_ptr[0] = (uchar)offset;
@@ -783,8 +770,47 @@ inline uchar* pack_var_field(
         assert(false);
         break;
     }
-
     return to_tokudb_data + data_length;
+}
+
+inline u_int32_t get_var_data_length(
+    const uchar * from_mysql, 
+    u_int32_t mysql_length_bytes 
+    ) 
+{
+    u_int32_t data_length;
+    switch(mysql_length_bytes) {
+    case(1):
+        data_length = from_mysql[0];
+        break;
+    case(2):
+        data_length = uint2korr(from_mysql);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return data_length;
+}
+
+inline uchar* pack_var_field(
+    uchar* to_tokudb_offset_ptr, //location where offset data is going to be written
+    uchar* to_tokudb_data, // pointer to where tokudb data should be written
+    uchar* to_tokudb_offset_start, //location where data starts, IS THIS A BAD NAME????
+    const uchar * from_mysql, // mysql data
+    u_int32_t mysql_length_bytes, //number of bytes used to store length in from_mysql
+    u_int32_t offset_bytes //number of offset_bytes used in tokudb row
+    )
+{
+    uint data_length = get_var_data_length(from_mysql, mysql_length_bytes);    
+    return write_var_field(
+        to_tokudb_offset_ptr,
+        to_tokudb_data,
+        to_tokudb_offset_start,
+        from_mysql + mysql_length_bytes,
+        data_length,
+        offset_bytes
+        );
 }
 
 inline void unpack_var_field(
@@ -1174,6 +1200,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     rec_buff = NULL;
     rec_update_buff = NULL;
     transaction = NULL;
+    is_fast_alter_running = false;
     cursor = NULL;
     fixed_cols_for_query = NULL;
     var_cols_for_query = NULL;
@@ -1403,7 +1430,7 @@ int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share
     //
     // set up the mcp_info
     //
-    kc_info->mcp_info[keynr].var_len_offset = get_var_len_offset(
+    kc_info->mcp_info[keynr].fixed_field_size = get_fixed_field_size(
         kc_info,
         table_share,
         keynr
@@ -2146,7 +2173,7 @@ int ha_tokudb::pack_row_in_buff(
     /* Copy null bits */
     memcpy(row_buff, record, table_share->null_bytes);
     fixed_field_ptr = row_buff + table_share->null_bytes;
-    var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[index].var_len_offset;
+    var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[index].fixed_field_size;
     start_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[index].len_of_offsets;
     var_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[index].len_of_offsets;
 
@@ -2289,7 +2316,7 @@ int ha_tokudb::unpack_row(
     memcpy(record, fixed_field_ptr, table_share->null_bytes);
     fixed_field_ptr += table_share->null_bytes;
 
-    var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[index].var_len_offset;
+    var_field_offset_ptr = fixed_field_ptr + share->kc_info.mcp_info[index].fixed_field_size;
     var_field_data_ptr = var_field_offset_ptr + share->kc_info.mcp_info[index].len_of_offsets;
 
     //
@@ -2899,14 +2926,7 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
     // change is incompatible, and to rebuild the entire table
     // This will need to be fixed
     //
-    if ((info->used_fields & HA_CREATE_USED_AUTO) &&
-        info->auto_increment_value != 0) {
-
-        return COMPATIBLE_DATA_NO;
-    }
-    if (table_changes != IS_EQUAL_YES)
-        return COMPATIBLE_DATA_NO;
-    return COMPATIBLE_DATA_YES;
+    return COMPATIBLE_DATA_NO;
 }
 
 //
@@ -5325,6 +5345,8 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
          !trx->all &&
          (thd_sql_command(thd) != SQLCOM_CREATE_TABLE) &&
          (thd_sql_command(thd) != SQLCOM_DROP_TABLE) &&
+         (thd_sql_command(thd) != SQLCOM_DROP_INDEX) &&
+         (thd_sql_command(thd) != SQLCOM_CREATE_INDEX) &&
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
         // DBUG_PRINT("trans", ("starting transaction all "));
@@ -5402,6 +5424,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         trx->sp_level = NULL;
     }
     if (lock_type != F_UNLCK) {
+        is_fast_alter_running = false;
         if (!trx->tokudb_lock_count++) {
             DBUG_ASSERT(trx->stmt == 0);
             transaction = NULL;    // Safety
@@ -5434,15 +5457,19 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                    We must in this case commit the work to keep the row locks
                  */
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
-                commit_txn(trx->stmt, 0);
                 reset_stmt_progress(&trx->stmt_progress);
-                if (tokudb_debug & TOKUDB_DEBUG_TXN)
-                    TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
-                trx->stmt = NULL;
-                trx->sub_sp_level = NULL;
+                if (!is_fast_alter_running) {
+                    commit_txn(trx->stmt, 0);
+                    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+                        TOKUDB_TRACE("commit:%p:%d\n", trx->stmt, error);
+                    }
+                    trx->stmt = NULL;
+                    trx->sub_sp_level = NULL;
+                }
             }
         }
         transaction = NULL;
+        is_fast_alter_running = false;
     }
 cleanup:
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
@@ -5611,11 +5638,6 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
         goto exit;
     }
         
-    error = file->set_descriptor(file, 1, row_descriptor);
-    if (error) {
-        DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
-        goto exit;
-    }
 
     if (block_size != 0) {
         error = file->set_pagesize(file, block_size);
@@ -5631,6 +5653,12 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
     } 
+
+    error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX : 0));
+    if (error) {
+        DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
+        goto exit;
+    }
 
     error = 0;
 exit:
@@ -5731,57 +5759,30 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
     }
 }
 
-//
-// creates dictionary for secondary index, with key description key_info, all using txn
-//
-int ha_tokudb::create_secondary_dictionary(
-    const char* name, TABLE* form, 
-    KEY* key_info, 
-    DB_TXN* txn, 
-    KEY_AND_COL_INFO* kc_info, 
-    u_int32_t keynr,
-    bool is_hot_index
-    ) 
-{
-    int error;
-    DBT row_descriptor;
-    uchar* row_desc_buff = NULL;
-    uchar* ptr = NULL;
-    char* newname = NULL;
-    KEY* prim_key = NULL;
-    char dict_name[MAX_DICT_NAME_LEN];
+u_int32_t get_max_desc_size(KEY_AND_COL_INFO* kc_info, TABLE* form) {
     u_int32_t max_row_desc_buff_size;
-    uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
-    uint32_t block_size;
-
-    bzero(&row_descriptor, sizeof(row_descriptor));
-    
     max_row_desc_buff_size = 2*(form->s->fields * 6)+10; // upper bound of key comparison descriptor
     max_row_desc_buff_size += get_max_secondary_key_pack_desc_size(kc_info); // upper bound for sec. key part
     max_row_desc_buff_size += get_max_clustering_val_pack_desc_size(form->s); // upper bound for clustering val part
+    return max_row_desc_buff_size;
+}
 
+u_int32_t create_secondary_key_descriptor(
+    uchar* buf,
+    KEY* key_info,
+    KEY* prim_key,
+    uint hpk,
+    TABLE* form,
+    uint primary_key,
+    u_int32_t keynr,
+    KEY_AND_COL_INFO* kc_info    
+    ) 
+{
+    uchar* ptr = NULL;
 
-    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
-    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
-    ptr = row_desc_buff;
-
-    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
-    if (newname == NULL){ error = ENOMEM; goto cleanup;}
-
-    sprintf(dict_name, "key-%s", key_info->name);
-    make_name(newname, name, dict_name);
-
-    prim_key = (hpk) ? NULL : &form->s->key_info[primary_key];
-
-    //
-    // setup the row descriptor
-    //
-    row_descriptor.data = row_desc_buff;
-    //
-    // save data necessary for key comparisons
-    //
+    ptr = buf;
     ptr += create_toku_key_descriptor(
-        row_desc_buff,
+        ptr,
         false,
         key_info,
         hpk,
@@ -5807,8 +5808,64 @@ int ha_tokudb::create_secondary_dictionary(
         keynr,
         key_info->flags & HA_CLUSTERING
         );
+    return ptr - buf;
+}
 
-    row_descriptor.size = ptr - row_desc_buff;
+
+//
+// creates dictionary for secondary index, with key description key_info, all using txn
+//
+int ha_tokudb::create_secondary_dictionary(
+    const char* name, TABLE* form, 
+    KEY* key_info, 
+    DB_TXN* txn, 
+    KEY_AND_COL_INFO* kc_info, 
+    u_int32_t keynr,
+    bool is_hot_index
+    ) 
+{
+    int error;
+    DBT row_descriptor;
+    uchar* row_desc_buff = NULL;
+    char* newname = NULL;
+    KEY* prim_key = NULL;
+    char dict_name[MAX_DICT_NAME_LEN];
+    u_int32_t max_row_desc_buff_size;
+    uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
+    uint32_t block_size;
+
+    bzero(&row_descriptor, sizeof(row_descriptor));
+    
+    max_row_desc_buff_size = get_max_desc_size(kc_info,form);
+
+    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
+    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
+
+    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
+    if (newname == NULL){ error = ENOMEM; goto cleanup;}
+
+    sprintf(dict_name, "key-%s", key_info->name);
+    make_name(newname, name, dict_name);
+
+    prim_key = (hpk) ? NULL : &form->s->key_info[primary_key];
+
+    //
+    // setup the row descriptor
+    //
+    row_descriptor.data = row_desc_buff;
+    //
+    // save data necessary for key comparisons
+    //
+    row_descriptor.size = create_secondary_key_descriptor(
+        row_desc_buff,
+        key_info,
+        prim_key,
+        hpk,
+        form,
+        primary_key,
+        keynr,
+        kc_info    
+        );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
     block_size = key_info->block_size << 10;
@@ -5824,46 +5881,19 @@ cleanup:
     return error;
 }
 
-//
-// create and close the main dictionarr with name of "name" using table form, all within
-// transaction txn.
-//
-int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info) {
-    int error;
-    DBT row_descriptor;
-    uchar* row_desc_buff = NULL;
-    uchar* ptr = NULL;
-    char* newname = NULL;
-    KEY* prim_key = NULL;
-    u_int32_t max_row_desc_buff_size;
-    uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
-    uint32_t block_size;
 
-    bzero(&row_descriptor, sizeof(row_descriptor));
-    max_row_desc_buff_size = 2*(form->s->fields * 6)+10; // upper bound of key comparison descriptor
-    max_row_desc_buff_size += get_max_secondary_key_pack_desc_size(kc_info); // upper bound for sec. key part
-    max_row_desc_buff_size += get_max_clustering_val_pack_desc_size(form->s); // upper bound for clustering val part
-
-    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
-    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
-    ptr = row_desc_buff;
-
-    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
-    if (newname == NULL){ error = ENOMEM; goto cleanup;}
-
-    make_name(newname, name, "main");
-
-    prim_key = (hpk) ? NULL : &form->s->key_info[primary_key];
-
-    //
-    // setup the row descriptor
-    //
-    row_descriptor.data = row_desc_buff;
-    //
-    // save data necessary for key comparisons
-    //
+u_int32_t create_main_key_descriptor(
+    uchar* buf,
+    KEY* prim_key,
+    uint hpk,
+    uint primary_key,
+    TABLE* form,
+    KEY_AND_COL_INFO* kc_info
+    ) 
+{
+    uchar* ptr = buf;
     ptr += create_toku_key_descriptor(
-        row_desc_buff, 
+        ptr, 
         hpk,
         prim_key,
         false,
@@ -5882,9 +5912,51 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
         primary_key,
         false
         );
+    return ptr - buf;
+}
 
+//
+// create and close the main dictionarr with name of "name" using table form, all within
+// transaction txn.
+//
+int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info) {
+    int error;
+    DBT row_descriptor;
+    uchar* row_desc_buff = NULL;
+    char* newname = NULL;
+    KEY* prim_key = NULL;
+    u_int32_t max_row_desc_buff_size;
+    uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
+    uint32_t block_size;
 
-    row_descriptor.size = ptr - row_desc_buff;
+    bzero(&row_descriptor, sizeof(row_descriptor));
+    max_row_desc_buff_size = get_max_desc_size(kc_info, form);
+
+    row_desc_buff = (uchar *)my_malloc(max_row_desc_buff_size, MYF(MY_WME));
+    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
+
+    newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
+    if (newname == NULL){ error = ENOMEM; goto cleanup;}
+
+    make_name(newname, name, "main");
+
+    prim_key = (hpk) ? NULL : &form->s->key_info[primary_key];
+
+    //
+    // setup the row descriptor
+    //
+    row_descriptor.data = row_desc_buff;
+    //
+    // save data necessary for key comparisons
+    //
+    row_descriptor.size = create_main_key_descriptor(
+        row_desc_buff,
+        prim_key,
+        hpk,
+        primary_key,
+        form,
+        kc_info
+        );
     assert(row_descriptor.size <= max_row_desc_buff_size);
 
     block_size = 0;
@@ -6565,14 +6637,21 @@ bool ha_tokudb::is_auto_inc_singleton(){
 //  Returns:
 //      0 on success, error otherwise
 //
-int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
+int ha_tokudb::tokudb_add_index(
+    TABLE *table_arg, 
+    KEY *key_info, 
+    uint num_of_keys, 
+    DB_TXN* txn, 
+    bool* inc_num_DBs,
+    bool* modified_DBs
+    ) 
+{
+    TOKUDB_DBUG_ENTER("ha_tokudb::tokudb_add_index");
     int error;
     uint curr_index = 0;
     DBC* tmp_cursor = NULL;
     int cursor_ret_val = 0;
     DBT curr_pk_key, curr_pk_val;
-    DB_TXN* txn = NULL;
     THD* thd = ha_thd(); 
     DB_LOADER* loader = NULL;
     DB_INDEXER* indexer = NULL;
@@ -6584,14 +6663,14 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     u_int32_t mult_put_flags[MAX_KEY + 1];
     u_int32_t mult_dbt_flags[MAX_KEY + 1];
     bool creating_hot_index = false;
-    bool incremented_numDBs = false;
     struct loader_context lc;
     memset(&lc, 0, sizeof lc);
     lc.thd = thd;
     lc.ha = this;
     loader_error = 0;
     bool rw_lock_taken = false;
-    bool modified_DBs = false;
+    *inc_num_DBs = false;
+    *modified_DBs = false;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = DB_YESOVERWRITE;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
@@ -6609,8 +6688,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     read_lock_wait_time = get_read_lock_wait_time(ha_thd());
     thd_proc_info(thd, "Adding indexes");
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
     
     //
     // in unpack_row, MySQL passes a buffer that is this long,
@@ -6649,7 +6726,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         goto cleanup;
     }
     curr_index = curr_num_DBs;
-    modified_DBs = true;
+    *modified_DBs = true;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
         if (key_info[i].flags & HA_CLUSTERING) {
             set_key_filter(
@@ -6689,7 +6766,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     
     if (creating_hot_index) {
         share->num_DBs++;
-        incremented_numDBs = true;
+        *inc_num_DBs = true;
         error = db_env->create_indexer(
             db_env,
             txn,
@@ -6742,7 +6819,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         //
         // scan primary table, create each secondary key, add to each DB
         //    
-        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
+        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, DB_SERIALIZABLE))) {
             tmp_cursor = NULL;             // Safety
             goto cleanup;
         }
@@ -6854,50 +6931,131 @@ cleanup:
         thd_proc_info(thd, status_msg);
         indexer->abort(indexer);
     }
-    if (txn) {
-        if (error) {
-            //
-            // need to restore num_DBs, and we have to do it before we close the dictionaries
-            // so that there is not a window 
-            //
-            if (incremented_numDBs) {
-                rw_wrlock(&share->num_DBs_lock);
-                share->num_DBs--;
-            }
-            if (modified_DBs) {
-                curr_index = curr_num_DBs; //3144
-                for (uint i = 0; i < num_of_keys; i++, curr_index++) {
-                    reset_key_and_col_info(&share->kc_info, curr_index);
-                }
-                curr_index = curr_num_DBs;
-                for (uint i = 0; i < num_of_keys; i++, curr_index++) {
-                    if (share->key_file[curr_index]) {
-                        int r = share->key_file[curr_index]->close(
-                            share->key_file[curr_index],
-                            0
-                            );
-                        assert(r==0);
-                        share->key_file[curr_index] = NULL;
-                    }
-                }
-            }
-            abort_txn(txn);
-            if (incremented_numDBs) {
-                rw_unlock(&share->num_DBs_lock);
-            }
-        }
-        else {
-            commit_txn(txn,0);
-        }
-    }
-            if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
-                sql_print_error("Could not add indexes to table %s because \
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
+        sql_print_error("Could not add indexes to table %s because \
 another transaction has accessed the table. \
 To add indexes, make sure no transactions touch the table.", share->table_name);
-            }
+    }
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
+void ha_tokudb::restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs) {
+    uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
+    uint curr_index = 0;
+
+    //
+    // need to restore num_DBs, and we have to do it before we close the dictionaries
+    // so that there is not a window 
+    //
+    if (incremented_numDBs) {
+        rw_wrlock(&share->num_DBs_lock);
+        share->num_DBs--;
+    }
+    if (modified_DBs) {
+        curr_index = curr_num_DBs;
+        for (uint i = 0; i < num_of_keys; i++, curr_index++) {
+            reset_key_and_col_info(&share->kc_info, curr_index);
+        }
+        curr_index = curr_num_DBs;
+        for (uint i = 0; i < num_of_keys; i++, curr_index++) {
+            if (share->key_file[curr_index]) {
+                int r = share->key_file[curr_index]->close(
+                    share->key_file[curr_index],
+                    0
+                    );
+                assert(r==0);
+                share->key_file[curr_index] = NULL;
+            }
+        }
+    }
+    if (incremented_numDBs) {
+        rw_unlock(&share->num_DBs_lock);
+    }
+}
+
+int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
+    DB_TXN* txn = NULL;
+    int error;
+    bool incremented_numDBs = false;
+    bool modified_DBs = false;
+    
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
+
+    error = tokudb_add_index(
+        table_arg,
+        key_info,
+        num_of_keys,
+        txn,
+        &incremented_numDBs,
+        &modified_DBs
+        );
+    if (error) { goto cleanup; }
+    
+cleanup:
+    if (error) {
+        restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
+        abort_txn(txn);
+    }
+    else {
+      commit_txn(txn, 0);
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::drop_indexes");
+    int error;
+    
+    for (uint i = 0; i < num_of_keys; i++) {
+        uint curr_index = key_num[i];
+        error = share->key_file[curr_index]->pre_acquire_fileops_lock(share->key_file[curr_index],txn);
+        if (error != 0) {
+            goto cleanup;
+        }
+    }
+    for (uint i = 0; i < num_of_keys; i++) {
+        uint curr_index = key_num[i];
+        int r = share->key_file[curr_index]->close(share->key_file[curr_index],0);
+        assert(r==0);
+        share->key_file[curr_index] = NULL;
+
+        error = remove_key_name_from_status(share->status_block, table_arg->key_info[curr_index].name, txn);
+        if (error) { goto cleanup; }
+        
+        error = delete_or_rename_dictionary(share->table_name, NULL, table_arg->key_info[curr_index].name, true, txn, true);
+        if (error) { goto cleanup; }
+    }
+
+cleanup:
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
+        sql_print_error("Could not drop indexes from table %s because \
+another transaction has accessed the table. \
+To drop indexes, make sure no transactions touch the table.", share->table_name);
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys) {
+    //
+    // reopen closed dictionaries
+    //
+    for (uint i = 0; i < num_of_keys; i++) {
+        int r;
+        uint curr_index = key_num[i];
+        if (share->key_file[curr_index] == NULL) {
+            r = open_secondary_dictionary(
+                &share->key_file[curr_index], 
+                &table_share->key_info[curr_index],
+                share->table_name,
+                false, // 
+                NULL
+                );
+            assert(!r);
+        }
+    }            
+}
 //
 // Prepares to drop indexes to the table. For each value, i, in the array key_num,
 // table->key_info[i] is a key that is to be dropped.
@@ -6923,56 +7081,18 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
     
-    for (uint i = 0; i < num_of_keys; i++) {
-        uint curr_index = key_num[i];
-        error = share->key_file[curr_index]->pre_acquire_fileops_lock(share->key_file[curr_index],txn);
-        if (error != 0) {
-            goto cleanup;
-        }
-    }
-    for (uint i = 0; i < num_of_keys; i++) {
-        uint curr_index = key_num[i];
-        int r = share->key_file[curr_index]->close(share->key_file[curr_index],0);
-        assert(r==0);
-        share->key_file[curr_index] = NULL;
-
-        error = remove_key_name_from_status(share->status_block, table_arg->key_info[curr_index].name, txn);
-        if (error) { goto cleanup; }
-        
-        error = delete_or_rename_dictionary(share->table_name, NULL, table_arg->key_info[curr_index].name, true, txn, true);
-        if (error) { goto cleanup; }
-    }
+    error = drop_indexes(table_arg, key_num, num_of_keys, txn);
+    if (error) { goto cleanup; }
 
 cleanup:
     if (txn) {
         if (error) {
             abort_txn(txn);
-            //
-            // reopen closed dictionaries
-            //
-            for (uint i = 0; i < num_of_keys; i++) {
-                int r;
-                uint curr_index = key_num[i];
-                if (share->key_file[curr_index] == NULL) {
-                    r = open_secondary_dictionary(
-                        &share->key_file[curr_index], 
-                        &table_share->key_info[curr_index],
-                        share->table_name,
-                        false, // 
-                        NULL
-                        );
-                    assert(!r);
-                }
-            }            
+            restore_drop_indexes(table_arg, key_num, num_of_keys);
         }
         else {
             commit_txn(txn,0);
         }
-    }
-    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
-        sql_print_error("Could not drop indexes from table %s because \
-another transaction has accessed the table. \
-To drop indexes, make sure no transactions touch the table.", share->table_name);
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -7003,6 +7123,9 @@ void ha_tokudb::print_error(int error, myf errflag) {
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
+    if (error == HA_ALTER_ERROR) {
+        error = HA_ERR_UNSUPPORTED;
+    }    
     handler::print_error(error, errflag);
 }
 
@@ -7282,6 +7405,1654 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
     assert(!hidden_primary_key);
     unpack_key(table->record[0],key,primary_key);
     last_dup_key = primary_key;
+}
+
+inline u_int32_t get_null_bit_position(u_int32_t null_bit) {
+    u_int32_t retval = 0;
+    switch(null_bit) {
+    case (1):
+        retval = 0;
+        break;
+    case (2):
+        retval = 1;
+        break;
+    case (4):
+        retval = 2;
+        break;
+    case (8):
+        retval = 3;
+        break;
+    case (16):
+        retval = 4;
+        break;
+    case (32):
+        retval = 5;
+        break;
+    case (64):
+        retval = 6;
+        break;
+    case (128):
+        retval = 7;
+        break;        
+    default:
+        assert(false);
+    }
+    return retval;
+}
+
+inline bool is_overall_null_position_set(uchar* data, u_int32_t pos) {
+    u_int32_t offset = pos/8;
+    uchar remainder = pos%8; 
+    uchar null_bit = 1<<remainder;
+    return ((data[offset] & null_bit) != 0);
+}
+
+inline void set_overall_null_position(uchar* data, u_int32_t pos, bool is_null) {
+    u_int32_t offset = pos/8;
+    uchar remainder = pos%8;
+    uchar null_bit = 1<<remainder;
+    if (is_null) {
+        data[offset] |= null_bit;
+    }
+    else {
+        data[offset] &= ~null_bit;
+    }
+}
+
+
+inline u_int32_t get_overall_null_bit_position(TABLE* table, Field* field) {
+    u_int32_t offset = get_null_offset(table, field);
+    u_int32_t null_bit = field->null_bit;
+    return offset*8 + get_null_bit_position(null_bit);
+}
+
+
+bool are_null_bits_in_order(TABLE* table) {
+    u_int32_t curr_null_pos = 0;
+    bool first = true;
+    bool retval = true;
+    for (uint i = 0; i < table->s->fields; i++) {
+        Field* curr_field = table->field[i];
+        bool nullable = (curr_field->null_bit != 0);
+        if (nullable) {
+            u_int32_t pos = get_overall_null_bit_position(
+                table,
+                curr_field
+                );
+            if (!first && pos != curr_null_pos+1){
+                retval = false;
+                break;
+            }
+            first = false;
+            curr_null_pos = pos;
+        }
+    }
+    return retval;
+}
+
+u_int32_t get_first_null_bit_pos(TABLE* table) {
+    u_int32_t table_pos = 0;
+    for (uint i = 0; i < table->s->fields; i++) {
+        Field* curr_field = table->field[i];
+        bool nullable = (curr_field->null_bit != 0);
+        if (nullable) {
+            table_pos = get_overall_null_bit_position(
+                table,
+                curr_field
+                );
+            break;
+        }
+    }
+    return table_pos;
+}
+
+bool is_column_default_null(TABLE* src_table, u_int32_t field_index) {
+    Field* curr_field = src_table->field[field_index];
+    bool is_null_default = false;
+    bool nullable = curr_field->null_bit != 0;
+    if (nullable) {
+        u_int32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
+        is_null_default = is_overall_null_position_set(
+            src_table->s->default_values,
+            null_bit_position
+            );
+    }
+    return is_null_default;
+}
+
+bool columns_have_default_null_blobs(
+    u_int32_t* changed_columns,
+    u_int32_t num_changed_columns,
+    TABLE* table 
+) {
+    bool retval = true;
+    for (u_int32_t i = 0; i < num_changed_columns; i++) {
+        Field* curr_field = table->field[changed_columns[i]];
+        TOKU_TYPE field_type = mysql_to_toku_type (curr_field);
+        if (field_type == toku_type_blob && !is_column_default_null(table,i)) {
+            retval = false;
+            break;
+        }
+    }
+    return retval;
+}
+
+bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error) {
+    bool retval;
+    if (table->s->keys != altered_table->s->keys) {
+        if (print_error) {
+            sql_print_error("tables have different number of keys");
+        }
+        retval = false;
+        goto cleanup;
+    }
+    if (table->s->primary_key != altered_table->s->primary_key) {
+        if (print_error) {
+            sql_print_error(
+                "Tables have different primary keys, %d %d", 
+                table->s->primary_key,
+                altered_table->s->primary_key
+                );
+        }
+        retval = false;
+        goto cleanup;
+    }
+    for (u_int32_t i=0; i < table->s->keys; i++) {
+        KEY* curr_orig_key = &table->key_info[i];
+        KEY* curr_altered_key = &altered_table->key_info[i];
+        if (strcmp(curr_orig_key->name, curr_altered_key->name)) {
+            if (print_error) {
+                sql_print_error(
+                    "key %d has different name, %s %s", 
+                    i, 
+                    curr_orig_key->name,
+                    curr_altered_key->name
+                    );
+            }
+            retval = false;
+            goto cleanup;
+        }
+        if (((curr_orig_key->flags & HA_CLUSTERING) == 0) != ((curr_altered_key->flags & HA_CLUSTERING) == 0)) {
+            if (print_error) {
+                sql_print_error(
+                    "keys disagree on if they are clustering, %d, %d",
+                    curr_orig_key->key_parts,
+                    curr_altered_key->key_parts
+                    );
+            }
+            retval = false;
+            goto cleanup;
+        }
+        if (((curr_orig_key->flags & HA_NOSAME) == 0) != ((curr_altered_key->flags & HA_NOSAME) == 0)) {
+            if (print_error) {
+                sql_print_error(
+                    "keys disagree on if they are unique, %d, %d",
+                    curr_orig_key->key_parts,
+                    curr_altered_key->key_parts
+                    );
+            }
+            retval = false;
+            goto cleanup;
+        }
+        if (curr_orig_key->key_parts != curr_altered_key->key_parts) {
+            if (print_error) {
+                sql_print_error(
+                    "keys have different number of parts, %d, %d",
+                    curr_orig_key->key_parts,
+                    curr_altered_key->key_parts
+                    );
+            }
+            retval = false;
+            goto cleanup;
+        }
+        //
+        // now verify that each field in the key is the same
+        //
+        for (u_int32_t j = 0; j < curr_orig_key->key_parts; j++) {
+            KEY_PART_INFO* curr_orig_part = &curr_orig_key->key_part[j];
+            KEY_PART_INFO* curr_altered_part = &curr_altered_key->key_part[j];
+            Field* curr_orig_field = curr_orig_part->field;
+            Field* curr_altered_field = curr_altered_part->field;
+            if (curr_orig_part->length != curr_altered_part->length) {
+                if (print_error) {
+                    sql_print_error(
+                        "Key %s has different length at index %d", 
+                        curr_orig_key->name, 
+                        j
+                        );
+                }
+                retval = false;
+                goto cleanup;
+            }
+            if (!are_two_fields_same(curr_orig_field,curr_altered_field)) {
+                if (print_error) {
+                    sql_print_error(
+                        "Key %s has different field at index %d", 
+                        curr_orig_key->name, 
+                        j
+                        );
+                }
+                retval = false;
+                goto cleanup;
+            }
+        }
+    }
+
+    retval = true;
+cleanup:
+    return retval;
+}
+
+void ha_tokudb::print_alter_info(
+    TABLE *altered_table,
+    HA_CREATE_INFO *create_info,
+    HA_ALTER_FLAGS *alter_flags,
+    uint table_changes
+    )
+{
+    printf("***are keys of two tables same? %d\n", tables_have_same_keys(table,altered_table,false));
+    printf("***alter flags set ***\n");
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+      if (alter_flags->is_set(i)) {
+        printf("flag: %d\n", i);
+      }
+    }
+    //
+    // everyone calculates data by doing some default_values - record[0], but I do not see why
+    // that is necessary
+    //
+    printf("******\n");
+    printf("***orig table***\n");
+    for (uint i = 0; i < table->s->fields; i++) {
+      //
+      // make sure to use table->field, and NOT table->s->field
+      //
+      Field* curr_field = table->field[i];
+      uint null_offset = get_null_offset(table, curr_field);
+      printf(
+          "name: %s, nullable: %d, null_offset: %d, is_null_field: %d, is_null %d, \n", 
+          curr_field->field_name, 
+          curr_field->null_bit,
+          null_offset,
+          (curr_field->null_ptr != NULL),
+          (curr_field->null_ptr != NULL) ? table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
+          );
+    }
+    printf("******\n");
+    printf("***altered table***\n");
+    for (uint i = 0; i < altered_table->s->fields; i++) {
+      Field* curr_field = altered_table->field[i];
+      uint null_offset = get_null_offset(altered_table, curr_field);
+      printf(
+         "name: %s, nullable: %d, null_offset: %d, is_null_field: %d, is_null %d, \n", 
+         curr_field->field_name, 
+         curr_field->null_bit,
+         null_offset,
+         (curr_field->null_ptr != NULL),
+         (curr_field->null_ptr != NULL) ? altered_table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
+         );
+    }
+    printf("******\n");
+}
+
+
+int find_changed_columns(
+    u_int32_t* changed_columns,
+    u_int32_t* num_changed_columns,
+    TABLE* smaller_table, 
+    TABLE* bigger_table
+    ) 
+{
+    uint curr_new_col_index = 0;
+    uint i = 0;
+    int retval;
+    u_int32_t curr_num_changed_columns=0;
+    assert(bigger_table->s->fields > smaller_table->s->fields);
+    for (i = 0; i < smaller_table->s->fields; i++, curr_new_col_index++) {
+        if (curr_new_col_index >= bigger_table->s->fields) {
+            sql_print_error("error in determining changed columns");
+            retval = 1;
+            goto cleanup;
+        }
+        Field* curr_field_in_new = bigger_table->field[curr_new_col_index];
+        Field* curr_field_in_orig = smaller_table->field[i];
+        while (!fields_have_same_name(curr_field_in_orig, curr_field_in_new)) {
+            if (curr_new_col_index >= bigger_table->s->fields) {
+                sql_print_error("error in determining changed columns");
+                retval = 1;
+                goto cleanup;
+            }
+            changed_columns[curr_num_changed_columns] = curr_new_col_index;
+            curr_num_changed_columns++;
+            curr_new_col_index++;
+            curr_field_in_new = bigger_table->field[curr_new_col_index];
+        }
+        // at this point, curr_field_in_orig and curr_field_in_new should be the same, let's verify
+        // make sure the two fields that have the same name are ok
+        if (!are_two_fields_same(curr_field_in_orig, curr_field_in_new)) {
+            sql_print_error(
+                "Two fields that were supposedly the same are not: \
+                %s in original, %s in new", 
+                curr_field_in_orig->field_name,
+                curr_field_in_new->field_name
+                );
+            retval = 1;
+            goto cleanup;
+        }
+    }
+    for (i = curr_new_col_index; i < bigger_table->s->fields; i++) {
+        changed_columns[curr_num_changed_columns] = i;
+        curr_num_changed_columns++;
+    }
+    *num_changed_columns = curr_num_changed_columns;
+    retval = 0;
+cleanup:
+    return retval;
+}
+
+int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
+    HA_CREATE_INFO *create_info,
+    HA_ALTER_FLAGS *alter_flags,
+    uint table_changes)
+{
+    TOKUDB_DBUG_ENTER("check_if_supported_alter");
+    int retval;
+    THD* thd = ha_thd(); 
+    bool keys_same = tables_have_same_keys(table,altered_table, false);
+
+
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+        print_alter_info(altered_table, create_info, alter_flags, table_changes);
+    }
+    bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
+    bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
+    bool has_indexing_changes = alter_flags->is_set(HA_DROP_INDEX) || 
+                                alter_flags->is_set(HA_DROP_UNIQUE_INDEX) ||
+                                alter_flags->is_set(HA_ADD_INDEX) ||
+                                alter_flags->is_set(HA_ADD_UNIQUE_INDEX);
+    bool has_non_indexing_changes = false;
+    bool has_non_dropped_changes = false;
+    bool has_non_added_changes = false;
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == HA_DROP_INDEX ||
+            i == HA_DROP_UNIQUE_INDEX ||
+            i == HA_ADD_INDEX ||
+            i == HA_ADD_UNIQUE_INDEX)
+        {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            has_non_indexing_changes = true;
+            break;
+        }
+    }
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == HA_DROP_COLUMN) {
+            continue;
+        }
+        if (keys_same && 
+            (i == HA_ALTER_INDEX || i == HA_ALTER_UNIQUE_INDEX || i == HA_ALTER_PK_INDEX)) {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            has_non_dropped_changes = true;
+            break;
+        }
+    }
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == HA_ADD_COLUMN) {
+            continue;
+        }
+        if (keys_same && 
+            (i == HA_ALTER_INDEX || i == HA_ALTER_UNIQUE_INDEX || i == HA_ALTER_PK_INDEX)) {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            has_non_added_changes = true;
+            break;
+        }
+    }
+
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+        printf("has indexing changes %d, has non indexing changes %d\n", has_indexing_changes, has_non_indexing_changes);
+    }
+    if (table->s->tmp_table != NO_TMP_TABLE) {
+      retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+      goto cleanup;
+    }
+    if (!(are_null_bits_in_order(table) && 
+          are_null_bits_in_order(altered_table)
+          )
+       ) 
+    {
+        sql_print_error("Problems parsing null bits of the original and altered table");
+        retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+        goto cleanup;
+    }
+    if (has_added_columns && !has_non_added_changes) {
+        u_int32_t added_columns[altered_table->s->fields];
+        u_int32_t num_added_columns = 0;
+        int r = find_changed_columns(
+            added_columns,
+            &num_added_columns,
+            table,
+            altered_table
+            );
+        if (r) {
+            retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+            goto cleanup;
+        }
+        if (!columns_have_default_null_blobs(
+            added_columns,
+            num_added_columns,
+            altered_table
+            )) 
+        {
+            sql_print_error("unexpectedly, an added column has a non-null default");
+            retval = HA_ALTER_ERROR;
+            goto cleanup;
+        }
+        if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            for (u_int32_t i = 0; i < num_added_columns; i++) {
+                u_int32_t curr_added_index = added_columns[i];
+                Field* curr_added_field = altered_table->field[curr_added_index];
+                printf(
+                    "Added column: index %d, name %s\n", 
+                    curr_added_index, 
+                    curr_added_field->field_name
+                    );
+            }
+        }
+    }
+    if (has_dropped_columns && !has_non_dropped_changes) {
+        u_int32_t dropped_columns[table->s->fields];
+        u_int32_t num_dropped_columns = 0;
+        int r = find_changed_columns(
+            dropped_columns,
+            &num_dropped_columns,
+            altered_table,
+            table
+            );
+        if (r) {
+            retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+            goto cleanup;
+        }
+        if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            for (u_int32_t i = 0; i < num_dropped_columns; i++) {
+                u_int32_t curr_dropped_index = dropped_columns[i];
+                Field* curr_dropped_field = table->field[curr_dropped_index];
+                printf(
+                    "Dropped column: index %d, name %s\n", 
+                    curr_dropped_index, 
+                    curr_dropped_field->field_name
+                    );
+            }
+        }
+    }
+    
+    if (has_indexing_changes && !has_non_indexing_changes) {
+        retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else if (has_dropped_columns && !has_non_dropped_changes) {
+        retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else if (has_added_columns && !has_non_added_changes) {
+        retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else { 
+        retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+    }
+cleanup:
+    DBUG_RETURN(retval);
+}
+
+#define UP_COL_ADD_OR_DROP 0
+
+#define COL_DROP 0xaa
+#define COL_ADD 0xbb
+
+#define COL_FIXED 0xcc
+#define COL_VAR 0xdd
+#define COL_BLOB 0xee
+
+
+
+#define STATIC_ROW_MUTATOR_SIZE 1+8+2+8+8+8
+
+/*
+how much space do I need for the mutators?
+static stuff first:
+1 - UP_COL_ADD_OR_DROP
+8 - old null, new null
+2 - old num_offset, new num_offset
+8 - old fixed_field size, new fixed_field_size
+8 - old and new length of offsets
+8 - old and new starting null bit position
+TOTAL: 27
+
+dynamic stuff:
+4 - number of columns
+for each column:
+1 - add or drop
+1 - is nullable
+4 - if nullable, position
+1 - if add, whether default is null or not
+1 - if fixed, var, or not
+ for fixed, entire default
+ for var, 4 bytes length, then entire default
+ for blob, nothing
+So, an upperbound is 4 + num_fields(12) + all default stuff
+
+static blob stuff:
+4 - num blobs
+1 byte for each num blobs in old table
+So, an upperbound is 4 + kc_info->num_blobs
+
+dynamic blob stuff:
+for each blob added:
+1 - state if we are adding or dropping
+4 - blob index
+if add, 1 len bytes
+ at most, 4 0's
+So, upperbound is num_blobs(1+4+1+4) = num_columns*10
+*/
+u_int32_t fill_static_row_mutator(
+    uchar* buf, 
+    TABLE* orig_table,
+    TABLE* altered_table,
+    KEY_AND_COL_INFO* orig_kc_info,
+    KEY_AND_COL_INFO* altered_kc_info,
+    u_int32_t keynr
+    ) 
+{
+    //
+    // start packing extra
+    //
+    uchar* pos = buf;
+    // says what the operation is
+    pos[0] = UP_COL_ADD_OR_DROP;
+    pos++;
+    
+    //
+    // null byte information
+    //
+    memcpy(pos, &orig_table->s->null_bytes, sizeof(orig_table->s->null_bytes));
+    pos += sizeof(orig_table->s->null_bytes);
+    memcpy(pos, &altered_table->s->null_bytes, sizeof(orig_table->s->null_bytes));
+    pos += sizeof(altered_table->s->null_bytes);
+    
+    //
+    // num_offset_bytes
+    //
+    assert(orig_kc_info->num_offset_bytes <= 2);
+    pos[0] = orig_kc_info->num_offset_bytes;
+    pos++;
+    assert(altered_kc_info->num_offset_bytes <= 2);
+    pos[0] = altered_kc_info->num_offset_bytes;
+    pos++;
+    
+    //
+    // size of fixed fields
+    //
+    u_int32_t fixed_field_size = orig_kc_info->mcp_info[keynr].fixed_field_size;
+    memcpy(pos, &fixed_field_size, sizeof(fixed_field_size));
+    pos += sizeof(fixed_field_size);
+    fixed_field_size = altered_kc_info->mcp_info[keynr].fixed_field_size;
+    memcpy(pos, &fixed_field_size, sizeof(fixed_field_size));
+    pos += sizeof(fixed_field_size);
+    
+    //
+    // length of offsets
+    //
+    u_int32_t len_of_offsets = orig_kc_info->mcp_info[keynr].len_of_offsets;
+    memcpy(pos, &len_of_offsets, sizeof(len_of_offsets));
+    pos += sizeof(len_of_offsets);
+    len_of_offsets = altered_kc_info->mcp_info[keynr].len_of_offsets;
+    memcpy(pos, &len_of_offsets, sizeof(len_of_offsets));
+    pos += sizeof(len_of_offsets);
+
+    u_int32_t orig_start_null_pos = get_first_null_bit_pos(orig_table);
+    memcpy(pos, &orig_start_null_pos, sizeof(orig_start_null_pos));
+    pos += sizeof(orig_start_null_pos);
+    u_int32_t altered_start_null_pos = get_first_null_bit_pos(altered_table);
+    memcpy(pos, &altered_start_null_pos, sizeof(altered_start_null_pos));
+    pos += sizeof(altered_start_null_pos);
+
+    assert((pos-buf) == STATIC_ROW_MUTATOR_SIZE);
+    return pos - buf;
+}
+
+
+u_int32_t fill_dynamic_row_mutator(
+    uchar* buf,
+    u_int32_t* columns, 
+    u_int32_t num_columns,
+    TABLE* src_table,
+    KEY_AND_COL_INFO* src_kc_info,
+    u_int32_t keynr,
+    bool is_add,
+    bool* out_has_blobs
+    ) 
+{
+    uchar* pos = buf;
+    bool has_blobs = false;
+    u_int32_t cols = num_columns;
+    memcpy(pos, &cols, sizeof(cols));
+    pos += sizeof(cols);
+    for (u_int32_t i = 0; i < num_columns; i++) {
+        u_int32_t curr_index = columns[i];
+        Field* curr_field = src_table->field[curr_index];
+    
+        pos[0] = is_add ? COL_ADD : COL_DROP;
+        pos++;
+        //
+        // NULL bit information
+        //
+        bool is_null_default = false;
+        bool nullable = curr_field->null_bit != 0;
+        if (!nullable) {
+            pos[0] = 0;
+            pos++;
+        }
+        else {
+            pos[0] = 1;
+            pos++;
+            // write position of null byte that is to be removed
+            u_int32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
+            memcpy(pos, &null_bit_position, sizeof(null_bit_position));
+            pos += sizeof(null_bit_position);
+            //
+            // if adding a column, write the value of the default null_bit
+            //
+            if (is_add) {
+                is_null_default = is_overall_null_position_set(
+                    src_table->s->default_values,
+                    null_bit_position
+                    );
+                pos[0] = is_null_default ? 1 : 0;
+                pos++;
+            }
+        }
+        if (src_kc_info->field_lengths[curr_index] != 0) {
+            // we have a fixed field being dropped
+            // store the offset and the number of bytes
+            pos[0] = COL_FIXED;
+            pos++;
+            //store the offset
+            u_int32_t fixed_field_offset = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
+            memcpy(pos, &fixed_field_offset, sizeof(fixed_field_offset));
+            pos += sizeof(fixed_field_offset);
+            //store the number of bytes
+            u_int32_t num_bytes = src_kc_info->field_lengths[curr_index];
+            memcpy(pos, &num_bytes, sizeof(num_bytes));
+            pos += sizeof(num_bytes);
+            if (is_add && !is_null_default) {
+                uint curr_field_offset = field_offset(curr_field, src_table);
+                memcpy(
+                    pos, 
+                    src_table->s->default_values + curr_field_offset, 
+                    num_bytes
+                    );
+                pos += num_bytes;
+            }
+        }
+        else if (src_kc_info->length_bytes[curr_index] != 0) {
+            pos[0] = COL_VAR;
+            pos++;
+            //store the index of the variable column
+            u_int32_t var_field_index = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
+            memcpy(pos, &var_field_index, sizeof(var_field_index));
+            pos += sizeof(var_field_index);
+            if (is_add && !is_null_default) {
+                uint curr_field_offset = field_offset(curr_field, src_table);
+                u_int32_t len_bytes = src_kc_info->length_bytes[curr_index];
+                u_int32_t data_length = get_var_data_length(
+                    src_table->s->default_values + curr_field_offset,
+                    len_bytes
+                    );
+                memcpy(pos, &data_length, sizeof(data_length));
+                pos += sizeof(data_length);
+                memcpy(
+                    pos, 
+                    src_table->s->default_values + curr_field_offset + len_bytes,
+                    data_length
+                    );
+                pos += data_length;
+            }
+        }
+        else {
+            pos[0] = COL_BLOB;
+            pos++;
+            has_blobs = true;
+        }
+    }
+    *out_has_blobs = has_blobs;
+    return pos-buf;
+}
+
+
+u_int32_t fill_static_blob_row_mutator(
+    uchar* buf,
+    TABLE* src_table,
+    KEY_AND_COL_INFO* src_kc_info
+    ) 
+{
+    uchar* pos = buf;
+    // copy number of blobs
+    memcpy(pos, &src_kc_info->num_blobs, sizeof(src_kc_info->num_blobs));
+    pos += sizeof(src_kc_info->num_blobs);
+    // copy length bytes for each blob
+    for (u_int32_t i = 0; i < src_kc_info->num_blobs; i++) {
+        u_int32_t curr_field_index = src_kc_info->blob_fields[i]; 
+        Field* field = src_table->field[curr_field_index];
+        u_int32_t len_bytes = field->row_pack_length();
+        assert(len_bytes <= 4);
+        pos[0] = len_bytes;
+        pos++;
+    }
+    
+    return pos-buf;
+}
+
+u_int32_t fill_dynamic_blob_row_mutator(
+    uchar* buf,
+    u_int32_t* columns, 
+    u_int32_t num_columns,
+    TABLE* src_table,
+    KEY_AND_COL_INFO* src_kc_info,
+    bool is_add
+    ) 
+{
+    uchar* pos = buf;
+    for (u_int32_t i = 0; i < num_columns; i++) {
+        u_int32_t curr_field_index = columns[i];
+        Field* curr_field = src_table->field[curr_field_index];
+        if (src_kc_info->field_lengths[curr_field_index] == 0 && 
+            src_kc_info->length_bytes[curr_field_index]== 0
+            ) 
+        {
+            // find out which blob it is
+            u_int32_t blob_index = src_kc_info->num_blobs;
+            for (u_int32_t j = 0; j < src_kc_info->num_blobs; j++) {
+                if (curr_field_index  == src_kc_info->blob_fields[j]) {
+                    blob_index = j;
+                    break;
+                }
+            }
+            // assert we found blob in list
+            assert(blob_index < src_kc_info->num_blobs);
+            pos[0] = is_add ? COL_ADD : COL_DROP;
+            pos++;
+            memcpy(pos, &blob_index, sizeof(blob_index));
+            pos += sizeof(blob_index);
+            if (is_add) {
+                bool is_null_default = is_column_default_null(
+                    src_table,
+                    curr_field_index
+                    );
+
+                u_int32_t len_bytes = curr_field->row_pack_length();
+                assert(len_bytes <= 4);
+                pos[0] = len_bytes;
+                pos++;
+
+                if (is_null_default) {
+                    // create a zero length blob field that can be directly copied in
+                    bzero(pos,len_bytes);
+                    pos += len_bytes;
+                }
+                else {
+                    // in future, if is_null_default can be 0, we will have a default value placed here
+                    // for now, in MySQL, we can only have blob fields that are null by default
+                    // in check_if_supported_alter, we verify that all blob fields have null by default,
+                    // so, we can assert this here.
+                    assert(is_null_default);
+                }
+            }
+        }
+        else {
+            // not a blob, continue
+            continue;
+        }
+    }
+    return pos-buf;
+}
+
+// TODO: carefully review to make sure that the right information is used
+// TODO: namely, when do we get stuff from share->kc_info and when we get
+// TODO: it from altered_kc_info, and when is keynr associated with the right thing
+u_int32_t ha_tokudb::fill_row_mutator(
+    uchar* buf, 
+    u_int32_t* columns, 
+    u_int32_t num_columns,
+    TABLE* altered_table,
+    KEY_AND_COL_INFO* altered_kc_info,
+    u_int32_t keynr,
+    bool is_add
+    ) 
+{
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+        printf("*****some info:*************\n");
+        printf(
+            "old things: num_null_bytes %d, num_offset_bytes %d, fixed_field_size %d, fixed_field_size %d\n",
+            table->s->null_bytes,
+            share->kc_info.num_offset_bytes,
+            share->kc_info.mcp_info[keynr].fixed_field_size,
+            share->kc_info.mcp_info[keynr].len_of_offsets
+            );
+        printf(
+            "new things: num_null_bytes %d, num_offset_bytes %d, fixed_field_size %d, fixed_field_size %d\n",
+            altered_table->s->null_bytes,
+            altered_kc_info->num_offset_bytes,
+            altered_kc_info->mcp_info[keynr].fixed_field_size,
+            altered_kc_info->mcp_info[keynr].len_of_offsets
+            );
+        printf("****************************\n");
+    }
+    uchar* pos = buf;
+    bool has_blobs = false;
+    pos += fill_static_row_mutator(
+        pos,
+        table,
+        altered_table,
+        &share->kc_info,
+        altered_kc_info,
+        keynr
+        );
+    
+    if (is_add) {
+        pos += fill_dynamic_row_mutator(
+            pos,
+            columns,
+            num_columns,
+            altered_table,
+            altered_kc_info,
+            keynr,
+            is_add,
+            &has_blobs
+            );
+    }
+    else {
+        pos += fill_dynamic_row_mutator(
+            pos,
+            columns,
+            num_columns,
+            table,
+            &share->kc_info,
+            keynr,
+            is_add,
+            &has_blobs
+            );
+    }
+    if (has_blobs) {
+        pos += fill_static_blob_row_mutator(
+            pos,
+            table,
+            &share->kc_info
+            );
+        if (is_add) {
+            pos += fill_dynamic_blob_row_mutator(
+                pos,
+                columns,
+                num_columns,
+                altered_table,
+                altered_kc_info,
+                is_add
+                );
+        }
+        else {
+            pos += fill_dynamic_blob_row_mutator(
+                pos,
+                columns,
+                num_columns,
+                table,
+                &share->kc_info,
+                is_add
+                );
+        }
+    }
+    return pos-buf;
+}
+
+int ha_tokudb::alter_table_phase2(
+    THD *thd,
+    TABLE *altered_table,
+    HA_CREATE_INFO *create_info,
+    HA_ALTER_INFO *alter_info,
+    HA_ALTER_FLAGS *alter_flags
+    )
+{
+    TOKUDB_DBUG_ENTER("ha_tokudb::alter_table_phase2");
+    int error;
+    DB_TXN* txn = NULL;
+    bool incremented_numDBs = false;
+    bool modified_DBs = false;
+    bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
+    bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
+    KEY_AND_COL_INFO altered_kc_info;
+    bzero(&altered_kc_info, sizeof(altered_kc_info));
+    u_int32_t max_new_desc_size = 0;
+    uchar* row_desc_buff = NULL;
+    uchar* column_extra = NULL; 
+    bool dropping_indexes = alter_info->index_drop_count > 0 && !tables_have_same_keys(table,altered_table,false);
+    bool adding_indexes = alter_info->index_add_count > 0 && !tables_have_same_keys(table,altered_table,false);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+
+    is_fast_alter_running = true;
+
+    if (!trx || 
+        (trx->all != NULL) || 
+        (trx->sp_level != NULL) ||
+        (trx->stmt == NULL) ||
+        (trx->sub_sp_level != trx->stmt)
+       )
+    {
+      error = HA_ERR_UNSUPPORTED;
+      goto cleanup;
+    }
+    txn = trx->stmt;
+
+    error = allocate_key_and_col_info(altered_table->s, &altered_kc_info);
+    if (error) { goto cleanup; }
+
+    max_new_desc_size = get_max_desc_size(&altered_kc_info, altered_table);
+    row_desc_buff = (uchar *)my_malloc(max_new_desc_size, MYF(MY_WME));
+    if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
+
+    // drop indexes
+    if (dropping_indexes) {
+        error = drop_indexes(table, alter_info->index_drop_buffer, alter_info->index_drop_count, txn);
+        if (error) { goto cleanup; }
+    }
+
+    // add indexes
+    if (adding_indexes) {
+        KEY           *key_info;
+        KEY           *key;
+        uint          *idx_p;
+        uint          *idx_end_p;
+        KEY_PART_INFO *key_part;
+        KEY_PART_INFO *part_end;
+        /* The add_index() method takes an array of KEY structs. */
+        key_info= (KEY*) thd->alloc(sizeof(KEY) * alter_info->index_add_count);
+        key= key_info;
+        for (idx_p= alter_info->index_add_buffer, idx_end_p= idx_p + alter_info->index_add_count;
+             idx_p < idx_end_p;
+             idx_p++, key++)
+        {
+          /* Copy the KEY struct. */
+          *key= alter_info->key_info_buffer[*idx_p];
+          /* Fix the key parts. */
+          part_end= key->key_part + key->key_parts;
+          for (key_part= key->key_part; key_part < part_end; key_part++)
+            key_part->field = table->field[key_part->fieldnr];
+        }
+        error = tokudb_add_index(
+            table, 
+            key_info,
+            alter_info->index_add_count,
+            txn,
+            &incremented_numDBs,
+            &modified_DBs
+            );
+        if (error) { 
+            // hack for now, in case of duplicate key error, 
+            // because at the moment we cannot display the right key
+            // information to the user, so that he knows potentially what went
+            // wrong.
+            last_dup_key = MAX_KEY;
+            goto cleanup;
+        }
+    }
+
+    if (has_dropped_columns || has_added_columns) {
+        DBT column_dbt;
+        bzero(&column_dbt, sizeof(DBT));
+        u_int32_t max_column_extra_size;
+        u_int32_t num_column_extra;
+        u_int32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
+        u_int32_t num_columns = 0;
+        u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+        memset(columns, 0, sizeof(columns));
+
+        if (has_added_columns && has_dropped_columns) {
+            error = HA_ERR_UNSUPPORTED;
+            goto cleanup;
+        }
+        if (!tables_have_same_keys(table, altered_table, true)) {
+            error = HA_ERR_UNSUPPORTED;
+            goto cleanup;
+        }
+
+        error = initialize_key_and_col_info(
+            altered_table->s, 
+            altered_table,
+            &altered_kc_info,
+            hidden_primary_key,
+            primary_key
+            );
+        if (error) { goto cleanup; }
+
+        // generate the array of columns
+        if (has_dropped_columns) {
+            find_changed_columns(
+                columns,
+                &num_columns,
+                altered_table,
+                table
+                );
+        }
+        if (has_added_columns) {
+            find_changed_columns(
+                columns,
+                &num_columns,
+                table,
+                altered_table
+                );
+        }
+        max_column_extra_size = 
+            STATIC_ROW_MUTATOR_SIZE + //max static row_mutator
+            4 + num_columns*(1+1+4+1+1+4) + altered_table->s->reclength + // max dynamic row_mutator
+            (4 + share->kc_info.num_blobs) + // max static blob size
+            (num_columns*(1+4+1+4)); // max dynamic blob size
+        column_extra = (uchar *)my_malloc(max_column_extra_size, MYF(MY_WME));
+        if (column_extra == NULL) { error = ENOMEM; goto cleanup; }
+
+        for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+            DBT row_descriptor;
+            bzero(&row_descriptor, sizeof(row_descriptor));
+            KEY* prim_key = (hidden_primary_key) ? NULL : &altered_table->s->key_info[primary_key];
+            KEY* key_info = &altered_table->key_info[i];
+            if (i == primary_key) {
+                row_descriptor.size = create_main_key_descriptor(
+                    row_desc_buff,
+                    prim_key,
+                    hidden_primary_key,
+                    primary_key,
+                    altered_table,
+                    &altered_kc_info
+                    );
+                    row_descriptor.data = row_desc_buff;
+            }
+            else {
+                row_descriptor.size = create_secondary_key_descriptor(
+                    row_desc_buff,
+                    key_info,
+                    prim_key,
+                    hidden_primary_key,
+                    altered_table,
+                    primary_key,
+                    i,
+                    &altered_kc_info
+                    );
+                row_descriptor.data = row_desc_buff;
+            }
+            error = share->key_file[i]->change_descriptor(
+                share->key_file[i],
+                txn,
+                &row_descriptor,
+                0
+                );
+            if (error) { goto cleanup; }
+            
+            if (i == primary_key || table_share->key_info[i].flags & HA_CLUSTERING) {
+                num_column_extra = fill_row_mutator(
+                    column_extra,
+                    columns,
+                    num_columns,
+                    altered_table,
+                    &altered_kc_info,
+                    i,
+                    has_added_columns // true if adding columns, otherwise is a drop
+                    );
+                
+                column_dbt.data = column_extra;
+                column_dbt.size = num_column_extra;
+                DBUG_ASSERT(num_column_extra <= max_column_extra_size);
+                
+                error = share->key_file[i]->update_broadcast(
+                    share->key_file[i],
+                    txn,
+                    &column_dbt,
+                    DB_IS_RESETTING_OP
+                    );
+                if (error) { goto cleanup; }
+            }
+        }
+    }
+    
+    if (thd->killed) {
+        error = ER_ABORTING_CONNECTION;
+        goto cleanup;
+    }
+
+    error = 0;    
+cleanup:
+    free_key_and_col_info(&altered_kc_info);
+    my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(column_extra, MYF(MY_ALLOW_ZERO_PTR));
+    if (txn) {
+        if (error) {
+            if (adding_indexes) {
+                restore_add_index(table, alter_info->index_add_count, incremented_numDBs, modified_DBs);
+            }
+            abort_txn(txn);
+            trx->stmt = NULL;
+            trx->sub_sp_level = NULL;
+            if (dropping_indexes) {
+                restore_drop_indexes(table, alter_info->index_drop_buffer, alter_info->index_drop_count);
+            }
+        }
+    }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+inline void copy_null_bits(
+    u_int32_t start_old_pos,
+    u_int32_t start_new_pos,
+    u_int32_t num_bits,
+    uchar* old_null_bytes,
+    uchar* new_null_bytes
+    ) 
+{
+    for (u_int32_t i = 0; i < num_bits; i++) {
+        u_int32_t curr_old_pos = i + start_old_pos;
+        u_int32_t curr_new_pos = i + start_new_pos;
+        // copy over old null bytes
+        if (is_overall_null_position_set(old_null_bytes,curr_old_pos)) {
+            set_overall_null_position(new_null_bytes,curr_new_pos,true);
+        }
+        else {
+            set_overall_null_position(new_null_bytes,curr_new_pos,false);
+        }
+    }
+}
+
+inline void copy_var_fields(
+    u_int32_t start_old_num_var_field, //index of var fields that we should start writing
+    u_int32_t num_var_fields, // number of var fields to copy
+    uchar* old_var_field_offset_ptr, //static ptr to where offset bytes begin in old row
+    uchar old_num_offset_bytes, //number of offset bytes used in old row
+    uchar* start_new_var_field_data_ptr, // where the new var data should be written
+    uchar* start_new_var_field_offset_ptr, // where the new var offsets should be written
+    uchar* new_var_field_data_ptr, // pointer to beginning of var fields in new row
+    uchar* old_var_field_data_ptr, // pointer to beginning of var fields in old row
+    u_int32_t new_num_offset_bytes, // number of offset bytes used in new row
+    u_int32_t* num_data_bytes_written,
+    u_int32_t* num_offset_bytes_written
+    ) 
+{
+    uchar* curr_new_var_field_data_ptr = start_new_var_field_data_ptr;
+    uchar* curr_new_var_field_offset_ptr = start_new_var_field_offset_ptr;
+    for (u_int32_t i = 0; i < num_var_fields; i++) {
+        u_int32_t field_len;
+        u_int32_t start_read_offset;
+        u_int32_t curr_old = i + start_old_num_var_field;
+        uchar* data_to_copy = NULL;
+        // get the length and pointer to data that needs to be copied
+        get_var_field_info(
+            &field_len, 
+            &start_read_offset, 
+            curr_old, 
+            old_var_field_offset_ptr, 
+            old_num_offset_bytes
+            );
+        data_to_copy = old_var_field_data_ptr + start_read_offset;
+        // now need to copy field_len bytes starting from data_to_copy
+        curr_new_var_field_data_ptr = write_var_field(
+            curr_new_var_field_offset_ptr,
+            curr_new_var_field_data_ptr,
+            new_var_field_data_ptr,
+            data_to_copy,
+            field_len,
+            new_num_offset_bytes
+            );
+        curr_new_var_field_offset_ptr += new_num_offset_bytes;
+    }
+    *num_data_bytes_written = (u_int32_t)(curr_new_var_field_data_ptr - start_new_var_field_data_ptr);
+    *num_offset_bytes_written = (u_int32_t)(curr_new_var_field_offset_ptr - start_new_var_field_offset_ptr);
+}
+
+inline u_int32_t copy_toku_blob(uchar* to_ptr, uchar* from_ptr, u_int32_t len_bytes, bool skip) {
+    u_int32_t length = 0;
+    if (!skip) {
+        memcpy(to_ptr, from_ptr, len_bytes);
+    }
+    length = get_blob_field_len(from_ptr,len_bytes);
+    if (!skip) {
+        memcpy(to_ptr + len_bytes, from_ptr + len_bytes, length);
+    }
+    return (length + len_bytes);
+}
+
+int tokudb_update_fun(
+    DB* db,
+    const DBT *key,
+    const DBT *old_val, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val, void *set_extra),
+    void *set_extra
+    ) 
+{
+    u_int32_t max_num_bytes;
+    u_int32_t num_columns;
+    DBT new_val;
+    u_int32_t num_bytes_left;
+    u_int32_t num_var_fields_to_copy;
+    u_int32_t num_data_bytes_written = 0;
+    u_int32_t num_offset_bytes_written = 0;
+    int error;
+    bzero(&new_val, sizeof(DBT));
+    uchar operation;
+    uchar* new_val_data = NULL;
+    uchar* extra_pos = NULL;
+    uchar* extra_pos_start = NULL;
+    //
+    // info for pointers into rows
+    //
+    u_int32_t old_num_null_bytes;
+    u_int32_t new_num_null_bytes;
+    uchar old_num_offset_bytes;
+    uchar new_num_offset_bytes;
+    u_int32_t old_fixed_field_size;
+    u_int32_t new_fixed_field_size;
+    u_int32_t old_len_of_offsets;
+    u_int32_t new_len_of_offsets;
+
+    uchar* old_fixed_field_ptr = NULL;
+    uchar* new_fixed_field_ptr = NULL;
+    u_int32_t curr_old_fixed_offset;
+    u_int32_t curr_new_fixed_offset;
+
+    uchar* old_null_bytes = NULL;
+    uchar* new_null_bytes = NULL;
+    u_int32_t curr_old_null_pos;
+    u_int32_t curr_new_null_pos;    
+    u_int32_t old_null_bits_left;
+    u_int32_t new_null_bits_left;
+    u_int32_t overall_null_bits_left;
+
+    u_int32_t old_num_var_fields;
+    u_int32_t new_num_var_fields;
+    u_int32_t curr_old_num_var_field;
+    u_int32_t curr_new_num_var_field;
+    uchar* old_var_field_offset_ptr = NULL;
+    uchar* new_var_field_offset_ptr = NULL;
+    uchar* curr_new_var_field_offset_ptr = NULL;
+    uchar* old_var_field_data_ptr = NULL;
+    uchar* new_var_field_data_ptr = NULL;
+    uchar* curr_new_var_field_data_ptr = NULL;
+
+    u_int32_t start_blob_offset;
+    uchar* start_blob_ptr;
+    u_int32_t num_blob_bytes;
+
+    // came across a delete, nothing to update
+    if (old_val == NULL) {
+        error = 0;
+        goto cleanup;
+    }
+
+    extra_pos_start = (uchar *)extra->data;
+    extra_pos = (uchar *)extra->data;
+
+    operation = extra_pos[0];
+    extra_pos++;
+    assert(operation == UP_COL_ADD_OR_DROP);
+
+    memcpy(&old_num_null_bytes, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+    memcpy(&new_num_null_bytes, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+
+    old_num_offset_bytes = extra_pos[0];
+    extra_pos++;
+    new_num_offset_bytes = extra_pos[0];
+    extra_pos++;
+
+    memcpy(&old_fixed_field_size, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+    memcpy(&new_fixed_field_size, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+
+    memcpy(&old_len_of_offsets, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+    memcpy(&new_len_of_offsets, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+
+    max_num_bytes = old_val->size + extra->size + new_len_of_offsets + new_fixed_field_size;
+    new_val_data = (uchar *)my_malloc(
+        max_num_bytes, 
+        MYF(MY_FAE)
+        );
+    if (new_val_data == NULL) { goto cleanup; }
+
+    old_fixed_field_ptr = (uchar *) old_val->data;
+    old_fixed_field_ptr += old_num_null_bytes;
+    new_fixed_field_ptr = new_val_data + new_num_null_bytes;
+    curr_old_fixed_offset = 0;
+    curr_new_fixed_offset = 0;
+
+    old_num_var_fields = old_len_of_offsets/old_num_offset_bytes;
+    new_num_var_fields = new_len_of_offsets/new_num_offset_bytes;
+    // following fields will change as we write the variable data
+    old_var_field_offset_ptr = old_fixed_field_ptr + old_fixed_field_size;
+    new_var_field_offset_ptr = new_fixed_field_ptr + new_fixed_field_size;
+    old_var_field_data_ptr = old_var_field_offset_ptr + old_len_of_offsets;
+    new_var_field_data_ptr = new_var_field_offset_ptr + new_len_of_offsets;
+    curr_new_var_field_offset_ptr = new_var_field_offset_ptr;
+    curr_new_var_field_data_ptr = new_var_field_data_ptr;
+    curr_old_num_var_field = 0;
+    curr_new_num_var_field = 0;
+
+    old_null_bytes = (uchar *)old_val->data;
+    new_null_bytes = new_val_data;
+
+    
+    memcpy(&curr_old_null_pos, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+    memcpy(&curr_new_null_pos, extra_pos, sizeof(u_int32_t));
+    extra_pos += sizeof(u_int32_t);
+
+    memcpy(&num_columns, extra_pos, sizeof(num_columns));
+    extra_pos += sizeof(num_columns);
+    
+    //
+    // now go through and apply the change into new_val_data
+    //
+    for (u_int32_t i = 0; i < num_columns; i++) {
+        uchar op_type = extra_pos[0];
+        bool is_null_default = false;
+        extra_pos++;
+
+        assert(op_type == COL_DROP || op_type == COL_ADD);
+        bool nullable = (extra_pos[0] != 0);
+        extra_pos++;
+        if (nullable) {
+            u_int32_t null_bit_position;
+            memcpy(&null_bit_position, extra_pos, sizeof(u_int32_t));
+            extra_pos += sizeof(u_int32_t);
+            u_int32_t num_bits;
+            if (op_type == COL_DROP) {
+                assert(curr_old_null_pos <= null_bit_position);
+                num_bits = null_bit_position - curr_old_null_pos;
+            }
+            else {
+                assert(curr_new_null_pos <= null_bit_position);
+                num_bits = null_bit_position - curr_new_null_pos;
+            }
+            copy_null_bits(
+                curr_old_null_pos,
+                curr_new_null_pos,
+                num_bits,
+                old_null_bytes,
+                new_null_bytes
+                );
+            // update the positions
+            curr_new_null_pos += num_bits;
+            curr_old_null_pos += num_bits;
+            if (op_type == COL_DROP) {
+                curr_old_null_pos++; // account for dropped column
+            }
+            else {
+                is_null_default = (extra_pos[0] != 0);
+                extra_pos++;
+                set_overall_null_position(
+                    new_null_bytes,
+                    null_bit_position,
+                    is_null_default
+                    );
+                curr_new_null_pos++; //account for added column
+            }
+        }
+        uchar col_type = extra_pos[0];
+        extra_pos++;
+        if (col_type == COL_FIXED) {
+            u_int32_t col_offset;
+            u_int32_t col_size;
+            u_int32_t num_bytes_to_copy;
+            memcpy(&col_offset, extra_pos, sizeof(u_int32_t));
+            extra_pos += sizeof(u_int32_t);
+            memcpy(&col_size, extra_pos, sizeof(u_int32_t));
+            extra_pos += sizeof(u_int32_t);
+
+            if (op_type == COL_DROP) {
+                num_bytes_to_copy = col_offset - curr_old_fixed_offset;
+            }
+            else {
+                num_bytes_to_copy = col_offset - curr_new_fixed_offset;
+            }
+            memcpy(
+                new_fixed_field_ptr + curr_new_fixed_offset,
+                old_fixed_field_ptr + curr_old_fixed_offset, 
+                num_bytes_to_copy
+                );
+            curr_old_fixed_offset += num_bytes_to_copy;
+            curr_new_fixed_offset += num_bytes_to_copy;
+            if (op_type == COL_DROP) {
+                // move old_fixed_offset val to skip OVER column that is being dropped
+                curr_old_fixed_offset += col_size;
+            }
+            else {
+                if (is_null_default) {
+                    // copy zeroes
+                    bzero(new_fixed_field_ptr + curr_new_fixed_offset, col_size);
+                }
+                else {
+                    // copy data from extra_pos into new row
+                    memcpy(
+                        new_fixed_field_ptr + curr_new_fixed_offset,
+                        extra_pos,
+                        col_size
+                        );
+                    extra_pos += col_size;
+                }
+                curr_new_fixed_offset += col_size;
+            }
+            
+        }
+        else if (col_type == COL_VAR) {
+            u_int32_t var_col_index;
+            memcpy(&var_col_index, extra_pos, sizeof(u_int32_t));
+            extra_pos += sizeof(u_int32_t);
+            if (op_type == COL_DROP) {
+                num_var_fields_to_copy = var_col_index - curr_old_num_var_field;
+            }
+            else {
+                num_var_fields_to_copy = var_col_index - curr_new_num_var_field;
+            }
+            copy_var_fields(
+                curr_old_num_var_field,
+                num_var_fields_to_copy,
+                old_var_field_offset_ptr,
+                old_num_offset_bytes,
+                curr_new_var_field_data_ptr,
+                curr_new_var_field_offset_ptr,
+                new_var_field_data_ptr, // pointer to beginning of var fields in new row
+                old_var_field_data_ptr, // pointer to beginning of var fields in old row
+                new_num_offset_bytes, // number of offset bytes used in new row
+                &num_data_bytes_written,
+                &num_offset_bytes_written
+                );
+            curr_new_var_field_data_ptr += num_data_bytes_written;
+            curr_new_var_field_offset_ptr += num_offset_bytes_written;
+            curr_new_num_var_field += num_var_fields_to_copy;
+            curr_old_num_var_field += num_var_fields_to_copy;
+            if (op_type == COL_DROP) {
+                curr_old_num_var_field++; // skip over dropped field
+            }
+            else {
+                if (is_null_default) {
+                    curr_new_var_field_data_ptr = write_var_field(
+                        curr_new_var_field_offset_ptr,
+                        curr_new_var_field_data_ptr,
+                        new_var_field_data_ptr,
+                        NULL, //copying no data
+                        0, //copying 0 bytes
+                        new_num_offset_bytes
+                        );
+                    curr_new_var_field_offset_ptr += new_num_offset_bytes;
+                }
+                else {
+                    u_int32_t data_length;
+                    memcpy(&data_length, extra_pos, sizeof(data_length));
+                    extra_pos += sizeof(data_length);
+                    curr_new_var_field_data_ptr = write_var_field(
+                        curr_new_var_field_offset_ptr,
+                        curr_new_var_field_data_ptr,
+                        new_var_field_data_ptr,
+                        extra_pos, //copying data from mutator
+                        data_length, //copying data_length bytes
+                        new_num_offset_bytes
+                        );
+                    extra_pos += data_length;
+                    curr_new_var_field_offset_ptr += new_num_offset_bytes;
+                }
+                curr_new_num_var_field++; //account for added column
+            }
+        }
+        else if (col_type == COL_BLOB) {
+            // handle blob data later
+            continue;
+        }
+        else {
+            assert(false);
+        }
+    }
+    // finish copying the null stuff
+    old_null_bits_left = 8*old_num_null_bytes - curr_old_null_pos;
+    new_null_bits_left = 8*new_num_null_bytes - curr_new_null_pos;
+    overall_null_bits_left = old_null_bits_left;
+    set_if_smaller(overall_null_bits_left, new_null_bits_left);
+    copy_null_bits(
+        curr_old_null_pos,
+        curr_new_null_pos,
+        overall_null_bits_left,
+        old_null_bytes,
+        new_null_bytes
+        );
+    // finish copying fixed field stuff
+    num_bytes_left = old_fixed_field_size - curr_old_fixed_offset;
+    memcpy(
+        new_fixed_field_ptr + curr_new_fixed_offset,
+        old_fixed_field_ptr + curr_old_fixed_offset, 
+        num_bytes_left
+        );
+    curr_old_fixed_offset += num_bytes_left;
+    curr_new_fixed_offset += num_bytes_left;
+    // sanity check
+    assert(curr_new_fixed_offset == new_fixed_field_size);
+
+    // finish copying var field stuff
+    num_var_fields_to_copy = old_num_var_fields - curr_old_num_var_field;
+    copy_var_fields(
+        curr_old_num_var_field,
+        num_var_fields_to_copy,
+        old_var_field_offset_ptr,
+        old_num_offset_bytes,
+        curr_new_var_field_data_ptr,
+        curr_new_var_field_offset_ptr,
+        new_var_field_data_ptr, // pointer to beginning of var fields in new row
+        old_var_field_data_ptr, // pointer to beginning of var fields in old row
+        new_num_offset_bytes, // number of offset bytes used in new row
+        &num_data_bytes_written,
+        &num_offset_bytes_written
+        );
+    curr_new_var_field_offset_ptr += num_offset_bytes_written;
+    curr_new_var_field_data_ptr += num_data_bytes_written;
+    // sanity check
+    assert(curr_new_var_field_offset_ptr == new_var_field_data_ptr);
+
+    // start handling blobs
+    get_blob_field_info(
+        &start_blob_offset, 
+        old_len_of_offsets,
+        old_var_field_data_ptr,
+        old_num_offset_bytes
+        );
+    start_blob_ptr = old_var_field_data_ptr + start_blob_offset;
+    // if nothing else in extra, then there are no blobs to add or drop, so can copy blobs straight
+    if ((extra_pos - extra_pos_start) == extra->size) {
+        num_blob_bytes = old_val->size - (start_blob_ptr - old_null_bytes);
+        memcpy(curr_new_var_field_data_ptr, start_blob_ptr, num_blob_bytes);
+        curr_new_var_field_data_ptr += num_blob_bytes;
+    }
+    // else, there is blob information to process
+    else {
+        uchar* len_bytes = NULL;
+        u_int32_t curr_old_blob = 0;
+        u_int32_t curr_new_blob = 0;
+        u_int32_t num_old_blobs = 0;
+        uchar* curr_old_blob_ptr = start_blob_ptr;
+        memcpy(&num_old_blobs, extra_pos, sizeof(num_old_blobs));
+        extra_pos += sizeof(num_old_blobs);
+        len_bytes = extra_pos;
+        extra_pos += num_old_blobs;
+        // copy over blob fields one by one
+        while ((extra_pos - extra_pos_start) < extra->size) {
+            uchar op_type = extra_pos[0];
+            extra_pos++;
+            u_int32_t num_blobs_to_copy = 0;
+            u_int32_t blob_index;
+            memcpy(&blob_index, extra_pos, sizeof(blob_index));
+            extra_pos += sizeof(blob_index);
+            assert (op_type == COL_DROP || op_type == COL_ADD);
+            if (op_type == COL_DROP) {
+                num_blobs_to_copy = blob_index - curr_old_blob;
+            }
+            else {
+                num_blobs_to_copy = blob_index - curr_new_blob;
+            }
+            for (u_int32_t i = 0; i < num_blobs_to_copy; i++) {
+                u_int32_t num_bytes_written = copy_toku_blob(
+                    curr_new_var_field_data_ptr,
+                    curr_old_blob_ptr,
+                    len_bytes[curr_old_blob + i],
+                    false
+                    );
+                curr_old_blob_ptr += num_bytes_written;
+                curr_new_var_field_data_ptr += num_bytes_written;
+            }
+            curr_old_blob += num_blobs_to_copy;
+            curr_new_blob += num_blobs_to_copy;
+            if (op_type == COL_DROP) {
+                // skip over blob in row
+                u_int32_t num_bytes = copy_toku_blob(
+                    NULL,
+                    curr_old_blob_ptr,
+                    len_bytes[curr_old_blob],
+                    true
+                    );
+                curr_old_blob++;
+                curr_old_blob_ptr += num_bytes;
+            }
+            else {
+                // copy new data
+                u_int32_t new_len_bytes = extra_pos[0];
+                extra_pos++;
+                u_int32_t num_bytes = copy_toku_blob(
+                    curr_new_var_field_data_ptr,
+                    extra_pos,
+                    new_len_bytes,
+                    false
+                    );
+                curr_new_blob++;
+                curr_new_var_field_data_ptr += num_bytes;
+                extra_pos += num_bytes;
+            }                
+        }
+        num_blob_bytes = old_val->size - (curr_old_blob_ptr - old_null_bytes);
+        memcpy(curr_new_var_field_data_ptr, curr_old_blob_ptr, num_blob_bytes);
+        curr_new_var_field_data_ptr += num_blob_bytes;
+    }
+    new_val.data = new_val_data;
+    new_val.size = curr_new_var_field_data_ptr - new_val_data;
+    set_val(&new_val, set_extra);
+    
+    error = 0;
+cleanup:
+    my_free(new_val_data, MYF(MY_ALLOW_ZERO_PTR));
+    return error;    
 }
 
 struct check_context {
