@@ -33,7 +33,7 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
         assert(r==0);
     }
     assert(file_size >= 0);
-    if ((size_t)file_size < size) {
+    if ((u_int64_t)file_size < size) {
 	const int N = umin64(size, 16<<20); // Double the size of the file, or add 16MB, whichever is less.
 	char *MALLOC_N(N, wbuf);
 	memset(wbuf, 0, N);
