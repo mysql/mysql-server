@@ -60,38 +60,29 @@ u_int64_t num_basements_fetched_prefetch;
 
 static void
 init_eng_stat_vars(DB_ENV* env) {
-    ENGINE_STATUS engstat;
-    int r = env->get_engine_status(env, &engstat, NULL, 0);
-    CKERR(r);
-    num_pivots_fetched_prefetch = engstat.num_pivots_fetched_prefetch;
-    num_basements_decompressed_aggressive = engstat.num_basements_decompressed_aggressive;
-    num_basements_decompressed_prefetch = engstat.num_basements_decompressed_prefetch;
-    num_basements_fetched_aggressive = engstat.num_basements_fetched_aggressive;
-    num_basements_fetched_prefetch = engstat.num_basements_fetched_prefetch;
+    num_pivots_fetched_prefetch = get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH");
+    num_basements_decompressed_aggressive = get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE");
+    num_basements_decompressed_prefetch = get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH");
+    num_basements_fetched_aggressive = get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE");
+    num_basements_fetched_prefetch = get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH");
 }
 
 static void
 check_eng_stat_vars_unchanged(DB_ENV* env) {
-    ENGINE_STATUS engstat;
-    int r = env->get_engine_status(env, &engstat, NULL, 0);
-    CKERR(r);
-    assert(num_pivots_fetched_prefetch == engstat.num_pivots_fetched_prefetch);
-    assert(num_basements_decompressed_aggressive == engstat.num_basements_decompressed_aggressive);
-    assert(num_basements_decompressed_prefetch == engstat.num_basements_decompressed_prefetch);
-    assert(num_basements_fetched_aggressive == engstat.num_basements_fetched_aggressive);
-    assert(num_basements_fetched_prefetch == engstat.num_basements_fetched_prefetch);
+    assert(num_pivots_fetched_prefetch == get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH"));
+    assert(num_basements_decompressed_aggressive == get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
+    assert(num_basements_decompressed_prefetch == get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
+    assert(num_basements_fetched_aggressive == get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
+    assert(num_basements_fetched_prefetch == get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH"));
 }
 
 static void
 print_relevant_eng_stat_vars(DB_ENV* env) {
-    ENGINE_STATUS engstat;
-    int r = env->get_engine_status(env, &engstat, NULL, 0);
-    CKERR(r);
-    printf("num_pivots_fetched_prefetch %"PRId64" \n", engstat.num_pivots_fetched_prefetch);
-    printf("num_basements_decompressed_aggressive %"PRId64" \n", engstat.num_basements_decompressed_aggressive);
-    printf("num_basements_decompressed_prefetch %"PRId64" \n", engstat.num_basements_decompressed_prefetch);
-    printf("num_basements_fetched_aggressive %"PRId64" \n", engstat.num_basements_fetched_aggressive);
-    printf("num_basements_fetched_prefetch %"PRId64" \n", engstat.num_basements_fetched_prefetch);
+    printf("num_pivots_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH"));
+    printf("num_basements_decompressed_aggressive %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE"));
+    printf("num_basements_decompressed_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH"));
+    printf("num_basements_fetched_aggressive %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE"));
+    printf("num_basements_fetched_prefetch %"PRId64" \n", get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH"));
 }
 
 static void

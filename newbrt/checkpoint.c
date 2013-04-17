@@ -57,7 +57,61 @@
 #include "logger.h"
 #include "checkpoint.h"
 
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
 static CHECKPOINT_STATUS_S cp_status;
+
+#define STATUS_INIT(k,t,l) { \
+	cp_status.status[k].keyname = #k; \
+	cp_status.status[k].type    = t;  \
+	cp_status.status[k].legend  = "checkpoint: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+
+    STATUS_INIT(CP_PERIOD,                              UINT64,   "period");
+    STATUS_INIT(CP_FOOTPRINT,                           UINT64,   "footprint");
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN,          UNIXTIME, "last checkpoint began ");
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE, UNIXTIME, "last complete checkpoint began ");
+    STATUS_INIT(CP_TIME_LAST_CHECKPOINT_END,            UNIXTIME, "last complete checkpoint ended");
+    STATUS_INIT(CP_LAST_LSN,                            UINT64,   "last complete checkpoint LSN");
+    STATUS_INIT(CP_CHECKPOINT_COUNT,                    UINT64,   "checkpoints taken ");
+    STATUS_INIT(CP_CHECKPOINT_COUNT_FAIL,               UINT64,   "checkpoints failed");
+    STATUS_INIT(CP_WAITERS_NOW,                         UINT64,   "waiters now");
+    STATUS_INIT(CP_WAITERS_MAX,                         UINT64,   "waiters max");
+    STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   UINT64,   "non-checkpoint client wait on mo lock");
+    STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   UINT64,   "non-checkpoint client wait on cs lock");
+    STATUS_INIT(CP_WAIT_SCHED_CS,                       UINT64,   "sched wait on cs lock");
+    STATUS_INIT(CP_WAIT_CLIENT_CS,                      UINT64,   "client wait on cs lock");
+    STATUS_INIT(CP_WAIT_TXN_CS,                         UINT64,   "txn wait on cs lock");
+    STATUS_INIT(CP_WAIT_OTHER_CS,                       UINT64,   "other wait on cs lock");
+    STATUS_INIT(CP_WAIT_SCHED_MO,                       UINT64,   "sched wait on mo lock");
+    STATUS_INIT(CP_WAIT_CLIENT_MO,                      UINT64,   "client wait on mo lock");
+    STATUS_INIT(CP_WAIT_TXN_MO,                         UINT64,   "txn wait on mo lock");
+    STATUS_INIT(CP_WAIT_OTHER_MO,                       UINT64,   "other wait on mo lock");
+    cp_status.initialized = true;
+}
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) cp_status.status[x].value.num
+
+void
+toku_checkpoint_get_status(CACHETABLE ct, CHECKPOINT_STATUS statp) {
+    if (!cp_status.initialized)
+	status_init();
+    STATUS_VALUE(CP_PERIOD) = toku_get_checkpoint_period_unlocked(ct);
+    *statp = cp_status;
+}
+
+
+
 static LSN last_completed_checkpoint_lsn;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
@@ -145,7 +199,7 @@ checkpoint_safe_checkpoint_unlock(void) {
 void 
 toku_multi_operation_client_lock(void) {
     if (locked_mo)
-	(void) __sync_fetch_and_add(&cp_status.client_wait_on_mo, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_MO), 1);
     int r = toku_pthread_rwlock_rdlock(&multi_operation_lock);   
     assert(r == 0);
 }
@@ -159,7 +213,7 @@ toku_multi_operation_client_unlock(void) {
 void 
 toku_checkpoint_safe_client_lock(void) {
     if (locked_cs)
-	(void) __sync_fetch_and_add(&cp_status.client_wait_on_cs, 1);
+	(void) __sync_fetch_and_add(&STATUS_VALUE(CP_CLIENT_WAIT_ON_CS), 1);
     int r = toku_pthread_rwlock_rdlock(&checkpoint_safe_lock);  
     assert(r == 0);
     toku_multi_operation_client_lock();
@@ -170,12 +224,6 @@ toku_checkpoint_safe_client_unlock(void) {
     int r = toku_pthread_rwlock_rdunlock(&checkpoint_safe_lock); 
     assert(r == 0);
     toku_multi_operation_client_unlock();
-}
-
-
-void
-toku_checkpoint_get_status(CHECKPOINT_STATUS s) {
-    *s = cp_status;
 }
 
 
@@ -206,7 +254,7 @@ toku_checkpoint_destroy(void) {
     return r;
 }
 
-#define SET_CHECKPOINT_FOOTPRINT(x) cp_status.footprint = footprint_offset + x
+#define SET_CHECKPOINT_FOOTPRINT(x) STATUS_VALUE(CP_FOOTPRINT) = footprint_offset + x
 
 
 // Take a checkpoint of all currently open dictionaries
@@ -222,39 +270,39 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 
     if (locked_cs) {
 	if (caller_id == SCHEDULED_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_sched_cs, 1);
+	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_SCHED_CS), 1);
 	else if (caller_id == CLIENT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_client_cs, 1);
+	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_CLIENT_CS), 1);
 	else if (caller_id == TXN_COMMIT_CHECKPOINT)
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_txn_cs, 1);
+	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_TXN_CS), 1);
 	else 
-	    (void) __sync_fetch_and_add(&cp_status.cp_wait_other_cs, 1);
+	    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_OTHER_CS), 1);
     }
 
-    (void) __sync_fetch_and_add(&cp_status.waiters_now, 1);
+    (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAITERS_NOW), 1);
     checkpoint_safe_checkpoint_lock();
-    (void) __sync_fetch_and_sub(&cp_status.waiters_now, 1);
+    (void) __sync_fetch_and_sub(&STATUS_VALUE(CP_WAITERS_NOW), 1);
 
-    if (cp_status.waiters_now > cp_status.waiters_max)
-	cp_status.waiters_max = cp_status.waiters_now;  // threadsafe, within checkpoint_safe lock
+    if (STATUS_VALUE(CP_WAITERS_NOW) > STATUS_VALUE(CP_WAITERS_MAX))
+	STATUS_VALUE(CP_WAITERS_MAX) = STATUS_VALUE(CP_WAITERS_NOW);  // threadsafe, within checkpoint_safe lock
 
     SET_CHECKPOINT_FOOTPRINT(10);
     if (locked_mo) {
 	if (caller_id == SCHEDULED_CHECKPOINT)
-	    cp_status.cp_wait_sched_mo++;           // threadsafe, within checkpoint_safe lock
+	    STATUS_VALUE(CP_WAIT_SCHED_MO)++;           // threadsafe, within checkpoint_safe lock
 	else if (caller_id == CLIENT_CHECKPOINT)
-	    cp_status.cp_wait_client_mo++;
+	    STATUS_VALUE(CP_WAIT_CLIENT_MO)++;
 	else if (caller_id == TXN_COMMIT_CHECKPOINT)
-	    cp_status.cp_wait_txn_mo++;
+	    STATUS_VALUE(CP_WAIT_TXN_MO)++;
 	else 
-	    cp_status.cp_wait_other_mo++;
+	    STATUS_VALUE(CP_WAIT_OTHER_MO)++;
     }
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20);
     ydb_lock();
     
     SET_CHECKPOINT_FOOTPRINT(30);
-    cp_status.time_last_checkpoint_begin = time(NULL);
+    STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
@@ -270,25 +318,22 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (r==0 && logger) {
         last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
         r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
-	cp_status.last_lsn                   = last_completed_checkpoint_lsn.lsn;
+	STATUS_VALUE(CP_LAST_LSN) = last_completed_checkpoint_lsn.lsn;
     }
 
     SET_CHECKPOINT_FOOTPRINT(60);
-    cp_status.time_last_checkpoint_end = time(NULL);
-    cp_status.time_last_checkpoint_begin_complete = cp_status.time_last_checkpoint_begin;
+    STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_END) = time(NULL);
+    STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN_COMPLETE) = STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN);
 
     if (r == 0)
-	cp_status.checkpoint_count++;
+	STATUS_VALUE(CP_CHECKPOINT_COUNT)++;
     else
-	cp_status.checkpoint_count_fail++;
+	STATUS_VALUE(CP_CHECKPOINT_COUNT_FAIL)++;
 
-    cp_status.footprint = 0;
+    STATUS_VALUE(CP_FOOTPRINT) = 0;
     checkpoint_safe_checkpoint_unlock();
     return r;
 }
-
-#undef SET_CHECKPOINT_FOOTPRINT
-
 
 #include <valgrind/drd.h>
 void __attribute__((__constructor__)) toku_checkpoint_drd_ignore(void);
@@ -298,3 +343,6 @@ toku_checkpoint_drd_ignore(void) {
     DRD_IGNORE_VAR(locked_mo);
     DRD_IGNORE_VAR(locked_cs);
 }
+
+#undef SET_CHECKPOINT_FOOTPRINT
+#undef STATUS_VALUE

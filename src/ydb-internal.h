@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
 
@@ -80,11 +80,7 @@ struct __toku_db_env_internal {
     char *real_log_dir;                                 // log dir used when the env is opened  (relative to cwd, or absolute with leading /)
     char *real_tmp_dir;                                 // tmp dir used for temporary files (relative to cwd, or absoulte with leading /)
 
-    enum { 
-        FS_GREEN = 0,                                   // green zone  (we have lots of space)
-        FS_YELLOW = 1,                                  // yellow zone (issue warning but allow operations)
-        FS_RED = 2,                                     // red zone    (prevent operations)
-    } fs_state;
+    fs_redzone_state fs_state;
     uint64_t fs_seq;                                    // how many times has fs_poller run?
     uint64_t last_seq_entered_red;
     uint64_t last_seq_entered_yellow;
@@ -107,15 +103,22 @@ struct __toku_db_env_internal {
 
    ********************************************************* */
 
+typedef enum {YDB_LOCK_TAKEN = 0,            /* how many times has ydb lock been taken.  This is precise since it is updated only when the lock is held.                              */ 
+	      YDB_LOCK_RELEASED,             /* how many times has ydb lock been released.  This is precise since it is updated only when the lock is held.                              */ 
+	      YDB_NUM_WAITERS_NOW,           /* How many are waiting on the ydb lock right now (including the current lock holder).  This is precise since it is updated with a fetch-and-add. */
+	      YDB_MAX_WAITERS,               /* max number of simultaneous client threads kept waiting for ydb lock.  This is precise (updated only when the lock is held) but may be running a little behind (while waiting for the lock it hasn't been updated).  */ 
+	      YDB_TOTAL_SLEEP_TIME,          /* total time spent sleeping for ydb lock scheduling (useconds).   This adds up over many clients. This is precise since it is updated with an atomic fetch-and-add. */ 
+	      YDB_MAX_TIME_YDB_LOCK_HELD,    /* max time the ydb lock was held (in microseconds).  This is precise since it is updated only when the lock is held.  */ 
+	      YDB_TOTAL_TIME_YDB_LOCK_HELD,  /* total time the ydb lock has been held.  */
+	      YDB_TOTAL_TIME_SINCE_START,    /* total time since the ydb lock was initialized.  This is only updated when the lock is accessed (so if you don't acquire the lock this doesn't increase), and it is updated precisely (even though it isn't updated continuously). */
+	      YDB_LOCK_STATUS_NUM_ROWS       /* number of rows in this status array */
+} ydb_lock_status_entry;
+
 typedef struct {
-    volatile u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released.  This is precise since it is updated only when the lock is held.                              */ 
-    volatile u_int64_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder).  This is precise since it is updated with a fetch-and-add. */
-    volatile u_int64_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock.  This is precise (updated only when the lock is held) but may be running a little behind (while waiting for the lock it hasn't been updated).  */ 
-    volatile u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling (useconds).   This adds up over many clients. This is precise since it is updated with an atomic fetch-and-add. */ 
-    volatile tokutime_t        max_time_ydb_lock_held;  /* max time the ydb lock was held (in microseconds).  This is precise since it is updated only when the lock is held.  */ 
-    volatile tokutime_t        total_time_ydb_lock_held;/* total time the ydb lock has been held.  */
-    volatile tokutime_t        total_time_since_start;  /* total time since the ydb lock was initialized.  This is only updated when the lock is accessed (so if you don't acquire the lock this doesn't increase), and it is updated precisely (even though it isn't updated continuously). */
-} SCHEDULE_STATUS_S, *SCHEDULE_STATUS;
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[YDB_LOCK_STATUS_NUM_ROWS];
+} YDB_LOCK_STATUS_S, *YDB_LOCK_STATUS;
+
 
 
 
@@ -126,7 +129,7 @@ void toku_ydb_unlock(void);
 void toku_ydb_unlock_and_yield(unsigned long useconds);
 toku_pthread_mutex_t *toku_ydb_mutex(void);
 
-void toku_ydb_lock_get_status(SCHEDULE_STATUS statp);
+void toku_ydb_lock_get_status(YDB_LOCK_STATUS statp);
 
 int toku_ydb_check_avail_fs_space(DB_ENV *env);
 

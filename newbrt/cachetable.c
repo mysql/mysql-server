@@ -37,7 +37,15 @@ static void cachetable_partial_reader(WORKITEM);
 #define WHEN_TRACE_CT(x) ((void)0)
 #endif
 
-// these should be in the cachetable object, but we make them file-wide so that gdb can get them easily
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
+// These should be in the cachetable object, but we make them file-wide so that gdb can get them easily.
+// They were left here after engine status cleanup (#2949, rather than moved into the status struct)
+// so they are still easily available to the debugger and to save lots of typing.
 static u_int64_t cachetable_lock_taken = 0;
 static u_int64_t cachetable_lock_released = 0;
 static u_int64_t cachetable_hit;
@@ -53,6 +61,54 @@ static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
 static u_int64_t cachetable_evictions;
 static u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
+
+static CACHETABLE_STATUS_S ct_status;
+
+
+// Note, toku_cachetable_get_status() is below, after declaration of cachetable.
+
+
+#define STATUS_INIT(k,t,l) { \
+	ct_status.status[k].keyname = #k; \
+	ct_status.status[k].type    = t;  \
+	ct_status.status[k].legend  = "cachetable: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+
+    STATUS_INIT(CT_LOCK_TAKEN,             UINT64, "lock taken");
+    STATUS_INIT(CT_LOCK_RELEASED,          UINT64, "lock released");
+    STATUS_INIT(CT_HIT,                    UINT64, "hit");
+    STATUS_INIT(CT_MISS,                   UINT64, "miss");
+    STATUS_INIT(CT_MISSTIME,               UINT64, "miss time");
+    STATUS_INIT(CT_WAITTIME,               UINT64, "wait time");
+    STATUS_INIT(CT_WAIT_READING,           UINT64, "wait reading");
+    STATUS_INIT(CT_WAIT_WRITING,           UINT64, "wait writing");
+    STATUS_INIT(CT_WAIT_CHECKPOINT,        UINT64, "wait checkpoint");
+    STATUS_INIT(CT_PUTS,                   UINT64, "puts (new nodes created)");
+    STATUS_INIT(CT_PREFETCHES,             UINT64, "prefetches");
+    STATUS_INIT(CT_MAYBE_GET_AND_PINS,     UINT64, "maybe_get_and_pin");
+    STATUS_INIT(CT_MAYBE_GET_AND_PIN_HITS, UINT64, "maybe_get_and_pin hits");
+    STATUS_INIT(CT_SIZE_CURRENT,           UINT64, "size current");
+    STATUS_INIT(CT_SIZE_LIMIT,             UINT64, "size limit");
+    STATUS_INIT(CT_SIZE_MAX,               UINT64, "size max");
+    STATUS_INIT(CT_SIZE_WRITING,           UINT64, "size writing");
+    STATUS_INIT(CT_SIZE_NONLEAF,           UINT64, "size nonleaf");
+    STATUS_INIT(CT_SIZE_LEAF,              UINT64, "size leaf");
+    STATUS_INIT(CT_SIZE_ROLLBACK,          UINT64, "size rollback");
+    STATUS_INIT(CT_SIZE_CACHEPRESSURE,     UINT64, "size cachepressure");
+    STATUS_INIT(CT_EVICTIONS,              UINT64, "evictions");
+    STATUS_INIT(CT_CLEANER_EXECUTIONS,     UINT64, "cleaner executions");
+    STATUS_INIT(CT_CLEANER_PERIOD,         UINT64, "cleaner period");
+    STATUS_INIT(CT_CLEANER_ITERATIONS,     UINT64, "cleaner iterations");
+    ct_status.initialized = true;
+}
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) ct_status.status[x].value.num
 
 
 enum ctpair_state {
@@ -198,6 +254,42 @@ struct cachetable {
     int64_t size_rollback;
     int64_t size_cachepressure;
 };
+
+
+void
+toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
+    if (!ct_status.initialized)
+	status_init();
+
+    STATUS_VALUE(CT_LOCK_TAKEN)             = cachetable_lock_taken;
+    STATUS_VALUE(CT_LOCK_RELEASED)          = cachetable_lock_released;
+    STATUS_VALUE(CT_HIT)                    = cachetable_hit;
+    STATUS_VALUE(CT_MISS)                   = cachetable_miss;
+    STATUS_VALUE(CT_MISSTIME)               = cachetable_misstime;
+    STATUS_VALUE(CT_WAITTIME)               = cachetable_waittime;
+    STATUS_VALUE(CT_WAIT_READING)           = cachetable_wait_reading;
+    STATUS_VALUE(CT_WAIT_WRITING)           = cachetable_wait_writing;
+    STATUS_VALUE(CT_WAIT_CHECKPOINT)        = cachetable_wait_checkpoint;
+    STATUS_VALUE(CT_PUTS)                   = cachetable_puts;
+    STATUS_VALUE(CT_PREFETCHES)             = cachetable_prefetches;
+    STATUS_VALUE(CT_MAYBE_GET_AND_PINS)     = cachetable_maybe_get_and_pins;
+    STATUS_VALUE(CT_MAYBE_GET_AND_PIN_HITS) = cachetable_maybe_get_and_pin_hits;
+    STATUS_VALUE(CT_SIZE_CURRENT)           = ct->size_current;
+    STATUS_VALUE(CT_SIZE_LIMIT)             = ct->size_limit;
+    STATUS_VALUE(CT_SIZE_MAX)               = ct->size_max;
+    STATUS_VALUE(CT_SIZE_WRITING)           = ct->size_evicting;
+    STATUS_VALUE(CT_SIZE_NONLEAF)           = ct->size_nonleaf;
+    STATUS_VALUE(CT_SIZE_LEAF)              = ct->size_leaf;
+    STATUS_VALUE(CT_SIZE_ROLLBACK)          = ct->size_rollback;
+    STATUS_VALUE(CT_SIZE_CACHEPRESSURE)     = ct->size_cachepressure;
+    STATUS_VALUE(CT_EVICTIONS)              = cachetable_evictions;
+    STATUS_VALUE(CT_CLEANER_EXECUTIONS)     = cleaner_executions;
+    STATUS_VALUE(CT_CLEANER_PERIOD)         = toku_get_cleaner_period_unlocked(ct);
+    STATUS_VALUE(CT_CLEANER_ITERATIONS)     = toku_get_cleaner_iterations_unlocked(ct);
+
+    *statp = ct_status;
+}
+
 
 // Code bracketed with {BEGIN_CRITICAL_REGION; ... END_CRITICAL_REGION;} macros
 // are critical regions in which a checkpoint is not permitted to begin.
@@ -3799,32 +3891,6 @@ toku_cachefile_size_in_memory(CACHEFILE cf)
     return result;
 }
 
-void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
-    s->lock_taken    = cachetable_lock_taken;
-    s->lock_released = cachetable_lock_released;
-    s->hit          = cachetable_hit;
-    s->miss         = cachetable_miss;
-    s->misstime     = cachetable_misstime;
-    s->waittime     = cachetable_waittime;
-    s->wait_reading = cachetable_wait_reading;
-    s->wait_writing = cachetable_wait_writing;
-    s->wait_checkpoint = cachetable_wait_checkpoint;
-    s->puts         = cachetable_puts;
-    s->prefetches   = cachetable_prefetches;
-    s->maybe_get_and_pins      = cachetable_maybe_get_and_pins;
-    s->maybe_get_and_pin_hits  = cachetable_maybe_get_and_pin_hits;
-    s->size_current = ct->size_current;          
-    s->size_limit   = ct->size_limit;            
-    s->size_max     = ct->size_max;
-    s->size_writing = ct->size_evicting;          
-    s->size_nonleaf = ct->size_nonleaf;
-    s->size_leaf = ct->size_leaf;
-    s->size_rollback = ct->size_rollback;
-    s->size_cachepressure = ct->size_cachepressure;
-    s->evictions = cachetable_evictions;
-    s->cleaner_executions = cleaner_executions;
-}
-
 char *
 toku_construct_full_name(int count, ...) {
     va_list ap;
@@ -4005,7 +4071,9 @@ void __attribute__((__constructor__)) toku_cachetable_drd_ignore(void);
 void
 toku_cachetable_drd_ignore(void) {
     // incremented only while lock is held, but read by engine status asynchronously.
-    DRD_IGNORE_VAR(cachetable_lock_taken);
-    DRD_IGNORE_VAR(cachetable_lock_released);
-    DRD_IGNORE_VAR(cachetable_evictions);
+    DRD_IGNORE_VAR(STATUS_VALUE(CT_LOCK_TAKEN));
+    DRD_IGNORE_VAR(STATUS_VALUE(CT_LOCK_RELEASED));
+    DRD_IGNORE_VAR(STATUS_VALUE(CT_EVICTIONS));
 }
+
+#undef STATUS_VALUE

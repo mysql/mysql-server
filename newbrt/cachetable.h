@@ -485,31 +485,38 @@ void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
 u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
 
+typedef enum {
+    CT_LOCK_TAKEN = 0,
+    CT_LOCK_RELEASED,
+    CT_HIT,
+    CT_MISS,
+    CT_MISSTIME,               // how many usec spent waiting for disk read because of cache miss
+    CT_WAITTIME,               // how many usec spent waiting for another thread to release cache line
+    CT_WAIT_READING,
+    CT_WAIT_WRITING,
+    CT_WAIT_CHECKPOINT,        // number of times get_and_pin waits for a node to be written for a checkpoint
+    CT_PUTS,                   // how many times has a newly created node been put into the cachetable?
+    CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
+    CT_MAYBE_GET_AND_PINS,     // how many times has maybe_get_and_pin(_clean) been called?
+    CT_MAYBE_GET_AND_PIN_HITS, // how many times has maybe_get_and_pin(_clean) returned with a node?
+    CT_SIZE_CURRENT,           // the sum of the sizes of the nodes represented in the cachetable
+    CT_SIZE_LIMIT,             // the limit to the sum of the node sizes
+    CT_SIZE_MAX,               // high water mark of size_current (max value size_current ever had)
+    CT_SIZE_WRITING,           // the sum of the sizes of the nodes being written
+    CT_SIZE_NONLEAF,           // number of bytes in cachetable belonging to nonleaf nodes
+    CT_SIZE_LEAF,              // number of bytes in cachetable belonging to leaf nodes
+    CT_SIZE_ROLLBACK,          // number of bytes in cachetable belonging to rollback nodes
+    CT_SIZE_CACHEPRESSURE,     // number of bytes causing cache pressure (sum of buffers and workdone counters)
+    CT_EVICTIONS,
+    CT_CLEANER_EXECUTIONS,     // number of times the cleaner thread's loop has executed
+    CT_CLEANER_PERIOD,
+    CT_CLEANER_ITERATIONS,     // number of times the cleaner thread runs the cleaner per period
+    CT_STATUS_NUM_ROWS
+} ct_status_entry;
 
-typedef struct cachetable_status {
-    u_int64_t lock_taken;
-    u_int64_t lock_released;
-    u_int64_t hit;
-    u_int64_t miss;
-    u_int64_t misstime;     /* how many usec spent waiting for disk read because of cache miss */ 
-    u_int64_t waittime;     /* how many usec spent waiting for another thread to release cache line */ 
-    u_int64_t wait_reading;
-    u_int64_t wait_writing;
-    u_int64_t wait_checkpoint; // number of times get_and_pin waits for a node to be written for a checkpoint
-    u_int64_t puts;          // how many times has a newly created node been put into the cachetable?
-    u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
-    u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
-    u_int64_t maybe_get_and_pin_hits;  // how many times has maybe_get_and_pin(_clean) returned with a node?
-    uint64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
-    uint64_t   size_limit;              // the limit to the sum of the node sizes
-    uint64_t   size_max;                // high water mark of size_current (max value size_current ever had)
-    uint64_t   size_writing;            // the sum of the sizes of the nodes being written
-    uint64_t size_nonleaf;              // number of bytes in cachetable belonging to nonleaf nodes
-    uint64_t size_leaf;                 // number of bytes in cachetable belonging to leaf nodes
-    uint64_t size_rollback;             // number of bytes in cachetable belonging to rollback nodes
-    uint64_t size_cachepressure;        // number of bytes causing cache pressure (sum of buffers and workdone counters)
-    u_int64_t evictions;
-    u_int64_t cleaner_executions;       // number of times the cleaner thread's loop has executed
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[CT_STATUS_NUM_ROWS];
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);

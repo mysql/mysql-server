@@ -31,9 +31,43 @@
 
 #define ULE_DEBUG 0
 
-static LE_STATUS_S status;
-
 static uint32_t ule_get_innermost_numbytes(ULE ule);
+
+
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
+static LE_STATUS_S le_status;
+
+#define STATUS_INIT(k,t,l) { \
+	le_status.status[k].keyname = #k; \
+	le_status.status[k].type    = t;  \
+	le_status.status[k].legend  = "le: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(LE_MAX_COMMITTED_XR,   UINT64, "max committed xr");
+    STATUS_INIT(LE_MAX_PROVISIONAL_XR, UINT64, "max provisional xr");
+    STATUS_INIT(LE_EXPANDED,           UINT64, "expanded");
+    STATUS_INIT(LE_MAX_MEMSIZE,        UINT64, "max memsize");
+    le_status.initialized = true;
+}
+#undef STATUS_INIT
+
+void
+toku_le_get_status(LE_STATUS statp) {
+    if (!le_status.initialized)
+	status_init();
+    *statp = le_status;
+}
+
+#define STATUS_VALUE(x) le_status.status[x].value.num
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -52,10 +86,6 @@ void toku_ule_free(ULEHANDLE ule_p) {
     toku_free(ule_p);
 }
 
-void 
-toku_le_get_status(LE_STATUS s) {
-    *s = status;
-}
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -625,15 +655,15 @@ uxr_unpack_data(UXR uxr, uint8_t *p) {
 
 // executed too often to be worth making threadsafe
 static inline void
-update_le_status(ULE ule, size_t memsize, LE_STATUS s) {
-    if (ule->num_cuxrs > s->max_committed_xr)
-	s->max_committed_xr = ule->num_cuxrs;
-    if (ule->num_puxrs > s->max_provisional_xr)
-	s->max_provisional_xr = ule->num_puxrs;
+update_le_status(ULE ule, size_t memsize) {
+    if (ule->num_cuxrs > STATUS_VALUE(LE_MAX_COMMITTED_XR))
+	STATUS_VALUE(LE_MAX_COMMITTED_XR) = ule->num_cuxrs;
+    if (ule->num_puxrs > STATUS_VALUE(LE_MAX_PROVISIONAL_XR))
+	STATUS_VALUE(LE_MAX_PROVISIONAL_XR) = ule->num_puxrs;
     if (ule->num_cuxrs > MAX_TRANSACTION_RECORDS)
-	s->expanded++;
-    if (memsize > s->max_memsize)
-	s->max_memsize = memsize;
+	STATUS_VALUE(LE_EXPANDED)++;
+    if (memsize > STATUS_VALUE(LE_MAX_MEMSIZE))
+	STATUS_VALUE(LE_MAX_MEMSIZE) = memsize;
 }
 
 // Purpose is to return a newly allocated leaf entry in packed format, or
@@ -801,7 +831,7 @@ found_insert:;
     *new_leafentry_memorysize = memsize;
     rval = 0;
 cleanup:
-    update_le_status(ule, memsize, &status);
+    update_le_status(ule, memsize);
     return rval;
 }
 
@@ -2260,5 +2290,7 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
 void __attribute__((__constructor__)) toku_ule_drd_ignore(void);
 void
 toku_ule_drd_ignore(void) {
-    DRD_IGNORE_VAR(status);
+    DRD_IGNORE_VAR(le_status);
 }
+
+#undef STATUS_VALUE

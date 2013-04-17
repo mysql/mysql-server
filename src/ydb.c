@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "Copyright (c) 2007-2009 Tokutek Inc.  All rights reserved."
  
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -63,66 +63,125 @@ env_panic(DB_ENV * env, int cause, char * msg) {
     env->i->panic_string = toku_strdup(msg);
 }
 
-// Accountability: operation counters available for debugging and for "show engine status"
-static u_int64_t num_inserts;
-static u_int64_t num_inserts_fail;
-static u_int64_t num_deletes;
-static u_int64_t num_deletes_fail;
-static u_int64_t num_updates;
-static u_int64_t num_updates_fail;
-static u_int64_t num_updates_broadcast;
-static u_int64_t num_updates_broadcast_fail;
-static u_int64_t num_multi_inserts;
-static u_int64_t num_multi_inserts_fail;
-static u_int64_t num_multi_deletes;
-static u_int64_t num_multi_deletes_fail;
-static u_int64_t num_multi_updates;
-static u_int64_t num_multi_updates_fail;
-static u_int64_t num_point_queries;
-static u_int64_t num_sequential_queries;
-static u_int64_t num_db_open;
-static u_int64_t num_db_close;
-static u_int64_t num_open_dbs;
-static u_int64_t max_open_dbs; 
+static int env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp);
 
-static u_int64_t directory_read_locks;        /* total directory read locks taken */ 
-static u_int64_t directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
-static u_int64_t directory_write_locks;       /* total directory write locks taken */ 
-static u_int64_t directory_write_locks_fail;  /* total directory write locks unable to be taken */ 
 
-static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
-static u_int64_t logsuppressfail;            // number of times unable to suppress logs for empty table (2440)
-static time_t    startuptime;                // timestamp of system startup
+/********************************************************************************
+ * Status is intended for display to humans to help understand system behavior.
+ * It does not need to be perfectly thread-safe.
+ */
+
+typedef enum {
+    YDB_LAYER_TIME_CREATION = 0,            /* timestamp of environment creation, read from persistent environment */
+    YDB_LAYER_TIME_STARTUP,                 /* timestamp of system startup */
+    YDB_LAYER_TIME_NOW,                     /* timestamp of engine status query */
+    YDB_LAYER_NUM_INSERTS,
+    YDB_LAYER_NUM_INSERTS_FAIL,
+    YDB_LAYER_NUM_DELETES,
+    YDB_LAYER_NUM_DELETES_FAIL,
+    YDB_LAYER_NUM_UPDATES,
+    YDB_LAYER_NUM_UPDATES_FAIL,
+    YDB_LAYER_NUM_UPDATES_BROADCAST,
+    YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL,
+    YDB_LAYER_NUM_MULTI_INSERTS,
+    YDB_LAYER_NUM_MULTI_INSERTS_FAIL,
+    YDB_LAYER_NUM_MULTI_DELETES,
+    YDB_LAYER_NUM_MULTI_DELETES_FAIL,
+    YDB_LAYER_NUM_MULTI_UPDATES,
+    YDB_LAYER_NUM_MULTI_UPDATES_FAIL,
+    YDB_LAYER_NUM_POINT_QUERIES,
+    YDB_LAYER_NUM_SEQUENTIAL_QUERIES,
+    YDB_LAYER_NUM_DB_OPEN,
+    YDB_LAYER_NUM_DB_CLOSE,
+    YDB_LAYER_NUM_OPEN_DBS,
+    YDB_LAYER_MAX_OPEN_DBS,
+    YDB_LAYER_DIRECTORY_READ_LOCKS,         /* total directory read locks taken */
+    YDB_LAYER_DIRECTORY_READ_LOCKS_FAIL,    /* total directory read locks unable to be taken */
+    YDB_LAYER_DIRECTORY_WRITE_LOCKS,        /* total directory write locks taken */
+    YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL,   /* total directory write locks unable to be taken */
+    YDB_LAYER_LOGSUPPRESS,                  /* number of times logs are suppressed for empty table (2440) */
+    YDB_LAYER_LOGSUPPRESS_FAIL,             /* number of times unable to suppress logs for empty table (2440) */
+#if 0
+    YDB_LAYER_ORIGINAL_ENV_VERSION,         /* version of original environment, read from persistent environment */
+    YDB_LAYER_STARTUP_ENV_VERSION,          /* version of environment at this startup, read from persistent environment (curr_env_ver_key) */
+    YDB_LAYER_LAST_LSN_OF_V13,              /* read from persistent environment */
+    YDB_LAYER_UPGRADE_V14_TIME,             /* timestamp of upgrade to version 14, read from persistent environment */
+    YDB_LAYER_UPGRADE_V14_FOOTPRINT,        /* footprint of upgrade to version 14, read from persistent environment */
+#endif
+    YDB_LAYER_STATUS_NUM_ROWS              /* number of rows in this status array */
+} ydb_layer_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[YDB_LAYER_STATUS_NUM_ROWS];
+} YDB_LAYER_STATUS_S, *YDB_LAYER_STATUS;
+
+static YDB_LAYER_STATUS_S ydb_layer_status;
+#ifdef STATUS_VALUE
+#undef STATUS_VALUE
+#endif
+#define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
+
+#define STATUS_INIT(k,t,l) { \
+	ydb_layer_status.status[k].keyname = #k; \
+	ydb_layer_status.status[k].type    = t;  \
+	ydb_layer_status.status[k].legend  = l; \
+    }
+static void
+status_init (void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+
+    STATUS_INIT(YDB_LAYER_TIME_CREATION,              UNIXTIME, "time of environment creation");
+    STATUS_INIT(YDB_LAYER_TIME_STARTUP,               UNIXTIME, "time of engine startup");
+    STATUS_INIT(YDB_LAYER_TIME_NOW,                   UNIXTIME, "time now");
+    STATUS_INIT(YDB_LAYER_NUM_INSERTS,                UINT64,   "dictionary inserts");
+    STATUS_INIT(YDB_LAYER_NUM_INSERTS_FAIL,           UINT64,   "dictionary inserts fail");
+    STATUS_INIT(YDB_LAYER_NUM_DELETES,                UINT64,   "dictionary deletes");
+    STATUS_INIT(YDB_LAYER_NUM_DELETES_FAIL,           UINT64,   "dictionary deletes fail");
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES,                UINT64,   "dictionary updates");
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_FAIL,           UINT64,   "dictionary updates fail");
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST,      UINT64,   "dictionary broadcast updates");
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL, UINT64,   "dictionary broadcast updates fail");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS,          UINT64,   "dictionary multi inserts");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS_FAIL,     UINT64,   "dictionary multi inserts fail");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES,          UINT64,   "dictionary multi deletes");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES_FAIL,     UINT64,   "dictionary multi deletes fail");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES,          UINT64,   "dictionary updates multi");
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES_FAIL,     UINT64,   "dictionary updates multi fail");
+    STATUS_INIT(YDB_LAYER_NUM_POINT_QUERIES,          UINT64,   "dictionary point queries");
+    STATUS_INIT(YDB_LAYER_NUM_SEQUENTIAL_QUERIES,     UINT64,   "dictionary sequential queries");
+    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                UINT64,   "db opens");
+    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               UINT64,   "db closes");
+    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               UINT64,   "num open dbs now");
+    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               UINT64,   "max open dbs");
+    STATUS_INIT(YDB_LAYER_DIRECTORY_READ_LOCKS,       UINT64,   "directory read locks");
+    STATUS_INIT(YDB_LAYER_DIRECTORY_READ_LOCKS_FAIL,  UINT64,   "directory read locks fail");
+    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS,      UINT64,   "directory write locks");
+    STATUS_INIT(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL, UINT64,   "directory write locks fail");
+    STATUS_INIT(YDB_LAYER_LOGSUPPRESS,                UINT64,   "log suppress");
+    STATUS_INIT(YDB_LAYER_LOGSUPPRESS_FAIL,           UINT64,   "log suppress fail");
+
+    STATUS_VALUE(YDB_LAYER_TIME_STARTUP) = time(NULL);
+    ydb_layer_status.initialized = true;
+}
+#undef STATUS_INIT
+
+static void
+ydb_layer_get_status(YDB_LAYER_STATUS statp) {
+    STATUS_VALUE(YDB_LAYER_TIME_NOW) = time(NULL);
+    *statp = ydb_layer_status;
+}
+
+
+/********************************************************************************
+ * End of ydb_layer local status section.
+ */
+
+
 static DB_ENV * volatile most_recent_env;   // most recently opened env, used for engine status on crash.  Note there are likely to be races on this if you have multiple threads creating and closing environments in parallel.  We'll declare it volatile since at least that helps make sure the compiler doesn't optimize away certain code (e.g., if while debugging, you write a code that spins on most_recent_env, you'd like to compiler not to optimize your code away.)
 
 static uint32_t  engine_status_enable = 1;   // if zero, suppress engine status output on failed assert, for test programs only
-
-static void
-init_status_info(void) {
-    num_inserts = 0;
-    num_inserts_fail = 0;
-    num_deletes = 0;
-    num_deletes_fail = 0;
-    num_updates = 0;
-    num_updates_fail = 0;
-    num_updates_broadcast = 0;
-    num_updates_broadcast_fail = 0;
-    num_multi_inserts = 0;
-    num_multi_inserts_fail = 0;
-    num_multi_deletes = 0;
-    num_multi_deletes_fail = 0;
-    num_multi_updates = 0;
-    num_multi_updates_fail = 0;
-    num_point_queries = 0;
-    num_sequential_queries = 0;
-    directory_read_locks = 0;
-    directory_read_locks_fail = 0;
-    directory_write_locks = 0;
-    directory_write_locks_fail = 0;
-    logsuppress = 0;
-    logsuppressfail = 0;
-    startuptime = time(NULL);
-}
 
 const char * environmentdictionary = "tokudb.environment";
 const char * fileopsdirectory = "tokudb.directory";
@@ -340,6 +399,8 @@ env_fs_poller(void *arg) {
 	    env->i->last_seq_entered_yellow = now;
         }
         break;
+    default:
+        assert(0);
     }
     return 0;
 }
@@ -514,30 +575,70 @@ static const char * last_lsn_of_v13_key       = "last_lsn_of_v13";
 static const char * upgrade_v14_time_key      = "upgrade_v14_time";      
 static const char * upgrade_v14_footprint_key = "upgrade_v14_footprint";
 
+
 // Values read from (or written into) persistent environment,
 // kept here for read-only access from engine status.
-static uint32_t persistent_original_env_version;
-static uint32_t persistent_stored_env_version_at_startup;    // read from curr_env_ver_key, prev version as of this startup
-static time_t   persistent_creation_time;
-static uint64_t persistent_last_lsn_of_v13;
-static time_t   persistent_upgrade_v14_time;
-static uint64_t persistent_upgrade_v14_footprint;
+// Note, persistent_upgrade_status info is separate in part to simplify its exclusion from engine status until relevant.
+typedef enum {
+    PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION = 0,
+    PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,    // read from curr_env_ver_key, prev version as of this startup
+    PERSISTENT_UPGRADE_LAST_LSN_OF_V13,
+    PERSISTENT_UPGRADE_V14_TIME,
+    PERSISTENT_UPGRADE_V14_FOOTPRINT,
+    PERSISTENT_UPGRADE_STATUS_NUM_ROWS
+} persistent_upgrade_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[PERSISTENT_UPGRADE_STATUS_NUM_ROWS];
+} PERSISTENT_UPGRADE_STATUS_S, *PERSISTENT_UPGRADE_STATUS;
+
+static PERSISTENT_UPGRADE_STATUS_S persistent_upgrade_status;
+
+#define PERSISTENT_UPGRADE_STATUS_INIT(k,t,l) { \
+	persistent_upgrade_status.status[k].keyname = #k; \
+	persistent_upgrade_status.status[k].type    = t;  \
+	persistent_upgrade_status.status[k].legend  = "upgrade: " l; \
+    }
+
+static void
+persistent_upgrade_status_init (void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION,           UINT64,   "original version (at time of environment creation)");
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,  UINT64,   "version at time of startup");
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_LAST_LSN_OF_V13,                UINT64,   "last LSN of version 13");
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_TIME,                       UNIXTIME, "time of upgrade to version 14");
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_FOOTPRINT,                  UINT64,   "footprint from version 13 to 14");
+    persistent_upgrade_status.initialized = true;
+}
+
+#define PERSISTENT_UPGRADE_STATUS_VALUE(x) persistent_upgrade_status.status[x].value.num
 
 // Requires: persistent environment dictionary is already open.
 // Input arg is lsn of clean shutdown of previous version,
 // or ZERO_LSN if no upgrade or if crash between log upgrade and here.
+// NOTE: To maintain compatibility with previous versions, do not change the 
+//       format of any information stored in the persistent environment dictionary.
+//       For example, some values are stored as 32 bits, even though they are immediately
+//       converted to 64 bits when read.  Do not change them to be stored as 64 bits.
+//
 static int
 maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN last_lsn_of_clean_shutdown_read_from_log) {
     int r;
     DBT key, val;
     DB *persistent_environment = env->i->persistent_environment;
 
+    if (!persistent_upgrade_status.initialized)
+        persistent_upgrade_status_init();
+
     toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
     toku_init_dbt(&val);
     r = toku_db_get(persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
     uint32_t stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
-    persistent_stored_env_version_at_startup = stored_env_version;
+    PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP) = stored_env_version;
     if (stored_env_version > BRT_LAYOUT_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_NEW;
     else if (stored_env_version < BRT_LAYOUT_MIN_SUPPORTED_VERSION)
@@ -589,7 +690,8 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     toku_init_dbt(&val);
     r = toku_db_get(persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
-    persistent_original_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    uint64_t persistent_original_env_version = toku_dtoh32(*(uint32_t*)val.data);
+    PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION) = persistent_original_env_version;
     assert(persistent_original_env_version <= curr_env_version);
 
     // make no assertions about timestamps, clock may have been reset
@@ -598,7 +700,7 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
-	persistent_creation_time = toku_dtoh64((*(time_t*)val.data));
+	STATUS_VALUE(YDB_LAYER_TIME_CREATION) = toku_dtoh64((*(time_t*)val.data));
     }
 
     if (persistent_original_env_version != curr_env_version) {
@@ -608,19 +710,19 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
-	persistent_last_lsn_of_v13 = toku_dtoh64(*(uint32_t*)val.data);
+	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint32_t*)val.data);
 
 	toku_fill_dbt(&key, upgrade_v14_time_key, strlen(upgrade_v14_time_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
-	persistent_upgrade_v14_time = toku_dtoh64((*(time_t*)val.data));
+	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64((*(time_t*)val.data));
 
 	toku_fill_dbt(&key, upgrade_v14_footprint_key, strlen(upgrade_v14_footprint_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
-	persistent_upgrade_v14_footprint = toku_dtoh64((*(uint64_t*)val.data));
+	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_FOOTPRINT) = toku_dtoh64((*(uint64_t*)val.data));
     }
 
 }
@@ -862,7 +964,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         need_rollback_cachefile = TRUE;
     }
 
-    init_status_info();  // do this before possibly upgrading, so upgrade work is counted in status counters
+    status_init();  // do this before possibly upgrading, so upgrade work is counted in status counters
 
     LSN last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
     BOOL upgrade_in_progress = FALSE;
@@ -968,7 +1070,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
-	    persistent_original_env_version = BRT_LAYOUT_VERSION;
+	    uint32_t persistent_original_env_version = BRT_LAYOUT_VERSION;
 	    const uint32_t environment_version = toku_htod32(persistent_original_env_version);
 
 	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
@@ -1020,7 +1122,9 @@ cleanup:
     if (r == 0) {
 	errno = 0; // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
 	most_recent_env = env;
-	toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic);
+        uint64_t num_rows;
+        env_get_engine_status_num_rows(env, &num_rows);
+	toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic, num_rows);
     }
     return r;
 }
@@ -1873,6 +1977,99 @@ format_time(const time_t *timer, char *buf) {
     }
 }
 
+// local status struct, used to concentrate file system information collected from various places
+typedef enum {
+    FS_ENOSPC_REDZONE_STATE = 0,  // possible values are enumerated by fs_redzone_state
+    FS_ENOSPC_THREADS_BLOCKED,    // how many threads currently blocked on ENOSPC
+    FS_ENOSPC_REDZONE_CTR,        // number of operations rejected by enospc prevention (red zone)
+    FS_ENOSPC_MOST_RECENT,        // most recent time that file system was completely full
+    FS_ENOSPC_COUNT,              // total number of times ENOSPC was returned from an attempt to write
+    FS_FSYNC_TIME ,
+    FS_FSYNC_COUNT,
+    FS_STATUS_NUM_ROWS
+} fs_status_entry;
+
+typedef struct {
+    BOOL initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[FS_STATUS_NUM_ROWS];
+} FS_STATUS_S, *FS_STATUS;
+
+static FS_STATUS_S fsstat;
+
+#define FS_STATUS_INIT(k,t,l) {           \
+	fsstat.status[k].keyname = #k; \
+	fsstat.status[k].type    = t;  \
+	fsstat.status[k].legend  = "filesystem: " l; \
+    }
+
+static void
+fs_status_init(void) {
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   FS_STATE, "ENOSPC redzone state");
+    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, UINT64,   "threads currently blocked by full disk");
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     UINT64,   "number of operations rejected by enospc prevention (red zone)");
+    FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     UNIXTIME, "most recent disk full");
+    FS_STATUS_INIT(FS_ENOSPC_COUNT,           UINT64,   "number of write operations that returned ENOSPC");
+    FS_STATUS_INIT(FS_FSYNC_TIME,             UINT64,   "fsync time");
+    FS_STATUS_INIT(FS_FSYNC_COUNT,            UINT64,   "fsync count");
+    fsstat.initialized = true;
+}
+#undef FS_STATUS_INIT
+
+#define FS_STATUS_VALUE(x) fsstat.status[x].value.num
+
+static void
+fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
+    if (!fsstat.initialized)
+        fs_status_init();
+    
+    time_t   enospc_most_recent_timestamp;
+    uint64_t enospc_threads_blocked, enospc_total;
+    toku_fs_get_write_info(&enospc_most_recent_timestamp, &enospc_threads_blocked, &enospc_total);
+    if (enospc_threads_blocked)
+        FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE) = FS_BLOCKED;
+    else
+        FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE) = env->i->fs_state;
+    *redzone_state = FS_STATUS_VALUE(FS_ENOSPC_REDZONE_STATE);
+    FS_STATUS_VALUE(FS_ENOSPC_THREADS_BLOCKED) = enospc_threads_blocked;
+    FS_STATUS_VALUE(FS_ENOSPC_REDZONE_CTR) = env->i->enospc_redzone_ctr;
+    FS_STATUS_VALUE(FS_ENOSPC_MOST_RECENT) = enospc_most_recent_timestamp;
+    FS_STATUS_VALUE(FS_ENOSPC_COUNT) = enospc_total;
+    
+    u_int64_t fsync_count, fsync_time;
+    toku_get_fsync_times(&fsync_count, &fsync_time);
+    FS_STATUS_VALUE(FS_FSYNC_COUNT) = fsync_count;
+    FS_STATUS_VALUE(FS_FSYNC_TIME) = fsync_time;
+}
+#undef FS_STATUS_VALUE
+
+// how many rows are in engine status?
+static int
+env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
+    uint64_t num_rows = 0;
+    num_rows += YDB_LAYER_STATUS_NUM_ROWS;
+    num_rows += YDB_LOCK_STATUS_NUM_ROWS;
+    num_rows += LE_STATUS_NUM_ROWS;
+    num_rows += CP_STATUS_NUM_ROWS;
+    num_rows += CT_STATUS_NUM_ROWS;
+    num_rows += LTM_STATUS_NUM_ROWS;
+    num_rows += BRT_STATUS_NUM_ROWS;
+    num_rows += BRT_FLUSHER_STATUS_NUM_ROWS;
+    num_rows += BRT_HOT_STATUS_NUM_ROWS;
+    num_rows += TXN_STATUS_NUM_ROWS;
+    num_rows += LOGGER_STATUS_NUM_ROWS;
+    num_rows += MEMORY_STATUS_NUM_ROWS;
+    num_rows += FS_STATUS_NUM_ROWS;
+    num_rows += INDEXER_STATUS_NUM_ROWS;
+    num_rows += LOADER_STATUS_NUM_ROWS;
+#if 0
+    // enable when upgrade is supported
+    num_rows += BRT_UPGRADE_STATUS_NUM_ROWS;
+    num_rows += PERSISTENT_UPGRADE_STATUS_NUM_ROWS;
+#endif
+    *num_rowsp = num_rows;
+    return 0;
+}
+
 // Do not take ydb lock or any other lock around or in this function.  
 // If the engine is blocked because some thread is holding a lock, this function
 // can help diagnose the problem.
@@ -1880,8 +2077,9 @@ format_time(const time_t *timer, char *buf) {
 // because of a race condition.  
 // Note, engine status is still collected even if the environment or logger is panicked
 static int
-env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_string_buf, int env_panic_string_length) {
+env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t maxrows,  fs_redzone_state* redzone_state, uint64_t * env_panicp, char * env_panic_string_buf, int env_panic_string_length) {
     int r;
+
     if (env_panic_string_buf) {
 	if (env && env->i && env->i->is_panicked && env->i->panic_string) {
 	    strncpy(env_panic_string_buf, env->i->panic_string, env_panic_string_length);
@@ -1897,351 +2095,132 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	r = EINVAL;
     else {
 	r = 0;
-	engstat->env_panic = env->i->is_panicked;
-	format_time(&persistent_creation_time, engstat->creationtime);
-	time_t now = time(NULL);
-        format_time(&now, engstat->now);
-        format_time(&startuptime, engstat->startuptime);
-	{
-	    SCHEDULE_STATUS_S schedstat;
-	    toku_ydb_lock_get_status(&schedstat);
-	    engstat->ydb_lock_ctr             = schedstat.ydb_lock_ctr;             /* How many times has ydb lock been taken/released?                                                                      */ 
-	    engstat->num_waiters_now          = schedstat.num_waiters_now;          /* How many are waiting on on the ydb lock right now (including the current lock holder, if any)?                        */
-	    engstat->max_waiters              = schedstat.max_waiters;              /* The maxium of num_waiters_now (since the system booted).                                                              */ 
-	    engstat->total_sleep_time         = schedstat.total_sleep_time;         /* The total time spent (since the system booted) sleeping (by the indexer) to give foreground threads a chance to work .*/ 
-	    engstat->max_time_ydb_lock_held   = schedstat.max_time_ydb_lock_held;   /* Maximum time that the ydb lock was held.                                                                              */ 
-	    engstat->total_time_ydb_lock_held = schedstat.total_time_ydb_lock_held; /* Total time client threads held the ydb lock                                                                           */ 
-	    engstat->total_time_since_start   = schedstat.total_time_since_start;   /* Total time since the lock was created.  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
+	uint64_t row = 0;  // which row to fill next
+        *env_panicp = env->i->is_panicked;
 
+	{
+	    YDB_LAYER_STATUS_S ydb_stat;
+	    ydb_layer_get_status(&ydb_stat);
+	    for (int i = 0; i < YDB_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = ydb_stat.status[i];
+	    }
+	}
+
+	{
+	    YDB_LOCK_STATUS_S ydb_lock_status;
+	    toku_ydb_lock_get_status(&ydb_lock_status);
+	    for (int i = 0; i < YDB_LOCK_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = ydb_lock_status.status[i];
+	    }
 	}
         {
 	    LE_STATUS_S lestat;                    // Rice's vampire
 	    toku_le_get_status(&lestat);
-            engstat->le_max_committed_xr    = lestat.max_committed_xr;
-            engstat->le_max_provisional_xr  = lestat.max_provisional_xr;
-            engstat->le_expanded            = lestat.expanded;
-            engstat->le_max_memsize         = lestat.max_memsize;
+	    for (int i = 0; i < LE_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = lestat.status[i];
+	    }
         }
-	engstat->checkpoint_period = toku_get_checkpoint_period_unlocked(env->i->cachetable);  // do not take any locks (not even minicron lock)
 	{
             CHECKPOINT_STATUS_S cpstat;
-            toku_checkpoint_get_status(&cpstat);
-            engstat->checkpoint_footprint = cpstat.footprint;
-	    format_time(&cpstat.time_last_checkpoint_begin_complete, engstat->checkpoint_time_begin_complete);
-	    format_time(&cpstat.time_last_checkpoint_begin,          engstat->checkpoint_time_begin);
-	    format_time(&cpstat.time_last_checkpoint_end,            engstat->checkpoint_time_end);
-	    engstat->checkpoint_last_lsn   = cpstat.last_lsn;
-	    engstat->checkpoint_count      = cpstat.checkpoint_count;
-	    engstat->checkpoint_count_fail = cpstat.checkpoint_count_fail;
-	    engstat->checkpoint_waiters_now = cpstat.waiters_now;
-	    engstat->checkpoint_waiters_max = cpstat.waiters_max;
-	    engstat->checkpoint_client_wait_on_mo = cpstat.client_wait_on_mo;
-	    engstat->checkpoint_client_wait_on_cs = cpstat.client_wait_on_cs;
-	    engstat->checkpoint_wait_sched_cs  = cpstat.cp_wait_sched_cs;
-	    engstat->checkpoint_wait_client_cs = cpstat.cp_wait_client_cs;
-	    engstat->checkpoint_wait_txn_cs    = cpstat.cp_wait_txn_cs;
-	    engstat->checkpoint_wait_other_cs  = cpstat.cp_wait_other_cs;
-	    engstat->checkpoint_wait_sched_mo  = cpstat.cp_wait_sched_mo;
-	    engstat->checkpoint_wait_client_mo = cpstat.cp_wait_client_mo;
-	    engstat->checkpoint_wait_txn_mo    = cpstat.cp_wait_txn_mo;
-	    engstat->checkpoint_wait_other_mo  = cpstat.cp_wait_other_mo;	
-	}
-	engstat->cleaner_period = toku_get_cleaner_period_unlocked(env->i->cachetable);
-        engstat->cleaner_iterations = toku_get_cleaner_iterations_unlocked(env->i->cachetable);
-	{
-	    TXN_STATUS_S txnstat;
-	    toku_txn_get_status(&txnstat);
-	    engstat->txn_begin   = txnstat.begin;
-	    engstat->txn_commit  = txnstat.commit;
-	    engstat->txn_abort   = txnstat.abort;
-	    engstat->txn_close   = txnstat.close;
-	    engstat->txn_num_open = txnstat.num_open;
-	    engstat->txn_max_open = txnstat.max_open;
-	    {
-		uint64_t oldest_xid = 0;
-                time_t   oldest_starttime = 0;
-		uint64_t next_lsn   = 0;
-		TOKULOGGER logger = env->i->logger;
-		if (logger) {
-		    oldest_xid = toku_logger_get_oldest_living_xid(env->i->logger, &oldest_starttime);
-		    next_lsn   = (toku_logger_get_next_lsn(env->i->logger)).lsn;
-		}
-		engstat->txn_oldest_live = oldest_xid;
-		engstat->next_lsn = next_lsn;
-                format_time(&oldest_starttime, engstat->txn_oldest_live_starttime);
+            toku_checkpoint_get_status(env->i->cachetable, &cpstat);
+	    for (int i = 0; i < CP_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = cpstat.status[i];
 	    }
 	}
 	{
 	    CACHETABLE_STATUS_S ctstat;
 	    toku_cachetable_get_status(env->i->cachetable, &ctstat);
-	    engstat->cachetable_lock_taken    = ctstat.lock_taken;
-	    engstat->cachetable_lock_released = ctstat.lock_released;
-	    engstat->cachetable_hit           = ctstat.hit;
-	    engstat->cachetable_miss          = ctstat.miss;
-	    engstat->cachetable_misstime      = ctstat.misstime;
-	    engstat->cachetable_waittime      = ctstat.waittime;
-	    engstat->cachetable_wait_reading  = ctstat.wait_reading;
-	    engstat->cachetable_wait_writing  = ctstat.wait_writing;
-	    engstat->cachetable_wait_checkpoint = ctstat.wait_checkpoint;
-	    engstat->puts                     = ctstat.puts;
-	    engstat->prefetches               = ctstat.prefetches;
-	    engstat->maybe_get_and_pins       = ctstat.maybe_get_and_pins;
-	    engstat->maybe_get_and_pin_hits   = ctstat.maybe_get_and_pin_hits;
-	    engstat->cachetable_size_current  = ctstat.size_current;
-	    engstat->cachetable_size_limit    = ctstat.size_limit;
-	    engstat->cachetable_size_max      = ctstat.size_max;
-	    engstat->cachetable_size_writing  = ctstat.size_writing;
-            engstat->cachetable_size_nonleaf  = ctstat.size_nonleaf;
-            engstat->cachetable_size_leaf     = ctstat.size_leaf;
-            engstat->cachetable_size_rollback = ctstat.size_rollback;
-            engstat->cachetable_size_cachepressure = ctstat.size_cachepressure;
-            engstat->cachetable_evictions     = ctstat.evictions;
-            engstat->cleaner_executions       = ctstat.cleaner_executions;
+	    for (int i = 0; i < CT_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = ctstat.status[i];
+	    }
 	}
 	{
-	    toku_ltm* ltm = env->i->ltm;
 	    LTM_STATUS_S ltmstat;
-	    uint32_t max_locks, curr_locks;
-	    uint64_t max_lock_memory, curr_lock_memory;
-	    toku_ltm_get_status(ltm, &max_locks, &curr_locks, 
-				&max_lock_memory, &curr_lock_memory,
-				&ltmstat);
-	    engstat->range_locks_max                 = max_locks;
-	    engstat->range_locks_curr                = curr_locks;
-	    engstat->range_locks_max_memory          = max_lock_memory;
-	    engstat->range_locks_curr_memory         = curr_lock_memory;
-	    engstat->range_lock_escalation_successes = ltmstat.lock_escalation_successes;
-	    engstat->range_lock_escalation_failures  = ltmstat.lock_escalation_failures;
-	    engstat->range_read_locks                = ltmstat.read_lock;
-	    engstat->range_read_locks_fail           = ltmstat.read_lock_fail;
-	    engstat->range_out_of_read_locks         = ltmstat.out_of_read_locks;
-	    engstat->range_write_locks               = ltmstat.write_lock;
-	    engstat->range_write_locks_fail          = ltmstat.write_lock_fail;
-	    engstat->range_out_of_write_locks        = ltmstat.out_of_write_locks;
-	    engstat->range_lt_create                 = ltmstat.lt_create;
-	    engstat->range_lt_create_fail            = ltmstat.lt_create_fail;
-	    engstat->range_lt_destroy                = ltmstat.lt_destroy;
-	    engstat->range_lt_num                    = ltmstat.lt_num;
-	    engstat->range_lt_num_max                = ltmstat.lt_num_max;
+	    toku_ltm_get_status(env->i->ltm, &ltmstat);
+	    for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
+		engstat[row++] = ltmstat.status[i];
+	    }
 	}
-	{
-     	    engstat->inserts            = num_inserts;
-	    engstat->inserts_fail       = num_inserts_fail;
-	    engstat->deletes            = num_deletes;
-	    engstat->deletes_fail       = num_deletes_fail;
-	    engstat->updates            = num_updates;
-	    engstat->updates_fail       = num_updates_fail;
-	    engstat->updates_broadcast  = num_updates_broadcast;
-	    engstat->updates_broadcast_fail  = num_updates_broadcast_fail;
-     	    engstat->multi_inserts      = num_multi_inserts;
-	    engstat->multi_inserts_fail = num_multi_inserts_fail;
-	    engstat->multi_deletes      = num_multi_deletes;
-	    engstat->multi_deletes_fail = num_multi_deletes_fail;
-	    engstat->multi_updates      = num_multi_updates;
-	    engstat->multi_updates_fail = num_multi_updates_fail;
-	    engstat->point_queries      = num_point_queries;
-	    engstat->sequential_queries = num_sequential_queries;
-	    engstat->num_db_open        = num_db_open;
-	    engstat->num_db_close       = num_db_close;
-	    engstat->num_open_dbs       = num_open_dbs;
-	    engstat->max_open_dbs       = max_open_dbs;
-            engstat->directory_read_locks = directory_read_locks;
-            engstat->directory_read_locks_fail = directory_read_locks_fail;
-            engstat->directory_write_locks = directory_write_locks;
-            engstat->directory_write_locks_fail = directory_write_locks_fail;
-	}
-	{
-            BRT_STATUS_S brt_stat;
-            toku_brt_get_status(&brt_stat);
-            engstat->le_updates = brt_stat.updates;
-            engstat->le_updates_broadcast = brt_stat.updates_broadcast;
-            engstat->descriptor_set = brt_stat.descriptor_set;
-            engstat->partial_fetch_hit = brt_stat.partial_fetch_hit;
-            engstat->partial_fetch_miss = brt_stat.partial_fetch_miss;
-            engstat->partial_fetch_compressed = brt_stat.partial_fetch_compressed;
-            engstat->partial_evictions_nonleaf = brt_stat.partial_evictions_nonleaf;
-            engstat->partial_evictions_leaf = brt_stat.partial_evictions_leaf;
-            engstat->msn_discards = brt_stat.msn_discards;
-            engstat->max_workdone = brt_stat.max_workdone;
-            engstat->total_searches = brt_stat.total_searches;
-            engstat->total_retries = brt_stat.total_retries;
-            engstat->max_search_excess_retries = brt_stat.max_search_excess_retries;
-            engstat->max_search_root_tries = brt_stat.max_search_root_tries;
-            engstat->search_root_retries = brt_stat.search_root_retries;
-            engstat->search_tries_gt_height = brt_stat.search_tries_gt_height;
-            engstat->search_tries_gt_heightplus3 = brt_stat.search_tries_gt_heightplus3;
-            engstat->disk_flush_leaf = brt_stat.disk_flush_leaf;
-            engstat->disk_flush_nonleaf = brt_stat.disk_flush_nonleaf;
-            engstat->disk_flush_leaf_for_checkpoint = brt_stat.disk_flush_leaf_for_checkpoint;
-            engstat->disk_flush_nonleaf_for_checkpoint = brt_stat.disk_flush_nonleaf_for_checkpoint;
-            engstat->create_leaf = brt_stat.create_leaf;
-            engstat->create_nonleaf = brt_stat.create_nonleaf;
-            engstat->create_leaf = brt_stat.create_leaf;
-            engstat->create_nonleaf = brt_stat.create_nonleaf;
-            engstat->destroy_leaf = brt_stat.destroy_leaf;
-            engstat->destroy_nonleaf = brt_stat.destroy_nonleaf;
-            engstat->dirty_leaf = brt_stat.dirty_leaf;
-            engstat->dirty_nonleaf = brt_stat.dirty_nonleaf;
-            engstat->msg_bytes_in = brt_stat.msg_bytes_in;
-            engstat->msg_bytes_out = brt_stat.msg_bytes_out;
-            engstat->msg_bytes_curr = brt_stat.msg_bytes_curr;
-            engstat->msg_bytes_max = brt_stat.msg_bytes_max;
-            engstat->msg_num = brt_stat.msg_num;
-            engstat->msg_num_broadcast = brt_stat.msg_num_broadcast;
-            engstat->num_basements_decompressed_normal = brt_stat.num_basements_decompressed_normal;
-            engstat->num_basements_decompressed_aggressive = brt_stat.num_basements_decompressed_aggressive;
-            engstat->num_basements_decompressed_prefetch = brt_stat.num_basements_decompressed_prefetch;
-            engstat->num_basements_decompressed_write = brt_stat.num_basements_decompressed_write;
-            engstat->num_msg_buffer_decompressed_normal = brt_stat.num_msg_buffer_decompressed_normal;
-            engstat->num_msg_buffer_decompressed_aggressive = brt_stat.num_msg_buffer_decompressed_aggressive;
-            engstat->num_msg_buffer_decompressed_prefetch = brt_stat.num_msg_buffer_decompressed_prefetch;
-            engstat->num_msg_buffer_decompressed_write = brt_stat.num_msg_buffer_decompressed_write;
-            engstat->num_pivots_fetched_query = brt_stat.num_pivots_fetched_query;
-            engstat->num_pivots_fetched_prefetch = brt_stat.num_pivots_fetched_prefetch;
-            engstat->num_pivots_fetched_write = brt_stat.num_pivots_fetched_write;
-            engstat->num_basements_fetched_normal = brt_stat.num_basements_fetched_normal;
-            engstat->num_basements_fetched_aggressive = brt_stat.num_basements_fetched_aggressive;
-            engstat->num_basements_fetched_prefetch = brt_stat.num_basements_fetched_prefetch;
-            engstat->num_basements_fetched_write = brt_stat.num_basements_fetched_write;
-            engstat->num_msg_buffer_fetched_normal = brt_stat.num_msg_buffer_fetched_normal;
-            engstat->num_msg_buffer_fetched_aggressive = brt_stat.num_msg_buffer_fetched_aggressive;
-            engstat->num_msg_buffer_fetched_prefetch = brt_stat.num_msg_buffer_fetched_prefetch;
-            engstat->num_msg_buffer_fetched_write = brt_stat.num_msg_buffer_fetched_write;
+        {
+            BRT_STATUS_S brtstat;
+            toku_brt_get_status(&brtstat);
+            for (int i = 0; i < BRT_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = brtstat.status[i];
+            }
         }
         {
-            BRT_FLUSHER_STATUS_S brt_flusher_stat;
-            toku_brt_flusher_get_status(&brt_flusher_stat);
-            engstat->cleaner_total_nodes = brt_flusher_stat.cleaner_total_nodes;
-            engstat->cleaner_h1_nodes = brt_flusher_stat.cleaner_h1_nodes;
-            engstat->cleaner_hgt1_nodes = brt_flusher_stat.cleaner_hgt1_nodes;
-            engstat->cleaner_empty_nodes = brt_flusher_stat.cleaner_empty_nodes;
-            engstat->cleaner_nodes_dirtied = brt_flusher_stat.cleaner_nodes_dirtied;
-            engstat->cleaner_max_buffer_size = brt_flusher_stat.cleaner_max_buffer_size;
-            engstat->cleaner_min_buffer_size = brt_flusher_stat.cleaner_min_buffer_size;
-            engstat->cleaner_total_buffer_size = brt_flusher_stat.cleaner_total_buffer_size;
-            engstat->cleaner_max_buffer_workdone = brt_flusher_stat.cleaner_max_buffer_workdone;
-            engstat->cleaner_min_buffer_workdone = brt_flusher_stat.cleaner_min_buffer_workdone;
-            engstat->cleaner_total_buffer_workdone = brt_flusher_stat.cleaner_total_buffer_workdone;
-            engstat->cleaner_num_leaf_merges_started = brt_flusher_stat.cleaner_num_leaf_merges_started;
-            engstat->cleaner_num_leaf_merges_running = brt_flusher_stat.cleaner_num_leaf_merges_running;
-            engstat->cleaner_num_leaf_merges_completed = brt_flusher_stat.cleaner_num_leaf_merges_completed;
-            engstat->cleaner_num_dirtied_for_leaf_merge = brt_flusher_stat.cleaner_num_dirtied_for_leaf_merge;
-            engstat->flush_total = brt_flusher_stat.flush_total;
-            engstat->flush_in_memory = brt_flusher_stat.flush_in_memory;
-            engstat->flush_needed_io = brt_flusher_stat.flush_needed_io;
-            engstat->flush_cascades = brt_flusher_stat.flush_cascades;
-            engstat->flush_cascades_1 = brt_flusher_stat.flush_cascades_1;
-            engstat->flush_cascades_2 = brt_flusher_stat.flush_cascades_2;
-            engstat->flush_cascades_3 = brt_flusher_stat.flush_cascades_3;
-            engstat->flush_cascades_4 = brt_flusher_stat.flush_cascades_4;
-            engstat->flush_cascades_5 = brt_flusher_stat.flush_cascades_5;
-            engstat->flush_cascades_gt_5 = brt_flusher_stat.flush_cascades_gt_5;
-            engstat->split_leaf = brt_flusher_stat.split_leaf;
-            engstat->split_nonleaf = brt_flusher_stat.split_nonleaf;
-            engstat->merge_leaf = brt_flusher_stat.merge_leaf;
-            engstat->merge_nonleaf = brt_flusher_stat.merge_nonleaf;
-            engstat->balance_leaf = brt_flusher_stat.balance_leaf;
+            BRT_FLUSHER_STATUS_S flusherstat;
+            toku_brt_flusher_get_status(&flusherstat);
+            for (int i = 0; i < BRT_FLUSHER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = flusherstat.status[i];
+            }
         }
+        {
+            BRT_HOT_STATUS_S hotstat;
+            toku_brt_hot_get_status(&hotstat);
+            for (int i = 0; i < BRT_HOT_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = hotstat.status[i];
+            }
+        }
+        {
+            TXN_STATUS_S txnstat;
+            toku_txn_get_status(env->i->logger, &txnstat);
+            for (int i = 0; i < TXN_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = txnstat.status[i];
+            }
+        }
+        {
+            LOGGER_STATUS_S loggerstat;
+            toku_logger_get_status(env->i->logger, &loggerstat);
+            for (int i = 0; i < LOGGER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = loggerstat.status[i];
+            }
+        }
+
+        {
+            INDEXER_STATUS_S indexerstat;
+            toku_indexer_get_status(&indexerstat);
+            for (int i = 0; i < INDEXER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = indexerstat.status[i];
+            }
+        }
+        {
+            LOADER_STATUS_S loaderstat;
+            toku_loader_get_status(&loaderstat);
+            for (int i = 0; i < LOADER_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = loaderstat.status[i];
+            }
+        }
+
 	{
-	    BRT_HOT_STATUS_S hot_stat;
-	    toku_brt_hot_get_status(&hot_stat);
-	    engstat->hot_num_started     = hot_stat.num_started;
-	    engstat->hot_num_completed   = hot_stat.num_completed;
-	    engstat->hot_num_aborted     = hot_stat.num_aborted;
-	    engstat->hot_max_root_flush_count = hot_stat.max_root_flush_count;
+	    MEMORY_STATUS_S memorystat;
+	    toku_memory_get_status(&memorystat);
+            for (int i = 0; i < MEMORY_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = memorystat.status[i];
+            }
 	}
 	{
-	    u_int64_t fsync_count, fsync_time;
-	    toku_get_fsync_times(&fsync_count, &fsync_time);
-	    engstat->fsync_count = fsync_count;
-	    engstat->fsync_time  = fsync_time;
+            // Note, fs_get_status() and the fsstat structure are local to this file because they
+            // are used to concentrate file system information collected from various places.
+            fs_get_status(env, redzone_state);
+            for (int i = 0; i < FS_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = fsstat.status[i];
+            }
 	}
+#if 0
+        // enable when upgrade is supported
 	{
-	    LOGGER_STATUS_S log_stat;
-	    TOKULOGGER logger = env->i->logger;
-	    toku_logger_get_status(logger, &log_stat);
-	    engstat->logger_ilock_ctr = log_stat.ilock_ctr;
-	    engstat->logger_olock_ctr = log_stat.olock_ctr;
-	    engstat->logger_swap_ctr  = log_stat.swap_ctr;
-	    engstat->logger_panic     = log_stat.panicked;
-	    engstat->logger_panic_errno = log_stat.panic_errno;
+            for (int i = 0; i < PERSISTENT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = persistent_upgrade_status.status[i];
+            }
+            BRT_UPGRADE_STATUS_S brt_upgradestat;
+	    toku_brt_upgrade_get_status(&brt_upgradestat);
+            for (int i = 0; i < BRT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = brt_upgradestat.status[i];
+            }
+
 	}
-	{
-	    time_t    enospc_most_recent_timestamp;
-	    u_int64_t enospc_threads_blocked, enospc_ctr;
-	    toku_fs_get_write_info(&enospc_most_recent_timestamp, &enospc_threads_blocked, &enospc_ctr);
-	    format_time(&enospc_most_recent_timestamp, engstat->enospc_most_recent);	    
-	    engstat->enospc_threads_blocked = enospc_threads_blocked;
-	    engstat->enospc_ctr = enospc_ctr;
-	}
-	{
-	    engstat->enospc_redzone_ctr   = env->i->enospc_redzone_ctr;   // number of operations rejected by enospc prevention (red zone)
-	    engstat->enospc_state         = env->i->fs_state;
-	}
-	{
-	    LOADER_STATUS_S loader_stat;
-	    toku_loader_get_status(&loader_stat);
-	    engstat->loader_create         = loader_stat.create;
-	    engstat->loader_create_fail    = loader_stat.create_fail;
-	    engstat->loader_put            = loader_stat.put;
-	    engstat->loader_put_fail       = loader_stat.put_fail;
-	    engstat->loader_close          = loader_stat.close;
-	    engstat->loader_close_fail     = loader_stat.close_fail;
-	    engstat->loader_abort          = loader_stat.abort;
-	    engstat->loader_current        = loader_stat.current;
-	    engstat->loader_max            = loader_stat.max;
-	    
-	    engstat->logsuppress     = logsuppress;
-	    engstat->logsuppressfail = logsuppressfail;
-	}
-	{
-	    INDEXER_STATUS_S indexer_stat;
-	    toku_indexer_get_status(&indexer_stat);
-	    engstat->indexer_create         = indexer_stat.create;
-	    engstat->indexer_create_fail    = indexer_stat.create_fail;
-	    engstat->indexer_build          = indexer_stat.build;
-	    engstat->indexer_build_fail     = indexer_stat.build_fail;
-	    engstat->indexer_close          = indexer_stat.close;
-	    engstat->indexer_close_fail     = indexer_stat.close_fail;
-	    engstat->indexer_abort          = indexer_stat.abort;
-	    engstat->indexer_current        = indexer_stat.current;
-	    engstat->indexer_max            = indexer_stat.max;
-	}
-	{
-	    BRT_UPGRADE_STATUS_S brt_upgrade_stat;
-	    toku_brt_get_upgrade_status(&brt_upgrade_stat);
-	    uint64_t upgrade_footprint  = toku_log_upgrade_get_footprint();
-	    // Footprint of upgrade maybe performed for this time environment is opened
-	    // is provided in six least significant decimal digits, footprint of 
-	    // upgrade performed when environment was actually upgraded is provided
-	    // in most significant decimal digits.
-	    // If ver_at_startup == 13, then the footprint will have the same value in 
-	    // upper and lower digits.
-	    engstat->upgrade_env_status = (persistent_upgrade_v14_footprint * 1000000) + upgrade_footprint;
-	    engstat->upgrade_header     = brt_upgrade_stat.header_13;
-	    engstat->upgrade_nonleaf    = brt_upgrade_stat.nonleaf_13;
-	    engstat->upgrade_leaf       = brt_upgrade_stat.leaf_13;
-	    engstat->optimized_for_upgrade = brt_upgrade_stat.optimized_for_upgrade;
-	    engstat->original_ver       = persistent_original_env_version;
-	    engstat->ver_at_startup     = persistent_stored_env_version_at_startup;
-	    engstat->last_lsn_v13       = persistent_last_lsn_of_v13;
-	    format_time(&persistent_upgrade_v14_time, engstat->upgrade_v14_time);
-	}
-	{
-	    MEMORY_STATUS_S memory_status;
-	    toku_memory_get_status(&memory_status);
-	    engstat->malloc_count   = memory_status.malloc_count;
-	    engstat->free_count     = memory_status.free_count;
-	    engstat->realloc_count  = memory_status.realloc_count;
-	    engstat->malloc_fail    = memory_status.malloc_fail;
-	    engstat->realloc_fail   = memory_status.realloc_fail;
-	    engstat->mem_requested  = memory_status.requested;
-	    engstat->mem_used       = memory_status.used;
-	    engstat->mem_freed      = memory_status.freed;
-	    engstat->max_mem_in_use = memory_status.max_in_use;
-	    engstat->malloc_mmap_threshold = memory_status.mmap_threshold;	    
-	    engstat->mallocator_version = memory_status.mallocator_version;
-	}
+#endif
     }
     return r;
 }
@@ -2252,20 +2231,19 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 // and for use by toku_assert logic to print diagnostic info on crash.
 static int
 env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
-    ENGINE_STATUS engstat;
     uint32_t stringsize = 1024;
+    uint64_t panic;
     char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
+    uint64_t num_rows;
+    fs_redzone_state redzone_state;
 
     n = snprintf(buff, bufsiz - n, "BUILD_ID = %d\n", BUILD_ID);
 
-    int r = env_get_engine_status(env, &engstat, panicstring, stringsize);    
-
-    if (strlen(panicstring)) {
-        invariant(strlen(panicstring) <= stringsize);
-        n += snprintf(buff + n, bufsiz - n, "Env panic: %s\n", panicstring);
-    }
-
+    (void) env_get_engine_status_num_rows (env, &num_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[num_rows];
+    int r = env->get_engine_status (env, mystat, num_rows, &redzone_state, &panic, panicstring, stringsize);
+    
     if (r) {
         n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
 	if (!env) {
@@ -2279,253 +2257,46 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	}
     }
     else {
-	n += snprintf(buff + n, bufsiz - n, "env panic                        %"PRIu64"\n", engstat.env_panic);
-	n += snprintf(buff + n, bufsiz - n, "creationtime                     %s \n",       engstat.creationtime);
-	n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n",       engstat.startuptime);
-	n += snprintf(buff + n, bufsiz - n, "now                              %s \n",       engstat.now);
-	n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
-	n += snprintf(buff + n, bufsiz - n, "num_waiters_now                  %"PRIu64"\n", engstat.num_waiters_now);
-	n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu64"\n", engstat.max_waiters);
-	n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
-	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %.6f\n",      tokutime_to_seconds(engstat.max_time_ydb_lock_held));
-	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %.6f\n",      tokutime_to_seconds(engstat.total_time_ydb_lock_held));
-	n += snprintf(buff + n, bufsiz - n, "total_time_since_start           %.6f\n",      tokutime_to_seconds(engstat.total_time_since_start));
-	n += snprintf(buff + n, bufsiz - n, "le_max_committed_xr              %"PRIu64"\n", engstat.le_max_committed_xr);
-	n += snprintf(buff + n, bufsiz - n, "le_max_provisional_xr            %"PRIu64"\n", engstat.le_max_provisional_xr);
-	n += snprintf(buff + n, bufsiz - n, "le_expanded                      %"PRIu64"\n", engstat.le_expanded);
-	n += snprintf(buff + n, bufsiz - n, "le_max_memsize                   %"PRIu64"\n", engstat.le_max_memsize);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %"PRIu64"\n", engstat.checkpoint_period);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %"PRIu64"\n", engstat.checkpoint_footprint);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n",       engstat.checkpoint_time_begin);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin_complete   %s \n",       engstat.checkpoint_time_begin_complete);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_end              %s \n",       engstat.checkpoint_time_end);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu64"\n", engstat.checkpoint_count);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu64"\n", engstat.checkpoint_count_fail);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_now           %"PRIu64"\n", engstat.checkpoint_waiters_now);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_waiters_max           %"PRIu64"\n", engstat.checkpoint_waiters_max);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_client_wait_on_mo     %"PRIu64"\n", engstat.checkpoint_client_wait_on_mo);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_client_wait_on_cs     %"PRIu64"\n", engstat.checkpoint_client_wait_on_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_sched_cs         %"PRIu64"\n", engstat.checkpoint_wait_sched_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_client_cs        %"PRIu64"\n", engstat.checkpoint_wait_client_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_txn_cs           %"PRIu64"\n", engstat.checkpoint_wait_txn_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_other_cs         %"PRIu64"\n", engstat.checkpoint_wait_other_cs);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_sched_mo         %"PRIu64"\n", engstat.checkpoint_wait_sched_mo);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_client_mo        %"PRIu64"\n", engstat.checkpoint_wait_client_mo);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_txn_mo           %"PRIu64"\n", engstat.checkpoint_wait_txn_mo);
-	n += snprintf(buff + n, bufsiz - n, "checkpoint_wait_other_mo         %"PRIu64"\n", engstat.checkpoint_wait_other_mo);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu64"\n", engstat.cleaner_period);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu64"\n", engstat.cleaner_iterations);
-	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
-	n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
-	n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
-	n += snprintf(buff + n, bufsiz - n, "txn_close                        %"PRIu64"\n", engstat.txn_close);
-	n += snprintf(buff + n, bufsiz - n, "txn_num_open                     %"PRIu64"\n", engstat.txn_num_open);
-	n += snprintf(buff + n, bufsiz - n, "txn_max_open                     %"PRIu64"\n", engstat.txn_max_open);
-	n += snprintf(buff + n, bufsiz - n, "txn_oldest_live                  %"PRIu64"\n", engstat.txn_oldest_live);
-	n += snprintf(buff + n, bufsiz - n, "next_lsn                         %"PRIu64"\n", engstat.next_lsn);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_lock_released         %"PRIu64"\n", engstat.cachetable_lock_released);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_hit                   %"PRIu64"\n", engstat.cachetable_hit);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_miss                  %"PRIu64"\n", engstat.cachetable_miss);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_misstime              %"PRIu64"\n", engstat.cachetable_misstime);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
-	n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
-	n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
-	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
-	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pin_hits           %"PRIu64"\n", engstat.maybe_get_and_pin_hits);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_max              %"PRId64"\n", engstat.cachetable_size_max);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRIu64"\n", engstat.cachetable_size_nonleaf);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRIu64"\n", engstat.cachetable_size_leaf);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_rollback         %"PRIu64"\n", engstat.cachetable_size_rollback);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_evictions             %"PRIu64"\n", engstat.cachetable_evictions);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_executions               %"PRIu64"\n", engstat.cleaner_executions);
+        if (panic) {
+            n += snprintf(buff + n, bufsiz - n, "Env panic code: %"PRIu64"\n", panic);
+            if (strlen(panicstring)) {
+                invariant(strlen(panicstring) <= stringsize);
+                n += snprintf(buff + n, bufsiz - n, "Env panic string: %s\n", panicstring);
+            }
+        }
 
-	n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu64"\n", engstat.range_locks_max);
-	n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu64"\n", engstat.range_locks_curr);
-	n += snprintf(buff + n, bufsiz - n, "range_locks_max_memory           %"PRIu64"\n", engstat.range_locks_max_memory);
-	n += snprintf(buff + n, bufsiz - n, "range_locks_curr_memory          %"PRIu64"\n", engstat.range_locks_curr_memory);
-	n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu64"\n", engstat.range_lock_escalation_successes);
-	n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu64"\n", engstat.range_lock_escalation_failures);
-	n += snprintf(buff + n, bufsiz - n, "range_read_locks                 %"PRIu64"\n", engstat.range_read_locks);
-	n += snprintf(buff + n, bufsiz - n, "range_read_locks_fail            %"PRIu64"\n", engstat.range_read_locks_fail);
-	n += snprintf(buff + n, bufsiz - n, "range_out_of_read_locks          %"PRIu64"\n", engstat.range_out_of_read_locks);
-	n += snprintf(buff + n, bufsiz - n, "range_write_locks                %"PRIu64"\n", engstat.range_write_locks);
-	n += snprintf(buff + n, bufsiz - n, "range_write_locks_fail           %"PRIu64"\n", engstat.range_write_locks_fail);
-	n += snprintf(buff + n, bufsiz - n, "range_out_of_write_locks         %"PRIu64"\n", engstat.range_out_of_write_locks);
-	n += snprintf(buff + n, bufsiz - n, "range_lt_create                  %"PRIu64"\n", engstat.range_lt_create);
-	n += snprintf(buff + n, bufsiz - n, "range_lt_create_fail             %"PRIu64"\n", engstat.range_lt_create_fail);
-	n += snprintf(buff + n, bufsiz - n, "range_lt_destroy                 %"PRIu64"\n", engstat.range_lt_destroy);
-	n += snprintf(buff + n, bufsiz - n, "range_lt_num                     %"PRIu64"\n", engstat.range_lt_num);
-	n += snprintf(buff + n, bufsiz - n, "range_lt_num_max                 %"PRIu64"\n", engstat.range_lt_num_max);
-	n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
-	n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
-	n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
-	n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
-	n += snprintf(buff + n, bufsiz - n, "updates                          %"PRIu64"\n", engstat.updates);
-	n += snprintf(buff + n, bufsiz - n, "updates_fail                     %"PRIu64"\n", engstat.updates_fail);
-	n += snprintf(buff + n, bufsiz - n, "updates_broadcast                %"PRIu64"\n", engstat.updates_broadcast);
-	n += snprintf(buff + n, bufsiz - n, "updates_broadcast_fail           %"PRIu64"\n", engstat.updates_broadcast_fail);
-	n += snprintf(buff + n, bufsiz - n, "le_updates                       %"PRIu64"\n", engstat.le_updates);
-	n += snprintf(buff + n, bufsiz - n, "le_updates_broadcast             %"PRIu64"\n", engstat.le_updates_broadcast);
-	n += snprintf(buff + n, bufsiz - n, "descriptor_set                   %"PRIu64"\n", engstat.descriptor_set);
-	n += snprintf(buff + n, bufsiz - n, "partial_fetch_hit                %"PRIu64"\n", engstat.partial_fetch_hit);
-	n += snprintf(buff + n, bufsiz - n, "partial_fetch_miss               %"PRIu64"\n", engstat.partial_fetch_miss);
-	n += snprintf(buff + n, bufsiz - n, "partial_fetch_compressed         %"PRIu64"\n", engstat.partial_fetch_compressed);
-	n += snprintf(buff + n, bufsiz - n, "partial_evictions_nonleaf        %"PRIu64"\n", engstat.partial_evictions_nonleaf);
-	n += snprintf(buff + n, bufsiz - n, "partial_evictions_leaf           %"PRIu64"\n", engstat.partial_evictions_leaf);
-	n += snprintf(buff + n, bufsiz - n, "msn_discards                     %"PRIu64"\n", engstat.msn_discards);
-	n += snprintf(buff + n, bufsiz - n, "max_workdone                     %"PRIu64"\n", engstat.max_workdone);
-	n += snprintf(buff + n, bufsiz - n, "total_searches                   %"PRIu64"\n", engstat.total_searches);
-	n += snprintf(buff + n, bufsiz - n, "total_retries                    %"PRIu64"\n", engstat.total_retries);
-	n += snprintf(buff + n, bufsiz - n, "max_search_excess_retries        %"PRIu64"\n", engstat.max_search_excess_retries);
-	n += snprintf(buff + n, bufsiz - n, "max_search_root_tries            %"PRIu64"\n", engstat.max_search_root_tries);
-	n += snprintf(buff + n, bufsiz - n, "search_root_retries              %"PRIu64"\n", engstat.search_root_retries);
-	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_height           %"PRIu64"\n", engstat.search_tries_gt_height);
-	n += snprintf(buff + n, bufsiz - n, "search_tries_gt_heightplus3      %"PRIu64"\n", engstat.search_tries_gt_heightplus3);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_total_nodes              %"PRIu64"\n", engstat.cleaner_total_nodes);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_h1_nodes                 %"PRIu64"\n", engstat.cleaner_h1_nodes);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_hgt1_nodes               %"PRIu64"\n", engstat.cleaner_hgt1_nodes);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_empty_nodes              %"PRIu64"\n", engstat.cleaner_empty_nodes);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_nodes_dirtied            %"PRIu64"\n", engstat.cleaner_nodes_dirtied);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_size          %"PRIu64"\n", engstat.cleaner_max_buffer_size);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_size          %"PRIu64"\n", engstat.cleaner_min_buffer_size);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_size        %"PRIu64"\n", engstat.cleaner_total_buffer_size);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_max_buffer_workdone      %"PRIu64"\n", engstat.cleaner_max_buffer_workdone);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_min_buffer_workdone      %"PRIu64"\n", engstat.cleaner_min_buffer_workdone);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_total_buffer_workdone    %"PRIu64"\n", engstat.cleaner_total_buffer_workdone);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_started     %"PRIu64"\n", engstat.cleaner_num_leaf_merges_started);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_running     %"PRIu64"\n", engstat.cleaner_num_leaf_merges_running);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_num_leaf_merges_completed   %"PRIu64"\n", engstat.cleaner_num_leaf_merges_completed);
-        n += snprintf(buff + n, bufsiz - n, "cleaner_num_dirtied_for_leaf_merge  %"PRIu64"\n", engstat.cleaner_num_dirtied_for_leaf_merge);
-        n += snprintf(buff + n, bufsiz - n, "flush_total                      %"PRIu64"\n", engstat.flush_total);
-        n += snprintf(buff + n, bufsiz - n, "flush_in_memory                  %"PRIu64"\n", engstat.flush_in_memory);
-        n += snprintf(buff + n, bufsiz - n, "flush_needed_io                  %"PRIu64"\n", engstat.flush_needed_io);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades                   %"PRIu64"\n", engstat.flush_cascades);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_1                 %"PRIu64"\n", engstat.flush_cascades_1);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_2                 %"PRIu64"\n", engstat.flush_cascades_2);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_3                 %"PRIu64"\n", engstat.flush_cascades_3);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_4                 %"PRIu64"\n", engstat.flush_cascades_4);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_5                 %"PRIu64"\n", engstat.flush_cascades_5);
-        n += snprintf(buff + n, bufsiz - n, "flush_cascades_gt_5              %"PRIu64"\n", engstat.flush_cascades_gt_5);
-        n += snprintf(buff + n, bufsiz - n, "disk_flush_leaf                  %"PRIu64"\n", engstat.disk_flush_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "disk_flush_nonleaf               %"PRIu64"\n", engstat.disk_flush_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "disk_flush_leaf_for_checkpoint   %"PRIu64"\n", engstat.disk_flush_leaf_for_checkpoint); 
-        n += snprintf(buff + n, bufsiz - n, "disk_flush_nonleaf_for_checkpoint %"PRIu64"\n", engstat.disk_flush_nonleaf_for_checkpoint); 
-        n += snprintf(buff + n, bufsiz - n, "create_leaf                      %"PRIu64"\n", engstat.create_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "create_nonleaf                   %"PRIu64"\n", engstat.create_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "destroy_leaf                     %"PRIu64"\n", engstat.destroy_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "destroy_nonleaf                  %"PRIu64"\n", engstat.destroy_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "split_leaf                       %"PRIu64"\n", engstat.split_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "split_nonleaf                    %"PRIu64"\n", engstat.split_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "merge_leaf                       %"PRIu64"\n", engstat.merge_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "merge_nonleaf                    %"PRIu64"\n", engstat.merge_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "dirty_leaf                       %"PRIu64"\n", engstat.dirty_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "dirty_nonleaf                    %"PRIu64"\n", engstat.dirty_nonleaf); 
-        n += snprintf(buff + n, bufsiz - n, "balance_leaf                     %"PRIu64"\n", engstat.balance_leaf); 
-        n += snprintf(buff + n, bufsiz - n, "hot_num_started                  %"PRIu64"\n", engstat.hot_num_started); 
-        n += snprintf(buff + n, bufsiz - n, "hot_num_completed                %"PRIu64"\n", engstat.hot_num_completed); 
-        n += snprintf(buff + n, bufsiz - n, "hot_num_aborted                  %"PRIu64"\n", engstat.hot_num_aborted); 
-        n += snprintf(buff + n, bufsiz - n, "hot_max_root_flush_count         %"PRIu64"\n", engstat.hot_max_root_flush_count); 
-        n += snprintf(buff + n, bufsiz - n, "msg_bytes_in                     %"PRIu64"\n", engstat.msg_bytes_in); 
-        n += snprintf(buff + n, bufsiz - n, "msg_bytes_out                    %"PRIu64"\n", engstat.msg_bytes_out); 
-        n += snprintf(buff + n, bufsiz - n, "msg_bytes_curr                   %"PRIu64"\n", engstat.msg_bytes_curr); 
-        n += snprintf(buff + n, bufsiz - n, "msg_bytes_max                    %"PRIu64"\n", engstat.msg_bytes_max); 
-        n += snprintf(buff + n, bufsiz - n, "msg_num                          %"PRIu64"\n", engstat.msg_num); 
-        n += snprintf(buff + n, bufsiz - n, "msg_num_broadcast                %"PRIu64"\n", engstat.msg_num_broadcast); 
-        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_normal      %"PRIu64"\n", engstat.num_basements_decompressed_normal);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_aggressive  %"PRIu64"\n", engstat.num_basements_decompressed_aggressive);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_prefetch    %"PRIu64"\n", engstat.num_basements_decompressed_prefetch);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_decompressed_write       %"PRIu64"\n", engstat.num_basements_decompressed_write);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_normal      %"PRIu64"\n", engstat.num_msg_buffer_decompressed_normal);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_aggressive  %"PRIu64"\n", engstat.num_msg_buffer_decompressed_aggressive);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_prefetch    %"PRIu64"\n", engstat.num_msg_buffer_decompressed_prefetch);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_decompressed_write       %"PRIu64"\n", engstat.num_msg_buffer_decompressed_write);
-        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_query               %"PRIu64"\n", engstat.num_pivots_fetched_query);
-        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_prefetch            %"PRIu64"\n", engstat.num_pivots_fetched_prefetch);
-        n += snprintf(buff + n, bufsiz - n, "num_pivots_fetched_write               %"PRIu64"\n", engstat.num_pivots_fetched_write);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_normal           %"PRIu64"\n", engstat.num_basements_fetched_normal);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_aggressive       %"PRIu64"\n", engstat.num_basements_fetched_aggressive);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_prefetch         %"PRIu64"\n", engstat.num_basements_fetched_prefetch);
-        n += snprintf(buff + n, bufsiz - n, "num_basements_fetched_write            %"PRIu64"\n", engstat.num_basements_fetched_write);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_normal           %"PRIu64"\n", engstat.num_msg_buffer_fetched_normal);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_aggressive       %"PRIu64"\n", engstat.num_msg_buffer_fetched_aggressive);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_prefetch         %"PRIu64"\n", engstat.num_msg_buffer_fetched_prefetch);
-        n += snprintf(buff + n, bufsiz - n, "num_msg_buffer_fetched_write            %"PRIu64"\n", engstat.num_msg_buffer_fetched_write);
-	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
-	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
-	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
-	n += snprintf(buff + n, bufsiz - n, "multi_deletes_fail               %"PRIu64"\n", engstat.multi_deletes_fail);
-	n += snprintf(buff + n, bufsiz - n, "multi_updates                    %"PRIu64"\n", engstat.multi_updates);
-	n += snprintf(buff + n, bufsiz - n, "multi_updates_fail               %"PRIu64"\n", engstat.multi_updates_fail);
-	n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
-	n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
-	n += snprintf(buff + n, bufsiz - n, "num_db_open                      %"PRIu64"\n", engstat.num_db_open);
-	n += snprintf(buff + n, bufsiz - n, "num_db_close                     %"PRIu64"\n", engstat.num_db_close);
-	n += snprintf(buff + n, bufsiz - n, "num_open_dbs                     %"PRIu64"\n", engstat.num_open_dbs);
-	n += snprintf(buff + n, bufsiz - n, "max_open_dbs                     %"PRIu64"\n", engstat.max_open_dbs);
-	n += snprintf(buff + n, bufsiz - n, "directory_read_locks             %"PRIu64"\n", engstat.directory_read_locks);
-	n += snprintf(buff + n, bufsiz - n, "directory_read_locks_fail        %"PRIu64"\n", engstat.directory_read_locks_fail);
-	n += snprintf(buff + n, bufsiz - n, "directory_write_locks            %"PRIu64"\n", engstat.directory_write_locks);
-	n += snprintf(buff + n, bufsiz - n, "directory_write_locks_fail       %"PRIu64"\n", engstat.directory_write_locks_fail);
-	n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
-	n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
-	n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
-	n += snprintf(buff + n, bufsiz - n, "logger olock count               %"PRIu64"\n", engstat.logger_olock_ctr);
-	n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
-	n += snprintf(buff + n, bufsiz - n, "logger panic                     %"PRIu64"\n", engstat.logger_panic);
-	n += snprintf(buff + n, bufsiz - n, "logger panic_errno               %"PRIu64"\n", engstat.logger_panic_errno);
-	n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n",       engstat.enospc_most_recent);
-	n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
-	n += snprintf(buff + n, bufsiz - n, "enospc count                     %"PRIu64"\n", engstat.enospc_ctr);
-	n += snprintf(buff + n, bufsiz - n, "enospc redzone ctr               %"PRIu64"\n", engstat.enospc_redzone_ctr);
-	n += snprintf(buff + n, bufsiz - n, "enospc state                     %"PRIu64"\n", engstat.enospc_state);
-	n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
-	n += snprintf(buff + n, bufsiz - n, "loader_create_fail               %"PRIu64"\n", engstat.loader_create_fail);
-	n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
-	n += snprintf(buff + n, bufsiz - n, "loader_put_fail                  %"PRIu64"\n", engstat.loader_put_fail);
-	n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
-	n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
-	n += snprintf(buff + n, bufsiz - n, "loader_abort                     %"PRIu64"\n", engstat.loader_abort);
-	n += snprintf(buff + n, bufsiz - n, "loader_current                   %"PRIu64"\n", engstat.loader_current);
-	n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu64"\n", engstat.loader_max);
-	n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
-	n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
-	n += snprintf(buff + n, bufsiz - n, "indexer_create                   %"PRIu64"\n", engstat.indexer_create);
-	n += snprintf(buff + n, bufsiz - n, "indexer_create_fail              %"PRIu64"\n", engstat.indexer_create_fail);
-	n += snprintf(buff + n, bufsiz - n, "indexer_build                    %"PRIu64"\n", engstat.indexer_build);
-	n += snprintf(buff + n, bufsiz - n, "indexer_build_fail               %"PRIu64"\n", engstat.indexer_build_fail);
-	n += snprintf(buff + n, bufsiz - n, "indexer_close                    %"PRIu64"\n", engstat.indexer_close);
-	n += snprintf(buff + n, bufsiz - n, "indexer_close_fail               %"PRIu64"\n", engstat.indexer_close_fail);
-	n += snprintf(buff + n, bufsiz - n, "indexer_abort                    %"PRIu64"\n", engstat.indexer_abort);
-	n += snprintf(buff + n, bufsiz - n, "indexer_current                  %"PRIu64"\n", engstat.indexer_current);
-	n += snprintf(buff + n, bufsiz - n, "indexer_max                      %"PRIu64"\n", engstat.indexer_max);
-	n += snprintf(buff + n, bufsiz - n, "upgrade_env_status               %"PRIu64"\n", engstat.upgrade_env_status);
-	n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
-	n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
-	n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
-	n += snprintf(buff + n, bufsiz - n, "optimized_for_upgrade            %"PRIu64"\n", engstat.optimized_for_upgrade);
-	n += snprintf(buff + n, bufsiz - n, "original_ver                     %"PRIu64"\n", engstat.original_ver);
-	n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
-	n += snprintf(buff + n, bufsiz - n, "last_lsn_v13                     %"PRIu64"\n", engstat.last_lsn_v13);
-	n += snprintf(buff + n, bufsiz - n, "upgrade_v14_time                 %s \n",       engstat.upgrade_v14_time);
-	n += snprintf(buff + n, bufsiz - n, "malloc_count                     %"PRIu64"\n", engstat.malloc_count);
-	n += snprintf(buff + n, bufsiz - n, "free_count                       %"PRIu64"\n", engstat.free_count);
-	n += snprintf(buff + n, bufsiz - n, "realloc_count                    %"PRIu64"\n", engstat.realloc_count);
-	n += snprintf(buff + n, bufsiz - n, "malloc_fail                      %"PRIu64"\n", engstat.malloc_fail);
-	n += snprintf(buff + n, bufsiz - n, "realloc_fail                     %"PRIu64"\n", engstat.realloc_fail);
-	n += snprintf(buff + n, bufsiz - n, "mem_requested                    %"PRIu64"\n", engstat.mem_requested);
-	n += snprintf(buff + n, bufsiz - n, "mem_used                         %"PRIu64"\n", engstat.mem_used);
-	n += snprintf(buff + n, bufsiz - n, "mem_freed                        %"PRIu64"\n", engstat.mem_freed);
-	n += snprintf(buff + n, bufsiz - n, "max_mem_in_use                   %"PRIu64"\n", engstat.max_mem_in_use);
-	n += snprintf(buff + n, bufsiz - n, "malloc_mmap_threshold            %"PRIu64"\n", engstat.malloc_mmap_threshold);
-	n += snprintf(buff + n, bufsiz - n, "mallocator_version               %s\n",        engstat.mallocator_version);
+        for (uint64_t row = 0; row < num_rows; row++) {
+            n += snprintf(buff + n, bufsiz - n, "%s: ", mystat[row].legend);
+            switch (mystat[row].type) {
+            case FS_STATE:
+                n += snprintf(buff + n, bufsiz - n, "%"PRIu64"\n", mystat[row].value.num);
+                break;
+            case UINT64:
+                n += snprintf(buff + n, bufsiz - n, "%"PRIu64"\n", mystat[row].value.num);
+                break;
+            case CHARSTR:
+                n += snprintf(buff + n, bufsiz - n, "%s\n", mystat[row].value.str);
+                break;
+            case UNIXTIME:
+                {
+                    char tbuf[26];
+                    format_time((time_t*)&mystat[row].value.num, tbuf);
+                    n += snprintf(buff + n, bufsiz - n, "%s\n", tbuf);
+                }
+                break;
+            case TOKUTIME:
+                {
+                    double t = tokutime_to_seconds(mystat[row].value.num);
+                    n += snprintf(buff + n, bufsiz - n, "%.6f\n", t);
+                }
+                break;
+            default:
+                n += snprintf(buff + n, bufsiz - n, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
+                break;                
+            }
+        }
     }
+        
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;
@@ -2613,6 +2384,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->checkpointing_resume = env_checkpointing_resume;
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
     result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
+    result->get_engine_status_num_rows = env_get_engine_status_num_rows;
     result->get_engine_status = env_get_engine_status;
     result->get_engine_status_text = env_get_engine_status_text;
     result->crash = env_crash;  // handlerton's call to fractal tree layer on failed assert
@@ -3216,10 +2988,10 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs++;
-    num_open_dbs = env->i->num_open_dbs;
-    num_db_open++;
-    if (num_open_dbs > max_open_dbs)
-	max_open_dbs = num_open_dbs;
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->num_open_dbs;
+    STATUS_VALUE(YDB_LAYER_NUM_DB_OPEN)++;
+    if (STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) > STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS))
+	STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
@@ -3235,8 +3007,8 @@ env_note_db_closed(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs--;
-    num_open_dbs = env->i->num_open_dbs;
-    num_db_close++;
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->num_open_dbs;
+    STATUS_VALUE(YDB_LAYER_NUM_DB_CLOSE)++;
     r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);
@@ -3660,9 +3432,9 @@ toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
     DBT key_in_directory = { .data = dname, .size = strlen(dname)+1 };
     int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_READ);
     if (r == 0)
-	directory_read_locks++;
+	STATUS_VALUE(YDB_LAYER_DIRECTORY_READ_LOCKS)++;
     else
-	directory_read_locks_fail++;
+	STATUS_VALUE(YDB_LAYER_DIRECTORY_READ_LOCKS_FAIL)++;
     return r;
 }
 
@@ -3819,7 +3591,7 @@ static int
 toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    num_point_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_POINT_QUERIES)++;
     int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra);
@@ -3872,7 +3644,7 @@ static int
 toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    num_point_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_POINT_QUERIES)++;
     int r = 0;
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
@@ -3970,7 +3742,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL && !lock_only) {
-        num_sequential_queries++;   // accountability
+	STATUS_VALUE(YDB_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
         DBT found_val = { .data = (void *) val, .size = vallen };
         context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
@@ -4030,7 +3802,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL && !lock_only) {
-        num_sequential_queries++;   // accountability
+	STATUS_VALUE(YDB_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
         DBT found_val = { .data = (void *) val, .size = vallen };
         context->r_user_callback = context->f(&found_key, &found_val, context->f_extra);
         r = context->r_user_callback;
@@ -4048,7 +3820,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
-    num_sequential_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
@@ -4084,7 +3856,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
-    num_sequential_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_SEQUENTIAL_QUERIES)++;  // accountability
     c_query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
@@ -4102,7 +3874,7 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    num_point_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
@@ -4157,7 +3929,7 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    num_point_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
@@ -4215,7 +3987,7 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
 
     int r = 0;
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
-    num_point_queries++;   // accountability
+    STATUS_VALUE(YDB_LAYER_NUM_POINT_QUERIES)++;
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
@@ -4376,9 +4148,9 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     }
 
     if (r == 0) 
-        num_deletes++;       // accountability 
+	STATUS_VALUE(YDB_LAYER_NUM_DELETES)++;  // accountability 
     else
-        num_deletes_fail++;
+	STATUS_VALUE(YDB_LAYER_NUM_DELETES_FAIL)++;  // accountability 
 
     return r;
 }
@@ -4541,9 +4313,9 @@ env_del_multiple(
 
 cleanup:
     if (r == 0)
-        num_multi_deletes += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES) += num_dbs;  // accountability 
     else
-        num_multi_deletes_fail += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES_FAIL) += num_dbs;  // accountability 
     return r;
 }
 
@@ -5101,9 +4873,9 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     }
 
     if (r == 0)
-	num_inserts++;
+	STATUS_VALUE(YDB_LAYER_NUM_INSERTS)++;  // accountability 
     else
-        num_inserts_fail++;
+	STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL)++;  // accountability 
 
     return r;
 }
@@ -5118,9 +4890,9 @@ static int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
     //Left end of range == right end of range (point lock)
     int r = get_range_lock(db->dbenv->i->directory, txn, &key_in_directory, &key_in_directory, LOCK_REQUEST_WRITE);
     if (r == 0)
-	directory_write_locks++;
+	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS)++;  // accountability 
     else
-	directory_write_locks_fail++;
+	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL)++;  // accountability 
     return r;
 }
 
@@ -5156,9 +4928,9 @@ toku_db_update(DB *db, DB_TXN *txn,
 
 cleanup:
     if (r == 0) 
-	num_updates++;
+	STATUS_VALUE(YDB_LAYER_NUM_UPDATES)++;  // accountability 
     else
-	num_updates_fail++;
+	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_FAIL)++;  // accountability 
     return r;
 }
 
@@ -5214,9 +4986,9 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
 
 cleanup:
     if (r == 0) 
-	num_updates_broadcast++;
+	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST)++;  // accountability 
     else
-	num_updates_broadcast_fail++;
+	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL)++;  // accountability 
     return r;
 }
 
@@ -5364,9 +5136,9 @@ env_put_multiple(
 
 cleanup:
     if (r == 0)
-        num_multi_inserts += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS) += num_dbs;  // accountability 
     else
-        num_multi_inserts_fail += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS_FAIL) += num_dbs;  // accountability 
     return r;
 }
 
@@ -5517,9 +5289,9 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
 cleanup:
     if (r == 0)
-        num_multi_updates += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES) += num_dbs;  // accountability 
     else
-        num_multi_updates_fail += num_dbs;
+	STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES_FAIL) += num_dbs;  // accountability 
     return r;
 }
 
@@ -5973,12 +5745,12 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
 	if (r_loader == 0) { // commit
 	    r = locked_txn_commit(child, 0);
 	    assert(r==0);
-	    logsuppress++;
+	    STATUS_VALUE(YDB_LAYER_LOGSUPPRESS)++;  // accountability 
 	}
 	else {  // abort
 	    r = locked_txn_abort(child);
 	    assert(r==0);
-	    logsuppressfail++;
+	    STATUS_VALUE(YDB_LAYER_LOGSUPPRESS_FAIL)++;  // accountability 
 	}
         toku_ydb_lock(); //Reaquire ydb lock.
     }
@@ -6937,3 +6709,7 @@ toku_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
     }
     return r;
 }
+
+
+#undef STATUS_VALUE
+#undef PERSISTENT_UPGRADE_STATUS_VALUE

@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -1350,25 +1350,54 @@ toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_
         logger->remove_finalize_callback(dict_id, logger->remove_finalize_callback_extra);
 }
 
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
 
-void 
-toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
+static LOGGER_STATUS_S logger_status;
+
+#define STATUS_INIT(k,t,l) { \
+	logger_status.status[k].keyname = #k; \
+	logger_status.status[k].type    = t;  \
+	logger_status.status[k].legend  = "logger: " l; \
+    }
+
+static void
+status_init(void) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(LOGGER_NEXT_LSN,     UINT64,  "next LSN");
+    STATUS_INIT(LOGGER_ILOCK_CTR,    UINT64,  "ilock count");
+    STATUS_INIT(LOGGER_OLOCK_CTR,    UINT64,  "olock count");
+    STATUS_INIT(LOGGER_SWAP_CTR,     UINT64,  "swap count");
+    STATUS_INIT(LOGGER_PANICKED,     UINT64,  "panic");
+    STATUS_INIT(LOGGER_PANIC_ERRNO,  UINT64,  "panic errno");
+    logger_status.initialized = true;
+}
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) logger_status.status[x].value.num
+
+void
+toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
+    if (!logger_status.initialized)
+	status_init();
     if (logger) {
-	s->ilock_ctr = logger->input_lock_ctr;
-	s->olock_ctr = logger->output_condition_lock_ctr;
-	s->swap_ctr  = logger->swap_ctr;
-	s->panicked  = logger->is_panicked;
-	s->panic_errno = logger->panic_errno;
+        STATUS_VALUE(LOGGER_NEXT_LSN)    = logger->lsn.lsn;
+	STATUS_VALUE(LOGGER_ILOCK_CTR)   = logger->input_lock_ctr;
+	STATUS_VALUE(LOGGER_OLOCK_CTR)   = logger->output_condition_lock_ctr;
+	STATUS_VALUE(LOGGER_SWAP_CTR)    = logger->swap_ctr;
+	STATUS_VALUE(LOGGER_PANICKED)    = logger->is_panicked;
+	STATUS_VALUE(LOGGER_PANIC_ERRNO) = logger->panic_errno;
     }
-    else {
-	s->ilock_ctr = 0;
-	s->olock_ctr = 0;
-	s->swap_ctr  = 0;
-	s->panicked  = 0;
-	s->panic_errno = 0;
-    }
+    *statp = logger_status;
 }
 
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 // Used for upgrade: 
 // if any valid log files exist in log_dir, then
 //   set *found_any_logs to TRUE and set *version_found to version number of latest log
@@ -1411,3 +1440,4 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
     return r;
 }
 
+#undef STATUS_VALUE

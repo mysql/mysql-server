@@ -36,6 +36,58 @@
 static int toku_lt_debug = 0;
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////
+// Engine status 
+//
+// Status is intended for display to humans to help understand system behavior.
+// It does not need to be perfectly thread-safe.
+
+#define STATUS_INIT(k,t,l) { \
+	mgr->status.status[k].keyname = #k; \
+	mgr->status.status[k].type    = t;  \
+	mgr->status.status[k].legend  = "row locks: " l; \
+    }
+
+static void
+status_init(toku_ltm* mgr) {
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(LTM_LOCKS_LIMIT, UINT64, "number of locks allowed");
+    STATUS_INIT(LTM_LOCKS_CURR, 	UINT64, "number of locks in existence"); 
+    STATUS_INIT(LTM_LOCK_MEMORY_LIMIT, 	UINT64, "maximum amount of memory allowed for locks"); 
+    STATUS_INIT(LTM_LOCK_MEMORY_CURR, 		UINT64, "maximum amount of memory allowed for locks");
+    STATUS_INIT(LTM_LOCK_ESCALATION_SUCCESSES, 	UINT64, "number of times lock escalation succeeded");
+    STATUS_INIT(LTM_LOCK_ESCALATION_FAILURES, 	UINT64, "number of times lock escalation failed");
+    STATUS_INIT(LTM_READ_LOCK, 			UINT64, "number of times read lock taken successfully");
+    STATUS_INIT(LTM_READ_LOCK_FAIL, 		UINT64, "number of times read lock denied");
+    STATUS_INIT(LTM_OUT_OF_READ_LOCKS, 		UINT64, "number of times read lock denied for out_of_locks");
+    STATUS_INIT(LTM_WRITE_LOCK, 		UINT64, "number of times write lock taken successfully");
+    STATUS_INIT(LTM_WRITE_LOCK_FAIL, 		UINT64, "number of times write lock denied");
+    STATUS_INIT(LTM_OUT_OF_WRITE_LOCKS, 	UINT64, "number of times write lock denied for out_of_locks");
+    STATUS_INIT(LTM_LT_CREATE, 			UINT64, "number of locktrees created");
+    STATUS_INIT(LTM_LT_CREATE_FAIL, 		UINT64, "number of locktrees unable to be created");
+    STATUS_INIT(LTM_LT_DESTROY, 		UINT64, "number of locktrees destroyed");
+    STATUS_INIT(LTM_LT_NUM, 			UINT64, "number of locktrees (should be created - destroyed)");
+    STATUS_INIT(LTM_LT_NUM_MAX, 		UINT64, "max number of locktrees that have existed simultaneously");
+    mgr->status.initialized = true;
+}
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) status.status[x].value.num
+
+void 
+toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS statp) {
+    if (!mgr->status.initialized) 
+	status_init(mgr);
+    mgr->STATUS_VALUE(LTM_LOCKS_LIMIT) = mgr->locks_limit;
+    mgr->STATUS_VALUE(LTM_LOCKS_CURR) = mgr->curr_locks;
+    mgr->STATUS_VALUE(LTM_LOCK_MEMORY_LIMIT) = mgr->lock_memory_limit;
+    mgr->STATUS_VALUE(LTM_LOCK_MEMORY_CURR) = mgr->curr_lock_memory;
+    *statp = mgr->status;
+}
+
+
+
 static inline int lt_panic(toku_lock_tree *tree, int r) {
     return tree->panic(tree->db, r);
 }
@@ -179,14 +231,14 @@ toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
 /* Lock tree manager functions begin here */
 int 
 toku_ltm_create(toku_ltm** pmgr,
-                uint32_t max_locks,
-                uint64_t max_lock_memory,
+                uint32_t locks_limit,
+                uint64_t lock_memory_limit,
                 int   (*panic)(DB*, int), 
                 toku_dbt_cmp (*get_compare_fun_from_db)(DB*)) {
     int r = ENOSYS;
     toku_ltm* tmp_mgr = NULL;
 
-    if (!pmgr || !max_locks) {
+    if (!pmgr || !locks_limit) {
         r = EINVAL; goto cleanup;
     }
     assert(panic && get_compare_fun_from_db);
@@ -197,10 +249,10 @@ toku_ltm_create(toku_ltm** pmgr,
     }
     memset(tmp_mgr, 0, sizeof(toku_ltm));
 
-    r = toku_ltm_set_max_locks(tmp_mgr, max_locks);
+    r = toku_ltm_set_max_locks(tmp_mgr, locks_limit);
     if (r != 0)
         goto cleanup;
-    r = toku_ltm_set_max_lock_memory(tmp_mgr, max_lock_memory);
+    r = toku_ltm_set_max_lock_memory(tmp_mgr, lock_memory_limit);
     if (r != 0) 
         goto cleanup;
     tmp_mgr->panic            = panic;
@@ -262,50 +314,40 @@ cleanup:
     return r;
 }
 
-void 
-toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, 
-                    uint64_t *max_lock_memory, uint64_t *curr_lock_memory,
-                    LTM_STATUS s) {
-    *max_locks = mgr->max_locks;
-    *curr_locks = mgr->curr_locks;
-    *max_lock_memory = mgr->max_lock_memory;
-    *curr_lock_memory = mgr->curr_lock_memory;
-    *s = mgr->status;
-}
 
 int 
-toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks) {
-    if (!mgr || !max_locks)
+toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* locks_limit) {
+    if (!mgr || !locks_limit)
         return EINVAL;
-    *max_locks = mgr->max_locks;
+    *locks_limit = mgr->locks_limit;
     return 0;
 }
 
 int 
-toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks) {
-    if (!mgr || !max_locks)
+toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t locks_limit) {
+    if (!mgr || !locks_limit)
         return EINVAL;
-    if (max_locks < mgr->curr_locks) 
+    if (locks_limit < mgr->curr_locks) 
         return EDOM;
-    mgr->max_locks = max_locks;
+    mgr->locks_limit = locks_limit;
     return 0;
 }
 
 int 
-toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* max_lock_memory) {
-    if (!mgr || !max_lock_memory)
+toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* lock_memory_limit) {
+    if (!mgr || !lock_memory_limit)
         return EINVAL;
-    *max_lock_memory = mgr->max_lock_memory;
+    *lock_memory_limit = mgr->lock_memory_limit;
     return 0;
 }
 
 int 
-toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory) {
-    if (!mgr || !max_lock_memory)
+toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t lock_memory_limit) {
+    if (!mgr || !lock_memory_limit)
         return EINVAL;
-    if (max_lock_memory < mgr->curr_locks)
+    if (lock_memory_limit < mgr->curr_locks)
         return EDOM;
-    mgr->max_lock_memory = max_lock_memory;
+    mgr->lock_memory_limit = lock_memory_limit;
     return 0;
 }
 
@@ -326,7 +368,7 @@ ltm_decr_locks(toku_ltm* tree_mgr, uint32_t locks) {
 static int 
 ltm_out_of_locks(toku_ltm *mgr) {
     int r = 0;
-    if (mgr->curr_locks >= mgr->max_locks || mgr->curr_lock_memory >= mgr->max_lock_memory)
+    if (mgr->curr_locks >= mgr->locks_limit || mgr->curr_lock_memory >= mgr->lock_memory_limit)
         r = TOKUDB_OUT_OF_LOCKS;
     return r;
 }
@@ -1459,10 +1501,10 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
     r = 0;
 cleanup:
     if (r == 0) {
-	mgr->status.lt_create++;
-	mgr->status.lt_num++;
-	if (mgr->status.lt_num > mgr->status.lt_num_max)
-	    mgr->status.lt_num_max = mgr->status.lt_num;
+	mgr->STATUS_VALUE(LTM_LT_CREATE)++;
+	mgr->STATUS_VALUE(LTM_LT_NUM)++;
+	if (mgr->STATUS_VALUE(LTM_LT_NUM) > mgr->STATUS_VALUE(LTM_LT_NUM_MAX))
+	    mgr->STATUS_VALUE(LTM_LT_NUM_MAX) = mgr->STATUS_VALUE(LTM_LT_NUM);
     }
     else {
         if (tree != NULL) {
@@ -1474,7 +1516,7 @@ cleanup:
                 lt_remove_db(tree, db);
             toku_lt_close(tree); 
         }
-	mgr->status.lt_create_fail++;
+	mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
     }
     return r;
 }
@@ -1486,8 +1528,8 @@ toku_lt_close(toku_lock_tree* tree) {
     if (!tree) { 
         r = EINVAL; goto cleanup; 
     }
-    tree->mgr->status.lt_destroy++;
-    tree->mgr->status.lt_num--;
+    tree->mgr->STATUS_VALUE(LTM_LT_DESTROY)++;
+    tree->mgr->STATUS_VALUE(LTM_LT_NUM)--;
     toku_lock_request_tree_destroy(tree);
     r = toku_rt_close(tree->borderwrite);
     if (!first_error && r != 0)
@@ -1841,23 +1883,22 @@ toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const D
 	    r = lt_try_acquire_range_read_lock(tree, db, txn, 
 					       key_left, key_right);
 	    if (r == 0) {
-		tree->mgr->status.lock_escalation_successes++;
+		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_SUCCESSES)++;
 	    }
 	    else if (r==TOKUDB_OUT_OF_LOCKS) {
-		tree->mgr->status.lock_escalation_failures++;	    
+		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_FAILURES)++;	    
 	    }
 	}
     }
 
     if (tree) {
-	LTM_STATUS s = &(tree->mgr->status);
 	if (r == 0) {
-	    s->read_lock++;
+	    tree->mgr->STATUS_VALUE(LTM_READ_LOCK)++;
 	}
 	else {
-	    s->read_lock_fail++;
+	    tree->mgr->STATUS_VALUE(LTM_READ_LOCK_FAIL)++;
 	    if (r == TOKUDB_OUT_OF_LOCKS) 
-		s->out_of_read_locks++;
+		tree->mgr->STATUS_VALUE(LTM_OUT_OF_READ_LOCKS)++;
 	}
     }
     return r;
@@ -1959,23 +2000,22 @@ toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const 
         if (r == 0) {
             r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
 	    if (r == 0) {
-		tree->mgr->status.lock_escalation_successes++;
+		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_SUCCESSES)++;
 	    }
 	    else if (r==TOKUDB_OUT_OF_LOCKS) {
-		tree->mgr->status.lock_escalation_failures++;	    
+		tree->mgr->STATUS_VALUE(LTM_LOCK_ESCALATION_FAILURES)++;	    
 	    }
 	}
     }
 
     if (tree) {
-	LTM_STATUS s = &(tree->mgr->status);
 	if (r == 0) {
-	    s->write_lock++;
+	    tree->mgr->STATUS_VALUE(LTM_WRITE_LOCK)++;
 	}
 	else {
-	    s->write_lock_fail++;
+	    tree->mgr->STATUS_VALUE(LTM_WRITE_LOCK_FAIL)++;
 	    if (r == TOKUDB_OUT_OF_LOCKS) 
-		s->out_of_write_locks++;
+		tree->mgr->STATUS_VALUE(LTM_OUT_OF_WRITE_LOCKS)++;
 	}
     }
     return r;
@@ -2785,3 +2825,5 @@ toku_lt_verify(toku_lock_tree *lt, DB *db) {
     lt_verify(lt);
     lt_clear_comparison_functions(lt);
 }
+
+#undef STATUS_VALUE

@@ -67,256 +67,28 @@ struct __toku_indexer {
   int (*close)(DB_INDEXER *indexer);  /* finish indexing, free memory */
   int (*abort)(DB_INDEXER *indexer);  /* abort  indexing, free memory */
 };
-typedef struct __toku_engine_status {
-  char             creationtime[26];        /* time of environment creation */ 
-  char             startuptime[26];         /* time of engine startup */ 
-  char             now[26];                 /* time of engine status query (i.e. now)  */ 
-  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released?                                                                      */
-  u_int64_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */
-  u_int64_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */
-  u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */
-  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held (tokutime_t).                                                                 */
-  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock (really tokutime_t, convert to seconds with tokutime_to_seconds())        */
-  u_int64_t        total_time_since_start;  /* Total time since the lock was created (tokutime_t).  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */
-  u_int64_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
-  u_int64_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
-  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
-  char             checkpoint_time_begin_complete[26]; /* time of last complete checkpoint begin      */ 
-  char             checkpoint_time_end[26]; /* time of last checkpoint end      */ 
-  uint64_t         checkpoint_last_lsn;     /* LSN of last complete checkpoint  */ 
-  uint64_t         checkpoint_count;        /* number of checkpoints taken        */ 
-  uint64_t         checkpoint_count_fail;   /* number of checkpoints failed        */ 
-  uint64_t         checkpoint_waiters_now;  /* number of threads currently waiting to perform a checkpoint */ 
-  uint64_t         checkpoint_waiters_max;  /* max threads ever simultaneously waiting to perform a checkpoint */ 
-  uint64_t         checkpoint_client_wait_on_mo;  /* how many times a client thread waited for the multi_operation lock */ 
-  uint64_t         checkpoint_client_wait_on_cs;  /* how many times a client thread waited for the checkpoint_safe lock */ 
-  uint64_t         checkpoint_wait_sched_cs;      /* how many times a scheduled checkpoint waited for the checkpoint_safe lock */ 
-  uint64_t         checkpoint_wait_client_cs;     /* how many times a client checkpoint waited for the checkpoint_safe lock */ 
-  uint64_t         checkpoint_wait_txn_cs;        /* how many times a txn_commitcheckpoint waited for the checkpoint_safe lock */ 
-  uint64_t         checkpoint_wait_other_cs;      /* how many times a checkpoint for another purpose waited for the checkpoint_safe lock */ 
-  uint64_t         checkpoint_wait_sched_mo;      /* how many times a scheduled checkpoint waited for the multi_operation lock */ 
-  uint64_t         checkpoint_wait_client_mo;     /* how many times a client checkpoint waited for the multi_operation lock */ 
-  uint64_t         checkpoint_wait_txn_mo;        /* how many times a txn_commitcheckpoint waited for the multi_operation lock */ 
-  uint64_t         checkpoint_wait_other_mo;      /* how many times a checkpoint for another purpose waited for the multi_operation lock */ 
-  u_int64_t        cleaner_period;          /* delay between executions of cleaner  */ 
-  u_int64_t        cleaner_iterations;      /* number of nodes to flush per cleaner execution  */ 
-  u_int64_t        txn_begin;               /* number of transactions ever begun             */ 
-  u_int64_t        txn_commit;              /* txn commit operations                         */ 
-  u_int64_t        txn_abort;               /* txn abort operations                          */ 
-  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ 
-  u_int64_t        txn_num_open;            /* should be begin - close                       */ 
-  u_int64_t        txn_max_open;            /* max value of num_open                         */ 
-  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ 
-  char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ 
-  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ 
-  u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ 
-  u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ 
-  u_int64_t        cachetable_hit;          /* how many cache hits   */ 
-  u_int64_t        cachetable_miss;         /* how many cache misses */ 
-  u_int64_t        cachetable_misstime;     /* how many usec spent waiting for disk read because of cache miss */ 
-  u_int64_t        cachetable_waittime;     /* how many usec spent waiting for another thread to release cache line */ 
-  u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ 
-  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ 
-  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ 
-  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ 
-  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ 
-  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ 
-  u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ 
-  uint64_t         cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ 
-  uint64_t         cachetable_size_limit;   /* the limit to the sum of the node sizes */ 
-  uint64_t         cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ 
-  uint64_t         cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
-  uint64_t         cachetable_size_nonleaf; /* the number of bytes of nonleaf nodes */ 
-  uint64_t         cachetable_size_leaf;    /* the number of bytes of leaf nodes */ 
-  uint64_t         cachetable_size_rollback; /* the number of bytes of nonleaf nodes */ 
-  uint64_t         cachetable_size_cachepressure; /* number of bytes causing cache pressure (sum of buffers and workdone counters)  */ 
-  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ 
-  u_int64_t        cleaner_executions;      /* how many times the loop in cleaner_thread has executed */ 
-  u_int64_t        range_locks_max;         /* max total number of range locks */ 
-  u_int64_t        range_locks_curr;        /* total range locks currently in use */ 
-  u_int64_t        range_locks_max_memory;   /* max total bytes of range locks */ 
-  u_int64_t        range_locks_curr_memory;  /* total bytes of range locks currently in use */ 
-  u_int64_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
-  u_int64_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
-  u_int64_t        range_read_locks;        /* total range read locks taken */ 
-  u_int64_t        range_read_locks_fail;   /* total range read locks unable to be taken */ 
-  u_int64_t        range_out_of_read_locks; /* total times range read locks exhausted */ 
-  u_int64_t        range_write_locks;       /* total range write locks taken */ 
-  u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ 
-  u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ 
-  u_int64_t        range_lt_create;         /* number of locktrees created */ 
-  u_int64_t        range_lt_create_fail;    /* number of locktree create failures */ 
-  u_int64_t        range_lt_destroy;        /* number of locktrees destroyed */ 
-  u_int64_t        range_lt_num;            /* number of locktrees (should be created - destroyed) */ 
-  u_int64_t        range_lt_num_max;        /* max number of locktrees that have existed simultaneously */ 
-  u_int64_t        directory_read_locks;        /* total directory read locks taken */ 
-  u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
-  u_int64_t        directory_write_locks;       /* total directory write locks taken */ 
-  u_int64_t        directory_write_locks_fail;  /* total directory write locks unable to be taken */ 
-  u_int64_t        inserts;                 /* ydb row insert operations              */ 
-  u_int64_t        inserts_fail;            /* ydb row insert operations that failed  */ 
-  u_int64_t        deletes;                 /* ydb row delete operations              */ 
-  u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ 
-  u_int64_t        updates;                 /* ydb row update operations              */ 
-  u_int64_t        updates_fail;            /* ydb row update operations that failed  */ 
-  u_int64_t        updates_broadcast;       /* ydb row update broadcast operations              */ 
-  u_int64_t        updates_broadcast_fail;  /* ydb row update broadcast operations that failed  */ 
-  u_int64_t        multi_inserts;           /* ydb multi_row insert operations, dictionaray count             */ 
-  u_int64_t        multi_inserts_fail;      /* ydb multi_row insert operations that failed, dictionary count  */ 
-  u_int64_t        multi_deletes;           /* ydb multi_row delete operations, dictionary count              */ 
-  u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ 
-  u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ 
-  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ 
-  u_int64_t        point_queries;           /* ydb point queries                      */ 
-  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
-  u_int64_t        num_db_open;             /* number of db_open operations */
-  u_int64_t        num_db_close;            /* number of db_close operations */
-  u_int64_t        num_open_dbs;            /* number of currently open dbs */
-  u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */
-  u_int64_t        le_updates;              /* leafentry update operations                        */ 
-  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 
-  u_int64_t        descriptor_set;          /* descriptor set operations              */ 
-  u_int64_t        partial_fetch_hit;        /* node partition is present             */ 
-  u_int64_t        partial_fetch_miss;       /* node is present but partition is absent */ 
-  u_int64_t        partial_fetch_compressed; /* node partition is present but compressed  */ 
-  u_int64_t        partial_evictions_nonleaf; /* number of nonleaf node partial evictions */ 
-  u_int64_t        partial_evictions_leaf;   /* number of leaf node partial evictions */ 
-  u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ 
-  u_int64_t        max_workdone;             /* max workdone value of any buffer  */ 
-  uint64_t         total_searches;              /* total number of searches */ 
-  uint64_t         total_retries;               /* total number of search retries due to TRY_AGAIN */ 
-  uint64_t         max_search_excess_retries;   /* max number of excess search retries (retries - treeheight) due to TRY_AGAIN */ 
-  uint64_t         max_search_root_tries;       /* max number of times root node was fetched in a single search */ 
-  uint64_t         search_root_retries;         /* number of searches that required the root node to be fetched more than once */ 
-  uint64_t         search_tries_gt_height;      /* number of searches that required more tries than the height of the tree */ 
-  uint64_t         search_tries_gt_heightplus3; /* number of searches that required more tries than the height of the tree plus three */ 
-  uint64_t         cleaner_total_nodes;           /* total number of nodes whose buffers are potentially flushed by cleaner thread */
-  uint64_t         cleaner_h1_nodes;              /* number of nodes of height one whose message buffers are flushed by cleaner thread */
-  uint64_t         cleaner_hgt1_nodes;            /* number of nodes of height > 1 whose message buffers are flushed by cleaner thread */
-  uint64_t         cleaner_empty_nodes;           /* number of nodes that are selected by cleaner, but whose buffers are empty */
-  uint64_t         cleaner_nodes_dirtied;         /* number of nodes that are made dirty by the cleaner thread */
-  uint64_t         cleaner_max_buffer_size;       /* max number of bytes in message buffer flushed by cleaner thread */
-  uint64_t         cleaner_min_buffer_size;       /* min number of bytes in message buffer flushed by cleaner thread */
-  uint64_t         cleaner_total_buffer_size;     /* total number of bytes in message buffers flushed by cleaner thread */
-  uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */
-  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */
-  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */
-  uint64_t         cleaner_num_leaf_merges_started;     /* number of times cleaner thread tries to merge a leaf */
-  uint64_t         cleaner_num_leaf_merges_running;     /* number of cleaner thread leaf merges in progress */
-  uint64_t         cleaner_num_leaf_merges_completed;   /* number of times cleaner thread successfully merges a leaf */
-  uint64_t         cleaner_num_dirtied_for_leaf_merge;  /* nodes dirtied by the "flush from root" process to merge a leaf node */
-  uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */
-  uint64_t         flush_in_memory;             /* number of in memory flushes */
-  uint64_t         flush_needed_io;             /* number of flushes that had to read a child (or part) off disk */
-  uint64_t         flush_cascades;              /* number of flushes that triggered another flush in the child */
-  uint64_t         flush_cascades_1;            /* number of flushes that triggered 1 cascading flush */
-  uint64_t         flush_cascades_2;            /* number of flushes that triggered 2 cascading flushes */
-  uint64_t         flush_cascades_3;            /* number of flushes that triggered 3 cascading flushes */
-  uint64_t         flush_cascades_4;            /* number of flushes that triggered 4 cascading flushes */
-  uint64_t         flush_cascades_5;            /* number of flushes that triggered 5 cascading flushes */
-  uint64_t         flush_cascades_gt_5;         /* number of flushes that triggered more than 5 cascading flushes */
-  uint64_t         disk_flush_leaf;             /* number of leaf nodes flushed to disk, not for checkpoint */
-  uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */
-  uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */
-  uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */
-  uint64_t         create_leaf;                 /* number of leaf nodes created */
-  uint64_t         create_nonleaf;              /* number of nonleaf nodes created */
-  uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */
-  uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */
-  uint64_t         split_leaf;                  /* number of leaf nodes split */
-  uint64_t         split_nonleaf;               /* number of nonleaf nodes split */
-  uint64_t         merge_leaf;                  /* number of times leaf nodes are merged */
-  uint64_t         merge_nonleaf;               /* number of times nonleaf nodes are merged  */
-  uint64_t         dirty_leaf;                  /* number of times leaf nodes are dirtied when previously clean */
-  uint64_t         dirty_nonleaf;               /* number of times nonleaf nodes are dirtied when previously clean */
-  uint64_t         balance_leaf;                /* number of times a leaf node is balanced inside brt */
-  uint64_t         hot_num_started;             /* number of HOT operations that have begun */
-  uint64_t         hot_num_completed;           /* number of HOT operations that have successfully completed */
-  uint64_t         hot_num_aborted;             /* number of HOT operations that have been aborted */
-  uint64_t         hot_max_root_flush_count;    /* max number of flushes from root ever required to optimize a tree */
-  uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/
-  uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/
-  uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/
-  uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/
-  uint64_t         msg_num;                     /* how many messages injected at root*/
-  uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/
-  uint64_t         num_basements_decompressed_normal;  /* how many basement nodes were decompressed because they were the target of a query */
-  uint64_t         num_basements_decompressed_aggressive; /* ... because they were between lc and rc */
-  uint64_t         num_basements_decompressed_prefetch;
-  uint64_t         num_basements_decompressed_write;
-  uint64_t         num_msg_buffer_decompressed_normal;  /* how many msg buffers were decompressed because they were the target of a query */
-  uint64_t         num_msg_buffer_decompressed_aggressive; /* ... because they were between lc and rc */
-  uint64_t         num_msg_buffer_decompressed_prefetch;
-  uint64_t         num_msg_buffer_decompressed_write;
-  uint64_t         num_pivots_fetched_query;           /* how many pivots were fetched were fetched for a query */
-  uint64_t         num_pivots_fetched_prefetch;        /* ... for a prefetch */
-  uint64_t         num_pivots_fetched_write;           /* ... for a write */
-  uint64_t         num_basements_fetched_normal;       /* how many basement nodes were fetched because they were the target of a query */
-  uint64_t         num_basements_fetched_aggressive;      /* ... because they were between lc and rc */
-  uint64_t         num_basements_fetched_prefetch;
-  uint64_t         num_basements_fetched_write;
-  uint64_t         num_msg_buffer_fetched_normal;       /* how many msg buffers were fetched because they were the target of a query */
-  uint64_t         num_msg_buffer_fetched_aggressive;      /* ... because they were between lc and rc */
-  uint64_t         num_msg_buffer_fetched_prefetch;
-  uint64_t         num_msg_buffer_fetched_write;
-  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
-  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ 
-  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ 
-  u_int64_t        le_expanded;             /* number of times ule used expanded memory     */ 
-  u_int64_t        fsync_count;             /* number of times fsync performed        */ 
-  u_int64_t        fsync_time;              /* total time required to fsync           */ 
-  u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ 
-  u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ 
-  u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ 
-  char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ 
-  u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ 
-  u_int64_t        enospc_ctr;              /* how many times has ENOSPC been returned by disk write */ 
-  u_int64_t        enospc_redzone_ctr;      /* how many times has ENOSPC been returned to user (red zone) */ 
-  u_int64_t        enospc_state;            /* state of ydb-level ENOSPC prevention (0 = green, 1 = yellow, 2 = red) */ 
-  u_int64_t        loader_create;           /* number of loaders created */ 
-  u_int64_t        loader_create_fail;      /* number of failed loader creations */ 
-  u_int64_t        loader_put;              /* number of loader puts (success) */ 
-  u_int64_t        loader_put_fail;         /* number of loader puts that failed */ 
-  u_int64_t        loader_close;            /* number of loaders closed (succeed or fail) */ 
-  u_int64_t        loader_close_fail;       /* number of loaders closed with error return */ 
-  u_int64_t        loader_abort;            /* number of loaders aborted  */ 
-  u_int64_t        loader_current;          /* number of loaders currently existing           */ 
-  u_int64_t        loader_max;              /* max number of loaders extant simultaneously    */ 
-  u_int64_t        logsuppress;             /* number of times logging is suppressed */ 
-  u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ 
-  u_int64_t        indexer_create;          /* number of indexers created successfully */ 
-  u_int64_t        indexer_create_fail;     /* number of failed indexer creations */ 
-  u_int64_t        indexer_build;           /* number of indexer build calls (succeeded) */ 
-  u_int64_t        indexer_build_fail;      /* number of indexers build calls with error return */ 
-  u_int64_t        indexer_close;           /* number of indexers closed successfully) */ 
-  u_int64_t        indexer_close_fail;      /* number of indexers closed with error return */ 
-  u_int64_t        indexer_abort;           /* number of indexers aborted  */ 
-  u_int64_t        indexer_current;         /* number of indexers currently existing           */ 
-  u_int64_t        indexer_max;             /* max number of indexers extant simultaneously    */ 
-  u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ 
-  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
-  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 
-  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ 
-  u_int64_t        optimized_for_upgrade;   /* how many optimized_for_upgrade messages were broadcast */ 
-  u_int64_t        original_ver;            /* original environment version  */ 
-  u_int64_t        ver_at_startup;          /* environment version at startup */ 
-  u_int64_t        last_lsn_v13;            /* last lsn of version 13 environment */ 
-  char             upgrade_v14_time[26];    /* timestamp of when upgrade to version 14 environment was done */ 
-  u_int64_t        env_panic;               /* non-zero if environment is panicked */ 
-  u_int64_t        logger_panic;            /* non-zero if logger is panicked */ 
-  u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ 
-  uint64_t         malloc_count;            /* number of malloc operations */ 
-  uint64_t         free_count;              /* number of free operations */ 
-  uint64_t         realloc_count;           /* number of realloc operations */ 
-  uint64_t         malloc_fail;             /* number of failed malloc operations */ 
-  uint64_t         realloc_fail;            /* number of failed realloc operations */ 
-  uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ 
-  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ 
-  uint64_t         mem_freed;               /* number of bytes freed */ 
-  uint64_t         max_mem_in_use;          /* estimated max value of (used - freed) */ 
-  uint64_t         malloc_mmap_threshold;   /* threshold for malloc to use mmap  */ 
-  const char *     mallocator_version;      /* version string from malloc lib */ 
-} ENGINE_STATUS;
+typedef enum { 
+    FS_GREEN = 0,                                   // green zone  (we have lots of space) 
+    FS_YELLOW = 1,                                  // yellow zone (issue warning but allow operations) 
+    FS_RED = 2,                                     // red zone    (prevent insert operations) 
+    FS_BLOCKED = 3                                  // For reporting engine status, completely blocked 
+} fs_redzone_state;
+typedef enum {
+   FS_STATE = 0,   // interpret as file system state (redzone) enum 
+   UINT64,         // interpret as uint64_t 
+   CHARSTR,        // interpret as char * 
+   UNIXTIME,       // interpret as time_t 
+   TOKUTIME        // interpret as tokutime_t 
+} toku_engine_status_display_type; 
+typedef struct __toku_engine_status_row {
+  char * keyname;                  // info schema key, should not change across revisions without good reason 
+  char * legend;                   // the text that will appear at user interface 
+  toku_engine_status_display_type type;  // how to interpret the value 
+  union {              
+         uint64_t num; 
+         char *   str; 
+  } value;       
+} * TOKU_ENGINE_STATUS_ROW, TOKU_ENGINE_STATUS_ROW_S; 
 typedef enum {
  DB_BTREE=1,
  DB_UNKNOWN=5
@@ -432,8 +204,9 @@ struct __toku_db_env {
   int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */;
   int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */;
   void *app_private; /* 32-bit offset=44 size=4, 64=bit offset=88 size=8 */
-  int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
-  int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */;
+  int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
+  int (*get_engine_status_num_rows)           (DB_ENV*, uint64_t*)  /* return number of rows in engine status */;
+  int (*get_engine_status)                    (DB_ENV*, TOKU_ENGINE_STATUS_ROW, uint64_t, fs_redzone_state*, uint64_t*, char*, int) /* Fill in status struct and redzone state, possibly env panic string */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/);;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
@@ -460,7 +233,7 @@ struct __toku_db_env {
   void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
   int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec);
   int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec);
-  void* __toku_dummy0[21];
+  void* __toku_dummy0[20];
   char __toku_dummy1[128];
   void *api1_internal; /* 32-bit offset=336 size=4, 64=bit offset=544 size=8 */
   void* __toku_dummy2[7];

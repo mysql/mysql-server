@@ -19,11 +19,15 @@ static uint64_t htonl64(uint64_t x) {
 struct my_ltm_status {
     uint32_t max_locks, curr_locks;
     uint64_t max_lock_memory, curr_lock_memory;
-    LTM_STATUS_S status;
 };
 
 static void my_ltm_get_status(toku_ltm *ltm, struct my_ltm_status *my_status) {
-    toku_ltm_get_status(ltm, &my_status->max_locks, &my_status->curr_locks, &my_status->max_lock_memory, &my_status->curr_lock_memory, &my_status->status);
+    LTM_STATUS_S status;
+    toku_ltm_get_status(ltm, &status);
+    my_status->max_locks        = status.status[LTM_LOCKS_LIMIT].value;
+    my_status->curr_locks       = status.status[LTM_LOCKS_CURR].value;
+    my_status->max_lock_memory  = status.status[LTM_LOCK_MEMORY_LIMIT].value;
+    my_status->curr_lock_memory = status.status[LTM_LOCK_MEMORY_CURR].value;
 }
 
 static void *my_malloc(size_t s) {

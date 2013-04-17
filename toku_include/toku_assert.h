@@ -16,7 +16,8 @@ C_BEGIN
 
 
 void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
-			       void (*toku_maybe_set_env_panic_pointer)(int, char*));
+			       void (*toku_maybe_set_env_panic_pointer)(int, char*),
+                               uint64_t num_rows);
 
 void toku_do_assert(int /*expr*/,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default")));
 

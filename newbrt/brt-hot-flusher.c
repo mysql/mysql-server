@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -28,16 +28,34 @@ struct hot_flusher_extra {
     bool rightmost_leaf_seen;
 };
 
-static BRT_HOT_STATUS_S hot_status;
+static volatile BRT_HOT_STATUS_S hot_status;
+
+#define STATUS_INIT(k,t,l) {                            \
+        hot_status.status[k].keyname = #k;              \
+        hot_status.status[k].type    = t;               \
+        hot_status.status[k].legend  = "hot: " l;       \
+    }
+
+#define STATUS_VALUE(x) hot_status.status[x].value.num
 
 void
 toku_brt_hot_status_init(void)
 {
-    DRD_IGNORE_VAR(hot_status.max_root_flush_count);
+    STATUS_INIT(BRT_HOT_NUM_STARTED,          UINT64, "operations ever started");
+    STATUS_INIT(BRT_HOT_NUM_COMPLETED,        UINT64, "operations successfully completed");
+    STATUS_INIT(BRT_HOT_NUM_ABORTED,          UINT64, "operations aborted");
+    STATUS_INIT(BRT_HOT_MAX_ROOT_FLUSH_COUNT, UINT64, "max number of flushes from root ever required to optimize a tree");
+    DRD_IGNORE_VAR(STATUS_VALUE(BRT_HOT_MAX_ROOT_FLUSH_COUNT));
+
+    hot_status.initialized = true;
 }
+#undef STATUS_INIT
 
 void
 toku_brt_hot_get_status(BRT_HOT_STATUS s) {
+    if (!hot_status.initialized) {
+        toku_brt_hot_status_init();
+    }
     *s = hot_status;
 }
 
@@ -229,7 +247,7 @@ toku_brt_hot_optimize(BRT brt,
     uint64_t loop_count = 0;
     MSN msn_at_start_of_hot = ZERO_MSN;  // capture msn from root at
                                          // start of HOT operation
-    (void) __sync_fetch_and_add(&hot_status.num_started, 1);
+    (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_HOT_NUM_STARTED), 1);
 
     {
         toku_cachetable_call_ydb_lock(brt->h->cf);
@@ -273,8 +291,8 @@ toku_brt_hot_optimize(BRT brt,
 
         loop_count++;
 
-        if (loop_count > hot_status.max_root_flush_count) {
-            hot_status.max_root_flush_count = loop_count;
+        if (loop_count > STATUS_VALUE(BRT_HOT_MAX_ROOT_FLUSH_COUNT)) {
+            STATUS_VALUE(BRT_HOT_MAX_ROOT_FLUSH_COUNT) = loop_count;
         }
 
         // Initialize the maximum current key.  We need to do this for
@@ -338,10 +356,12 @@ toku_brt_hot_optimize(BRT brt,
         }
 
         if (success) {
-            (void) __sync_fetch_and_add(&hot_status.num_completed, 1);
+            (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_HOT_NUM_COMPLETED), 1);
         } else {
-            (void) __sync_fetch_and_add(&hot_status.num_aborted, 1);
+            (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_HOT_NUM_ABORTED), 1);
         }
     }
     return r;
 }
+
+#undef STATUS_VALUE

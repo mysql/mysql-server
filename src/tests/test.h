@@ -117,14 +117,42 @@ static __attribute__((__unused__)) void
 print_engine_status(DB_ENV * UU(env)) {
 #ifdef USE_TDB
     if (verbose) {  // verbose declared statically in this file
-      int buffsize = 1024 * 32;
-      char buff[buffsize];
-      env->get_engine_status_text(env, buff, buffsize);
-      printf("Engine status:\n");
-      printf("%s", buff);
+        uint64_t nrows;
+        env->get_engine_status_num_rows(env, &nrows);
+        int bufsiz = nrows * 128;   // assume 128 characters per row
+        char buff[bufsiz];  
+        env->get_engine_status_text(env, buff, bufsiz);
+        printf("Engine status:\n");
+        printf("%s", buff);
     }
 #endif
 }
+
+static __attribute__((__unused__)) uint64_t
+get_engine_status_val(DB_ENV * UU(env), char * keyname) {
+#ifdef USE_TDB
+    uint64_t nrows;
+    env->get_engine_status_num_rows(env, &nrows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[nrows];
+    fs_redzone_state redzone_state;
+    uint64_t panic;
+    uint32_t panic_string_len = 1024;
+    char panic_string[panic_string_len];
+    int r = env->get_engine_status (env, mystat, nrows, &redzone_state, &panic, panic_string, panic_string_len);
+    CKERR(r);
+    int found = 0;
+    uint64_t rval = 0;
+    for (uint64_t i = 0; i < nrows && !found; i++) {
+        if (strcmp(keyname, mystat[i].keyname) == 0) {
+            found++;
+            rval = mystat[i].value.num;
+        }
+    }
+    CKERR2(found, 1);
+    return rval;
+#endif
+}
+
 
 
 static __attribute__((__unused__)) DBT *

@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -158,12 +158,88 @@ Lookup:
 
 static const uint32_t this_version = BRT_LAYOUT_VERSION;
 
-static BRT_STATUS_S brt_status;
+/* Status is intended for display to humans to help understand system behavior.
+ * It does not need to be perfectly thread-safe.
+ */
+static volatile BRT_STATUS_S brt_status;
 
-void 
+#define STATUS_INIT(k,t,l) {                            \
+        brt_status.status[k].keyname = #k;              \
+        brt_status.status[k].type    = t;               \
+        brt_status.status[k].legend  = "brt: " l;       \
+    }
+
+static void
+status_init(void)
+{
+    // Note, this function initializes the keyname, type, and legend fields.
+    // Value fields are initialized to zero by compiler.
+    STATUS_INIT(BRT_UPDATES,                                UINT64, "dictionary updates");
+    STATUS_INIT(BRT_UPDATES_BROADCAST,                      UINT64, "dictionary broadcast updates");
+    STATUS_INIT(BRT_DESCRIPTOR_SET,                         UINT64, "descriptor set");
+    STATUS_INIT(BRT_PARTIAL_FETCH_HIT,                      UINT64, "partial fetch hit, node partition is present");
+    STATUS_INIT(BRT_PARTIAL_FETCH_MISS,                     UINT64, "partial fetch miss, node present but partition absent");
+    STATUS_INIT(BRT_PARTIAL_FETCH_COMPRESSED,               UINT64, "partial fetch, node partition is present but compressed");
+    STATUS_INIT(BRT_PARTIAL_EVICTIONS_NONLEAF,              UINT64, "nonleaf node partial evictions");
+    STATUS_INIT(BRT_PARTIAL_EVICTIONS_LEAF,                 UINT64, "leaf node partial evictions");
+    STATUS_INIT(BRT_MSN_DISCARDS,                           UINT64, "messages ignored by leaf due to msn");
+    STATUS_INIT(BRT_MAX_WORKDONE,                           UINT64, "max workdone over all buffers");
+    STATUS_INIT(BRT_TOTAL_SEARCHES,                         UINT64, "total searches");
+    STATUS_INIT(BRT_TOTAL_RETRIES,                          UINT64, "total search retries due to TRY_AGAIN");
+    STATUS_INIT(BRT_MAX_SEARCH_EXCESS_RETRIES,              UINT64, "max excess search retries (retries - tree height) due to TRY_AGAIN");
+    STATUS_INIT(BRT_MAX_SEARCH_ROOT_TRIES,                  UINT64, "max times root fetched in a single search");
+    STATUS_INIT(BRT_SEARCH_ROOT_RETRIES,                    UINT64, "searches requiring root to be fetched more than once");
+    STATUS_INIT(BRT_SEARCH_TRIES_GT_HEIGHT,                 UINT64, "searches requiring more tries than the height of the tree");
+    STATUS_INIT(BRT_SEARCH_TRIES_GT_HEIGHTPLUS3,            UINT64, "searches requiring more tries than the height of the tree plus three");
+    STATUS_INIT(BRT_DISK_FLUSH_LEAF,                        UINT64, "leaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(BRT_DISK_FLUSH_NONLEAF,                     UINT64, "nonleaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(BRT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         UINT64, "leaf nodes flushed to disk (for checkpoint)");
+    STATUS_INIT(BRT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      UINT64, "nonleaf nodes flushed to disk (for checkpoint)");
+    STATUS_INIT(BRT_CREATE_LEAF,                            UINT64, "leaf nodes created");
+    STATUS_INIT(BRT_CREATE_NONLEAF,                         UINT64, "nonleaf nodes created");
+    STATUS_INIT(BRT_DESTROY_LEAF,                           UINT64, "leaf nodes destroyed");
+    STATUS_INIT(BRT_DESTROY_NONLEAF,                        UINT64, "nonleaf nodes destroyed");
+    STATUS_INIT(BRT_DIRTY_LEAF,                             UINT64, "leaf node transitions clean -> dirty");
+    STATUS_INIT(BRT_DIRTY_NONLEAF,                          UINT64, "nonleaf node transitions clean -> dirty");
+    STATUS_INIT(BRT_MSG_BYTES_IN,                           UINT64, "bytes of messages injected at root (all trees)");
+    STATUS_INIT(BRT_MSG_BYTES_OUT,                          UINT64, "bytes of messages flushed from h1 nodes to leaves");
+    STATUS_INIT(BRT_MSG_BYTES_CURR,                         UINT64, "bytes of messages currently in trees (estimate)");
+    STATUS_INIT(BRT_MSG_BYTES_MAX,                          UINT64, "max bytes of messages ever in trees (estimate)");
+    STATUS_INIT(BRT_MSG_NUM,                                UINT64, "messages injected at root");
+    STATUS_INIT(BRT_MSG_NUM_BROADCAST,                      UINT64, "broadcast messages injected at root");
+    STATUS_INIT(BRT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      UINT64, "basements decompressed as a target of a query");
+    STATUS_INIT(BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  UINT64, "basements decompressed for prelocked range");
+    STATUS_INIT(BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    UINT64, "basements decompressed for prefetch");
+    STATUS_INIT(BRT_NUM_BASEMENTS_DECOMPRESSED_WRITE,       UINT64, "basements decompressed for write");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     UINT64, "buffers decompressed as a target of a query");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, UINT64, "buffers decompressed for prelocked range");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   UINT64, "buffers decompressed for prefetch");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      UINT64, "buffers decompressed for write");
+    STATUS_INIT(BRT_NUM_PIVOTS_FETCHED_QUERY,               UINT64, "pivots fetched for query");
+    STATUS_INIT(BRT_NUM_PIVOTS_FETCHED_PREFETCH,            UINT64, "pivots fetched for prefetch");
+    STATUS_INIT(BRT_NUM_PIVOTS_FETCHED_WRITE,               UINT64, "pivots fetched for write");
+    STATUS_INIT(BRT_NUM_BASEMENTS_FETCHED_NORMAL,           UINT64, "basements fetched as a target of a query");
+    STATUS_INIT(BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       UINT64, "basements fetched for prelocked range");
+    STATUS_INIT(BRT_NUM_BASEMENTS_FETCHED_PREFETCH,         UINT64, "basements fetched for prefetch");
+    STATUS_INIT(BRT_NUM_BASEMENTS_FETCHED_WRITE,            UINT64, "basements fetched for write");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_FETCHED_NORMAL,          UINT64, "buffers fetched as a target of a query");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      UINT64, "buffers fetched for prelocked range");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        UINT64, "buffers fetched for prefetch");
+    STATUS_INIT(BRT_NUM_MSG_BUFFER_FETCHED_WRITE,           UINT64, "buffers fetched for write");
+
+    brt_status.initialized = true;
+}
+#undef STATUS_INIT
+
+void
 toku_brt_get_status(BRT_STATUS s) {
+    if (!brt_status.initialized) {
+        status_init();
+    }
     *s = brt_status;
 }
+
+#define STATUS_VALUE(x) brt_status.status[x].value.num
 
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
@@ -268,11 +344,6 @@ toku_brt_nonleaf_is_gorged (BRTNODE node) {
     return ((size > node->nodesize)
             &&
             (!buffers_are_empty));
-}
-
-// FIXME this is not used
-static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
-    (*val) += data;
 }
 
 static void brt_verify_flags(BRT brt, BRTNODE node) {
@@ -546,16 +617,16 @@ toku_mark_node_dirty(BRTNODE node) {
     // If node is a leafnode, and if it has any basements, and if it is clean, then:
     // update the header with the aggregate of the deltas in the basements (do NOT clear the deltas).
     if (!node->dirty) {
-	if (node->height == 0) {
-	    brt_status.dirty_leaf++;
-	    struct brt_header *h = node->h;
-	    for (int i = 0; i < node->n_children; i++) {
-		STAT64INFO delta = &(BLB(node,i)->stat64_delta);
-		update_header_stats(&h->in_memory_stats, delta);
-	    }
-	}
-	else
-	    brt_status.dirty_nonleaf++;
+        if (node->height == 0) {
+            STATUS_VALUE(BRT_DIRTY_LEAF)++;
+            struct brt_header *h = node->h;
+            for (int i = 0; i < node->n_children; i++) {
+                STAT64INFO delta = &(BLB(node,i)->stat64_delta);
+                update_header_stats(&h->in_memory_stats, delta);
+            }
+        }
+        else
+            STATUS_VALUE(BRT_DIRTY_NONLEAF)++;
     }
     node->dirty = 1;
 }
@@ -589,22 +660,22 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
             }
         }
         if (height == 0) {
-	    struct brt_header * header_in_node = brtnode->h;
-	    invariant(header_in_node == h);
-	    update_header_stats(&(h->on_disk_stats), &deltas);
-	    if (for_checkpoint) {
-		update_header_stats(&(h->checkpoint_staging_stats), &deltas);
-	    }
+            struct brt_header * header_in_node = brtnode->h;
+            invariant(header_in_node == h);
+            update_header_stats(&(h->on_disk_stats), &deltas);
+            if (for_checkpoint) {
+                update_header_stats(&(h->checkpoint_staging_stats), &deltas);
+            }
             if (for_checkpoint)
-                __sync_fetch_and_add(&brt_status.disk_flush_leaf_for_checkpoint, 1);
+                __sync_fetch_and_add(&STATUS_VALUE(BRT_DISK_FLUSH_LEAF_FOR_CHECKPOINT), 1);
             else
-                __sync_fetch_and_add(&brt_status.disk_flush_leaf, 1);
+                __sync_fetch_and_add(&STATUS_VALUE(BRT_DISK_FLUSH_LEAF), 1);
         }
         else {
             if (for_checkpoint)
-                __sync_fetch_and_add(&brt_status.disk_flush_nonleaf_for_checkpoint, 1);
+                __sync_fetch_and_add(&STATUS_VALUE(BRT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT), 1);
             else
-                __sync_fetch_and_add(&brt_status.disk_flush_nonleaf, 1);
+                __sync_fetch_and_add(&STATUS_VALUE(BRT_DISK_FLUSH_NONLEAF), 1);
         }
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
@@ -619,11 +690,11 @@ void
 toku_brt_status_update_pivot_fetch_reason(struct brtnode_fetch_extra *bfe)
 {
     if (bfe->type == brtnode_fetch_prefetch) {
-        brt_status.num_pivots_fetched_prefetch++;
+        STATUS_VALUE(BRT_NUM_PIVOTS_FETCHED_PREFETCH)++;
     } else if (bfe->type == brtnode_fetch_all) {
-        brt_status.num_pivots_fetched_write++;
+        STATUS_VALUE(BRT_NUM_PIVOTS_FETCHED_WRITE)++;
     } else if (bfe->type == brtnode_fetch_subset) {
-        brt_status.num_pivots_fetched_query++;
+        STATUS_VALUE(BRT_NUM_PIVOTS_FETCHED_QUERY)++;
     }
 }
 
@@ -724,7 +795,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    brt_status.partial_evictions_nonleaf++;
+                    STATUS_VALUE(BRT_PARTIAL_EVICTIONS_NONLEAF)++;
                     cilk_spawn compress_internal_node_partition(node, i);
                 }
                 else {
@@ -746,7 +817,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                brt_status.partial_evictions_leaf++;
+                STATUS_VALUE(BRT_PARTIAL_EVICTIONS_LEAF)++;
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
@@ -755,7 +826,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    brt_status.partial_evictions_leaf++;
+                    STATUS_VALUE(BRT_PARTIAL_EVICTIONS_LEAF)++;
                     // free the basement node
                     BASEMENTNODE bn = BLB(node, i);
                     struct mempool * mp = &bn->buffer_mempool;
@@ -786,13 +857,13 @@ static inline void
 brt_status_update_partial_fetch(u_int8_t state)
 {
     if (state == PT_AVAIL) {
-        brt_status.partial_fetch_hit++;
+        STATUS_VALUE(BRT_PARTIAL_FETCH_HIT)++;
     }
     else if (state == PT_COMPRESSED) {
-        brt_status.partial_fetch_compressed++;
+        STATUS_VALUE(BRT_PARTIAL_FETCH_COMPRESSED)++;
     }
     else if (state == PT_ON_DISK){
-        brt_status.partial_fetch_miss++;
+        STATUS_VALUE(BRT_PARTIAL_FETCH_MISS)++;
     }
     else {
         invariant(FALSE);
@@ -888,54 +959,54 @@ brt_status_update_partial_fetch_reason(
     if (is_leaf) {
         if (bfe->type == brtnode_fetch_prefetch) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_basements_decompressed_prefetch++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH)++;
             } else {
-                brt_status.num_basements_fetched_prefetch++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_FETCHED_PREFETCH)++;
             }
         } else if (bfe->type == brtnode_fetch_all) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_basements_decompressed_write++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_DECOMPRESSED_WRITE)++;
             } else {
-                brt_status.num_basements_fetched_write++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_FETCHED_WRITE)++;
             }
         } else if (i == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_basements_decompressed_normal++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_DECOMPRESSED_NORMAL)++;
             } else {
-                brt_status.num_basements_fetched_normal++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_FETCHED_NORMAL)++;
             }
         } else {
             if (state == PT_COMPRESSED) {
-                brt_status.num_basements_decompressed_aggressive++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE)++;
             } else {
-                brt_status.num_basements_fetched_aggressive++;
+                STATUS_VALUE(BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE)++;
             }
         }
     }
     else {
         if (bfe->type == brtnode_fetch_prefetch) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_msg_buffer_decompressed_prefetch++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH)++;
             } else {
-                brt_status.num_msg_buffer_fetched_prefetch++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_FETCHED_PREFETCH)++;
             }
         } else if (bfe->type == brtnode_fetch_all) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_msg_buffer_decompressed_write++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE)++;
             } else {
-                brt_status.num_msg_buffer_fetched_write++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_FETCHED_WRITE)++;
             }
         } else if (i == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
-                brt_status.num_msg_buffer_decompressed_normal++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL)++;
             } else {
-                brt_status.num_msg_buffer_fetched_normal++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_FETCHED_NORMAL)++;
             }
         } else {
             if (state == PT_COMPRESSED) {
-                brt_status.num_msg_buffer_decompressed_aggressive++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE)++;
             } else {
-                brt_status.num_msg_buffer_fetched_aggressive++;
+                STATUS_VALUE(BRT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE)++;
             }
         }
     }
@@ -1082,9 +1153,9 @@ void toku_brtnode_free (BRTNODE *nodep) {
                 toku_mempool_destroy(mp);
             }
         }
-        brt_status.destroy_leaf++;
+        STATUS_VALUE(BRT_DESTROY_LEAF)++;
     } else {
-        brt_status.destroy_nonleaf++;
+        STATUS_VALUE(BRT_DESTROY_NONLEAF)++;
     }
     toku_destroy_brtnode_internals(node);
     toku_free(node);
@@ -1178,9 +1249,9 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     assert(height >= 0);
 
     if (height == 0)
-	brt_status.create_leaf++;
+	STATUS_VALUE(BRT_CREATE_LEAF)++;
     else
-	brt_status.create_nonleaf++;
+	STATUS_VALUE(BRT_CREATE_NONLEAF)++;
 
     n->max_msn_applied_to_node_on_disk = MIN_MSN;    // correct value for root node, harmless for others
     n->h = h;
@@ -1382,8 +1453,8 @@ brt_leaf_apply_cmd_once (
     }
     if (workdone) {  // test programs may call with NULL
 	*workdone += workdone_this_le;
-	if (*workdone > brt_status.max_workdone)
-	    brt_status.max_workdone = *workdone;
+	if (*workdone > STATUS_VALUE(BRT_MAX_WORKDONE))
+            STATUS_VALUE(BRT_MAX_WORKDONE) = *workdone;
     }
 
     // if we created a new mempool buffer, free the old one
@@ -1472,7 +1543,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        brt_status.updates++;
+        STATUS_VALUE(BRT_UPDATES)++;
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -1481,7 +1552,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        brt_status.updates_broadcast++;
+        STATUS_VALUE(BRT_UPDATES_BROADCAST)++;
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -2070,8 +2141,8 @@ toku_bnc_flush_to_child(
         r = toku_omt_clone_pool(&live_list_reverse, logger->live_list_reverse, sizeof(XID_PAIR_S));
         assert_zero(r);
 	size_t buffsize = bnc->n_bytes_in_buffer; 
-	brt_status.msg_bytes_out += buffsize;   // take advantage of surrounding mutex
-	brt_status.msg_bytes_curr -= buffsize;  // may be misleading if there's a broadcast message in there
+	STATUS_VALUE(BRT_MSG_BYTES_OUT) += buffsize;   // take advantage of surrounding mutex
+	STATUS_VALUE(BRT_MSG_BYTES_CURR) -= buffsize;  // may be misleading if there's a broadcast message in there
 	toku_pthread_mutex_unlock(&logger->txn_list_lock);
     } else {
         snapshot_txnids = NULL;
@@ -2223,7 +2294,7 @@ void toku_apply_cmd_to_leaf(
                              snapshot_txnids,
                              live_list_reverse);
         } else {
-            brt_status.msn_discards++;
+            STATUS_VALUE(BRT_MSN_DISCARDS)++;
         }
     }
     else if (brt_msg_applies_all(cmd)) {
@@ -2243,7 +2314,7 @@ void toku_apply_cmd_to_leaf(
                                  live_list_reverse);
                 if (bn_made_change) *made_change = 1;
             } else {
-                brt_status.msn_discards++;
+                STATUS_VALUE(BRT_MSN_DISCARDS)++;
             }
         }
     }
@@ -2284,14 +2355,14 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
     // update some status variables
     if (node->height != 0) {
         uint64_t msgsize = brt_msg_size(cmd);
-        brt_status.msg_bytes_in += msgsize;
-        brt_status.msg_bytes_curr += msgsize;
-        if (brt_status.msg_bytes_curr > brt_status.msg_bytes_max) {
-            brt_status.msg_bytes_max = brt_status.msg_bytes_curr;
+        STATUS_VALUE(BRT_MSG_BYTES_IN) += msgsize;
+        STATUS_VALUE(BRT_MSG_BYTES_CURR) += msgsize;
+        if (STATUS_VALUE(BRT_MSG_BYTES_CURR) > STATUS_VALUE(BRT_MSG_BYTES_MAX)) {
+            STATUS_VALUE(BRT_MSG_BYTES_MAX) = STATUS_VALUE(BRT_MSG_BYTES_CURR);
         }
-        brt_status.msg_num++;
+        STATUS_VALUE(BRT_MSG_NUM)++;
         if (brt_msg_applies_all(cmd)) {
-            brt_status.msg_num_broadcast++;
+            STATUS_VALUE(BRT_MSG_NUM_BROADCAST)++;
         }
     }
 }
@@ -3213,7 +3284,7 @@ toku_brt_change_descriptor(
     fd = toku_cachefile_get_and_pin_fd (t->cf);
     r = toku_update_descriptor(t->h, &new_d, fd);
     if (r == 0)	 // very infrequent operation, worth precise threadsafe count
-	brt_status.descriptor_set++;
+	STATUS_VALUE(BRT_DESCRIPTOR_SET)++;
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 
@@ -4422,7 +4493,7 @@ do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, 
         bool made_change;
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, leafnode, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
-        brt_status.msn_discards++;
+        STATUS_VALUE(BRT_MSN_DISCARDS)++;
     }
 }
 
@@ -5333,34 +5404,34 @@ try_again:
     //which can mean not found, but keep looking in another leaf.
     if (r==TOKUDB_FOUND_BUT_REJECTED) r = DB_NOTFOUND;
     else if (r==DB_NOTFOUND) {
-	//We truly did not find an answer to the query.
-	//Therefore, the BRT_GET_CALLBACK_FUNCTION has NOT been called.
-	//The contract specifies that the callback function must be called
-	//for 'r= (0|DB_NOTFOUND|TOKUDB_FOUND_BUT_REJECTED)'
-	//TODO: #1378 This is not the ultimate location of this call to the
-	//callback.  It is surely wrong for node-level locking, and probably
-	//wrong for the STRADDLE callback for heaviside function(two sets of key/vals)
-	int r2 = getf(0,NULL, 0,NULL, getf_v, false);
-	if (r2!=0) r = r2;
+        //We truly did not find an answer to the query.
+        //Therefore, the BRT_GET_CALLBACK_FUNCTION has NOT been called.
+        //The contract specifies that the callback function must be called
+        //for 'r= (0|DB_NOTFOUND|TOKUDB_FOUND_BUT_REJECTED)'
+        //TODO: #1378 This is not the ultimate location of this call to the
+        //callback.  It is surely wrong for node-level locking, and probably
+        //wrong for the STRADDLE callback for heaviside function(two sets of key/vals)
+        int r2 = getf(0,NULL, 0,NULL, getf_v, false);
+        if (r2!=0) r = r2;
     }
 
     {   // accounting (to detect and measure thrashing)
-	uint retrycount = trycount - 1;         // how many retries were needed?
-	brt_status.total_searches++;
-	brt_status.total_retries += retrycount;
-	if (root_tries > 1) {                   // if root was read from disk more than once
-	    brt_status.search_root_retries++;   
-	    if (root_tries > brt_status.max_search_root_tries)
-		brt_status.max_search_root_tries = root_tries; 
-	}
-	if (retrycount > tree_height) {         // if at least one node was read from disk more than once
-	    brt_status.search_tries_gt_height++;
-	    uint excess_tries = retrycount - tree_height;  
-	    if (excess_tries > brt_status.max_search_excess_retries)
-		brt_status.max_search_excess_retries = excess_tries;
-	    if (retrycount > (tree_height+3))
-		brt_status.search_tries_gt_heightplus3++;
-	}
+        uint retrycount = trycount - 1;         // how many retries were needed?
+        STATUS_VALUE(BRT_TOTAL_SEARCHES)++;
+        STATUS_VALUE(BRT_TOTAL_RETRIES) += retrycount;
+        if (root_tries > 1) {                   // if root was read from disk more than once
+            STATUS_VALUE(BRT_SEARCH_ROOT_RETRIES)++;
+            if (root_tries > STATUS_VALUE(BRT_MAX_SEARCH_ROOT_TRIES))
+                STATUS_VALUE(BRT_MAX_SEARCH_ROOT_TRIES) = root_tries; 
+        }
+        if (retrycount > tree_height) {         // if at least one node was read from disk more than once
+            STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHT)++;
+            uint excess_tries = retrycount - tree_height;  
+            if (excess_tries > STATUS_VALUE(BRT_MAX_SEARCH_EXCESS_RETRIES))
+                STATUS_VALUE(BRT_MAX_SEARCH_EXCESS_RETRIES) = excess_tries;
+            if (retrycount > (tree_height+3))
+                STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHTPLUS3)++;
+        }
     }
 
     return r;
@@ -6107,8 +6178,6 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
 	r = toku_brt_serialize_init();
     if (r==0)
 	callback_db_set_brt = db_set_brt;
-    toku_brt_flusher_status_init();
-    toku_brt_hot_status_init();
     return r;
 }
 
@@ -6447,3 +6516,5 @@ void
 toku_brt_drd_ignore(void) {
     DRD_IGNORE_VAR(brt_status);
 }
+
+#undef STATUS_VALUE
