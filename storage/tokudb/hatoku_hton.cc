@@ -7,6 +7,7 @@ extern "C" {
 #include "misc.h"
 #endif
 #include "toku_os.h"
+#include "inttypes.h"
 }
 
 
@@ -576,7 +577,6 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
                 );
             if (error) { goto cleanup; }
 
-            DBUG_PRINT("info", ("size of %s is %lld hidden_primary_key %d!!\n", name_buff, dict_stats.bt_dsize, *(uchar *)curr_val.data));
             curr_num_bytes = dict_stats.bt_dsize;
             if (*(uchar *)curr_val.data) {
                 //
@@ -603,7 +603,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
         }
     }
 
-    sprintf(data_amount_msg, "Number of bytes in database: %lld", num_bytes_in_db);
+    sprintf(data_amount_msg, "Number of bytes in database: %"PRIu64, num_bytes_in_db);
     stat_print(
         thd, 
         tokudb_hton_name, 
@@ -633,10 +633,6 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
-
-static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
-    return tokudb_show_data_size(thd, stat_print);
-}
 
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_logs");
