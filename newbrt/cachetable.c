@@ -39,6 +39,11 @@ static void cachetable_reader(WORKITEM);
 #define WHEN_TRACE_CT(x) ((void)0)
 #endif
 
+static u_int64_t cachetable_hit;
+static u_int64_t cachetable_miss;
+static u_int64_t cachetable_wait_reading;
+static u_int64_t cachetable_wait;
+
 enum ctpair_state {
     CTPAIR_INVALID = 0, // invalid
     CTPAIR_IDLE = 1,    // in memory
@@ -768,11 +773,13 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
 
 enum { hash_histogram_max = 100 };
 static unsigned long long hash_histogram[hash_histogram_max];
-void print_hash_histogram (void) {
+void toku_cachetable_print_hash_histogram (void) {
     int i;
     for (i=0; i<hash_histogram_max; i++)
 	if (hash_histogram[i]) printf("%d:%llu ", i, hash_histogram[i]);
     printf("\n");
+    printf("miss=%"PRId64" hit=%"PRId64" wait_reading=%"PRId64" wait=%"PRId64"\n", 
+           cachetable_miss, cachetable_hit, cachetable_wait_reading, cachetable_wait);
 }
 
 static void
@@ -830,6 +837,12 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile) {
+            if (p->rwlock.writer || p->rwlock.want_write) {
+                if (p->state == CTPAIR_READING)
+                    cachetable_wait_reading++;
+                else
+                    cachetable_wait++;
+            }
             ctpair_read_lock(&p->rwlock, ct->mutex);
             if (p->state == CTPAIR_INVALID) {
                 ctpair_read_unlock(&p->rwlock);
@@ -841,6 +854,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	    lru_touch(ct,p);
 	    *value = p->value;
             if (sizep) *sizep = p->size;
+            cachetable_hit++;
 	    note_hash_count(count);
             cachetable_unlock(ct);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
@@ -864,6 +878,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 
 	*value = p->value;
         if (sizep) *sizep = p->size;
+        cachetable_miss++;
     }
     r = maybe_flush_some(ct, 0);
     cachetable_unlock(ct);

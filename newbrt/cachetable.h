@@ -207,7 +207,7 @@ void toku_cachefile_verify (CACHEFILE cf);
 void toku_cachetable_verify (CACHETABLE t); 
 
 // Not for use in production, but useful for testing.
-void print_hash_histogram (void) __attribute__((__visibility__("default")));
+void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("default")));
 
 int toku_graceful_open(const char *db_fname, BOOL *is_dirtyp);
 int toku_graceful_close(CACHEFILE cf);

@@ -30,4 +30,5 @@ EXPORTS
    	dlrealloc @29
    	dlfree @30
    	setup_dlmalloc @31
+   	toku_cachetable_print_hash_histogram @32
 

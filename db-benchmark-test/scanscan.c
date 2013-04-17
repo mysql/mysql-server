@@ -293,20 +293,20 @@ int main (int argc, const char *argv[]) {
     }
     scanscan_shutdown();
 
-#if 0 && defined TOKUDB
-    if (0) {
-	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
-	print_hash_histogram();
+#if defined(TOKUDB)
+    if (1) {
+	extern void toku_cachetable_print_hash_histogram (void);
+	toku_cachetable_print_hash_histogram();
     }
 
     // if tokudb has tracing enabled (see trace_mem.h) then this will dump
     // the trace data
-    if (1) {
+    if (0) {
         extern void toku_print_trace_mem();
         toku_print_trace_mem();
     }
 #endif
-#if defined __linux__ && __linux__
+#if defined(__linux__) && __linux__
     char fname[256];
     sprintf(fname, "/proc/%d/status", toku_os_getpid());
     FILE *f = fopen(fname, "r");

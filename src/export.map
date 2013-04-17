@@ -38,6 +38,8 @@
    dlfree;
    setup_dlmalloc;
 
+   toku_cachetable_print_hash_histogram;
+
  local: *;
 };
 
