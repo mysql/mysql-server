@@ -136,6 +136,7 @@ get_file_pathname(void) {
     int r = env->get_iname(env, &dname, &iname);
     CKERR(r);
     sprintf(path, "%s/%s", ENVDIR, (char*)iname.data);
+    toku_free(iname.data);
     if (verbose) printf("path = %s\n", path);
 }
 
