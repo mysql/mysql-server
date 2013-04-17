@@ -2669,6 +2669,11 @@ static void assert_cachefile_is_flushed_and_removed (CACHETABLE ct, CACHEFILE cf
 // trying to access the cachefile while this function is executing.
 // This implies no client thread will be trying to lock any nodes
 // belonging to the cachefile.
+//
+// This function also assumes that the cachefile is not in the process
+// of being used by a checkpoint. If a checkpoint is currently happening,
+// it does NOT include this cachefile.
+//
 static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     unsigned nfound = 0;
     //
@@ -2695,8 +2700,9 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
 
     // find all of the pairs owned by a cachefile and redirect their completion
     // to a completion queue.  If an unlocked PAIR is dirty, flush and remove 
-    // the PAIR. Locked PAIRs are on either a reader/writer thread (or maybe a
-    // checkpoint thread?) and therefore will be placed on the completion queue.
+    // the PAIR. Locked PAIRs are on either a reader/writer thread 
+    // and therefore will be placed on the completion queue.
+    //
     // The assumptions above lead to this reasoning. All pairs belonging to
     // this cachefile are either:
     //  - unlocked
@@ -2708,11 +2714,6 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     //    placed on the writer thread along with pairs that were on the writer thread
     //    when the function started).
     //  - Once the writer thread is done with a PAIR, remove it
-    //
-    // A question from Zardosht: Is it possible for a checkpoint thread
-    // to be running, and also trying to get access to a PAIR while 
-    // the PAIR is on the writer thread? Will this cause problems?
-    // This question is encapsulated in #3941
     //
     unsigned i;
 
@@ -2774,16 +2775,6 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
 
     // wait for all of the pairs in the work queue to complete
     //
-    // An important assumption here is that none of the PAIRs that we
-    // pop off  the work queue need to be written out to disk. So, it is
-    // safe to simply call cachetable_maybe_remove_and_free_pair on 
-    // the PAIRs we find. The reason we can make this assumption
-    // is based on the assumption that upon entry of this function,
-    // all PAIRs belonging to this cachefile are either idle,
-    // being processed by a writer thread, or being processed by a kibbutz. 
-    // At this point in the code, kibbutz work is finished and we 
-    // assume the client will not add any more kibbutz work for this cachefile.
-    // 
     // If it were possible
     // for some thread to change the state of the node before passing
     // it off here, and a write to disk were necessary, then the code
@@ -2795,13 +2786,44 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
         //This workqueue's mutex is NOT the cachetable lock.
         //You must not be holding the cachetable lock during the dequeue.
         int r = workqueue_deq(&cq, &wi, 1); assert(r == 0);
+        //Some other thread owned the lock, but transferred ownership to the thread executing this function
         cachetable_lock(ct);
         PAIR p = workitem_arg(wi);
         p->cq = 0;
-        //Some other thread owned the lock, but transferred ownership to the thread executing this function
-        nb_mutex_unlock(&p->value_nb_mutex);  //Release the lock, no one has a pin, per our assumptions above.
-        BOOL destroyed;
-        cachetable_maybe_remove_and_free_pair(ct, p, &destroyed);
+        // check some assertions.
+        // A checkpoint should not be running on this cachefile, so
+        // the checkpoint_pending bit must be FALSE and
+        // no other thread should be accessing this PAIR
+        assert(!p->checkpoint_pending);
+        // we are only thread using the PAIR
+        assert(nb_mutex_users(&p->value_nb_mutex) == 1);
+        assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
+        assert(!p->cloned_value_data);
+
+        // first we remove the PAIR from the cachetable's linked lists
+        // and hashtable, so we guarantee that no other thread can access
+        // this PAIR if we release the cachetable lock        
+        cachetable_remove_pair(ct, p);
+        // 
+        // #5097 found a bug where another thread had a dirty PAIR pinned
+        // and was trying to run partial eviction. So, when the ownership
+        // of the lock is transferred here, the PAIR may still be dirty.
+        // If so, we need to write it to disk.
+        //
+        if (p->dirty) {
+            PAIR_ATTR attr;
+            cachetable_only_write_locked_data(
+                ct,
+                p,
+                FALSE, // not for a checkpoint, as we assert above
+                &attr,
+                FALSE // not a clone
+                );
+        }
+        // now that we are assured that the PAIR has been written to disk,
+        // we free the PAIR
+        nb_mutex_unlock(&p->value_nb_mutex);  //Release the lock, no one has a pin, per our assumptions above.        
+        cachetable_free_pair(ct, p);
     }
     workqueue_destroy(&cq);
     if (cf) {
