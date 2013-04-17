@@ -7339,7 +7339,7 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         time_t now;
         char timebuf[32];
         snprintf(write_status_msg, sizeof write_status_msg, 
-                 "ha_tokudb::check %s %s primary=%d num=%d", table->s->db.str, table->s->table_name.str, primary_key, num_DBs);
+                 "ha_tokudb::check %s primary=%d num=%d", share->table_name, primary_key, num_DBs);
         ha_tokudb_check_info(thd, table, write_status_msg);
         if (verbose) {
             now = time(0);
@@ -7352,7 +7352,7 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             if (i == primary_key)
                 kname = "primary"; // hidden primary key does not set name
             snprintf(write_status_msg, sizeof write_status_msg, 
-                     "ha_tokudb::check %s %s key=%s %u", table->s->db.str, table->s->table_name.str, kname, i);
+                     "ha_tokudb::check %s key=%s %u", share->table_name, kname, i);
             thd_proc_info(thd, write_status_msg);
             ha_tokudb_check_info(thd, table, write_status_msg);
             if (verbose) {
@@ -7362,7 +7362,7 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             struct check_context check_context = { thd };
             r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, verbose, keep_going);
             snprintf(write_status_msg, sizeof write_status_msg, 
-                     "ha_tokudb::check %s %s key=%s %u result=%d", table->s->db.str, table->s->table_name.str, kname, i, r);
+                     "ha_tokudb::check %s key=%s %u result=%d", share->table_name, kname, i, r);
             thd_proc_info(thd, write_status_msg);
             ha_tokudb_check_info(thd, table, write_status_msg);
             if (verbose) {
