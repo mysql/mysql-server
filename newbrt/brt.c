@@ -1536,16 +1536,16 @@ brt_leaf_apply_cmd_once (
     u_int32_t idx, 
     LEAFENTRY le, 
     TOKULOGGER logger,
-    uint64_t *workdonep
+    uint64_t *workdone
     )
 // Effect: Apply cmd to leafentry (msn is ignored)
-//         Calculate work done by message on leafentry and return it to caller.
+//         Calculate work done by message on leafentry and add it to caller's workdone counter.
 //   idx is the location where it goes
 //   le is old leafentry
 {
     // brt_leaf_check_leaf_stats(node);
 
-    size_t newlen=0, newdisksize=0, oldsize=0, workdone=0;
+    size_t newlen=0, newdisksize=0, oldsize=0, workdone_this_le=0;
     LEAFENTRY new_le=0;
 
     if (le)
@@ -1583,13 +1583,13 @@ brt_leaf_apply_cmd_once (
 	{ int r = toku_omt_set_at(bn->buffer, new_le, idx); assert(r==0); }
 	toku_free(le);
 
-	workdone = (oldsize > newlen ? oldsize : newlen);  // work done is max of le size before and after message application
+	workdone_this_le = (oldsize > newlen ? oldsize : newlen);  // work done is max of le size before and after message application
 
     } else {
 	if (le) {
 	    brt_leaf_delete_leafentry (bn, se, idx, le);
 	    toku_free(le);
-	    workdone = oldsize;
+	    workdone_this_le = oldsize;
 	}
 	if (new_le) {
 	    int r = toku_omt_insert_at(bn->buffer, new_le, idx);
@@ -1601,11 +1601,11 @@ brt_leaf_apply_cmd_once (
 	    assert(se->dsize < (1U<<31)); // make sure we didn't underflow
 	    se->ndata++;
             bump_nkeys(se, 1);
-	    workdone = newlen;
+	    workdone_this_le = newlen;
         }
     }
-    if (workdonep)  // test programs may call with NULL
-	*workdonep = workdone;
+    if (workdone)  // test programs may call with NULL
+	*workdone += workdone_this_le;
 
     // brt_leaf_check_leaf_stats(node);
 
@@ -1626,7 +1626,7 @@ struct setval_extra_s {
     LEAFENTRY le;
     TOKULOGGER logger;	  
     bool made_change;
-    uint64_t * workdonep;  // set by brt_leaf_apply_cmd_once()
+    uint64_t * workdone;  // set by brt_leaf_apply_cmd_once()
 };
 
 /*
@@ -1657,7 +1657,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
 	}
 	brt_leaf_apply_cmd_once(svextra->bn, svextra->se, &msg,
 				svextra->idx, svextra->le,
-				svextra->logger, svextra->workdonep);
+				svextra->logger, svextra->workdone);
 	svextra->setval_r = 0;
     }
     svextra->made_change = TRUE;
@@ -1675,7 +1675,7 @@ toku_update_get_status(UPDATE_STATUS s) {
 // would be to put a dummy msn in the messages created by setval_fun(), but preserving
 // the original msn seems cleaner and it preserves accountability at a lower layer.
 static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int idx,
-		     LEAFENTRY le, TOKULOGGER logger, bool* made_change, uint64_t * workdonep) {
+		     LEAFENTRY le, TOKULOGGER logger, bool* made_change, uint64_t * workdone) {
     LEAFENTRY le_for_update;
     DBT key;
     const DBT *keyp;
@@ -1717,7 +1717,7 @@ static int do_update(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, int id
     }
 
     struct setval_extra_s setval_extra = {setval_tag, FALSE, 0, bn, se, cmd->msn, cmd->xids,
-					  keyp, idx, le_for_update, logger, 0, workdonep};
+					  keyp, idx, le_for_update, logger, 0, workdone};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
     int r = t->update_fun(t->db,
 			  keyp,
@@ -1741,14 +1741,13 @@ brt_leaf_put_cmd (
     SUBTREE_EST se, 
     BRT_MSG cmd, 
     bool* made_change,
-    uint64_t *workdonep
+    uint64_t *workdone
     )
-// Effect: Put a cmd into a leaf.
-// Return the workdone counter via workdonep
+// Effect: 
+//   Put a cmd into a leaf.
+//   Calculate work done by message on leafnode and add it to caller's workdone counter.
 // The leaf could end up "too big" or "too small".  The caller must fix that up.
 {
-    uint64_t workdone_total = 0;  // may be for one row or for many (or all) rows in leaf (if broadcast message)
-    
     TOKULOGGER logger = toku_cachefile_logger(t->cf);
 
     LEAFENTRY storeddata;
@@ -1786,7 +1785,7 @@ brt_leaf_put_cmd (
 	    assert(r==0);
 	    storeddata=storeddatav;
 	}
-	brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, &workdone_total);
+	brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, workdone);
 
 	// if the insertion point is within a window of the right edge of
 	// the leaf then it is sequential
@@ -1816,11 +1815,9 @@ brt_leaf_put_cmd (
 	storeddata=storeddatav;
 
 	while (1) {
-	    uint64_t workdone_this_le = 0;
 	    u_int32_t num_leafentries_before = toku_omt_size(bn->buffer);
 
-	    brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, &workdone_this_le);
-	    workdone_total += workdone_this_le;
+	    brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, workdone);
 	    *made_change = 1;
 
 	    { 
@@ -1868,9 +1865,7 @@ brt_leaf_put_cmd (
 	    storeddata=storeddatav;
 	    int deleted = 0;
 	    if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-		uint64_t workdone_this_le = 0;
-		brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, &workdone_this_le);
-		workdone_total += workdone_this_le;
+		brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, workdone);
 		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
 		if (new_omt_size != omt_size) {
 		    assert(new_omt_size+1 == omt_size);
@@ -1897,9 +1892,7 @@ brt_leaf_put_cmd (
 	    storeddata=storeddatav;
 	    int deleted = 0;
 	    if (le_has_xids(storeddata, cmd->xids)) {
-		uint64_t workdone_this_le;
-		brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, &workdone_this_le);
-		workdone_total += workdone_this_le;
+		brt_leaf_apply_cmd_once(bn, se, cmd, idx, storeddata, logger, workdone);
 		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
 		if (new_omt_size != omt_size) {
 		    assert(new_omt_size+1 == omt_size);
@@ -1921,10 +1914,10 @@ brt_leaf_put_cmd (
 	r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
 			       &storeddatav, &idx, NULL);
 	if (r==DB_NOTFOUND) {
-	    r = do_update(t, bn, se, cmd, idx, NULL, logger, made_change, &workdone_total);
+	    r = do_update(t, bn, se, cmd, idx, NULL, logger, made_change, workdone);
 	} else if (r==0) {
 	    storeddata=storeddatav;
-	    r = do_update(t, bn, se, cmd, idx, storeddata, logger, made_change, &workdone_total);
+	    r = do_update(t, bn, se, cmd, idx, storeddata, logger, made_change, workdone);
 	} // otherwise, a worse error, just return it
 	break;
     }
@@ -1933,12 +1926,10 @@ brt_leaf_put_cmd (
 	u_int32_t idx = 0;
 	u_int32_t num_leafentries_before;
 	while (idx < (num_leafentries_before = toku_omt_size(bn->buffer))) {
-	    uint64_t workdone_this_le = 0;
 	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav, NULL);
 	    assert(r==0);
 	    storeddata=storeddatav;
-	    r = do_update(t, bn, se, cmd, idx, storeddata, logger, made_change, &workdone_this_le);
-	    workdone_total += workdone_this_le;
+	    r = do_update(t, bn, se, cmd, idx, storeddata, logger, made_change, workdone);
 	    // TODO(leif): This early return means get_leaf_reactivity()
 	    // and VERIFY_NODE() never get called.  Is this a problem?
 	    assert(r==0);
@@ -1953,10 +1944,6 @@ brt_leaf_put_cmd (
     case BRT_NONE: break; // don't do anything
     }
 
-    // node->dirty = 1;
-
-    if (workdonep)
-	*workdonep = workdone_total;
     return;
 }
 
@@ -2775,7 +2762,7 @@ brtnode_nonleaf_put_cmd_at_root (BRT t, BRTNODE node, BRT_MSG cmd)
 //           If the appropriate basement node is not in memory, then nothing gets applied
 //           If the appropriate basement node must be in memory, it is the caller's responsibility to ensure
 //             that it is
-void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdonep) {
+void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdone) {
     VERIFY_NODE(t, node);
     // ignore messages that have already been applied to this leaf
     if (cmd->msn.msn <= node->max_msn_applied_to_node_in_memory.msn) {
@@ -2794,7 +2781,7 @@ void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change,
 			     &BP_SUBTREE_EST(node, childnum),
 			     cmd, 
 			     made_change,
-			     workdonep
+			     workdone
 			     );
         }
     }
@@ -2808,7 +2795,7 @@ void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change,
                     &BP_SUBTREE_EST(node,childnum),
                     cmd, 
                     &bn_made_change,
-		    workdonep
+		    workdone
                     );
                 if (bn_made_change) *made_change = 1;
             }
@@ -2846,9 +2833,9 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 	// Part of the problem is: if the node is in memory, then it was updated as part of the in-memory operation.
 	// If the root node is not in memory, then we must apply it.
 	bool made_dirty = 0;
-	uint64_t workdone = 0;
+	uint64_t workdone_ignore = 0;  // ignore workdone for root-leaf node
 	// not up to date, which means the get_and_pin actually fetched it into memory.
-	toku_apply_cmd_to_leaf(brt, node, cmd, &made_dirty, &workdone);
+	toku_apply_cmd_to_leaf(brt, node, cmd, &made_dirty, &workdone_ignore);
 	if (made_dirty) node->dirty = 1;
    } else {
 	brtnode_nonleaf_put_cmd_at_root(brt, node, cmd);
@@ -2889,10 +2876,9 @@ static void apply_cmd_to_in_memory_non_root_leaves (
     CACHEKEY nodenum, 
     u_int32_t fullhash, 
     BRT_MSG cmd, 
-    BOOL is_root, 
     BRTNODE parent, 
     int parents_childnum,
-    uint64_t * workdone_this_childpath_p
+    uint64_t * workdone
     );
 
 static void apply_cmd_to_in_memory_non_root_leaves_starting_at_node (BRT t, 
@@ -2901,34 +2887,37 @@ static void apply_cmd_to_in_memory_non_root_leaves_starting_at_node (BRT t,
 								     BOOL is_root, 
 								     BRTNODE parent, 
 								     int parents_childnum,
-								     uint64_t * workdone_this_childpath_p)  {
+								     uint64_t * workdone)  {
     // internal node
     if (node->height>0) {
 	if (brt_msg_applies_once(cmd)) {
 	    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
 	    u_int32_t child_fullhash = compute_child_fullhash(t->cf, node, childnum);
-	    apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, FALSE, node, childnum, workdone_this_childpath_p);
+	    if (is_root)  // record workdone in root only, if not root then this is a recursive call so just pass along pointer
+		workdone = &(BP_WORKDONE(node,childnum));
+	    apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, node, childnum, workdone);
 	}
 	else if (brt_msg_applies_all(cmd)) {
 	    for (int childnum=0; childnum<node->n_children; childnum++) {
                 u_int32_t child_fullhash = compute_child_fullhash(t->cf, node, childnum);
-		apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, FALSE, node, childnum, workdone_this_childpath_p);
+		if (is_root)
+		    workdone = &(BP_WORKDONE(node,childnum));
+		apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, node, childnum, workdone);
 	    }
 	}
     }
     // leaf node
     else {
-	// only apply message if this is NOT a root node, because push_something_at_root
-	// has already applied it
-	if (!is_root) {
-	    bool made_change;
-	    toku_apply_cmd_to_leaf(t, node, cmd, &made_change, workdone_this_childpath_p);
-	}
+	invariant(!is_root);
+	bool made_change;
+	toku_apply_cmd_to_leaf(t, node, cmd, &made_change, workdone);
     }
     
     if (parent) {
 	fixup_child_estimates(parent, parents_childnum, node, FALSE);
     }
+    else
+	invariant(is_root);  // only root has no parent
 }
 
 // apply a single message, stored in root's buffer(s), to all relevant leaves that are in memory
@@ -2937,10 +2926,9 @@ static void apply_cmd_to_in_memory_non_root_leaves (
     CACHEKEY nodenum, 
     u_int32_t fullhash, 
     BRT_MSG cmd, 
-    BOOL is_root, 
     BRTNODE parent, 
     int parents_childnum,
-    uint64_t * workdone_this_childpath_p
+    uint64_t * workdone
     )
 {
     void *node_v;
@@ -2948,7 +2936,7 @@ static void apply_cmd_to_in_memory_non_root_leaves (
     if (r) { goto exit; }
 
     BRTNODE node = node_v;
-    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(t, node, cmd, is_root, parent, parents_childnum, workdone_this_childpath_p);
+    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(t, node, cmd, FALSE, parent, parents_childnum, workdone);
     
     toku_unpin_brtnode(t, node);
 exit:
@@ -2996,11 +2984,13 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_in_memory.msn);
 
-    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(brt, node, cmd, TRUE, NULL, -1, NULL);
-    if (node->height > 0 && nonleaf_node_is_gorged(node)) {
-	// No need for a loop here.  We only inserted one message, so flushing a single child suffices.
-	flush_some_child(brt, node, TRUE, TRUE,
-		(ANCESTORS)NULL, &infinite_bounds);
+    if (node->height > 0) {
+	apply_cmd_to_in_memory_non_root_leaves_starting_at_node(brt, node, cmd, TRUE, NULL, -1, NULL);
+	if (nonleaf_node_is_gorged(node)) {
+	    // No need for a loop here.  We only inserted one message, so flushing a single child suffices.
+	    flush_some_child(brt, node, TRUE, TRUE,
+			     (ANCESTORS)NULL, &infinite_bounds);
+	}
     }
     brt_handle_maybe_reactive_root(brt, rootp, &node);
 
@@ -4954,7 +4944,6 @@ apply_buffer_messages_to_basement_node (
 	ubi_ptr = &ubi;
     }
     assert(BP_STATE(ancestor,childnum) == PT_AVAIL);
-    uint64_t workdone_this_leaf_total = 0;
     FIFO_ITERATE(BNC_BUFFER(ancestor, childnum), key, keylen, val, vallen, type, msn, xids,
 		 ({
 		     DBT hk;
@@ -4963,13 +4952,10 @@ apply_buffer_messages_to_basement_node (
 			 DBT hv;
 			 BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id = {&hk,
 											   toku_fill_dbt(&hv, val, vallen)} };
-			 uint64_t workdone_this_leaf = 0;
                          bool made_change;
 			 brt_leaf_put_cmd(t,
 					  bn, se,
-					  &brtcmd, &made_change, &workdone_this_leaf);
-			 BP_WORKDONE(ancestor, childnum) += workdone_this_leaf;
-			 workdone_this_leaf_total += workdone_this_leaf;
+					  &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum));
 		     }
 		 }));
 
