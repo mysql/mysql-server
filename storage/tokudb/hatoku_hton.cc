@@ -1145,7 +1145,7 @@ mysql_declare_plugin(tokudb) {
     &storage_engine_structure, 
     "TokuDB", 
     "Tokutek Inc", 
-    "Tokutek TokuDB Storage Engine with Fractal Tree(tm)",
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
