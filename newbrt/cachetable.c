@@ -2180,7 +2180,6 @@ static BOOL resolve_checkpointing_fast(PAIR p) {
 static void checkpoint_pair_and_dependent_pairs(
     CACHETABLE ct,
     PAIR p,
-    u_int32_t fullhash, 
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
@@ -2276,7 +2275,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             checkpoint_pair_and_dependent_pairs(
                 ct,
                 p,
-                fullhash,
                 num_dependent_pairs,
                 dependent_cfs,
                 dependent_keys,
@@ -2333,7 +2331,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         checkpoint_pair_and_dependent_pairs(
             ct,
             p,
-            fullhash,
             num_dependent_pairs,
             dependent_cfs,
             dependent_keys,
