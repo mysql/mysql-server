@@ -1,7 +1,6 @@
 // verify that DB_RUNRECOVERY is returned when there is a missing logfile
 
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include "test.h"
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;

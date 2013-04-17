@@ -12,7 +12,6 @@
  *   check to see if both A and B are present (or absent)
  */
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include "test.h"
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
@@ -125,6 +124,8 @@ do_x1_recover_only (void) {
 
 const char *cmd;
 
+#if 0
+
 static void
 do_test_internal (BOOL commit) {
     pid_t pid;
@@ -163,6 +164,8 @@ do_test (void) {
     do_test_internal(TRUE);
     do_test_internal(FALSE);
 }
+
+#endif
 
 BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE;
 
@@ -233,8 +236,11 @@ test_main (int argc, char *argv[]) {
 	do_x1_recover(FALSE);
     } else if (do_recover_only) {
         do_x1_recover_only();
-    } else {
+    } 
+#if 0
+    else {
 	do_test();
     }
+#endif
     return 0;
 }
