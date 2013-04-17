@@ -48,12 +48,17 @@ static void verify_dbfile(int n, const char *name) {
     CACHETABLE ct;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
 
+
     TOKUTXN const null_txn = NULL;
     BRT t = NULL;
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_bt_compare(t, compare_ints);
     assert(r==0);
     r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
+
+    if (verbose) traceit("Verifying brt internals");
+    r = toku_verify_brt(t);
+    if (verbose) traceit("Verified brt internals");
 
     BRT_CURSOR cursor = NULL;
     r = toku_brt_cursor(t, &cursor, NULL, FALSE); assert(r == 0);
