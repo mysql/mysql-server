@@ -124,7 +124,7 @@ static void do_prelock(DB* db, DB_TXN* txn) {
         int r = db->pre_acquire_table_lock(db, txn);
         assert(r==0);
 #else
-	db = db; txn = txn;
+	(void) db; (void) txn;
 #endif
     }
 }
