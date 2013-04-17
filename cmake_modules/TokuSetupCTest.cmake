@@ -45,6 +45,23 @@ macro(uname flag out)
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 endmacro(uname)
 
+## gives the current username
+macro(whoami out)
+  execute_process(
+    COMMAND whoami
+    OUTPUT_VARIABLE ${out}
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endmacro(whoami)
+
+## gives the current hostname, minus .tokutek.com if it's there
+macro(hostname out)
+  execute_process(
+    COMMAND hostname
+    OUTPUT_VARIABLE fullhostname
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  string(REGEX REPLACE "\\.tokutek\\.com$" "" ${out} ${fullhostname})
+endmacro(hostname)
+
 ## determines the current revision of ${svn_dir}
 macro(get_svn_revision svn_dir out)
   find_program(CMAKE_SVN_PROG svn)
@@ -88,7 +105,11 @@ real_executable_name("${CMAKE_C_COMPILER}" real_c_compiler)
 get_svn_revision("${CMAKE_CURRENT_SOURCE_DIR}" svn_revision)  ## unused since it confuses cdash about history
 get_svn_wc_status("${CMAKE_CURRENT_SOURCE_DIR}" wc_status)    ## unused since it confuses cdash about history
 get_filename_component(branchname "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+hostname(host)
+whoami(user)
 
+## construct SITE, seems to have to happen before include(CTest)
+set(SITE "${user}@${host}")
 ## construct BUILDNAME, seems to have to happen before include(CTest)
 set(BUILDNAME "${branchname} ${CMAKE_BUILD_TYPE} ${CMAKE_SYSTEM} ${machine_type} ${CMAKE_C_COMPILER_ID} ${real_c_compiler} ${CMAKE_C_COMPILER_VERSION}" CACHE STRING "CTest build name" FORCE)
 
