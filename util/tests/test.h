@@ -6,6 +6,7 @@
 
 #include <toku_portability.h>
 #include <toku_assert.h>
+#include <util/partitioned_counter.h>
 #include <string.h>
 #include <stdlib.h>
 
