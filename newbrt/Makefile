@@ -52,6 +52,7 @@ BRT_SOURCES = \
   leaflock \
   logger \
   log_code \
+  logcursor \
   memarena \
   mempool \
   minicron \

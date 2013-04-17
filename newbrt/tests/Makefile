@@ -95,6 +95,7 @@ REGRESSION_TESTS_RAW = \
 	test-del-inorder \
 	test-inc-split \
 	test-leafentry \
+	test_logcursor \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	threadpool-test \

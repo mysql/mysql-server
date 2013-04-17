@@ -53,6 +53,7 @@ int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp);
+int toku_read_logmagic (FILE *f, u_int32_t *versionp);
 
 TXNID toku_txn_get_txnid (TOKUTXN txn);
 LSN toku_txn_get_last_lsn (TOKUTXN txn);
