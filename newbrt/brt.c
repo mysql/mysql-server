@@ -5143,19 +5143,21 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
 	BASEMENTNODE curr_bn = BLB(node, i);
 	ANCESTORS curr_ancestors = ancestors;
 	struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
+	BRTNODE child = node;
 	while (curr_ancestors) {
 	    height++;
 	    apply_ancestors_messages_to_leafnode_and_maybe_flush(
 		t,
 		curr_bn,
 		curr_ancestors,
-		node,
+		child,
 		&curr_bounds,
 		made_change
 		); 
 	    if (curr_ancestors->node->max_msn_applied_to_node_in_memory.msn > node->max_msn_applied_to_node_in_memory.msn) {
 		node->max_msn_applied_to_node_in_memory = curr_ancestors->node->max_msn_applied_to_node_in_memory;
 	    }
+	    child = curr_ancestors->node;
 	    curr_ancestors= curr_ancestors->next;
 	}
 	BLB_SOFTCOPYISUPTODATE(node, i) = TRUE;
