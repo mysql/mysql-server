@@ -778,7 +778,7 @@ void toku_cachetable_print_hash_histogram (void) {
     for (i=0; i<hash_histogram_max; i++)
 	if (hash_histogram[i]) printf("%d:%llu ", i, hash_histogram[i]);
     printf("\n");
-    printf("miss=%"PRId64" hit=%"PRId64" wait_reading=%"PRId64" wait=%"PRId64"\n", 
+    printf("miss=%"PRIu64" hit=%"PRIu64" wait_reading=%"PRIu64" wait=%"PRIu64"\n", 
            cachetable_miss, cachetable_hit, cachetable_wait_reading, cachetable_wait);
 }
 
@@ -1471,8 +1471,8 @@ graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create
     graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
-    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
-    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1501,9 +1501,9 @@ graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
     graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
-    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
-    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
-    db_exists    = stat(db_fname, &tmpbuf) == 0;
+    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
+    db_exists    = (BOOL)(stat(db_fname, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1513,7 +1513,7 @@ graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
     }
     if (db_exists) r = open(cleanbuf, O_WRONLY | O_CREAT | O_BINARY | O_APPEND, mode);
     else if (clean_exists) r = unlink(cleanbuf);
-    *db_missing = !db_exists;
+    *db_missing = (BOOL) !db_exists;
     return r;
 }
 
@@ -1527,8 +1527,8 @@ graceful_dirty_get_append_fd(const char *db_fname) {
     graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
-    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
-    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r = 0;
 
@@ -1651,8 +1651,8 @@ toku_graceful_delete(const char *db_fname) {
 
     struct stat tmpbuf;
     lock_for_graceful();
-    clean_exists = stat(cleanbuf, &tmpbuf) == 0;
-    dirty_exists = stat(dirtybuf, &tmpbuf) == 0;
+    clean_exists = (BOOL)(stat(cleanbuf, &tmpbuf) == 0);
+    dirty_exists = (BOOL)(stat(dirtybuf, &tmpbuf) == 0);
 
     int r = 0;
     if (clean_exists) {

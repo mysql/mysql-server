@@ -3403,7 +3403,7 @@ brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_C
 
 static void
 brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcursor, BOOL *doprefetch) {
-    if (0) printf("%s:%d node %p height %d child %d of %d %d/%d\n", __FUNCTION__, __LINE__, node, node->height, childnum, node->u.n.n_children, *doprefetch, brt_cursor_prefetching(brtcursor));
+
     // if we want to prefetch in the tree 
     // then prefetch the next children if there are any
     if (*doprefetch && brt_cursor_prefetching(brtcursor)) {
@@ -4224,7 +4224,7 @@ toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN txn) {
     int r;
 
     int unchecked_flags = flags;
-    BOOL error_if_missing = !(flags&DB_DELETE_ANY);
+    BOOL error_if_missing = (BOOL) !(flags&DB_DELETE_ANY);
     unchecked_flags &= ~DB_DELETE_ANY;
     if (unchecked_flags!=0) r = EINVAL;
     else if (brt_cursor_not_set(cursor)) r = EINVAL;
@@ -4462,12 +4462,12 @@ static BOOL
 brt_is_empty (BRT brt, TOKULOGGER logger) {
     BRT_CURSOR cursor;
     int r, r2;
-    int is_empty;
+    BOOL is_empty;
     r = toku_brt_cursor(brt, &cursor);
     if (r == 0) {
         r = toku_brt_cursor_first(cursor, getf_nothing, NULL, logger);
         r2 = toku_brt_cursor_close(cursor);
-        is_empty = r2==0 && r==DB_NOTFOUND;
+        is_empty = (BOOL)(r2==0 && r==DB_NOTFOUND);
     }
     else is_empty = FALSE; //Declare it "not empty" on error.
     return is_empty;
