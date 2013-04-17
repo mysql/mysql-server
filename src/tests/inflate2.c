@@ -7,7 +7,7 @@
  *    Close the file
  *    Insert some more to H (buffered in the root)
  *    Delete stuff from G (so that H merges with G)
- *     Merge first flushes G then merges the nodes, and maybe leaves G too big.
+ *    G ends up too big (but it's not the merge)
  */
 
 #include "test.h"
