@@ -571,7 +571,9 @@ brtnode_memory_size (BRTNODE node)
                 BASEMENTNODE bn = BLB(node, i);
                 retval += sizeof(*bn);
 		{
-		    size_t poolsize = toku_mempool_get_size(&bn->buffer_mempool);  // include fragmentation overhead
+		    // include fragmentation overhead but do not include space in the 
+		    // mempool that has not yet been allocated for leaf entries
+		    size_t poolsize = toku_mempool_get_allocated_space(&bn->buffer_mempool);  
 		    invariant (poolsize >= BLB_NBYTESINBUF(node,i));
 		    retval += poolsize;
 		}
