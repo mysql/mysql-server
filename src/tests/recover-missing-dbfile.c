@@ -1,12 +1,14 @@
-// verify that DB_RUNRECOVERY is returned when there is a missing logfile
+// verify that DB_RUNRECOVERY is returned when there is a missing db file
 
 #include <sys/stat.h>
 #include "test.h"
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
 
-char *namea="a.db";
-char *nameb="b.db";
+#define NAMEA "a.db"
+const char *namea=NAMEA;
+#define NAMEB "b.db"
+const char *nameb=NAMEB;
 
 // needed to get .bdb versions to compile
 #ifndef DB_CLOSE_DONT_TRIM_LOG
@@ -20,22 +22,13 @@ static void run_test (void) {
     DB_ENV *env;
     DB *dba;
 
-    // create logfile 0
-    r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
-    r = env->close(env, DB_CLOSE_DONT_TRIM_LOG);                                        CKERR(r);
-
-    // create logfile 1
-    r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
-    r = env->close(env, DB_CLOSE_DONT_TRIM_LOG);                                        CKERR(r);
-
-    // create logfile 2
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+
+    r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
@@ -54,15 +47,13 @@ static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    r = rename(ENVDIR "/log000000000001.tokulog", ENVDIR "/save000000000001");
-    assert(r == 0);
+    r = rename(ENVDIR "/" NAMEA, ENVDIR "/" NAMEB); printf("r=%d error=%d\n", r, errno); CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     assert(r == DB_RUNRECOVERY);
 
-    r = rename(ENVDIR "/save000000000001", ENVDIR "/log000000000001.tokulog");
-    assert(r == 0);
+    r = rename(ENVDIR "/" NAMEB, ENVDIR "/" NAMEA); printf("r=%d error=%d\n", r, errno); CKERR(r);
 
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
