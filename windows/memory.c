@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include "toku_assert.h"
+#include "toku_pthread.h"
 
 int toku_memory_check=0;
 
@@ -18,12 +19,24 @@ static realloc_fun_t t_realloc = 0;
 static realloc_fun_t t_xrealloc = 0;
 
 static MEMORY_STATUS_S status;
+static toku_pthread_mutex_t memory_status_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+
+static void 
+memory_status_lock(void) {
+    int r = toku_pthread_mutex_lock(&memory_status_mutex); assert_zero(r);
+}
+
+static void
+memory_status_unlock(void) {
+    int r = toku_pthread_mutex_unlock(&memory_status_mutex); assert_zero(r);
+}
 
 void 
 toku_memory_get_status(MEMORY_STATUS s) {
+    memory_status_lock();
     *s = status;
+    memory_status_unlock();
 }
-
 
 // max_in_use may be slightly off because use of max_in_use is not thread-safe.
 // It is not worth the overhead to make it completely accurate.
@@ -36,18 +49,21 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
     }
 }
 
-
 void *toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
-      size_t used = malloc_usable_size(p);
-      __sync_add_and_fetch(&status.malloc_count, 1L);
-      __sync_add_and_fetch(&status.requested, size);
-      uint64_t sum_used = __sync_add_and_fetch(&status.used, used);
-      set_max(sum_used, status.freed);
+        size_t used = malloc_usable_size(p);
+        memory_status_lock();
+        status.malloc_count += 1;
+        status.requested += size;
+        status.used += used;
+        set_max(status.used, status.freed);
+        memory_status_unlock();
+    } else {
+        memory_status_lock();
+        status.malloc_fail += 1;
+        memory_status_unlock();
     }
-    else
-      __sync_add_and_fetch(&status.malloc_fail, 1L);
     return p;
 }
 
@@ -65,14 +81,18 @@ toku_realloc(void *p, size_t size) {
     void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
     if (q) {
 	size_t used = malloc_usable_size(q);
-	__sync_add_and_fetch(&status.realloc_count, 1L);
-	__sync_add_and_fetch(&status.requested, size);
-	uint64_t sum_used  = __sync_add_and_fetch(&status.used, used);
-	uint64_t sum_freed = __sync_add_and_fetch(&status.freed, used_orig);
-	set_max(sum_used, sum_freed);
+        memory_status_lock();
+	status.realloc_count += 1L;
+	status.requested += size;
+	status.used += used;
+	status.freed += used_orig;
+	set_max(status.used, status.freed);
+        memory_status_unlock();
+    } else {
+        memory_status_lock();
+	status.realloc_fail += 1;
+        memory_status_unlock();
     }
-    else
-	__sync_add_and_fetch(&status.realloc_fail, 1L);
     return q;
 }
 
@@ -92,8 +112,10 @@ void
 toku_free(void *p) {
     if (p) {
 	size_t used = malloc_usable_size(p);
-	__sync_add_and_fetch(&status.free_count, 1L);
-	__sync_add_and_fetch(&status.freed, used);
+        memory_status_lock();
+	status.free_count += 1L;
+	status.freed += used;
+        memory_status_unlock();
 	if (t_free)
 	    t_free(p);
 	else
@@ -112,10 +134,12 @@ toku_xmalloc(size_t size) {
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
     size_t used = malloc_usable_size(p);
-    __sync_add_and_fetch(&status.malloc_count, 1L);
-    __sync_add_and_fetch(&status.requested, size);
-    uint64_t sum_used = __sync_add_and_fetch(&status.used, used);
-    set_max(sum_used, status.freed);
+    memory_status_lock();
+    status.malloc_count += 1L;
+    status.requested += size;
+    status.used += used;
+    set_max(status.used, status.freed);
+    memory_status_unlock();
     return p;
 }
 
@@ -134,11 +158,13 @@ toku_xrealloc(void *v, size_t size) {
     if (p == 0)  // avoid function call in common case
         resource_assert(p);
     size_t used = malloc_usable_size(p);
-    __sync_add_and_fetch(&status.realloc_count, 1L);
-    __sync_add_and_fetch(&status.requested, size);
-    uint64_t sum_used  = __sync_add_and_fetch(&status.used, used);
-    uint64_t sum_freed = __sync_add_and_fetch(&status.freed, used_orig);
-    set_max(sum_used, sum_freed);
+    memory_status_lock();
+    status.realloc_count += 1L;
+    status.requested += size;
+    status.used += used;
+    status.freed += used_orig;
+    set_max(status.used, status.freed);
+    memory_status_unlock();
     return p;
 }
 
