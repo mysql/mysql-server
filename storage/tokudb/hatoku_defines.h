@@ -110,14 +110,14 @@ typedef struct st_tokudb_trx_data {
 extern char *tokudb_data_dir;
 extern const char *ha_tokudb_ext;
 
-static void reset_stmt_progress (tokudb_stmt_progress* val) {
+static inline void reset_stmt_progress (tokudb_stmt_progress* val) {
     val->deleted = 0;
     val->inserted = 0;
     val->updated = 0;
     val->queried = 0;
 }
 
-static int get_name_length(const char *name) {
+static inline int get_name_length(const char *name) {
     int n = 0;
     const char *newname = name;
     n += strlen(newname);
@@ -128,7 +128,7 @@ static int get_name_length(const char *name) {
 //
 // returns maximum length of path to a dictionary
 //
-static int get_max_dict_name_path_length(const char *tablename) {
+static inline int get_max_dict_name_path_length(const char *tablename) {
     int n = 0;
     n += get_name_length(tablename);
     n += 1; //for the '-'
@@ -136,7 +136,7 @@ static int get_max_dict_name_path_length(const char *tablename) {
     return n;
 }
 
-static void make_name(char *newname, const char *tablename, const char *dictname) {
+static inline void make_name(char *newname, const char *tablename, const char *dictname) {
     const char *newtablename = tablename;
     char *nn = newname;
     assert(tablename);

@@ -3,10 +3,17 @@
 #endif
 
 #define TOKU_INCLUDE_CHECKPOINT_LOCK 1
-#if MYSQL_VERSION_ID < 50600
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
-#else
+
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
+#else
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
+#endif
+
+#if defined(HA_GENERAL_ONLINE) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
+#define TOKU_INCLUDE_UPDATE_FUN 1
+#else
+#define TOKU_INCLUDE_UPDATE_FUN 0
 #endif
 
 #if !defined(HA_CLUSTERING)
@@ -556,42 +563,44 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-#if MYSQL_VERSION_ID >= 50606
-#elif MYSQL_VERSION_ID >= 50521
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+ public:
+    enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    bool prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    bool inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    bool commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit);
+ private:
+    int alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+ public:
+#elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+ public:
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add);
     int final_add_index(handler_add_index *add, bool commit);
-#else
-    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
-#endif
-
-    int tokudb_add_index(
-        TABLE *table_arg, 
-        KEY *key_info, 
-        uint num_of_keys, 
-        DB_TXN* txn, 
-        bool* inc_num_DBs,
-        bool* modified_DB
-        ); 
-    void restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs);
-    int drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn);
     int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
-    void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
     int final_drop_index(TABLE *table_arg);
 
-#if MYSQL_VERSION_ID >= 50521
     bool is_alter_table_hot();
     void prepare_for_alter();
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
+#else
+ public:
+    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+    int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+    int final_drop_index(TABLE *table_arg);
 #endif
 
-
 #if defined(HA_GENERAL_ONLINE)
+ private:
     void print_alter_info(
         TABLE *altered_table,
         HA_CREATE_INFO *create_info,
         HA_ALTER_FLAGS *alter_flags,
         uint table_changes
         );
+ public:
     int check_if_supported_alter(TABLE *altered_table,
          HA_CREATE_INFO *create_info,
          HA_ALTER_FLAGS *alter_flags,
@@ -617,6 +626,20 @@ public:
     }
 #endif
 
+ private:
+    int tokudb_add_index(
+        TABLE *table_arg, 
+        KEY *key_info, 
+        uint num_of_keys, 
+        DB_TXN* txn, 
+        bool* inc_num_DBs,
+        bool* modified_DB
+        ); 
+    void restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs);
+    int drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn);
+    void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
+
+ public:
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty
     int discard_or_import_tablespace(my_bool discard);
