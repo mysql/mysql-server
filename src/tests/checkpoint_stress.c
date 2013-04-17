@@ -47,6 +47,9 @@ Each iteration does:
 
 ***/
 
+#define NUM_DICTIONARIES 5
+
+
 // assert that correct values are in expected rows
 static void
 verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
@@ -115,24 +118,12 @@ drop_dead(void) {
 
 
 void
-run_test (int iter, int die) {
+verify_and_insert (DB* db, int iter) {
 
     int oper_per_iter = 1025;
-    u_int32_t flags = DB_DUP|DB_DUPSORT;
 
     int64_t firstkey;     // first key to verify/insert
     int64_t numkeys;      // number of keys to verify/insert
-
-    env_startup();
-    
-    DICTIONARY_S db_alpha;
-    init_dictionary(&db_alpha, flags, "alpha");
-        
-    if (iter == 0)
-	dir_create();  // create directory if first time through
-
-    db_startup(&db_alpha, NULL);
-    DB* db= db_alpha.db;    
 
     if (iter > 0){
 	if (iter == 1) {
@@ -151,18 +142,42 @@ run_test (int iter, int die) {
     numkeys = oper_per_iter;
 
     insert_n_fixed(db, NULL, NULL, firstkey, numkeys);
-    snapshot(NULL, 1);    // checkpoint all dictionaries
+}
 
-#if 0
-    // now scribble over previously checkpointed rows with different data
-    scribble_n(firstkey, 5);
-#endif
-    if (die)
+void
+run_test (int iter, int die) {
+
+    u_int32_t flags = DB_DUP|DB_DUPSORT;
+
+    int i;
+
+    env_startup();
+
+    if (iter == 0)
+	dir_create();  // create directory if first time through
+    
+    // create array of dictionaries
+    // for each dictionary verify previous iterations and perform new inserts
+
+    DICTIONARY_S dictionaries[NUM_DICTIONARIES];
+    for (i = 0; i < NUM_DICTIONARIES; i++) {
+	char name[32];
+	sprintf(name, "stress_%d", i);
+	init_dictionary(&dictionaries[i], flags, name);
+	db_startup(&dictionaries[i], NULL);
+	DB* db = dictionaries[i].db;
+	verify_and_insert(db, iter);
+    }
+
+    // take checkpoint (all dictionaries)
+    snapshot(NULL, 1);    
+
+    if (die) {
+	// first scribble over correct data, then die
 	drop_dead();
-
-    db_shutdown(&db_alpha);	
-
-    env_shutdown();
+    }
+    else
+	env_shutdown();
 }
 
 
