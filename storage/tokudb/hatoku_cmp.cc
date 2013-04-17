@@ -1284,8 +1284,8 @@ int tokudb_compare_two_keys(
     )
 {
     int ret_val = 0;
-    uchar new_key_inf_val = COL_NEG_INF;
-    uchar saved_key_inf_val = COL_NEG_INF;
+    int8_t new_key_inf_val = COL_NEG_INF;
+    int8_t saved_key_inf_val = COL_NEG_INF;
     
     uchar* row_desc_ptr = (uchar *)row_desc;
     uchar *new_key_ptr = (uchar *)new_key_data;
@@ -1298,8 +1298,8 @@ int tokudb_compare_two_keys(
     // if the keys have an infinity byte, set it
     //
     if (row_desc_ptr[0]) {
-        new_key_inf_val = new_key_ptr[0];
-        saved_key_inf_val = saved_key_ptr[0];
+        new_key_inf_val = (int8_t)new_key_ptr[0];
+        saved_key_inf_val = (int8_t)saved_key_ptr[0];
         new_key_ptr++;
         saved_key_ptr++;
     }
@@ -1371,20 +1371,7 @@ int tokudb_compare_two_keys(
     // in this case, read both keys to completion, now read infinity byte
     //
     else if (new_key_bytes_left== 0 && saved_key_bytes_left== 0) {
-        if (new_key_inf_val == saved_key_inf_val) {
-            ret_val = 0;
-        }
-        //
-        // one inf byte is neg_inf and other is pos_inf
-        //
-        else {
-            //
-            // if new_key_inf_val is POS, then saved must be NEG,
-            // so return 1. Otherwise, new_key_inf_val is NEG, and
-            // saved is POS, so return -1
-            //
-            ret_val = (new_key_inf_val == COL_POS_INF ) ? 1 : -1;
-        }
+        ret_val = new_key_inf_val - saved_key_inf_val;
     }
     //
     // at this point, one SHOULD be 0

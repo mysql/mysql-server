@@ -61,7 +61,8 @@ uchar* unpack_toku_key_field(
 //
 // for storing if rest of key is +/- infinity
 //
-#define COL_NEG_INF 0 
+#define COL_NEG_INF -1 
+#define COL_ZERO 0 
 #define COL_POS_INF 1
 
 //

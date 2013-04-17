@@ -2002,11 +2002,11 @@ DBT* ha_tokudb::create_dbt_key_from_key(
 
     //
     // first put the "infinity" byte at beginning. States if missing columns are implicitly
-    // positive infinity or negative infinity. For this, because we are creating key
+    // positive infinity or negative infinity or zero. For this, because we are creating key
     // from a row, there is no way that columns can be missing, so in practice,
     // this will be meaningless. Might as well put in a value
     //
-    *tmp_buff++ = COL_NEG_INF;
+    *tmp_buff++ = COL_ZERO;
     size++;
     size += place_key_into_dbt_buff(
         key_info, 
@@ -2093,7 +2093,7 @@ DBT *ha_tokudb::pack_key(
     uchar * buff, 
     const uchar * key_ptr, 
     uint key_length, 
-    uchar inf_byte
+    int8_t inf_byte
     ) 
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
@@ -2109,7 +2109,7 @@ DBT *ha_tokudb::pack_key(
     // first put the "infinity" byte at beginning. States if missing columns are implicitly
     // positive infinity or negative infinity
     //
-    *buff++ = inf_byte;
+    *buff++ = (uchar)inf_byte;
 
     for (; key_part != end && (int) key_length > 0; key_part++) {
         uint offset = 0;
@@ -3566,7 +3566,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     info.buf = buf; 
     info.keynr = active_index; 
 
-    pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_NEG_INF);
+    pack_key(&curr_key, active_index, key_buff2, key, keylen, COL_ZERO);
 
     flags = SET_READ_FLAG(0); 
     error = handle_cursor_error(cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index); 
