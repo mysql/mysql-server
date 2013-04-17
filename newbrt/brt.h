@@ -27,9 +27,6 @@ C_BEGIN
 //A 'key' bytevec of NULL means that element is not found (effectively infinity or
 //-infinity depending on direction)
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
-//Same as BRT_GET_CALLBACK_FUNCTION but returns both the answer to the query and
-//the element on the other side of the border (as in heaviside function).
-typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 int toku_maybe_upgrade_descriptor(BRT t, DESCRIPTOR d, BOOL do_log, TOKUTXN txn);
