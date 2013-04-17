@@ -617,7 +617,7 @@ brtheader_destroy(struct brt_header *h) {
     else {
         assert(h->type == BRTHEADER_CURRENT);
         toku_blocktable_destroy(&h->blocktable);
-        if (h->descriptor.sdbt.data) toku_free(h->descriptor.sdbt.data);
+        if (h->descriptor.data) toku_free(h->descriptor.data);
     }
 }
 
@@ -2861,6 +2861,8 @@ static int
 brt_init_header_partial (BRT t) {
     int r;
     t->h->flags = t->flags;
+    if (t->h->cf!=NULL) assert(t->h->cf == t->cf);
+    t->h->cf = t->cf;
     t->h->nodesize=t->nodesize;
 
     compute_and_fill_remembered_hash(t);
@@ -2950,6 +2952,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     struct brt_header *h;
     int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cf), &h);
     if (r!=0) return r;
+    h->cf = cf;
     h->root_put_counter = global_root_put_counter++;
     toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
     *header = h;
@@ -3029,25 +3032,27 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         }
     }
     if (t->did_set_descriptor) {
-        if (t->h->descriptor.sdbt.len!=t->temp_descriptor.size ||
-            memcmp(t->h->descriptor.sdbt.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
-            if (t->h->descriptor.b.b <= 0) toku_allocate_blocknum(t->h->blocktable, &t->h->descriptor.b, t->h);
+        if (t->h->descriptor.len!=t->temp_descriptor.size ||
+            memcmp(t->h->descriptor.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
             DISKOFF offset;
             //4 for checksum
-            toku_blocknum_realloc_on_disk(t->h->blocktable, t->h->descriptor.b, t->temp_descriptor.size+4, &offset, t->h, FALSE);
+            toku_realloc_descriptor_on_disk(t->h->blocktable, t->temp_descriptor.size+4, &offset, t->h);
             r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(t->cf), &t->temp_descriptor, offset);
             if (r!=0) goto died_after_read_and_pin;
-            if (t->h->descriptor.sdbt.data) toku_free(t->h->descriptor.sdbt.data);
-            t->h->descriptor.sdbt.data = t->temp_descriptor.data;
-            t->h->descriptor.sdbt.len = t->temp_descriptor.size;
+            if (t->h->descriptor.data) toku_free(t->h->descriptor.data);
+            t->h->descriptor.data = t->temp_descriptor.data;
+            t->h->descriptor.len = t->temp_descriptor.size;
             t->temp_descriptor.data = NULL;
         }
         t->did_set_descriptor = 0;
     }
     if (t->db) {
-        toku_fill_dbt(&t->db->descriptor, t->h->descriptor.sdbt.data, t->h->descriptor.sdbt.len);
+        toku_fill_dbt(&t->db->descriptor, t->h->descriptor.data, t->h->descriptor.len);
     }
     assert(t->h);
+
+    //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
+    toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
 }
@@ -3179,10 +3184,10 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
 	    else
 		h->checkpoint_count++;	// checkpoint succeeded, next checkpoint will save to alternate header location
 	}
-        toku_block_translation_note_end_checkpoint(h->blocktable);
-        brtheader_free(h->checkpoint_header);
-        h->checkpoint_header = NULL;
+        toku_block_translation_note_end_checkpoint(h->blocktable, h);
     }
+    if (h->checkpoint_header) brtheader_free(h->checkpoint_header);
+    h->checkpoint_header = NULL;
     return r;
 }
 
@@ -4695,18 +4700,19 @@ int toku_dump_brt (FILE *f, BRT brt) {
 int toku_brt_truncate (BRT brt) {
     int r;
 
-    // flush the cached tree blocks
+    // flush the cached tree blocks and remove all related pairs from the cachetable
     r = toku_brt_flush(brt);
 
     // TODO log the truncate?
 
     toku_block_lock_for_multiple_operations(brt->h->blocktable);
     if (r==0) {
-        // reinit the header
+        //Free all data blocknums and associated disk space (if not held on to by checkpoint)
         toku_block_translation_truncate_unlocked(brt->h->blocktable, brt->h);
         //Assign blocknum for root block, also dirty the header
         toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root, brt->h);
 
+        // reinit the header
         brtheader_partial_destroy(brt->h);
         r = brt_init_header_partial(brt);
     }

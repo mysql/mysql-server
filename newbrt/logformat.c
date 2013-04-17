@@ -225,10 +225,10 @@ generate_log_struct (void) {
 		     fprintf(hf, "};\n");
 		     fprintf(hf, "int toku_rollback_%s (", lt->name);
 		     DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
-		     fprintf(hf, "TOKUTXN txn, void(*yield)(void*yield_v), void*yield_v);\n");
+		     fprintf(hf, "TOKUTXN txn, YIELDF yield, void*yield_v);\n");
 		     fprintf(hf, "int toku_commit_%s (", lt->name);
 		     DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
-		     fprintf(hf, "TOKUTXN txn, void(*yield)(void*yield_v), void*yield_v);\n");
+		     fprintf(hf, "TOKUTXN txn, YIELDF yield, void*yield_v);\n");
 		 });
     fprintf(hf, "struct log_entry {\n");
     fprintf(hf, "  enum lt_cmd cmd;\n");

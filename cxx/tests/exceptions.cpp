@@ -116,11 +116,11 @@ static void test_db_exceptions (void) {
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, DB_CREATE, 0777), EINVAL); // sub DB cannot exist
+	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, DB_CREATE, 0777), ENOTDIR); // sub DB cannot exist
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, 0, 0777), EINVAL); // sub DB cannot exist withou DB_CREATE
+	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, 0, 0777), ENOTDIR); // sub DB cannot exist withou DB_CREATE
     }
     {
 	Dbc *curs;

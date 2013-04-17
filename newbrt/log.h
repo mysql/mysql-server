@@ -40,11 +40,13 @@ int toku_logger_set_lg_max (TOKULOGGER logger, u_int32_t);
 int toku_logger_get_lg_max (TOKULOGGER logger, u_int32_t *);
 int toku_logger_set_lg_bsize(TOKULOGGER, u_int32_t);
 
+typedef void(*voidfp)(void);
+typedef void(*YIELDF)(voidfp, void*);
 // Doesn't close the txn, just performs the commit operations.
-int toku_logger_commit (TOKUTXN txn, int no_sync, void(*yield)(void*yield_v), void*yield_v);
+int toku_logger_commit (TOKUTXN txn, int no_sync, YIELDF yield, void*yield_v);
 
 // Doesn't close the txn, just performs the abort operations.
-int toku_logger_abort(TOKUTXN, void(*/*yield*/)(void*), void*/*yield_v*/);
+int toku_logger_abort(TOKUTXN, YIELDF, void*/*yield_v*/);
 
 // Closes a txn.  Call after commiting or aborting.
 void toku_logger_txn_close (TOKUTXN);
@@ -157,16 +159,16 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn);
 struct roll_entry;
 int toku_rollback_fileentries (int        fd,
 			       TOKUTXN    txn,
-			       void (*yield)(void*yieldv),
+			       YIELDF yield,
 			       void *     yieldv);
 int toku_commit_fileentries (int        fd,
 			     TOKUTXN    txn,
-			     void (*yield)(void*yieldv),
+			     YIELDF yield,
 			     void *     yieldv);
 
 // do the commit items.  Call yield(yield_v) once in a while.
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, void(*yield)(void*yield_v), void*yield_v);
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, void(*yield)(void*yield_v), void*yield_v);
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yield_v);
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yield_v);
 
 int toku_txn_note_brt (TOKUTXN txn, BRT brt);
 int toku_txn_note_close_brt (BRT brt);

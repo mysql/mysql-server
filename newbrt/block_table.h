@@ -22,10 +22,11 @@ void toku_block_lock_for_multiple_operations(BLOCK_TABLE bt);
 void toku_block_unlock_for_multiple_operations(BLOCK_TABLE bt);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
-void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt);
+void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, struct brt_header *h);
 void toku_block_translation_note_failed_checkpoint(BLOCK_TABLE bt);
 void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
 void toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, struct brt_header *h);
+void toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, struct brt_header *h);
 
 //Blocknums
 void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h);
@@ -35,6 +36,8 @@ void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
 void toku_realloc_fifo_on_disk_unlocked (BLOCK_TABLE, DISKOFF size, DISKOFF *offset);
 void toku_get_fifo_offset_on_disk(BLOCK_TABLE bt, DISKOFF *offset);
+void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h);
+void toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size);
 
 //Blocks and Blocknums
 void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct brt_header * h, BOOL for_checkpoint);

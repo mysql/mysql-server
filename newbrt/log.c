@@ -408,13 +408,13 @@ void toku_logger_txn_close (TOKUTXN txn) {
     return;
 }
 
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, void (*yield)(void*), void*yieldv) {
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv) {
     int r=0;
     rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv);
     return r;
 }
 
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, void (*yield)(void*), void*yieldv) {
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv) {
     int r=0;
     rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv);
     if (r!=0) return r;
@@ -426,7 +426,7 @@ static int note_brt_used_in_parent_txn(OMTVALUE brtv, u_int32_t UU(index), void*
 }
 
 // Doesn't close the txn, just performs the commit operations.
-int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void*yieldv) {
+int toku_logger_commit (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv) {
     // printf("%s:%d committing\n", __FILE__, __LINE__);
     // panic handled in log_commit
     int r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
@@ -497,7 +497,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync, void(*yield)(void*yieldv), void
 		    r = toku_commit_rollback_item(txn, item, yield, yieldv);
 		    if (r!=0) return r;
 		    count++;
-		    if (count%2 == 0) yield(yieldv);
+		    if (count%2 == 0) yield(NULL, yieldv);
 		}
 	    }
 
@@ -866,7 +866,7 @@ toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)
 #endif
 
 // Doesn't close the txn, just performs the abort operations.
-int toku_logger_abort(TOKUTXN txn, void (*yield)(void*), void*yieldv) {
+int toku_logger_abort(TOKUTXN txn, YIELDF yield, void*yieldv) {
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -883,7 +883,7 @@ int toku_logger_abort(TOKUTXN txn, void (*yield)(void*), void*yieldv) {
 	    int r = toku_abort_rollback_item(txn, item, yield, yieldv);
 	    if (r!=0) return r;
 	    count++;
-	    if (count%2 == 0) yield(yieldv);
+	    if (count%2 == 0) yield(NULL, yieldv);
 	}
     }
     list_remove(&txn->live_txns_link);

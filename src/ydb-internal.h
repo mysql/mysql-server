@@ -58,6 +58,8 @@ struct __toku_db_env_internal {
     char *tmp_dir;
     char *lg_dir;
     char **data_dirs;
+    int (*bt_compare)  (DB *, const DBT *, const DBT *);
+    int (*dup_compare) (DB *, const DBT *, const DBT *);
     u_int32_t n_data_dirs;
     //void (*noticecall)(DB_ENV *, db_notices);
     unsigned long cachetable_size;
