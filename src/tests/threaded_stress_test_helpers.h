@@ -1082,7 +1082,8 @@ static int UU() update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void
         if (r != 0) {
             return r;
         }
-        int64_t rand_key = *(int64_t *) keybuf;
+        int64_t *rkp = (int64_t *) keybuf;
+        int64_t rand_key = *rkp;
         invariant(rand_key != (arg->cli->num_elements - rand_key));
         rand_key -= arg->cli->num_elements;
         fill_key_buf(rand_key, keybuf, arg->cli);
@@ -1264,7 +1265,8 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
 
     for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
         fill_key_buf_random(arg->random_data, keybuf, arg);
-        rand_key = *(int64_t *) keybuf;
+        int64_t *rkp = (int64_t *) keybuf;
+        rand_key = *rkp;
         invariant(rand_key < arg->cli->num_elements);
         if (i < arg->cli->txn_size - 1) {
             extra.u.h.new_val = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
