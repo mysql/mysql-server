@@ -2837,7 +2837,10 @@ void ha_tokudb::set_query_columns(uint keynr) {
 }
 
 void ha_tokudb::column_bitmaps_signal() {
-    if (active_index != MAX_KEY) {
+    //
+    // if we have max number of indexes, then MAX_KEY == primary_key
+    //
+    if (active_index != MAX_KEY || active_index == primary_key) {
         set_query_columns(active_index);
     }
 }
