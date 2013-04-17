@@ -60,7 +60,7 @@ toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_c
     }
     BOOL nosync = (BOOL)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
     u_int32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
-    int r = toku_txn_begin(env, NULL, txn, txn_flags, 1, FALSE);
+    int r = locked_txn_begin(env, NULL, txn, txn_flags);
     if (r!=0) return r;
     *changed = TRUE;
     return 0;
@@ -69,14 +69,12 @@ toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_c
 static inline int 
 toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
     if (!changed) return r;
-    toku_ydb_lock();
     if (r==0) {
-        r = toku_txn_commit(txn, 0, NULL, NULL, false);
+        r = locked_txn_commit(txn, 0);
     }
     else {
-        toku_txn_abort(txn, NULL, NULL, false);
+        locked_txn_abort(txn);
     }
-    toku_ydb_unlock();    
     return r; 
 }
 
