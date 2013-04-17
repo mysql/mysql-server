@@ -208,6 +208,12 @@ BEGIN {
     rm $cf
 fi
 
+if [[ $commit -eq 1 ]]; then
+    # hack to make long tests run nightly but not when run in experimental mode
+    longtests=ON
+else
+    longtests=OFF
+fi
 ################################################################################
 ## run valgrind on icc debug build
 resultsdir=$tracefilepfx-Debug
@@ -223,6 +229,7 @@ cmake \
     -D INTEL_CC=ON \
     -D BUILD_TESTING=ON \
     -D USE_BDB=OFF \
+    -D RUN_LONG_TESTS=$longtests \
     -D USE_CILK=OFF \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
@@ -321,6 +328,7 @@ cmake \
     -D BUILD_TESTING=ON \
     -D USE_GCOV=ON \
     -D USE_BDB=OFF \
+    -D RUN_LONG_TESTS=$longtests \
     -D USE_CILK=OFF \
     .. 2>&1 | tee -a $tracefile
 cmake --system-information $resultsdir/sysinfo
