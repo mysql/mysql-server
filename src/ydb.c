@@ -52,8 +52,8 @@ toku_ydb_init_malloc(void) {
                            HeapCompatibilityInformation,
                            &HeapFragValue,
                            sizeof(HeapFragValue));
-    //if (r!=0) //Do some error output if necessary.
-    assert(r==0);
+    //if (r==0) //Do some error output if necessary.
+    assert(r!=0);
 #endif
 }
 
