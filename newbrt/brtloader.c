@@ -167,9 +167,9 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 }
 
 static int open_file_add (struct file_infos *fi,
-			   FILE *file,
-			   char *fname,
-			   /* out */ FIDX *idx)
+                          FILE *file,
+                          char *fname,
+                          /* out */ FIDX *idx)
 {
     int result = 0;
     int r = toku_pthread_mutex_lock(&fi->lock); resource_assert(r==0);
@@ -204,13 +204,15 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     invariant(!fi->file_infos[i].is_open);
     invariant(fi->file_infos[i].is_extant);
     fi->file_infos[i].file = fopen(fi->file_infos[i].fname, mode);
-    if (fi->file_infos[i].file==NULL) { result = errno; goto error; }
-    fi->file_infos[i].is_open = TRUE;
-    // No longer need the big buffer for reopened files.  Don't allocate the space, we need it elsewhere.
-    //add_big_buffer(&fi->file_infos[i]);
-    fi->n_files_open++;
+    if (fi->file_infos[i].file == NULL) { 
+        result = errno;
+    } else {
+        fi->file_infos[i].is_open = TRUE;
+        // No longer need the big buffer for reopened files.  Don't allocate the space, we need it elsewhere.
+        //add_big_buffer(&fi->file_infos[i]);
+        fi->n_files_open++;
+    }
     r = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r==0);
- error:
     return result;
 }
 
@@ -261,12 +263,14 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
         f = fdopen(fd, "r+");
         if (f == NULL)
             result = errno;
-        else 
+        else
             result = open_file_add(&bl->file_infos, f, fname, file_idx);
     }
     if (result != 0) {
-        if (fd >= 0)
+        if (fd >= 0) {
             close(fd);
+            unlink(fname);
+        }
         if (f != NULL)
             fclose(f);
         if (fname != NULL)
@@ -331,7 +335,7 @@ static uint64_t memory_per_rowset (BRTLOADER bl) {
 }
 
 
-// RFP 2535 error recovery in the loader open needs to be replaced
+// LAZY cleanup on error paths, ticket #2591
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
@@ -817,7 +821,7 @@ static int finish_extractor (BRTLOADER bl) {
     //printf("%s:%d please finish extraction\n", __FILE__, __LINE__);
     {
 	int r = queue_eof(bl->primary_rowset_queue);
-	assert(r==0);
+	invariant(r==0);
     }
     //printf("%s:%d joining\n", __FILE__, __LINE__);
     {
@@ -829,7 +833,7 @@ static int finish_extractor (BRTLOADER bl) {
     }
     {
 	int r = queue_destroy(bl->primary_rowset_queue);
-	assert(r==0);
+	invariant(r==0);
     }
    //printf("%s:%d joined\n", __FILE__, __LINE__);
     return 0;
@@ -2188,7 +2192,9 @@ static int loader_do_i (BRTLOADER bl,
     {
 	mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
-	lazy_assert(fd>=0);
+	if (fd < 0) {
+            r = errno; goto error;
+        }
 
 	// This structure must stay live until the join below.
         struct fractal_thread_args fta = {bl,
@@ -2294,7 +2300,7 @@ int toku_brt_loader_close (BRTLOADER bl,
     if (bl->extractor_live) {
         r = finish_extractor(bl);
         lazy_assert(r == 0); // LAZY !!! should check this error code and cleanup if needed.
-        lazy_assert(!bl->extractor_live);
+        invariant(!bl->extractor_live);
     }
 
     // check for an error during extraction
