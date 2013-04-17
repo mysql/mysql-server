@@ -212,6 +212,16 @@ static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *de
 } // extern "C"
 #endif
 
+static int uint_cmp(const void *ap, const void *bp) {
+    unsigned int an = *(unsigned int *)ap;
+    unsigned int bn = *(unsigned int *)bp;
+    if (an < bn) 
+        return -1;
+    if (an > bn)
+        return +1;
+    return 0;
+}
+
 static void check_results(DB **dbs)
 {
     for(int j=0;j<NUM_DBS;j++){
@@ -223,7 +233,6 @@ static void check_results(DB **dbs)
         dbt_init(&val, &v, sizeof(unsigned int));
 
         int r;
-        unsigned int pkey_for_db_key;
 
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);
@@ -232,23 +241,38 @@ static void check_results(DB **dbs)
         DBC *cursor;
         r = dbs[j]->cursor(dbs[j], txn, &cursor, 0);
         CKERR(r);
-        for(int i = 0; i < NUM_ROWS+1; i++) {
+
+        // generate skeys
+
+        unsigned int *skey = (unsigned int *) toku_malloc(NUM_ROWS * sizeof (unsigned int));
+        for (int i = 0; i < NUM_ROWS; i++)
+            skey[i] = twiddle32(i+1, j);
+        // sort skeys
+        qsort(skey, NUM_ROWS, sizeof (unsigned int), uint_cmp);
+
+        for (int i = 0; i < NUM_ROWS+1; i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);
             if (r == DB_NOTFOUND) {
                 assert(i == NUM_ROWS); // check that there are exactly NUM_ROWS in the dictionary
                 break;
             }
             CKERR(r);
+
             k = *(unsigned int*)key.data;
-            pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
+
+            unsigned int pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
             v = *(unsigned int*)val.data;
             // test that we have the expected keys and values
             assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
 
             // check the primary key == i+1
-            if (j == 0)
+            if (j == 0) {
                 assert(k == (unsigned int)(i+1));
+            } else {
+                // check the secondary key 
+                assert(k == skey[i]);
+            }
 
             // check prev_key < key
             if (i > 0) 
@@ -257,9 +281,12 @@ static void check_results(DB **dbs)
             // update prev = current
             prev_k = k; prev_v = v;
         }
+        toku_free(skey);
+
         if ( verbose ) {printf("."); fflush(stdout);}
         r = cursor->c_close(cursor);
         CKERR(r);
+
         r = txn->commit(txn, 0);
         CKERR(r);
     }
