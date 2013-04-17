@@ -37,7 +37,7 @@ live <XIDLIST>
 
 the live transaction set is initially empty
 
-xid <XID> [live|committing|aborting]
+xid <XID> [live|preparing|committing|aborting]
 
 == push a delete transaction record onto the leaf entry stack ==
 delete [committed|provisional] <XID>
