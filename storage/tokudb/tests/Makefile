@@ -23,7 +23,7 @@ check: $(CHECKS)
 %.check: % 
 	LD_LIBRARY_PATH=$(FRACTALTREE_DIR)/lib $(VALGRIND) ./$<
 
-card.check: card_test.check card_1.check card_inf.check card_inf_1.check card_random_1.check
+card.check: card_test.check card_1.check card_inf.check card_inf_1.check card_random_1.check card_etime.check
 	true
 
 max_test.check: max_test
@@ -32,17 +32,5 @@ max_test.check: max_test
 %: %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $<
 
-card_test: card_test.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
-
-card_1: card_1.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
-
-card_inf: card_inf.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
-
-card_inf_1: card_inf_1.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
-
-card_random_1: card_random_1.cc
+card_%: card_%.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability

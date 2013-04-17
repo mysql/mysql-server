@@ -129,7 +129,7 @@ namespace tokudb {
             int close_error = cursor->c_close(cursor);
             assert(close_error == 0);
             // return cardinality
-            if (error == 0) {
+            if (error == 0 || error == ETIME) {
                 for (uint64_t i = 0; i < num_key_parts; i++)
                     rec_per_key_part[i]  = rows / unique_rows[i];
             }

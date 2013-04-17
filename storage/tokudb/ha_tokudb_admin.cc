@@ -20,7 +20,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
     time_t t_limit = get_analyze_time(thd);
     time_t t_start = extra->t_start;
     if (t_limit > 0 && t_now - t_start > t_limit)
-        return 0;
+        return ETIME;
     float progress_rows = 0.0;
     TOKUDB_SHARE *share = extra->share;
     if (share->rows > 0)
@@ -57,7 +57,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             };
             int error = tokudb::analyze_card(share->key_file[i], txn, false, num_key_parts, &rec_per_key[next_key_part],
                                              tokudb_cmp_dbt_key_parts, analyze_progress, &analyze_progress_extra);
-            if (error) {
+            if (error != 0 && error != ETIME) {
                 result = HA_ADMIN_FAILED;
             } else {
                 // debug
