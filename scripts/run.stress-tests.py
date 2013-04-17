@@ -755,8 +755,8 @@ if __name__ == '__main__':
                              help="skip the tests that don't involve upgrade [default=False]")
     upgrade_group.add_option('--double_upgrade', action='store_true', dest='double_upgrade', default=False,
                              help='run the upgrade tests twice in a row [default=False]')
-    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0'],
-                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0]')
+    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0', '6.5.1'],
+                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0, 6.5.1]')
     upgrade_group.add_option('--old_environments_dir', type='string', dest='old_environments_dir',
                              default='../../tokudb.data/old-stress-test-envs',
                              help='directory containing old version environments (should contain 5.0.8/, 5.2.7/, etc, and the environments should be in those) [default=../../tokudb.data/stress_environments]')
