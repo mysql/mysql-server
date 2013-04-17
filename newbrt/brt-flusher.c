@@ -981,10 +981,9 @@ brt_merge_child(
     bool started_at_root,
     BRT_STATUS brt_status)
 {
-    if (node->n_children < 2) {
-        toku_unpin_brtnode_off_client_thread(h, node);
-        return; // if no siblings, we are merged as best we can.
-    }
+    // this function should not be called 
+    // if the child is not mergable
+    assert(node->n_children > 1);
     toku_assert_entire_node_in_memory(node);
 
     int childnuma,childnumb;
@@ -1269,7 +1268,11 @@ flush_some_child(
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
     // time we need to flush to the child
-    if (parent_unpinned || child_re == RE_STABLE) {
+    if (parent_unpinned || 
+        child_re == RE_STABLE || 
+        (child_re == RE_FUSIBLE && parent->n_children == 1)
+        ) 
+    {
         if (!parent_unpinned) {
             toku_unpin_brtnode_off_client_thread(h, parent);
         }
