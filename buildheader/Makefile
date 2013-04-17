@@ -11,7 +11,7 @@
 # 3. gather the generated sample_offsets header files
 # 4. make hs
 
-BDB = 4_4
+BDB = 4_6
 BDBDIR = ../../../berkeleydb
 MYSQL_H = -I$(BDBDIR)/db-4.1.25/build_unix/
 OPTFLAGS = -O2
