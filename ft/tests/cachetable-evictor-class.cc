@@ -26,6 +26,7 @@ public:
 
 // initialize this class to run tests
 void evictor_unit_test::init() {
+    ZERO_STRUCT(m_pl);
     m_pl.init();
     m_kb = toku_kibbutz_create(1);
 }
