@@ -7,6 +7,9 @@ function usage() {
     return 1
 }
 
+. /etc/profile.d/gcc47.sh
+. /etc/profile.d/binutils222.sh
+
 set -e
 
 pushd $(dirname $0) &>/dev/null
