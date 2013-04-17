@@ -2068,6 +2068,8 @@ int ha_tokudb::get_status() {
         }
         else if (error == 0 && value.size == sizeof(share->version)) {
             share->version = *(uint *)value.data;
+            free(value.data);
+            value.data = NULL;
         }
         else {
             goto cleanup;
@@ -2088,6 +2090,8 @@ int ha_tokudb::get_status() {
         }
         else if (error == 0 && value.size == sizeof(share->version)) {
             share->capabilities= *(uint *)value.data;
+            free(value.data);
+            value.data = NULL;
         }
         else {
             goto cleanup;
@@ -4299,6 +4303,8 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->last_auto_increment)) {
             share->last_auto_increment = *(uint *)value.data;
+            free(value.data);
+            value.data = NULL;
         }
         else {
             share->last_auto_increment = 0;
@@ -4319,6 +4325,8 @@ void ha_tokudb::init_auto_increment() {
         
         if (error == 0 && value.size == sizeof(share->auto_inc_create_value)) {
             share->auto_inc_create_value = *(uint *)value.data;
+            free(value.data);
+            value.data = NULL;
         }
         else {
             share->auto_inc_create_value = 0;
