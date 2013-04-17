@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "fttypes.h"
@@ -356,35 +357,17 @@ check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
     fflush(stdout);
 }
 
-
-// Validate arguments and print usage if number of arguments is
-// incorrect.
-static int
-check_args(int argc)
-{
-    int r = 0;
-    if (argc < 3 || argc > 4) {
-        printf("ERROR: ");
-        printf("Too few arguments.\n");
-        printf("USAGE:\n");
-        printf(" verify_block_checksum");
-        printf(" DICTIONARY_FILE OUTPUT_FILE [PERCENTAGE]\n");
-        printf(" [PERCENTAGE] is optional.\n");
-        r = 1;
-    }
-    return r;
-}
-
-// Main diver for verify_block_checksum.
 int
-main(int argc, char *argv[])
+main(int argc, char const * const argv[])
 {
     // open the file
     int r = 0;
     int dictfd;
-    char *dictfname, *outfname;
-    r = check_args(argc);
-    if (r) {
+    const char *dictfname, *outfname;
+    if (argc < 3 || argc > 4) {
+        fprintf(stderr, "%s: Invalid arguments.\n", argv[0]);
+        fprintf(stderr, "Usage: %s <dictionary> <logfile> [report%%]\n", argv[0]);
+        r = EX_USAGE;
         goto exit;
     }
 
@@ -432,9 +415,9 @@ main(int argc, char *argv[])
     }
     if (h1 == NULL && h2 == NULL) {
         printf("Both headers have a corruption and could not be used.\n");
-    }    
+    }
 
     toku_thread_pool_destroy(&ft_pool);
 exit:
-    return 0;
+    return r;
 }
