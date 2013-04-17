@@ -13,6 +13,8 @@ extern "C" {
 //TODO: Sort these into some .h file that makes sense.
 
 int fsync(int fildes);
+int toku_fsync_init(void);
+int toku_fsync_destroy(void);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 

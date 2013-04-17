@@ -45,6 +45,8 @@ toku_portability_init(void) {
     if (r==0)
         r = toku_pthread_win32_init();
     if (r==0)
+        r = toku_fsync_init();
+    if (r==0)
         _fmode = _O_BINARY; //Default open file is BINARY
     return r;
 }
@@ -52,6 +54,8 @@ toku_portability_init(void) {
 int
 toku_portability_destroy(void) {
     int r = 0;
+    if (r==0)
+        r = toku_fsync_destroy();
     if (r==0)
         r = toku_pthread_win32_destroy();
     return r;
@@ -248,7 +252,9 @@ toku_os_initialize_settings(int verbosity) {
 int 
 toku_os_is_absolute_name(const char* path) {
     return (path[0] == '\\' || 
-            (isalpha(path[0]) && path[1]==':' && path[2]=='\\'));
+            path[0] == '/' || 
+            (isalpha(path[0]) && path[1]==':' && path[2]=='\\') ||
+            (isalpha(path[0]) && path[1]==':' && path[2]=='/'));
 }
 
 int

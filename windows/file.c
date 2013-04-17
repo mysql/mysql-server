@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <windows.h>
+#include <toku_atomic.h>
+#include <toku_time.h>
 
 int64_t
 pread(int fildes, void *buf, size_t nbyte, int64_t offset) {
@@ -113,23 +115,74 @@ toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off)
     assert(r==len);
 }
 
+// t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
+
+#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+static toku_pthread_mutex_t fsync_lock;
+#endif
+
+int
+toku_fsync_init(void) {
+    int r = 0;
+#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+    r = toku_pthread_mutex_init(&fsync_lock, NULL); assert(r == 0);
+#endif
+    return r;
+}
+
+int
+toku_fsync_destroy(void) {
+    int r = 0;
+#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+    r = toku_pthread_mutex_destroy(&fsync_lock); assert(r == 0);
+#endif
+    return r;
+}
 
 int
 toku_set_func_fsync(int (*fsync_function)(int)) {
     t_fsync = fsync_function;
     return 0;
 }
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
 
+// keep trying if fsync fails because of EINTR
 int
 toku_file_fsync(int fd) {
-    int r;
-    if (t_fsync)
-        r = t_fsync(fd);
-    else
-        r = fsync(fd);
+    int r = -1;
+    uint64_t tstart = get_tnow();
+    while (r != 0) {
+	if (t_fsync)
+	    r = t_fsync(fd);
+	else 
+	    r = fsync(fd);
+	if (r) 
+	    assert(errno==EINTR);
+    }
+#if TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+    toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
+    toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
+#else
+    //These two need to be fully 64 bit and atomic.
+    //The windows atomic add 64 bit is not available.
+    //toku_sync_fetch_and_add_uint64 (and increment) treat it as 32 bit, and
+    //would overflow.
+    //Even on 32 bit machines, aligned 64 bit writes/writes are atomic, so we just
+    //need to make sure there's only one writer for these two variables.
+    //Protect with a mutex. Fsync is rare/slow enough that this should be ok.
+    int r_mutex;
+    r_mutex = toku_pthread_mutex_lock(&fsync_lock);   assert(r_mutex == 0);
+    toku_fsync_count++;
+    toku_fsync_time += get_tnow() - tstart;
+    r_mutex = toku_pthread_mutex_unlock(&fsync_lock); assert(r_mutex == 0);
+#endif
     return r;
 }
 
