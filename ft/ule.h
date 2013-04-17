@@ -23,7 +23,8 @@ extern "C" {
 typedef struct ule *ULEHANDLE;	
 typedef struct uxr *UXRHANDLE;
 
-ULEHANDLE toku_ule_create(void * le_p);
+// create a ULE by copying the contents of the given leafentry
+ULEHANDLE toku_ule_create(const LEAFENTRY le);
 
 void toku_ule_free(ULEHANDLE ule_p);
 
