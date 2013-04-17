@@ -99,22 +99,6 @@ void toku_verify_all_in_mempool(BRTNODE node) {
     }
 }
 
-
-// If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
-static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
-    int cmp;
-    DBT mydbt;
-    struct kv_pair *kv = (struct kv_pair *) ck;
-    if (brt->flags & TOKU_DB_DUPSORT) {
-        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
-        if (cmp == 0 && data != 0)
-            cmp = brt->dup_compare(brt->db, data, toku_fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
-    } else {
-        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
-    }
-    return cmp;
-}
-
 void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
@@ -1856,68 +1840,6 @@ brt_nonleaf_cmd_once_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
 
 
 /* delete in all subtrees starting from the left most one which contains the key */
-static int
-brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, u_int32_t *new_fanout) {
-
-    /* find all children that need a copy of the command */
-    int *MALLOC_N(node->u.n.n_children, sendchild);
-    int delidx = 0;
-#define sendchild_append(i) \
-        if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
-    int i;
-    for (i = 0; i < node->u.n.n_children-1; i++) {
-        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
-        if (cmp > 0) {
-            continue;
-        } else if (cmp < 0) {
-            sendchild_append(i);
-            break;
-        } else if (t->flags & TOKU_DB_DUPSORT) {
-            sendchild_append(i);
-            sendchild_append(i+1);
-        } else {
-            sendchild_append(i);
-            break;
-        }
-    }
-
-    if (delidx == 0)
-        sendchild_append(node->u.n.n_children-1);
-#undef sendchild_append
-
-    /* issue the cmd to all of the children found previously */
-    int r;
-    for (i=0; i<delidx; i++) {
-	/* Append the cmd to the appropriate child buffer. */
-	int childnum = sendchild[i];
-	int type = cmd->type;
-        DBT *k = cmd->u.id.key;
-        DBT *v = cmd->u.id.val;
-
-	r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
-	if (r!=0) goto return_r;
-	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-        r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
-	assert(r==0);
-	node->u.n.n_bytes_in_buffers += diff;
-	BNC_NBYTESINBUF(node, childnum) += diff;
-        node->dirty = 1;
-    }
-    if (toku_serialize_brtnode_size(node) > node->nodesize) {
-	int biggest_child;
-	BOOL must_split MAYBE_INIT(FALSE);
-	BOOL must_merge MAYBE_INIT(FALSE);
-	find_heaviest_child(node, &biggest_child);
-	r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
-	if (r!=0) goto return_r;
-	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
-    }
-    *new_fanout = node->u.n.n_children;
-    r=0;
- return_r:
-    toku_free(sendchild);
-    return r;
-}
 
 /* delete in all subtrees starting from the left most one which contains the key */
 static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
