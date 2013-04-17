@@ -1,3 +1,4 @@
+
 /* Tell me the diff between two brt files. */
 
 #include "includes.h"
@@ -181,25 +182,39 @@ bxpcmp(const void *a, const void *b) {
 }
 
 static void 
-dump_fragmentation(struct brt_header *h) {
-    u_int64_t totalsize = 0;
-    u_int64_t fragsize = 0;
+dump_fragmentation(int f, struct brt_header *h) {
+    u_int64_t blocksizes = 0;
+    u_int64_t leafsizes = 0; 
+    u_int64_t leafblocks = 0;
+    u_int64_t fragsizes = 0;
     u_int64_t i;
     for (i = 0; i < h->translated_blocknum_limit; i++) {
-        totalsize += h->block_translation[i].size;
+        BRTNODE n;
+	BLOCKNUM blocknum = make_blocknum(i);
+        int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, h);
+	if (r != 0) continue;
+        blocksizes += h->block_translation[i].size;
+	if (n->height == 0) {
+	    leafsizes += h->block_translation[i].size;
+	    leafblocks += 1;
+	}
+	toku_brtnode_free(&n);
     }
     size_t n = h->translated_blocknum_limit * sizeof (struct block_translation_pair);
     struct block_translation_pair *bx = malloc(n);
     memcpy(bx, h->block_translation, n);
     qsort(bx, h->translated_blocknum_limit, sizeof (struct block_translation_pair), bxpcmp);
     for (i = 0; i < h->translated_blocknum_limit - 1; i++) {
-        // printf("%lu %ld %ld\n", i, bx[i].diskoff, bx[i].size);
-        fragsize += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
+        // printf("%lu %lu %lu\n", i, bx[i].diskoff, bx[i].size);
+        fragsizes += bx[i+1].diskoff - (bx[i].diskoff + bx[i].size);
     }
     free(bx);
-    printf("totalsize: %lu\n", totalsize);
-    printf("fragsize: %lu\n", fragsize);
-    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsize / (double)totalsize));
+    printf("translated_blocknum_limit: %lu\n", h->translated_blocknum_limit);
+    printf("leafblocks: %lu\n", leafblocks);
+    printf("blocksizes: %lu\n", blocksizes);
+    printf("leafsizes: %lu\n", leafsizes);
+    printf("fragsizes: %lu\n", fragsizes);
+    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(fragsizes + blocksizes)));
 }
 
 static void
@@ -269,7 +284,7 @@ int main (int argc, const char *argv[]) {
 		    offset = strtoll(fields[1], NULL, 10);
 	        dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
-	        dump_fragmentation(h);
+	        dump_fragmentation(f, h);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }
