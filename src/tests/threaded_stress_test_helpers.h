@@ -116,6 +116,7 @@ struct cli_args {
     bool blackhole; // all message injects are no-ops. helps measure txn/logging/locktree overhead.
     bool prelocked_write; // use prelocked_write flag for insertions, avoiding the locktree
     bool unique_checks; // use uniqueness checking during insert. makes it slow.
+    bool nosync; // do not fsync on txn commit. useful for testing in memory performance.
 };
 
 struct arg {
@@ -446,6 +447,19 @@ const struct perf_formatter perf_formatters[] = {
 #endif
 };
 
+static int get_put_flags(struct cli_args *args) {
+    int flags = 0;
+    flags |= args->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+    flags |= args->unique_checks ? DB_NOOVERWRITE : 0;
+    return flags;
+}
+
+static int get_commit_flags(struct cli_args *args) {
+    int flags = 0;
+    flags |= args->nosync ? DB_TXN_NOSYNC : 0;
+    return flags;
+}
+
 struct worker_extra {
     struct arg* thread_arg;
     toku_mutex_t *operation_lock_mutex;
@@ -521,7 +535,8 @@ static void *worker(void *arg_v) {
         }
         if (r == 0) {
             if (!arg->cli->single_txn) {
-                { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
+                int flags = get_commit_flags(arg->cli);
+                int chk_r = txn->commit(txn, flags); CKERR(chk_r);
             }
         } else {
             if (arg->cli->crash_on_operation_failure) {
@@ -539,7 +554,8 @@ static void *worker(void *arg_v) {
         }
     }
     if (arg->cli->single_txn) {
-        { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
+        int flags = get_commit_flags(arg->cli);
+        int chk_r = txn->commit(txn, flags); CKERR(chk_r);
     }
     if (verbose) {
         toku_pthread_t self = toku_pthread_self();
@@ -685,13 +701,6 @@ fill_zeroed_array(uint8_t *data, uint32_t size, struct random_data *random_data,
 static inline size_t
 size_t_max(size_t a, size_t b) {
     return (a > b) ? a : b;
-}
-
-static int get_put_flags(struct cli_args *args) {
-    int flags = 0;
-    flags |= args->prelocked_write ? DB_PRELOCKED_WRITE : 0;
-    flags |= args->unique_checks ? DB_NOOVERWRITE : 0;
-    return flags;
 }
 
 static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
@@ -1694,6 +1703,7 @@ static struct cli_args UU() get_default_args(void) {
         .blackhole = false,
         .prelocked_write = false,
         .unique_checks = false,
+        .nosync = false,
         };
     return DEFAULT_ARGS;
 }
@@ -2068,6 +2078,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("blackhole",     blackhole),
         BOOL_ARG("prelocked_write",     prelocked_write),
         BOOL_ARG("unique_checks",     unique_checks),
+        BOOL_ARG("nosync",     nosync),
 
         STRING_ARG("--envdir",    env_args.envdir),
         LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
