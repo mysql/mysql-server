@@ -456,9 +456,8 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         assert(r==0);
 
         // Merge the list of headers that must be checkpointed before commit
-        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
-            struct toku_list *list = toku_list_pop(&txn->checkpoint_before_commit);
-            toku_list_push(&txn->parent->checkpoint_before_commit, list);
+        if (txn->checkpoint_needed_before_commit) {
+            txn->parent->checkpoint_needed_before_commit = TRUE;
         }
 
         //If this transaction needs an fsync (if it commits)
@@ -475,11 +474,6 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
 
 int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     int r;
-    //Empty the list
-    while (!toku_list_empty(&txn->checkpoint_before_commit)) {
-        toku_list_pop(&txn->checkpoint_before_commit);
-    }
-
     r = apply_txn(txn, yield, yieldv, lsn, toku_abort_rollback_item);
     assert(r==0);
     return r;

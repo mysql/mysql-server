@@ -176,7 +176,7 @@ struct tokutxn {
     uint32_t   current_rollback_hash;
 
     BOOL       recovered_from_checkpoint;
-    struct toku_list checkpoint_before_commit;
+    BOOL checkpoint_needed_before_commit;
     TXN_IGNORE_S ignore_errors; // 2954
     TOKUTXN_STATE state;
     LSN        do_fsync_lsn;

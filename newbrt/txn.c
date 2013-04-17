@@ -216,7 +216,7 @@ toku_txn_create_txn (
     result->rollentry_raw_count = 0;
     result->force_fsync_on_commit = FALSE;
     result->recovered_from_checkpoint = FALSE;
-    toku_list_init(&result->checkpoint_before_commit);
+    result->checkpoint_needed_before_commit = FALSE;
     result->state = TOKUTXN_LIVE;
     invalidate_xa_xid(&result->xa_xid);
     result->do_fsync = FALSE;
@@ -378,13 +378,19 @@ int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
 				    release_multi_operation_client_lock);
 }
 
+
+void
+toku_txn_require_checkpoint_on_commit(TOKUTXN txn) {
+    txn->checkpoint_needed_before_commit = TRUE;
+}
+
 struct xcommit_info {
     int r;
     TOKUTXN txn;
 };
 
 BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
-    return (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit));
+    return (!txn->parent && txn->checkpoint_needed_before_commit);
 }
 
 //Called during a yield (ydb lock NOT held).
@@ -392,12 +398,6 @@ static void
 log_xcommit(void *thunk) {
     struct xcommit_info *info = thunk;
     TOKUTXN txn = info->txn;
-    // not sure how the elements in the list are getting freed, so I am doing this
-    if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
-        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
-            toku_list_pop(&txn->checkpoint_before_commit);
-        }
-    }
     info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
