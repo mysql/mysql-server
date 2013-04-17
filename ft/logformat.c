@@ -35,11 +35,17 @@ typedef struct field {
 #define NULLFIELD {0,0,0}
 #define FA (F[])
 
+enum log_begin_action {
+    IGNORE_LOG_BEGIN,
+    SHOULD_LOG_BEGIN,
+    ASSERT_BEGIN_WAS_LOGGED
+};
+
 struct logtype {
     char *name;
     unsigned int command_and_flags;
     struct field *fields;
-    bool needs_to_maybe_log_begin_txn;
+    enum log_begin_action log_begin_action;
 };
 
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
@@ -94,18 +100,18 @@ const struct logtype logtypes[] = {
 #if 0 // no longer used, but reserve the type
     {"local_txn_checkpoint", 'c', FA{{"TXNID",      "xid", 0}, NULLFIELD}},
 #endif
-    {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, {"TXNID", "last_xid", 0}, NULLFIELD}, false},
+    {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, {"TXNID", "last_xid", 0}, NULLFIELD}, IGNORE_LOG_BEGIN},
     {"end_checkpoint",   'X', FA{{"LSN", "lsn_begin_checkpoint", 0},
 				 {"u_int64_t", "timestamp", 0},
 				 {"u_int32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
 				 {"u_int32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
-				 NULLFIELD}, false},  
+				 NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
                             {"u_int32_t",  "treeflags", 0},
 			    {"BYTESTRING", "iname", 0},   // pathname of file
 			    {"u_int8_t", "unlink_on_close", 0},
-			    NULLFIELD}, false},
+			    NULLFIELD}, IGNORE_LOG_BEGIN},
     //We do not use a TXNINFO struct since recovery log has
     //FILENUMS and TOKUTXN has FTs (for open_fts)
     {"xstillopen", 's', FA{{"TXNID", "xid", 0}, 
@@ -118,7 +124,7 @@ const struct logtype logtypes[] = {
                            {"BLOCKNUM",  "spilled_rollback_head", 0}, 
                            {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                            {"BLOCKNUM",  "current_rollback", 0}, 
-                           NULLFIELD}, false}, // record all transactions
+                           NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
     // prepared txns need a gid
     {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
 				   {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
@@ -130,15 +136,15 @@ const struct logtype logtypes[] = {
 				   {"BLOCKNUM",  "spilled_rollback_head", 0}, 
 				   {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
 				   {"BLOCKNUM",  "current_rollback", 0}, 
-				   NULLFIELD}, false}, // record all transactions
+				   NULLFIELD}, IGNORE_LOG_BEGIN}, // record all transactions
     {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
                                   {"TXNID",      "xid", 0},
-                                  NULLFIELD}, true},
+                                  NULLFIELD}, SHOULD_LOG_BEGIN},
     // Records produced by transactions
-    {"xbegin", 'b', FA{{"TXNID", "xid", 0},{"TXNID", "parentxid", 0},NULLFIELD}, false},
-    {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}, false},
-    {"xprepare",'P', FA{{"TXNID", "xid", 0}, {"XIDP", "xa_xid", 0}, NULLFIELD}, false},
-    {"xabort", 'q', FA{{"TXNID", "xid", 0},NULLFIELD}, false},
+    {"xbegin", 'b', FA{{"TXNID", "xid", 0},{"TXNID", "parentxid", 0},NULLFIELD}, IGNORE_LOG_BEGIN},
+    {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED},
+    {"xprepare",'P', FA{{"TXNID", "xid", 0}, {"XIDP", "xa_xid", 0}, NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED},
+    {"xabort", 'q', FA{{"TXNID", "xid", 0},NULLFIELD}, ASSERT_BEGIN_WAS_LOGGED},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"TXNID",      "xid", 0},
                         {"FILENUM",    "filenum", 0},
@@ -148,49 +154,49 @@ const struct logtype logtypes[] = {
                         {"u_int32_t", "nodesize", 0},
                         {"u_int32_t", "basementnodesize", 0},
                         {"u_int32_t", "compression_method", 0},
-			NULLFIELD}, true},
+			NULLFIELD}, SHOULD_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fopen",   'O', FA{{"BYTESTRING", "iname", 0},
 			{"FILENUM",    "filenum", 0},
                         {"u_int32_t",  "treeflags", 0},
-			NULLFIELD}, false},
+			NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
                          {"FILENUM",    "filenum", 0},
-                         NULLFIELD}, false},
+                         NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"TXNID",      "xid", 0},
 			{"FILENUM", "filenum", 0},
-			NULLFIELD}, true},
+			NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
                            {"BYTESTRING", "key", 0},
                            {"BYTESTRING", "value", 0},
-                           NULLFIELD}, true},
+                           NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_insert_no_overwrite", 'i', FA{{"FILENUM",    "filenum", 0},
                                         {"TXNID",      "xid", 0},
                                         {"BYTESTRING", "key", 0},
                                         {"BYTESTRING", "value", 0},
-                                        NULLFIELD}, true},
+                                        NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_delete_any", 'E', FA{{"FILENUM",    "filenum", 0},
                                {"TXNID",      "xid", 0},
                                {"BYTESTRING", "key", 0},
-                               NULLFIELD}, true},
+                               NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_insert_multiple", 'm', FA{{"FILENUM",    "src_filenum", 0},
                                     {"FILENUMS",   "dest_filenums", 0},
                                     {"TXNID",      "xid", 0},
                                     {"BYTESTRING", "src_key", 0},
                                     {"BYTESTRING", "src_val", 0},
-                                    NULLFIELD}, true},
+                                    NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_delete_multiple", 'M', FA{{"FILENUM",    "src_filenum", 0},
                                     {"FILENUMS",   "dest_filenums", 0},
                                     {"TXNID",      "xid", 0},
                                     {"BYTESTRING", "src_key", 0},
                                     {"BYTESTRING", "src_val", 0},
-                                    NULLFIELD}, true},
+                                    NULLFIELD}, SHOULD_LOG_BEGIN},
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                         {"BYTESTRING", "comment", 0},
-                        NULLFIELD}, false},
+                        NULLFIELD}, IGNORE_LOG_BEGIN},
     // Note: Shutdown log entry is NOT ALLOWED TO BE CHANGED.
     // Do not change the letter ('Q'), do not add fields,
     // do not remove fields.
@@ -198,32 +204,32 @@ const struct logtype logtypes[] = {
     // This log entry must always be readable for future versions.
     // If you DO change it, you need to write a separate log upgrade mechanism.
     {"shutdown", 'Q', FA{{"u_int64_t", "timestamp", 0},
-                         NULLFIELD}, false},
+                         NULLFIELD}, IGNORE_LOG_BEGIN},
     {"load", 'l', FA{{"TXNID",      "xid", 0},
                      {"FILENUM",    "old_filenum", 0},
                      {"BYTESTRING", "new_iname", 0},
-                     NULLFIELD}, true},
+                     NULLFIELD}, SHOULD_LOG_BEGIN},
     // #2954
     {"hot_index", 'h', FA{{"TXNID",     "xid", 0},
                           {"FILENUMS",  "hot_index_filenums", 0},
-                          NULLFIELD}, true},
+                          NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_update", 'u', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
                            {"BYTESTRING", "key", 0},
                            {"BYTESTRING", "extra", 0},
-                           NULLFIELD}, true},
+                           NULLFIELD}, SHOULD_LOG_BEGIN},
     {"enq_updatebroadcast", 'B', FA{{"FILENUM",    "filenum", 0},
                                     {"TXNID",      "xid", 0},
                                     {"BYTESTRING", "extra", 0},
                                     {"BOOL",       "is_resetting_op", 0},
-                                    NULLFIELD}, true},
+                                    NULLFIELD}, SHOULD_LOG_BEGIN},
     {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
                             {"TXNID",      "xid", 0},
                             {"BYTESTRING", "old_descriptor", 0},
                             {"BYTESTRING", "new_descriptor", 0},
                             {"BOOL",       "update_cmp_descriptor", 0},
-                            NULLFIELD}, true},
-    {0,0,FA{NULLFIELD}, false}
+                            NULLFIELD}, SHOULD_LOG_BEGIN},
+    {0,0,FA{NULLFIELD}, (enum log_begin_action) 0}
 };
 
 
@@ -381,18 +387,31 @@ generate_log_writer (void) {
             DO_FIELDS(field_type, lt, fprintf(hf, "+sizeof(%s)", field_type->type));
             fprintf(hf, "+8);\n");
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
-                        if (lt->needs_to_maybe_log_begin_txn) {
+                        switch (lt->log_begin_action) {
+                        case SHOULD_LOG_BEGIN:
+                        case ASSERT_BEGIN_WAS_LOGGED: {
                             fprintf2(cf, hf, ", TOKUTXN txn");
+                            break;
+                        }
+                        case IGNORE_LOG_BEGIN: break;
                         }
 			DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
 			fprintf(cf, "  int r = 0;\n");
 			fprintf(cf, "  if (logger==0) return 0;\n");
-                        if (lt->needs_to_maybe_log_begin_txn) {
+                        switch (lt->log_begin_action) {
+                        case SHOULD_LOG_BEGIN: {
                             fprintf(cf, "  if (txn && !txn->begin_was_logged) {\n");
                             fprintf(cf, "    toku_maybe_log_begin_txn_for_write_operation(txn);\n");
                             fprintf(cf, "  }\n");
+                            break;
+                        }
+                        case ASSERT_BEGIN_WAS_LOGGED: {
+                            fprintf(cf, "  assert(txn->begin_was_logged);\n");
+                            break;
+                        }
+                        case IGNORE_LOG_BEGIN: break;
                         }
 			fprintf(cf, "  if (!logger->write_log_files) {\n");
 			fprintf(cf, "    ml_lock(&logger->input_lock);\n");

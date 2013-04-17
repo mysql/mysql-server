@@ -188,13 +188,13 @@ int create_logfiles() {
     //fcreate                   'F': lsn=2 txnid=1 filenum=0 fname={len=4 data="a.db"} mode=0777 treeflags=0 crc=18a3d525 len=49
     r = toku_log_fcreate(logger, &lsn, NO_FSYNC, NULL, txnid, fn_aname, bs_aname, 0x0777, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 0); assert(r==0);
     //commit                    'C': lsn=3 txnid=1 crc=00001f1e len=29
-    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, NULL, txnid); assert(r==0);
     //xbegin                    'b': lsn=4 parenttxnid=0 crc=00000a1f len=29
     r = toku_log_xbegin(logger, &lsn, 2, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //fcreate                   'F': lsn=5 txnid=4 filenum=1 fname={len=4 data="b.db"} mode=0777 treeflags=0 crc=14a47925 len=49
     r = toku_log_fcreate(logger, &lsn, NO_FSYNC, NULL, txnid, fn_bname, bs_bname, 0x0777, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 0); assert(r==0);
     //commit                    'C': lsn=6 txnid=4 crc=0000c11e len=29
-    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, NULL, txnid); assert(r==0);
     //xbegin                    'b': lsn=7 parenttxnid=0 crc=0000f91f len=29
     r = toku_log_xbegin(logger, &lsn, 3, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //enq_insert                'I': lsn=8 filenum=0 xid=7 key={len=2 data="a\000"} value={len=2 data="b\000"} crc=40b863e4 len=45
@@ -221,7 +221,7 @@ int create_logfiles() {
     //enq_insert                'I': lsn=14 filenum=1 xid=7 key={len=2 data="b\000"} value={len=2 data="a\000"} crc=40388be4 len=45
     r = toku_log_enq_insert(logger, &lsn, NO_FSYNC, NULL, fn_bname, txnid, bs_b, bs_a); assert(r==0);
     //commit                    'C': lsn=15 txnid=7 crc=00016d1e len=29
-    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, NULL, txnid); assert(r==0);
 
     // close logger
     r = toku_logger_close(&logger); assert(r==0);
