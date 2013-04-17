@@ -14,22 +14,28 @@
 #include <stdio.h>
 
 
-// ENVDIR is defined in the Makefile
-
 DB_ENV *env;
 DB *db;
 DB_TXN *null_txn = NULL;
 DB_TXN *txn;
 u_int32_t find_num;
 
+long closemode = -1; // must be set to 0 or 1 on command line
+long logsize   = -2; // must be set to a number from -1 to 20 inclusive, on command line.
+
+// ENVDIR is defined in the Makefile
+// And can be overridden by -e
+static char *envdir = ENVDIR;
+
 static void
 init(void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    char rm_cmd[strlen("rm -rf ") + strlen(envdir) + 1];
+    sprintf(rm_cmd, "rm -rf %s", envdir);
+    r = system(rm_cmd);                                                                                       CKERR(r);
+    r=toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->open(db, null_txn, "foo.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     CKERR(r);
@@ -128,8 +134,10 @@ verify_and_tear_down(int close_first) {
         filename = toku_xstrdup("foo.db");
 #endif
 	toku_struct_stat statbuf;
-        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
-        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
+	int size = strlen(filename) + strlen(envdir) + sizeof("/");
+        char fullfile[size];
+        int sp = snprintf(fullfile, size, "%s/%s", envdir, filename);
+	assert(sp<size);
         toku_free(filename);
 	r = toku_stat(fullfile, &statbuf);
 	assert(r==0);
@@ -158,13 +166,14 @@ verify_and_tear_down(int close_first) {
 
 static void
 runtests(void) {
-    int close_first;
-    for (close_first = 0; close_first < 2; close_first++) {
+    int close_first = closemode;
+    if (logsize == -1) {
         init();
         abort_txn();
         verify_and_tear_down(close_first);
-        u_int32_t n;
-        for (n = 1; n < 1<<20; n*=2) {
+    } else {
+	u_int32_t n = 1<<logsize;
+	{
             if (verbose) {
                 printf("\t%s:%d-%s() close_first=%d n=%06x\n",
                        __FILE__, __LINE__, __FUNCTION__, close_first, n);
@@ -181,9 +190,51 @@ runtests(void) {
     }
 }
 
+static long parseint (const char *str) {
+    errno = 0;
+    char *end;
+    long v = strtol(str, &end, 10);
+    assert(errno==0 && *end==0);
+    return v;
+}
+
+static void
+parse_my_args (int argc, char * const argv[]) {
+    const char *argv0=argv[0];
+    while (argc>1) {
+	int resultcode=0;
+	if (strcmp(argv[1], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[1],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[1],"-e") == 0 && argc > 2) {
+            argc--; argv++;
+            envdir = argv[1];
+	} else if (strcmp(argv[1],"-c") == 0 && argc > 2) {
+	    argc--; argv++;
+	    closemode = parseint(argv[1]);
+	} else if (strcmp(argv[1],"-l") == 0 && argc > 2) {
+	    argc--; argv++;
+	    logsize = parseint(argv[1]);
+	} else if (strcmp(argv[1], "-h")==0) {
+	do_usage:
+	    fprintf(stderr, "Usage:\n%s [-v|-q] [-h] [-e <envdir>] -c <closemode (0 or 1)> -l <log of size, -1, or 0 through 20>\n", argv0);
+	    exit(resultcode);
+	} else {
+	    resultcode=1;
+	    goto do_usage;
+	}
+	argc--;
+	argv++;
+    }
+    assert(closemode==0 || closemode==1);
+    assert(logsize >= -1 && logsize <=20);
+}
+
 int
 test_main(int argc, char *const argv[]) {
-    parse_args(argc, argv);
+    parse_my_args(argc, argv);
 
     runtests();
     return 0;
