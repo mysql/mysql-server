@@ -232,13 +232,13 @@ flush_to_internal(BRT t) {
 
     NONLEAF_CHILDINFO child_bnc = toku_create_empty_nl();
     int i;
-    for (i = 0; toku_bnc_memory_size(child_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(child_bnc) < 4*M; ++i) {
         insert_random_message(child_bnc, &child_messages[i], &child_messages_is_fresh[i], xids_123, 0);
     }
     int num_child_messages = i;
 
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
-    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
         insert_random_message(parent_bnc, &parent_messages[i], &parent_messages_is_fresh[i], xids_234, 0);
     }
     int num_parent_messages = i;
@@ -355,9 +355,9 @@ flush_to_internal_multiple(BRT t) {
     }
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
-        total_size -= toku_bnc_memory_size(child_bncs[i%8]);
+        total_size -= toku_bnc_memory_used(child_bncs[i%8]);
         insert_random_message(child_bncs[i%8], &child_messages[i], &child_messages_is_fresh[i], xids_123, i%8);
-        total_size += toku_bnc_memory_size(child_bncs[i%8]);
+        total_size += toku_bnc_memory_used(child_bncs[i%8]);
         if (i % 8 < 7) {
             if (childkeys[i%8] == NULL || dummy_cmp(NULL, child_messages[i]->u.id.key, childkeys[i%8]->u.id.key) > 0) {
                 childkeys[i%8] = child_messages[i];
@@ -367,7 +367,7 @@ flush_to_internal_multiple(BRT t) {
     int num_child_messages = i;
 
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
-    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
         insert_random_message(parent_bnc, &parent_messages[i], &parent_messages_is_fresh[i], xids_234, 0);
     }
     int num_parent_messages = i;
@@ -535,7 +535,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;
@@ -752,7 +752,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;
@@ -932,7 +932,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     }
     NONLEAF_CHILDINFO parent_bnc = toku_create_empty_nl();
     MSN max_parent_msn = MIN_MSN;
-    for (i = 0; toku_bnc_memory_size(parent_bnc) < 4*M; ++i) {
+    for (i = 0; toku_bnc_memory_used(parent_bnc) < 4*M; ++i) {
         insert_random_update_message(parent_bnc, &parent_messages[i], parent_messages_is_fresh[i], xids_234, i%8, &parent_messages_applied[i], &max_parent_msn);
     }
     int num_parent_messages = i;

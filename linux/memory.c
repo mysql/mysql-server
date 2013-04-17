@@ -18,6 +18,10 @@ static realloc_fun_t t_xrealloc = 0;
 
 static MEMORY_STATUS_S status;
 
+//TODO 4222  Replace this hard-coded constant with supplied by mallocator.
+//           Perhaps make this work with libc as well.
+static const size_t mmap_limit = 4 * 1024 * 1024;
+
 void 
 toku_memory_get_status(MEMORY_STATUS s) {
     if (status.mallocator_version == NULL) {
@@ -51,6 +55,27 @@ set_max(uint64_t sum_used, uint64_t sum_freed) {
 	status.max_in_use = in_use;
     }
 }
+
+
+
+size_t toku_memory_footprint(void * p, size_t touched) {
+    static size_t pagesize = 0;
+    size_t rval = 0;
+    if (!pagesize)
+	pagesize = sysconf(_SC_PAGESIZE);
+    if (p) {
+	size_t usable = malloc_usable_size(p);
+	if (usable >= mmap_limit) {
+            int num_pages = (touched + pagesize) / pagesize;
+            rval = num_pages * pagesize;
+	}
+	else {
+	    rval = usable;
+	}
+    }
+    return rval;
+}
+
 
 void *toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);

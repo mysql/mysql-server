@@ -490,8 +490,21 @@ fetch_from_buf (OMT omt, u_int32_t idx) {
     return (LEAFENTRY)v;
 }
 
-long
+// how much memory does this child buffer consume?
+long  
 toku_bnc_memory_size(NONLEAF_CHILDINFO bnc)
+{
+    return (sizeof(*bnc) +
+            toku_fifo_memory_footprint(bnc->buffer) +
+            toku_omt_memory_size(bnc->fresh_message_tree) +
+            toku_omt_memory_size(bnc->stale_message_tree) +
+            toku_omt_memory_size(bnc->broadcast_list));
+}
+
+// how much memory in this child buffer holds useful data?
+// originally created solely for use by test program(s).
+long
+toku_bnc_memory_used(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
             toku_fifo_memory_size_in_use(bnc->buffer) +
@@ -573,7 +586,7 @@ brtnode_memory_size (BRTNODE node)
 		{
 		    // include fragmentation overhead but do not include space in the 
 		    // mempool that has not yet been allocated for leaf entries
-		    size_t poolsize = toku_mempool_get_allocated_space(&bn->buffer_mempool);  
+		    size_t poolsize = toku_mempool_footprint(&bn->buffer_mempool);  
 		    invariant (poolsize >= BLB_NBYTESINBUF(node,i));
 		    retval += poolsize;
 		}

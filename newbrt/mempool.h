@@ -80,6 +80,9 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size
     return (mp->base <= vp) && ((char *)vp + size <= (char *)mp->base + mp->size);
 }
 
+/* get memory footprint */
+size_t toku_mempool_footprint(struct mempool *mp);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

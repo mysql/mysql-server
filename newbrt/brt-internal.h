@@ -120,6 +120,7 @@ struct brtnode_nonleaf_childinfo {
 unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
 int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
+long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, brt_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
 int toku_bnc_flush_to_child(

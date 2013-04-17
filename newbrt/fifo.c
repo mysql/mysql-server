@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -206,6 +207,12 @@ void toku_fifo_size_is_stabilized(FIFO fifo) {
 
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo) {
     return sizeof(*fifo)+fifo->memory_start+fifo->memory_used;
+}
+
+unsigned long toku_fifo_memory_footprint(FIFO fifo) {
+    size_t size_used = toku_memory_footprint(fifo->memory, fifo->memory_start+fifo->memory_used);
+    long rval = sizeof(*fifo) + size_used; 
+    return rval;
 }
 
 unsigned long toku_fifo_memory_size(FIFO fifo) {

@@ -109,6 +109,8 @@ typedef struct memory_status {
 
 void toku_memory_get_status(MEMORY_STATUS s);
 
+size_t toku_memory_footprint(void * p, size_t touched);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
 #endif
