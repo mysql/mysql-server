@@ -141,6 +141,7 @@ ifndef TOKUDBONLY
 MAYBE_CHECK_BDB = check.bdb
 else
 MAYBE_CHECK_BDB =
+endif
 check: check.tdb $(MAYBE_CHECK_BDB) ;
 
 tests: tests.bdb tests.tdb ;
