@@ -3328,6 +3328,15 @@ toku_brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, C
     return r;
 }
 
+static int
+abort_on_upgrade(DB* UU(pdb),
+                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
+                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
+    assert(FALSE); //Must not upgrade.
+    return ENOSYS;
+}
+
+
 // Open a brt for use by redirect.  The new brt must have the same dict_id as the old_brt passed in.  (FILENUM is assigned by the brt_open() function.)
 static int
 brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT old_brt) {
@@ -3346,7 +3355,7 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
     r = toku_brt_set_nodesize(t, old_brt->nodesize);
     assert(r==0);
     if (old_h->descriptor.version>0) {
-        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt, old_brt->dbt_userformat_upgrade);
+        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt, abort_on_upgrade);
         assert(r==0);
     }
     CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
