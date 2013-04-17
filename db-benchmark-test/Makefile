@@ -89,11 +89,11 @@ OFILES = \
 #end
 
 $(TARGET_TDB): db-benchmark-test.c
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 $(SCANSCAN_TDB): scanscan.c
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 $(SCANRACE_TDB): scanrace.c
-	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 
 else
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
@@ -106,11 +106,11 @@ $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): $(TOKUDB)
 endif
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
 $(TARGET_TDB): db-benchmark-test.c
-	$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(SCANSCAN_TDB): scanscan.c
-	$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(SCANRACE_TDB): scanrace.c
-	$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 endif
 
 $(TARGET_BDB): db-benchmark-test.c

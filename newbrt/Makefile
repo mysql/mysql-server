@@ -96,7 +96,7 @@ log_header.h log_code.c: logformat$(BINSUF)
 	./logformat
 #Needs to be done manually since it does not include newbrt.
 logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
-	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY)
+	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LIBPORTABILITY) $(LINK_MUST_BE_LAST)
 
 
 libs: $(NEWBRT) $(NEWBRT_BUNDLE)

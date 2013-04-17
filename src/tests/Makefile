@@ -167,7 +167,7 @@ endif
 %.bdb$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.bdb\" -DUSE_BDB -DIS_TDB=0
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
-	$(CC) $< $(BIN_FROM_C_FLAGS)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 TDB_EXTRA_NEEDED=
 ifeq ($(CYGWIN),)
@@ -190,7 +190,7 @@ endif
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
-	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS))
+	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
 
 clean:
 	rm -f $(ALL_TESTS)

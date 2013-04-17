@@ -58,13 +58,13 @@ A_TLOG  =$(RANGETREE_TLOG)
 A_LOG   =$(RANGETREE_LOG)
 
 %.lin$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LINEAR)
-	$(CC) -DTESTDIR=\"dir.$<.lin\" $< $(A_LINEAR) $(BIN_FROM_C_FLAGS)
+	$(CC) -DTESTDIR=\"dir.$<.lin\" $< $(A_LINEAR) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 %.tlog$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_TLOG)
-	$(CC) -DTESTDIR=\"dir.$<.tlog\" $< $(A_TLOG) $(BIN_FROM_C_FLAGS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DTESTDIR=\"dir.$<.tlog\" $< $(A_TLOG) $(BIN_FROM_C_FLAGS) -DTOKU_RT_NOOVERLAPS $(LINK_MUST_BE_LAST)
 
 %.log$(BINSUF): %.c  $(DEPEND_COMPILE) $(DEPEND_LINK) $(A_LOG)
-	$(CC) -DTESTDIR=\"dir.$<.log\"  $< $(A_LOG) $(BIN_FROM_C_FLAGS)
+	$(CC) -DTESTDIR=\"dir.$<.log\"  $< $(A_LOG) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 clean:
 	rm -f $(ALL_TESTS)
