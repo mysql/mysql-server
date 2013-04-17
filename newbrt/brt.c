@@ -566,15 +566,15 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 		update_header_stats(&(h->checkpoint_staging_stats), &deltas);
 	    }
             if (for_checkpoint)
-                brt_status.disk_flush_leaf_for_checkpoint++;
+                __sync_fetch_and_add(&brt_status.disk_flush_leaf_for_checkpoint, 1);
             else
-                brt_status.disk_flush_leaf++;
+                __sync_fetch_and_add(&brt_status.disk_flush_leaf, 1);
         }
         else {
             if (for_checkpoint)
-                brt_status.disk_flush_nonleaf_for_checkpoint++;
+                __sync_fetch_and_add(&brt_status.disk_flush_nonleaf_for_checkpoint, 1);
             else
-                brt_status.disk_flush_nonleaf++;
+                __sync_fetch_and_add(&brt_status.disk_flush_nonleaf, 1);
         }
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
