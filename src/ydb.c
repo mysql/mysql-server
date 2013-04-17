@@ -5657,7 +5657,7 @@ locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * ne
 //             we don't need to test the low-level redirect anymore.
 // for use by test programs only, just a wrapper around brt call:
 int
-test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
+toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
     int r;
     DBT dname_dbt;
     DBT iname_dbt;
