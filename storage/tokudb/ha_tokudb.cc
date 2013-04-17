@@ -3837,7 +3837,21 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     if (!(error = (db_create(&status_block, db_env, 0)))) {
         make_name(newname, name, "status");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-
+        //
+        // create a row descriptor that is the same as a hidden primary key
+        //
+        row_descriptor.size = create_toku_key_descriptor(
+            row_desc_buff,
+            true,
+            false,
+            NULL,
+            false,
+            NULL
+            );
+        error = status_block->set_descriptor(status_block, &row_descriptor);
+        if (error) {
+            goto cleanup;
+        }
         if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
             uint version = HA_TOKU_VERSION;
             uint capabilities = HA_TOKU_CAP;
