@@ -750,6 +750,7 @@ static int tokudb_prefix_cmp_packed_key(DB * file, const DBT * new_key, const DB
     return 0;
 }
 
+#if 0
 /* Compare key against row */
 static bool tokudb_key_cmp(TABLE * table, KEY * key_info, const uchar * key, uint key_length) {
     KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
@@ -780,6 +781,7 @@ static bool tokudb_key_cmp(TABLE * table, KEY * key_info, const uchar * key, uin
     }
     return 0;                   // Identical keys
 }
+#endif
 
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_DBUG_ENTER("ha_tokudb::open");
@@ -1893,6 +1895,7 @@ return END_OF_FILE instead of just NOT_FOUND
     TOKUDB_DBUG_RETURN(error);
 }
 
+#if 0
 /*
   Read last key is solved by reading the next key and then reading
   the previous key
@@ -1919,7 +1922,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
         error = HA_ERR_KEY_NOT_FOUND;
     TOKUDB_DBUG_RETURN(error);
 }
-
+#endif
 
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
