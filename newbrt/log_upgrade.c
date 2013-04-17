@@ -174,6 +174,7 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
     int lockfd = -1;
     FOOTPRINTSETUP(100000);
 
+    footprint = 0;
     *upgrade_in_progress = FALSE;  // set TRUE only if all criteria are met and we're actually doing an upgrade
 
     FOOTPRINT(1);
