@@ -2719,7 +2719,7 @@ toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
     //
     // bad hack because some environment dictionaries do not have a dname
     //
-    if (!dname) {
+    if (!dname || (db->dbenv->i->directory->i->lt == NULL)) {
         return 0;
     }
     toku_fill_dbt(&key_in_directory, dname, strlen(dname)+1);
