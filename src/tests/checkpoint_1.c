@@ -23,7 +23,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
         fflush(stdout); 
     }
     dir_create();
-    env_startup(0,0);
+    env_startup(0);
     int run;
     int r;
     DICTIONARY_S db_control;
@@ -61,7 +61,7 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
         fflush(stdout); 
     }
     dir_create();
-    env_startup(0,0);
+    env_startup(0);
     int run;
     int r;
     DICTIONARY_S db_control;

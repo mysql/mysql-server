@@ -66,6 +66,51 @@ scribble(DB* db, int iter) {
     insert_n_broken(db, NULL, NULL, firstkey, numkeys);
 }
 
+// scribble over database to make sure that changes made after checkpoint are not saved
+// by deleting three of every four rows
+static void UU()
+thin_out(DB* db, int iter) {
+    int64_t firstkey;     // first key to verify/insert
+    int64_t numkeys;      // number of keys to verify/insert
+
+    if (iter > 0){
+	if (iter == 1) {
+	    firstkey = 0;
+	    numkeys = oper_per_iter;
+	}
+	else {
+	    firstkey = (iter - 2) * oper_per_iter;
+	    numkeys = oper_per_iter * 2;
+	}
+    }
+    
+    int r;
+    DBT keydbt;
+    int64_t key;
+    DB_TXN * txn;
+
+    dbt_init(&keydbt, &key, sizeof(key));
+    r = env->txn_begin(env, NULL, &txn, 0);
+    CKERR(r);
+    r = db->pre_acquire_table_lock(db, txn);
+    CKERR(r);
+	
+    // now delete three of four rows
+    firstkey = iter * oper_per_iter;
+    numkeys = oper_per_iter;
+    
+    for (key = firstkey; key < (firstkey + numkeys); key++) {
+	if (key & 0x03) {   // leave every fourth key alone
+	    r = db->del(db, txn, &keydbt, DB_DELETE_ANY);
+	    CKERR(r);
+	}
+    }
+    
+    r = txn->commit(txn, 0);
+    CKERR(r);
+
+}
+
 
 // assert that correct values are in expected rows
 static void
@@ -130,6 +175,10 @@ drop_dead(void) {
     fflush(stderr);
     int zero = 0;
     int infinity = 1/zero;
+    printf("Survived zerodivide!\n");
+    fflush(stdout);
+    printf("Infinity = %d\n", infinity);
+    fflush(stdout);
     void * intothevoid = NULL;
     (*(int*)intothevoid)++;
     printf("intothevoid = %p, infinity = %d\n", intothevoid, infinity);
@@ -199,6 +248,7 @@ random_acts(void * d) {
 #endif
 }
 
+u_int64_t default_cachesize;
 
 void
 run_test (int iter, int die) {
@@ -210,8 +260,19 @@ run_test (int iter, int die) {
     if (iter == 0)
 	dir_create();  // create directory if first time through
     
-    // run with 32K cachesize to force lots of disk I/O
-    env_startup(0, 1<<15);
+    // Run with cachesize of 256 bytes per iteration
+    // to force lots of disk I/O
+    // (each iteration inserts about 4K rows/dictionary, 16 bytes/row, 4 dictionaries = 256K bytes inserted per iteration)
+    const int32_t K256 = 256 * 1024;
+    u_int64_t cachebytes = 0;
+    cachebytes = K256 * (iter + 1) - (128 * 1024);
+    if (cachebytes > default_cachesize)
+        cachebytes = default_cachesize;
+
+    if (verbose)
+	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08"PRIx64"\n", iter, cachebytes);
+    
+    env_startup(cachebytes);
 
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts
@@ -236,7 +297,10 @@ run_test (int iter, int die) {
 	// this thead will scribble over dictionary 0 before crash to verify that
 	// post-checkpoint inserts are not in the database
 	DB* db = dictionaries[0].db;
-	scribble(db, iter);
+	if (iter & 1)
+	    scribble(db, iter);
+	else
+	    thin_out(db, iter);
 	u_int32_t delay = myrandom();
 	delay &= 0xFFF;       // select lower 12 bits, shifted up 8 for random number ...
 	delay = delay << 8;   // ... uniformly distributed between 0 and 1M ...
@@ -299,6 +363,7 @@ test_main (int argc, char *argv[]) {
 	}
     }
     if (argc!=optind) { usage(argv[0]); return 1; }
+    default_cachesize = 256 << 20;
 
     // for developing this test and for exercising with valgrind (no crash)
     if (iter <0) {
@@ -309,8 +374,6 @@ test_main (int argc, char *argv[]) {
 	}
     }
     else {
-	if (verbose)
-	    printf("checkpoint_stress running one iteration, iter = %d\n", iter);
 	run_test(iter, crash);
     }
 

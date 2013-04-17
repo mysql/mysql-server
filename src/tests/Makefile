@@ -397,6 +397,7 @@ checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF)
 	$(VGRIND) ./$< -C -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
+		date; \
 		./$< -c -i $$i -n $(STRESS_SIZE) $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
 		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
 	done && \

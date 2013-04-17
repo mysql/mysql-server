@@ -96,7 +96,7 @@ dir_create(void) {
 
 // pass in zeroes for default cachesize
 static void  UU()
-env_startup(int32_t gbytes, int32_t bytes) {
+env_startup(int64_t bytes) {
     int r;
     r = db_env_create(&env, 0);
         CKERR(r);
@@ -104,8 +104,8 @@ env_startup(int32_t gbytes, int32_t bytes) {
         CKERR(r);
     r = env->set_default_dup_compare(env, int64_dbt_cmp);
         CKERR(r);
-    if (gbytes | bytes) {
-	r = env->set_cachesize(env, gbytes, bytes, 1);
+    if (bytes) {
+	r = env->set_cachesize(env, bytes >> 30, bytes % (1<<30), 1);
         CKERR(r);
     }
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
