@@ -3940,7 +3940,7 @@ toku_cachefile_get_cachetable(CACHEFILE cf) {
     return cf->cachetable;
 }
 
-//Only called by toku_brtheader_end_checkpoint
+//Only called by brtheader_end_checkpoint
 //Must have access to cf->fd (must be protected)
 int
 toku_cachefile_fsync(CACHEFILE cf) {

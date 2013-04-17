@@ -25,6 +25,7 @@
 #include "dbufio.h"
 #include "leafentry.h"
 #include "log-internal.h"
+#include "brt_header.h"
 
 // to turn on tracing, 
 //   cd .../newbrt

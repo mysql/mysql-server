@@ -948,9 +948,6 @@ void brtnode_put_cmd (
     OMT live_root_txns
     );
 
-void toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created);
-// Reset the root_xid_that_created field to the given value.  
-// This redefines which xid created the dictionary.
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
 #endif

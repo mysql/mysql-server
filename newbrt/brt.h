@@ -33,10 +33,7 @@ int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_
 int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 // Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.
 
-int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn) __attribute__ ((warn_unused_result));
 // See the brt.c file for what this toku_redirect_brt does
-
-int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
 
 u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 int toku_brt_create(BRT *)  __attribute__ ((warn_unused_result));
