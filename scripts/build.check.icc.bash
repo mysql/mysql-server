@@ -87,6 +87,7 @@ function runcmd() {
     if [ $fail -eq 0 ] ; then
         if [ $exitcode -eq 0 ] ; then
             result="PASS `mydate` $dir $cmd"
+	    let npass=npass+1
         else
             result="FAIL `mydate` $dir $cmd"
             let nfail=nfail+1
@@ -94,7 +95,6 @@ function runcmd() {
     else
         if [ $exitcode -eq 0 ] ; then
             result="XPASS `mydate` $dir $cmd"
-            let nfail=nfail+1
         else
             result="XFAIL `mydate` $dir $cmd"
         fi
@@ -172,6 +172,7 @@ function build() {
     mkdir -p $productbuilddir
 
     let nfail=0
+    let npass=0
 
     # checkout into $productbuilddir
     runcmd 0 $productbuilddir retry svn checkout -q -r $revision $svnserver/$checkout . >>$tracefile 2>&1
@@ -266,8 +267,11 @@ function build() {
 
     # put the trace into svn
     if [ $docommit -ne 0 ] ; then
-	testresult="PASS"
-	if [ $nfail -ne 0 ] ; then testresult="FAIL"; fi
+	if [ $nfail = 0 ] ; then
+	    testresult="PASS=$npass"
+	else
+	    testresult="FAIL=$nfail PASS=$npass"
+	fi
 
 	local cf=`mktemp`
 	echo "$testresult tokudb-build $productname $CC $GCCVERSION $system $release $arch $nodename" >$cf
