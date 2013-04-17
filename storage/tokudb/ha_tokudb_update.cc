@@ -233,6 +233,8 @@ static bool check_decr_floor_expression(Field *lhs_field, Item *item) {
     if (item->type() != Item::FUNC_ITEM)
         return false;
     Item_func *item_func = static_cast<Item_func*>(item);
+    if (strcmp(item_func->func_name(), "if") != 0)
+        return false;
     Item **arguments = item_func->arguments();
     uint n = item_func->argument_count();
     if (n != 3)
