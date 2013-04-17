@@ -1056,9 +1056,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("local checkpoint during checkpoint", buf);
 
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
-      STATPRINT("max range locks per index", buf);
+      STATPRINT("max range locks", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_max_memory);
+      STATPRINT("memory available for range locks", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.range_locks_curr_memory);
+      STATPRINT("memory in use for range locks", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_successes);
       STATPRINT("range lock escalation successes", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_lock_escalation_failures);
