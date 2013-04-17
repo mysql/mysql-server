@@ -65,7 +65,7 @@ make_tree(FT_HANDLE brt, int height, int fanout, int nperleaf, int *seq, int *mi
             } else {
                 int k = minkeys[childnum]; // use the min key of the right subtree, which creates a broken tree
                 DBT pivotkey;
-                toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, toku_xmemdup(&k, sizeof k), sizeof k));
+                toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, &k, sizeof k));
             }
             toku_unpin_ftnode(brt->ft, child);
         }
