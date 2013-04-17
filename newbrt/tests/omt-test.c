@@ -10,8 +10,8 @@ typedef void *OMTVALUE;
 #include "toku_assert.h"
 #include "brttypes.h"
 
-static int srandom(unsigned int seed) { return 0; }
-static int random() { return 0; }
+#include <stdlib.h>
+#include <string.h>
 
 typedef OMTVALUE TESTVALUE;
 
@@ -22,7 +22,6 @@ int verbose=0;
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); } while (0)
 #define CKERR2s(r,r2,r3) do { if (r!=r2 && r!=r3) fprintf(stderr, "%s:%d error %d %s, expected %d or %d\n", __FILE__, __LINE__, r, strerror(r), r2,r3); assert(r==r2||r==r3); } while (0)
 
-#include <string.h>
 static void
 parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
