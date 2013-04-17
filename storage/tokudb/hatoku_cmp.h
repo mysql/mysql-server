@@ -366,6 +366,11 @@ bool fields_have_same_name(
     Field* b
     );
 
+bool fields_are_same_type(
+    Field* a, 
+    Field* b
+    );
+
 bool are_two_fields_same(
     Field* a,
     Field* b

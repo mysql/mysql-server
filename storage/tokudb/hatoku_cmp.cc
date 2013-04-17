@@ -2861,9 +2861,8 @@ bool fields_have_same_name(
     return strcmp(a->field_name, b->field_name) == 0;
 }
 
-
-bool are_two_fields_same(
-    Field* a,
+bool fields_are_same_type(
+    Field* a, 
     Field* b
     )
 {
@@ -2871,11 +2870,6 @@ bool are_two_fields_same(
     enum_field_types a_mysql_type = a->real_type();
     enum_field_types b_mysql_type = b->real_type();
     // make sure have same names
-    if (strcmp(a->field_name, b->field_name) != 0) {
-        retval = false;
-        goto cleanup;
-    }
-    
     // make sure have same types
     if (a_mysql_type != b_mysql_type) {
         retval = false;
@@ -2996,6 +2990,15 @@ bool are_two_fields_same(
 
 cleanup:
     return retval;
+}
+
+
+bool are_two_fields_same(
+    Field* a,
+    Field* b
+    )
+{
+    return fields_have_same_name(a, b) && fields_are_same_type(a, b);
 }
 
 

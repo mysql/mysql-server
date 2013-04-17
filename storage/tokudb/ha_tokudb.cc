@@ -8029,7 +8029,7 @@ bool columns_have_default_null_blobs(
     return retval;
 }
 
-bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error) {
+bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool check_field_index) {
     bool retval;
     if (table->s->keys != altered_table->s->keys) {
         if (print_error) {
@@ -8116,7 +8116,13 @@ bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error)
                 retval = false;
                 goto cleanup;
             }
-            if (!are_two_fields_same(curr_orig_field,curr_altered_field)) {
+            bool are_fields_same;
+            are_fields_same = (check_field_index) ? 
+                (curr_orig_part->fieldnr == curr_altered_part->fieldnr && 
+                 fields_are_same_type(curr_orig_field, curr_altered_field)) :
+                (are_two_fields_same(curr_orig_field,curr_altered_field));
+                
+            if (!are_fields_same) {
                 if (print_error) {
                     sql_print_error(
                         "Key %s has different field at index %d", 
@@ -8144,7 +8150,7 @@ void ha_tokudb::print_alter_info(
     uint table_changes
     )
 {
-    printf("***are keys of two tables same? %d\n", tables_have_same_keys(table,altered_table,false));
+    printf("***are keys of two tables same? %d\n", tables_have_same_keys(table,altered_table,false, false));
     printf("***alter flags set ***\n");
     for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
       if (alter_flags->is_set(i)) {
@@ -8244,22 +8250,85 @@ cleanup:
     return retval;
 }
 
+bool column_rename_supported(
+    HA_ALTER_INFO* alter_info, 
+    TABLE* orig_table, 
+    TABLE* new_table
+    ) 
+{
+    bool retval = false;
+    bool keys_same_for_cr;
+    uint num_fields_with_different_names = 0;
+    uint field_with_different_name = orig_table->s->fields;
+    if (orig_table->s->fields != new_table->s->fields) {
+        retval = false;
+        goto cleanup;
+    }
+    if (alter_info->contains_first_or_after) {
+        retval = false;
+        goto cleanup;
+    }
+
+    for (uint i = 0; i < orig_table->s->fields; i++) {
+        Field* orig_field = orig_table->field[i];
+        Field* new_field = new_table->field[i];
+        if (!fields_are_same_type(orig_field, new_field)) {
+            retval = false;
+            goto cleanup;
+        }
+        if (!fields_have_same_name(orig_field, new_field)) {
+            num_fields_with_different_names++;
+            field_with_different_name = i;
+        }
+    }
+    // only allow one renamed field
+    if (num_fields_with_different_names != 1) {
+        retval = false;
+        goto cleanup;
+    }
+    assert(field_with_different_name < orig_table->s->fields);
+    //
+    // at this point, we have verified that the two tables have
+    // the same field types and with ONLY one field with a different name. 
+    // We have also identified the field with the different name
+    //
+    // Now we need to check the indexes
+    //
+    keys_same_for_cr = tables_have_same_keys(
+        orig_table,
+        new_table,
+        false,
+        true
+        );
+    if (!keys_same_for_cr) {
+        retval = false;
+        goto cleanup;
+    }
+    retval = true;
+cleanup:
+    return retval;
+}
+
 int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     HA_CREATE_INFO *create_info,
     HA_ALTER_FLAGS *alter_flags,
+    HA_ALTER_INFO  *alter_info,
     uint table_changes)
 {
     TOKUDB_DBUG_ENTER("check_if_supported_alter");
     int retval;
     THD* thd = ha_thd(); 
-    bool keys_same = tables_have_same_keys(table,altered_table, false);
+    bool keys_same = tables_have_same_keys(table,altered_table, false, false);
 
 
     if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+      printf("has after or first %d\n", alter_info->contains_first_or_after);
         print_alter_info(altered_table, create_info, alter_flags, table_changes);
     }
     bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
     bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
+    bool has_column_rename = alter_flags->is_set(HA_CHANGE_COLUMN) && 
+                             alter_flags->is_set(HA_ALTER_COLUMN_NAME);
     //
     // We do not check for changes to foreign keys or primary keys. They are not supported
     // Changing the primary key implies changing keys in all dictionaries. that is why we don't
@@ -8272,6 +8341,7 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     bool has_non_indexing_changes = false;
     bool has_non_dropped_changes = false;
     bool has_non_added_changes = false;
+    bool has_non_column_rename_changes = false;
     for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
         if (i == HA_DROP_INDEX ||
             i == HA_DROP_UNIQUE_INDEX ||
@@ -8282,6 +8352,17 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
         }
         if (alter_flags->is_set(i)) {
             has_non_indexing_changes = true;
+            break;
+        }
+    }
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == HA_ALTER_COLUMN_NAME||
+            i == HA_CHANGE_COLUMN)
+        {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            has_non_column_rename_changes = true;
             break;
         }
     }
@@ -8405,6 +8486,29 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     }
     else if (has_added_columns && !has_non_added_changes) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else if (has_column_rename && !has_non_column_rename_changes) {
+        // we have identified a possible column rename, 
+        // but let's do some more checks
+
+        // we will only allow an hcr if there are no changes
+        // in column positions
+        if (alter_info->contains_first_or_after) {
+            retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+            goto cleanup;
+        }
+
+        // now need to verify that one and only one column
+        // has changed only its name. If we find anything to
+        // the contrary, we don't allow it, also check indexes
+
+        bool cr_supported = column_rename_supported(alter_info, table, altered_table);
+        if (cr_supported) {
+            retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+        }
+        else {
+            retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
+        }
     }
     else { 
         retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
@@ -8841,8 +8945,8 @@ int ha_tokudb::alter_table_phase2(
     u_int32_t max_new_desc_size = 0;
     uchar* row_desc_buff = NULL;
     uchar* column_extra = NULL; 
-    bool dropping_indexes = alter_info->index_drop_count > 0 && !tables_have_same_keys(table,altered_table,false);
-    bool adding_indexes = alter_info->index_add_count > 0 && !tables_have_same_keys(table,altered_table,false);
+    bool dropping_indexes = alter_info->index_drop_count > 0 && !tables_have_same_keys(table,altered_table,false, false);
+    bool adding_indexes = alter_info->index_add_count > 0 && !tables_have_same_keys(table,altered_table,false, false);
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
 
     is_fast_alter_running = true;
@@ -8926,7 +9030,7 @@ int ha_tokudb::alter_table_phase2(
             error = HA_ERR_UNSUPPORTED;
             goto cleanup;
         }
-        if (!tables_have_same_keys(table, altered_table, true)) {
+        if (!tables_have_same_keys(table, altered_table, true, false)) {
             error = HA_ERR_UNSUPPORTED;
             goto cleanup;
         }
