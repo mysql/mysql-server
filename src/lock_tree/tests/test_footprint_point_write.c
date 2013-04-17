@@ -29,10 +29,10 @@ static uint64_t htonl64(uint64_t x) {
 
 typedef size_t (*malloc_usable_size_fun_t)(void *p);
 #if defined(HAVE_MALLOC_USABLE_SIZE)
-size_t malloc_usable_size(void *p);
+size_t malloc_usable_size(void *p) __THROW;
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
 #elif defined(HAVE_MALLOC_SIZE)
-size_t malloc_size(void *p);
+size_t malloc_size(void *p) __THROW;
 static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
 #endif
 

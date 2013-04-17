@@ -15,8 +15,8 @@ enum {NUM_DBS=2};
 int USE_PUTS=0;
 
 uint32_t num_rows = 1;
-uint32_t which_db_to_fail = -1;
-uint32_t which_row_to_fail = -1;
+uint32_t which_db_to_fail = (uint32_t) -1;
+uint32_t which_row_to_fail = (uint32_t) -1;
 enum how_to_fail { FAIL_NONE, FAIL_KSIZE, FAIL_VSIZE } how_to_fail = FAIL_NONE;
 
 static int put_multiple_generate(DB *dest_db,
@@ -198,7 +198,7 @@ int num_rows_set = FALSE;
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
 
-    run_test(1, -1, -1, FAIL_NONE);
+    run_test(1, (uint32_t) -1, (uint32_t) -1, FAIL_NONE);
     run_test(1,  0,  0, FAIL_NONE);
     run_test(1,  0,  0, FAIL_KSIZE);
     run_test(1,  0,  0, FAIL_VSIZE);

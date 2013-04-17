@@ -413,7 +413,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
 
         flush_some_child(h, root_node, &new_fa);
 
-        (void) __sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), -1);
+        (void) __sync_fetch_and_sub(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
         toku_free(ctme.target_key.data);
     }

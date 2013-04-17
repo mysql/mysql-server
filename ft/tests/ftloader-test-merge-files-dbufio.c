@@ -45,7 +45,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
         event_hit();
         if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = ENOSPC;
-	r = -1;
+	r = (size_t) -1;
     } else {
 	r = fwrite(ptr, size, nmemb, stream);
 	if (r!=nmemb) {

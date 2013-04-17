@@ -2108,7 +2108,7 @@ static void putbuf_int32 (struct dbuf *dbuf, int v) {
     putbuf_bytes(dbuf, &v, 4);
 }
 
-static void putbuf_int64 (struct dbuf *dbuf, unsigned long long v) {
+static void putbuf_int64 (struct dbuf *dbuf, long long v) {
     putbuf_int32(dbuf, v>>32);
     putbuf_int32(dbuf, v&0xFFFFFFFF);
 }
