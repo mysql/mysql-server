@@ -12,10 +12,6 @@ extern "C" {
 #endif
 }
 
-#if !defined(HA_END_SPACE_KEY) || HA_END_SPACE_KEY != 0
-#error
-#endif
-
 static inline void *thd_data_get(THD *thd, int slot) {
     return thd->ha_data[slot].ha_ptr;
 }
