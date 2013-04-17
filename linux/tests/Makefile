@@ -16,7 +16,7 @@ ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
 endif
 LDFLAGS = -L../../lib -Wl,-rpath,../../lib
-LDLIBS = -ltokuportability -lpthread
+LDLIBS = -ltokuportability -lpthread -ldl
 SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
@@ -53,7 +53,7 @@ test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=.
 ifeq ($(VGRIND),)
 	./$< $(TEST_EXTRA_ARGS) $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< $(TEST_EXTRA_ARGS) >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --suppressions=../../newbrt/valgrind.suppressions --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< $(TEST_EXTRA_ARGS) >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
@@ -68,7 +68,7 @@ try-leak-lost.tdbrun: try-leak-lost
 ifeq ($(VGRIND),)
 	./$< $(SUMMARIZE_SHOULD_FAIL)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --suppressions=../../newbrt/valgrind.suppressions --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
@@ -83,7 +83,7 @@ try-leak-reachable.tdbrun: try-leak-reachable
 ifeq ($(VGRIND),)
 	./$< $(SUMMARIZE_SHOULD_FAIL)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --suppressions=../../newbrt/valgrind.suppressions --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
@@ -98,7 +98,7 @@ try-uninit.tdbrun: try-uninit
 ifeq ($(VGRIND),)
 	./$< $(SUMMARIZE_SHOULD_FAIL)
 else
-	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
+	$(VGRIND) --error-exitcode=1 --suppressions=../../newbrt/valgrind.suppressions --quiet --leak-check=full --show-reachable=yes --log-file=$<.check.valgrind ./$< >$<.check.output 2>&1; \
 	if [ $$? = 0 ] ; then \
 		lines=`cat $<.check.valgrind | wc -l`; \
 		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
@@ -120,6 +120,9 @@ clean:
 
 try-assert0.tdbrun:
 
+check_memory_status: test-memory-status
+	./test-memory-status
+	LD_PRELOAD=../../../../mysql/jemalloc-2.2.5/lib/libjemalloc.so ./test-memory-status
 
 foo:
 	echo $(TARGETS)

@@ -664,6 +664,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ \n");
     printf("  uint64_t         mem_freed;               /* number of bytes freed */ \n");
     printf("  uint64_t         max_mem_in_use;          /* estimated max value of (used - freed) */ \n");
+    printf("  const char *     mallocator_version;      /* version string from malloc lib */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();

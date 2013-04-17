@@ -269,6 +269,7 @@ typedef struct __toku_engine_status {
   uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ 
   uint64_t         mem_freed;               /* number of bytes freed */ 
   uint64_t         max_mem_in_use;          /* estimated max value of (used - freed) */ 
+  const char *     mallocator_version;      /* version string from malloc lib */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
