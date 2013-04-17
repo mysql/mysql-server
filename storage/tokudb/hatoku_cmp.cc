@@ -2892,6 +2892,16 @@ bool fields_are_same_type(
         retval = false;
         goto cleanup;
     }
+    // Thanks to MariaDB 5.5, we can have two fields
+    // be the same MySQL type but not the same toku type,
+    // This is an issue introduced with MariaDB's fractional time
+    // implementation
+    TOKU_TYPE a_toku_type = mysql_to_toku_type(a);
+    TOKU_TYPE b_toku_type = mysql_to_toku_type(b);
+    if (a_toku_type != b_toku_type) {
+        retval = false;
+        goto cleanup;
+    }
     // make sure that either both are nullable, or both not nullable
     if ((a->null_bit && !b->null_bit) || (!a->null_bit && b->null_bit)) {
         retval = false;
