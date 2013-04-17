@@ -286,6 +286,12 @@ static void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTO
 
 static long brtnode_memory_size (BRTNODE node);
 
+//
+// The intent of toku_pin_brtnode(_holding_lock) is to abstract the process of retrieving a node from
+// the rest of brt.c, so that there is only one place where we need to worry about setting
+// the DSN and applying ancestor messages to a leaf node. The idea is for all of brt.c (search, splits, merges, flushes, etc)
+// to access a node via toku_pin_brtnode(_holding_lock)
+//
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const bounds,
@@ -321,6 +327,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
     return r;
 }
 
+// see comments for toku_pin_brtnode
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 				   ANCESTORS ancestors, struct pivot_bounds const * const bounds,
                                    struct brtnode_fetch_extra *bfe,
@@ -2961,12 +2968,12 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
 	uint64_t workdone_ignore = 0;  // ignore workdone for root-leaf node
 	// not up to date, which means the get_and_pin actually fetched it into memory.
 	toku_apply_cmd_to_leaf(brt, node, cmd, &made_dirty, NULL, &workdone_ignore);
-	node->dirty = 1;
         MSN cmd_msn = cmd->msn;
         invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
 	// max_msn_applied_to_node_on_disk is normally set only when leaf is serialized, 
 	// but needs to be done here (for root leaf) so msn can be set in new commands.
         node->max_msn_applied_to_node_on_disk = cmd_msn;
+	node->dirty = 1;
    } else {
 	brtnode_nonleaf_put_cmd_at_root(brt, node, cmd);
 	//if (should_split) printf("%s:%d Pushed something simple, should_split=1\n", __FILE__, __LINE__); 
@@ -5088,11 +5095,6 @@ apply_buffer_messages_to_basement_node (
 //  Treat the bounds as minus or plus infinity respectively if they are NULL.
 //   Do not mark the node as dirty (preserve previous state of 'dirty' bit).
 {
-    //F    MSN start_msn = node->max_msn_applied_to_node;
-    //F    uint64_t start_workdone = BP_WORKDONE(ancestor, childnum);
-    //F    printf("apply_buffer_messages_to_leafnode %"PRIu64", height = %d, msn = 0x%"PRIx64", ancestor = %"PRIu64", ancestor msn = 0x%"PRIx64"\n",
-    //	   node->thisnodename.b, node->height, start_msn.msn, ancestor->thisnodename.b, ancestor->max_msn_applied_to_node.msn);
-
     assert(0 <= childnum && childnum < ancestor->n_children);
     int r = 0;
     DBT lbe, ubi;                 // lbe is lower bound exclusive, ubi is upper bound inclusive
@@ -5101,7 +5103,7 @@ apply_buffer_messages_to_basement_node (
 	lbe_ptr = NULL;
     } else {
 	lbe = kv_pair_key_to_dbt(bounds->lower_bound_exclusive);
-	lbe_ptr = &lbe;;
+	lbe_ptr = &lbe;
     }
     if (bounds->upper_bound_inclusive==NULL) {
 	ubi_ptr = NULL;
