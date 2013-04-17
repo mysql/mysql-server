@@ -264,6 +264,14 @@ static int UU() keyrange_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
     return r;
 }
 
+static int UU() verify_op(DB_ENV *UU(env), DB **dbp, DB_TXN* UU(txn), ARG UU(arg)) {
+    int r;
+    DB* db = *dbp;
+    r = db->verify_with_progress(db, NULL, NULL, 0, 0);
+    CKERR(r);
+    return r;
+}
+
 static int UU() scan_op(DB_ENV *env, DB **dbp, DB_TXN *txn, ARG arg) {
     return scan_op_and_maybe_check_sum(env, dbp, txn, arg, true);
 }
