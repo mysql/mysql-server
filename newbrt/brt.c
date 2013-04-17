@@ -2652,7 +2652,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 // Effect: Insert the key-val pair into brt.
 {
     int r;
-    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
         toku_cachefile_refup(brt->cf);
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
@@ -2674,7 +2674,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn)
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         toku_cachefile_refup(brt->cf);
         r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
@@ -2924,6 +2924,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
 int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
 
     int r;
+    BOOL txn_created = FALSE;
 
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
@@ -2938,7 +2939,6 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         goto died0;
     }
     t->db = db;
-    t->txnid_that_created_or_locked_when_empty = 0; // Uses 0 for no transaction.
     {
         int fd = -1;
         BOOL did_create = FALSE;
@@ -2950,7 +2950,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
             if (r != 0) goto died_after_open;
-            t->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
+            txn_created = (txn!=NULL);
         } else {
 	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
 	}
@@ -3018,6 +3018,13 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         t->did_set_descriptor = 0;
     }
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
+    if (txn_created) {
+        assert(txn);
+        assert(t->h->txnid_that_created_or_locked_when_empty == 0); // Uses 0 for no transaction.
+        t->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
+        r = toku_txn_note_brt(txn, t);
+        assert(r==0);
+    } 
 
     //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
     toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
@@ -4411,7 +4418,7 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
-    if (txn && (brt->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
+    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn))) {
         BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
         BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
         toku_cachefile_refup(brt->cf);
@@ -4735,7 +4742,8 @@ int
 toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
 {
     if (brt_is_empty(brt, toku_txn_logger(txn))) {
-        brt->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
+        assert(brt->h->txnid_that_created_or_locked_when_empty == 0); 
+        brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
         toku_cachefile_refup(brt->cf);
         return toku_logger_save_rollback_tablelock_on_empty_table(txn, toku_cachefile_filenum(brt->cf));
     }

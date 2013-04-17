@@ -176,6 +176,10 @@ struct brt_header {
     u_int64_t root_put_counter; // the generation number of the brt
 
     BLOCK_TABLE blocktable;
+    // If a transaction created this BRT, which one?
+    // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
+    // 0 if no such transaction
+    TXNID txnid_that_created_or_locked_when_empty;
 };
 
 struct brt {
@@ -198,10 +202,6 @@ struct brt {
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
 
-    // If a transaction created this BRT, which one?
-    // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
-    // 0 if no such transaction
-    TXNID txnid_that_created_or_locked_when_empty;
     int was_closed; //True when this brt was closed, but is being kept around for transactions.
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
