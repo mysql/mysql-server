@@ -17,7 +17,15 @@ test-gettime: test-gettime.c
 check: $(TARGETS) $(RUNTARGETS)
 
 %.tdbrun: %
-	$(VGRIND) ./$<
+ifeq ($(VGRIND),)
+	./$<
+else
+	$(VGRIND) --log-file=$<.valgrind ./$<; \
+	if [ $$? = 0 ] ; then \
+		grep "LEAK SUMMARY" $<.valgrind >/dev/null 2>&1; \
+		if [ $$? = 0 ] ; then cat $<.valgrind; exit 1; fi \
+	fi
+endif
 
 clean:
-	rm -rf $(TARGETS)
+	rm -rf $(TARGETS) *.valgrind
