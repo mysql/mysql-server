@@ -8154,23 +8154,6 @@ bool is_column_default_null(TABLE* src_table, u_int32_t field_index) {
     return is_null_default;
 }
 
-bool columns_have_default_null_blobs(
-    u_int32_t* changed_columns,
-    u_int32_t num_changed_columns,
-    TABLE* table 
-) {
-    bool retval = true;
-    for (u_int32_t i = 0; i < num_changed_columns; i++) {
-        Field* curr_field = table->field[changed_columns[i]];
-        TOKU_TYPE field_type = mysql_to_toku_type (curr_field);
-        if (field_type == toku_type_blob && !is_column_default_null(table,changed_columns[i])) {
-            retval = false;
-            break;
-        }
-    }
-    return retval;
-}
-
 bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool check_field_index) {
     bool retval;
     if (table->s->keys != altered_table->s->keys) {
@@ -8572,16 +8555,6 @@ int ha_tokudb::check_if_supported_alter(TABLE *altered_table,
             retval = (get_disable_slow_alter(thd)) ? HA_ALTER_ERROR : HA_ALTER_NOT_SUPPORTED;
             goto cleanup;
         }
-        if (!columns_have_default_null_blobs(
-            added_columns,
-            num_added_columns,
-            altered_table
-            )) 
-        {
-            sql_print_error("unexpectedly, an added column has a non-null default");
-            retval = HA_ALTER_ERROR;
-            goto cleanup;
-        }
         if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
             for (u_int32_t i = 0; i < num_added_columns; i++) {
                 u_int32_t curr_added_index = added_columns[i];
@@ -8939,28 +8912,16 @@ u_int32_t fill_dynamic_blob_row_mutator(
             memcpy(pos, &blob_index, sizeof(blob_index));
             pos += sizeof(blob_index);
             if (is_add) {
-                bool is_null_default = is_column_default_null(
-                    src_table,
-                    curr_field_index
-                    );
-
                 u_int32_t len_bytes = curr_field->row_pack_length();
                 assert(len_bytes <= 4);
                 pos[0] = len_bytes;
                 pos++;
 
-                if (is_null_default) {
-                    // create a zero length blob field that can be directly copied in
-                    bzero(pos,len_bytes);
-                    pos += len_bytes;
-                }
-                else {
-                    // in future, if is_null_default can be 0, we will have a default value placed here
-                    // for now, in MySQL, we can only have blob fields that are null by default
-                    // in check_if_supported_alter, we verify that all blob fields have null by default,
-                    // so, we can assert this here.
-                    assert(is_null_default);
-                }
+                // create a zero length blob field that can be directly copied in
+                // for now, in MySQL, we can only have blob fields 
+                // that have no default value
+                bzero(pos,len_bytes);
+                pos += len_bytes;
             }
         }
         else {
