@@ -108,7 +108,7 @@ LINK=-l
 DEPEND_COMPILE += \
 	$(TOKUROOT)include/db.h \
 	$(TOKUROOT)include/toku_os.h \
-	$(TOKUROOT)include/portability.h \
+	$(TOKUROOT)include/toku_portability.h \
 	$(TOKUROOT)include/rdtsc.h \
 # keep this line so I can have a \ on the previous line
 CCQUIET=

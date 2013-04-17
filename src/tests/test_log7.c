@@ -6,7 +6,7 @@
 /* This test_log7 is like test_log5 except maxcount is larger. */
 
 #include <assert.h>
-#include <portability.h>
+#include <toku_portability.h>
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>
