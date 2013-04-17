@@ -4,7 +4,7 @@
 // is expanded beyond 1 byte.
 enum {
     UPDATE_OP_COL_ADD_OR_DROP = 0,
-    UPDATE_OP_EXPAND_VARCHAR_OFFSETS = 1,
+    UPDATE_OP_EXPAND_VARIABLE_OFFSETS = 1,
     UPDATE_OP_EXPAND_INT = 2,
     UPDATE_OP_EXPAND_UINT = 3,
     UPDATE_OP_EXPAND_CHAR = 4,
@@ -61,7 +61,7 @@ enum {
 // So, upperbound is num_blobs(1+4+1+4) = num_columns*10
 
 // The expand varchar offsets message is used to expand the size of an offset from 1 to 2 bytes.
-// operation     1  == UPDATE_OP_EXPAND_VARCHAR_OFFSETS
+// operation     1  == UPDATE_OP_EXPAND_VARIABLE_OFFSETS
 // n_offsets     4  number of offsets
 // offset_start  4  starting offset of the variable length field offsets 
 
@@ -71,6 +71,12 @@ enum {
 // offset        4 starting offset of the field in the row's value
 // old length    4 the old length of the field's value
 // new length    4 the new length of the field's value
+
+// operation     1  == UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
+// offset        4 starting offset of the field in the row's value
+// old length    4 the old length of the field's value
+// new length    4 the new length of the field's value
+// pad char      1
 
 // The int add and sub update messages are used to add or subtract a constant to or from an integer field.
 // operation     1 == UPDATE_OP_INT_ADD, UPDATE_OP_INT_SUB, UPDATE_OP_UINT_ADD, UPDATE_OP_UINT_SUB
@@ -617,10 +623,9 @@ cleanup:
     return error;    
 }
 
-// Decode the expand varchar offsets message and expand the varchar offsets array in the old
-// val to a new val.  Call the set_val callback with the new val.
+// Expand the variable offset array in the old row given the update mesage in the extra.
 static int 
-tokudb_expand_varchar_offsets(
+tokudb_expand_variable_offsets(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -634,7 +639,7 @@ tokudb_expand_varchar_offsets(
 
     // decode the operation
     uchar operation = extra_pos[0];
-    assert(operation == UPDATE_OP_EXPAND_VARCHAR_OFFSETS);
+    assert(operation == UPDATE_OP_EXPAND_VARIABLE_OFFSETS);
     extra_pos += sizeof operation;
 
     // decode number of offsets
@@ -700,10 +705,9 @@ cleanup:
     return error;
 }
 
-// Given a description of a fixed length field and the old value of a row, build a new value for the row and 
-// update it in the fractal tree.
+// Expand an int field in a old row given the expand message in the extra.
 static int 
-tokudb_expand_field(
+tokudb_expand_int_field(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -716,8 +720,7 @@ tokudb_expand_field(
     uchar *extra_pos = (uchar *)extra->data;
 
     uchar operation = extra_pos[0];
-    assert(operation == UPDATE_OP_EXPAND_INT || operation == UPDATE_OP_EXPAND_UINT ||
-           operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY);
+    assert(operation == UPDATE_OP_EXPAND_INT || operation == UPDATE_OP_EXPAND_UINT);
     extra_pos += sizeof operation;
 
     uint32_t the_offset;
@@ -755,32 +758,109 @@ tokudb_expand_field(
         new_val_ptr += the_offset;
         old_val_ptr += the_offset;
         
-        // read the old field, expand it, write to the new offset
         switch (operation) {
         case UPDATE_OP_EXPAND_INT:
-            if (old_val_ptr[old_length-1] & 0x80) // if sign bit on then sign extend
-                memset(new_val_ptr, 0xff, new_length);
-            else
-                memset(new_val_ptr, 0, new_length);
-            memcpy(new_val_ptr, old_val_ptr, old_length);
+            // fill the entire new value with ones or zeros depending on the sign bit
+            // the encoding is little endian
+            memset(new_val_ptr, (old_val_ptr[old_length-1] & 0x80) ? 0xff : 0x00, new_length);
+            memcpy(new_val_ptr, old_val_ptr, old_length);  // overlay the low bytes of the new value with the old value
             new_val_ptr += new_length;
             old_val_ptr += old_length;
             break;
         case UPDATE_OP_EXPAND_UINT:
-            memset(new_val_ptr, 0, new_length);
-            memcpy(new_val_ptr, old_val_ptr, old_length);
+            memset(new_val_ptr, 0, new_length);            // fill the entire new value with zeros
+            memcpy(new_val_ptr, old_val_ptr, old_length);  // overlay the low bytes of the new value with the old value
             new_val_ptr += new_length;
             old_val_ptr += old_length;
             break;
+        default:
+            assert(0);
+        }
+        
+        // copy the rest
+        size_t n = old_val->size - (old_val_ptr - (uchar *)old_val->data);
+        memcpy(new_val_ptr, old_val_ptr, n);
+        new_val_ptr += n;
+        old_val_ptr += n;
+        new_val.size = new_val_ptr - (uchar *)new_val.data;
+
+        assert(new_val_ptr == (uchar *)new_val.data + new_val.size);
+        assert(old_val_ptr == (uchar *)old_val->data + old_val->size);
+
+        // set the new val
+        set_val(&new_val, set_extra);
+    }
+
+    error = 0;
+
+cleanup:
+    my_free(new_val.data, MYF(MY_ALLOW_ZERO_PTR));        
+
+    return error;
+}
+
+// Expand a char field in a old row given the expand message in the extra.
+static int 
+tokudb_expand_char_field(
+    DB* db,
+    const DBT *key,
+    const DBT *old_val, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val, void *set_extra),
+    void *set_extra
+    ) 
+{
+    int error = 0;
+    uchar *extra_pos = (uchar *)extra->data;
+
+    uchar operation = extra_pos[0];
+    assert(operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY);
+    extra_pos += sizeof operation;
+
+    uint32_t the_offset;
+    memcpy(&the_offset, extra_pos, sizeof the_offset);
+    extra_pos += sizeof the_offset;
+
+    uint32_t old_length;
+    memcpy(&old_length, extra_pos, sizeof old_length);
+    extra_pos += sizeof old_length;
+
+    uint32_t new_length;
+    memcpy(&new_length, extra_pos, sizeof new_length);
+    extra_pos += sizeof new_length;
+
+    uchar pad_char = 0;
+    memcpy(&pad_char, extra_pos, sizeof pad_char);
+    extra_pos += sizeof pad_char;
+
+    assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
+    assert(new_length >= old_length); // expand only
+    assert(the_offset + old_length <= old_val->size); // old field within the old val
+
+    DBT new_val; memset(&new_val, 0, sizeof new_val);
+
+    if (old_val != NULL) {
+        // compute the new val from the old val
+        uchar *old_val_ptr = (uchar *)old_val->data;
+
+        // allocate space for the new val's data
+        uchar *new_val_ptr = (uchar *)my_malloc(old_val->size + (new_length - old_length), MYF(MY_FAE));
+        if (!new_val_ptr) {
+            error = ENOMEM;
+            goto cleanup;
+        }
+        new_val.data = new_val_ptr;
+        
+        // copy up to the old offset
+        memcpy(new_val_ptr, old_val_ptr, the_offset);
+        new_val_ptr += the_offset;
+        old_val_ptr += the_offset;
+        
+        switch (operation) {
         case UPDATE_OP_EXPAND_CHAR:
-            memset(new_val_ptr, ' ', new_length); // expand the field with the char pad
-            memcpy(new_val_ptr, old_val_ptr, old_length);
-            new_val_ptr += new_length;
-            old_val_ptr += old_length;
-            break;
         case UPDATE_OP_EXPAND_BINARY:
-            memset(new_val_ptr, 0, new_length); // expand the field with the binary pad
-            memcpy(new_val_ptr, old_val_ptr, old_length);
+            memset(new_val_ptr, pad_char, new_length);     // fill the entire new value with the pad char
+            memcpy(new_val_ptr, old_val_ptr, old_length);  // overlay the low bytes of the new value with the old value
             new_val_ptr += new_length;
             old_val_ptr += old_length;
             break;
@@ -827,14 +907,16 @@ tokudb_update_fun(
     case UPDATE_OP_COL_ADD_OR_DROP:
         error = tokudb_hcad_update_fun(db, key, old_val, extra, set_val, set_extra);
         break;
-    case UPDATE_OP_EXPAND_VARCHAR_OFFSETS:
-        error = tokudb_expand_varchar_offsets(db, key, old_val, extra, set_val, set_extra);
+    case UPDATE_OP_EXPAND_VARIABLE_OFFSETS:
+        error = tokudb_expand_variable_offsets(db, key, old_val, extra, set_val, set_extra);
         break;
     case UPDATE_OP_EXPAND_INT:
     case UPDATE_OP_EXPAND_UINT:
+        error = tokudb_expand_int_field(db, key, old_val, extra, set_val, set_extra);
+        break;
     case UPDATE_OP_EXPAND_CHAR:
     case UPDATE_OP_EXPAND_BINARY:
-        error = tokudb_expand_field(db, key, old_val, extra, set_val, set_extra);
+        error = tokudb_expand_char_field(db, key, old_val, extra, set_val, set_extra);
         break;
     default:
         error = EINVAL;
