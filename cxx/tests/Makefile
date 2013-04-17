@@ -61,14 +61,8 @@ clean:
 	rm -rf *.dir
 	rm -rf *.out
 	rm -rf \
-		cdd_tdb_0_b.tokudb                                                 \
-		check_db_create_DSM_tdb_main_0_b.tokudb                            \
+		*.tokudb                                                           \
 		tokudb.environment                                                 \
-		test_error_stream_cpp_tdb_0_b.tokudb                               \
-		test_reverse_compare_fun_cpp_dir_reverse_compare_db_main_0_b.tokudb\
-		permissions_tdb_*.tokudb                                           \
-		test_cursor_count_cpp_tdb_0_b.tokudb                               \
-		check_db_create_tdb_main_0_b.tokudb                                \
 		tokudb.directory                                                   \
 		test_no_env                                                        \
 #this line left blank
@@ -155,8 +149,8 @@ check_db_create_4: db_create
 	$(VGRIND) ./db_create -s &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
-	rm -f permissions_tdb_*.tokudb && \
+	rm -f crezvffvbaf_gqo_*.tokudb && \
 	./db_create permissions.tdb 1 1 && \
-	chmod -w permissions_tdb_*.tokudb && \
+	chmod -w crezvffvbaf_gqo_*.tokudb && \
 	(./db_create permissions.tdb 2 2 &> check_permissions.out 2>&1 ; test $$? -ne 0) \
 	$(SUMMARIZE_CMD)
