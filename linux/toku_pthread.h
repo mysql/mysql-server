@@ -20,7 +20,7 @@ typedef pthread_rwlock_t toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t  toku_pthread_rwlockattr_t;
 
 static inline int
-toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr) {
+toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
     return pthread_rwlock_init(rwlock, attr);
 }
 
