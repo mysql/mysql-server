@@ -798,23 +798,22 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     // deserialize the node, must pass the bfe in because we cannot
     // evaluate what piece of the the node is necessary until we get it at
     // least partially into memory
-    // <CER> TODO: Use checksum error code as a return HERE!
     enum deserialize_error_code e;
     int r = 0;
     e = toku_deserialize_brtnode_from(fd, nodename, fullhash, node, ndd, bfe);
-    if (e == DS_XSUM_FAIL) {
-        fprintf(stderr, "Checksum failure while reading node in file %s.\n", toku_cachefile_fname_in_env(cachefile));
-        assert(false);  // make absolutely sure we crash before doing anything else
-    } else if (e == DS_ERRNO) {
-        r = errno;
-    } else if (e == DS_OK) {
-        r = 0;
-    } else {
+    if (e != DS_OK) {
+        if (e == DS_XSUM_FAIL) {
+            fprintf(stderr, 
+                    "Checksum failure while reading node in file %s.\n",
+                    toku_cachefile_fname_in_env(cachefile));
+        } else if (e == DS_ERRNO) {
+            r = errno;
+            fprintf(stderr, "Error deserializing node, errno = %d", r); 
+        }
+        // make absolutely sure we crash before doing anything else.
         assert(false);
     }
-    /*
-    int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, node, ndd, bfe);
-    */
+
     if (r == 0) {
 	(*node)->h = bfe->h;  // copy reference to header from bfe
 	*sizep = make_brtnode_pair_attr(*node);
@@ -1224,12 +1223,19 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
         }
 
         if (e != DS_OK) {
-            fprintf(stderr, "Unknown failure while reading node in file %s.\n", toku_cachefile_fname_in_env(bfe->h->cf)); 
+            if (e == DS_XSUM_FAIL) {
+                fprintf(stderr,
+                        "Checksum failure while reading node partition in file %s.\n",
+                        toku_cachefile_fname_in_env(bfe->h->cf));
+            } else if (e == DS_ERRNO) {
+                fprintf(stderr,
+                        "Error while reading node partition %d\n",
+                        errno);
+            }
             assert(false);
         }
     }
 
-    cilk_sync;
     *sizep = make_brtnode_pair_attr(node);
 
     return 0;

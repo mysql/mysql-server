@@ -1256,7 +1256,7 @@ verify_brtnode_sub_block (struct sub_block *sb)
 }
 
 // This function deserializes the data stored by serialize_brtnode_info
-static void 
+static enum deserialize_error_code
 deserialize_brtnode_info(
     struct sub_block *sb, 
     BRTNODE node
@@ -1266,7 +1266,12 @@ deserialize_brtnode_info(
     // this function puts that information into node
 
     // first verify the checksum
-    verify_brtnode_sub_block(sb);
+    enum deserialize_error_code e = DS_OK;
+    e = verify_brtnode_sub_block(sb);
+    if (e != DS_OK) {
+        goto exit;
+    }
+
     u_int32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
 
     // now with the data verified, we can read the information into the node
@@ -1320,6 +1325,8 @@ deserialize_brtnode_info(
         dump_bad_block(rb.buf, rb.size);
         assert(FALSE);
     }
+exit:
+    return e;
 }
 
 static void
@@ -1598,10 +1605,8 @@ deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnode,
     u_int32_t stored_checksum = rbuf_int(rb);
     if (stored_checksum != checksum) {
         dump_bad_block(rb->buf, rb->size);
-        if (stored_checksum != checksum) {
-            e = DS_XSUM_FAIL;
-            goto cleanup;
-        }
+        e = DS_XSUM_FAIL;
+        goto cleanup;
     }
 
     // Now we want to read the pivot information.
@@ -1639,7 +1644,11 @@ deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnode,
         );
 
     // at this point sb->uncompressed_ptr stores the serialized node info.
-    deserialize_brtnode_info(&sb_node_info, node);
+    e = deserialize_brtnode_info(&sb_node_info, node);
+    if (e != DS_OK) {
+        goto cleanup;
+    }
+
     toku_free(sb_node_info.uncompressed_ptr);
     sb_node_info.uncompressed_ptr = NULL;
 
@@ -2255,7 +2264,10 @@ deserialize_brtnode_from_rbuf(
     }
 
     // at this point, sb->uncompressed_ptr stores the serialized node info
-    deserialize_brtnode_info(&sb_node_info, node);
+    e = deserialize_brtnode_info(&sb_node_info, node);
+    if (e != DS_OK) {
+        goto cleanup;
+    }
     toku_free(sb_node_info.uncompressed_ptr);
 
     // now that the node info has been deserialized, we can proceed to deserialize
@@ -2327,6 +2339,10 @@ deserialize_brtnode_from_rbuf(
 cleanup:
     if (r != 0) {
         e = DS_ERRNO;
+        // NOTE: Right now, callers higher in the stack will assert on
+        // failure, so this is OK for production.  However, if we
+        // create tools that use this function to search for errors in
+        // the BRT, then we will leak memory.
         if (node) toku_free(node);
     }
 
@@ -2429,7 +2445,7 @@ toku_deserialize_brtnode_from (int fd,
     read_brtnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb);
 
     e = deserialize_brtnode_header_from_rbuf_if_small_enough(brtnode, ndd, blocknum, fullhash, bfe, &rb, fd);
-    if (e == DS_ERRNO) {
+    if (e != DS_OK) { //<CER> ??? Change this to != DS_OK?
         e = DS_OK;
 	toku_free(rb.buf);
 	rb = RBUF_INITIALIZER;
