@@ -10,6 +10,7 @@ CMakeLists.txt: CMakeLists.in
 else
 CMakeLists.txt: CMakeLists.in
 	sed -e "s?TOKUDB_DIR_REPLACE_ME?$(TOKUDB_DIR)?g" \
+	    -e "s?TOKUDB_OBJ_DIR_REPLACE_ME?$(TOKUDB_OBJ_DIR)?g" \
 	    -e "s?TOKUDB_VERSION_REPLACE_ME?$(TOKUDB_VERSION)?g" < $< > $@
 endif
 
