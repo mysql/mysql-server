@@ -141,8 +141,13 @@ ifeq ($(OS_CHOICE),windows)
     BDB_DONTRUN_TESTS+=$(WINDOWS_BDB_DONTRUN_TESTS)
 endif
 
-BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
+ifeq ($(OS_CHOICE),windows)
+BDB_TESTS=
+BDB_BINS=
+else
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
+BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
+endif
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
