@@ -576,7 +576,7 @@ public:
                                    TABLE *altered_table,
                                    HA_CREATE_INFO *create_info,
                                    HA_ALTER_INFO *alter_info,
-			           HA_ALTER_FLAGS *alter_flags);
+                                   HA_ALTER_FLAGS *alter_flags);
     int alter_table_phase3(THD *thd, TABLE *table)
     {
       return 0;

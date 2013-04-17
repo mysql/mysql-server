@@ -41,103 +41,103 @@ static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_
 }
 
 static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, MEM_ROOT * mem_root);
+
 static MYSQL_THDVAR_BOOL(commit_sync, 
     PLUGIN_VAR_THDLOCAL, 
     "sync on txn commit",
     /* check */ NULL, 
     /* update */ NULL,
     /* default*/ true
-    );
-
+);
 static MYSQL_THDVAR_UINT(pk_insert_mode,
-  0,
-  "set the primary key insert mode",
-  NULL, 
-  NULL, 
-  1, // default
-  0, // min?
-  2, // max
-  1 // blocksize
-  );
+    0,
+    "set the primary key insert mode",
+    NULL, 
+    NULL, 
+    1, // default
+    0, // min?
+    2, // max
+    1 // blocksize
+);
 static MYSQL_THDVAR_BOOL(load_save_space,
-  0,
-  "if on, intial loads are slower but take less space",
-  NULL, 
-  NULL, 
-  false
-  );
+    0,
+    "if on, intial loads are slower but take less space",
+    NULL, 
+    NULL, 
+    false
+);
 static MYSQL_THDVAR_BOOL(disable_slow_alter,
-  0,
-  "if on, alter tables that require copy are disabled",
-  NULL, 
-  NULL, 
-  false
-  );
+    0,
+    "if on, alter tables that require copy are disabled",
+    NULL, 
+    NULL, 
+    false
+);
 static MYSQL_THDVAR_BOOL(disable_hot_alter,
-  0,
-  "if on, hot alter table is disabled",
-  NULL, 
-  NULL, 
-  false
-  );
+    0,
+    "if on, hot alter table is disabled",
+    NULL, 
+    NULL, 
+    false
+);
 static MYSQL_THDVAR_BOOL(create_index_online,
-  0,
-  "if on, create index done online",
-  NULL, 
-  NULL, 
-  true
-  );
+    0,
+    "if on, create index done online",
+    NULL, 
+    NULL, 
+    true
+);
 static MYSQL_THDVAR_BOOL(disable_prefetching,
-  0,
-  "if on, prefetching disabled",
-  NULL, 
-  NULL, 
-  false
-  );
+    0,
+    "if on, prefetching disabled",
+    NULL, 
+    NULL, 
+   false
+);
 static MYSQL_THDVAR_BOOL(prelock_empty,
-  0,
-  "Tokudb Prelock Empty Table",
-  NULL, 
-  NULL, 
-  true
-  );
+    0,
+    "Tokudb Prelock Empty Table",
+    NULL, 
+    NULL, 
+    true
+);
 static MYSQL_THDVAR_BOOL(log_client_errors,
-  0,
-  "Tokudb Log Client Errors",
-  NULL, 
-  NULL, 
-  false
-  );
+    0,
+    "Tokudb Log Client Errors",
+    NULL, 
+    NULL, 
+    false
+);
 static MYSQL_THDVAR_UINT(block_size,
-  0,
-  "fractal tree block size",
-  NULL, 
-  NULL, 
-  4<<20, // default
-  4096,  // min
-  ~0L,   // max
-  1      // blocksize???
-  );
+    0,
+    "fractal tree block size",
+    NULL, 
+    NULL, 
+    4<<20, // default
+    4096,  // min
+    ~0L,   // max
+    1      // blocksize???
+);
 static MYSQL_THDVAR_UINT(read_block_size,
-  0,
-  "fractal tree read block size",
-  NULL, 
-  NULL, 
-  128*1024, // default
-  4096,  // min
-  ~0L,   // max
-  1      // blocksize???
-  );
+    0,
+    "fractal tree read block size",
+    NULL, 
+    NULL, 
+    128*1024, // default
+    4096,  // min
+    ~0L,   // max
+    1      // blocksize???
+);
 static MYSQL_THDVAR_UINT(read_buf_size,
-  0,
-  "fractal tree read block size", //TODO: Is this a typo?
-  NULL, 
-  NULL, 
-  128*1024, // default
-  0,  // min
-  1*1024*1024,   // max
-  1      // blocksize???
-  );
+    0,
+    "fractal tree read block size", //TODO: Is this a typo?
+    NULL, 
+    NULL, 
+    128*1024, // default
+    0,  // min
+    1*1024*1024,   // max
+    1      // blocksize???
+);
 
 static void tokudb_checkpoint_lock(THD * thd);
 static void tokudb_checkpoint_unlock(THD * thd);
@@ -160,12 +160,12 @@ tokudb_checkpoint_lock_update(
 }
   
 static MYSQL_THDVAR_BOOL(checkpoint_lock,
-  0,
-  "Tokudb Checkpoint Lock",
-  NULL, 
-  tokudb_checkpoint_lock_update, 
-  false
-  );
+    0,
+    "Tokudb Checkpoint Lock",
+    NULL, 
+    tokudb_checkpoint_lock_update, 
+    false
+);
 
 static const char *tokudb_row_format_names[] = {
     "tokudb_uncompressed",
@@ -241,19 +241,16 @@ static ulong tokudb_cleaner_iterations;
 void toku_hton_assert_fail(const char* expr_as_string, const char * fun, const char * file, int line, int caller_errno) {
     char msg[ASSERT_MSGLEN];
     if (db_env) {
-	snprintf(msg, ASSERT_MSGLEN, "Handlerton: %s ", expr_as_string);
-	db_env->crash(db_env, msg, fun, file, line,caller_errno);
+        snprintf(msg, ASSERT_MSGLEN, "Handlerton: %s ", expr_as_string);
+        db_env->crash(db_env, msg, fun, file, line,caller_errno);
     }
     else {
-	snprintf(msg, ASSERT_MSGLEN, "Handlerton assertion failed, no env, %s, %d, %s, %s (errno=%d)\n", file, line, fun, expr_as_string, caller_errno);
-	perror(msg);
-	fflush(stderr);
+        snprintf(msg, ASSERT_MSGLEN, "Handlerton assertion failed, no env, %s, %d, %s, %s (errno=%d)\n", file, line, fun, expr_as_string, caller_errno);
+        perror(msg);
+        fflush(stderr);
     }
     abort();
 }
-
-
-
 
 //my_bool tokudb_shared_data = false;
 static uint32_t tokudb_init_flags = 
@@ -1009,9 +1006,9 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 }
 
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
-			   const char *name,
-			   uchar **frmblob, 
-			   size_t *frmlen)
+                           const char *name,
+                           uchar **frmblob, 
+                           size_t *frmlen)
 {
     TOKUDB_DBUG_ENTER("tokudb_discover");
     int error;
@@ -1319,9 +1316,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
 #if MYSQL_VERSION_ID < 50500
     {
-	sys_var * version = intern_find_sys_var("version", 0, false);
-	snprintf(buf, bufsiz, "%s", version->value_ptr(thd, (enum_var_type)0, (LEX_STRING*)NULL));
-	STATPRINT("Version", buf);
+        sys_var * version = intern_find_sys_var("version", 0, false);
+        snprintf(buf, bufsiz, "%s", version->value_ptr(thd, (enum_var_type)0, (LEX_STRING*)NULL));
+        STATPRINT("Version", buf);
     }
 #endif
     error = db_env->get_engine_status_num_rows (db_env, &num_rows);
@@ -1329,13 +1326,13 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     error = db_env->get_engine_status (db_env, mystat, num_rows, &redzone_state, &panic, panic_string, panic_string_len);
 
     if (strlen(panic_string)) {
-	STATPRINT("Environment panic string", panic_string);
+        STATPRINT("Environment panic string", panic_string);
     }
     if (error == 0) {
-	if (panic) {
-	    snprintf(buf, bufsiz, "%" PRIu64, panic);
-	    STATPRINT("Environment panic", buf);
-	}
+        if (panic) {
+            snprintf(buf, bufsiz, "%" PRIu64, panic);
+            STATPRINT("Environment panic", buf);
+        }
         
         if(redzone_state == FS_BLOCKED) {
             STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
@@ -1511,7 +1508,7 @@ static uint tokudb_alter_table_flags(uint flags)
 static uint tokudb_alter_table_flags(uint flags) {
     return HA_INPLACE_ADD_INDEX_NO_READ_WRITE
         |  HA_INPLACE_ADD_INDEX_NO_WRITE
-	|  HA_INPLACE_DROP_INDEX_NO_READ_WRITE
+        |  HA_INPLACE_DROP_INDEX_NO_READ_WRITE
         |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
         |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
         |  HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;

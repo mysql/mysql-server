@@ -5,10 +5,10 @@ public:
     DB_TXN *txn;
     bool incremented_numDBs;
     bool modified_DBs;
-	ha_tokudb_add_index(TABLE* table, KEY* key_info, uint num_of_keys, DB_TXN *txn, bool incremented_numDBs, bool modified_DBs) :
-		handler_add_index(table, key_info, num_of_keys), txn(txn), incremented_numDBs(incremented_numDBs), modified_DBs(modified_DBs) {
+        ha_tokudb_add_index(TABLE* table, KEY* key_info, uint num_of_keys, DB_TXN *txn, bool incremented_numDBs, bool modified_DBs) :
+                handler_add_index(table, key_info, num_of_keys), txn(txn), incremented_numDBs(incremented_numDBs), modified_DBs(modified_DBs) {
     }
-	~ha_tokudb_add_index() {
+        ~ha_tokudb_add_index() {
     }
 };
 
