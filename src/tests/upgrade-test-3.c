@@ -9,7 +9,6 @@
 
 #include "test.h"
 #include "toku_pthread.h"
-#include "toku_atomic.h"
 #include <db.h>
 #include <sys/stat.h>
 #include "ydb-internal.h"
