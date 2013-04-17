@@ -222,7 +222,9 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx)
         fi->n_files_open--;
         fi->file_infos[idx.idx].is_open = FALSE;
         int r = toku_os_fclose(fi->file_infos[idx.idx].file);
-        if (r != 0)
+        if (r == 0) 
+            cleanup_big_buffer(&fi->file_infos[idx.idx]);
+        else
             result = errno;
     } else 
         result = EINVAL;
