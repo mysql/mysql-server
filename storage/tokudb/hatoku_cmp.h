@@ -1,8 +1,6 @@
 #ifndef _HATOKU_CMP
 #define _HATOKU_CMP
 
-#include "toku_mysql_priv.h"
-
 extern "C" {
 #include "stdint.h"
 }

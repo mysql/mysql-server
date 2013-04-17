@@ -1,21 +1,86 @@
 #ifndef _HATOKU_DEF
 #define _HATOKU_DEF
 
+#include "mysql_version.h"
+#if MYSQL_VERSION_ID < 50506
+#include "mysql_priv.h"
+#else
+#include "sql_table.h"
+#include "handler.h"
+#include "table.h"
+#include "log.h"
+#include "sql_class.h"
+#include "sql_show.h"
+#include "discover.h"
+#endif
+
 #include "db.h"
 extern "C" {
 #include "toku_os.h"
 }
 
+#ifdef USE_PRAGMA_INTERFACE
+#pragma interface               /* gcc class implementation */
+#endif
+
+// In MariaDB 5.3, thread progress reporting was introduced.
+// Only include that functionality if we're using maria 5.3 +
+#ifdef MARIADB_BASE_VERSION
+#if MYSQL_VERSION_ID >= 50300
+#define HA_TOKUDB_HAS_THD_PROGRESS
+#endif
+#endif
+
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
+#define TOKU_INCLUDE_XA 1
+#endif
+
+#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_INCLUDE_ALTER_55 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
+#define TOKU_INCLUDE_XA 1
+#endif
+
+#if MYSQL_VERSION_ID < 50500
+#define TOKU_INCLUDE_ALTER_51 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
+#define TOKU_INCLUDE_XA 1
+#endif
+
+#if !defined(HA_CLUSTERING)
+#define HA_CLUSTERING 0
+#endif
+
+#if !defined(HA_CLUSTERED_INDEX)
+#define HA_CLUSTERED_INDEX 0
+#endif
+
+#if !defined(HA_CAN_WRITE_DURING_OPTIMIZE)
+#define HA_CAN_WRITE_DURING_OPTIMIZE 0
+#endif
+
+// In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
+// use a read/write lock on the key_file array in a table share, 
+// because table locks do not protect the race of some thread closing 
+// a table and another calling ha_tokudb::info()
+//
+// In version 5.5 and, a higher layer "metadata lock" was introduced
+// to synchronize threads that open, close, call info(), etc on tables.
+// In these versions, we don't need the key_file lock
+#if MYSQL_VERSION_ID < 50500
+#define HA_TOKUDB_NEEDS_KEY_FILE_LOCK
+#endif
 
 extern ulong tokudb_debug;
-
 
 //
 // returns maximum length of dictionary name, such as key-NAME
 // NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
 //
 #define MAX_DICT_NAME_LEN NAME_CHAR_LEN + 10
-
 
 // QQQ how to tune these?
 #define HA_TOKUDB_RANGE_COUNT   100
@@ -164,5 +229,14 @@ static inline void abort_txn(DB_TXN* txn) {
     assert(r == 0);
 }
 
+/* The purpose of this file is to define assert() for use by the handlerton.
+ * The intention is for a failed handlerton assert to invoke a failed assert
+ * in the fractal tree layer, which dumps engine status to the error log.
+ */
+
+void toku_hton_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
+
+#undef assert  
+#define assert(expr)      ((expr)      ? (void)0 : toku_hton_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
 
 #endif

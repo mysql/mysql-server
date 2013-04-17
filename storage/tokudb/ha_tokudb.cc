@@ -3,7 +3,7 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "toku_mysql_priv.h"
+#include "hatoku_defines.h"
 #include "hatoku_cmp.h"
 extern "C" {
 #include "stdint.h"
@@ -11,7 +11,6 @@ extern "C" {
 #include "misc.h"
 #endif
 }
-#include "hatoku_assert.h"
 
 static inline void *thd_data_get(THD *thd, int slot) {
     return thd->ha_data[slot].ha_ptr;
@@ -26,15 +25,12 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
 
-//#include "tokudb_config.h"
-
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE
 #define _DTRACE_VERSION 1
 #else
 #endif
 
-#include "hatoku_defines.h"
 #include "ha_tokudb.h"
 #include "hatoku_hton.h"
 #include <mysql/plugin.h>
@@ -44,17 +40,6 @@ static const char *ha_tokudb_exts[] = {
     NullS
 };
 
-// In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
-// use a read/write lock on the key_file array in a table share, 
-// because table locks do not protect the race of some thread closing 
-// a table and another calling ha_tokudb::info()
-//
-// In version 5.5 and, a higher layer "metadata lock" was introduced
-// to synchronize threads that open, close, call info(), etc on tables.
-// In these versions, we don't need the key_file lock
-#if MYSQL_VERSION_ID < 50500
-#define HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-#endif
 
 static void share_key_file_lock_init(TOKUDB_SHARE * share)
 {
@@ -8071,5 +8056,4 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
 #include "hatoku_cmp.cc"
 
 // handlerton
-#include "hatoku_hton.h"
 #include "hatoku_hton.cc"

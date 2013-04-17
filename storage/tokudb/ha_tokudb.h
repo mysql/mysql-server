@@ -1,49 +1,6 @@
 #if !defined(HA_TOKUDB_H)
 #define HA_TOKUDB_H
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface               /* gcc class implementation */
-#endif
-
-// In MariaDB 5.3, thread progress reporting was introduced.
-// Only include that functionality if we're using maria 5.3 +
-#ifdef MARIADB_BASE_VERSION
-#if MYSQL_VERSION_ID >= 50300
-#define HA_TOKUDB_HAS_THD_PROGRESS
-#endif
-#endif
-
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-#define TOKU_INCLUDE_ALTER_56 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
-#define TOKU_INCLUDE_XA 1
-#endif
-
-#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
-#define TOKU_INCLUDE_ALTER_56 1
-#define TOKU_INCLUDE_ALTER_55 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
-#define TOKU_INCLUDE_XA 1
-#endif
-
-#if MYSQL_VERSION_ID < 50500
-#define TOKU_INCLUDE_ALTER_51 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
-#define TOKU_INCLUDE_XA 1
-#endif
-
-#if !defined(HA_CLUSTERING)
-#define HA_CLUSTERING 0
-#endif
-
-#if !defined(HA_CLUSTERED_INDEX)
-#define HA_CLUSTERED_INDEX 0
-#endif
-
-#if !defined(HA_CAN_WRITE_DURING_OPTIMIZE)
-#define HA_CAN_WRITE_DURING_OPTIMIZE 0
-#endif
-
 #include <db.h>
 #include "hatoku_cmp.h"
 

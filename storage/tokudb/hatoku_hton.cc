@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #define MYSQL_SERVER 1
-#include "toku_mysql_priv.h"
+#include "hatoku_defines.h"
 #include <db.h>
 
 extern "C" {
@@ -22,9 +22,7 @@ extern "C" {
 
 #include <mysql/plugin.h>
 #include "hatoku_hton.h"
-#include "hatoku_defines.h"
 #include "ha_tokudb.h"
-#include "hatoku_assert.h"
 
 #undef PACKAGE
 #undef VERSION
