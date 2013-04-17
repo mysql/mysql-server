@@ -1601,13 +1601,9 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
             //Verify checksum
             u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
             u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
-#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_11
             if (version<=BRT_LAYOUT_VERSION_11) {
                 calculated_x1764 = ~calculated_x1764;
             }
-#else
-#error The above code block is obsolete
-#endif
             if (calculated_x1764!=stored_x1764) r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
         }
         if (r==0) {

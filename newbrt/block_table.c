@@ -745,14 +745,8 @@ static void
 translation_deserialize_from_buffer(struct translation *t,    // destination into which to deserialize
                                     DISKOFF location_on_disk, //Location of translation_buffer
                                     u_int64_t size_on_disk,
-                                    unsigned char * translation_buffer
-#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_11
-                                    , BOOL invert_checksum
-#else
-#error The above code block is obsolete
-#endif
-
-                                    ) {   // buffer with serialized translation
+                                    unsigned char * translation_buffer,
+                                    BOOL invert_checksum) {   // buffer with serialized translation
     assert(location_on_disk!=0);
     t->type = TRANSLATION_CHECKPOINTED;
     {
@@ -761,13 +755,9 @@ translation_deserialize_from_buffer(struct translation *t,    // destination int
         u_int64_t offset = size_on_disk - 4;
         //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
         u_int32_t stored_x1764 = toku_dtoh32(*(int*)(translation_buffer + offset));
-#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_11
         if (invert_checksum) {
             x1764 = ~x1764;
         }
-#else
-#error The above code block is obsolete
-#endif
         assert(x1764 == stored_x1764);
     }
     struct rbuf rt;
