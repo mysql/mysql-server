@@ -10099,17 +10099,32 @@ ha_tokudb::is_alter_table_hot() {
     TOKUDB_DBUG_RETURN(is_hot);
 }
 
-#endif
+int 
+ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
+    TOKUDB_DBUG_ENTER("new_alter_table_path");
+
+    int error = 0;
+    if (table->part_info == NULL) {
+        // write frmdata to status
+        DB_TXN *txn = NULL; // TODO use transaction (creatged in prepare_for_alter)
+        error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
+    }
+   
+    TOKUDB_DBUG_RETURN(error);
+}
 
 void
 ha_tokudb::prepare_for_alter() {
     TOKUDB_DBUG_ENTER("prepare_for_alter");
-#if MYSQL_VERSION_ID >= 50521
-    // remove the frm data from the status dictionary during alter table.  it will
-    // be created when the table is reopened with the new schema.
-    remove_frm_data(share->status_block, NULL);
-#endif
+
+    // create a transaction used to add indexes, drop indexes, and write the new frm data
+    // this transaction will be retired by mysql alter table
+    DB_TXN *txn = NULL; 
+    txn = txn; // TODO create a new transaction
+
     DBUG_VOID_RETURN;
 }
+
+#endif
 
 
