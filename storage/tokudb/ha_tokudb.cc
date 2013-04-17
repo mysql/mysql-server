@@ -4621,15 +4621,21 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
     char name_buff[FN_REFLEN];
     int error;
-    char newname[share->table_name_length + 32];
     uint curr_index = 0;
     DBC* tmp_cursor = NULL;
     int cursor_ret_val = 0;
     DBT current_primary_key;
     DB_TXN* txn = NULL;
-    uchar tmp_key_buff[2*table_arg->s->rec_buff_length];
-    uchar tmp_prim_key_buff[2*table_arg->s->rec_buff_length];
+    char* newname = NULL;
+    uchar* tmp_key_buff = NULL;
+    uchar* tmp_prim_key_buff = NULL;
+    uchar* tmp_record = NULL;
     THD* thd = ha_thd();
+
+    newname = (char *)my_malloc(share->table_name_length + 32, MYF(MY_WME));
+    tmp_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
+    tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
+    tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
 
     //
     // number of DB files we have open currently, before add_index is executed
@@ -4645,7 +4651,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // in unpack_row, MySQL passes a buffer that is this long,
     // so this length should be good enough for us as well
     //
-    uchar tmp_record[table_arg->s->rec_buff_length];
     bzero((void *) &current_primary_key, sizeof(current_primary_key));
     current_primary_key.data = tmp_prim_key_buff;
 
@@ -4837,6 +4842,10 @@ cleanup:
             }
         }
     }
+    my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_key_buff,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_prim_key_buff,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_record,MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4861,10 +4870,15 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     TOKUDB_DBUG_ENTER("ha_tokudb::prepare_drop_index");
     int error;
     char name_buff[FN_REFLEN];
-    char newname[share->table_name_length + 32];
+    char* newname = NULL;
     char part[MAX_ALIAS_NAME + 10];
     DB** dbs_to_remove = NULL;
 
+    newname = (char *)my_malloc(share->table_name_length + 32, MYF(MY_WME));
+    if (newname == NULL) {
+        error = ENOMEM; 
+        goto cleanup;
+    }
     //
     // we allocate an array of DB's here to get ready for removal
     // We do this so that all potential memory allocation errors that may occur
@@ -4898,6 +4912,7 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     }
 cleanup:
     my_free(dbs_to_remove, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
