@@ -660,8 +660,7 @@ brt_leaf_apply_cmd_once (
     uint64_t *workdonep
     );
 
-void 
-toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdonep);
+void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, ANCESTORS ancestors, uint64_t *workdone);
 
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
