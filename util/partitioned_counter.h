@@ -67,6 +67,13 @@ void partitioned_counters_destroy(void);
     array.status[k].type    = t;                     \
     array.status[k].legend  = l;                     \
     static_assert((inc) != 0, "Var must be included in at least one place"); \
+    static_assert(strcmp(#c, "NULL") && strcmp(#c, "0"),                     \
+            "Use nullptr for no column name instead of NULL, 0, etc...");    \
+    static_assert((inc) == TOKU_ENGINE_STATUS || strcmp(#c, "nullptr"),      \
+            "Missing column name.");                                         \
+    static_assert(strncmp(#c, "TOKU", strlen("TOKU")) &&                     \
+                  strncmp(#c, "toku", strlen("toku")),                       \
+                  "Do not start column names with toku/tokudb.  Names get TOKUDB_ prefix automatically."); \
     static_assert((inc) == TOKU_ENGINE_STATUS ||                             \
             (strcmp(#c, "nullptr") && strcmp(#c, "NULL") && strcmp(#c, "0")) \
             , "Missing column name.");                                       \

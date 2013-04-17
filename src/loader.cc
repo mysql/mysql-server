@@ -47,15 +47,15 @@ static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(LOADER_CREATE,      TOKUDB_LOADER_NUM_CREATED, UINT64, "number of loaders successfully created", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LOADER_CREATE,      LOADER_NUM_CREATED, UINT64, "number of loaders successfully created", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LOADER_CREATE_FAIL, nullptr, UINT64, "number of calls to toku_loader_create_loader() that failed", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOADER_PUT,       nullptr, UINT64, "number of calls to loader->put() succeeded", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOADER_PUT_FAIL,  nullptr, UINT64, "number of calls to loader->put() failed", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOADER_CLOSE,       nullptr, UINT64, "number of calls to loader->close() that succeeded", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOADER_CLOSE_FAIL,  nullptr, UINT64, "number of calls to loader->close() that failed", TOKU_ENGINE_STATUS);
     STATUS_INIT(LOADER_ABORT,       nullptr, UINT64, "number of calls to loader->abort()", TOKU_ENGINE_STATUS);
-    STATUS_INIT(LOADER_CURRENT,     TOKUDB_LOADER_NUM_CURRENT, UINT64, "number of loaders currently in existence", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(LOADER_MAX,         TOKUDB_LOADER_NUM_MAX, UINT64, "max number of loaders that ever existed simultaneously", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LOADER_CURRENT,     LOADER_NUM_CURRENT, UINT64, "number of loaders currently in existence", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LOADER_MAX,         LOADER_NUM_MAX, UINT64, "max number of loaders that ever existed simultaneously", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     loader_status.initialized = true;
 }
 #undef STATUS_INIT
