@@ -129,7 +129,7 @@ typedef struct
 #endif
 
 
-#if defined (__cplusplus) || defined (__cilkplusplus)
+#if defined (__cplusplus)
 extern "C" {
 #endif
 
@@ -140,7 +140,7 @@ size_t qlz_compress(const void *source, char *destination, size_t size, qlz_stat
 size_t qlz_decompress(const char *source, void *destination, qlz_state_decompress *state);
 int qlz_get_setting(int setting);
 
-#if defined (__cplusplus) || defined (__cilkplusplus)
+#if defined (__cplusplus)
 }
 #endif
 

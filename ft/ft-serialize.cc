@@ -8,16 +8,6 @@
 #include "ft.h"
 #include "ft-internal.h"
 
-#if defined(HAVE_CILK)
-#include <cilk/cilk.h>
-#define cilk_worker_count (__cilkrts_get_nworkers())
-#else
-#define cilk_spawn
-#define cilk_sync
-#define cilk_for for
-#define cilk_worker_count 1
-#endif
-
 // not version-sensitive because we only serialize a descriptor using the current layout_version
 uint32_t
 toku_serialize_descriptor_size(const DESCRIPTOR desc) {

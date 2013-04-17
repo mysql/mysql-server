@@ -11,17 +11,6 @@
 #include <util/sort.h>
 #include <util/threadpool.h>
 
-#if defined(HAVE_CILK)
-#include <cilk/cilk.h>
-#define cilk_worker_count (__cilkrts_get_nworkers())
-#else
-#define cilk_spawn
-#define cilk_sync
-#define cilk_for for
-#define cilk_worker_count 1
-#endif
-
-
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
 #define UPGRADE_STATUS_INIT(k,t,l) {                            \
@@ -2266,9 +2255,8 @@ deserialize_ftnode_from_rbuf(
     // for partitions staying compressed, create sub_block
     setup_ftnode_partitions(node, bfe, true);
 
-    // Previously, this code was a for loop with spawns inside and a sync at the end.
-    // But now the loop is parallelizeable since we don't have a dependency on the work done so far.
-    cilk_for (int i = 0; i < node->n_children; i++) {
+    // This loop is parallelizeable, since we don't have a dependency on the work done so far.
+    for (int i = 0; i < node->n_children; i++) {
         uint32_t curr_offset = BP_START(*ndd,i);
         uint32_t curr_size   = BP_SIZE(*ndd,i);
         // the compressed, serialized partitions start at where rb is currently pointing,

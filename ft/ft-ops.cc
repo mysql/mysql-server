@@ -139,16 +139,6 @@ basement nodes, bulk fetch,  and partial fetch:
 
 #include <stdint.h>
 
-#if defined(HAVE_CILK)
-#include <cilk/cilk.h>
-#define cilk_worker_count (__cilkrts_get_nworkers())
-#else
-#define cilk_spawn
-#define cilk_sync
-#define cilk_for for
-#define cilk_worker_count 1
-#endif
-
 static const uint32_t this_version = FT_LAYOUT_VERSION;
 
 /* Status is intended for display to humans to help understand system behavior.
@@ -4617,7 +4607,6 @@ __attribute__((nonnull))
 void
 toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
     invariant(node->height > 0);
-    // TODO: could be cilkified
     for (int i = 0; i < node->n_children; ++i) {
         if (BP_STATE(node, i) != PT_AVAIL) {
             continue;
