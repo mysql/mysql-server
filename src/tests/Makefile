@@ -136,6 +136,7 @@ BDB_DONTRUN_TESTS = \
 	recover-split-checkpoint \
 	progress \
 	redirect \
+        isolation-read-committed \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
