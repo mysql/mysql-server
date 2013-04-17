@@ -695,7 +695,7 @@ void toku_brtnode_pe_est_callback(
     // we estimate the compressed size of data to be how large
     // the compressed data is on disk
     for (int i = 0; i < node->n_children; i++) {
-        if (BP_SHOULD_EVICT(node,i)) {
+        if (BP_STATE(node,i) == PT_AVAIL && BP_SHOULD_EVICT(node,i)) {
             // calculate how much data would be freed if
             // we compress this node and add it to
             // bytes_to_free
