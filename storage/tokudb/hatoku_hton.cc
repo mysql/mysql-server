@@ -145,7 +145,7 @@ static u_int32_t tokudb_env_flags = 0;
 // static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
 static char *tokudb_home;
-// static char *tokudb_tmpdir;
+static char *tokudb_tmpdir;
 static char *tokudb_log_dir;
 // static long tokudb_lock_scan_time = 0;
 // static ulong tokudb_region_size = 0;
@@ -212,11 +212,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
     tokudb_hton->alter_table_flags = tokudb_alter_table_flags;
-#if 0
-    if (!tokudb_tmpdir)
-        tokudb_tmpdir = mysql_tmpdir;
-    DBUG_PRINT("info", ("tokudb_tmpdir: %s", tokudb_tmpdir));
-#endif
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
@@ -258,16 +253,22 @@ static int tokudb_init_func(void *p) {
 
     // config directories
 #if 0
-    DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tokudb_tmpdir));
-    db_env->set_tmp_dir(db_env, tokudb_tmpdir);
 #endif
 
     {
+    char *tmpdir = tokudb_tmpdir;
     char *data_dir = tokudb_data_dir;
-    if (data_dir == 0) 
+    if (data_dir == 0) {
         data_dir = mysql_data_home;
+    }
+    if (tmpdir == 0) {
+        tmpdir = data_dir;
+    }
     DBUG_PRINT("info", ("tokudb_data_dir: %s\n", data_dir));
     db_env->set_data_dir(db_env, data_dir);
+
+    DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tmpdir));
+    db_env->set_tmp_dir(db_env, tmpdir);
     }
 
     if (tokudb_log_dir) {
@@ -1292,6 +1293,7 @@ static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
+static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
 #if 0
 
@@ -1319,7 +1321,6 @@ static MYSQL_SYSVAR_ULONG(region_size, tokudb_region_size, PLUGIN_VAR_READONLY, 
 
 static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "Tokudb Shared Data", NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
 #endif
 
@@ -1341,6 +1342,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(read_status_frequency),
     MYSQL_SYSVAR(fs_reserve_percent),
+    MYSQL_SYSVAR(tmpdir),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
@@ -1350,7 +1352,6 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(log_buffer_size),
     MYSQL_SYSVAR(region_size),
     MYSQL_SYSVAR(shared_data),
-    MYSQL_SYSVAR(tmpdir),
 #endif
     NULL
 };
