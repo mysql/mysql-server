@@ -1919,7 +1919,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 
 
 static int
-maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
+maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, TOKULOGGER logger, BOOL *did_merge, struct kv_pair **splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    (We do this if the resulting node is not fissible)
 //         or distribute the leafentries evenly between a and b.   (If a and be are already evenly distributed, we may do nothing.)
 {
@@ -1929,8 +1929,13 @@ maybe_merge_pinned_leaf_nodes (BRT t, BRTNODE a, BRTNODE b, TOKULOGGER logger, B
     if ((sizea + sizeb)*4 > (a->nodesize*3)) {
 	// the combined size is more than 3/4 of a node, so don't merge them.
 	*did_merge = FALSE;
-	if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) return 0; // no need to do anything if both are more than 1/4 of a node.
+	if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) {
+	    // no need to do anything if both are more than 1/4 of a node.
+	    *splitk = parent_splitk;
+	    return 0;
+	}
 	// one is less than 1/4 of a node, and together they are more than 3/4 of a node.
+	toku_free(parent_splitk); // We don't need the parent_splitk any more.  If we need a splitk (if we don't merge) we'll malloc a new one.
 	return balance_leaf_nodes(a, b, splitk);
     } else {
 	// we are merging them.
@@ -2014,8 +2019,7 @@ maybe_merge_pinned_nodes (BRT t,
     assert(a->height == b->height);
     verify_local_fingerprint_nonleaf(a);
     if (a->height == 0) {
-	toku_free(parent_splitk); // We don't need the parent_splitk any more.  If we need a splitk, we'll malloc a new one.
-	return maybe_merge_pinned_leaf_nodes(t, a, b, logger, did_merge, splitk);
+	return maybe_merge_pinned_leaf_nodes(t, a, b, parent_splitk, logger, did_merge, splitk);
     } else {
 	int r = maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, logger, did_merge, splitk);
 	verify_local_fingerprint_nonleaf(a);
