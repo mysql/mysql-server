@@ -96,6 +96,13 @@ class pair_list;
 struct cachefile {
     CACHEFILE next;
     CACHEFILE prev;
+    // these next two fields are protected by cachetable's list lock
+    // they are managed whenever we add or remove a pair from
+    // the cachetable. As of Riddler, this linked list is only used to
+    // make cachetable_flush_cachefile more efficient
+    PAIR cf_head;
+    uint32_t num_pairs; // count on number of pairs in the cachetable belong to this cachefile
+
     bool for_checkpoint; //True if part of the in-progress checkpoint
 
     // If set and the cachefile closes, the file will be removed.
@@ -193,6 +200,15 @@ struct ctpair {
     // pending_next,pending_next represent a non-circular doubly-linked list.
     PAIR pending_next;
     PAIR pending_prev;
+
+    // cf_next, cf_prev represent a non-circular doubly-linked list.
+    // entries in linked list for PAIRs in a cachefile, these are protected
+    // by the list lock of the PAIR's pair_list. They are used to make
+    // cachetable_flush_cachefile cheaper so that we don't need
+    // to search the entire cachetable to find a particular cachefile's
+    // PAIRs
+    PAIR cf_next;
+    PAIR cf_prev;
 };
 
 //
@@ -297,6 +313,8 @@ public:
 
 private:
     void pair_remove (PAIR p);
+    void cf_pairs_remove (PAIR p);
+    void add_to_cf_list (PAIR p);
     void add_to_clock (PAIR p);
     PAIR remove_from_hash_chain (PAIR remove_me, PAIR list);
 };
