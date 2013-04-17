@@ -205,13 +205,12 @@ static pthread_key_t thread_destructor_key;
 //******************************************************************************
 
 GrowableArray<bool> counters_in_use;
-//bool *counters_in_use = NULL;
-//uint64_t counters_in_use_size = 0;
 
 static uint64_t allocate_counter (void)
 // Effect: Find an unused counter number, and allocate it, returning the counter number.
-// Requires: The pc mutex is held before calling.
+//  Grabs the pc_lock.
 {
+    pc_lock();    
     size_t size = counters_in_use.get_size();
     for (uint64_t i=0; i<size; i++) {
         if (!counters_in_use.fetch_unchecked(i)) {
@@ -220,6 +219,7 @@ static uint64_t allocate_counter (void)
         }
     }
     counters_in_use.push(true);
+    pc_unlock();    
     return size;
 }
 
