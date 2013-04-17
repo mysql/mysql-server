@@ -96,7 +96,9 @@ typedef int64_t toku_off_t;
 #if __FreeBSD__
 #include <stdarg.h>
 #endif
-#include <alloca.h>
+#if defined(HAVE_ALLOCA_H)
+# include <alloca.h>
+#endif
 #if defined(__cplusplus) || defined(__cilkplusplus)
 # include <type_traits>
 #endif
@@ -164,7 +166,11 @@ int      creat(const char *pathname, mode_t mode)   __attribute__((__deprecated_
 int      fstat(int fd, struct stat *buf)            __attribute__((__deprecated__));
 int      stat(const char *path, struct stat *buf)   __attribute__((__deprecated__));
 int      getpid(void)                               __attribute__((__deprecated__));
+#    if defined(__FreeBSD__)
+int syscall(int __sysno, ...)             __attribute__((__deprecated__));
+#    else
 long int syscall(long int __sysno, ...)             __attribute__((__deprecated__));
+#    endif
 // Sadly, dlmalloc needs sysconf, and on linux this causes trouble with -combine.  So let the warnings show up under windows only.
 // long int sysconf(int)                   __attribute__((__deprecated__));
 int      mkdir(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
@@ -172,7 +178,11 @@ int      dup2(int fd, int fd2)                      __attribute__((__deprecated_
 int      _dup2(int fd, int fd2)                     __attribute__((__deprecated__));
 // strdup is a macro in some libraries.
 #undef strdup
+#    if defined(__FreeBSD__)
+char*    strdup(const char *)         __malloc_like __attribute__((__deprecated__));
+#    else
 char*    strdup(const char *)         __THROW __attribute_malloc__ __nonnull ((1)) __attribute__((__deprecated__));
+#    endif
 #undef __strdup
 char*    __strdup(const char *)         __attribute__((__deprecated__));
 #    ifndef DONT_DEPRECATE_WRITES
@@ -180,9 +190,15 @@ ssize_t  write(int, const void *, size_t)           __attribute__((__deprecated_
 ssize_t  pwrite(int, const void *, size_t, off_t)   __attribute__((__deprecated__));
 #endif
 #    ifndef DONT_DEPRECATE_MALLOC
-extern void *malloc(size_t)                    __THROW __attribute__((__deprecated__)) ;
+#     if defined(__FreeBSD__)
+extern void *malloc(size_t)                    __malloc_like __attribute__((__deprecated__));
+extern void free(void*)                        __attribute__((__deprecated__));
+extern void *realloc(void*, size_t)            __malloc_like __attribute__((__deprecated__));
+#     else
+extern void *malloc(size_t)                    __THROW __attribute__((__deprecated__));
 extern void free(void*)                        __THROW __attribute__((__deprecated__));
 extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecated__));
+#     endif
 #    endif
 #    ifndef DONT_DEPRECATE_ERRNO
 //extern int errno __attribute__((__deprecated__));
