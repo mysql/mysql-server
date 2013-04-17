@@ -60,17 +60,17 @@ struct __attribute__ ((__packed__)) leafentry {
             uint32_t num_cxrs; // number of committed transaction records
             uint8_t  num_pxrs; // number of provisional transaction records
             u_int8_t key_xrs[0]; //Actual key,
-                                 //then TXNIDs of transaction records relevant for reads:
-                                 //  if provisional uxrs exist, store OUTERMOST TXNID
+                                 //then TXNIDs of XRs relevant for reads:
+                                 //  if provisional XRs exist, store OUTERMOST TXNID
                                  //  store committed TXNIDs, from most recently committed to least recently committed
-                                 //then lengths of transaction records relevant for reads (length is at most 1<<31, MSB is used to store the type bit):
-                                 //  if provisional xrs exist, store length and type associated with INNERMOST TXNID
+                                 //then lengths of XRs relevant for reads (length is at most 1<<31, MSB is used to store the type bit):
+                                 //  if provisional XRs exist, store length and type associated with INNERMOST TXNID
                                  //  store length and type associated with committed TXNIDs, in same order as above
-                                 //then data of transaction records relevant for reads
-                                 //  if provisional xrs exist, store data associated with INNERMOST TXNID
+                                 //then data of XRs relevant for reads
+                                 //  if provisional XRs exist, store data associated with INNERMOST TXNID
                                  //  store data associated with committed TXNIDs
-                                 //if provisional xrs still exist (that is, num_puxrs > 1, so INNERMOST provisional TXNID != OUTERMOST provisional TXNID):
-                                 //  for OUTERMOST provisional TXNID:
+                                 //if provisional XRs still exist (that is, num_puxrs > 1, so INNERMOST provisional TXNID != OUTERMOST provisional TXNID):
+                                 //  for OUTERMOST provisional XR:
                                  //    1 byte: store type
                                  //    4 bytes: length (if type is INSERT)
                                  //    data
@@ -79,7 +79,7 @@ struct __attribute__ ((__packed__)) leafentry {
                                  //   1 byte: store type
                                  //   4 bytes: length (if type is INSERT)
                                  //   data
-                                 //  for INNERMOST provisional TXNID:
+                                 //  for INNERMOST provisional XR:
                                  //   8 bytes: TXNID
         } mvcc; // For the case where LEAFENTRY->type is LE_MVCC
     } u;
