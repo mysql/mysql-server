@@ -3818,6 +3818,8 @@ void setup_dlmalloc (void) {
 // For test purposes only.
 // With this interface, all checkpoint users get the same callback and the same extra.
 void db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
+    toku_checkpoint_safe_client_lock();
     checkpoint_callback_f = callback_f;
     checkpoint_callback_extra = extra;
+    toku_checkpoint_safe_client_unlock();
 }

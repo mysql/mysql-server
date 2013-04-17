@@ -327,7 +327,8 @@ test_main (int argc, const char *argv[]) {
     }
 
     db_env_set_checkpoint_callback(checkpoint_callback, (void*) test_dictionary);
-    runtests(0,4,1);
+    runtests(0,4096,1);
+    db_env_set_checkpoint_callback(NULL, NULL);
 
     return 0;
 }
