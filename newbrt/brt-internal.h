@@ -431,7 +431,7 @@ struct brt {
     BOOL did_set_flags;
     brt_compare_func compare_fun;
     brt_update_func update_fun;
-    on_redirect_callback redirect_callback;;
+    on_redirect_callback redirect_callback;
     void* redirect_callback_extra;
 
     struct toku_list live_brt_link;

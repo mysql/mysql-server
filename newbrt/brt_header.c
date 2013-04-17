@@ -7,7 +7,6 @@
 #include "includes.h"
 #include <brt-cachetable-wrappers.h>
 
-
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     TXNID txnid = toku_txn_get_txnid(txn);
@@ -37,16 +36,6 @@ brtheader_destroy(struct brt_header *h) {
     }
 }
 
-static int
-brtheader_alloc(struct brt_header **hh) {
-    int r = 0;
-    if ((CALLOC(*hh))==0) {
-        assert(errno==ENOMEM);
-        r = ENOMEM;
-    }
-    return r;
-}
-
 // Make a copy of the header for the purpose of a checkpoint
 static void
 brtheader_copy_for_checkpoint(struct brt_header *h, LSN checkpoint_lsn) {
@@ -66,8 +55,7 @@ brtheader_copy_for_checkpoint(struct brt_header *h, LSN checkpoint_lsn) {
 }
 
 static void
-brtheader_free(struct brt_header *h)
-{
+brtheader_free(struct brt_header *h) {
     brtheader_destroy(h);
     toku_free(h);
 }
@@ -354,8 +342,8 @@ brt_init_header_partial (BRT t, CACHEFILE cf, TOKUTXN txn) {
     t->h->flags = t->flags;
     if (t->h->cf!=NULL) assert(t->h->cf == cf);
     t->h->cf = cf;
-    t->h->nodesize=t->nodesize;
-    t->h->basementnodesize=t->basementnodesize;
+    t->h->nodesize = t->nodesize;
+    t->h->basementnodesize = t->basementnodesize;
     t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
     t->h->compare_fun = t->compare_fun;
     t->h->update_fun = t->update_fun;
@@ -412,12 +400,13 @@ brt_init_header (BRT t, CACHEFILE cf, TOKUTXN txn) {
 int 
 toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn) {
     int r;
-
-    r = brtheader_alloc(&t->h);
-    if (r != 0) {
-        if (0) { died2: toku_free(t->h); }
-        t->h=0;
-        return r;
+    
+    assert (!t->h);
+    t->h = toku_xmalloc(sizeof(struct brt_header));
+    if (!t->h) {
+        assert(errno==ENOMEM);
+        r = ENOMEM;
+        goto exit;
     }
 
     t->h->layout_version = BRT_LAYOUT_VERSION;
@@ -436,7 +425,19 @@ toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn) {
     memset(&t->h->cmp_descriptor, 0, sizeof(t->h->cmp_descriptor));
 
     r = brt_init_header(t, cf, txn);
-    if (r != 0) goto died2;
+    if (r != 0) {
+        goto exit;
+    }
+
+    r = 0;
+exit:
+    if (r != 0) {
+        if (t->h) {
+            toku_free(t->h);
+            t->h = NULL;
+        }
+        return r;
+    }
     return r;
 }
 
