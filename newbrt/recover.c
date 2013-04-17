@@ -1219,7 +1219,11 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     {
 	toku_struct_stat buf;
 	if (toku_stat(env_dir, &buf)!=0) {
+	    fprintf(stderr, "%.24s Tokudb recovery error: directory does not exist: %s\n", ctime(&tnow), env_dir);
 	    rr = errno; goto errorexit;
+	} else if (!S_ISDIR(buf.st_mode)) {
+	    fprintf(stderr, "%.24s Tokudb recovery error: this file is supposed to be a directory, but is not: %s\n", ctime(&tnow), env_dir);
+	    rr = ENOTDIR; goto errorexit;
 	}
     }
 
