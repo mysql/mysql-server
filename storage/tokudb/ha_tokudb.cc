@@ -1,6 +1,5 @@
 /* QQQ
    how to parallelize handlers on the same table?
-   what does bdb_return_if_eq do?
    HA_END_SPACE_KEY is obsolete. include/my_base.h
    CFLAGS += -Wall
  */
@@ -655,14 +654,14 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
         }
         if (0)
             printf("%s:%d:insert_or_update=%d\n", __FILE__, __LINE__, key->table->insert_or_update);
-        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, key->table->insert_or_update)))
+        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0))) // key->table->insert_or_update)))
             return cmp;
         length = key_part->field->packed_col_length(new_key_ptr, key_part->length);
         new_key_ptr += length;
         key_length -= length;
         saved_key_ptr += key_part->field->packed_col_length(saved_key_ptr, key_part->length);
     }
-    return key->handler.bdb_return_if_eq;
+    return 0;
 }
 
 /* Compare key against row */
@@ -758,7 +757,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
         file->set_bt_compare(file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
         if (!hidden_primary_key)
-            file->app_private = (void *) (table->key_info + table_share->primary_key);
+            file->app_private = (void *) (table_share->key_info + table_share->primary_key);
         char newname[strlen(name) + 32];
         sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
         fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
@@ -788,7 +787,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
                 key_type[i] = table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
                 (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
-                (*ptr)->app_private = (void *) (table->key_info + i);
+                (*ptr)->app_private = (void *) (table_share->key_info + i);
                 if (!(table->key_info[i].flags & HA_NOSAME)) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
@@ -837,7 +836,7 @@ int ha_tokudb::close(void) {
 int ha_tokudb::__close(int mutex_is_locked) {
     DBUG_ENTER("ha_tokudb::__close");
     printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
-    if (file->app_private == table->key_info + table_share->primary_key) {
+    if (0 && file->app_private == table->key_info + table_share->primary_key) {
         printf("%s:%d:reset app_private\n", __FILE__, __LINE__);
         file->app_private = 0;
     }
@@ -1643,8 +1642,10 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         do_prev = 1;
     }
     if (key_len == key_info->key_length && !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
-        if (find_flag == HA_READ_AFTER_KEY)
+        if (find_flag == HA_READ_AFTER_KEY) {
+            assert(0);
             key_info->handler.bdb_return_if_eq = 1;
+        }
         error = read_row(cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, 
                                        (find_flag == HA_READ_KEY_EXACT ? DB_SET : DB_SET_RANGE)), buf, active_index, &row, (DBT *) 0, 0);
         key_info->handler.bdb_return_if_eq = 0;
@@ -1657,6 +1658,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
            If HA_READ_AFTER_KEY is set, return next key, else return first
            matching key.
          */
+        assert(0);
         key_info->handler.bdb_return_if_eq = (find_flag == HA_READ_AFTER_KEY ? 1 : -1);
         error = read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE), buf, active_index, &row, (DBT *) 0, 0);
         key_info->handler.bdb_return_if_eq = 0;
@@ -1691,6 +1693,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
     pack_key(&last_key, active_index, key_buff, key, key_len);
     /* Store for compare */
     memcpy(key_buff2, key_buff, (key_len = last_key.size));
+    assert(0);
     key_info->handler.bdb_return_if_eq = 1;
     error = read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE), buf, active_index, &row, (DBT *) 0, 0);
     key_info->handler.bdb_return_if_eq = 0;
@@ -2210,6 +2213,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range
     KEY *key_info = &table->key_info[keynr];
 
     /* Ensure we get maximum range, even for varchar keys with different space */
+    assert(0);
     key_info->handler.bdb_return_if_eq = -1;
     error = ((start_key && kfile->key_range(kfile, transaction, pack_key(&key, keynr, key_buff, start_key->key, start_key->length), &start_range, 0)));
     if (error) {
@@ -2217,6 +2221,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range
         // Better than returning an error
         DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
     }
+    assert(0);
     key_info->handler.bdb_return_if_eq = 1;
     error = (end_key && kfile->key_range(kfile, transaction, pack_key(&key, keynr, key_buff, end_key->key, end_key->length), &end_range, 0));
     key_info->handler.bdb_return_if_eq = 0;
@@ -2283,6 +2288,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         error = 1;
         {
             /* Modify the compare so that we will find the next key */
+            assert(0);
             key_info->handler.bdb_return_if_eq = 1;
             /* QQQ We lock the next key as the new key will probl. be on the same page */
             error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE | DB_RMW);
