@@ -16,7 +16,7 @@ to insert a message at the root
     - capture the next msn of the root node and assign it to the message
     - split the root if it needs to be split
     - insert the message into the root buffer
-    - if the root is too full, then flush_some_child() of the root on a flusher thread
+    - if the root is too full, then toku_ft_flush_some_child() of the root on a flusher thread
 
 flusher functions use an advice struct with provides some functions to
 call that tell it what to do based on the context of the flush. see ft-flusher.h
@@ -27,7 +27,7 @@ to flush some child, given a parent and some advice
     - flush the buffer to the child
     - if the child has stable reactivity and
       advice->should_recursively_flush() is true, then
-      flush_some_child() of the child
+      toku_ft_flush_some_child() of the child
     - otherwise split the child if it needs to be split
     - otherwise maybe merge the child if it needs to be merged
 
@@ -125,11 +125,13 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "log-internal.h"
 #include "sub_block.h"
 #include "txn_manager.h"
-#include "ule.h"
+#include "leafentry.h"
 #include "xids.h"
 
 #include <toku_race_tools.h>
+
 #include <portability/toku_atomic.h>
+
 #include <util/mempool.h>
 #include <util/partitioned_counter.h>
 #include <util/rwlock.h>
@@ -752,6 +754,7 @@ void toku_ftnode_clone_callback(
         rebalance_ftnode_leaf(node, ft->h->basementnodesize);
     }
 
+    cloned_node->oldest_known_referenced_xid = node->oldest_known_referenced_xid;
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
     cloned_node->flags = node->flags;
     cloned_node->thisnodename = node->thisnodename;
@@ -1374,6 +1377,7 @@ toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_c
     n->childkeys = 0;
     n->bp = 0;
     n->n_children = num_children;
+    n->oldest_known_referenced_xid = TXNID_NONE;
 
     if (num_children > 0) {
         XMALLOC_N(num_children-1, n->childkeys);
@@ -1548,13 +1552,10 @@ toku_ft_bn_apply_cmd_once (
     if (le)
         oldsize = leafentry_memsize(le);
 
-    // apply_msg_to_leafentry() may call mempool_malloc_from_omt() to allocate more space.
+    // toku_le_apply_msg() may call mempool_malloc_from_omt() to allocate more space.
     // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is
     // no longer in use.  We'll have to release the old mempool later.
-    {
-        int r = apply_msg_to_leafentry(cmd, le, oldest_referenced_xid, &newsize, &new_le, &bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
-        invariant(r==0);
-    }
+    toku_le_apply_msg(cmd, le, oldest_referenced_xid, &newsize, &new_le, &bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
 
     if (new_le) {
         paranoid_invariant(newsize == leafentry_disksize(new_le));
@@ -1734,7 +1735,7 @@ toku_ft_bn_apply_cmd (
     DESCRIPTOR desc,
     BASEMENTNODE bn,
     FT_MSG cmd,
-    TXNID oldest_referenced_xid,
+    TXNID oldest_known_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -1776,7 +1777,7 @@ toku_ft_bn_apply_cmd (
             assert_zero(r);
             CAST_FROM_VOIDP(storeddata, storeddatav);
         }
-        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
 
         // if the insertion point is within a window of the right edge of
         // the leaf then it is sequential
@@ -1804,7 +1805,7 @@ toku_ft_bn_apply_cmd (
         if (r == DB_NOTFOUND) break;
         assert_zero(r);
         CAST_FROM_VOIDP(storeddata, storeddatav);
-        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
 
         break;
     }
@@ -1820,7 +1821,7 @@ toku_ft_bn_apply_cmd (
             CAST_FROM_VOIDP(storeddata, storeddatav);
             int deleted = 0;
             if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
                 uint32_t new_omt_size = toku_omt_size(bn->buffer);
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -1846,7 +1847,7 @@ toku_ft_bn_apply_cmd (
             CAST_FROM_VOIDP(storeddata, storeddatav);
             int deleted = 0;
             if (le_has_xids(storeddata, cmd->xids)) {
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
                 uint32_t new_omt_size = toku_omt_size(bn->buffer);
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -1867,10 +1868,10 @@ toku_ft_bn_apply_cmd (
         r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
                                &storeddatav, &idx);
         if (r==DB_NOTFOUND) {
-            r = do_update(update_fun, desc, bn, cmd, idx, NULL, oldest_referenced_xid, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, NULL, oldest_known_referenced_xid, workdone, stats_to_update);
         } else if (r==0) {
             CAST_FROM_VOIDP(storeddata, storeddatav);
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
         } // otherwise, a worse error, just return it
         break;
     }
@@ -1882,7 +1883,7 @@ toku_ft_bn_apply_cmd (
             r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
             assert_zero(r);
             CAST_FROM_VOIDP(storeddata, storeddatav);
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_known_referenced_xid, workdone, stats_to_update);
             assert_zero(r);
 
             if (num_leafentries_before == toku_omt_size(bn->buffer)) {
@@ -2147,13 +2148,18 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
                           const xid_omt_t &snapshot_xids,
                           const rx_omt_t &referenced_xids,
                           const xid_omt_t &live_root_txns,
+                          TXNID oldest_known_referenced_xid,
                           STAT64INFO_S * delta)
 {
     paranoid_invariant(leaf_entry);
 
-    // There is no point in running GC if there is only one committed
-    // leaf entry.
-    if (leaf_entry->type != LE_MVCC || leaf_entry->u.mvcc.num_cxrs <= 1) { // MAKE ACCESSOR
+    // Don't run garbage collection on non-mvcc leaf entries.
+    if (leaf_entry->type != LE_MVCC) {
+        goto exit;
+    }
+
+    // Don't run garbage collection if this leafentry decides it's not worth it.
+    if (!toku_le_worth_running_garbage_collection(leaf_entry, oldest_known_referenced_xid)) {
         goto exit;
     }
 
@@ -2172,15 +2178,16 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
 
     // Cache the size of the leaf entry.
     oldsize = leafentry_memsize(leaf_entry);
-    garbage_collect_leafentry(leaf_entry,
-                              &new_leaf_entry,
-                              &newsize,
-                              &bn->buffer,
-                              &bn->buffer_mempool,
-                              &maybe_free,
-                              snapshot_xids,
-                              referenced_xids,
-                              live_root_txns);
+    toku_le_garbage_collect(leaf_entry,
+                            &new_leaf_entry,
+                            &newsize,
+                            &bn->buffer,
+                            &bn->buffer_mempool,
+                            &maybe_free,
+                            snapshot_xids,
+                            referenced_xids,
+                            live_root_txns,
+                            oldest_known_referenced_xid);
 
     // These will represent the number of bytes and rows changed as
     // part of the garbage collection.
@@ -2225,6 +2232,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
                          const xid_omt_t &snapshot_xids,
                          const rx_omt_t &referenced_xids,
                          const xid_omt_t &live_root_txns,
+                         TXNID oldest_known_referenced_xid,
                          STAT64INFO_S * delta)
 {
     int r = 0;
@@ -2236,7 +2244,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
         r = toku_omt_fetch(bn->buffer, index, &storedatav);
         assert_zero(r);
         CAST_FROM_VOIDP(leaf_entry, storedatav);
-        ft_basement_node_gc_once(bn, index, leaf_entry, snapshot_xids, referenced_xids, live_root_txns, delta);
+        ft_basement_node_gc_once(bn, index, leaf_entry, snapshot_xids, referenced_xids, live_root_txns, oldest_known_referenced_xid, delta);
         // Check if the leaf entry was deleted or not.
         if (num_leafentries_before == toku_omt_size(bn->buffer)) {
             ++index;
@@ -2244,13 +2252,14 @@ basement_node_gc_all_les(BASEMENTNODE bn,
     }
 }
 
-// Garbage collect all leaf entires.
+// Garbage collect all leaf entires in all basement nodes.
 static void
 ft_leaf_gc_all_les(FTNODE node,
-                    FT h,
-                    const xid_omt_t &snapshot_xids,
-                    const rx_omt_t &referenced_xids,
-                    const xid_omt_t &live_root_txns)
+                   FT ft,
+                   const xid_omt_t &snapshot_xids,
+                   const rx_omt_t &referenced_xids,
+                   const xid_omt_t &live_root_txns,
+                   TXNID oldest_known_referenced_xid)
 {
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant_zero(node->height);
@@ -2261,15 +2270,16 @@ ft_leaf_gc_all_les(FTNODE node,
         STAT64INFO_S delta;
         delta.numrows = 0;
         delta.numbytes = 0;
-        basement_node_gc_all_les(bn, snapshot_xids, referenced_xids, live_root_txns, &delta);
-        toku_ft_update_stats(&h->in_memory_stats, delta);
+        basement_node_gc_all_les(bn, snapshot_xids, referenced_xids, live_root_txns, oldest_known_referenced_xid, &delta);
+        toku_ft_update_stats(&ft->in_memory_stats, delta);
     }
 }
 
 void toku_bnc_flush_to_child(
-    FT h,
+    FT ft,
     NONLEAF_CHILDINFO bnc,
-    FTNODE child
+    FTNODE child,
+    TXNID oldest_known_referenced_xid
     )
 {
     paranoid_invariant(bnc);
@@ -2293,25 +2303,25 @@ void toku_bnc_flush_to_child(
                 flow_deltas[1] = FIFO_CURRENT_ENTRY_MEMSIZE;
             }
             toku_ft_node_put_cmd(
-                h->compare_fun,
-                h->update_fun,
-                &h->cmp_descriptor,
+                ft->compare_fun,
+                ft->update_fun,
+                &ft->cmp_descriptor,
                 child,
                 -1,
                 &ftcmd,
                 is_fresh,
                 flow_deltas,
-                TXNID_NONE,
                 &stats_delta
                 );
             remaining_memsize -= FIFO_CURRENT_ENTRY_MEMSIZE;
         }));
+
     invariant(remaining_memsize == 0);
     if (stats_delta.numbytes || stats_delta.numrows) {
-        toku_ft_update_stats(&h->in_memory_stats, stats_delta);
+        toku_ft_update_stats(&ft->in_memory_stats, stats_delta);
     }
     // Run garbage collection, if we are a leaf entry.
-    TOKULOGGER logger = toku_cachefile_logger(h->cf);
+    TOKULOGGER logger = toku_cachefile_logger(ft->cf);
     if (child->height == 0 && logger) {
         xid_omt_t snapshot_txnids;
         rx_omt_t referenced_xids;
@@ -2326,8 +2336,15 @@ void toku_bnc_flush_to_child(
         STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
         // may be misleading if there's a broadcast message in there
         STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
-        // Perform the garbage collection.
-        ft_leaf_gc_all_les(child, h, snapshot_txnids, referenced_xids, live_root_txns);
+
+        // Perform garbage collection. Provide a full snapshot of the transaction
+        // system plus the oldest known referenced xid that could have had messages
+        // applied to this leaf.
+        //
+        // Using the oldest xid in either the referenced_xids or live_root_txns
+        // snapshots is not sufficient, because there could be something older that is neither
+        // live nor referenced, but instead aborted somewhere above us as a message in the tree.
+        ft_leaf_gc_all_les(child, ft, snapshot_txnids, referenced_xids, live_root_txns, oldest_known_referenced_xid);
 
         // Free the OMT's we used for garbage collecting.
         snapshot_txnids.destroy();
@@ -2342,22 +2359,6 @@ bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) {
     return bnc->flow[0] >= flow_threshold || bnc->flow[1] >= flow_threshold;
 }
 
-void bring_node_fully_into_memory(FTNODE node, FT h)
-{
-    if (!is_entire_node_in_memory(node)) {
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, h);
-        toku_cachetable_pf_pinned_pair(
-            node,
-            toku_ftnode_pf_callback,
-            &bfe,
-            h->cf,
-            node->thisnodename,
-            toku_cachetable_hash(h->cf, node->thisnodename)
-            );
-    }
-}
-
 void
 toku_ft_node_put_cmd (
     ft_compare_func compare_fun,
@@ -2368,7 +2369,6 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     size_t flow_deltas[],
-    TXNID oldest_referenced_xid,
     STAT64INFO stats_to_update
     )
 // Effect: Push CMD into the subtree rooted at NODE.
@@ -2385,7 +2385,7 @@ toku_ft_node_put_cmd (
     // and instead defer to these functions
     //
     if (node->height==0) {
-        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, oldest_referenced_xid, nullptr, stats_to_update);
+        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, nullptr, stats_to_update);
     } else {
         ft_nonleaf_put_cmd(compare_fun, desc, node, target_childnum, cmd, is_fresh, flow_deltas);
     }
@@ -2405,7 +2405,6 @@ void toku_ft_leaf_apply_cmd(
     FTNODE node,
     int target_childnum,  // which child to inject to, or -1 if unknown
     FT_MSG cmd,
-    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -2438,6 +2437,10 @@ void toku_ft_leaf_apply_cmd(
         node->max_msn_applied_to_node_on_disk = cmd_msn;
     }
 
+    // Pass the oldest possible live xid value to each basementnode
+    // when we apply messages to them.
+    TXNID oldest_known_referenced_xid = node->oldest_known_referenced_xid;
+
     if (ft_msg_applies_once(cmd)) {
         unsigned int childnum = (target_childnum >= 0
                                  ? target_childnum
@@ -2450,7 +2453,7 @@ void toku_ft_leaf_apply_cmd(
                                  desc,
                                  bn,
                                  cmd,
-                                 oldest_referenced_xid,
+                                 oldest_known_referenced_xid,
                                  workdone,
                                  stats_to_update);
         } else {
@@ -2466,7 +2469,7 @@ void toku_ft_leaf_apply_cmd(
                                       desc,
                                       BLB(node, childnum),
                                       cmd,
-                                      oldest_referenced_xid,
+                                      oldest_known_referenced_xid,
                                       workdone,
                                       stats_to_update);
             } else {
@@ -2495,6 +2498,14 @@ static void inject_message_in_locked_node(
     // otherwise.
     invariant(toku_ctpair_is_write_locked(node->ct_pair));
     toku_assert_entire_node_in_memory(node);
+
+    // Update the oldest known referenced xid for this node if it is younger
+    // than the one currently known. Otherwise, it's better to keep the heurstic
+    // we have and ignore this one.
+    if (oldest_referenced_xid >= node->oldest_known_referenced_xid) {
+        node->oldest_known_referenced_xid = oldest_referenced_xid;
+    }
+
     // Get the MSN from the header.  Now that we have a write lock on the
     // node we're injecting into, we know no other thread will get an MSN
     // after us and get that message into our subtree before us.
@@ -2510,7 +2521,6 @@ static void inject_message_in_locked_node(
         cmd,
         true,
         flow_deltas,
-        oldest_referenced_xid,
         &stats_delta
         );
     if (stats_delta.numbytes || stats_delta.numrows) {
@@ -2538,10 +2548,10 @@ static void inject_message_in_locked_node(
     // verify that msn of latest message was captured in root node
     paranoid_invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
 
-    // if we call flush_some_child, then that function unpins the root
+    // if we call toku_ft_flush_some_child, then that function unpins the root
     // otherwise, we unpin ourselves
     if (node->height > 0 && toku_ft_nonleaf_is_gorged(node, ft->h->nodesize)) {
-        flush_node_on_background_thread(ft, node);
+        toku_ft_flush_node_on_background_thread(ft, node);
     }
     else {
         toku_unpin_ftnode(ft, node);

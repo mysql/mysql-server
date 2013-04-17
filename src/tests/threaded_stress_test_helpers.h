@@ -740,6 +740,9 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, bool ignore_errors, vo
         } else {
             rand_key_i[0] = arg->thread_idx;
         }
+        if (arg->cli->num_elements > 0 && arg->bounded_element_range) {
+            rand_key_key[0] = rand_key_key[0] % arg->cli->num_elements;
+        }
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);

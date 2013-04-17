@@ -88,15 +88,13 @@ void toku_ule_free(ULEHANDLE ule_p) {
     toku_free(ule_p);
 }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////
 //
 // Question: Can any software outside this file modify or read a leafentry?  
 // If so, is it worthwhile to put it all here?
 //
 // There are two entries, one each for modification and query:
-//   apply_msg_to_leafentry()        performs all inserts/deletes/aborts
+//   toku_le_apply_msg()        performs all inserts/deletes/aborts
 //
 //
 //
@@ -122,6 +120,7 @@ static void msg_init_empty_ule(ULE ule, FT_MSG msg);
 static void msg_modify_ule(ULE ule, FT_MSG msg);
 static void ule_init_empty_ule(ULE ule, uint32_t keylen, void * keyp);
 static void ule_do_implicit_promotions(ULE ule, XIDS xids);
+static void ule_try_promote_provisional_outermost(ULE ule, TXNID oldest_possible_live_xid);
 static void ule_promote_provisional_innermost_to_index(ULE ule, uint32_t index);
 static void ule_promote_provisional_innermost_to_committed(ULE ule);
 static void ule_apply_insert(ULE ule, XIDS xids, uint32_t vallen, void * valp);
@@ -164,8 +163,6 @@ le_malloc(OMT *omtp, struct mempool *mp, size_t size, void **maybe_free)
     resource_assert(rval);
     return rval;
 }
-
-
 
 /////////////////////////////////////////////////////////////////////
 // Garbage collection related functions
@@ -215,7 +212,7 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, const xid_omt_t &snapshot_txnids, c
 // so we get rid of them.
 //
 static void
-simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid) {
+ule_simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid) {
     uint32_t curr_index = 0;
     uint32_t num_entries;
     if (ule->num_cuxrs == 1 || oldest_referenced_xid == TXNID_NONE) {
@@ -244,7 +241,7 @@ done:;
 }
 
 static void
-garbage_collection(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &referenced_xids, const xid_omt_t &live_root_txns) {
+ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &referenced_xids, const xid_omt_t &live_root_txns) {
     if (ule->num_cuxrs == 1) goto done;
     // will fail if too many num_cuxrs
     bool necessary_static[MAX_TRANSACTION_RECORDS];
@@ -340,7 +337,6 @@ garbage_collection(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &refe
 done:;
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes
@@ -353,42 +349,60 @@ done:;
 //   If the leafentry is destroyed it sets *new_leafentry_p to NULL.
 //   Otehrwise the new_leafentry_p points at the new leaf entry.
 // As of October 2011, this function always returns 0.
-int
-apply_msg_to_leafentry(FT_MSG   msg,		// message to apply to leafentry
-                       LEAFENTRY old_leafentry, // NULL if there was no stored data.
-                       TXNID oldest_referenced_xid,
-                       size_t *new_leafentry_memorysize,
-                       LEAFENTRY *new_leafentry_p,
-                       OMT *omtp,
-                       struct mempool *mp,
-                       void **maybe_free,
-                       int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
+void
+toku_le_apply_msg(FT_MSG   msg,		// message to apply to leafentry
+                  LEAFENTRY old_leafentry, // NULL if there was no stored data.
+                  TXNID oldest_referenced_xid,
+                  size_t *new_leafentry_memorysize,
+                  LEAFENTRY *new_leafentry_p,
+                  OMT *omtp,
+                  struct mempool *mp,
+                  void **maybe_free,
+                  int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     ULE_S ule;
-    int rval;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
 
-    if (old_leafentry == NULL)            // if leafentry does not exist ...
-        msg_init_empty_ule(&ule, msg);    // ... create empty unpacked leaf entry
-    else {
+    if (old_leafentry == NULL) {
+        msg_init_empty_ule(&ule, msg);
+    } else {
         le_unpack(&ule, old_leafentry); // otherwise unpack leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    simple_garbage_collection(&ule, oldest_referenced_xid);
-    rval = le_pack(&ule,                // create packed leafentry
-                   new_leafentry_memorysize,
-                   new_leafentry_p,
-                   omtp,
-                   mp,
-                   maybe_free);
-    if (new_leafentry_p)
+    ule_simple_garbage_collection(&ule, oldest_referenced_xid);
+    int rval = le_pack(&ule,                // create packed leafentry
+                       new_leafentry_memorysize,
+                       new_leafentry_p,
+                       omtp,
+                       mp,
+                       maybe_free);
+    invariant_zero(rval);
+    if (new_leafentry_p) {
 	newnumbytes = ule_get_innermost_numbytes(&ule);
+    }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
-    return rval;
 }
 
+bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_known_referenced_xid) {
+// Effect: Quickly determines if it's worth trying to run garbage collection on a leafentry
+// Return: True if it makes sense to try garbage collection, false otherwise.
+// Rationale: Garbage collection is likely to clean up under two circumstances:
+//            1.) There are multiple committed entries. Some may never be read by new txns.
+//            2.) There is only one committed entry, but the outermost provisional entry
+//            is older than the oldest known referenced xid, so it must have commited.
+//            Therefor we can promote it to committed and get rid of the old commited entry.
+    if (le->type != LE_MVCC) {
+        return false;
+    }
+    if (le->u.mvcc.num_cxrs > 1) {
+        return true;
+    } else {
+        paranoid_invariant(le->u.mvcc.num_cxrs == 1);
+    }
+    return le->u.mvcc.num_pxrs > 0 && le_outermost_uncommitted_xid(le) < oldest_known_referenced_xid;
+}
 
 // Garbage collect one leaf entry, using the given OMT's.
 // Parameters:
@@ -408,29 +422,38 @@ apply_msg_to_leafentry(FT_MSG   msg,		// message to apply to leafentry
 // -- referenced_xids : list of in memory active transactions.
 // NOTE: it is not a good idea to garbage collect a leaf
 // entry with only one committed value.
-int
-garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
-                          LEAFENTRY *new_leaf_entry,
-                          size_t *new_leaf_entry_memory_size,
-                          OMT *omtp,
-                          struct mempool *mp,
-                          void **maybe_free,
-                          const xid_omt_t &snapshot_xids,
-                          const rx_omt_t &referenced_xids,
-                          const xid_omt_t &live_root_txns) {
-    int r = 0;
+void
+toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
+                        LEAFENTRY *new_leaf_entry,
+                        size_t *new_leaf_entry_memory_size,
+                        OMT *omtp,
+                        struct mempool *mp,
+                        void **maybe_free,
+                        const xid_omt_t &snapshot_xids,
+                        const rx_omt_t &referenced_xids,
+                        const xid_omt_t &live_root_txns,
+                        TXNID oldest_known_referenced_xid) {
     ULE_S ule;
     le_unpack(&ule, old_leaf_entry);
-    garbage_collection(&ule, snapshot_xids, referenced_xids, live_root_txns);
-    r = le_pack(&ule,
-                new_leaf_entry_memory_size,
-                new_leaf_entry,
-                omtp,
-                mp,
-                maybe_free);
+
+    // Before running garbage collection, try to promote the outermost provisional
+    // entries to committed if its xid is older than the oldest possible live xid.
+    // 
+    // The oldest known refeferenced xid is a lower bound on the oldest possible
+    // live xid, so we use that. It's usually close enough to get rid of most
+    // garbage in leafentries.
+    TXNID oldest_possible_live_xid = oldest_known_referenced_xid;
+    ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
+    ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
+    
+    int r = le_pack(&ule,
+                    new_leaf_entry_memory_size,
+                    new_leaf_entry,
+                    omtp,
+                    mp,
+                    maybe_free);
     assert(r == 0);
     ule_cleanup(&ule);
-    return r;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1526,6 +1549,15 @@ ule_promote_provisional_innermost_to_committed(ULE ule) {
                             old_outermost_uncommitted_uxr->xid,
                             old_innermost_uxr->vallen,
                             old_innermost_uxr->valp);
+    }
+}
+
+static void
+ule_try_promote_provisional_outermost(ULE ule, TXNID oldest_possible_live_xid) {
+// Effect: If there is a provisional record whose outermost xid is older than
+//         the oldest known referenced_xid, promote it to committed.
+    if (ule->num_puxrs > 0 && ule_get_xid(ule, ule->num_cuxrs) < oldest_possible_live_xid) {
+        ule_promote_provisional_innermost_to_committed(ule);
     }
 }
 

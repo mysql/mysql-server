@@ -912,3 +912,64 @@ void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp
 void toku_ft_set_blackhole(FT_HANDLE ft_handle) {
     ft_handle->ft->blackhole = true;
 }
+
+struct garbage_helper_extra {
+    FT ft;
+    size_t total_space;
+    size_t used_space;
+};
+
+static int
+garbage_leafentry_helper(OMTVALUE v, uint32_t UU(idx), void *extra) {
+    struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
+    LEAFENTRY CAST_FROM_VOIDP(le, v);
+    info->total_space += leafentry_disksize(le);
+    info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
+    return 0;
+}
+
+static int
+garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *extra) {
+    struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
+    FTNODE node;
+    FTNODE_DISK_DATA ndd;
+    struct ftnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, info->ft);
+    int fd = toku_cachefile_get_fd(info->ft->cf);
+    int r = toku_deserialize_ftnode_from(fd, blocknum, 0, &node, &ndd, &bfe);
+    if (r != 0) {
+        goto no_node;
+    }
+    if (node->height > 0) {
+        goto exit;
+    }
+    for (int i = 0; i < node->n_children; ++i) {
+        BASEMENTNODE bn = BLB(node, i);
+        r = toku_omt_iterate(bn->buffer, garbage_leafentry_helper, info);
+        if (r != 0) {
+            goto exit;
+        }
+    }
+exit:
+    toku_ftnode_free(&node);
+    toku_free(ndd);
+no_node:
+    return r;
+}
+
+void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
+// Effect: Iterates the FT's blocktable and calculates the total and used space for leaf blocks.
+// Note: It is ok to call this function concurrently with reads/writes to the table since
+//       the blocktable lock is held, which means no new allocations or file writes can occur.
+    invariant_notnull(total_space);
+    invariant_notnull(used_space);
+    struct garbage_helper_extra info = {
+        .ft = ft,
+        .total_space = 0,
+        .used_space = 0
+    };
+    toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED, garbage_helper, &info, true, true);
+    *total_space = info.total_space;
+    *used_space = info.used_space;
+}
+

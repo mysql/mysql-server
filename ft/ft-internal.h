@@ -137,7 +137,7 @@ long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child);
+void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID oldest_referenced_xid);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
 bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
@@ -246,6 +246,17 @@ struct ftnode {
     unsigned int    totalchildkeylens;
     DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
+
+    // What's the oldest referenced xid that this node knows about? The real oldest
+    // referenced xid might be younger, but this is our best estimate. We use it
+    // as a heuristic to transition provisional mvcc entries from provisional to
+    // committed (from implicity committed to really committed).
+    //
+    // A better heuristic would be the oldest live txnid, but we use this since it
+    // still works well most of the time, and its readily available on the inject
+    // code path.
+    TXNID oldest_known_referenced_xid;
+
     // array of size n_children, consisting of ftnode partitions
     // each one is associated with a child
     // for internal nodes, the ith partition corresponds to the ith message buffer
@@ -606,8 +617,6 @@ void toku_destroy_ftnode_internals(FTNODE node);
 void toku_ftnode_free (FTNODE *node);
 bool is_entire_node_in_memory(FTNODE node);
 void toku_assert_entire_node_in_memory(FTNODE node);
-// FIXME needs toku prefix
-void bring_node_fully_into_memory(FTNODE node, FT h);
 
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
@@ -1092,7 +1101,6 @@ toku_ft_leaf_apply_cmd (
     FTNODE node,
     int target_childnum,
     FT_MSG cmd,
-    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1107,7 +1115,6 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     size_t flow_deltas[],
-    TXNID oldest_referenced_xid,
     STAT64INFO stats_to_update
     );
 

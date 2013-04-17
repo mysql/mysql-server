@@ -162,7 +162,7 @@ doit (void) {
     assert_zero(r);
 
     // now with setup done, start the test
-    // test that if flush_some_child properly honors
+    // test that if toku_ft_flush_some_child properly honors
     // what we say and flushes the child we pick
     FTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -185,7 +185,7 @@ doit (void) {
         );
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->ft, node, &fa);
+    toku_ft_flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -203,7 +203,7 @@ doit (void) {
     assert(!node->dirty);
     curr_child_to_flush = 1;
     num_flushes_called = 0;
-    flush_some_child(t->ft, node, &fa);
+    toku_ft_flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
     
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -221,7 +221,7 @@ doit (void) {
     assert(!node->dirty);
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->ft, node, &fa);
+    toku_ft_flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -250,7 +250,7 @@ doit (void) {
         toku_assert_entire_node_in_memory(node); // entire root is in memory
         curr_child_to_flush = i;
         num_flushes_called = 0;
-        flush_some_child(t->ft, node, &fa);
+        toku_ft_flush_some_child(t->ft, node, &fa);
         assert(num_flushes_called == 2);
     
         toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -296,7 +296,7 @@ doit (void) {
     toku_assert_entire_node_in_memory(node); // entire root is in memory
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->ft, node, &fa);
+    toku_ft_flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 2);
     
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);

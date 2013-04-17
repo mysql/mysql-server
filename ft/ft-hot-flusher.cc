@@ -141,7 +141,7 @@ hot_update_flusher_keys(FTNODE parent,
     }
 }
 
-// Picks which child flush_some_child will use for flushing and
+// Picks which child toku_ft_flush_some_child will use for flushing and
 // recursion.
 static int
 hot_pick_child(FT h,
@@ -308,7 +308,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         // This should recurse to the bottom of the tree and then
         // return.
         if (root->height > 0) {
-            flush_some_child(brt->ft, root, &advice);
+            toku_ft_flush_some_child(brt->ft, root, &advice);
         } else {
             // Since there are no children to flush, we should abort
             // the HOT call.
@@ -318,7 +318,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
 
         // Set the highest pivot key seen here, since the parent may
         // be unlocked and NULL'd later in our caller:
-        // flush_some_child().
+        // toku_ft_flush_some_child().
         hot_set_highest_key(&flusher);
 
         // This is where we determine if the traversal is finished or

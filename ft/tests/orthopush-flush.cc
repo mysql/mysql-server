@@ -123,8 +123,7 @@ insert_random_message_to_bn(FT_HANDLE t, BASEMENTNODE blb, LEAFENTRY *save, XIDS
     msg.u.id.val = valdbt;
     size_t memsize;
     int64_t numbytes;
-    int r = apply_msg_to_leafentry(&msg, NULL, TXNID_NONE, &memsize, save, NULL, NULL, NULL, &numbytes);
-    assert_zero(r);
+    toku_le_apply_msg(&msg, NULL, TXNID_NONE, &memsize, save, NULL, NULL, NULL, &numbytes);
     toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, TXNID_NONE, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
@@ -164,8 +163,7 @@ insert_same_message_to_bns(FT_HANDLE t, BASEMENTNODE blb1, BASEMENTNODE blb2, LE
     msg.u.id.val = valdbt;
     size_t memsize;
     int64_t numbytes;
-    int r = apply_msg_to_leafentry(&msg, NULL, TXNID_NONE, &memsize, save, NULL, NULL, NULL, &numbytes);
-    assert_zero(r);
+    toku_le_apply_msg(&msg, NULL, TXNID_NONE, &memsize, save, NULL, NULL, NULL, &numbytes);
     toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, TXNID_NONE, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
@@ -274,7 +272,7 @@ flush_to_internal(FT_HANDLE t) {
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
 
-    toku_bnc_flush_to_child(t->ft, parent_bnc, child);
+    toku_bnc_flush_to_child(t->ft, parent_bnc, child, TXNID_NONE);
 
     int parent_messages_present[num_parent_messages];
     int child_messages_present[num_child_messages];
@@ -409,7 +407,7 @@ flush_to_internal_multiple(FT_HANDLE t) {
         }
     }
 
-    toku_bnc_flush_to_child(t->ft, parent_bnc, child);
+    toku_bnc_flush_to_child(t->ft, parent_bnc, child, TXNID_NONE);
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
@@ -580,7 +578,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], TXNID_NONE, NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -601,7 +599,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     }
 
     if (use_flush) {
-        toku_bnc_flush_to_child(t->ft, parent_bnc, child);
+        toku_bnc_flush_to_child(t->ft, parent_bnc, child, TXNID_NONE);
         destroy_nonleaf_childinfo(parent_bnc);
     } else {
         FTNODE XMALLOC(parentnode);
@@ -803,7 +801,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
                 !parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], TXNID_NONE, NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -995,8 +993,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], TXNID_NONE, NULL, NULL);
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], TXNID_NONE, NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -1010,7 +1008,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
         }
     }
 
-    toku_bnc_flush_to_child(t->ft, parent_bnc, child1);
+    toku_bnc_flush_to_child(t->ft, parent_bnc, child1, TXNID_NONE);
 
     FTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };

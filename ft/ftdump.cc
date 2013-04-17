@@ -280,61 +280,14 @@ dump_nodesizes(int f, FT h) {
     printf("leafsizes: %" PRIu64 "\n", info.leafsizes);
 }
 
-typedef struct {
-    int f;
-    FT h;
-    size_t total_space;
-    size_t used_space;
-} garbage_help_extra;
-
-static int
-garbage_leafentry_helper(OMTVALUE v, uint32_t UU(idx), void *extra) {
-    garbage_help_extra *CAST_FROM_VOIDP(info, extra);
-    LEAFENTRY CAST_FROM_VOIDP(le, v);
-    info->total_space += leafentry_disksize(le);
-    info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
-    return 0;
-}
-
-static int
-garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
-    garbage_help_extra *CAST_FROM_VOIDP(info, extra);
-    FTNODE n;
-    FTNODE_DISK_DATA ndd = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->h);
-    int r = toku_deserialize_ftnode_from(info->f, b, 0, &n, &ndd, &bfe);
-    if (r != 0) {
-        goto no_node;
-    }
-    if (n->height > 0) {
-        goto exit;
-    }
-    for (int i = 0; i < n->n_children; ++i) {
-        BASEMENTNODE bn = BLB(n, i);
-        r = toku_omt_iterate(bn->buffer, garbage_leafentry_helper, info);
-        if (r != 0) {
-            goto exit;
-        }
-    }
-exit:
-    toku_ftnode_free(&n);
-    toku_free(ndd);
-no_node:
-    return r;
-}
-
 static void
-dump_garbage_stats(int f, FT h) {
-    garbage_help_extra info;
-    memset(&info, 0, sizeof info);
-    info.f = f;
-    info.h = h;
-    toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
-                            garbage_helper, &info, true, true);
-
-    printf("total_size: %zu\n", info.total_space);
-    printf("used_size:  %zu\n", info.used_space);
+dump_garbage_stats(int f, FT ft) {
+    invariant(f == toku_cachefile_get_fd(ft->cf));
+    uint64_t total_space = 0;
+    uint64_t used_space = 0;
+    toku_ft_get_garbage(ft, &total_space, &used_space);
+    printf("total_size: %zu\n", total_space);
+    printf("used_size:  %zu\n", used_space);
 }
 
 static uint32_t 
