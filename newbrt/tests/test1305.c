@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "../brttypes.h"
 #include "../bread.h"
@@ -32,6 +33,8 @@ test (u_int64_t fsize) {
 	int fd = open(FNAME, O_CREAT+O_RDWR+O_BINARY, 0777);
 	assert(fd>=0);
 	static u_int64_t buf[N_BIGINTS]; //windows cannot handle this on the stack
+	static char compressed_buf[N_BIGINTS*2 + 1000]; // this is more than compressbound returns
+	uLongf compressed_len;
 	while (i*BIGINT_SIZE < fsize) {
             if (verbose>0 && i % (1<<25) == 0) {
                 printf("   %s:test (%"PRIu64") forwards [%"PRIu64"%%]\n", __FILE__, fsize, 100*BIGINT_SIZE*((u_int64_t)i) / fsize);
@@ -42,8 +45,31 @@ test (u_int64_t fsize) {
 	    for (j=0; j<N_BIGINTS; j++) {
 		buf[j] = i++;
 	    }
-	    int r = write(fd, buf, N_BIGINTS*BIGINT_SIZE);
-	    assert(r==N_BIGINTS*BIGINT_SIZE);
+assert(sizeof(buf) == N_BIGINTS * BIGINT_SIZE);
+	    {
+		compressed_len = sizeof(compressed_buf);
+		int r = compress2((Bytef*)compressed_buf, &compressed_len, (Bytef*)buf, sizeof(buf), 1);
+		assert(r==Z_OK);
+	    }
+	    {
+		u_int32_t v = htonl(compressed_len);
+		ssize_t r = write(fd, &v, sizeof(v));
+		assert(r==sizeof(v));
+	    }
+	    {
+		ssize_t r = write(fd, compressed_buf, compressed_len);
+		assert(r==(ssize_t)compressed_len);
+	    }
+	    {
+		u_int32_t v = htonl(sizeof(buf));
+		ssize_t r = write(fd, &v, sizeof(v));
+		assert(r==sizeof(v));
+	    }
+	    {
+		u_int32_t v = htonl(compressed_len);
+		ssize_t r = write(fd, &v, sizeof(v));
+		assert(r==sizeof(v));
+	    }
 	}
 	{ int r = close(fd); assert(r==0); }
     }
@@ -51,7 +77,7 @@ test (u_int64_t fsize) {
     // Now read it all backward
     {
 	int fd = open(FNAME, O_RDONLY+O_BINARY);  	assert(fd>=0);
-	BREAD br = create_bread_from_fd_initialize_at(fd, fsize, READBACK_BUFSIZE);
+	BREAD br = create_bread_from_fd_initialize_at(fd);
 	while (bread_has_more(br)) {
             if (verbose>0 && (fsize/BIGINT_SIZE - i) % (1<<25) == 0) {
                 printf("   %s:test (%"PRIu64") backwards [%"PRIu64"%%]\n", __FILE__, fsize, 100*BIGINT_SIZE*((u_int64_t)i) / fsize);

@@ -4,14 +4,16 @@
 // A BREAD reads a file backwards using buffered I/O.  BREAD stands for Buffered Read or Backwards Read.
 // Conceivably, we could read forward too.
 // The buffered I/O is buffered using a large buffer (e.g., something like a megabyte).
-// If not for the large-buffer requirement, we could have used a FILE.
+// Furthermore, data is compressed into blocks.  Each block is a 4-byte compressed length (in network order), followed by compressed data, followed by a 4-byte uncompressed-length (in network order), followed by  a 4-byte compressed length
+// The compressed-length appears twice so that the file can be read backward or forward.
+// If not for the large-buffer requirement, as well as compression, as well as reading backward, we could have used a FILE.
 
 #include <sys/types.h>
 typedef struct bread *BREAD;
 
-BREAD create_bread_from_fd_initialize_at(int fd, toku_off_t filesize, size_t bufsize);
-// Effect:  Given a file descriptor, fd, that points at a file of size filesize, create a BREAD.
-// Requires: The filesize must be correct.  The fd must be an open fd.
+BREAD create_bread_from_fd_initialize_at(int fd);
+// Effect:  Given a file descriptor, fd, create a BREAD.
+// Requires: The fd must be an open fd.
 
 int close_bread_without_closing_fd(BREAD);
 // Effect: Close the BREAD, but don't close the underlying fd.
