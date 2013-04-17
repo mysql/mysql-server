@@ -11,7 +11,6 @@
 #include "toku_os.h"
 
 #if TOKU_WINDOWS
-#include "zlib.h"
 #include "toku_pthread.h"
 #include <dirent.h>
 #else
@@ -22,7 +21,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <zlib.h>
 #endif
 
 #include <ctype.h>

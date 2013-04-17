@@ -29,6 +29,8 @@
 #include "leaflock.h"
 #include "c_dialects.h"
 
+// Uncomment the following to use quicklz
+
 C_BEGIN
 
 #ifndef BRT_FANOUT

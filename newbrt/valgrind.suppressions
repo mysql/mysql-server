@@ -95,4 +95,13 @@
    fun:deflate
    fun:compress2
 }
-
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Cond
+   fun:qlz_compress_core
+}
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Cond
+   fun:qlz_compress
+}

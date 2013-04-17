@@ -197,6 +197,9 @@ enum {
     extended_node_header_overhead = (4+   // nodesize
                                      4+   // flags
                                      4),   // height
+
+    node_tail_overhead = 4,      // the 1764 checksum on the entire uncompressed node.
+
 };
 
 #include "sub_block.h"
@@ -212,7 +215,7 @@ addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
 
 static unsigned int 
 toku_serialize_brtnode_size_slow (BRTNODE node) {
-    unsigned int size = node_header_overhead + extended_node_header_overhead;
+    unsigned int size = node_header_overhead + extended_node_header_overhead + node_tail_overhead;
     if (node->height > 0) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
@@ -251,7 +254,7 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 // This is the size of the uncompressed data, not including the compression headers
 unsigned int 
 toku_serialize_brtnode_size (BRTNODE node) {
-    unsigned int result = node_header_overhead + extended_node_header_overhead;
+    unsigned int result = node_header_overhead + extended_node_header_overhead + node_tail_overhead;
     invariant(sizeof(toku_off_t)==8);
     if (node->height > 0) {
 	result += 4; /* n_children */
@@ -413,6 +416,8 @@ serialize_node(BRTNODE node, char *buf, size_t calculated_size, int n_sub_blocks
     else
         serialize_leaf(node, n_sub_blocks, sub_block, &wb);
 
+    u_int32_t end_to_end_checksum = x1764_memory(buf, calculated_size-4);
+    wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
     invariant(calculated_size==wb.ndone);
 }
@@ -694,8 +699,16 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
 	toku_fifo_size_hint(BNC_BUFFER(result,i), child_buffer_map[i].size);
     }
 
-    // deserialize all child buffers, like the function says
     deserialize_all_child_buffers(result, rb, child_buffer_map, num_cores);
+
+    // Must compute the checksum now (rather than at the end, while we still have the pointer to the buffer)
+    if (result->layout_version_read_from_disk >= BRT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
+	u_int32_t expected_xsum = toku_dtoh32(*(u_int32_t*)(rb->buf+rb->size-4));
+	u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
+	if (expected_xsum!=actual_xsum) {
+	    return toku_db_badformat();
+	}
+    }
 
     return 0;
 }
@@ -792,8 +805,15 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     
     //toku_verify_counts(result);
 
-    if (rb->ndone != rb->size) { //Verify we read exactly the entire block.
-        r = toku_db_badformat(); goto died_1;
+    if (result->layout_version >= BRT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
+	u_int32_t expected_xsum = rbuf_int(rb);
+	u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
+	if (expected_xsum!=actual_xsum) {
+	    return toku_db_badformat();
+	}
+    } 
+    if (rb->ndone != rb->size) { //Verify we read exactly the entire block, except for the final checksum.
+	r = toku_db_badformat(); goto died_1;
     }
 
     r = toku_leaflock_borrow(result->u.l.leaflock_pool, &result->u.l.leaflock);
@@ -833,7 +853,6 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 	rbuf_int(rb); // ignore rand4fingerprint
 	rbuf_int(rb); // ignore localfingerprint
     }
-//    printf("%s:%d read %08x\n", __FILE__, __LINE__, result->local_fingerprint);
     result->dirty = 0;
     result->fullhash = fullhash;
     //printf("height==%d\n", result->height);
@@ -844,6 +863,7 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
         result->u.l.leaflock_pool = toku_cachefile_leaflock_pool(h->cf);
         r = deserialize_brtnode_leaf_from_rbuf(result, magic, rb);
     }
+
     if (r!=0) goto died0;
 
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);

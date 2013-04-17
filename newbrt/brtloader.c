@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <toku_assert.h>
 #include <string.h>
-#include "zlib.h"
 #include <fcntl.h>
 #include "x1764.h"
 #include "brtloader-internal.h"
@@ -2850,6 +2849,8 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+12,     partition_map.size);
 
     putbuf_int32_at(&lbuf->dbuf, lbuf->n_in_buf_p,          lbuf->n_in_buf);
+    u_int32_t xsum = x1764_memory(lbuf->dbuf.buf, lbuf->dbuf.off);
+    putbuf_int32(&lbuf->dbuf, xsum);
 
     result = lbuf->dbuf.error;
     if (result == 0) {
