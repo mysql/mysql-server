@@ -8,7 +8,6 @@
 #include <memory.h>
 #include "test.h"
 
-
 DB_ENV *env;
 DB *db;
 

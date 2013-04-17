@@ -192,6 +192,11 @@ $(ALL_TESTS):
 
 
 
+INVERTER=;test $$? -ne 0
+
+# Any test that should fail, we invert the result by using MAYBEINVERTER
+$(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
+
 HERE = src/tests
 
 
