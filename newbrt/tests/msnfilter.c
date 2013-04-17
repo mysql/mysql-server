@@ -149,7 +149,7 @@ test_msnfilter(int do_verify) {
     }
 
     // flush to the file system
-    r = toku_close_brt(brt, 0);     
+    r = toku_close_brt_nolsn(brt, 0);     
     assert(r == 0);
 
     // shutdown the cachetable

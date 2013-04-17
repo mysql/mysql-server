@@ -45,7 +45,7 @@ static void test_it (int N) {
     toku_txn_close_txn(txn);
 
     r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                             CKERR(r);
-    r = toku_close_brt(brt, NULL);                                                                          CKERR(r);
+    r = toku_close_brt_nolsn(brt, NULL);                                                                          CKERR(r);
 
     unsigned int rands[N];
     for (int i=0; i<N; i++) {
@@ -67,7 +67,7 @@ static void test_it (int N) {
 
 
 	r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                             CKERR(r);
-	r = toku_close_brt(brt, NULL);                                                                          CKERR(r);
+	r = toku_close_brt_nolsn(brt, NULL);                                                                          CKERR(r);
 
 	if (verbose) printf("i=%d\n", i);
     }
@@ -94,7 +94,7 @@ static void test_it (int N) {
 
 
 	r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                             CKERR(r);
-	r = toku_close_brt(brt, NULL);                                                                          CKERR(r);
+	r = toku_close_brt_nolsn(brt, NULL);                                                                          CKERR(r);
 
 	if (verbose) printf("d=%d\n", i);
     }
@@ -110,7 +110,7 @@ static void test_it (int N) {
     }
 
     r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
-    r = toku_close_brt(brt, NULL);                                                                             CKERR(r);
+    r = toku_close_brt_nolsn(brt, NULL);                                                                             CKERR(r);
 
     r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
     r = toku_logger_close_rollback(logger, FALSE);                                                             CKERR(r);

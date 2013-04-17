@@ -299,8 +299,8 @@ doit (BOOL after_split) {
     assert(r==0);
 
 
-    r = toku_close_brt(t, 0);    assert(r==0);
-    r = toku_close_brt(c_brt, 0);    assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);    assert(r==0);
+    r = toku_close_brt_nolsn(c_brt, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 

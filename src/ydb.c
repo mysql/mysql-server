@@ -395,11 +395,37 @@ env_setup_real_tmp_dir(DB_ENV *env) {
     env_setup_real_dir(env, &env->i->real_tmp_dir, env->i->tmp_dir);
 }
 
+static void keep_zombie_callback (DB_ENV *env, BRT brt, char *dname, bool oplsn_valid, LSN oplsn) {
+    if (brt->db->i==NULL) {
+	XMALLOC(brt->db->i);
+    }
+    brt->db->i->dname = dname;
+    toku_list_init(&brt->db->i->dbs_that_must_close_before_abort);
+    env_note_db_opened(env, brt->db);
+    env_note_db_closed(env, brt->db);
+    brt->db->i->is_zombie = TRUE;
+    env_note_zombie_db(env, brt->db);
+    int r = toku_brt_db_delay_closed(brt, brt->db, db_close_before_brt, 0, oplsn_valid, oplsn);
+    assert(r==0);
+}
+
+static void keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable)
+{
+    env->i->cachetable = cachetable;
+}
+
 static int 
 ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
     toku_ydb_unlock();
-    int r = tokudb_recover(env->i->dir, env->i->real_log_dir, env->i->bt_compare,
+    int r = tokudb_recover(env,
+			   keep_zombie_callback,
+			   toku_keep_prepared_txn_callback,
+			   keep_cachetable_callback,
+			   toku_setup_db_internal,
+                           toku_close_db_internal,
+			   env->i->logger,
+                           env->i->dir, env->i->real_log_dir, env->i->bt_compare,
                            env->i->update_function,
                            env->i->generate_row_for_put, env->i->generate_row_for_del,
                            env->i->cachetable_size);
@@ -885,12 +911,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
 	assert(env->i->logger);
         toku_logger_write_log_files(env->i->logger, (BOOL)((flags & DB_INIT_LOG) != 0));
-        r = toku_logger_open(env->i->real_log_dir, env->i->logger);
-	if (r!=0) {
-	    toku_ydb_do_error(env, r, "Could not open logger\n");
-	died2:
-	    toku_logger_close(&env->i->logger);
-	    goto died1;
+	if (!toku_logger_is_open(env->i->logger)) {
+	    r = toku_logger_open(env->i->real_log_dir, env->i->logger);
+	    if (r!=0) {
+		toku_ydb_do_error(env, r, "Could not open logger\n");
+	    died2:
+		toku_logger_close(&env->i->logger);
+		goto died1;
+	    }
 	}
     } else {
 	r = toku_logger_close(&env->i->logger); // if no logging system, then kill the logger
@@ -917,8 +945,11 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         goto cleanup;
     }
 
-    r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
-    if (r!=0) goto died2;
+    if (env->i->cachetable==NULL) {
+        // If we ran recovery then the cachetable should be set here.
+        r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        if (r!=0) goto died2;
+    }
     toku_cachetable_set_lock_unlock_for_io(env->i->cachetable, toku_ydb_lock, toku_ydb_unlock);
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
@@ -926,12 +957,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (env->i->logger) {
 	// if this is a newborn env or if this is an upgrade, then create a brand new rollback file
-	BOOL create_new_rollback_file = newenv | upgrade_in_progress;
 	assert (using_txns);
 	toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
 	toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
-        r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
-        assert_zero(r);
+	if (!toku_logger_rollback_is_open(env->i->logger)) {
+	    BOOL create_new_rollback_file = newenv | upgrade_in_progress;
+	    r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
+	    assert(r==0);
+	}
     }
 
     DB_TXN *txn=NULL;
@@ -1036,7 +1069,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
     }
     {
         if (env->i->persistent_environment) {
-            r = toku_db_close(env->i->persistent_environment, 0);
+            r = toku_db_close(env->i->persistent_environment, 0, false, ZERO_LSN);
             if (r) {
 		err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1044,7 +1077,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
             }
         }
         if (env->i->directory) {
-            r = toku_db_close(env->i->directory, 0);
+            r = toku_db_close(env->i->directory, 0, false, ZERO_LSN);
             if (r) {
 		err_msg = "Cannot close Directory dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1463,6 +1496,16 @@ locked_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 static int 
 locked_env_close(DB_ENV * env, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_env_close(env, flags); toku_ydb_unlock(); return r;
+}
+
+static int
+toku_env_recover_txn (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    return toku_logger_recover_txn(env->i->logger, preplist, count, retp, flags);
+}
+
+static int
+locked_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    toku_ydb_lock(); int r = toku_env_recover_txn(env, preplist, count, retp, flags); toku_ydb_unlock(); return r;
 }
 
 static int 
@@ -2328,6 +2371,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(cleaner_get_iterations);
     SENV(open);
     SENV(close);
+    SENV(txn_recover);
     SENV(log_flush);
     //SENV(set_noticecall);
     SENV(set_flags);
@@ -2476,7 +2520,9 @@ env_note_db_opened(DB_ENV *env, DB *db) {
 }
 
 void
-env_note_db_closed(DB_ENV *env, DB *db) {
+env_note_db_closed(DB_ENV *env, DB *db)
+// Effect: Tell the DB_ENV that the DB is no longer in use by the user of the API.  The DB may still be in use by the fractal tree internals.
+{
     assert(db->i->dname);
     assert(!db->i->is_zombie);
     assert(env->i->num_open_dbs);
@@ -2493,9 +2539,10 @@ env_note_db_closed(DB_ENV *env, DB *db) {
     assert_zero(r);
 }
 
-// Tell env that there is a new db handle (with non-unique dname in db->i-dname)
 void
-env_note_zombie_db(DB_ENV *env, DB *db) {
+env_note_zombie_db(DB_ENV *env, DB *db)
+// Effect: Tell the DB_ENV that the the DB is a zombie.  That is, the DB is closed, but there's a unresolved transaction that refers to it (or may still be in use by the fractal tree internals).
+{
     assert(db->i->dname);  // internal (non-user) dictionary has no dname
     assert(db->i->is_zombie);
     int r;

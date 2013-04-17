@@ -38,7 +38,7 @@ enum { DEFAULT_ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { DEFAULT_ITEMS_PER_TRANSACTION = 1<<14 };
 
 static void insert (long long v);
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#define CKERR(r) ({ int __r = r; if (__r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, __r, db_strerror(r)); assert(__r==0); })
 #define CKERR2(r,rexpect) if (r!=rexpect) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==rexpect);
 
 /* default test parameters */

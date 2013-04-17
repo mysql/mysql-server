@@ -1,7 +1,7 @@
 #ifndef WBUF_H
 #define WBUF_H
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "x1764.h"
@@ -188,6 +188,10 @@ static inline void wbuf_nocrc_TXNID (struct wbuf *w, TXNID tid) {
 
 static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
+}
+
+static inline void wbuf_nocrc_GID (struct wbuf *w, GID gid) {
+    wbuf_nocrc_literal_bytes(w, gid.gid, DB_GID_SIZE);
 }
 
 static inline void wbuf_nocrc_LSN (struct wbuf *w, LSN lsn) {

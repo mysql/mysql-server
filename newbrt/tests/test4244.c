@@ -86,7 +86,7 @@ doit (void) {
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) < 50*1000*1000);
     toku_unpin_brtnode_off_client_thread(t->h, node);
 
-    r = toku_close_brt(t, 0);    assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 

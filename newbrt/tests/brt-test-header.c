@@ -35,7 +35,7 @@ static void test_header (void) {
     h->in_memory_stats          = (STAT64INFO_S) {10, 11};
     h->on_disk_stats            = (STAT64INFO_S) {20, 21};
     h->checkpoint_staging_stats = (STAT64INFO_S) {30, 31};
-    r = toku_close_brt(t, 0);     assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);     assert(r==0);
     r = toku_cachetable_close(&ct);
     assert(r==0);
 
@@ -55,7 +55,7 @@ static void test_header (void) {
     assert(h->num_blocks_to_upgrade_14 == 1014);
     assert(h->in_memory_stats.numrows == expected_stats.numrows);
     assert(h->on_disk_stats.numbytes  == expected_stats.numbytes);
-    r = toku_close_brt(t, 0);     assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);     assert(r==0);
     r = toku_cachetable_close(&ct);
     assert(r==0);
 

@@ -3806,10 +3806,10 @@ brt_redirect_db (BRT brt_to, BRT brt_from) {
 }
 
 static int
-fake_db_brt_close_delayed(DB *db, u_int32_t UU(flags)) {
+fake_db_brt_close_delayed(DB *db, u_int32_t UU(flags), bool oplsn_valid, LSN oplsn) {
     BRT brt_to_close = db->api_internal;
     char *error_string = NULL;
-    int r = toku_close_brt(brt_to_close, &error_string);
+    int r = toku_close_brt_lsn(brt_to_close, &error_string, oplsn_valid, oplsn);
     assert_zero(r);
     assert(error_string == NULL);
     toku_free(db);
@@ -3841,7 +3841,7 @@ toku_brt_header_close_redirected_brts(struct brt_header * h) {
     assert(which == num_brts);
     for (which = 0; which < num_brts; which++) {
 	int r;
-	r = toku_brt_db_delay_closed(brts[which], dbs[which], fake_db_brt_close_delayed, 0);
+	r = toku_brt_db_delay_closed(brts[which], dbs[which], fake_db_brt_close_delayed, 0, false, ZERO_LSN);
 	assert_zero(r);
     }
     return 0;
@@ -4198,7 +4198,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
     if (brt_to_unpin->was_closed && !toku_brt_zombie_needed(brt_to_unpin)) {
 	//Close immediately.
 	assert(brt_to_unpin->close_db);
-	r = brt_to_unpin->close_db(brt_to_unpin->db, brt_to_unpin->close_flags);
+	r = brt_to_unpin->close_db(brt_to_unpin->db, brt_to_unpin->close_flags, false, ZERO_LSN);
     }
     return r;
 
@@ -4351,8 +4351,9 @@ toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloc
 }
 
 int
-toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags) {
-//Requires: close_db needs to call toku_close_brt to delete the final reference.
+toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t, bool oplsn_valid, LSN oplsn), u_int32_t close_flags, bool oplsn_valid, LSN oplsn)
+// Effect: See brt.h for the specification of this function.
+{
     int r;
     struct brt_header *h = zombie->h;
     if (zombie->was_closed) r = EINVAL;
@@ -4365,7 +4366,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
 	if (!zombie->db) zombie->db = db;
 	if (!toku_brt_zombie_needed(zombie)) {
 	    //Close immediately.
-	    r = zombie->close_db(zombie->db, zombie->close_flags);
+	    r = zombie->close_db(zombie->db, zombie->close_flags, oplsn_valid, oplsn);
 	}
 	else {
 	    //Try to pass responsibility off.
@@ -4423,7 +4424,7 @@ int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN opls
     return r;
 }
 
-int toku_close_brt (BRT brt, char **error_string) {
+int toku_close_brt_nolsn (BRT brt, char **error_string) {
     return toku_close_brt_lsn(brt, error_string, FALSE, ZERO_LSN);
 }
 

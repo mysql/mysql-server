@@ -1164,7 +1164,7 @@ test_main (int argc, const char *argv[]) {
         }
     }
 
-    r = toku_close_brt(t, 0);          assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
     return 0;

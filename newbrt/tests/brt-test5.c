@@ -52,7 +52,7 @@ static void test5 (void) {
     if (verbose) printf("\n");
     toku_free(values);
     r = toku_verify_brt(t);         assert(r==0);
-    r = toku_close_brt(t, 0);       assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);       assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     
 }

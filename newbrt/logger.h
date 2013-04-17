@@ -2,7 +2,7 @@
 #define TOKU_LOGGER_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
@@ -27,6 +27,7 @@ int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create);
 int toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed);
+bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.
 
 int toku_logger_fsync (TOKULOGGER logger);
 int toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
@@ -70,11 +71,13 @@ int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *le
 int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *lsn, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len);
+int toku_fread_GID     (FILE *f, GID   *gid,   struct x1764 *checksum, u_int32_t *len);
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, u_int32_t *len);
 
 int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
+int toku_logprint_GID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
 int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
 int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
@@ -185,6 +188,8 @@ void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 
 int toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found);
 int toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete);
+
+static const TOKULOGGER NULL_logger __attribute__((__unused__)) = NULL;
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

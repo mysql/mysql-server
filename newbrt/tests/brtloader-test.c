@@ -276,7 +276,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     r = toku_brt_stat64(t, NULL, &s); assert(r == 0);
     assert(s.nkeys == (u_int64_t) n && s.ndata == (u_int64_t) n && s.dsize == userdata);
     
-    r = toku_close_brt(t, 0); assert(r==0);
+    r = toku_close_brt_nolsn(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 

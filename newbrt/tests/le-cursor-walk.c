@@ -72,7 +72,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
     toku_txn_close_txn(txn);
 
-    error = toku_close_brt(brt, NULL);
+    error = toku_close_brt_nolsn(brt, NULL);
     assert(error == 0);
 
     error = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
@@ -134,7 +134,7 @@ walk_tree(const char *fname, int n) {
     error = le_cursor_close(cursor);
     assert(error == 0);
 
-    error = toku_close_brt(brt, 0);
+    error = toku_close_brt_nolsn(brt, 0);
     assert(error == 0);
 
     error = toku_cachetable_close(&ct);

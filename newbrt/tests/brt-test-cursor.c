@@ -111,7 +111,7 @@ static void test_brt_cursor_first(int n, DB *db) {
     else
         assert_cursor_value(brt, DB_FIRST, 0);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -152,7 +152,7 @@ static void test_brt_cursor_last(int n, DB *db) {
     else
         assert_cursor_value(brt, DB_LAST, n-1);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -195,7 +195,7 @@ static void test_brt_cursor_first_last(int n, DB *db) {
     } else
         assert_cursor_first_last(brt, 0, n-1);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -239,7 +239,7 @@ static void test_brt_cursor_rfirst(int n, DB *db) {
     else
         assert_cursor_value(brt, DB_FIRST, 0);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -304,7 +304,7 @@ static void test_brt_cursor_walk(int n, DB *db) {
     /* walk the tree */
     assert_cursor_walk(brt, n);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -370,7 +370,7 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
     /* walk the tree */
     assert_cursor_rwalk(brt, n);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -467,7 +467,7 @@ static void test_brt_cursor_rand(int n, DB *db) {
     /* walk the tree */
     assert_cursor_walk_inorder(brt, n);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -546,7 +546,7 @@ static void test_brt_cursor_split(int n, DB *db) {
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -580,7 +580,7 @@ static void test_multiple_brt_cursors(int n, DB *db) {
         assert(r == 0);
     }
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -672,7 +672,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
         assert(r == 0);
     }
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -744,7 +744,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -808,7 +808,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     r = toku_brt_cursor_close(cursor);
     assert(r==0);
 
-    r = toku_close_brt(brt, 0);
+    r = toku_close_brt_nolsn(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
@@ -869,7 +869,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     error = toku_brt_cursor_close(cursor);
     assert(error == 0);
 
-    error = toku_close_brt(brt, 0);
+    error = toku_close_brt_nolsn(brt, 0);
     assert(error == 0);
 
     error = toku_cachetable_close(&ct);

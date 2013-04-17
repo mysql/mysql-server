@@ -433,7 +433,7 @@ struct brt {
     int pinned_by_checkpoint;  //Keep this brt around for checkpoint, like a transaction
 
     int was_closed; //True when this brt was closed, but is being kept around for transactions (or checkpoint).
-    int (*close_db)(DB*, u_int32_t);
+    int (*close_db)(DB*, u_int32_t, bool oplsn_valid, LSN oplsn);
     u_int32_t close_flags;
 
     struct toku_list live_brt_link;

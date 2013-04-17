@@ -49,6 +49,7 @@ ydb_yield (voidfp f, void *fv, void *UU(v)) {
 static void
 toku_txn_destroy(DB_TXN *txn) {
     (void) __sync_fetch_and_sub(&txn->mgrp->i->open_txns, 1);
+    assert(txn->mgrp->i->open_txns>=0);
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
 #if !TOKUDB_NATIVE_H
     toku_free(db_txn_struct_i(txn));
@@ -214,6 +215,33 @@ toku_txn_abort_only(DB_TXN * txn,
     return r;
 }
 
+static int
+toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+    if (!txn) return EINVAL;
+    if (txn->parent) return EINVAL;
+    HANDLE_PANICKED_ENV(txn->mgrp);
+    //Recursively commit any children.
+    if (db_txn_struct_i(txn)->child) {
+        //commit of child sets the child pointer to NULL
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false);
+        if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
+	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
+        }
+        //In a panicked env, the child may not be removed from the list.
+        HANDLE_PANICKED_ENV(txn->mgrp);
+    }
+    assert(!db_txn_struct_i(txn)->child);
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    GID gids = {gid};
+    int r = toku_txn_prepare_txn(ttxn, gids);
+    TOKULOGGER logger = txn->mgrp->i->logger;
+    LSN do_fsync_lsn;
+    bool do_fsync;
+    toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
+    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
+    return r;
+}
+
 int 
 toku_txn_abort(DB_TXN * txn,
                TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra,
@@ -240,15 +268,15 @@ locked_txn_id(DB_TXN *txn) {
 }
 
 static int 
-toku_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
+toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
     return toku_logger_txn_rollback_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rollback_raw_count);
 }
 
 static int 
-locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
+locked_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     toku_ydb_lock(); 
-    int r = toku_txn_stat(txn, txn_stat); 
+    int r = toku_txn_txn_stat(txn, txn_stat); 
     toku_ydb_unlock(); 
     return r;
 }
@@ -303,6 +331,11 @@ int
 locked_txn_abort(DB_TXN *txn) {
     int r = locked_txn_abort_with_progress(txn, NULL, NULL);
     return r;
+}
+
+static int
+locked_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
+    toku_ydb_lock(); int r = toku_txn_prepare (txn, gid); toku_ydb_unlock(); return r;
 }
 
 int 
@@ -400,8 +433,9 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
     STXN(abort_with_progress);
     STXN(commit_with_progress);
     STXN(id);
+    STXN(prepare);
+    STXN(txn_stat);
 #undef STXN
-    result->txn_stat = locked_txn_stat;
 
     result->parent = stxn;
 #if !TOKUDB_NATIVE_H
@@ -470,4 +504,41 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
     return 0;
 }
 
+void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
+    struct __toku_db_txn_external *XMALLOC(eresult);
+    memset(eresult, 0, sizeof(*eresult));
+    DB_TXN *result = &eresult->external_part;
+    result->mgrp = env;
+#define STXN(name) result->name = locked_txn_ ## name
+    STXN(abort);
+    STXN(commit);
+    STXN(abort_with_progress);
+    STXN(commit_with_progress);
+    STXN(id);
+    STXN(prepare);
+    STXN(txn_stat);
+#undef STXN
+    
+    result->parent = NULL;
+    
+#if !TOKUDB_NATIVE_H
+    MALLOC(db_txn_struct_i(result));
+    if (!db_txn_struct_i(result)) {
+        toku_free(result);
+        return ENOMEM;
+    }
+#endif
+    memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
+    toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
+    {
+	int r = toku_lth_create(&db_txn_struct_i(result)->lth);
+	assert(r==0);
+    }
+
+    db_txn_struct_i(result)->tokutxn = tokutxn;
+
+    toku_txn_set_container_db_txn(tokutxn, result);
+
+    (void) __sync_fetch_and_add(&env->i->open_txns, 1);
+}

@@ -115,8 +115,11 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
 
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
 
-static int
-db_close_before_brt(DB *db, u_int32_t UU(flags)) {
+int
+db_close_before_brt(DB *db, u_int32_t UU(flags), bool oplsn_valid, LSN oplsn)
+// Effect: When the BRT closes a zombie DB, this function is called to inform the YDB layer that the brt is closed (before actually closing the BRT).
+//  This function will actually close the brt.
+{
     int r;
     char *error_string = NULL;
     
@@ -124,7 +127,7 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
         // internal (non-user) dictionary has no dname
         env_note_zombie_db_closed(db->dbenv, db);  // tell env that this db is no longer a zombie (it is completely closed)
     }
-    r = toku_close_brt(db->i->brt, &error_string);
+    r = toku_close_brt_lsn(db->i->brt, &error_string, oplsn_valid, oplsn);
     if (r) {
 	if (!error_string)
 	    error_string = "Closing file\n";
@@ -158,7 +161,7 @@ toku_db_release_ref(DB *db){
 
 //DB->close()
 int 
-toku_db_close(DB * db, u_int32_t flags) {
+toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn) {
     int r = 0;
     if (db->i->refs != 1) {
         r = EBUSY;
@@ -174,7 +177,7 @@ toku_db_close(DB * db, u_int32_t flags) {
         if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
             toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
-        r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
+        r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags, oplsn_valid, oplsn);
     }
     return r;
 }
@@ -481,7 +484,7 @@ toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) 
     HANDLE_PANICKED_DB(db);
     DB_TXN *null_txn = NULL;
     int r  = toku_env_dbremove(db->dbenv, null_txn, fname, dbname, flags);
-    int r2 = toku_db_close(db, 0);
+    int r2 = toku_db_close(db, 0, false, ZERO_LSN);
     if (r==0) r = r2;
     return r;
 }
@@ -491,7 +494,7 @@ toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newna
     HANDLE_PANICKED_DB(db);
     DB_TXN *null_txn = NULL;
     int r  = toku_env_dbrename(db->dbenv, null_txn, fname, dbname, newname, flags);
-    int r2 = toku_db_close(db, 0);
+    int r2 = toku_db_close(db, 0, false, ZERO_LSN);
     if (r==0) r = r2;
     return r;
 }
@@ -684,7 +687,7 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL UU(just_lock)) {
 static int 
 locked_db_close(DB * db, u_int32_t flags) {
     toku_ydb_lock(); 
-    int r = toku_db_close(db, flags); 
+    int r = toku_db_close(db, flags, false, ZERO_LSN);
     toku_ydb_unlock(); 
     return r;
 }
@@ -967,10 +970,11 @@ db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     return toku_db_pre_acquire_table_lock(db, txn, TRUE);
 }
 
-int 
-toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
-    int r;
+int toku_close_db_internal (DB * db, bool oplsn_valid, LSN oplsn) {
+    return toku_db_close(db, 0, oplsn_valid, oplsn);
+}
 
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, bool is_open) {
     if (flags || env == NULL) 
         return EINVAL;
 
@@ -983,6 +987,39 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     }
     memset(result, 0, sizeof *result);
     result->dbenv = env;
+    MALLOC(result->i);
+    if (result->i == 0) {
+        toku_free(result);
+        return ENOMEM;
+    }
+    memset(result->i, 0, sizeof *result->i);
+    toku_list_init(&result->i->dbs_that_must_close_before_abort);
+    result->i->brt = brt;
+    result->i->refs = 1;
+    result->i->opened = is_open;
+    *dbp = result;
+    return 0;
+}
+
+int 
+toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
+    if (flags || env == NULL) 
+        return EINVAL;
+
+    if (!env_opened(env))
+        return EINVAL;
+    
+
+    BRT brt;
+    int r;
+    r = toku_brt_create(&brt);
+    if (r!=0) return r;
+
+    r = toku_setup_db_internal(db, env, flags, brt, false);
+    if (r != 0) return r;
+
+
+    DB *result=*db;
     // methods that grab the ydb lock
 #define SDB(name) result->name = locked_db_ ## name
     SDB(close);
@@ -1026,26 +1063,11 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
-    MALLOC(result->i);
-    if (result->i == 0) {
-        toku_free(result);
-        return ENOMEM;
-    }
-    memset(result->i, 0, sizeof *result->i);
     result->i->dict_id = DICTIONARY_ID_NONE;
     result->i->opened = 0;
     result->i->open_flags = 0;
     result->i->open_mode = 0;
-    result->i->brt = 0;
     result->i->indexer = NULL;
-    result->i->refs = 1;
-    toku_list_init(&result->i->dbs_that_must_close_before_abort);
-    r = toku_brt_create(&result->i->brt);
-    if (r != 0) {
-        toku_free(result->i);
-        toku_free(result);
-        return r;
-    }
     *db = result;
     return 0;
 }

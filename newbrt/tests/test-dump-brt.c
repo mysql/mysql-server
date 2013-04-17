@@ -29,7 +29,7 @@ test_main(int argc, const char *argv[]) {
 	assert(r==0);
     }
     r = toku_dump_brt(f, t); assert(r==0);
-    r = toku_close_brt(t, 0); assert(r==0);
+    r = toku_close_brt_nolsn(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
     fclose(f);
     return 0;

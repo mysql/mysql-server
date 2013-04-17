@@ -37,7 +37,7 @@ static void test2 (int limit) {
     }
     if (verbose) printf("%s:%d inserted\n", __FILE__, __LINE__);
     r = toku_verify_brt(t); assert(r==0);
-    r = toku_close_brt(t, 0);              assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     
     if (verbose) printf("test2 ok\n");

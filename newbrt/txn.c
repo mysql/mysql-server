@@ -93,6 +93,11 @@ toku_txn_get_container_db_txn (TOKUTXN tokutxn) {
     return container;
 }
 
+void toku_txn_set_container_db_txn (TOKUTXN tokutxn, DB_TXN*container) {
+    tokutxn->container_db_txn = container;
+}
+
+
 static int
 fill_xids (OMTVALUE xev, u_int32_t idx, void *varray) {
     TOKUTXN txn = xev;
@@ -228,6 +233,7 @@ toku_txn_create_txn (
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
     result->state = TOKUTXN_LIVE;
+    result->gid.gid  = NULL;
     result->do_fsync = FALSE;
 
     toku_txn_ignore_init(result); // 2954
@@ -415,6 +421,12 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 			     bool release_multi_operation_client_lock) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
+    if (txn->state==TOKUTXN_PREPARING) {
+        txn->state=TOKUTXN_LIVE;
+        toku_free(txn->gid.gid);
+        txn->gid.gid=NULL;
+        toku_list_remove(&txn->prepared_txns_link);
+    }
     txn->state = TOKUTXN_COMMITTING;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
@@ -460,6 +472,12 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 			    bool release_multi_operation_client_lock)
 // Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
+    if (txn->state==TOKUTXN_PREPARING) {
+        txn->state=TOKUTXN_LIVE;
+        toku_free(txn->gid.gid);
+        txn->gid.gid=NULL;
+        toku_list_remove(&txn->prepared_txns_link);
+    }
     txn->state = TOKUTXN_ABORTING;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
@@ -481,6 +499,50 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     // Make sure we multi_operation_client_unlock release will happen even if there is an error
     if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
     return r;
+}
+
+int toku_txn_prepare_txn (TOKUTXN txn, GID gid) {
+    assert(txn->state==TOKUTXN_LIVE);
+    txn->state = TOKUTXN_PREPARING;
+    if (txn->parent) return 0; // nothing to do if there's a parent.
+    // Do we need to do an fsync?
+    txn->do_fsync = (txn->force_fsync_on_commit || txn->num_rollentries>0);
+    txn->gid.gid = toku_memdup(gid.gid, DB_GID_SIZE);
+    toku_list_push(&txn->logger->prepared_txns, &txn->prepared_txns_link);
+    return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, gid);
+}
+
+void toku_txn_get_prepared_gid (TOKUTXN txn, GID *gidp) {
+    gidp->gid = toku_memdup(txn->gid.gid, DB_GID_SIZE);
+}
+
+int toku_logger_recover_txn (TOKULOGGER logger, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+    if (flags==DB_FIRST) {
+	// Anything in the returned list goes back on the prepared list.
+	while (!toku_list_empty(&logger->prepared_and_returned_txns)) {
+	    struct toku_list *h = toku_list_head(&logger->prepared_and_returned_txns);
+	    toku_list_remove(h);
+	    toku_list_push(&logger->prepared_txns, h);
+	}
+    } else if (flags!=DB_NEXT) { 
+	return EINVAL;
+    }
+    long i;
+    for (i=0; i<count; i++) {
+	if (!toku_list_empty(&logger->prepared_txns)) {
+	    struct toku_list *h = toku_list_head(&logger->prepared_txns);
+	    toku_list_remove(h);
+	    toku_list_push(&logger->prepared_and_returned_txns, h);
+	    TOKUTXN txn = toku_list_struct(h, struct tokutxn, prepared_txns_link);
+	    assert(txn->container_db_txn);
+	    preplist[i].txn = txn->container_db_txn;
+	    memcpy(preplist[i].gid, txn->gid.gid, DB_GID_SIZE);
+	} else {
+	    break;
+	}
+    }
+    *retp = i;
+    return 0;
 }
 
 struct txn_fsync_log_info {
@@ -525,6 +587,7 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
     if (txn->open_brts)
         toku_omt_destroy(&txn->open_brts);
     xids_destroy(&txn->xids);
+    if (txn->gid.gid) toku_free(txn->gid.gid);
     toku_txn_ignore_free(txn); // 2954
     toku_free(txn);
 

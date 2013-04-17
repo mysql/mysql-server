@@ -760,7 +760,7 @@ int toku_txn_note_swap_brt (BRT live, BRT zombie) {
     //Close immediately.
     assert(zombie->close_db);
     assert(!toku_brt_zombie_needed(zombie));
-    r = zombie->close_db(zombie->db, zombie->close_flags);
+    r = zombie->close_db(zombie->db, zombie->close_flags, false, ZERO_LSN);
     return r;
 }
 
@@ -785,7 +785,10 @@ int toku_txn_note_close_brt (BRT brt) {
     return 0;
 }
 
-static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
+static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv)
+// Effect:  This function is called on every open BRT that a transaction used.
+//  This function removes the transaction from that BRT.
+{
     BRT brt     = brtv;
     TOKUTXN txn = txnv;
     OMTVALUE txnv_again=NULL;
@@ -805,7 +808,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     if (!toku_brt_zombie_needed(brt) && brt->was_closed) {
         //Close immediately.
         assert(brt->close_db);
-        r = brt->close_db(brt->db, brt->close_flags);
+        r = brt->close_db(brt->db, brt->close_flags, false, ZERO_LSN);
     }
     return r;
 }

@@ -177,7 +177,7 @@ test_split_on_boundary(void)
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
@@ -247,7 +247,7 @@ test_split_with_everything_on_the_left(void)
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
@@ -322,7 +322,7 @@ test_split_on_boundary_of_last_node(void)
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
@@ -390,7 +390,7 @@ test_split_at_begin(void)
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
@@ -454,7 +454,7 @@ test_split_at_end(void)
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
@@ -511,7 +511,7 @@ test_split_odd_nodes(void)
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
     toku_unpin_brtnode(brt, nodeb);
-    r = toku_close_brt(brt, NULL); assert(r == 0);
+    r = toku_close_brt_nolsn(brt, NULL); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0);
 
     if (splitk.data) {
