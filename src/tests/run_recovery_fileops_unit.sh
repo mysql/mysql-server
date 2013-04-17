@@ -8,7 +8,7 @@ errorfile=$1; shift
 abortcode=$1; shift
 
 set +e
-$bin -c $@ 2> $errorfile
+$bin -X novalgrind -c $@ 2> $errorfile
 test $? -eq $abortcode || { cat $errorfile; echo Error: no crash in $errorfile; exit 1; }
 set -e
 grep -q 'HAPPY CRASH' $errorfile || { cat $errorfile; echo Error: incorrect crash in $errorfile; exit 1; }
