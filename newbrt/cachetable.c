@@ -1410,6 +1410,17 @@ unlock_for_graceful (void) {
     assert(r==0);
 }
 
+static void
+graceful_fill_names(const char *db_fname, char *cleanbuf, size_t cleansize, char *dirtybuf, size_t dirtysize) {
+    int written;
+    written = snprintf(cleanbuf, cleansize, "%s.clean", db_fname);
+    assert(written>=0);
+    assert((size_t)written<cleansize);
+    written = snprintf(dirtybuf, dirtysize, "%s.dirty", db_fname);
+    assert(written>=0);
+    assert((size_t)written<dirtysize);
+}
+
 static int
 graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create) {
     BOOL clean_exists;
@@ -1417,8 +1428,7 @@ graceful_open_get_append_fd(const char *db_fname, BOOL *was_dirtyp, BOOL *create
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    sprintf(cleanbuf, "%s.clean", db_fname);
-    sprintf(dirtybuf, "%s.dirty", db_fname);
+    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = stat(cleanbuf, &tmpbuf) == 0;
@@ -1448,8 +1458,7 @@ graceful_close_get_append_fd(const char *db_fname, BOOL *db_missing) {
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    sprintf(cleanbuf, "%s.clean", db_fname);
-    sprintf(dirtybuf, "%s.dirty", db_fname);
+    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = stat(cleanbuf, &tmpbuf) == 0;
@@ -1475,8 +1484,7 @@ graceful_dirty_get_append_fd(const char *db_fname) {
     char cleanbuf[strlen(db_fname) + sizeof(".clean")];
     char dirtybuf[strlen(db_fname) + sizeof(".dirty")];
 
-    sprintf(cleanbuf, "%s.clean", db_fname);
-    sprintf(dirtybuf, "%s.dirty", db_fname);
+    graceful_fill_names(db_fname, cleanbuf, sizeof(cleanbuf), dirtybuf, sizeof(dirtybuf));
 
     struct stat tmpbuf;
     clean_exists = stat(cleanbuf, &tmpbuf) == 0;
@@ -1495,24 +1503,27 @@ graceful_dirty_get_append_fd(const char *db_fname) {
 static void
 graceful_log(int fd, char *operation, BOOL was_dirty, BOOL is_dirty) {
     //Logging.  Ignore errors.
-    static char buf[sizeof(":-> pid= tid=  ")
-                    +7  //operation
-                    +5  //was dirty
-                    +5  //is  dirty
-                    +5  //process id
-                    +5  //thread id
-                    +26 //ctime string (including \n)
-                   ];
+    char buf[sizeof(":-> pid= tid=  ")
+             +7  //operation
+             +5  //was dirty
+             +5  //is  dirty
+             +5  //process id
+             +5  //thread id
+             +26 //ctime string (including \n)
+             ];
     assert(graceful_is_locked); //ctime uses static buffer.  Lock must be held.
     time_t temptime;
     time(&temptime);
-    snprintf(buf, sizeof(buf), "%-7s:%-5s->%-5s pid=%-5d tid=%-5d  %s",
-             operation,
-             was_dirty ? "dirty" : "clean",
-             is_dirty  ? "dirty" : "clean",
-             toku_os_getpid(),
-             toku_os_gettid(),
-             ctime(&temptime));
+    int written;
+    written = snprintf(buf, sizeof(buf), "%-7s:%-5s->%-5s pid=%-5d tid=%-5d  %s",
+                       operation,
+                       was_dirty ? "dirty" : "clean",
+                       is_dirty  ? "dirty" : "clean",
+                       toku_os_getpid(),
+                       toku_os_gettid(),
+                       ctime(&temptime));
+    assert(written>=0);
+    assert((size_t)written<sizeof(buf));
     write(fd, buf, strlen(buf));
 } 
 
