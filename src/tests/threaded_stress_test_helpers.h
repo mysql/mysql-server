@@ -26,6 +26,7 @@
 #elif defined(HAVE_SYS_MALLOC_H)
 # include <sys/malloc.h>
 #endif
+#include <valgrind/drd.h>
 
 #if defined(HAVE_RANDOM_R)
 static inline int32_t
@@ -1063,6 +1064,7 @@ static int run_workers(
         worker_extra[i].operation_lock = &rwlock;
         worker_extra[i].operation_lock_mutex = &mutex;
         XCALLOC_N((int) NUM_OPERATION_TYPES, worker_extra[i].counters);
+        DRD_IGNORE_VAR(worker_extra[i].counters);
         CHK(toku_pthread_create(&tids[i], NULL, worker, &worker_extra[i]));
         if (verbose) 
             printf("%lu created\n", (unsigned long) tids[i]);
