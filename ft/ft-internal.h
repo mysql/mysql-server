@@ -856,9 +856,6 @@ toku_verify_ftnode (FT_HANDLE brt,
 
 int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 
-int toku_ft_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
-int toku_ft_remove_now(CACHETABLE ct, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
-
 typedef enum {
     FT_UPGRADE_FOOTPRINT = 0,
     FT_UPGRADE_STATUS_NUM_ROWS

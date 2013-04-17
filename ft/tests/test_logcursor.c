@@ -202,10 +202,10 @@ int create_logfiles() {
     //begin_checkpoint          'x': lsn=9 timestamp=1251309957584197 crc=cd067878 len=29
     r = toku_log_begin_checkpoint(logger, &lsn, NO_FSYNC, 1251309957584197); assert(r==0); cp_txnid = lsn.lsn;
     //fassociate                'f': lsn=11 filenum=1 fname={len=4 data="b.db"} crc=a7126035 len=33
-    r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_bname, 0, bs_bname); assert(r==0);
+    r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_bname, 0, bs_bname, 0); assert(r==0);
     num_fassociate++;
     //fassociate                'f': lsn=12 filenum=0 fname={len=4 data="a.db"} crc=a70c5f35 len=33
-    r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_aname, 0, bs_aname); assert(r==0);
+    r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_aname, 0, bs_aname, 0); assert(r==0);
     num_fassociate++;
    //xstillopen                's': lsn=10 txnid=7 parent=0 crc=00061816 len=37 <- obsolete
     {

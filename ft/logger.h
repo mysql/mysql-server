@@ -61,7 +61,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags, u_int32_t nodesize, u_int32_t basementnodesize, enum toku_compression_method compression_method);
-int toku_logger_log_fdelete (TOKUTXN txn, const char *fname);
+int toku_logger_log_fdelete (TOKUTXN txn, FILENUM filenum);
 int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
 
 int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len);

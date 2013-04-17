@@ -23,7 +23,6 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "toku_assert.h"
 #include "ydb.h"
 #include "ydb-internal.h"
-#include <ft/ft-internal.h>
 #include <ft/ft-flusher.h>
 #include <ft/cachetable.h>
 #include <ft/log.h>
@@ -795,21 +794,21 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     {
         BOOL made_new_home = FALSE;
         char* new_home = NULL;
-            toku_struct_stat buf;
+        toku_struct_stat buf;
         if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
             new_home = toku_malloc(strlen(home));
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
             made_new_home = TRUE;
         }
-            r = toku_stat(made_new_home? new_home : home, &buf);
+        r = toku_stat(made_new_home? new_home : home, &buf);
         if (made_new_home) {
             toku_free(new_home);
         }
-            if (r!=0) {
-                r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
+        if (r!=0) {
+            r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
             goto cleanup;
-            }
+        }
     }
     unused_flags &= ~DB_PRIVATE;
 
@@ -2649,6 +2648,8 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     assert(dbname == NULL);
 
     if (flags!=0) return EINVAL;
+    // We check for an open db here as a "fast path" to error.
+    // We'll need to check again below to be sure.
     if (env_is_db_with_dname_open(env, dname))
         return toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
     
@@ -2668,41 +2669,54 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     // get iname
     r = toku_db_get(env->i->directory, child, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
-    if (r==DB_NOTFOUND)
+    DB *db = NULL;
+    if (r == DB_NOTFOUND) {
         r = ENOENT;
-    else if (r==0) {
+    } else if (r == 0) {
         // remove (dname,iname) from directory
         r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY, TRUE);
-        if (r == 0) {
-            if (using_txns) {
-                // this writes an fdelete to the transaction's rollback log.
-                // it is removed if the child txn aborts after any error case below
-                r = toku_ft_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
-                assert_zero(r);
-                //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
-                if (r==0 && env_is_db_with_dname_open(env, dname))
-                    r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
-                if (r==0) {
-                    // we know a live db handle does not exist.
-                    //
-                    // if the lock tree still exists, try to get a full table
-                    // lock. if we can't get it, then some txn still needs
-                    // the ft and we should return lock not granted.
-                    // otherwise, we're okay in marking this brt as remove on
-                    // commit. no new handles can open for this dictionary
-                    // because the txn has directory write locks on the dname
-                    if (!can_acquire_table_lock(env, child, iname)) {
-                        r = DB_LOCK_NOTGRANTED;
-                    }
-                }
+        if (r != 0) {
+            goto exit;
+        }
+        r = toku_db_create(&db, env, 0);
+        assert_zero(r);
+        r = db_open_iname(db, txn, iname, 0, 0);
+        assert_zero(r);
+        if (using_txns) {
+            // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
+            if (env_is_db_with_dname_open(env, dname)) {
+                r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
+                goto exit;
             }
-            else {
-                r = toku_ft_remove_now(env->i->cachetable, &iname_dbt);
+            // we know a live db handle does not exist.
+            //
+            // use the internally opened db to try and get a table lock
+            // 
+            // if we can't get it, then some txn needs the ft and we
+            // should return lock not granted.
+            //
+            // otherwise, we're okay in marking this ft as remove on
+            // commit. no new handles can open for this dictionary
+            // because the txn has directory write locks on the dname
+            if (toku_db_pre_acquire_table_lock(db, child) != 0) {
+                r = DB_LOCK_NOTGRANTED;
+            } else {
+                // The ft will be removed when the txn commits
+                r = toku_ft_remove_on_commit(db->i->ft_handle, db_txn_struct_i(child)->tokutxn);
                 assert_zero(r);
             }
         }
+        else {
+            // Remove the ft without a txn
+            toku_ft_remove(db->i->ft_handle);
+        }
     }
 
+exit:
+    if (db) {
+        int ret = toku_db_close(db);
+        assert(ret == 0);
+    }
     if (using_txns) {
         // close txn
         if (r == 0) {  // commit
@@ -2714,12 +2728,11 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             invariant(r2==0);  // TODO panic
         }
     }
-
-    if (iname) toku_free(iname);
+    if (iname) {
+        toku_free(iname);
+    }
     return r;
-
 }
-
 
 static int
 env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
@@ -2756,7 +2769,9 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     const char * dname = fname;
     assert(dbname == NULL);
 
-    if (flags!=0) return EINVAL;
+    if (flags != 0) return EINVAL;
+    // We check for open dnames for the old and new name as a "fast path" to error.
+    // We will need to check these again later.
     if (env_is_db_with_dname_open(env, dname))
         return toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
     if (env_is_db_with_dname_open(env, newname))
@@ -2777,12 +2792,12 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
         assert_zero(r);
     }
 
-    char *iname;
+    // get iname
     r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
-    iname = iname_dbt.data;
-    if (r==DB_NOTFOUND)
+    char *iname = iname_dbt.data;
+    if (r == DB_NOTFOUND) {
         r = ENOENT;
-    else if (r==0) {
+    } else if (r == 0) {
         // verify that newname does not already exist
         r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
         if (r == 0) {
@@ -2791,27 +2806,39 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
         else if (r == DB_NOTFOUND) {
             // remove old (dname,iname) and insert (newname,iname) in directory
             r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY, TRUE);
-            if (r == 0)
-                r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0, TRUE);
+            if (r != 0) { goto exit; }
+            r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0, TRUE);
+            if (r != 0) { goto exit; }
+
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
-            if (r==0 && env_is_db_with_dname_open(env, dname))
+            if (env_is_db_with_dname_open(env, dname)) {
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
-            if (r == 0) {
-                // we know a live db handle for the old name does not exist.
-                //
-                // if the lock tree still exists, try to get a full table
-                // lock. if we can't get it, then some txn still references 
-                // this dictionary, so we can't proceed.
-                if (!can_acquire_table_lock(env, child, iname)) {
-                    r = DB_LOCK_NOTGRANTED;
-                }
+                goto exit;
             }
-            if (r==0 && env_is_db_with_dname_open(env, newname)) {
+            if (env_is_db_with_dname_open(env, newname)) {
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
+                goto exit;
             }
+
+            // we know a live db handle does not exist.
+            //
+            // use the internally opened db to try and get a table lock
+            // 
+            // if we can't get it, then some txn needs the ft and we
+            // should return lock not granted.
+            //
+            // otherwise, we're okay in marking this ft as remove on
+            // commit. no new handles can open for this dictionary
+            // because the txn has directory write locks on the dname
+            if (!can_acquire_table_lock(env, child, iname)) {
+                r = DB_LOCK_NOTGRANTED;
+            }
+            // We don't do anything at the ft or cachetable layer for rename.
+            // We just update entries in the environment's directory.
         }
     }
 
+exit:
     if (using_txns) {
         // close txn
         if (r == 0) {  // commit
@@ -2823,11 +2850,10 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             invariant(r2==0);  // TODO panic
         }
     }
-
-    if (iname) toku_free(iname);
-
+    if (iname) {
+        toku_free(iname);
+    }
     return r;
-
 }
 
 int 

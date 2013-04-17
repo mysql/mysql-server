@@ -26,8 +26,7 @@ static void f_flush (CACHEFILE f,
 		     ) {
     assert(size.size==BLOCKSIZE);
     if (write_me) {
-	toku_os_full_pwrite(toku_cachefile_get_and_pin_fd(f), value, BLOCKSIZE, key.b);
-        toku_cachefile_unpin_fd(f);
+	toku_os_full_pwrite(toku_cachefile_get_fd(f), value, BLOCKSIZE, key.b);
     }
     if (!keep_me) {
 	toku_free(value);
@@ -44,8 +43,7 @@ static int f_fetch (CACHEFILE f,
 		    int  *dirtyp,
 		    void*extraargs     __attribute__((__unused__))) {
     void *buf = toku_malloc(BLOCKSIZE);
-    int r = pread(toku_cachefile_get_and_pin_fd(f), buf, BLOCKSIZE, key.b);
-    toku_cachefile_unpin_fd(f);
+    int r = pread(toku_cachefile_get_fd(f), buf, BLOCKSIZE, key.b);
     assert(r==BLOCKSIZE);
     *value = buf;
     *sizep = make_pair_attr(BLOCKSIZE);

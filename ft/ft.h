@@ -14,8 +14,16 @@
 #include "ft-search.h"
 #include "compress.h"
 
-void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
+// remove a ft, transactionless.
+// if the ft is being checkpointed, it will be removed after checkpoint.
+void toku_ft_remove(FT_HANDLE handle);
+
+// remove a ft using the given txn. when the txn commits, the ft is removed.
+// if the ft is being checkpointed, it will be removed after checkpoint.
+int toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__warn_unused_result__));
+
 //Effect: suppresses rollback logs
+void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
 
 void toku_ft_init_treelock(FT h);
 void toku_ft_destroy_treelock(FT h);

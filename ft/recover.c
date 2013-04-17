@@ -438,6 +438,12 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
 		assert(r==0);
 	    }
         }
+        // try to open the file again and if we get it, restore
+        // the unlink on close bit.
+        int ret = file_map_find(&renv->fmap, l->filenum, &tuple);
+        if (ret == 0 && l->unlink_on_close) {
+            toku_cachefile_unlink_on_close(tuple->ft_handle->ft->cf);
+        }
         break;
     case FORWARD_NEWER_CHECKPOINT_END:
         if (r == 0) { //IF it is open
@@ -451,6 +457,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
         return 0;
     }
     toku_free(fname);
+
     return r;
 }
 
@@ -850,23 +857,16 @@ static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
     int r = toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(r == 0);
     assert(txn != NULL);
-    char *fixediname = fixup_fname(&l->iname);
-    { //Only if it exists
-        toku_struct_stat buf;
-        r = toku_stat(fixediname, &buf);
-        if (r==0) {
-            // txn exists and file exists, so create fdelete rollback entry
-            DBT iname_dbt;
-            toku_fill_dbt(&iname_dbt, fixediname, strlen(fixediname)+1);
-            r = toku_ft_remove_on_commit(txn, &iname_dbt);
-            assert(r==0);
-        }
-        else {
-            assert(errno==ENOENT);
-        }
+
+    // if the forward scan in recovery found this file and opened it, we
+    // need to mark the txn to remove the ft on commit. if the file was
+    // not found and not opened, we don't need to do anything - the ft
+    // is already gone, so we're happy.
+    struct file_map_tuple *tuple;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    if (r == 0) {
+        r = toku_ft_remove_on_commit(tuple->ft_handle, txn);
     }
-    
-    toku_free(fixediname);
     return 0;
 }
 
@@ -1141,13 +1141,11 @@ static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
     r = toku_txnid2txn(renv->logger, l->xid, &txn);
     assert(r == 0);
     assert(txn!=NULL);
-    char *old_iname = fixup_fname(&l->old_iname);
     char *new_iname = fixup_fname(&l->new_iname);
 
-    r = toku_ft_load_recovery(txn, old_iname, new_iname, 0, 0, (LSN*)NULL);
+    r = toku_ft_load_recovery(txn, l->old_filenum, new_iname, 0, 0, (LSN*)NULL);
     assert(r==0);
 
-    toku_free(old_iname);
     toku_free(new_iname);
     return 0;
 }

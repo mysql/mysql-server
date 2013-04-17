@@ -122,8 +122,9 @@ ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     BYTESTRING bs = { strlen(fname_in_env), // don't include the NUL
                       fname_in_env };
     TOKULOGGER logger = toku_cachefile_logger(cf);
-    FILENUM filenum = toku_cachefile_filenum (cf);
-    int r = toku_log_fassociate(logger, NULL, 0, filenum, ft->h->flags, bs);
+    FILENUM filenum = toku_cachefile_filenum(cf);
+    bool unlink_on_close = toku_cachefile_is_unlink_on_close(cf);
+    int r = toku_log_fassociate(logger, NULL, 0, filenum, ft->h->flags, bs, unlink_on_close);
     return r;
 }
 
@@ -508,7 +509,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
     FT h;
     int r;
     {
-        int fd = toku_cachefile_get_and_pin_fd (cf);
+        int fd = toku_cachefile_get_fd(cf);
         enum deserialize_error_code e = toku_deserialize_ft_from(fd, max_acceptable_lsn, &h);
         if (e == DS_XSUM_FAIL) {
             fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
@@ -520,7 +521,6 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         } else {
             assert(false);
         }
-        toku_cachefile_unpin_fd(cf);
     }
     if (r!=0) return r;
     h->cf = cf;

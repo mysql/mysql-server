@@ -96,7 +96,6 @@ ft_set_dirty(FT ft, BOOL for_checkpoint){
     }
 }
 
-//fd is protected (must be holding fdlock)
 static void
 maybe_truncate_cachefile(BLOCK_TABLE bt, int fd, FT h, u_int64_t size_needed_before) {
     assert(toku_mutex_is_locked(&bt->mutex));
@@ -106,7 +105,6 @@ maybe_truncate_cachefile(BLOCK_TABLE bt, int fd, FT h, u_int64_t size_needed_bef
         toku_maybe_truncate_cachefile(h->cf, fd, new_size_needed);
 }
 
-//fd is protected (must be holding fdlock)
 void
 toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, int fd, FT h) {
     lock_for_blocktable(bt);
@@ -254,7 +252,6 @@ PRNTF("free", i, pair->size, pair->u.diskoff, bt);
 //      free (offset,len) from checkpoint
 // move inprogress to checkpoint (resetting type)
 // inprogress = NULL
-//fd is protected (must be holding fdlock)
 void
 toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd, FT h) {
     // Free unused blocks

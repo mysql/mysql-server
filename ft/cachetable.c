@@ -348,9 +348,11 @@ struct cachefile {
     bool is_flushing;  // during cachetable_flush_cachefile, this must be
                        // true, to prevent the cleaner thread from messing
                        // with nodes in that cachefile
-    struct rwlock fdlock; // Protect changing the fd and is_dev_null
-                          // Only write-locked by toku_cachefile_redirect_nullfd()
-    BOOL is_dev_null;    //True if was deleted and redirected to /dev/null (starts out FALSE, can be set to TRUE, can never be set back to FALSE)
+    // If set and the cachefile closes, the file will be removed.
+    // Clients must not operate on the cachefile after setting this,
+    // nor attempt to open any cachefile with the same fname (dname)
+    // until this cachefile has been fully closed and unlinked.
+    bool unlink_on_close;
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;
@@ -648,11 +650,16 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     cachefiles_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
         if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
-            //File is already open (and in cachetable as extant)
+            // Clients must serialize cachefile open, close, and unlink
+            // So, during open, we should never see a closing cachefile 
+            // or one that has been marked as unlink on close.
             assert(!extant->is_closing);
-            r = close(fd);  // no change for t:2444
+            assert(!extant->unlink_on_close);
+
+            // Reuse an existing cachefile and close the caller's fd, whose
+            // responsibility has been passed to us.
+            r = close(fd);
             assert(r == 0);
-            // re-use pre-existing cachefile 
             *cfptr = extant;
             r = 0;
             goto exit;
@@ -674,7 +681,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         newcf->next = ct->cachefiles;
         ct->cachefiles = newcf;
 
-        rwlock_init(&newcf->fdlock);
         newcf->most_recent_global_checkpoint_that_finished_early = ZERO_LSN;
         newcf->for_local_checkpoint = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
@@ -714,7 +720,6 @@ void toku_cachefile_get_workqueue_load (CACHEFILE cf, int *n_in_queue, int *n_th
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     int r;
     struct fileid fileid;
-    (void)toku_cachefile_get_and_pin_fd(cf);
     r=toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
         r=errno; close(fd); goto cleanup; // no change for t:2444
@@ -739,7 +744,6 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     cachefile_init_filenum(cf, fd, fname_in_env, fileid);
     r = 0;
 cleanup:
-    toku_cachefile_unpin_fd(cf);
     return r;
 }
 
@@ -748,36 +752,17 @@ toku_cachefile_fname_in_env (CACHEFILE cf) {
     return cf->fname_in_env;
 }
 
-int toku_cachefile_get_and_pin_fd (CACHEFILE cf) {
-    CACHETABLE ct = cf->cachetable;
-    cachetable_lock(ct);
-    rwlock_prefer_read_lock(&cf->fdlock, cf->cachetable->mutex);
-    cachetable_unlock(ct);
+int 
+toku_cachefile_get_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
-void toku_cachefile_unpin_fd (CACHEFILE cf) {
-    CACHETABLE ct = cf->cachetable;
-    cachetable_lock(ct);
-    rwlock_read_unlock(&cf->fdlock);
-    cachetable_unlock(ct);
-}
-
-//Must be holding a read or write lock on cf->fdlock
-BOOL
-toku_cachefile_is_dev_null_unlocked (CACHEFILE cf) {
-    return cf->is_dev_null;
-}
-
-//Must already be holding fdlock (read or write)
 int
 toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size) {
     int r;
-    if (toku_cachefile_is_dev_null_unlocked(cf)) r = 0; //Don't truncate /dev/null
-    else {
-        r = ftruncate(cf->fd, new_size);
-        if (r != 0)
-            r = errno;
+    r = ftruncate(cf->fd, new_size);
+    if (r != 0) {
+        r = errno;
     }
     return r;
 }
@@ -803,84 +788,77 @@ void toku_cachefile_wait_for_background_work_to_quiesce(CACHEFILE cf) {
     wait_on_background_jobs_to_finish(cf);
 }
 
-int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN oplsn) {
-
+int 
+toku_cachefile_close(CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+    int r, close_error = 0;
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
+
+    // Mark this cachefile as flushing so that cleaner threads know
+    // not to operate on any of its pairs.
     cachetable_lock(ct);
     cf->is_flushing = true;
     cachetable_unlock(ct);
+
+    // There may be reader, writer, or flusher threads on the kibbutz
+    // that need to do work on pairs for this cf. Before we can close
+    // the underlying file, we need to wait for them to finish. No new
+    // work shoudl start because clients of the cachetable are not supposed
+    // to use a cachefile in parallel with a close, or afterwards.
     wait_on_background_jobs_to_finish(cf);
+
+    // Hold the cachetable lock while we check some invariants and
+    // flush the cachefile.
     cachetable_lock(ct);
-    {
-        //Checkpoint holds a reference, close should be impossible if still in use by a checkpoint.
-        assert(!cf->next_in_checkpoint);
-        assert(!cf->for_checkpoint);
-        assert(!cf->is_closing);
-        cf->is_closing = TRUE; //Mark this cachefile so that no one will re-use it.
-        int r;
-        // cachetable_flush_cachefile() may release and retake cachetable_lock,
-        // allowing another thread to get into either/both of
-        //  - toku_cachetable_openfd()
-        //  - toku_cachefile_of_iname_and_add_reference()
-        cachetable_flush_cachefile(ct, cf);
-        if (0) {
-        error:
-            remove_cf_from_cachefiles_list(cf);
-            assert(!cf->next_in_checkpoint); //checkpoint cannot run on a closing file
-            assert(!cf->for_checkpoint);     //checkpoint cannot run on a closing file
-            if (cf->fname_in_env) toku_free(cf->fname_in_env);
 
-            rwlock_write_lock(&cf->fdlock, ct->mutex);
-            if ( !toku_cachefile_is_dev_null_unlocked(cf) ) {
-                int r3 = toku_file_fsync_without_accounting(cf->fd); //t:2444
-                if (r3!=0) fprintf(stderr, "%s:%d During error handling, could not fsync file r=%d errno=%d\n", __FILE__, __LINE__, r3, errno);
-            }
-            int r2 = close(cf->fd);
-            if (r2!=0) fprintf(stderr, "%s:%d During error handling, could not close file r=%d errno=%d\n", __FILE__, __LINE__, r2, errno);
-            //assert(r == 0);
-            rwlock_write_unlock(&cf->fdlock);
-            rwlock_destroy(&cf->fdlock);
-            assert(toku_list_empty(&cf->pairs_for_cachefile));
-            toku_free(cf);
-            cachetable_unlock(ct);
-            return r;
-        }
-        if (cf->close_userdata) {
-            rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-            r = cf->close_userdata(cf, cf->fd, cf->userdata, error_string, oplsn_valid, oplsn);
-            rwlock_read_unlock(&cf->fdlock);
-            if (r!=0) goto error;
-        }
-               cf->close_userdata = NULL;
-        cf->checkpoint_userdata = NULL;
-        cf->begin_checkpoint_userdata = NULL;
-        cf->end_checkpoint_userdata = NULL;
-        cf->userdata = NULL;
-        remove_cf_from_cachefiles_list(cf);
-        toku_cond_destroy(&cf->background_wait);
-        rwlock_write_lock(&cf->fdlock, ct->mutex); //Just make sure we can get it.
+    // Clients should never attempt to close a cachefile that is being
+    // checkpointed. We notify clients this is happening in the
+    // note_pin_by_checkpoint callback.
+    assert(!cf->next_in_checkpoint);
+    assert(!cf->for_checkpoint);
 
-        if (!toku_cachefile_is_dev_null_unlocked(cf)) {
-            cachetable_unlock(ct);
-            r = toku_file_fsync_without_accounting(cf->fd); //t:2444
-            assert(r == 0);   
-            cachetable_lock(ct);
-        }
+    // Help enforce the client contract that open/close should never 
+    // run in parallel.
+    assert(!cf->is_closing);
+    cf->is_closing = true;
 
-        rwlock_write_unlock(&cf->fdlock);
-        rwlock_destroy(&cf->fdlock);
-        assert(toku_list_empty(&cf->pairs_for_cachefile));
-        cachetable_unlock(ct);
+    // Flush the cachefile and remove all of its pairs from the cachetable
+    cachetable_flush_cachefile(ct, cf);
+    assert(toku_list_empty(&cf->pairs_for_cachefile));
 
-        r = close(cf->fd);
-        assert(r == 0);
-        cf->fd = -1;
-
-        if (cf->fname_in_env) toku_free(cf->fname_in_env);
-        toku_free(cf);
-        return r;
+    // Call the close userdata callback to notify the client this cachefile
+    // and its underlying file are going to be closed
+    if (cf->close_userdata) {
+        close_error = cf->close_userdata(cf, cf->fd, cf->userdata, error_string, oplsn_valid, oplsn);
     }
+
+    remove_cf_from_cachefiles_list(cf);
+    toku_cond_destroy(&cf->background_wait);
+
+    // Don't hold the cachetable lock during fsync/close/unlink, etc
+    cachetable_unlock(ct);
+
+    // fsync and close the fd. 
+    r = toku_file_fsync_without_accounting(cf->fd);
+    assert(r == 0);   
+    r = close(cf->fd);
+    assert(r == 0);
+
+    // Unlink the file if the bit was set
+    if (cf->unlink_on_close) {
+        char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(cf->cachetable, cf->fname_in_env);
+        r = unlink(fname_in_cwd);
+        assert_zero(r);
+        toku_free(fname_in_cwd);
+    }
+    toku_free(cf->fname_in_env);
+    toku_free(cf);
+
+    // If close userdata returned nonzero, pass that error code to the caller
+    if (close_error != 0) {
+        r = close_error;
+    }
+    return r;
 }
 
 //
@@ -1098,7 +1076,6 @@ static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     void *write_extraargs = p->write_extraargs;
     PAIR_ATTR old_attr = p->attr;
     
-    rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
     cachetable_evictions++;
     cachetable_unlock(ct);
     PAIR_ATTR new_attr = p->attr;
@@ -1107,7 +1084,6 @@ static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     flush_callback(cachefile, cachefile->fd, key, value, &disk_data, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE, FALSE);
     
     cachetable_lock(ct);
-    rwlock_read_unlock(&cachefile->fdlock);
     
     ctpair_destroy(p);
 }
@@ -1154,13 +1130,9 @@ static void cachetable_only_write_locked_data(
     PAIR_ATTR old_attr = p->attr;
     BOOL dowrite = TRUE;
     
-    rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
     cachetable_unlock(ct);
     
     // write callback
-    if (toku_cachefile_is_dev_null_unlocked(cachefile)) {
-        dowrite = FALSE;
-    }
     flush_callback(
         cachefile, 
         cachefile->fd, 
@@ -1182,7 +1154,6 @@ static void cachetable_only_write_locked_data(
         ct->size_current -= p->cloned_value_size;
         p->cloned_value_size = 0;
     }    
-    rwlock_read_unlock(&cachefile->fdlock);
 }
 
 
@@ -1972,13 +1943,11 @@ do_partial_fetch(
     assert(!p->dirty);
     p->state = CTPAIR_READING;
 
-    rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
     nb_mutex_lock(&p->disk_nb_mutex, ct->mutex);
     cachetable_unlock(ct);
     int r = pf_callback(p->value_data, p->disk_data, read_extraargs, cachefile->fd, &new_attr);
     lazy_assert_zero(r);
     cachetable_lock(ct);
-    rwlock_read_unlock(&cachefile->fdlock);
     p->attr = new_attr;
     cachetable_change_pair_attr(ct, old_attr, new_attr);
     p->state = CTPAIR_IDLE;
@@ -2018,13 +1987,11 @@ void toku_cachetable_pf_pinned_pair(
     assert(p->value_data == value);
     assert(nb_mutex_writers(&p->value_nb_mutex));
     nb_mutex_lock(&p->disk_nb_mutex, cf->cachetable->mutex);    
-    rwlock_prefer_read_lock(&cf->fdlock, cf->cachetable->mutex);
     int fd = cf->fd;
     cachetable_unlock(cf->cachetable);
     pf_callback(value, p->disk_data, read_extraargs, fd, &attr);
     cachetable_lock(cf->cachetable);
     nb_mutex_write_unlock(&p->disk_nb_mutex);    
-    rwlock_read_unlock(&cf->fdlock);
     cachetable_unlock(cf->cachetable);
 }
 
@@ -2092,18 +2059,15 @@ static void cachetable_fetch_pair(
 
     WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));    
 
-    rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
     nb_mutex_lock(&p->disk_nb_mutex, ct->mutex);
     cachetable_unlock(ct);
 
     int r;
-    assert(!toku_cachefile_is_dev_null_unlocked(cf));
     r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &disk_data, &attr, &dirty, read_extraargs);
     if (dirty)
         p->dirty = CACHETABLE_DIRTY;
 
     cachetable_lock(ct);
-    rwlock_read_unlock(&cf->fdlock);
     // ft-ops.c asserts that get_and_pin succeeds,
     // so we might as well just assert it here as opposed
     // to trying to support an INVALID state
@@ -3343,9 +3307,9 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             assert(ct->cachefiles_in_checkpoint==NULL);
             cachefiles_lock(ct);
             for (cf = ct->cachefiles; cf; cf=cf->next) {
-                assert(!cf->is_closing); //Closing requires ydb lock (or in checkpoint).  Cannot happen.
-                //Incremement reference count of cachefile because we're using it for the checkpoint.
-                //This will prevent closing during the checkpoint.
+                // The caller must serialize open, close, and begin checkpoint.
+                // So we should never see a closing cachefile here.
+                assert(!cf->is_closing);
 
                 // putting this check so that this function may be called
                 // by cachetable tests
@@ -3570,7 +3534,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         CACHEFILE cf;
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->checkpoint_userdata) {
-                rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
                 if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
                     assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
                     cachetable_unlock(ct);
@@ -3585,7 +3548,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                 else {
                     assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
                 }
-                rwlock_read_unlock(&cf->fdlock);
             }
         }
     }
@@ -3615,11 +3577,9 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         //cachefiles_in_checkpoint is protected by the checkpoint_safe_lock
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->end_checkpoint_userdata) {
-                rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
                 if (!logger || ct->lsn_of_checkpoint_in_progress.lsn != cf->most_recent_global_checkpoint_that_finished_early.lsn) {
                     assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
                     cachetable_unlock(ct);
-                    //end_checkpoint fsyncs the fd, which needs the fdlock
                     assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
                     int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
                     assert(r==0);
@@ -3627,7 +3587,6 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                     cachetable_lock(ct);
                 }
                 assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
-                rwlock_read_unlock(&cf->fdlock);
             }
         }
     }
@@ -3799,45 +3758,30 @@ toku_cachefile_get_cachetable(CACHEFILE cf) {
 int
 toku_cachefile_fsync(CACHEFILE cf) {
     int r;
-    if (toku_cachefile_is_dev_null_unlocked(cf)) 
-        r = 0; //Don't fsync /dev/null
-    else 
-        r = toku_file_fsync(cf->fd);
+    r = toku_file_fsync(cf->fd);
     return r;
 }
 
-int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
-    int null_fd;
-    struct fileid fileid;
+// Make it so when the cachefile closes, the underlying file is unlinked
+void 
+toku_cachefile_unlink_on_close(CACHEFILE cf) {
+    assert(!cf->unlink_on_close);
+    cf->unlink_on_close = true;
+}
 
-    CACHETABLE ct = cf->cachetable;
-    cachetable_lock(ct);
-    rwlock_write_lock(&cf->fdlock, ct->mutex);
-    null_fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);           
-    assert(null_fd>=0);
-    int r = toku_os_get_unique_file_id(null_fd, &fileid);
-    assert(r==0);
-    close(cf->fd);  // no change for t:2444
-    cf->fd = null_fd;
-    char *saved_fname_in_env = cf->fname_in_env;
-    cf->fname_in_env = NULL;
-    cachefile_init_filenum(cf, null_fd, saved_fname_in_env, fileid);
-    if (saved_fname_in_env) toku_free(saved_fname_in_env);
-    cf->is_dev_null = TRUE;
-    rwlock_write_unlock(&cf->fdlock);
-    cachetable_unlock(ct);
-    return 0;
+// is this cachefile marked as unlink on close?
+bool 
+toku_cachefile_is_unlink_on_close(CACHEFILE cf) {
+    return cf->unlink_on_close;
 }
 
 u_int64_t toku_cachefile_size(CACHEFILE cf) {
     int64_t file_size;
-    int fd = toku_cachefile_get_and_pin_fd(cf);
+    int fd = toku_cachefile_get_fd(cf);
     int r = toku_os_get_file_size(fd, &file_size);
-    toku_cachefile_unpin_fd(cf);
     assert_zero(r);
     return file_size;
 }
-
 
 char *
 toku_construct_full_name(int count, ...) {
@@ -3884,7 +3828,6 @@ cleaner_thread_rate_pair(PAIR p)
 
 static int const CLEANER_N_TO_CHECK = 8;
 
-// FIXME this is global but no one uses it except cachetable.c
 int
 toku_cleaner_thread (void *cachetable_v)
 // Effect:  runs a cleaner.
@@ -3961,22 +3904,11 @@ toku_cleaner_thread (void *cachetable_v)
 
             CACHEFILE cf = best_pair->cachefile;
             BOOL cleaner_callback_called = FALSE;
-            // grab the fdlock, because the cleaner callback
-            // will access the fd.
-            rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
             
             // it's theoretically possible that after writing a PAIR for checkpoint, the
             // PAIR's heuristic tells us nothing needs to be done. It is not possible
             // in Dr. Noga, but unit tests verify this behavior works properly.
-            // 
-            // also, because the cleaner thread needs to act as a client
-            // and honor the same invariants that client threads honor,
-            // we refuse to call the cleaner callback if the cachefile
-            // has been redirected to /dev/null, because client threads
-            // do not call APIs that access the file if the file has been
-            // redirected to /dev/null
-            if (!toku_cachefile_is_dev_null_unlocked(cf) && 
-                cleaner_thread_rate_pair(best_pair) > 0) 
+            if (cleaner_thread_rate_pair(best_pair) > 0) 
             {
                 cachetable_unlock(ct);
                 int r = best_pair->cleaner_callback(best_pair->value_data,
@@ -3994,7 +3926,6 @@ toku_cleaner_thread (void *cachetable_v)
                 assert(!best_pair->cq);
                 nb_mutex_write_unlock(&best_pair->value_nb_mutex);
             }
-            rwlock_read_unlock(&cf->fdlock);
             // We need to make sure the cachefile sticks around so a close
             // can't come destroy it.  That's the purpose of this
             // "add/remove_background_job" business, which means the

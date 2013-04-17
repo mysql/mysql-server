@@ -90,7 +90,6 @@ alignup64(u_int64_t a, u_int64_t b) {
 //Race condition if ydb lock is split.
 //Ydb lock is held when this function is called.
 //Not going to truncate and delete (redirect to devnull) at same time.
-//Must be holding a read or write lock on fdlock (fd is protected)
 void
 toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used)
 // Effect: If file size >= SIZE+32MiB, reduce file size.
@@ -101,7 +100,6 @@ toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used)
     //the pwrite lock needlessly.
     //Check file size after taking lock to avoid race conditions.
     int64_t file_size;
-    if (toku_cachefile_is_dev_null_unlocked(cf)) goto done;
     {
         int r = toku_os_get_file_size(fd, &file_size);
         lazy_assert_zero(r);
@@ -123,7 +121,6 @@ toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used)
         }
         toku_unlock_for_pwrite();
     }
-done:
     return;
 }
 
