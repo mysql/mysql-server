@@ -17,6 +17,10 @@ extern "C" {
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
+typedef int64_t toku_off_t;
+#endif
 typedef struct __toku_db_btree_stat DB_BTREE_STAT;
 typedef struct __toku_db_env DB_ENV;
 typedef struct __toku_db_key_range DB_KEY_RANGE;

@@ -17,6 +17,10 @@ extern "C" {
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
+typedef int64_t toku_off_t;
+#endif
 typedef struct __toku_db_btree_stat DB_BTREE_STAT;
 typedef struct __toku_db_env DB_ENV;
 typedef struct __toku_db_key_range DB_KEY_RANGE;
@@ -313,7 +317,7 @@ int toku_set_trace_file (char *fname) __attribute__((__visibility__("default")))
 int toku_close_trace_file (void) __attribute__((__visibility__("default")));
 int db_env_set_func_free (void (*)(void*)) __attribute__((__visibility__("default")));
 int db_env_set_func_malloc (void *(*)(size_t)) __attribute__((__visibility__("default")));
-int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, off_t)) __attribute__((__visibility__("default")));
+int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)

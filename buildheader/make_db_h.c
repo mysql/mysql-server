@@ -282,6 +282,12 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 	printf("#endif\n");
     }
 
+    //Typedef toku_off_t
+    printf("#ifndef TOKU_OFF_T_DEFINED\n"
+           "#define TOKU_OFF_T_DEFINED\n"
+           "typedef int64_t toku_off_t;\n"
+           "#endif\n");
+
     printf("typedef struct __toku_db_btree_stat DB_BTREE_STAT;\n");
     printf("typedef struct __toku_db_env DB_ENV;\n");
     printf("typedef struct __toku_db_key_range DB_KEY_RANGE;\n");

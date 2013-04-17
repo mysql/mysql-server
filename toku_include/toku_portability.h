@@ -67,7 +67,10 @@ extern "C" {
 #include "toku_os.h"
 #include "toku_htonl.h"
 
+#ifndef TOKU_OFF_T_DEFINED
+#define TOKU_OFF_T_DEFINED
 typedef int64_t toku_off_t;
+#endif
 
 #define UU(x) x __attribute__((__unused__))
 
