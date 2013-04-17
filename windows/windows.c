@@ -214,3 +214,27 @@ toku_os_is_absolute_name(const char* path) {
     return (path[0] == '\\' || 
             (isalpha(path[0]) && path[1]==':' && path[2]=='\\'));
 }
+
+int
+vsnprintf(char *str, size_t size, const char *format, va_list ap) {
+    int r = _vsnprintf(str, size, format, ap);
+    if (str && size>0) {
+        str[size-1] = '\0';         //Always null terminate.
+        if (r<0 && errno==ERANGE);
+            r = strlen(str)+1;      //Mimic linux return value.
+                                    //May be too small, but it does
+                                    //at least indicate overflow
+        }
+    }
+    return r;
+}
+
+int
+snprintf(char *str, size_t size, const char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+    int r = vsnprintf(str, size, format, ap);
+    va_end(ap);
+    return r;
+}
+

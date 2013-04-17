@@ -51,11 +51,6 @@ long long int strtoll(const char *nptr, char **endptr, int base);
 long int random(void);
 void srandom(unsigned int seed);
 
-//snprintf
-//TODO: Put in its own file, or define a snprintf function based on _vsnprintf
-//in its own file
-#define snprintf(str, size, fmt, ...) _snprintf(str, size, fmt, __VA_ARGS__)
-
 //strtoll has a different name in windows.
 #define strtoll     _strtoi64
 #define strtoull    _strtoui64
@@ -72,6 +67,10 @@ char *realpath(const char *path, char *resolved_path);
 
 int unsetenv(const char *name);
 int setenv(const char *name, const char *value, int overwrite);
+
+int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+int snprintf(char *str, size_t size, const char *format, ...);
 
 #if defined(__cplusplus)
 };

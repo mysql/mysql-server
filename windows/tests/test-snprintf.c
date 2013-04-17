@@ -12,7 +12,7 @@
 void
 check_snprintf(int i) {
     char buf_before[8];
-    char target[8];
+    char target[5];
     char buf_after[8];
     memset(target, 0xFF, sizeof(target));
     memset(buf_before, 0xFF, sizeof(buf_before));
@@ -23,7 +23,8 @@ check_snprintf(int i) {
     for (j = 0; j < i; j++) n *= 10;
 
     int bytes = snprintf(target, sizeof target, "%"PRId64, n);
-    assert(bytes==i+1);
+    assert(bytes==i+1 ||
+           (i+1>=sizeof target && bytes>=sizeof target));
     if (bytes>=sizeof target) {
         //Overflow prevented by snprintf
         assert(target[sizeof target - 1] == '\0');
