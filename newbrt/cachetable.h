@@ -479,7 +479,8 @@ void toku_cachetable_print_hash_histogram (void) __attribute__((__visibility__("
 
 void toku_cachetable_maybe_flush_some(CACHETABLE ct);
 
-u_int64_t toku_cachefile_size_in_memory(CACHEFILE cf);
+// for stat64
+u_int64_t toku_cachefile_size(CACHEFILE cf);
 
 typedef enum {
     CT_MISS = 0,

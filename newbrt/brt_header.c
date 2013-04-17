@@ -906,4 +906,25 @@ int toku_brtheader_set_panic(struct brt_header *h, int panic, char *panic_string
     return 0;
 }
 
+void 
+toku_brtheader_stat64 (struct brt_header* h, struct brtstat64_s *s) {
+    s->fsize = toku_cachefile_size(h->cf);
+    // just use the in memory stats from the header
+    // prevent appearance of negative numbers for numrows, numbytes
+    int64_t n = h->in_memory_stats.numrows;
+    if (n < 0) {
+        n = 0;
+    }
+    s->nkeys = s->ndata = n;
+    n = h->in_memory_stats.numbytes;
+    if (n < 0) {
+        n = 0;
+    }
+    s->dsize = n; 
+
+    // 4018
+    s->create_time_sec = h->time_of_creation;
+    s->modify_time_sec = h->time_of_last_modification;
+    s->verify_time_sec = h->time_of_last_verification;    
+}
 
