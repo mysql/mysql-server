@@ -334,7 +334,7 @@ int poll_fun(void *extra, float progress) {
         sprintf(context->write_status_msg, "The process has been killed, aborting bulk load.");
         return 1;
     }
-    sprintf(context->write_status_msg, "Loading of data about %f done", progress);
+    sprintf(context->write_status_msg, "Loading of data about %.1f%% done", progress*100);
     thd_proc_info(context->thd, context->write_status_msg);
     return 0;
 }
