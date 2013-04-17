@@ -29,6 +29,7 @@ struct scan_state {
         FORWARD_NEWER_CHECKPOINT_END,
     } ss;
     LSN checkpoint_lsn;
+    uint64_t checkpoint_timestamp;
     int n_live_txns;
     TXNID oldest_txnid;
 };
@@ -555,6 +556,8 @@ static int toku_recover_begin_checkpoint (struct logtype_begin_checkpoint *l, RE
 }
 
 static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoint *l, RECOVER_ENV renv) {
+    time_t tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery bw_begin_checkpoint at %"PRIu64" timestamp %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_OLDER_CHECKPOINT_BEGIN:
         assert(l->lsn.lsn < renv->ss.checkpoint_lsn.lsn);
@@ -564,12 +567,14 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
 	if (renv->ss.n_live_txns==0) {
             renv->ss.ss = FORWARD_OLDER_CHECKPOINT_BEGIN;
             renv->goforward = TRUE;
-            time_t tnow = time(NULL);
-	    fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %"PRIu64"\n", ctime(&tnow), l->lsn.lsn);
+            tnow = time(NULL);
+	    fprintf(stderr, "%.24s Tokudb recovery turning around at begin checkpoint %"PRIu64" time %"PRIu64"\n", 
+                    ctime(&tnow), l->lsn.lsn, renv->ss.checkpoint_timestamp - l->timestamp);
 	} else {
             renv->ss.ss = BACKWARD_OLDER_CHECKPOINT_BEGIN;
-            time_t tnow = time(NULL);
-	    fprintf(stderr, "%.24s Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64".  Scanning backwards through %"PRIu64" log entries.\n", ctime(&tnow), l->lsn.lsn, renv->ss.oldest_txnid, l->lsn.lsn - renv->ss.oldest_txnid);
+            tnow = time(NULL);
+	    fprintf(stderr, "%.24s Tokudb recovery begin checkpoint at %"PRIu64" looking for %"PRIu64" time %"PRIu64".  Scanning backwards through %"PRIu64" log entries.\n", 
+                    ctime(&tnow), l->lsn.lsn, renv->ss.oldest_txnid, renv->ss.checkpoint_timestamp - l->timestamp, l->lsn.lsn - renv->ss.oldest_txnid);
         }
         return 0;
     case BACKWARD_NEWER_CHECKPOINT_END:
@@ -600,6 +605,8 @@ static int toku_recover_end_checkpoint (struct logtype_end_checkpoint *l, RECOVE
 }
 
 static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *l, RECOVER_ENV renv) {
+    time_t tnow = time(NULL);
+    fprintf(stderr, "%.24s Tokudb recovery bw_end_checkpoint at %"PRIu64" timestamp %"PRIu64" txnid %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, l->txnid, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_OLDER_CHECKPOINT_BEGIN:
 	return 0;
@@ -609,6 +616,7 @@ static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *
     case BACKWARD_NEWER_CHECKPOINT_END:
 	renv->ss.ss = BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END;
 	renv->ss.checkpoint_lsn.lsn = l->txnid;
+        renv->ss.checkpoint_timestamp = l->timestamp;
 	return 0;
     default:
         break;
