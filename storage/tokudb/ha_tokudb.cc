@@ -955,7 +955,6 @@ int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
         error = ENOMEM;
         goto cleanup;
     }
-    trx->iso_level = hatoku_iso_not_set;
 
     *out_trx = trx;
     error = 0;
@@ -4843,10 +4842,6 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
          (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)) {
         /* QQQ We have to start a master transaction */
         DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
-        //
-        // set the isolation level for the tranaction
-        //
-        trx->iso_level = toku_iso_level;
         if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
             trx->tokudb_lock_count--;      // We didn't get the lock
             goto cleanup;
@@ -4864,11 +4859,11 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         }
     }
     u_int32_t txn_begin_flags;
-    if (trx->iso_level == hatoku_iso_not_set) {
+    if (trx->all == NULL) {
         txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
     }
     else {
-        txn_begin_flags = toku_iso_to_txn_flag(trx->iso_level);
+        txn_begin_flags = DB_INHERIT_ISOLATION;
     }
     if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
         /* We leave the possible master transaction open */
