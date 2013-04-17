@@ -2879,42 +2879,48 @@ DBT *ha_tokudb::pack_key(
 }
 
 //
-// Reads the last element of dictionary of index keynr, and places
-// the data into table->record[1].
-//
-int ha_tokudb::read_last(uint keynr) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::read_last");
-    int do_commit = 0;
-    if (transaction == NULL) {
-        int r = db_env->txn_begin(db_env, 0, &transaction, 0);
-        assert(r == 0);
-        do_commit = 1;
-    }
-    int error = index_init(keynr, 0);
-    if (error == 0)
-        error = index_last(table->record[1]);
-    index_end();
-    if (do_commit) {
-        commit_txn(transaction, 0);
-        transaction = NULL;
-    }
-    TOKUDB_DBUG_RETURN(error);
-}
-
-//
 // get max used hidden primary key value
 //
 void ha_tokudb::init_hidden_prim_key_info() {
     TOKUDB_DBUG_ENTER("ha_tokudb::init_prim_key_info");
     pthread_mutex_lock(&share->mutex);
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
-        (void) extra(HA_EXTRA_KEYREAD);
-        int error = read_last(primary_key);
-        (void) extra(HA_EXTRA_NO_KEYREAD);
-        if (error == 0) {
-            share->auto_ident = hpk_char_to_num(current_ident);
+        int error = 0;
+        THD* thd = ha_thd();
+        DB_TXN* txn = NULL;
+        DBC* c = NULL;
+        tokudb_trx_data *trx = NULL;
+        trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+        bool do_commit = false;
+        if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+            txn = trx->sub_sp_level;
         }
-
+        else {
+            do_commit = true;
+            error = db_env->txn_begin(db_env, 0, &txn, 0);
+            assert(error == 0);
+        }
+        
+        error = share->key_file[primary_key]->cursor(
+            share->key_file[primary_key],
+            txn,
+            &c,
+            0
+            );
+        assert(error == 0);
+        DBT key,val;        
+        bzero(&key, sizeof(key));
+        bzero(&val, sizeof(val));
+        error = c->c_get(c, &key, &val, DB_LAST);
+        if (error == 0) {
+            assert(key.size == TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
+            share->auto_ident = hpk_char_to_num((uchar *)key.data);
+        }
+        error = c->c_close(c);
+        assert(error == 0);
+        if (do_commit) {
+            commit_txn(txn, 0);
+        }
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
     pthread_mutex_unlock(&share->mutex);
