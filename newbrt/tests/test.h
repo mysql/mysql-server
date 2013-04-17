@@ -162,6 +162,7 @@ static UU() BOOL def_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraar
 
 static UU() int def_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
   assert(FALSE);
+  return 0;
 }
 
 static UU() int
