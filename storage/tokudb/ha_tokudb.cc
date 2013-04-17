@@ -2902,7 +2902,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
 // (ha_tokudb::write_row). If start_bulk_insert is called, then
 // this is guaranteed to be called.
 //
-int ha_tokudb::end_bulk_insert() {
+int ha_tokudb::end_bulk_insert(bool abort) {
     TOKUDB_DBUG_ENTER("ha_tokudb::end_bulk_insert");
     int error = 0;
     THD* thd = ha_thd();
@@ -2977,6 +2977,9 @@ cleanup:
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
+int ha_tokudb::end_bulk_insert() {
+    return end_bulk_insert( false );
+}
 
 int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info) {
     int error;

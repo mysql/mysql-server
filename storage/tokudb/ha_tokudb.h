@@ -396,6 +396,7 @@ public:
 
     void start_bulk_insert(ha_rows rows);
     int end_bulk_insert();
+    int end_bulk_insert(bool abort);
 
     int prepare_index_scan();
     int prepare_index_key_scan( const uchar * key, uint key_len );
