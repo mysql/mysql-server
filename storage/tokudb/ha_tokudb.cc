@@ -6179,7 +6179,8 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
             ret_val = HA_TOKUDB_RANGE_COUNT;
             goto cleanup;
         }
-        start_rows = 0;
+        ret_val = (end_rows <= 1) ? 1 : end_rows;
+        goto cleanup;
     }
     if (start_key) {
         inf_byte = (start_key->flag == HA_READ_KEY_EXACT) ? 
