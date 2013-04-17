@@ -1,6 +1,5 @@
 #!/bin/bash
 #Export BINSUF before running
-make clean
 make db-benchmark-test-tokudb$BINSUF
 make scanscan-tokudb$BINSUF
 alias db='./db-benchmark-test-tokudb$BINSUF' # standard db-benchmark test
