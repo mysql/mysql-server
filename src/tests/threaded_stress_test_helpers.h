@@ -20,6 +20,15 @@
 #include <db.h>
 
 
+static inline int32_t
+myrandom_r(struct random_data *buf)
+{
+    int32_t x;
+    int r = random_r(buf, &x);
+    CKERR(r);
+    return x;
+}
+
 volatile bool run_test; // should be volatile since we are communicating through this variable.
 
 typedef struct arg *ARG;
@@ -48,6 +57,7 @@ struct arg {
     void* operation_extra; // extra parameter passed to operation
     enum stress_lock_type lock_type; // states if operation must be exclusive, shared, or does not require locking
     bool crash_on_operation_failure; // true if we should crash if operation returns non-zero, false otherwise
+    struct random_data *random_data; // state for random_r
 };
 
 struct env_args {
@@ -98,7 +108,7 @@ static void arg_init(struct arg *arg, int num_elements, DB **dbp, DB_ENV *env, s
 }
 
 struct worker_extra {
-    struct arg* thread_arg;    
+    struct arg* thread_arg;
     toku_pthread_mutex_t *operation_lock_mutex;
     struct rwlock *operation_lock;
     int num_operations_completed;
@@ -135,8 +145,14 @@ static void unlock_worker_op(struct worker_extra* we) {
 }
 
 static void *worker(void *arg_v) {
+    int r;
     struct worker_extra* we = arg_v;
     ARG arg = we->thread_arg;
+    struct random_data random_data;
+    char *random_buf = toku_xmalloc(8);
+    r = initstate_r(random(), random_buf, 8, &random_data);
+    assert_zero(r);
+    arg->random_data = &random_data;
     DB_ENV *env = arg->env;
     DB_TXN *txn = NULL;
     if (verbose) {
@@ -144,7 +160,7 @@ static void *worker(void *arg_v) {
     }
     while (run_test) {
         lock_worker_op(we);
-        int r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
+        r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
         r = arg->operation(txn, arg, arg->operation_extra);
         if (r == 0) {
             CHK(txn->commit(txn,0));
@@ -163,6 +179,7 @@ static void *worker(void *arg_v) {
     }
     if (verbose)
         printf("%lu returning\n", toku_pthread_self());
+    toku_free(random_buf);
     return arg;
 }
 
@@ -249,7 +266,7 @@ static int generate_row_for_put(
     return 0;
 }
 
-static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra)) {
+static int UU() loader_op(DB_TXN* txn, ARG arg, void* UU(operation_extra)) {
     DB_ENV* env = arg->env;
     int r;
     for (int num = 0; num < 2; num++) {
@@ -262,18 +279,18 @@ static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra)) {
         assert(r == 0);
         DB_LOADER *loader;
         u_int32_t loader_flags = (num == 0) ? 0 : LOADER_USE_PUTS;
-        r = env->create_loader(env, txn, &loader, db_load, 1, &db_load, &db_flags, &dbt_flags, loader_flags); 
+        r = env->create_loader(env, txn, &loader, db_load, 1, &db_load, &db_flags, &dbt_flags, loader_flags);
         CKERR(r);
-    
+
         for (int i = 0; i < 1000; i++) {
             DBT key, val;
             int rand_key = i;
-            int rand_val = random();
+            int rand_val = myrandom_r(arg->random_data);
             dbt_init(&key, &rand_key, sizeof(rand_key));
             dbt_init(&val, &rand_val, sizeof(rand_val));
             r = loader->put(loader, &key, &val); CKERR(r);
         }
-        
+
         r = loader->close(loader); CKERR(r);
         r = db_load->close(db_load, 0); CKERR(r);
         r = env->dbremove(env, txn, "loader-db", NULL, 0); CKERR(r);
@@ -286,9 +303,9 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
     // callback is designed to run on tests with one DB
     // no particular reason why, just the way it was 
     // originally done
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
-    int rand_key = random();
+    int rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
         rand_key = rand_key % arg->num_elements;
     }
@@ -331,7 +348,7 @@ static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra) {
 
 static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL check) {
     int r;
-    int rand_key = random();
+    int rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
         rand_key = rand_key % arg->num_elements;
     }
@@ -345,13 +362,13 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL ch
 }
 
 static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     return ptquery_and_maybe_check_op(db, txn, arg, TRUE);
 }
 
 static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     return ptquery_and_maybe_check_op(db, txn, arg, FALSE);
 }
@@ -435,7 +452,7 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
 
 static int UU()update_op2(DB_TXN* txn, ARG arg, void* operation_extra) {
     int r;
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -448,7 +465,7 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* operation_extra) {
     extra.type = UPDATE_ADD_DIFF;
     extra.pad_bytes = 0;
     for (u_int32_t i = 0; i < op_args->update_txn_size; i++) {
-        rand_key = random();
+        rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
             rand_key = rand_key % (arg->num_elements/2);
         }
@@ -483,7 +500,7 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* operation_extra) {
 
 static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra) {
     int r;
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -500,11 +517,11 @@ static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra) {
         }
     }
     for (u_int32_t i = 0; i < op_args->update_txn_size; i++) {
-        rand_key = random();
+        rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
             rand_key = rand_key % arg->num_elements;
         }
-        extra.u.d.diff = random() % MAX_RANDOM_VAL;
+        extra.u.d.diff = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
         if (i%2 == 0) {
             extra.u.d.diff = -extra.u.d.diff;
@@ -525,7 +542,7 @@ static int UU()update_op(DB_TXN *txn, ARG arg, void* operation_extra) {
     // now put in one more to ensure that the sum stays 0
     //
     extra.u.d.diff = -curr_val_sum;
-    rand_key = random();
+    rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
         rand_key = rand_key % arg->num_elements;
     }
@@ -548,7 +565,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     assert(arg->bounded_element_range);
     assert(op_args->update_history_buffer);
     int r;
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     int curr_val_sum = 0;
     DBT key, val;
@@ -565,8 +582,8 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
         
     }
     for (u_int32_t i = 0; i < op_args->update_txn_size; i++) {
-        rand_key = random() % arg->num_elements;
-        extra.u.h.new = random() % MAX_RANDOM_VAL;
+        rand_key = myrandom_r(arg->random_data) % arg->num_elements;
+        extra.u.h.new = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
         if (i%2 == 0) {
             extra.u.h.new = -extra.u.h.new;
@@ -589,7 +606,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     // now put in one more to ensure that the sum stays 0
     //
     extra.u.h.new = -curr_val_sum;
-    rand_key = random();
+    rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
         rand_key = rand_key % arg->num_elements;
     }
@@ -609,10 +626,10 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     return r;
 }
 
-static int UU() update_broadcast_op(DB_TXN *txn, ARG UU(arg), void* UU(operation_extra)) {
+static int UU() update_broadcast_op(DB_TXN *txn, ARG arg, void* UU(operation_extra)) {
     struct update_op_extra extra;
     memset(&extra, 0, sizeof(extra));
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     extra.type = UPDATE_NEGATE;
     extra.pad_bytes = 0;
@@ -632,9 +649,9 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra)) 
     return 0;
 }
 
-static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra)) {
+static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra)) {
     int r;
-    int db_index = random()%arg->num_DBs;
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
     r = (db)->close(db, 0); CKERR(r);
     
