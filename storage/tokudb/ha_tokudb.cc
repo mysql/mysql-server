@@ -5721,7 +5721,9 @@ int ha_tokudb::info(uint flag) {
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
         for (uint i = 0; i < table_share->keys; i++) {
-            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 0;
+            bool is_unique_key = (i == primary_key) || (table->key_info[i].flags & HA_NOSAME);
+            ulong val = (is_unique_key) ? 1 : 0;
+            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = val;
         }
     }
     /* Don't return key if we got an error for the internal primary key */
