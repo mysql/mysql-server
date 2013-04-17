@@ -42,6 +42,7 @@ BRT_SOURCES = \
   brt \
   brt-test-helpers \
   cachetable \
+  dlmalloc \
   fifo \
   fingerprint \
   key \
