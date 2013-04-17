@@ -132,6 +132,10 @@ cleanup:
     return r;
 }
 
+static int indexer_maybe_quit_poll(void *UU(poll_extra), float UU(progress)) {
+    return run_test ? 0 : TOKUDB_CANCELED;
+}
+
 static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void* UU(stats_extra)) {
     int r;
     DB_TXN* hi_txn = NULL;
@@ -167,9 +171,12 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
         );
     CKERR(r);
     toku_mutex_unlock(&hi_lock);
+
+    r = indexer->set_poll_function(indexer, indexer_maybe_quit_poll, nullptr);
+    CKERR(r);
     
     r = indexer->build(indexer);
-    CKERR(r);
+    CKERR2s(r, 0, TOKUDB_CANCELED);
 
     toku_mutex_lock(&hi_lock);
     r = indexer->close(indexer);
@@ -195,7 +202,12 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
     memset(&val1, 0, sizeof val1);
     memset(&key2, 0, sizeof key2);
     memset(&val2, 0, sizeof val2);
+    uint64_t count = 0;
     while(r != DB_NOTFOUND) {
+        if (count++ % 256 == 0 && !run_test) {
+            r = TOKUDB_CANCELED;
+            break;
+        }
         // get next from both cursors and assert they are equal
         int r1 = main_cursor->c_get(
             main_cursor, 
@@ -218,7 +230,7 @@ static int hi_create_index(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), 
             assert(memcmp(val1.data, val2.data, val1.size) == 0);
         }
     }
-    CKERR2(r, DB_NOTFOUND);
+    CKERR2s(r, DB_NOTFOUND, TOKUDB_CANCELED);
     r = main_cursor->c_close(main_cursor);
     r = hi_cursor->c_close(hi_cursor);
     CKERR(r);
