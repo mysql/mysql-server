@@ -166,7 +166,12 @@ PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
 ALWAYS_LINK= -lz -lpthread 
 ifeq ($(CC),icc)
 # needed for things like intel_fast_memset(), intel_sse2_strlen()
-ALWAYS_LINK+=-Bstatic -lirc -Bdynamic -lstdc++
+ifeq ($(DEBUG),0)
+    IRCSTATIC = -Bstatic
+else
+    IRCSTATIC =
+endif
+ALWAYS_LINK+=$(IRCSTATIC) -lirc -Bdynamic -lstdc++
 endif
 C99       = -std=c99
 W64       = #-Wshorten-64-to-32
