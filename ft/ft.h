@@ -12,6 +12,7 @@
 #include "cachetable.h"
 #include "log.h"
 #include "ft-search.h"
+#include "ft-ops.h"
 #include "compress.h"
 
 // remove a ft, transactionless.
@@ -68,8 +69,8 @@ void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
 // This redefines which xid created the dictionary.
 
 
-BOOL
-toku_ft_maybe_add_txn_ref(FT h, TOKUTXN txn);
+void
+toku_ft_add_txn_ref(FT h, TOKUTXN txn);
 void
 toku_ft_remove_txn_ref(FT h, TOKUTXN txn);
 

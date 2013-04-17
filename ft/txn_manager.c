@@ -305,8 +305,16 @@ live_list_reverse_note_txn_start(TOKUTXN txn) {
     return r;
 }
 
-void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
-    TOKUTXN parent = txn->parent;
+int toku_txn_manager_start_txn(
+    TOKUTXN *txnp,
+    TXN_MANAGER txn_manager,
+    TOKUTXN parent,
+    TOKULOGGER logger,
+    TXNID xid,
+    TXN_SNAPSHOT_TYPE snapshot_type,
+    DB_TXN *container_db_txn,
+    bool for_recovery)
+{
     int r;
     // we take the txn_manager_lock before writing to the log
     // we may be able to move this lock acquisition
@@ -316,19 +324,27 @@ void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     if (garbage_collection_debug) {
         verify_snapshot_system(txn_manager);
     }
-    if (txn->txnid64 == TXNID_NONE) {
+    if (xid == TXNID_NONE) {
         LSN first_lsn;
-        r = toku_log_xbegin(txn->logger, &first_lsn, 0, parent ? parent->txnid64 : 0);
+        r = toku_log_xbegin(logger, &first_lsn, 0, parent ? parent->txnid64 : 0);
         assert_zero(r);
-        txn->txnid64 = first_lsn.lsn;
+        xid = first_lsn.lsn;
     } 
     XIDS parent_xids;
     if (parent == NULL)
         parent_xids = xids_get_root_xids();
     else
         parent_xids = parent->xids;
-    r = xids_create_child(parent_xids, &txn->xids, txn->txnid64);
+    XIDS xids;
+    r = xids_create_child(parent_xids, &xids, xid);
     assert_zero(r);
+
+    TOKUTXN txn;
+    r = toku_txn_create_txn(&txn, parent, logger, xid, snapshot_type, xids, container_db_txn, for_recovery);
+    if (r != 0) {
+        // logger is panicked
+        return r;
+    }
 
     if (toku_omt_size(txn_manager->live_txns) == 0) {
         assert(txn_manager->oldest_living_xid == TXNID_NONE_LIVING);
@@ -367,10 +383,6 @@ void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
                 toku_omt_size(txn_manager->live_root_txns)
                 ); //We know it is the newest one.
             assert_zero(r);
-            txn->ancestor_txnid64 = txn->txnid64;
-        }
-        else {
-            txn->ancestor_txnid64 = parent->ancestor_txnid64;
         }
 
         // setup information for snapshot reads
@@ -380,7 +392,6 @@ void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
             if (parent == NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD) {
                 r = setup_live_root_txn_list(txn_manager, txn);  
                 assert_zero(r);
-                txn->snapshot_txnid64 = txn->txnid64;
                 r = snapshot_txnids_note_txn(txn_manager, txn);
                 assert_zero(r);
                 r = live_list_reverse_note_txn_start(txn);
@@ -390,7 +401,6 @@ void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
             // of the root transaction
             else if (txn->snapshot_type == TXN_SNAPSHOT_ROOT) {
                 txn->live_root_txn_list = parent->live_root_txn_list;
-                txn->snapshot_txnid64 = parent->snapshot_txnid64;
             }
             else {
                 assert(FALSE);
@@ -401,6 +411,9 @@ void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         verify_snapshot_system(txn_manager);
     }
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
+
+    *txnp = txn;
+    return 0;
 }
 
 // For each xid on the closing txn's live list, find the corresponding entry in the reverse live list.

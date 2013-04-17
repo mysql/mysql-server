@@ -104,24 +104,7 @@ struct tokulogger {
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
 int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_logfiles);
 
-struct tokutxn {
-    u_int64_t txnid64; /* this happens to be the first lsn */
-    u_int64_t ancestor_txnid64; /* this is the lsn of root transaction */
-    u_int64_t snapshot_txnid64; /* this is the lsn of the snapshot */
-    TOKULOGGER logger;
-    TOKUTXN    parent;
-    DB_TXN*    container_db_txn;  // reference to DB_TXN that contains this tokutxn
-    time_t     starttime;         // timestamp in seconds of transaction start
-
-    u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
-    OMT        open_fts; // a collection of the brts that we touched.  Indexed by filenum.
-    TXN_SNAPSHOT_TYPE snapshot_type;
-    OMT        live_root_txn_list; // the root txns live when the root ancestor (self if a root) started
-    XIDS       xids;      //Represents the xid list
-    BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
-    TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
-    void *                     progress_poll_fun_extra;
-
+struct txn_roll_info {
     // these are number of rollback nodes and rollback entries for this txn.
     //
     // the current rollback node below has sequence number num_rollback_nodes - 1
@@ -131,34 +114,75 @@ struct tokutxn {
     // rollback nodes for this transaction is non-zero, then we will use
     // the number of rollback nodes to know which sequence number to assign
     // to a new one we create
-    uint64_t   num_rollback_nodes;
-    uint64_t   num_rollentries;
-    uint64_t   num_rollentries_processed;
+    uint64_t num_rollback_nodes;
+    uint64_t num_rollentries;
+    uint64_t num_rollentries_processed;
+    uint64_t rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
 
     // spilled rollback nodes are rollback nodes that were gorged by this
     // transaction, retired, and saved in a list.
 
     // the spilled rollback head is the block number of the first rollback node
     // that makes up the rollback log chain
-    BLOCKNUM   spilled_rollback_head;
-    uint32_t   spilled_rollback_head_hash;
+    BLOCKNUM spilled_rollback_head;
+    uint32_t spilled_rollback_head_hash;
     // the spilled rollback is the block number of the last rollback node that
     // makes up the rollback log chain. 
-    BLOCKNUM   spilled_rollback_tail;
-    uint32_t   spilled_rollback_tail_hash;
+    BLOCKNUM spilled_rollback_tail;
+    uint32_t spilled_rollback_tail_hash;
     // the current rollback node block number we may use. if this is ROLLBACK_NONE,
     // then we need to create one and set it here before using it.
-    BLOCKNUM   current_rollback; 
-    uint32_t   current_rollback_hash;
+    BLOCKNUM current_rollback; 
+    uint32_t current_rollback_hash;
+};
 
-    BOOL       recovered_from_checkpoint;
+struct tokutxn {
+    // These don't change after create:
+    const time_t starttime; // timestamp in seconds of transaction start
+    const u_int64_t txnid64; // this happens to be the first lsn
+    const u_int64_t ancestor_txnid64; // this is the lsn of root transaction
+    const u_int64_t snapshot_txnid64; // this is the lsn of the snapshot
+    const TXN_SNAPSHOT_TYPE snapshot_type;
+    const BOOL recovered_from_checkpoint;
+    const TOKULOGGER logger;
+    const TOKUTXN parent;
+    // These don't either but they're created in a way that's hard to make
+    // strictly const.
+    DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
+    OMT live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
+    XIDS xids; // Represents the xid list
+
+    // These are not read until a commit, prepare, or abort starts, and
+    // they're "monotonic" (only go false->true) during operation:
     BOOL checkpoint_needed_before_commit;
+    BOOL do_fsync;
+    BOOL force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
+
+    // Not used until commit, prepare, or abort starts:
+    LSN do_fsync_lsn;
+    TOKU_XA_XID xa_xid; // for prepared transactions
+    TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
+    void *progress_poll_fun_extra;
+
+    toku_mutex_t txn_lock;
+    // Protected by the txn lock:
+    OMT open_fts; // a collection of the brts that we touched.  Indexed by filenum.
+    struct txn_roll_info roll_info; // Info used to manage rollback entries
+
+    // Protected by the txn manager lock:
     TOKUTXN_STATE state;
-    LSN        do_fsync_lsn;
-    BOOL       do_fsync;
-    TOKU_XA_XID        xa_xid; // for prepared transactions
     struct toku_list prepared_txns_link; // list of prepared transactions
 };
+
+static inline int
+txn_has_current_rollback_log(TOKUTXN txn) {
+    return txn->roll_info.current_rollback.b != ROLLBACK_NONE.b;
+}
+
+static inline int
+txn_has_spilled_rollback_logs(TOKUTXN txn) {
+    return txn->roll_info.spilled_rollback_tail.b != ROLLBACK_NONE.b;
+}
 
 struct txninfo {
     uint64_t   rollentry_raw_count;  // the total count of every byte in the transaction and all its children.

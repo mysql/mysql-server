@@ -2687,45 +2687,44 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int nu
 }
 
 int
-toku_ft_maybe_insert (FT_HANDLE brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum ft_msg_type type) {
+toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum ft_msg_type type) {
     assert(type==FT_INSERT || type==FT_INSERT_NO_OVERWRITE);
     int r = 0;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-        if (brt->ft->txnid_that_created_or_locked_when_empty != xid) {
+        if (ft_h->ft->txnid_that_created_or_locked_when_empty != xid) {
             BYTESTRING keybs  = {key->size, key->data};
-            r = toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(brt->ft->cf), &keybs);
+            r = toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
             if (r!=0) return r;
-            r = toku_txn_note_ft(txn, brt->ft);
-            if (r!=0) return r;
+            toku_txn_maybe_note_ft(txn, ft_h->ft);
             //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
-        else if (txn->ancestor_txnid64 != brt->ft->h->root_xid_that_created) {
+        else if (txn->ancestor_txnid64 != ft_h->ft->h->root_xid_that_created) {
             //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-        brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         if (type == FT_INSERT) {
-            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
         }
         else {
-            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
+            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs, valbs);
         }
         if (r!=0) return r;
     }
 
     LSN treelsn;
-    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(brt->ft)).lsn) {
+    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         r = 0;
     } else {
-        r = toku_ft_send_insert(brt, key, val, message_xids, type);
+        r = toku_ft_send_insert(ft_h, key, val, message_xids, type);
     }
     return r;
 }
@@ -2740,7 +2739,7 @@ ft_send_update_msg(FT_HANDLE brt, FT_MSG_S *msg, TOKUTXN txn) {
 }
 
 int
-toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_extra,
+toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_extra,
                       TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
                       BOOL do_logging) {
     int r = 0;
@@ -2749,32 +2748,31 @@ toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_e
     if (txn) {
         BYTESTRING keybs = { key->size, key->data };
         r = toku_logger_save_rollback_cmdupdate(
-            txn, toku_cachefile_filenum(brt->ft->cf), &keybs);
+            txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
         if (r != 0) { goto cleanup; }
-        r = toku_txn_note_ft(txn, brt->ft);
-        if (r != 0) { goto cleanup; }
+        toku_txn_maybe_note_ft(txn, ft_h->ft);
     }
 
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-        brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data=update_function_extra->data};
         r = toku_log_enq_update(logger, NULL, 0,
-                                toku_cachefile_filenum(brt->ft->cf),
+                                toku_cachefile_filenum(ft_h->ft->cf),
                                 xid, keybs, extrabs);
         if (r != 0) { goto cleanup; }
     }
 
     LSN treelsn;
     if (oplsn_valid &&
-        oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(brt->ft)).lsn) {
+        oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         r = 0;
     } else {
         FT_MSG_S msg = { FT_UPDATE, ZERO_MSN, NULL,
                           .u.id = { key, update_function_extra }};
-        r = ft_send_update_msg(brt, &msg, txn);
+        r = ft_send_update_msg(ft_h, &msg, txn);
     }
 
 cleanup:
@@ -2782,7 +2780,7 @@ cleanup:
 }
 
 int
-toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra,
+toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_extra,
                                 TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
                                 BOOL do_logging, BOOL is_resetting_op) {
     int r = 0;
@@ -2790,19 +2788,18 @@ toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra,
     TXNID xid = toku_txn_get_txnid(txn);
     u_int8_t  resetting = is_resetting_op ? 1 : 0;
     if (txn) {
-        r = toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(brt->ft->cf), resetting);
+        r = toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(ft_h->ft->cf), resetting);
         if (r != 0) { goto cleanup; }
-        r = toku_txn_note_ft(txn, brt->ft);
-        if (r != 0) { goto cleanup; }
+        toku_txn_maybe_note_ft(txn, ft_h->ft);
     }
 
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-        brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING extrabs = {.len=update_function_extra->size,
                               .data=update_function_extra->data};
         r = toku_log_enq_updatebroadcast(logger, NULL, 0,
-                                         toku_cachefile_filenum(brt->ft->cf),
+                                         toku_cachefile_filenum(ft_h->ft->cf),
                                          xid, extrabs, resetting);
         if (r != 0) { goto cleanup; }
     }
@@ -2810,14 +2807,14 @@ toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra,
     //TODO(yoni): remove treelsn here and similar calls (no longer being used)
     LSN treelsn;
     if (oplsn_valid &&
-        oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(brt->ft)).lsn) {
+        oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         r = 0;
     } else {
         DBT nullkey;
         const DBT *nullkeyp = toku_init_dbt(&nullkey);
         FT_MSG_S msg = { FT_UPDATE_BROADCAST_ALL, ZERO_MSN, NULL,
                           .u.id = { nullkeyp, update_function_extra }};
-        r = ft_send_update_msg(brt, &msg, txn);
+        r = ft_send_update_msg(ft_h, &msg, txn);
     }
 
 cleanup:
@@ -2884,38 +2881,37 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int nu
 }
 
 int
-toku_ft_maybe_delete(FT_HANDLE brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) {
+toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) {
     int r;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-        if (brt->ft->txnid_that_created_or_locked_when_empty != xid) {
+        if (ft_h->ft->txnid_that_created_or_locked_when_empty != xid) {
             BYTESTRING keybs  = {key->size, key->data};
-            r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(brt->ft->cf), &keybs);
+            r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(ft_h->ft->cf), &keybs);
             if (r!=0) return r;
-            r = toku_txn_note_ft(txn, brt->ft);
-            if (r!=0) return r;
+            toku_txn_maybe_note_ft(txn, ft_h->ft);
             //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
-        else if (txn->ancestor_txnid64 != brt->ft->h->root_xid_that_created) {
+        else if (txn->ancestor_txnid64 != ft_h->ft->h->root_xid_that_created) {
             //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-        brt->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        ft_h->ft->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
-        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(ft_h->ft->cf), xid, keybs);
         if (r!=0) return r;
     }
 
     LSN treelsn;
-    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(brt->ft)).lsn) {
+    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         r = 0;
     } else {
-        r = toku_ft_send_delete(brt, key, message_xids);
+        r = toku_ft_send_delete(ft_h, key, message_xids);
     }
     return r;
 }
@@ -3072,7 +3068,7 @@ verify_builtin_comparisons_consistent(FT_HANDLE t, u_int32_t flags) {
 
 int
 toku_ft_change_descriptor(
-    FT_HANDLE t,
+    FT_HANDLE ft_h,
     const DBT* old_descriptor,
     const DBT* new_descriptor,
     BOOL do_log,
@@ -3092,19 +3088,18 @@ toku_ft_change_descriptor(
     // put information into rollback file
     r = toku_logger_save_rollback_change_fdescriptor(
         txn,
-        toku_cachefile_filenum(t->ft->cf),
+        toku_cachefile_filenum(ft_h->ft->cf),
         &old_desc_bs
         );
     if (r != 0) { goto cleanup; }
-    r = toku_txn_note_ft(txn, t->ft);
-    if (r != 0) { goto cleanup; }
+    toku_txn_maybe_note_ft(txn, ft_h->ft);
 
     if (do_log) {
         TOKULOGGER logger = toku_txn_logger(txn);
         TXNID xid = toku_txn_get_txnid(txn);
         r = toku_log_change_fdescriptor(
             logger, NULL, 0,
-            toku_cachefile_filenum(t->ft->cf),
+            toku_cachefile_filenum(ft_h->ft->cf),
             xid,
             old_desc_bs,
             new_desc_bs,
@@ -3115,8 +3110,8 @@ toku_ft_change_descriptor(
 
     // write new_descriptor to header
     new_d.dbt = *new_descriptor;
-    fd = toku_cachefile_get_fd (t->ft->cf);
-    r = toku_update_descriptor(t->ft, &new_d, fd);
+    fd = toku_cachefile_get_fd (ft_h->ft->cf);
+    r = toku_update_descriptor(ft_h->ft, &new_d, fd);
     // very infrequent operation, worth precise threadsafe count
     if (r == 0) {
         STATUS_VALUE(FT_DESCRIPTOR_SET)++;
@@ -3124,7 +3119,7 @@ toku_ft_change_descriptor(
     if (r!=0) goto cleanup;
 
     if (update_cmp_descriptor) {
-        toku_ft_update_cmp_descriptor(t->ft);
+        toku_ft_update_cmp_descriptor(ft_h->ft);
     }
 cleanup:
     return r;
@@ -3148,7 +3143,7 @@ toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix).
 // The checkpointed version (checkpoint_lsn) of the dictionary must be no later than max_acceptable_lsn .
 static int
-ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id, LSN max_acceptable_lsn) {
+ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id, LSN max_acceptable_lsn) {
     int r;
     BOOL txn_created = FALSE;
     char *fname_in_cwd = NULL;
@@ -3157,8 +3152,8 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     BOOL did_create = FALSE;
     toku_ft_open_close_lock();
 
-    if (t->did_set_flags) {
-        r = verify_builtin_comparisons_consistent(t, t->options.flags);
+    if (ft_h->did_set_flags) {
+        r = verify_builtin_comparisons_consistent(ft_h, ft_h->options.flags);
         if (r!=0) { goto exit; }
     }
     if (txn && txn->logger->is_panicked) {
@@ -3184,21 +3179,21 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
                 assert_zero(r);
             }
             txn_created = (BOOL)(txn!=NULL);
-            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->options.flags, t->options.nodesize, t->options.basementnodesize, t->options.compression_method);
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, ft_h->options.flags, ft_h->options.nodesize, ft_h->options.basementnodesize, ft_h->options.compression_method);
             assert_zero(r); // only possible failure is panic, which we check above
-            r = ft_create_file(t, fname_in_cwd, &fd);
+            r = ft_create_file(ft_h, fname_in_cwd, &fd);
             assert_zero(r);
         }
         if (r) { goto exit; }
         r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum);
         if (r) { goto exit; }
     }
-    assert(t->options.nodesize>0);
+    assert(ft_h->options.nodesize>0);
     BOOL was_already_open;
     if (is_create) {
-        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &ft, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
-            r = toku_create_new_ft(&ft, &t->options, cf, txn);
+            r = toku_create_new_ft(&ft, &ft_h->options, cf, txn);
             if (r) { goto exit; }
         }
         else if (r!=0) {
@@ -3213,21 +3208,21 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
         // so it is ok for toku_read_ft_and_store_in_cachefile to have read
         // the header via toku_read_ft_and_store_in_cachefile
     } else {
-        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &ft, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(ft_h, cf, max_acceptable_lsn, &ft, &was_already_open);
         if (r) { goto exit; }
     }
-    if (!t->did_set_flags) {
-        r = verify_builtin_comparisons_consistent(t, t->options.flags);
+    if (!ft_h->did_set_flags) {
+        r = verify_builtin_comparisons_consistent(ft_h, ft_h->options.flags);
         if (r) { goto exit; }
-    } else if (t->options.flags != ft->h->flags) {                  /* if flags have been set then flags must match */
+    } else if (ft_h->options.flags != ft->h->flags) {                  /* if flags have been set then flags must match */
         r = EINVAL;
         goto exit;
     }
-    toku_ft_handle_inherit_options(t, ft);
+    toku_ft_handle_inherit_options(ft_h, ft);
 
     if (!was_already_open) {
         if (!did_create) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
-            r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(cf), t->options.flags);
+            r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(cf), ft_h->options.flags);
             assert_zero(r);
         }
     }
@@ -3257,12 +3252,11 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     // with the brt, the function is not allowed to fail
     // Code that handles failure (located below "exit"),
     // depends on this
-    toku_ft_note_ft_handle_open(ft, t);
+    toku_ft_note_ft_handle_open(ft, ft_h);
     if (txn_created) {
         assert(txn);
         toku_ft_suppress_rollbacks(ft, txn);
-        r = toku_txn_note_ft(txn, ft);
-        assert_zero(r);
+        toku_txn_maybe_note_ft(txn, ft);
     }
 
     //Opening a brt may restore to previous checkpoint.         Truncate if necessary.
@@ -5506,11 +5500,8 @@ toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) {
     cf = handle->ft->cf;
     FT ft = toku_cachefile_get_userdata(cf);
 
-    // TODO: toku_txn_note_ft should return void
-    // Assert success here because note_ft also asserts success internally.
-    r = toku_txn_note_ft(txn, ft);
-    assert(r == 0);
-    
+    toku_txn_maybe_note_ft(txn, ft);
+
     // If the txn commits, the commit MUST be in the log before the file is actually unlinked
     toku_txn_force_fsync_on_commit(txn); 
     // make entry in rollback log

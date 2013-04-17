@@ -35,8 +35,8 @@ typedef struct {
 void ydb_write_layer_get_status(YDB_WRITE_LAYER_STATUS statp);
 
 
-int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_ydb_lock);
-int toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_ydb_lock);
+int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_mo_lock);
+int toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_mo_lock);
 int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key, u_int32_t flags);
 int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags);
 int autotxn_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, u_int32_t flags);

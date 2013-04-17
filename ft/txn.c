@@ -10,6 +10,7 @@
 #include "checkpoint.h"
 #include "ule.h"
 #include <valgrind/helgrind.h>
+#include "rollback-apply.h"
 #include "txn_manager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +51,18 @@ toku_txn_get_status(TXN_STATUS s) {
     *s = txn_status;
 }
 
+void
+toku_txn_lock(TOKUTXN txn)
+{
+    toku_mutex_lock(&txn->txn_lock);
+}
+
+void
+toku_txn_unlock(TOKUTXN txn)
+{
+    toku_mutex_unlock(&txn->txn_lock);
+}
+
 int 
 toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
@@ -59,7 +72,7 @@ toku_txn_begin_txn (
     TXN_SNAPSHOT_TYPE snapshot_type
     ) 
 {
-    int r = toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, TXNID_NONE, snapshot_type, container_db_txn);
+    int r = toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, TXNID_NONE, snapshot_type, container_db_txn, false);
     return r;
 }
 
@@ -70,14 +83,11 @@ toku_txn_begin_with_xid (
     TOKULOGGER logger, 
     TXNID xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
-    DB_TXN *container_db_txn
+    DB_TXN *container_db_txn,
+    bool for_recovery
     ) 
 {
-    int r = toku_txn_create_txn(tokutxn, parent_tokutxn, logger, xid, snapshot_type, container_db_txn);
-    if (r == 0) {
-        toku_txn_manager_start_txn((*tokutxn)->logger->txn_manager, *tokutxn);
-    }
-    return r;
+    return toku_txn_manager_start_txn(tokutxn, logger->txn_manager, parent_tokutxn, logger, xid, snapshot_type, container_db_txn, for_recovery);
 }
 
 DB_TXN *
@@ -95,52 +105,78 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 
-int 
+int
 toku_txn_create_txn (
     TOKUTXN *tokutxn, 
     TOKUTXN parent_tokutxn, 
     TOKULOGGER logger, 
     TXNID xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
-    DB_TXN *container_db_txn
+    XIDS xids,
+    DB_TXN *container_db_txn,
+    bool for_checkpoint
     ) 
 {
-    if (logger->is_panicked) return EINVAL;
+    if (logger->is_panicked) {
+        return EINVAL;
+    }
     assert(logger->rollback_cachefile);
-    TOKUTXN XMALLOC(result);
-    result->starttime = time(NULL);  // getting timestamp in seconds is a cheap call
-    int r;
-    r = toku_omt_create(&result->open_fts);
-    assert_zero(r);
 
-    result->logger = logger;
-    result->parent = parent_tokutxn;
-    result->num_rollentries = 0;
-    result->num_rollentries_processed = 0;
-    result->progress_poll_fun = NULL;
-    result->progress_poll_fun_extra = NULL;
-    result->spilled_rollback_head      = ROLLBACK_NONE;
-    result->spilled_rollback_tail      = ROLLBACK_NONE;
-    result->spilled_rollback_head_hash = 0;
-    result->spilled_rollback_tail_hash = 0;
-    result->current_rollback      = ROLLBACK_NONE;
-    result->current_rollback_hash = 0;
-    result->num_rollback_nodes = 0;
-    result->snapshot_type = snapshot_type;
-    result->snapshot_txnid64 = TXNID_NONE;
-    result->container_db_txn = container_db_txn;
+    TXNID snapshot_txnid64;
+    if (snapshot_type == TXN_SNAPSHOT_NONE) {
+        snapshot_txnid64 = TXNID_NONE;
+    } else if (parent_tokutxn == NULL || snapshot_type == TXN_SNAPSHOT_CHILD) {
+        snapshot_txnid64 = xid;
+    } else if (snapshot_type == TXN_SNAPSHOT_ROOT) {
+        snapshot_txnid64 = parent_tokutxn->snapshot_txnid64;
+    } else {
+        assert(false);
+    }
 
-    result->rollentry_raw_count = 0;
-    result->force_fsync_on_commit = FALSE;
-    result->recovered_from_checkpoint = FALSE;
-    result->checkpoint_needed_before_commit = FALSE;
-    result->state = TOKUTXN_LIVE;
+    OMT open_fts;
+    {
+        int r = toku_omt_create(&open_fts);
+        assert_zero(r);
+    }
+
+    struct txn_roll_info roll_info = {
+        .num_rollback_nodes = 0,
+        .num_rollentries = 0,
+        .num_rollentries_processed = 0,
+        .rollentry_raw_count = 0,
+        .spilled_rollback_head = ROLLBACK_NONE,
+        .spilled_rollback_tail = ROLLBACK_NONE,
+        .spilled_rollback_head_hash = 0,
+        .spilled_rollback_tail_hash = 0,
+        .current_rollback = ROLLBACK_NONE,
+        .current_rollback_hash = 0,
+    };
+
+    struct tokutxn new_txn = {
+        .starttime = time(NULL),
+        .open_fts = open_fts,
+        .logger = logger,
+        .parent = parent_tokutxn,
+        .progress_poll_fun = NULL,
+        .progress_poll_fun_extra = NULL,
+        .snapshot_type = snapshot_type,
+        .snapshot_txnid64 = snapshot_txnid64,
+        .container_db_txn = container_db_txn,
+        .force_fsync_on_commit = FALSE,
+        .recovered_from_checkpoint = for_checkpoint,
+        .checkpoint_needed_before_commit = FALSE,
+        .state = TOKUTXN_LIVE,
+        .do_fsync = FALSE,
+        .txnid64 = xid,
+        .ancestor_txnid64 = (parent_tokutxn ? parent_tokutxn->ancestor_txnid64 : xid),
+        .xids = xids,
+        .roll_info = roll_info
+    };
+
+
+    TOKUTXN result = toku_xmemdup(&new_txn, sizeof new_txn);
+    toku_mutex_init(&result->txn_lock, NULL);
     invalidate_xa_xid(&result->xa_xid);
-    result->do_fsync = FALSE;
-
-    result->txnid64 = xid;
-    result->xids = NULL;
-
     *tokutxn = result;
 
     STATUS_VALUE(TXN_BEGIN)++;
@@ -154,31 +190,27 @@ toku_txn_create_txn (
 //Used on recovery to recover a transaction.
 int
 toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
-#define COPY_FROM_INFO(field) txn->field = info->field
-    COPY_FROM_INFO(rollentry_raw_count);
+    txn->roll_info.rollentry_raw_count = info->rollentry_raw_count;
     uint32_t i;
     for (i = 0; i < info->num_fts; i++) {
-        FT h = info->open_fts[i];
-        int r = toku_txn_note_ft(txn, h);
-        assert_zero(r);
+        FT ft = info->open_fts[i];
+        toku_txn_maybe_note_ft(txn, ft);
     }
-    COPY_FROM_INFO(force_fsync_on_commit );
-    COPY_FROM_INFO(num_rollback_nodes);
-    COPY_FROM_INFO(num_rollentries);
+    txn->force_fsync_on_commit = info->force_fsync_on_commit;
+    txn->roll_info.num_rollback_nodes = info->num_rollback_nodes;
+    txn->roll_info.num_rollentries = info->num_rollentries;
 
     CACHEFILE rollback_cachefile = txn->logger->rollback_cachefile;
 
-    COPY_FROM_INFO(spilled_rollback_head);
-    txn->spilled_rollback_head_hash = toku_cachetable_hash(rollback_cachefile,
-                                                           txn->spilled_rollback_head);
-    COPY_FROM_INFO(spilled_rollback_tail);
-    txn->spilled_rollback_tail_hash = toku_cachetable_hash(rollback_cachefile,
-                                                           txn->spilled_rollback_tail);
-    COPY_FROM_INFO(current_rollback);
-    txn->current_rollback_hash = toku_cachetable_hash(rollback_cachefile,
-                                                      txn->current_rollback);
-#undef COPY_FROM_INFO
-    txn->recovered_from_checkpoint = TRUE;
+    txn->roll_info.spilled_rollback_head = info->spilled_rollback_head;
+    txn->roll_info.spilled_rollback_head_hash = toku_cachetable_hash(rollback_cachefile,
+                                                           txn->roll_info.spilled_rollback_head);
+    txn->roll_info.spilled_rollback_tail = info->spilled_rollback_tail;
+    txn->roll_info.spilled_rollback_tail_hash = toku_cachetable_hash(rollback_cachefile,
+                                                           txn->roll_info.spilled_rollback_tail);
+    txn->roll_info.current_rollback = info->current_rollback;
+    txn->roll_info.current_rollback_hash = toku_cachetable_hash(rollback_cachefile,
+                                                      txn->roll_info.current_rollback);
     return 0;
 }
 
@@ -223,7 +255,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     // recovery to properly recommit this transaction if the commit 
     // does not make it to disk. In the case of MySQL, that would be the
     // binary log.
-    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
+    txn->do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->roll_info.num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
@@ -274,7 +306,7 @@ int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     if (txn->parent) return 0; // nothing to do if there's a parent.
     toku_txn_manager_add_prepared_txn(txn->logger->txn_manager, txn);
     // Do we need to do an fsync?
-    txn->do_fsync = (txn->force_fsync_on_commit || txn->num_rollentries>0);
+    txn->do_fsync = (txn->force_fsync_on_commit || txn->roll_info.num_rollentries>0);
     copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
     return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, xa_xid);
@@ -350,9 +382,9 @@ static void note_txn_closing (TOKUTXN txn) {
 }
 
 void toku_txn_complete_txn(TOKUTXN txn) {
-    assert(txn->spilled_rollback_head.b == ROLLBACK_NONE.b);
-    assert(txn->spilled_rollback_tail.b == ROLLBACK_NONE.b);
-    assert(txn->current_rollback.b == ROLLBACK_NONE.b);
+    assert(txn->roll_info.spilled_rollback_head.b == ROLLBACK_NONE.b);
+    assert(txn->roll_info.spilled_rollback_tail.b == ROLLBACK_NONE.b);
+    assert(txn->roll_info.current_rollback.b == ROLLBACK_NONE.b);
     toku_txn_manager_finish_txn(txn->logger->txn_manager, txn);
     // note that here is another place we depend on
     // this function being called with the multi operation lock
@@ -364,6 +396,7 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
         toku_omt_destroy(&txn->open_fts);
     }
     xids_destroy(&txn->xids);
+    toku_mutex_destroy(&txn->txn_lock);
     toku_free(txn);
 
     STATUS_VALUE(TXN_CLOSE)++;

@@ -488,21 +488,18 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
             break;
         }
     }
-    r = toku_txn_create_txn(&db_txn_struct_i(result)->tokutxn, 
-                            stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
-                            env->i->logger,
-                            TXNID_NONE,
-                            snapshot_type,
-                            result
-                            );
+    r = toku_txn_manager_start_txn(&db_txn_struct_i(result)->tokutxn,
+                                   toku_logger_get_txn_manager(env->i->logger),
+                                   stxn ? db_txn_struct_i(stxn)->tokutxn : 0,
+                                   env->i->logger,
+                                   TXNID_NONE,
+                                   snapshot_type,
+                                   result,
+                                   false);
     if (r != 0) {
         toku_free(result);
         return r;
     }
-    toku_txn_manager_start_txn(
-        toku_logger_get_txn_manager(env->i->logger),
-        db_txn_struct_i(result)->tokutxn
-        );
 
     //Add to the list of children for the parent.
     if (result->parent) {

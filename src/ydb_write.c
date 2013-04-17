@@ -8,6 +8,7 @@
 #include "ydb-internal.h"
 #include "indexer.h"
 #include <ft/log_header.h>
+#include <ft/checkpoint.h>
 #include "ydb_row_lock.h"
 #include "ydb_write.h"
 #include "ydb_db.h"
@@ -125,7 +126,7 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key,
 
 
 int
-toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_ydb_lock) {
+toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
@@ -152,9 +153,9 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_ydb_lock)
     }
     if (r == 0) {
         //Do the actual deleting.
-        if (!holds_ydb_lock) toku_ydb_lock();
+        if (!holds_mo_lock) toku_multi_operation_client_lock();
         r = toku_ft_delete(db->i->ft_handle, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
-        if (!holds_ydb_lock) toku_ydb_unlock();
+        if (!holds_mo_lock) toku_multi_operation_client_unlock();
     }
 
     if (r == 0) {
@@ -168,7 +169,7 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags, BOOL holds_ydb_lock)
 
 
 int
-toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_ydb_lock) {
+toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
@@ -193,9 +194,9 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds
         if (flags==DB_NOOVERWRITE_NO_ERROR) {
             type = FT_INSERT_NO_OVERWRITE;
         }
-        if (!holds_ydb_lock) toku_ydb_lock();
+        if (!holds_mo_lock) toku_multi_operation_client_lock();
         r = toku_ft_maybe_insert(db->i->ft_handle, key, val, ttxn, FALSE, ZERO_LSN, TRUE, type);
-        if (!holds_ydb_lock) toku_ydb_unlock();
+        if (!holds_mo_lock) toku_multi_operation_client_unlock();
     }
 
     if (r == 0) {
@@ -232,10 +233,10 @@ toku_db_update(DB *db, DB_TXN *txn,
     }
 
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-    toku_ydb_lock();
+    toku_multi_operation_client_lock();
     r = toku_ft_maybe_update(db->i->ft_handle, key, update_function_extra, ttxn,
                               FALSE, ZERO_LSN, TRUE);
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock();
 
 cleanup:
     if (r == 0) 
@@ -287,10 +288,10 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
     }
 
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-    toku_ydb_lock();
+    toku_multi_operation_client_lock();
     r = toku_ft_maybe_update_broadcast(db->i->ft_handle, update_function_extra, ttxn,
                                         FALSE, ZERO_LSN, TRUE, is_resetting_op);
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock();
 
 cleanup:
     if (r == 0) 

@@ -11,6 +11,9 @@
 extern "C" {
 #endif
 
+void toku_txn_lock(TOKUTXN txn);
+void toku_txn_unlock(TOKUTXN txn);
+
 int toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
@@ -29,11 +32,12 @@ int toku_txn_begin_with_xid (
     TOKULOGGER logger, 
     TXNID xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
-    DB_TXN *container_db_txn
+    DB_TXN *container_db_txn,
+    bool for_recovery
     );
 
 // Allocate and initialize a txn
-int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn);
+int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, XIDS xids, DB_TXN *container_db_txn, bool for_checkpoint);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 

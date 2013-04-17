@@ -8,6 +8,8 @@ file(GLOB_RECURSE all_srcs
   src/*.c
   utils/*.c
   db-benchmark-test/*.c
+  )
+list(APPEND all_srcs
   ${CMAKE_CURRENT_BINARY_DIR}/ft/log_code.c
   ${CMAKE_CURRENT_BINARY_DIR}/ft/log_print.c
   )
@@ -20,6 +22,8 @@ file(GLOB_RECURSE all_hdrs
   src/*.h
   utils/*.h
   db-benchmark-test/*.h
+  )
+list(APPEND all_hdrs
   ${CMAKE_CURRENT_BINARY_DIR}/toku_include/config.h
   ${CMAKE_CURRENT_BINARY_DIR}/buildheader/db.h
   ${CMAKE_CURRENT_BINARY_DIR}/ft/log_header.h
@@ -76,14 +80,21 @@ endif ()
 option(USE_GTAGS "Build the gtags database." ON)
 if (USE_GTAGS)
   find_program(GTAGS "gtags")
+  find_program(MKID "mkid")
   if (NOT GTAGS MATCHES NOTFOUND)
-    ## todo: use global -u instead of gtags each time
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/gtags.files" "")
+    foreach(file ${all_srcs} ${all_hdrs})
+      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/gtags.files" "${file}\n")
+    endforeach(file)
+    if (NOT MKID MATCHES NOTFOUND)
+      set(idutils_option "-I")
+    endif ()
     add_custom_command(
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GTAGS"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GRTAGS"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GPATH"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GSYMS"
-      COMMAND ${GTAGS} --gtagsconf "${CMAKE_CURRENT_SOURCE_DIR}/.globalrc"
+      COMMAND ${GTAGS} -i ${idutils_option} -f "${CMAKE_CURRENT_BINARY_DIR}/gtags.files"
       DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_GTAGS ALL DEPENDS
