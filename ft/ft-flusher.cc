@@ -906,8 +906,7 @@ ftleaf_split(
             LEAFENTRY CAST_FROM_VOIDP(le, lev);
             uint32_t keylen;
             void *key = le_key_and_len(le, &keylen);
-            toku_fill_dbt(splitk, toku_xmemdup(key, keylen), keylen);
-            splitk->flags = DB_DBT_MALLOC;
+            toku_memdup_dbt(splitk, key, keylen);
         }
 
         node->n_children = num_children_in_node;
