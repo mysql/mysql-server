@@ -429,7 +429,7 @@ int toku_loader_close(DB_LOADER *loader)
     } 
     else { // no error outstanding 
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-            brt_loader_close_and_redirect(loader);
+            r = brt_loader_close_and_redirect(loader);
         }
     }
     toku_ydb_lock();
