@@ -335,6 +335,7 @@ public:
     int delete_row(const uchar * buf);
 
     int prepare_index_scan();
+    void column_bitmaps_signal();
     int index_init(uint index, bool sorted);
     int index_end();
     int index_next_same(uchar * buf, const uchar * key, uint keylen); 
