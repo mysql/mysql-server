@@ -267,8 +267,9 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
             txn->rollentry_filename = toku_xstrdup(filenamepart);
             char *rollentry_filename_in_cwd = toku_construct_full_name(2, txn->logger->directory, filenamepart);
 	    txn->rollentry_fd = open(rollentry_filename_in_cwd, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
+            int r = errno;
 	    toku_free(rollentry_filename_in_cwd);
-	    if (txn->rollentry_fd==-1) return errno;
+	    if (txn->rollentry_fd == -1) return r;
 	}
 	uLongf compressed_len = compressBound(w.ndone);
 	char *MALLOC_N(compressed_len, compressed_buf);
