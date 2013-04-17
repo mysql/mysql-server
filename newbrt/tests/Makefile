@@ -88,6 +88,7 @@ REGRESSION_TESTS_RAW = \
 	shortcut \
 	test1305 \
 	test1308a \
+	test1626 \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \
