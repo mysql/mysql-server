@@ -6664,6 +6664,13 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     
     for (uint i = 0; i < num_of_keys; i++) {
         uint curr_index = key_num[i];
+        error = share->key_file[curr_index]->pre_acquire_fileops_lock(share->key_file[curr_index],txn);
+        if (error != 0) {
+            goto cleanup;
+        }
+    }
+    for (uint i = 0; i < num_of_keys; i++) {
+        uint curr_index = key_num[i];
         int r = share->key_file[curr_index]->close(share->key_file[curr_index],0);
         assert(r==0);
         share->key_file[curr_index] = NULL;
@@ -6935,6 +6942,13 @@ int ha_tokudb::delete_all_rows() {
     }
 
     curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    for (uint i = 0; i < curr_num_DBs; i++) {
+        error = share->key_file[i]->pre_acquire_fileops_lock(
+            share->key_file[i], 
+            txn
+            );
+        if (error) { goto cleanup; }
+    }
     for (uint i = 0; i < curr_num_DBs; i++) {
         error = truncate_dictionary(i, txn);
         if (error) { goto cleanup; }
