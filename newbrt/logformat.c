@@ -265,12 +265,12 @@ generate_dispatch (void) {
 		});
     fprintf(hf, "  default: assert(0);} } while (0)\n");
 
-    fprintf(hf, "#define logtype_dispatch_args(s, funprefix) do { switch((s)->cmd) {\\\n");
+    fprintf(hf, "#define logtype_dispatch_args(s, funprefix, ...) do { switch((s)->cmd) {\\\n");
     DO_LOGTYPES(lt,
 		{
 		    fprintf(hf, "  case LT_%s: funprefix ## %s ((s)->u.%s.lsn", lt->name, lt->name, lt->name);
 		    DO_FIELDS(ft, lt, fprintf(hf, ",(s)->u.%s.%s", lt->name, ft->name));
-		    fprintf(hf, "); break;\\\n");
+		    fprintf(hf, ", __VA_ARGS__); break;\\\n");
 		});
     fprintf(hf, " }} while (0)\n");
 }

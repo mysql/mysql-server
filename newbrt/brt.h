@@ -41,8 +41,10 @@ int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, to
 int toku_brt_get_flags(BRT, unsigned int *flags);
 int toku_brt_set_nodesize(BRT, unsigned int nodesize);
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
-int toku_brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*));
-int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
+
+int toku_brt_set_bt_compare(BRT, brt_compare_func);
+int toku_brt_set_dup_compare(BRT, brt_compare_func);
+
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
 

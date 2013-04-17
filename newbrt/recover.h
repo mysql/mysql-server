@@ -14,11 +14,9 @@
 #include "bread.h"
 #include "x1764.h"
 
-int toku_recover_init(void);
-
-void toku_recover_cleanup(void);
-
-int tokudb_recover(const char *datadir, const char *logdir);
+// Run tokudb recovery from the log
+// Returns: 0 if successfull
+int tokudb_recover(const char *datadir, const char *logdir, brt_compare_func bt_compare, brt_compare_func dup_compare);
 
 // Effect: Check the tokudb logs to determine whether or not we need to run recovery.
 // If the log is empty or if there is a clean shutdown at the end of the log, then we

@@ -115,7 +115,7 @@ typedef enum brt_cmd_type brt_msg_type;
 // This structure supports nested transactions, and obsoletes brt_cmd.
 typedef struct brt_cmd BRT_MSG_S, *BRT_MSG;
 
-
+typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
 
 #define UU(x) x __attribute__((__unused__))
 

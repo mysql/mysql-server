@@ -302,7 +302,7 @@ static int do_recovery (DB_ENV *env) {
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
-    int r = tokudb_recover(datadir, logdir);
+    int r = tokudb_recover(datadir, logdir, env->i->bt_compare, env->i->dup_compare);
     toku_free(logdir);
     return r;
 }
