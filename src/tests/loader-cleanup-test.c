@@ -574,6 +574,7 @@ static void run_test(enum test_type t, int trigger)
 static void do_args(int argc, char * const argv[]);
 
 int test_main(int argc, char * const *argv) {
+    int trigger;
     do_args(argc, argv);
     if (verbose) printf("\n\nTesting loader with close and commit (normal)\n");
     run_test(commit, 0);
@@ -588,15 +589,28 @@ int test_main(int argc, char * const *argv) {
     if (INDUCE_ENOSPC) {
 	int i;
 	for (i = 1; i < 5; i++) {
-	    int trigger = write_count_nominal / i;
+	    trigger = write_count_nominal / i;
 	    if (verbose) printf("\n\nTesting loader with enospc induced at write count %d\n", trigger);
 	    run_test(enospc_w, trigger);
 	}
     }
     {
 	int i;
-	for (i = 1; i < 5; i++) {
-	    int trigger = fwrite_count_nominal / i;
+	// induce write error at beginning of process
+	for (i = 1; i < 5 * NUM_DBS; i++) {
+	    trigger = i;
+	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
+	    run_test(enospc_f, trigger);
+	}
+	// induce write error sprinkled through process
+	for (i = 2; i < 5; i++) {
+	    trigger = fwrite_count_nominal / i;
+	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
+	    run_test(enospc_f, trigger);
+	}
+	// induce write error at end of process
+	for (i = 1; i < 5 * NUM_DBS; i++) {
+	    trigger = NUM_DBS - i;
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
 	}
