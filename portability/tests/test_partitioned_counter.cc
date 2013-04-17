@@ -250,7 +250,7 @@ static void timeit_with_thread_local_pointer (const char *description, void* (*f
 static int verboseness_cmdarg=0;
 static bool time_cmdarg=false;
 
-static void parse_args (int argc, const char *argv[]) {
+static void parse_args (int argc, char *const argv[]) {
     const char *progname = argv[1];
     argc--; argv++;
     while (argc>0) {
@@ -374,7 +374,7 @@ static void do_testit2 (void)
     pt_join(t, NULL);
 }
 
-int test_main (int argc, const char *argv[]) {
+int test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
     if (time_cmdarg) {
 	do_timeit();
