@@ -1654,7 +1654,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       // This is just for the trace_view below:
-      view_select->select_number= ++lex->select_number;
+      view_select->select_number= ++old_lex->select_number;
       trace_view.add("select#", view_select->select_number);
       trace_view.add("merged", true);
       table->updatable= (table->updatable_view != 0);

@@ -117,8 +117,8 @@ c
 12
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;

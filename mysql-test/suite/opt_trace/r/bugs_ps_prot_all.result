@@ -135,7 +135,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
         "database": "test",
         "view": "sq1_alias1",
         "in_select#": 1,
-        "select#": 2,
+        "select#": 5,
         "merged": true
       } /* view */
     },
