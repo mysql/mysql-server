@@ -54,7 +54,7 @@ int toku_logger_txn_rolltmp_raw_count(TOKUTXN, u_int64_t *count);
 
 int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TOKULOGGER /*logger*/);
 
-int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
+int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, FILENUM /*filenum*/, int /*mode*/);
 
 int toku_logger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM);
 

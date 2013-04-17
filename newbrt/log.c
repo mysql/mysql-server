@@ -544,13 +544,13 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
     return 0;
 }
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, mode);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum, bs, mode);
     if (r!=0) return r;
-    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs);
+    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), filenum, bs);
     return r;
 }
 
