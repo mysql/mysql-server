@@ -47,7 +47,6 @@ BRT_SOURCES = \
   cachetable \
   checkpoint \
   fifo \
-  fifo_msg \
   fingerprint \
   key \
   leafentry \

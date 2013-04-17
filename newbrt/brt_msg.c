@@ -5,8 +5,9 @@
 #include <toku_portability.h>
 #include "brttypes.h"
 #include "xids.h"
-#include "fifo_msg.h"
 #include "brt_msg.h"
+
+#if 0
 
 //BRT_MSG internals are in host order
 //XIDS are not 'internal' to BRT_MSG
@@ -21,9 +22,12 @@ brt_msg_from_dbts(BRT_MSG brt_msg,
     brt_msg->type   = type;
 }
 
+#endif
+
 //No conversion (from disk to host) is necessary
 //Accessor functions for fifo return host order bytes.
 #if 0
+#include "fifo_msg.h"
 void
 brt_msg_from_fifo_msg(BRT_MSG brt_msg, FIFO_MSG fifo_msg) {
     brt_msg->keylen = fifo_msg_get_keylen(fifo_msg);
