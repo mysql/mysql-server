@@ -255,8 +255,10 @@ static void test_loader(DB **dbs)
     if (verbose) { printf("closing"); fflush(stdout); }
     r = loader->close(loader);
     if (verbose) {  printf(" done\n"); }
-    assert(r==DB_KEYEXIST);
-    assert(error_extra.error_count==1);
+    if (NUM_ROWS > 0) {
+        assert(r==DB_KEYEXIST);
+        assert(error_extra.error_count==1);
+    }
 
     r = txn->commit(txn, 0);
     CKERR(r);
@@ -303,11 +305,11 @@ static void run_test(void)
 
     generate_permute_tables();
 
-//    printf("running test_loader()\n");
+    if (verbose) printf("running test_loader()\n");
     // -------------------------- //
     test_loader(dbs);
     // -------------------------- //
-//    printf("done    test_loader()\n");
+    if (verbose) printf("done    test_loader()\n");
 
     for(int i=0;i<NUM_DBS;i++) {
         dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
