@@ -193,10 +193,13 @@ static void test_dbc_exceptions () {
     TC(curs->get(&key, &val, DB_FIRST), 0);
     toku_free(key.get_data());
     toku_free(val.get_data());
+#if 0
+    // c_del no longer supported. See #4576.
     TC(curs->del(DB_DELETE_ANY), 0);
     TCRET(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
     TCRET(curs->del(0), DB_KEYEMPTY);
     TCRET(curs->del(DB_DELETE_ANY), 0);
+#endif
     curs->close(); // no deleting cursors.
 }
 

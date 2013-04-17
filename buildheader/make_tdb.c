@@ -474,7 +474,7 @@ static void print_dbc_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
     STRUCT_SETUP(DBC, c_count, "int (*%s) (DBC *, db_recno_t *, u_int32_t)");
-    STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
+    //STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");  // c_del was removed.  See #4576.
     STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DBC, dbp,     "DB *%s");
     const char *extra[]={

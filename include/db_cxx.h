@@ -227,7 +227,6 @@ class Dbc : protected DBC {
  public:
     int close(void);
     int get(Dbt *, Dbt *, u_int32_t);
-    int del(u_int32_t);
     int count(db_recno_t *, u_int32_t);
  private:
     Dbc();  // User may not call it.
