@@ -496,6 +496,21 @@ cleanup:
     return retval;
 }
 
+bool alter_has_other_flag_set(HA_ALTER_FLAGS* alter_flags, uint flag) {
+    bool retval = false;
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == flag)
+        {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            retval = true;
+            break;
+        }
+    }
+    return retval;
+}
+
 int 
 ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     HA_CREATE_INFO *create_info,
@@ -517,6 +532,7 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
     bool has_column_rename = alter_flags->is_set(HA_CHANGE_COLUMN) && 
                              alter_flags->is_set(HA_ALTER_COLUMN_NAME);
+    bool has_auto_inc_change = alter_flags->is_set(HA_CHANGE_AUTOINCREMENT_VALUE);
     //
     // We do not check for changes to foreign keys or primary keys. They are not supported
     // Changing the primary key implies changing keys in all dictionaries. that is why we don't
@@ -530,6 +546,8 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     bool has_non_dropped_changes = false;
     bool has_non_added_changes = false;
     bool has_non_column_rename_changes = false;
+    bool has_non_auto_inc_change = alter_has_other_flag_set(alter_flags, HA_CHANGE_AUTOINCREMENT_VALUE);
+
     for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
         if (i == HA_DROP_INDEX ||
             i == HA_DROP_UNIQUE_INDEX ||
@@ -663,6 +681,9 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
     else if (has_added_columns && !has_non_added_changes) {
+        retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else if (has_auto_inc_change && !has_non_auto_inc_change) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
     else if (has_column_rename && !has_non_column_rename_changes) {
@@ -1117,6 +1138,8 @@ ha_tokudb::alter_table_phase2(
     uchar* column_extra = NULL; 
     bool dropping_indexes = alter_info->index_drop_count > 0 && !tables_have_same_keys(table,altered_table,false, false);
     bool adding_indexes = alter_info->index_add_count > 0 && !tables_have_same_keys(table,altered_table,false, false);
+    bool change_autoinc = alter_flags->is_set(HA_CHANGE_AUTOINCREMENT_VALUE);
+    
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
 
     is_fast_alter_running = true;
@@ -1139,6 +1162,11 @@ ha_tokudb::alter_table_phase2(
     max_new_desc_size = get_max_desc_size(&altered_kc_info, altered_table);
     row_desc_buff = (uchar *)my_malloc(max_new_desc_size, MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
+
+    if (change_autoinc) {
+        error = write_auto_inc_create(share->status_block, create_info->auto_increment_value, txn);
+        if (error) { goto cleanup; }
+    }
 
     // drop indexes
     if (dropping_indexes) {
