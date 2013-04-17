@@ -159,13 +159,10 @@ int test_main(int argc, char * const argv[]) {
     // create the db
     DB *db = NULL;
     r = db_create(&db, db_env, 0); assert(r == 0);
-    DB_TXN *create_txn = NULL;
-    r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert(r == 0);
     if (pagesize) {
         r = db->set_pagesize(db, pagesize); assert(r == 0);
     }
-    r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-    r = create_txn->commit(create_txn, 0); assert(r == 0);
+    r = db->open(db, NULL, db_filename, NULL, DB_BTREE, DB_CREATE|DB_AUTO_COMMIT|DB_THREAD, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // run test
     struct test_seq seq; test_seq_init(&seq);
