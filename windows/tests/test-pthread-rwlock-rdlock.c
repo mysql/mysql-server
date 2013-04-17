@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int test_main(int argc, char *const argv[]) {
+int test_main(int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     int r;
     toku_pthread_rwlock_t rwlock;
 
