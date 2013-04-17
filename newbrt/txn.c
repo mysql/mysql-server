@@ -188,13 +188,11 @@ toku_txn_create_txn (
         verify_snapshot_system(logger);
     }
     assert(logger->rollback_cachefile);
-    TOKUTXN MALLOC(result);
-    if (result == 0) 
-        return errno;
+    TOKUTXN XMALLOC(result);
     result->starttime = time(NULL);  // getting timestamp in seconds is a cheap call
     int r;
     r = toku_omt_create(&result->open_brt_headers);
-    if (r!=0) goto died;
+    assert_zero(r);
 
     result->logger = logger;
     result->parent = parent_tokutxn;
@@ -237,11 +235,6 @@ toku_txn_create_txn (
         verify_snapshot_system(logger);
     }
     return 0;
-
-died:
-    // TODO memory leak
-    toku_logger_panic(logger, r);
-    return r; 
 }
 
 int
@@ -252,7 +245,7 @@ toku_txn_start_txn(TOKUTXN txn) {
     if (txn->txnid64 == TXNID_NONE) {
         LSN first_lsn;
         r = toku_log_xbegin(logger, &first_lsn, 0, parent ? parent->txnid64 : 0);
-        if (r!=0) goto died;
+        assert_zero(r);
         txn->txnid64 = first_lsn.lsn;
     } 
     XIDS parent_xids;
@@ -260,8 +253,8 @@ toku_txn_start_txn(TOKUTXN txn) {
         parent_xids = xids_get_root_xids();
     else
         parent_xids = parent->xids;
-    if ((r = xids_create_child(parent_xids, &txn->xids, txn->txnid64)))
-        goto died;
+    r = xids_create_child(parent_xids, &txn->xids, txn->txnid64);
+    assert_zero(r);
 
     if (toku_omt_size(logger->live_txns) == 0) {
         assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
@@ -275,7 +268,7 @@ toku_txn_start_txn(TOKUTXN txn) {
         //Add txn to list (omt) of live transactions
         //We know it is the newest one.
         r = toku_omt_insert_at(logger->live_txns, txn, toku_omt_size(logger->live_txns));
-        if (r!=0) goto died;
+        assert_zero(r);
 
         //
         // maintain the data structures necessary for MVCC:
@@ -296,7 +289,7 @@ toku_txn_start_txn(TOKUTXN txn) {
         if (parent == NULL) {
             //Add txn to list (omt) of live root txns
             r = toku_omt_insert_at(logger->live_root_txns, (OMTVALUE) txn->txnid64, toku_omt_size(logger->live_root_txns)); //We know it is the newest one.
-            if (r!=0) goto died;
+            assert_zero(r);
             txn->ancestor_txnid64 = txn->txnid64;
         }
         else {
@@ -329,11 +322,6 @@ toku_txn_start_txn(TOKUTXN txn) {
     }
     r = toku_pthread_mutex_unlock(&logger->txn_list_lock); assert_zero(r);
     return 0;
-
-died:
-    // TODO memory leak
-    toku_logger_panic(logger, r);
-    return r; 
 }
 
 //Used on recovery to recover a transaction.
