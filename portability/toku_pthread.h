@@ -25,7 +25,7 @@ typedef pthread_key_t toku_pthread_key_t;
 typedef struct timespec toku_timespec_t;
 
 #ifndef TOKU_PTHREAD_DEBUG
-#define TOKU_PTHREAD_DEBUG 0
+# error "You should have defined TOKU_PTHREAD_DEBUG, include config.h."
 #endif
 
 typedef struct toku_mutex {
@@ -41,35 +41,36 @@ typedef struct toku_mutex_aligned {
     toku_mutex_t aligned_mutex __attribute__((__aligned__(64)));
 } toku_mutex_aligned_t;
 
+// Different OSes implement mutexes as different amounts of nested structs.
+// C++ will fill out all missing values with zeroes if you provide at least one zero, but it needs the right amount of nesting.
 #if defined(__FreeBSD__)
-# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
-static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {0};
-# if TOKU_PTHREAD_DEBUG
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP, .owner = 0, .locked = false, .valid = true };
-# else
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP };
-# endif
+# define ZERO_MUTEX_INITIALIZER {0}
 #elif defined(__APPLE__)
-# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_DEFAULT
-static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{0}};
-# if TOKU_PTHREAD_DEBUG
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
-# else
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
-# endif
+# define ZERO_MUTEX_INITIALIZER {{0}}
+#else // __linux__, at least
+# define ZERO_MUTEX_INITIALIZER {{{0}}}
+#endif
+
+#if TOKU_PTHREAD_DEBUG
+# define TOKU_MUTEX_INITIALIZER { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true }
 #else
-# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
-static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{{0}}};
+# define TOKU_MUTEX_INITIALIZER { .pmutex = PTHREAD_MUTEX_INITIALIZER }
+#endif
+
+// Darwin doesn't provide adaptive mutexes
+#if defined(__APPLE__)
+# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_DEFAULT
 # if TOKU_PTHREAD_DEBUG
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP, .owner = 0, .locked = false, .valid = true };
+#  define TOKU_ADAPTIVE_MUTEX_INITIALIZER { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true }
 # else
-static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
-static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP };
+#  define TOKU_ADAPTIVE_MUTEX_INITIALIZER { .pmutex = PTHREAD_MUTEX_INITIALIZER }
+# endif
+#else // __FreeBSD__, __linux__, at least
+# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
+# if TOKU_PTHREAD_DEBUG
+#  define TOKU_ADAPTIVE_MUTEX_INITIALIZER { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP, .owner = 0, .locked = false, .valid = true }
+# else
+#  define TOKU_ADAPTIVE_MUTEX_INITIALIZER { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP }
 # endif
 #endif
 
