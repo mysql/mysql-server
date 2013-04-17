@@ -2643,10 +2643,11 @@ set_filenum_in_array(OMTVALUE hv, u_int32_t index, void*arrayv) {
 }
 
 int
-log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE &ct);
+log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp);
 int
-log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE &ct) {
+log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ctp) {
     int r;
+    CACHETABLE ct = *ctp;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
     uint32_t num_filenums = toku_omt_size(txn->open_fts);
@@ -2767,7 +2768,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             {
                 int r = toku_txn_manager_iter_over_live_txns<CACHETABLE, log_open_txn>(
                     logger->txn_manager,
-                    ct
+                    &ct
                     );
                 assert(r==0);
             }

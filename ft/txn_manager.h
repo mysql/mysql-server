@@ -73,10 +73,10 @@ uint32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager);
 
 
 template<typename iterate_extra_t,
-         int (*f)(const TOKUTXN &, const uint32_t, iterate_extra_t &)>
+         int (*f)(const TOKUTXN &, const uint32_t, iterate_extra_t *const)>
 int toku_txn_manager_iter_over_live_txns(
     TXN_MANAGER txn_manager, 
-    iterate_extra_t &v
+    iterate_extra_t *const v
     ) 
 {
     int r = 0;

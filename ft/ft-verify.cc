@@ -106,13 +106,13 @@ struct count_msgs_extra {
 };
 
 // template-only function, but must be extern
-int count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra &e);
-int
-count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra &e)
+int count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
+    __attribute__((nonnull(3)));
+int count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
 {
-    const struct fifo_entry *entry = toku_fifo_get_entry(e.fifo, offset);
-    if (entry->msn.msn == e.msn.msn) {
-        e.count++;
+    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
+    if (entry->msn.msn == e->msn.msn) {
+        e->count++;
     }
     return 0;
 }
@@ -128,27 +128,27 @@ struct verify_message_tree_extra {
 };
 
 // template-only function, but must be extern
-int verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra &e);
-int
-verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra &e)
+int verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+    __attribute__((nonnull(3)));
+int verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
-    int verbose = e.verbose;
-    BLOCKNUM blocknum = e.blocknum;
-    int keep_going_on_failure = e.keep_going_on_failure;
+    int verbose = e->verbose;
+    BLOCKNUM blocknum = e->blocknum;
+    int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
-    const struct fifo_entry *entry = toku_fifo_get_entry(e.fifo, offset);
-    if (e.broadcast) {
+    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
+    if (e->broadcast) {
         VERIFY_ASSERTION(ft_msg_type_applies_all((enum ft_msg_type) entry->type) || ft_msg_type_does_nothing((enum ft_msg_type) entry->type),
-                         e.i, "message found in broadcast list that is not a broadcast");
+                         e->i, "message found in broadcast list that is not a broadcast");
     } else {
         VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) entry->type),
-                         e.i, "message found in fresh or stale message tree that does not apply once");
-        if (e.is_fresh) {
+                         e->i, "message found in fresh or stale message tree that does not apply once");
+        if (e->is_fresh) {
             VERIFY_ASSERTION(entry->is_fresh,
-                             e.i, "message found in fresh message tree that is not fresh");
+                             e->i, "message found in fresh message tree that is not fresh");
         } else {
             VERIFY_ASSERTION(!entry->is_fresh,
-                             e.i, "message found in stale message tree that is fresh");
+                             e->i, "message found in stale message tree that is fresh");
         }
     }
 done:
@@ -296,19 +296,19 @@ toku_verify_ftnode (FT_HANDLE brt,
                              } else {
                                  VERIFY_ASSERTION(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type), i, "a message was found that does not apply either to all or to only one key");
                                  struct count_msgs_extra extra = { .count = 0, .msn = msn, .fifo = bnc->buffer };
-                                 bnc->broadcast_list.iterate<struct count_msgs_extra, count_msgs>(extra);
+                                 bnc->broadcast_list.iterate<struct count_msgs_extra, count_msgs>(&extra);
                                  VERIFY_ASSERTION(extra.count == 1, i, "a broadcast message was not found in the broadcast list");
                              }
                              last_msn = msn;
                          }));
             struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure };
-            int r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(extra);
+            int r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;
-            r = bnc->stale_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(extra);
+            r = bnc->stale_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.broadcast = true;
-            r = bnc->broadcast_list.iterate<struct verify_message_tree_extra, verify_message_tree>(extra);
+            r = bnc->broadcast_list.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
         }
         else {
