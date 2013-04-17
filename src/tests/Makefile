@@ -197,7 +197,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test944 \
 	test_truncate_txn_abort \
 	test_db_no_env \
-	loader-tpch-load.loader \
 #\ ends prev line
 #ifneq ($(OS_CHOICE),windows)
 #    TDB_TESTS_THAT_SHOULD_FAIL+= \
@@ -212,6 +211,7 @@ TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 	recover-missing-dbfile-2.abortrecover \
 	recover-missing-dbfile-2.abortrecover \
 	recover-dbopen-eclose.abortrecover \
+	loader-tpch-load.loader \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
