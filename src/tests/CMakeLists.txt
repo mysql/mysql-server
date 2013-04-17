@@ -343,7 +343,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     # libtokudb.so.
     # We link the test with util directly so that the test code itself can use
     # some of those things (i.e. kibbutz in the threaded tests).
-    target_link_libraries(${base}.tdb util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    # We link the locktree so that threaded stress tests can call some
+    # functions (ie: lock escalation) directly. 
+    target_link_libraries(${base}.tdb util locktree ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
@@ -378,7 +380,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
   function(add_custom_executable prefix binary source)
     add_executable(${prefix}_${binary} ${source})
-    target_link_libraries(${prefix}_${binary} util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${prefix}_${binary} util locktree ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_target_properties(${prefix}_${binary} PROPERTIES
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")

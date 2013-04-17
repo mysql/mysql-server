@@ -196,6 +196,11 @@ void locktree::manager::release_lt(locktree *lt) {
     }
 }
 
+// test-only version of lock escalation
+void locktree::manager::run_escalation_for_test(void) {
+    run_escalation();
+}
+
 // effect: escalate's the locks in each locktree
 // requires: manager's mutex is held
 void locktree::manager::run_escalation(void) {

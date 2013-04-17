@@ -98,12 +98,22 @@ public:
     // if the keys are equal, then only one copy is stored.
     void append(const DBT *left_key, const DBT *right_key);
 
+    // is this range buffer empty?
+    bool is_empty(void) const;
+
+    // how many bytes are stored in this range buffer?
+    uint64_t get_num_bytes(void) const;
+
+    // how many ranges are stored in this range buffer?
+    int get_num_ranges(void) const;
+
     void destroy(void);
 
 private:
     char *m_buf;
     size_t m_buf_size;
     size_t m_buf_current;
+    int m_num_ranges;
 
     void append_range(const DBT *left_key, const DBT *right_key);
 

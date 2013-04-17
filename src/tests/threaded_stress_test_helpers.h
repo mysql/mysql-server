@@ -34,6 +34,8 @@
 #include <util/rwlock.h>
 #include <util/kibbutz.h>
 
+#include <src/ydb-internal.h>
+
 #include <ft/ybt.h>
 
 using namespace toku;
@@ -886,6 +888,27 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
         CKERR(r);
     }
     return r;
+}
+
+struct lock_escalation_op_extra {
+    // sleep somewhere between these times before running escalation.
+    // this will add some chaos into the mix.
+    uint64_t min_sleep_time_micros;
+    uint64_t max_sleep_time_micros;
+};
+
+static int UU() lock_escalation_op(DB_TXN *UU(txn), ARG arg, void* operation_extra, void *UU(stats_extra)) {
+    struct lock_escalation_op_extra *CAST_FROM_VOIDP(extra, operation_extra);
+    if (extra->max_sleep_time_micros > 0) {
+        invariant(extra->max_sleep_time_micros >= extra->min_sleep_time_micros);
+        uint64_t extra_sleep_time = (extra->max_sleep_time_micros - extra->min_sleep_time_micros) + 1;
+        uint64_t sleep_time = extra->min_sleep_time_micros + (myrandom_r(arg->random_data) % extra_sleep_time);
+        usleep(sleep_time);
+    }
+    if (!arg->cli->nolocktree) {
+        toku_env_run_lock_escalation_for_test(arg->env);
+    }
+    return 0;
 }
 
 static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {

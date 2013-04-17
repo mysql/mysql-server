@@ -86,10 +86,7 @@ public:
 
     // effect: removes this node and all of its children, recursively
     // requires: every node at and below this node is unlocked
-    // returns: the number of nodes removed
-    // returns: *mem_released is the total amount of keyrange memory released.
-    //          mem_released does not account for treenode insertion overhead.
-    uint64_t recursive_remove(uint64_t *mem_released);
+    void recursive_remove(void);
 
 private:
 

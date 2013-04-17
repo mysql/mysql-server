@@ -51,7 +51,7 @@ void lock_request_unit_test::test_start_pending(void) {
     invariant(compare_dbts(nullptr, &request.m_right_key_copy, one) == 0);
 
     // release the range lock for txnid b
-    lt->remove_overlapping_locks_for_txnid(txnid_b, zero, two);
+    locktree_unit_test::locktree_test_release_lock(lt, txnid_b, zero, two);
 
     // now retry the lock requests.
     // it should transition the request to successfully complete.
@@ -60,7 +60,7 @@ void lock_request_unit_test::test_start_pending(void) {
     invariant(request.m_state == lock_request::state::COMPLETE);
     invariant(request.m_complete_r == 0);
 
-    lt->remove_overlapping_locks_for_txnid(txnid_a, one, one);
+    locktree_unit_test::locktree_test_release_lock(lt, txnid_a, one, one);
 
     request.destroy();
     mgr.release_lt(lt);

@@ -168,6 +168,12 @@ public:
         };
         ENSURE_POD(memory_tracker);
 
+        // effect: calls the private function run_escalation(), only ok to
+        //         do for tests.
+        // rationale: to get better stress test coverage, we want a way to
+        //            deterministicly trigger lock escalation.
+        void run_escalation_for_test(void);
+
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
         static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
@@ -240,54 +246,148 @@ private:
 
     struct lt_lock_request_info m_lock_request_info;
 
-    // the following is an optimization for locktrees that contain
-    // locks for only a single txnid. in this case, we can just
-    // delete everything from the locktree when that txnid unlocks.
+    // The following fields and members prefixed with "sto_" are for
+    // the single txnid optimization, intended to speed up the case
+    // when only one transaction is using the locktree. If we know
+    // the locktree has only one transaction, then acquiring locks
+    // takes O(1) work and releasing all locks takes O(1) work.
     //
-    // how do we know that this locktree only has a single txnid?
+    // How do we know that the locktree only has a single txnid?
+    // What do we do if it does?
     //
-    // when a txn requests a lock:
-    // - if the tree is empty, set the single txnid to that txn, set
-    // the optimization to true.
-    // - if the tree is not empty, then some txnid has inserted into
-    // the tree before and its txnid is m_single_txnid. set the bit
-    // to false if that txnid is different than the one about to insert.
-    // - if the txnid never changes (ie: only one txnid inserts into
-    // a locktree) then the bit stays true and the optimization happens.
+    // When a txn with txnid T requests a lock:
+    // - If the tree is empty, the optimization is possible. Set the single
+    // txnid to T, and insert the lock range into the buffer.
+    // - If the tree is not empty, check if the single txnid is T. If so,
+    // append the lock range to the buffer. Otherwise, migrate all of
+    // the locks in the buffer into the rangetree on behalf of txnid T,
+    // and invalid the single txnid.
     //
-    // when a txn releases its locks
-    // - check the optimization bit. if it is set, take the locktree's mutex
-    // and then check it agian. if it is still set, then perform the optimizaiton.
-    // - if the bit was not set, then carry out release locks as usual.
+    // When a txn with txnid T releases its locks:
+    // - If the single txnid is valid, it must be for T. Destroy the buffer.
+    // - If it's not valid, release locks the normal way in the rangetree.
     //
-    // the single txnid and the optimizable possible bit are both protected
-    // by the root lock on the concurrent tree. the way this is implemented
-    // is by a locked keyrange function called prepare(), which grabs
-    // the root lock and returns. once acquire/release() is called, the root
-    // lock is unlocked if necessary. so prepare() acts as a serialization
-    // point where we can safely read and modify these bits.
-    TXNID m_single_txnid;
-    bool m_single_txnid_optimization_possible;
+    // To carry out the optimization we need to record a single txnid
+    // and a range buffer for each locktree, each protected by the root
+    // lock of the locktree's rangetree. The root lock for a rangetree
+    // is grabbed by preparing a locked keyrange on the rangetree.
+    TXNID m_sto_txnid;
+    range_buffer m_sto_buffer;
 
-    // effect: If the single txnid is possible, assert that it
-    //         is for the given txnid and then release all of
-    //         the locks in the locktree.
-    // returns: True if locks were released, false otherwise
-    bool try_single_txnid_release_optimization(TXNID txnid);
+    // The single txnid optimization speeds up the case when only one
+    // transaction is using the locktree. But it has the potential to
+    // hurt the case when more than one txnid exists.
+    //
+    // There are two things we need to do to make the optimization only
+    // optimize the case we care about, and not hurt the general case.
+    //
+    // Bound the worst-case latency for lock migration when the
+    // optimization stops working:
+    // - Idea: Stop the optimization and migrate immediate if we notice
+    // the single txnid has takes many locks in the range buffer.
+    // - Implementation: Enforce a max size on the single txnid range buffer.
+    // - Analysis: Choosing the perfect max value, M, is difficult to do
+    // without some feedback from the field. Intuition tells us that M should
+    // not be so small that the optimization is worthless, and it should not
+    // be so big that it's unreasonable to have to wait behind a thread doing
+    // the work of converting M buffer locks into rangetree locks.
+    //
+    // Prevent concurrent-transaction workloads from trying the optimization
+    // in vain:
+    // - Idea: Don't even bother trying the optimization if we think the
+    // system is in a concurrent-transaction state.
+    // - Implementation: Do something even simpler than detecting whether the
+    // system is in a concurent-transaction state. Just keep a "score" value
+    // and some threshold. If at any time the locktree is eligible for the
+    // optimization, only do it if the score is at this threshold. When you
+    // actually do the optimization but someone has to migrate locks in the buffer
+    // (expensive), then reset the score back to zero. Each time a txn
+    // releases locks, the score is incremented by 1.
+    // - Analysis: If you let the threshold be "C", then at most 1 / C txns will
+    // do the optimization in a concurrent-transaction system. Similarly, it
+    // takes at most C txns to start using the single txnid optimzation, which
+    // is good when the system transitions from multithreaded to single threaded.
+    //
+    // STO_BUFFER_MAX_SIZE:
+    //
+    // We choose the max value to be 1 million since most transactions are smaller
+    // than 1 million and we can create a rangetree of 1 million elements in
+    // less than a second. So we can be pretty confident that this threshold
+    // enables the optimization almost always, and prevents super pathological
+    // latency issues for the first lock taken by a second thread.
+    //
+    // STO_SCORE_THRESHOLD:
+    //
+    // A simple first guess at a good value for the score threshold is 100.
+    // By our analysis, we'd end up doing the optimization in vain for
+    // around 1% of all transactions, which seems reasonable. Further,
+    // if the system goes single threaded, it ought to be pretty quick
+    // for 100 transactions to go by, so we won't have to wait long before
+    // we start doing the single txind optimzation again.
+    static const int STO_BUFFER_MAX_SIZE = 1 * 1024 * 1024;
+    static const int STO_SCORE_THRESHOLD = 100;
+    int m_sto_score;
 
-    // effect: Checks if the single txnid bit is set and, if so,
-    //         sets it to false iff the given txnid differs
-    //         from the current known single txnid.
-    void update_single_txnid_optimization(TXNID txnid);
+    // effect: begins the single txnid optimizaiton, setting m_sto_txnid
+    //         to the given txnid.
+    // requires: m_sto_txnid is invalid
+    void sto_begin(TXNID txnid);
 
-    // effect: Sets the single txnid bit to be true for the given txnid
-    void reset_single_txnid_optimization(TXNID txnid);
+    // effect: append a range to the sto buffer
+    // requires: m_sto_txnid is valid
+    void sto_append(const DBT *left_key, const DBT *right_key);
+
+    // effect: ends the single txnid optimization, releaseing any memory
+    //         stored in the sto buffer, notifying the tracker, and
+    //         invalidating m_sto_txnid.
+    // requires: m_sto_txnid is valid
+    void sto_end(void);
+
+    // params: prepared_lkr is a void * to a prepared locked keyrange. see below.
+    // effect: ends the single txnid optimization early, migrating buffer locks
+    //         into the rangetree, calling sto_end(), and then setting the
+    //         sto_score back to zero.
+    // requires: m_sto_txnid is valid
+    void sto_end_early(void *prepared_lkr);
+
+    // params: prepared_lkr is a void * to a prepared locked keyrange. we can't use
+    //         the real type because the compiler won't allow us to forward declare
+    //         concurrent_tree::locked_keyrange without including concurrent_tree.h,
+    //         which we cannot do here because it is a template implementation.
+    // requires: the prepared locked keyrange is for the locktree's rangetree
+    // requires: m_sto_txnid is valid
+    // effect: migrates each lock in the single txnid buffer into the locktree's
+    //         rangetree, notifying the memory tracker as necessary.
+    void sto_migrate_buffer_ranges_to_tree(void *prepared_lkr);
+
+    // effect: If m_sto_txnid is valid, then release the txnid's locks
+    //         by ending the optimization.
+    // requires: If m_sto_txnid is valid, it is equal to the given txnid
+    // returns: True if locks were released for this txnid
+    bool sto_try_release(TXNID txnid);
+
+    // params: prepared_lkr is a void * to a prepared locked keyrange. see above.
+    // requires: the prepared locked keyrange is for the locktree's rangetree
+    // effect: If m_sto_txnid is valid and equal to the given txnid, then
+    // append a range onto the buffer. Otherwise, if m_sto_txnid is valid
+    //        but not equal to this txnid, then migrate the buffer's locks
+    //        into the rangetree and end the optimization, setting the score
+    //        back to zero.
+    // returns: true if the lock was acquired for this txnid
+    bool sto_try_acquire(void *prepared_lkr, TXNID txnid,
+            const DBT *left_key, const DBT *right_key);
 
     // Effect:
     //  Provides a hook for a helgrind suppression.
     // Returns:
-    //  m_single_txnid_optimization_possible
-    bool unsafe_read_single_txnid_optimization_possible(void) const;
+    //  true if m_sto_txnid is not TXNID_NONE
+    bool sto_txnid_is_valid_unsafe(void) const;
+
+    // Effect:
+    //  Provides a hook for a helgrind suppression.
+    // Returns:
+    //  m_sto_score
+    int sto_get_score_unsafe(void )const;
 
     // effect: Creates a locktree that uses the given memory tracker
     //         to report memory usage and honor memory constraints.
@@ -299,10 +399,13 @@ private:
     void remove_overlapping_locks_for_txnid(TXNID txnid,
             const DBT *left_key, const DBT *right_key);
 
-    int try_acquire_lock(bool is_write_request, TXNID txnid,
+    int acquire_lock_consolidated(void *prepared_lkr, TXNID txnid,
             const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
 
     int acquire_lock(bool is_write_request, TXNID txnid,
+            const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
+
+    int try_acquire_lock(bool is_write_request, TXNID txnid,
             const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
 
     void escalate();

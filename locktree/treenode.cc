@@ -266,31 +266,23 @@ treenode *treenode::remove_root_of_subtree() {
     return this;
 }
 
-uint64_t treenode::recursive_remove(uint64_t *mem_released) {
-    // remove left and right subtrees
-    uint64_t nodes_removed = 0;
-
+void treenode::recursive_remove(void) {
     treenode *left = m_left_child.ptr;
     if (left) {
-        nodes_removed += left->recursive_remove(mem_released);
+        left->recursive_remove();
     }
     m_left_child.set(nullptr);
 
     treenode *right = m_right_child.ptr;
     if (right) {
-        nodes_removed += right->recursive_remove(mem_released);
+        right->recursive_remove();
     }
     m_right_child.set(nullptr);
 
-    // note the amount of memory to-be released by this node
-    if (mem_released) {
-        *mem_released += m_range.get_memory_size();
-    }
     // we do not take locks on the way down, so we know non-root nodes
     // are unlocked here and the caller is required to pass a locked
     // root, so this free is correct.
     treenode::free(this);
-    return nodes_removed + 1;
 }
 
 treenode *treenode::remove(const keyrange &range) {

@@ -58,20 +58,10 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
         lock_and_append_point_for_txnid_a(zero);
         maybe_point_locks_for_txnid_b(2);
 
-        // txnid b does not take a lock on iteration 3
-        if (where != 3) {
-            invariant(num_row_locks(lt) == 4);
-        } else {
-            invariant(num_row_locks(lt) == 3);
-        }
-
-
         lt->release_locks(txnid_a, &buffer);
 
         // txnid b does not take a lock on iteration 3
         if (where != 3) {
-            invariant(num_row_locks(lt) == 1);
-
             struct verify_fn_obj {
                 TXNID expected_txnid;
                 keyrange *expected_range;

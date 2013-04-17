@@ -116,6 +116,7 @@ void range_buffer::create(void) {
     m_buf = nullptr;
     m_buf_size = 0;
     m_buf_current = 0;
+    m_num_ranges = 0;
 }
 
 void range_buffer::append(const DBT *left_key, const DBT *right_key) {
@@ -125,6 +126,19 @@ void range_buffer::append(const DBT *left_key, const DBT *right_key) {
     } else {
         append_range(left_key, right_key);
     }
+    m_num_ranges++;
+}
+
+bool range_buffer::is_empty(void) const {
+    return m_buf == nullptr;
+}
+
+uint64_t range_buffer::get_num_bytes(void) const {
+    return m_buf_current;
+}
+
+int range_buffer::get_num_ranges(void) const {
+    return m_num_ranges;
 }
 
 void range_buffer::destroy(void) {

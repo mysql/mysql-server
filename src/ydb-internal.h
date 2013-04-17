@@ -95,6 +95,12 @@ struct __toku_db_env_internal {
     int tmpdir_lockfd;
 };
 
+// test-only environment function for running lock escalation
+static inline void toku_env_run_lock_escalation_for_test(DB_ENV *env) {
+    toku::locktree::manager *mgr = &env->i->ltm;
+    mgr->run_escalation_for_test();
+}
+
 // Common error handling macros and panic detection
 #define MAYBE_RETURN_ERROR(cond, status) if (cond) return status;
 #define HANDLE_PANICKED_ENV(env) if (toku_env_is_panicked(env)) { sleep(1); return EINVAL; }
