@@ -6072,7 +6072,20 @@ uint32_t ha_tokudb::get_cursor_isolation_flags(enum thr_lock_type lock_type, THD
              (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables) || 
              sql_command != SQLCOM_SELECT ||
              (sql_command == SQLCOM_SELECT && lock_type >= TL_WRITE_ALLOW_WRITE)) { // select for update 
-        return DB_SERIALIZABLE;
+      ulong tx_isolation = thd_tx_isolation(thd);
+      // pattern matched from InnoDB
+      if ( (tx_isolation == ISO_READ_COMMITTED || tx_isolation == ISO_READ_UNCOMMITTED) &&
+	   (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
+	   (sql_command == SQLCOM_INSERT_SELECT
+              || sql_command == SQLCOM_REPLACE_SELECT
+              || sql_command == SQLCOM_UPDATE
+	    || sql_command == SQLCOM_CREATE_TABLE) ) 
+        {
+	  return 0;
+        }
+      else {
+	return DB_SERIALIZABLE;
+      }            
     }
     else {
         return 0;
