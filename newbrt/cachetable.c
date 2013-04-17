@@ -280,7 +280,7 @@ struct cachefile {
     int n_background_jobs; // how many jobs in the cachetable's kibbutz or
                            // on the cleaner thread (anything
                            // cachetable_flush_cachefile should wait on)
-                           // are working on this. Each job should, at the
+                           // are working on this cachefile. Each job should, at the
                            // end, obtain the cachetable mutex, decrement
                            // this variable, and broadcast the
                            // kibbutz_wait condition variable to let
@@ -320,7 +320,7 @@ void remove_background_job(CACHEFILE cf, bool already_locked)
 }
 
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra)
-// The function f must call remove_background_job is true
+// The function f must call remove_background_job when it completes
 {
     add_background_job(cf, false);
     toku_kibbutz_enq(cf->cachetable->kibbutz, f, extra);
@@ -1018,6 +1018,12 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
     }
 }
 
+//
+// This client calls this function to flush all PAIRs belonging to
+// a cachefile from the cachetable. The client must ensure that
+// while this function is called, no other thread does work on the 
+// cachefile.
+//
 int toku_cachefile_flush (CACHEFILE cf) {
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -1752,6 +1758,13 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p)
     }
 }
 
+//
+// For each PAIR associated with these CACHEFILEs and CACHEKEYs
+// if the checkpoint_pending bit is set and the PAIR is dirty, write the PAIR
+// to disk.
+// We assume the PAIRs passed in have been locked by the client that made calls
+// into the cachetable that eventually make it here.
+//
 static void checkpoint_dependent_pairs(
     CACHETABLE ct,
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
@@ -1949,24 +1962,19 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
     write_for_checkpoint_pair = NULL;
 }
 
+//
+// cachetable lock and PAIR lock are held on entry
+// On exit, cachetable lock is still held, but PAIR lock
+// is either released or ownership of PAIR lock is transferred
+// via the completion queue.
+//
 static void
 do_partial_fetch(CACHETABLE ct, CACHEFILE cachefile, PAIR p, CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback, void *read_extraargs)
 {
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = zero_attr;
-    //
-    // The reason we have this assert is a sanity check
-    // to make sure that it is ok to set the 
-    // state of the pair to CTPAIR_READING.
-    // 
-    // As of this writing, the checkpoint code assumes
-    // that every pair that is in the CTPAIR_READING state
-    // is not dirty. Because we require dirty nodes to be
-    // fully in memory, we should never have a dirty node 
-    // require a partial fetch. So, just to be sure that 
-    // we can set the pair to CTPAIR_READING, we assert
-    // that the pair is not dirty
-    //
+    // As of Dr. No, only clean PAIRs may have pieces missing,
+    // so we do a sanity check here.
     assert(!p->dirty);
     p->state = CTPAIR_READING;
 
@@ -2078,19 +2086,8 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             // and then call a callback to retrieve what we need
             //
             if (partial_fetch_required) {
-                //
-                // The reason we have this assert is a sanity check
-                // to make sure that it is ok to set the 
-                // state of the pair to CTPAIR_READING.
-                // 
-                // As of this writing, the checkpoint code assumes
-                // that every pair that is in the CTPAIR_READING state
-                // is not dirty. Because we require dirty nodes to be
-                // fully in memory, we should never have a dirty node 
-                // require a partial fetch. So, just to be sure that 
-                // we can set the pair to CTPAIR_READING, we assert
-                // that the pair is not dirty
-                //
+                // As of Dr. No, only clean PAIRs may have pieces missing,
+                // so we do a sanity check here.
                 assert(!p->dirty);
                 p->state = CTPAIR_READING;
 
