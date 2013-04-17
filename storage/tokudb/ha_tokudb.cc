@@ -55,7 +55,6 @@ static const char *ha_tokudb_exts[] = {
 #define lockretry lockretryN(100)
 
 #define lockretry_wait \
-    do { \
         if (error != DB_LOCK_NOTGRANTED) { \
             break;  \
         } \
@@ -63,7 +62,6 @@ static const char *ha_tokudb_exts[] = {
             TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
         } \
         usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
-    } while (0)
 
 //
 // This offset is calculated starting from AFTER the NULL bytes
