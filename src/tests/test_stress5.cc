@@ -36,6 +36,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     soe[0].prefetch = false;
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
+    myargs[0].txn_flags = DB_TXN_SNAPSHOT | DB_TXN_READ_ONLY;
 
     // make the forward slow scanner
     soe[1].fast = false;

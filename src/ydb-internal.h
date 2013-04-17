@@ -206,6 +206,16 @@ env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
 
+static inline bool
+txn_is_read_only(DB_TXN* txn) {
+    if (txn && (db_txn_struct_i(txn)->flags & DB_TXN_READ_ONLY)) {
+        return true;
+    }
+    return false;
+}
+
+#define HANDLE_READ_ONLY_TXN(txn) if(txn_is_read_only(txn)) return EINVAL;
+
 void env_panic(DB_ENV * env, int cause, const char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);

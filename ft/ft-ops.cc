@@ -3905,7 +3905,10 @@ static int
 does_txn_read_entry(TXNID id, TOKUTXN context) {
     int rval;
     TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(context);
-    if (id < oldest_live_in_snapshot || id == context->txnid.parent_id64) {
+    if (oldest_live_in_snapshot == TXNID_NONE && id < context->snapshot_txnid64) {
+        rval = TOKUDB_ACCEPT;
+    }
+    else if (id < oldest_live_in_snapshot || id == context->txnid.parent_id64) {
         rval = TOKUDB_ACCEPT;
     }
     else if (id > context->snapshot_txnid64 || toku_is_txn_in_live_root_txn_list(*context->live_root_txn_list, id)) {
