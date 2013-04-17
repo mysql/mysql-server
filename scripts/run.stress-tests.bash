@@ -117,7 +117,7 @@ run_test() {
     t2=""
     envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
     cd $rundir
-    if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
+    if LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
         ../$exec -v --only_create --num_seconds 600 --envdir "$envdir" \
         --num_elements $table_size \
         --cachetable_size $cachetable_size &> $tmplog
