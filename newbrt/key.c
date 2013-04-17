@@ -60,7 +60,9 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 	    return (int)*k1-(int)*k2;
 	}
     }
-    return key1len-key2len;
+    if (key1len<key2len) return -1;
+    if (key1len>key2len) return 1;
+    return 0;
 }
 #else
 /* unroll that one four times */
@@ -84,8 +86,9 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 	    return (int)*k1-(int)*k2;
 	}
     }
-    //See #1576.  For very large keylengths this is a problem.  Our maximum keysize is << INT_MAX so this is not an issue.
-    return key1len-key2len;
+    if (key1len<key2len) return -1;
+    if (key1len>key2len) return 1;
+    return 0;
 }
 
 #endif
