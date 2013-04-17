@@ -901,9 +901,6 @@ brt_leaf_apply_cmd_once (
     const BRT_MSG cmd,
     u_int32_t idx,
     LEAFENTRY le,
-    OMT snapshot_xids,
-    OMT live_list_reverse,
-    OMT live_root_txns,
     uint64_t *workdonep
     );
 
@@ -916,10 +913,7 @@ brt_leaf_put_cmd (
     BRTNODE leafnode,
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
-    uint64_t *workdone,
-    OMT snapshot_txnids,
-    OMT live_list_reverse,
-    OMT live_root_txns
+    uint64_t *workdone
     );
 
 void toku_apply_cmd_to_leaf(
@@ -928,10 +922,7 @@ void toku_apply_cmd_to_leaf(
     DESCRIPTOR desc, 
     BRTNODE node, 
     BRT_MSG cmd, 
-    uint64_t *workdone,
-    OMT snapshot_txnids,
-    OMT live_list_reverse,
-    OMT live_root_txns
+    uint64_t *workdone
     );
 
 // FIXME needs toku prefix
@@ -941,10 +932,7 @@ void brtnode_put_cmd (
     DESCRIPTOR desc,
     BRTNODE node, 
     BRT_MSG cmd, 
-    bool is_fresh,
-    OMT snapshot_txnids,
-    OMT live_list_reverse,
-    OMT live_root_txns
+    bool is_fresh
     );
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
