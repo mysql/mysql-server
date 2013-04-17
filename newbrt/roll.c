@@ -304,9 +304,13 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(
 
     OMTVALUE brtv=NULL;
     r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
-    assert(r==0); // we cannot handle the case where the table is already closed...  Is that an important case?  If it is important, we could do something about it by creating a "truncate" message that propagates down the tree, removing everything.
-    BRT brt = brtv;
-    r = toku_brt_truncate(brt);
+    if (r==0) {
+	// If r!=0 it could be because we grabbed a log on an empty table that doesn't even exist, and we never put anything into it.
+	// So, just don't do anything in this case.
+	BRT brt = brtv;
+	r = toku_brt_truncate(brt);
+	assert(r==0);
+    }
 
     return toku_cachefile_close(&cf, toku_txn_logger(txn), 0);
 }
