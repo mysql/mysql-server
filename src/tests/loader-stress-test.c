@@ -250,7 +250,8 @@ static void test_loader(DB **dbs)
         db_flags[i] = flags;
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    
+    uint32_t loader_flags = USE_PUTS ? LOADER_USE_PUTS : 0; // set with -p option
 
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
@@ -359,6 +360,8 @@ static void run_test(void)
         dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
         dbs[i] = NULL;
     }
+    if (verbose >= 2)
+	print_engine_status(env);
     r = env->close(env, 0);                                                                                   CKERR(r);
     toku_free(dbs);
 }
